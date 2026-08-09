@@ -269,6 +269,60 @@
         .v-switch .thumb { position: absolute; left: .25rem; top: 50%; transform: translateY(-50%); width: 1rem; height: 1rem; background: #fff; border-radius: 999px; transition: transform .25s cubic-bezier(.34,1.56,.64,1); box-shadow: 0 1px 3px rgba(0,0,0,.25); }
         .v-switch input:checked ~ .thumb { transform: translate(1.25rem, -50%); }
         .v-switch input:disabled ~ .track { opacity: .5; }
+
+        /* ── TAB NAVIGATION ─────────────────────────────────────────────── */
+        .sv-tabs {
+            display: flex; gap: .25rem; padding: .35rem;
+            background: var(--surface-2, #F4F7FA);
+            border-radius: var(--rad-lg, 14px);
+            margin-bottom: 1.75rem;
+            overflow-x: auto; -webkit-overflow-scrolling: touch;
+        }
+        .sv-tab {
+            flex: 1 1 0; display: flex; align-items: center; justify-content: center;
+            gap: .5rem; padding: .7rem 1.25rem; border: none;
+            border-radius: var(--rad, 12px); background: transparent;
+            color: var(--ink-soft, #5C6B7E); font-size: .88rem; font-weight: 500;
+            cursor: pointer; transition: all .25s ease; white-space: nowrap;
+        }
+        .sv-tab:hover { color: var(--ink, #1B2330); background: rgba(0,0,0,.04); }
+        .sv-tab.active {
+            background: var(--surface, #fff); color: var(--ink, #1B2330);
+            font-weight: 600; box-shadow: var(--sh-sm, 0 1px 3px rgba(0,0,0,.08));
+        }
+        .sv-tab .sv-tab-badge {
+            display: inline-flex; align-items: center; justify-content: center;
+            min-width: 1.4rem; height: 1.4rem; padding: 0 .4rem;
+            border-radius: 999px; font-size: .72rem; font-weight: 700;
+            font-variant-numeric: tabular-nums;
+            background: var(--warn-bg, #FDF1E0); color: var(--warn, #B45309);
+            transition: all .25s ease;
+        }
+        .sv-tab.active .sv-tab-badge {
+            background: var(--brand-tint, #FDE7F4); color: var(--brand-deep, #A8006F);
+        }
+        .sv-tab-badge:empty, .sv-tab-badge[data-count="0"] { display: none; }
+        .sv-panel { display: none; animation: svFadeIn .3s ease; }
+        .sv-panel.active { display: block; }
+        @keyframes svFadeIn {
+            from { opacity: 0; transform: translateY(6px); }
+            to   { opacity: 1; transform: translateY(0); }
+        }
+        [data-theme="carbon"] .sv-tabs { background: rgba(255,255,255,.06); }
+        [data-theme="carbon"] .sv-tab:hover { background: rgba(255,255,255,.08); }
+        [data-theme="carbon"] .sv-tab.active {
+            background: rgba(255,255,255,.12); color: #F1F5F9;
+        }
+        [data-theme="carbon"] .sv-tab .sv-tab-badge {
+            background: rgba(242,182,90,.2); color: #F2B65A;
+        }
+        [data-theme="carbon"] .sv-tab.active .sv-tab-badge {
+            background: rgba(255,122,207,.2); color: #FF7ACF;
+        }
+        @media (max-width: 640px) {
+            .sv-tabs { gap: .15rem; padding: .25rem; }
+            .sv-tab { padding: .6rem .75rem; font-size: .82rem; }
+        }
     </style>
 <!-- Utilidades Tailwind compiladas: va al final del head, igual que la hoja que el CDN inyectaba. -->
 <?!= include('app_tailwind'); ?>
@@ -301,6 +355,30 @@
                 </button>
             </div>
         </header>
+
+        <!-- ── Navegación por pestañas ──────────────────────────────────── -->
+        <nav class="sv-tabs" role="tablist" aria-label="Secciones del panel" data-animate>
+            <button class="sv-tab active" role="tab" aria-selected="true" aria-controls="panel-revision" data-tab="revision">
+                <span class="w-4 h-4 block" data-icon="clock"></span>
+                Revisión
+                <span class="sv-tab-badge" id="tab-pend-badge" data-count="0"></span>
+            </button>
+            <button class="sv-tab" role="tab" aria-selected="false" aria-controls="panel-equipo" data-tab="equipo">
+                <span class="w-4 h-4 block" data-icon="user"></span>
+                Equipo
+            </button>
+            <button class="sv-tab" role="tab" aria-selected="false" aria-controls="panel-metricas" data-tab="metricas">
+                <span class="w-4 h-4 block" data-icon="chart"></span>
+                Métricas
+            </button>
+            <button class="sv-tab" role="tab" aria-selected="false" aria-controls="panel-supervision" data-tab="supervision">
+                <span class="w-4 h-4 block" data-icon="search"></span>
+                Supervisión
+            </button>
+        </nav>
+
+        <!-- ══════════ Panel 1: Revisión ══════════ -->
+        <div id="panel-revision" class="sv-panel active" role="tabpanel">
 
         <!--
           COLA DE REVISIÓN — apartado principal del panel.
@@ -403,6 +481,16 @@
             </div>
         </section>
 
+        </div><!-- /panel-revision -->
+
+        <!-- ══════════ Panel 2: Equipo ══════════ -->
+        <div id="panel-equipo" class="sv-panel" role="tabpanel">
+            <!-- El contenido del equipo se mueve aquí automáticamente vía JS (initTabs) -->
+        </div><!-- /panel-equipo -->
+
+        <!-- ══════════ Panel 3: Métricas ══════════ -->
+        <div id="panel-metricas" class="sv-panel" role="tabpanel">
+
         <div id="loading-placeholder" class="text-center p-12 text-slate-500"><div class="flex items-center justify-center gap-3"><div class="v-spinner w-6 h-6"></div> Cargando estadísticas...</div></div>
 
         <div id="dashboard-content" class="hidden">
@@ -496,6 +584,12 @@
                 </div>
                 <div id="mc-empty" class="hidden v-card p-8 text-center text-slate-500">Aún no hay correos registrados. Cuando el equipo envíe correos aparecerán aquí.</div>
             </section>
+        </div><!-- /dashboard-content -->
+
+        </div><!-- /panel-metricas -->
+
+        <!-- ══════════ Panel 4: Supervisión ══════════ -->
+        <div id="panel-supervision" class="sv-panel" role="tabpanel">
 
             <!-- ============ SUPERVISIÓN DE COTIZACIONES ============ -->
             <section class="mb-8" data-animate>
@@ -576,7 +670,9 @@
                     <div class="p-6 text-sm text-slate-500 flex items-center gap-3"><div class="v-spinner w-4 h-4"></div> Cargando formatos...</div>
                 </div>
             </section>
-        </div>
+
+        </div><!-- /panel-supervision -->
+
         <footer class="text-center mt-12"><p class="text-sm text-slate-500">¿Necesitas ayuda? <button type="button" data-support-link class="font-medium text-brand-pink hover:underline">Contacta al equipo de Ventel</button></p></footer>
     </main>
 
@@ -693,10 +789,57 @@
                     const secEq = document.getElementById('eq-seccion');
                     if (secEq) secEq.style.display = '';
                 }
-                if (!PUEDE.metricas) {
-                    ocultar('dashboard-content');
-                    ocultar('loading-placeholder');
-                }
+                // Las métricas se ocultan vía la pestaña (initTabs).
+            })();
+
+            /* ── Pestañas ───────────────────────────────────────────────────────
+               Organiza el panel en cuatro zonas: Revisión, Equipo, Métricas y
+               Supervisión. Cada pestaña controla la visibilidad de su .sv-panel;
+               la que no le toca al usuario (sin permiso) se oculta.  */
+            (function initTabs() {
+                const tabs = document.querySelectorAll('.sv-tab[data-tab]');
+                const panels = {
+                    revision:    document.getElementById('panel-revision'),
+                    equipo:      document.getElementById('panel-equipo'),
+                    metricas:    document.getElementById('panel-metricas'),
+                    supervision: document.getElementById('panel-supervision')
+                };
+
+                const activate = (key) => {
+                    tabs.forEach(t => {
+                        const isActive = t.dataset.tab === key;
+                        t.classList.toggle('active', isActive);
+                        t.setAttribute('aria-selected', isActive);
+                    });
+                    Object.keys(panels).forEach(k => {
+                        if (panels[k]) panels[k].classList.toggle('active', k === key);
+                    });
+                };
+                window._svActivateTab = activate;
+
+                tabs.forEach(t => t.addEventListener('click', () => activate(t.dataset.tab)));
+
+                /* Mover la sección de equipo a su panel (nace donde estaba en el HTML
+                   para no romper nada si el JS no llega). */
+                const eqPanel = panels.equipo;
+                const eqSec = document.getElementById('eq-seccion');
+                if (eqPanel && eqSec) eqPanel.appendChild(eqSec);
+
+                /* Ocultar pestañas cuyo contenido no le toca a esta persona. */
+                const tabRevision    = document.querySelector('[data-tab="revision"]');
+                const tabEquipo      = document.querySelector('[data-tab="equipo"]');
+                const tabMetricas    = document.querySelector('[data-tab="metricas"]');
+
+                if (!PUEDE.revisar && !PUEDE.metricas && !PUEDE.politica && tabRevision) tabRevision.style.display = 'none';
+                if (!PUEDE.equipo && tabEquipo) tabEquipo.style.display = 'none';
+                if (!PUEDE.metricas && tabMetricas) tabMetricas.style.display = 'none';
+
+                /* Activar la primera pestaña VISIBLE por defecto. */
+                const firstVisible = Array.from(tabs).find(t => t.style.display !== 'none');
+                if (firstVisible) activate(firstVisible.dataset.tab);
+
+                /* Si se pidió ir al equipo desde un deep-link (?ancla=eq-seccion), activar su pestaña. */
+                if (window.AppUrl && AppUrl.param('ancla') === 'eq-seccion') activate('equipo');
             })();
 
             // El loader de marca cubre el arranque; se retira en cuanto la pantalla está lista.
@@ -1144,6 +1287,12 @@
                 const verTodas = document.getElementById('pend-ver-todas');
 
                 document.getElementById('pend-num').textContent = pendientes.length;
+                // Actualizar badge de la pestaña de Revisión
+                const tabBadge = document.getElementById('tab-pend-badge');
+                if (tabBadge) {
+                    tabBadge.textContent = pendientes.length || '';
+                    tabBadge.dataset.count = pendientes.length;
+                }
                 seccion.classList.toggle('al-dia', pendientes.length === 0);
                 verTodas.classList.toggle('hidden', pendientes.length === 0);
 
@@ -1204,6 +1353,8 @@
             // "Ver todas": deja la tabla de abajo filtrada por lo que sigue pendiente y
             // lleva la vista hasta ella, en vez de abrir otra pantalla.
             document.getElementById('pend-ver-todas').addEventListener('click', () => {
+                // Cambiar a la pestaña de Supervisión
+                if (window._svActivateTab) window._svActivateTab('supervision');
                 supSearch.value = '';
                 supDateFrom.value = '';
                 supDateTo.value = '';
