@@ -39,6 +39,15 @@
   --op-s1: 4px; --op-s2: 8px; --op-s3: 12px; --op-s4: 16px; --op-s5: 24px; --op-s6: 32px;
   --op-rad: 12px; --op-rad-sm: 8px; --op-rad-lg: 16px;
   --op-sh: 0 12px 28px -10px rgba(16,24,40,.22), 0 3px 8px -4px rgba(16,24,40,.12);
+
+  /* La pastilla flota sobre pantallas de cualquier color, así que su sombra se arma en
+     dos capas: un contacto muy corto que la despega del fondo y una difusa y larga que
+     le da altura sin ensuciar lo que tiene debajo. Una sola sombra ancha la hacía
+     parecer un recuadro gris pegado a la esquina. */
+  --op-sh-pastilla: 0 1px 2px rgba(16,24,40,.06), 0 10px 26px -14px rgba(16,24,40,.38);
+  --op-sh-pastilla-alta: 0 2px 5px rgba(16,24,40,.07), 0 18px 38px -16px rgba(16,24,40,.46);
+  --op-brillo: inset 0 1px 0 rgba(255,255,255,.65);
+
   --op-f: var(--f-ui, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif);
 
   font-family: var(--op-f);
@@ -53,44 +62,118 @@
   --op-alert: #FCA5A5;--op-alert-bg: rgba(252,165,165,.14);
   --op-info: #93B4FF; --op-info-bg: rgba(147,180,255,.14);
   --op-neutro: #A7A2AC; --op-neutro-bg: rgba(167,162,172,.12);
+
+  /* Sobre fondo oscuro una sombra clara no existe: lo que separa la pastilla del fondo
+     es una sombra mucho más densa y un filo de luz de una décima parte de fuerza. */
+  --op-sh-pastilla: 0 1px 2px rgba(0,0,0,.44), 0 12px 30px -14px rgba(0,0,0,.72);
+  --op-sh-pastilla-alta: 0 2px 6px rgba(0,0,0,.5), 0 20px 42px -16px rgba(0,0,0,.8);
+  --op-brillo: inset 0 1px 0 rgba(255,255,255,.07);
 }
 
 /* ── Pastilla fija ─────────────────────────────────────────────────────────── */
+/*
+ * La pastilla se ve encima de TODAS las pantallas del sistema, incluidas las que ya
+ * están llenas (cotización, revisión, consola). Antes ocupaba siempre el ancho de la
+ * frase completa —"Sistemas operando"— en una caja blanca con borde: un letrero fijo
+ * en la esquina que no decía nada nuevo el 99 % del tiempo.
+ *
+ * Ahora en reposo es un DISCO del tamaño de un punto: solo el color del estado, en un
+ * cristal que deja pasar lo que tiene detrás. El texto se despliega cuando alguien la
+ * apunta, la enfoca con el teclado o —sin que nadie la toque— cuando algo falla, que
+ * es cuando ocupar sitio está justificado. Esa es la jerarquía que este archivo decía
+ * tener desde el principio y que el CSS no cumplía.
+ */
 
 .op-pill {
-  position: fixed; left: 16px; bottom: 16px; z-index: 900;
-  display: inline-flex; align-items: center; gap: var(--op-s2);
-  padding: 8px 14px 8px 11px;
+  --op-tono: var(--op-ok);
+  /* --op-pill-suelo lo pone la pantalla que tenga algo pegado abajo (la barra de
+     navegación del móvil en Index). Sin él la pastilla se sienta encima de un botón de
+     esa barra y tapa justo lo que hay que tocar. */
+  position: fixed; left: 20px; bottom: calc(20px + var(--op-pill-suelo, 0px)); z-index: 900;
+  display: inline-flex; align-items: center; justify-content: center;
+  /* 14 + punto de 8 + 14 + los dos filos = 38, exactamente el alto: en reposo es un
+     círculo, no una cápsula achatada. */
+  height: 38px; padding: 0 14px;
   border-radius: 999px; border: 1px solid var(--op-line);
-  background: var(--op-surface); color: var(--op-ink);
-  font-family: var(--op-f); font-size: 13px; font-weight: 600; line-height: 1.2;
-  box-shadow: var(--op-sh); cursor: pointer;
-  transition: transform .18s cubic-bezier(.2,.8,.2,1), box-shadow .18s, background .18s;
-  max-width: calc(100vw - 32px);
+  background: var(--op-surface); color: var(--op-ink-soft);
+  font-family: var(--op-f); font-size: 12.5px; font-weight: 600;
+  letter-spacing: -.005em; line-height: 1;
+  box-shadow: var(--op-brillo), var(--op-sh-pastilla);
+  cursor: pointer; -webkit-tap-highlight-color: transparent;
+  transition: transform .22s cubic-bezier(.2,.8,.2,1), box-shadow .22s ease,
+              background .22s ease, border-color .22s ease, color .22s ease;
+  max-width: calc(100vw - 40px);
 }
-.op-pill:hover { transform: translateY(-2px); }
+
+/* Cristal: solo donde el navegador sabe desenfocar el fondo. Si color-mix no existe, la
+   declaración entera se descarta y queda el fondo sólido de arriba. */
+@supports ((-webkit-backdrop-filter: blur(1px)) or (backdrop-filter: blur(1px))) {
+  .op-pill {
+    background: color-mix(in srgb, var(--op-surface) 76%, transparent);
+    -webkit-backdrop-filter: blur(14px) saturate(1.7);
+    backdrop-filter: blur(14px) saturate(1.7);
+  }
+}
+
+.op-pill:hover { transform: translateY(-2px); box-shadow: var(--op-brillo), var(--op-sh-pastilla-alta); }
+.op-pill:active { transform: translateY(0) scale(.97); }
 .op-pill:focus-visible { outline: 2px solid var(--op-brand); outline-offset: 3px; }
 .op-pill[hidden] { display: none; }
 
-.op-pill-dot { width: 9px; height: 9px; border-radius: 50%; flex: none; background: var(--op-ok); }
-.op-pill-tx { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+/* El punto lleva un halo del mismo color: a 8 px, un círculo plano sobre cristal se lee
+   como una mota de suciedad; el halo lo convierte en una señal. */
+.op-pill-dot {
+  position: relative; width: 8px; height: 8px; border-radius: 50%; flex: none;
+  background: var(--op-tono);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--op-tono) 20%, transparent);
+  transition: background .22s ease, box-shadow .22s ease;
+}
+.op-pill-dot::after {
+  content: ''; position: absolute; inset: -2px; border-radius: 50%;
+  border: 1.5px solid var(--op-tono); opacity: 0;
+}
+
+/* El texto no se oculta con display:none: se pliega. Así la pastilla crece y encoge en
+   un solo movimiento en vez de dar un salto. */
+.op-pill-tx {
+  display: block; max-width: 0; margin-left: 0; opacity: 0;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  transition: max-width .34s cubic-bezier(.2,.8,.2,1),
+              margin-left .34s cubic-bezier(.2,.8,.2,1), opacity .22s ease;
+}
+.op-pill:hover .op-pill-tx,
+.op-pill:focus-visible .op-pill-tx,
+.op-pill.op-desplegada .op-pill-tx { max-width: 15rem; margin-left: 9px; opacity: 1; }
+
 .op-pill-ic { width: 15px; height: 15px; flex: none; }
 
-.op-pill.tono-ok     { color: var(--op-ok); }
-.op-pill.tono-warn   { background: var(--op-warn-bg);  border-color: var(--op-warn);  color: var(--op-warn); }
-.op-pill.tono-alert  { background: var(--op-alert-bg); border-color: var(--op-alert); color: var(--op-alert); }
-.op-pill.tono-info   { background: var(--op-info-bg);  border-color: var(--op-info);  color: var(--op-info); }
-.op-pill.tono-warn  .op-pill-dot { background: var(--op-warn); }
-.op-pill.tono-alert .op-pill-dot { background: var(--op-alert); }
-.op-pill.tono-info  .op-pill-dot { background: var(--op-info); }
+/* Cuando todo funciona el color lo pone SOLO el punto: la frase en verde sobre cristal
+   se leía como un aviso más, y "todo bien" no es un aviso. */
+.op-pill.tono-ok     { --op-tono: var(--op-ok);    color: var(--op-ink-soft); }
+.op-pill.tono-warn   { --op-tono: var(--op-warn);  background: var(--op-warn-bg);  color: var(--op-warn); }
+.op-pill.tono-alert  { --op-tono: var(--op-alert); background: var(--op-alert-bg); color: var(--op-alert); }
+.op-pill.tono-info   { --op-tono: var(--op-info);  background: var(--op-info-bg);  color: var(--op-info); }
+.op-pill.tono-warn, .op-pill.tono-alert, .op-pill.tono-info {
+  border-color: color-mix(in srgb, var(--op-tono) 34%, transparent);
+}
+@supports not (color: color-mix(in srgb, red 50%, transparent)) {
+  .op-pill.tono-warn  { border-color: var(--op-warn); }
+  .op-pill.tono-alert { border-color: var(--op-alert); }
+  .op-pill.tono-info  { border-color: var(--op-info); }
+}
 
 /* Solo lo que ESPERA algo late. Es la única animación permanente del módulo, y por eso
-   se distingue sin tener que leerla. */
-.op-pill.late .op-pill-dot { animation: op-latido 2.2s ease-in-out infinite; }
-@keyframes op-latido { 0%,100% { opacity: 1; transform: scale(1); } 50% { opacity: .45; transform: scale(.82); } }
+   se distingue sin tener que leerla. Late el HALO, no el punto: parpadear el punto lo
+   apagaba media animación y, de reojo, parecía que el indicador se había caído. */
+.op-pill.late .op-pill-dot::after { animation: op-pulso 2.6s cubic-bezier(.22,.8,.3,1) infinite; }
+@keyframes op-pulso {
+  0%   { transform: scale(.7);  opacity: .7; }
+  70%  { transform: scale(2.6); opacity: 0; }
+  100% { transform: scale(2.6); opacity: 0; }
+}
 
 .op-cont { display: inline-flex; align-items: center; justify-content: center;
-  min-width: 18px; height: 18px; padding: 0 5px; border-radius: 999px;
+  min-width: 18px; height: 18px; margin-left: 8px; padding: 0 5px; border-radius: 999px;
   background: currentColor; font-size: 11px; font-weight: 700; flex: none; }
 .op-cont span { color: var(--op-surface); }
 
@@ -98,7 +181,8 @@
 
 .op-scrim {
   position: fixed; inset: 0; z-index: 950;
-  background: rgba(16,24,40,.45); backdrop-filter: blur(2px);
+  background: rgba(16,24,40,.45);
+  -webkit-backdrop-filter: blur(3px); backdrop-filter: blur(3px);
   opacity: 0; pointer-events: none; transition: opacity .25s;
 }
 .op-scrim.abierto { opacity: 1; pointer-events: auto; }
@@ -369,8 +453,12 @@
     border-left: 0; border-top: 1px solid var(--op-line); transform: translateY(100%); }
   .op-panel.abierto { transform: translateY(0); }
   .op-head, .op-cuerpo, .op-pie { padding-left: var(--op-s4); padding-right: var(--op-s4); }
-  .op-pill { left: 12px; bottom: 12px; }
-  .op-pill .op-pill-tx { max-width: 46vw; }
+  /* En el teléfono no hay hover: la pastilla es un disco hasta que algo falla, y
+     entonces el texto no puede pasar de media pantalla o tapa el contenido. */
+  .op-pill { left: 14px; bottom: calc(14px + var(--op-pill-suelo, 0px)); }
+  .op-pill:hover .op-pill-tx,
+  .op-pill:focus-visible .op-pill-tx,
+  .op-pill.op-desplegada .op-pill-tx { max-width: 52vw; }
 }
 
 /* Ni el indicador ni el panel salen en un PDF de cotización. `.no-print` solo existe en
@@ -380,8 +468,11 @@
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .op-pill, .op-panel, .op-scrim, .op-inc, .op-aviso { transition-duration: .01ms !important; }
-  .op-pill.late .op-pill-dot, .op-sk::after { animation: none !important; }
+  .op-pill, .op-pill-tx, .op-panel, .op-scrim, .op-inc, .op-aviso { transition-duration: .01ms !important; }
+  .op-pill.late .op-pill-dot::after, .op-sk::after { animation: none !important; }
+  /* Sin la animación del halo, lo que espera algo necesita otra señal quieta: el filo
+     del punto se queda pintado en vez de latir. */
+  .op-pill.late .op-pill-dot::after { opacity: .55; transform: scale(1.9); }
 }
 </style>
 
@@ -412,6 +503,9 @@
   var raiz = null, pastilla = null, panel = null, scrim = null, cuerpo = null, pie = null;
   var abierto = false, vista = 'estado', disparador = null;
   var cargando = false, ultimaCarga = 0;
+  var scrollPrevio = '';        // overflow que traía la pantalla antes de abrir el panel
+  var presentada = false;       // la pastilla ya se presentó con su rótulo en esta carga
+  var presentando = false;      // …y lo está enseñando ahora mismo
   var memoria = null;           // respaldo si AppCache no existe
 
   /* ── Iconos en línea (no dependemos de app_icons: el Portal no lo incluye) ── */
@@ -574,7 +668,23 @@
       late = true;
     }
 
-    pastilla.className = 'op-pill tono-' + tono + (late ? ' late' : '');
+    // Si todo va bien la pastilla es un disco sin texto, y un disco solo no dice qué es.
+    // La primera vez que aparece se presenta con su rótulo y se recoge sola: se entiende
+    // qué es sin dejar un letrero puesto el resto de la sesión. El estado vive fuera de
+    // esta función porque el mismo estado se repinta dos veces (caché y servidor) y el
+    // segundo pintado cortaría la presentación a media frase.
+    if (!presentada) {
+      presentada = true;
+      presentando = true;
+      setTimeout(function () { presentando = false; pintarPastilla(); }, 3400);
+    }
+
+    // Con incidencias el rótulo se queda desplegado: no se puede pedir que alguien pase
+    // el ratón por encima para enterarse de que un sistema está caído.
+    var desplegada = afectados.length > 0 || presentando;
+
+    pastilla.className = 'op-pill tono-' + tono + (late ? ' late' : '') +
+                         (desplegada ? ' op-desplegada' : '');
     pastilla.innerHTML =
       '<span class="op-pill-dot"></span>' +
       '<span class="op-pill-tx">' + esc(texto) + '</span>' +
@@ -584,7 +694,7 @@
     var estabaOculta = pastilla.hidden;
     pastilla.hidden = false;
     if (estabaOculta && conGsap()) {
-      gsap.from(pastilla, { y: 22, opacity: 0, duration: .5, ease: 'power3.out', clearProps: 'transform' });
+      gsap.from(pastilla, { y: 22, opacity: 0, duration: .5, ease: 'power3.out', clearProps: 'transform,opacity' });
     }
   }
 
@@ -634,6 +744,27 @@
 
   /* ── Panel ──────────────────────────────────────────────────────────────── */
 
+  /**
+   * Devuelve el velo al CSS.
+   *
+   * GSAP anima escribiendo `style="opacity:…"` en el elemento, y un estilo en línea gana
+   * SIEMPRE a la clase. Al cerrar se quitaba `.abierto` pero el `opacity:1` que dejó la
+   * animación de apertura seguía ahí: el velo —y con él el desenfoque de toda la
+   * pantalla— se quedaba encima aunque el panel ya no se viera. Como `.op-scrim` sí
+   * quita los clics, la página respondía normal y el usuario solo veía que el fondo se
+   * había quedado borroso para siempre.
+   *
+   * Borrar el estilo en línea (en vez de fijar opacity:0) deja que la transición del CSS
+   * haga la salida: no hace falta duplicar la animación en JS.
+   */
+  function limpiarVelo() {
+    if (!scrim) return;
+    if (typeof window.gsap !== 'undefined') {
+      try { gsap.killTweensOf(scrim); } catch (e) {}
+    }
+    scrim.style.opacity = '';
+  }
+
   function abrir(quien, modo, sistema) {
     montar();
     disparador = quien || null;
@@ -645,9 +776,13 @@
     panel.setAttribute('aria-hidden', 'false');
     scrim.classList.add('abierto');
     panel.classList.add('abierto');
+    // Se guarda lo que la pantalla tuviera puesto: varias vienen con su propio overflow
+    // y devolverles '' al cerrar les cambiaba el scroll sin que nadie lo pidiera.
+    scrollPrevio = document.body.style.overflow;
     document.body.style.overflow = 'hidden';
 
     if (conGsap()) {
+      gsap.killTweensOf(scrim);
       gsap.fromTo(scrim, { opacity: 0 }, { opacity: 1, duration: .25, ease: 'power1.out' });
       var hijos = cuerpo.children;
       if (hijos.length) {
@@ -668,8 +803,10 @@
     abierto = false;
     panel.classList.remove('abierto');
     scrim.classList.remove('abierto');
+    limpiarVelo();
     panel.setAttribute('aria-hidden', 'true');
-    document.body.style.overflow = '';
+    document.body.style.overflow = scrollPrevio || '';
+    scrollPrevio = '';
     if (disparador && disparador.focus) { try { disparador.focus(); } catch (e) {} }
     disparador = null;
     vista = 'estado';
