@@ -111,67 +111,52 @@
   /* --op-pill-suelo lo pone la pantalla que tenga algo pegado abajo (la barra de
      navegación del móvil en Index). Sin él la pestaña se sienta encima de un botón de
      esa barra y tapa justo lo que hay que tocar. */
-  position: fixed; left: 0; bottom: calc(24px + var(--op-pill-suelo, 0px)); z-index: 900;
-  /* Sin `gap`: el texto se pliega a ancho 0 y un hueco de flex seguiría reservando su
-     espacio a los dos lados. La separación la ponen los márgenes de los hijos, que sí
-     se pueden animar hasta cero. */
-  display: inline-flex; align-items: center;
-  /* 36 px de alto: la altura de una fila de interfaz, no el diámetro de un punto. El
-     ancho en reposo lo fija el contenido (lomo + pulso), porque el texto está plegado. */
-  height: 36px; padding: 0 12px 0 14px;
-  /* Esquina izquierda RECTA: es lo que hace que se lea como pegada al borde de la
-     ventana y no como una cápsula que alguien dejó cerca del borde. */
-  border-radius: 0 10px 10px 0;
-  border: 1px solid var(--op-line); border-left: 0;
-  background: var(--op-surface); color: var(--op-ink-soft);
-  font-family: var(--op-f); font-size: 12.5px; font-weight: 650;
-  letter-spacing: -.005em; line-height: 1;
-  box-shadow: var(--op-brillo), var(--op-sh-pastilla);
+  position: fixed; left: 8px; bottom: calc(16px + var(--op-pill-suelo, 0px)); z-index: 900;
+  display: inline-flex; align-items: center; justify-content: flex-start;
+  height: 28px; padding: 0 5px; /* Círculo perfecto de 28x28px al estar cerrado */
+  border-radius: 14px; 
+  background: var(--op-surface);
+  border: 1px solid color-mix(in srgb, var(--op-line) 40%, transparent);
+  color: var(--op-ink);
+  box-shadow: 0 4px 12px -4px rgba(0,0,0,0.12), 0 2px 4px -2px rgba(0,0,0,0.08);
   cursor: pointer; -webkit-tap-highlight-color: transparent;
-  transition: transform .22s cubic-bezier(.2,.8,.2,1), box-shadow .22s ease,
-              background .22s ease, border-color .22s ease, color .22s ease,
-              opacity .22s ease;
-  max-width: calc(100vw - 16px);
-  overflow: hidden;   /* el lomo se recorta con el radio de la pestaña */
+  /* La expansión principal de texto ahora la maneja GSAP */
+  max-width: calc(100vw - 32px);
+  overflow: hidden;
 }
 
-/* EL LOMO. Es la señal de color, y por eso es lo único que no se pliega nunca: mide lo
-   mismo con texto y sin él. Va pegado al canto de la ventana, así que su borde izquierdo
-   es recto y el derecho lo redondea el overflow del padre. */
-.op-pill::before {
-  content: ''; position: absolute; left: 0; top: 0; bottom: 0; width: 4px;
-  background: var(--op-tono);
-  transition: background .22s ease;
+.op-pill:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 6px 16px -4px rgba(0,0,0,0.15), 0 4px 8px -4px rgba(0,0,0,0.1);
 }
 
-/* Se aparta del borde al apuntarla, en vez de levantarse: una pieza anclada que "flota"
-   contradice lo que dice su forma. */
-.op-pill:hover { transform: translateX(4px); box-shadow: var(--op-brillo), var(--op-sh-pastilla-alta); }
-.op-pill:active { transform: translateX(1px) scale(.985); }
+.op-pill::before { display: none; }
+
+.op-pill:active { transform: translateY(0) scale(0.98); }
 .op-pill:focus-visible { outline: 2px solid var(--op-brand); outline-offset: 3px; }
 .op-pill[hidden] { display: none; }
 
-/* EL PULSO. Sustituye al punto: un trazo de electrocardiograma en el color del estado.
-   Dice "esto se está midiendo ahora mismo" con una sola forma, que es justo lo que un
-   círculo no podía decir. Y a 22 px de ancho ocupa lo mismo que ocupaba el punto con
-   su halo, así que la pestaña en reposo no crece. */
-.op-pill-sig { display: flex; align-items: center; flex: none; color: var(--op-tono);
-  transition: color .22s ease; }
-.op-pill-sig svg { width: 22px; height: 11px; display: block; }
+/* Ícono sólido y sutil */
+.op-pill-sig { display: flex; align-items: center; justify-content: center; flex: none; color: var(--op-tono);
+  width: 18px; height: 18px; border-radius: 50%;
+  background: color-mix(in srgb, var(--op-tono) 12%, transparent);
+  transition: transform 0.3s ease; }
+.op-pill:hover .op-pill-sig { transform: scale(1.1); }
+.op-pill-sig svg { width: 12px; height: 6px; display: block; }
 
-/* El texto no se oculta con display:none: se pliega. Así la pastilla crece y encoge en
-   un solo movimiento en vez de dar un salto. */
+/* Texto animado con GSAP */
 .op-pill-tx {
-  display: block; max-width: 0; margin-left: 0; opacity: 0;
+  display: block; max-width: 0; margin-left: 0; padding: 0; opacity: 0;
   white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
-  transition: max-width .34s cubic-bezier(.2,.8,.2,1),
-              margin-left .34s cubic-bezier(.2,.8,.2,1), opacity .22s ease;
+  font-family: var(--op-f); font-size: 11.5px; font-weight: 600; letter-spacing: 0; line-height: 1;
 }
-.op-pill:hover .op-pill-tx,
-.op-pill:focus-visible .op-pill-tx,
-.op-pill.op-desplegada .op-pill-tx { max-width: 15rem; margin-left: 9px; opacity: 1; }
+/* Fallback si no hay GSAP activo en hover o cuando se despliega forzosamente por incidencia */
+.op-pill.op-desplegada .op-pill-tx {
+  max-width: 15rem; margin-left: 6px; padding-right: 4px; opacity: 1;
+  transition: max-width 0.5s cubic-bezier(0.19, 1, 0.22, 1), margin-left 0.5s cubic-bezier(0.19, 1, 0.22, 1), padding 0.5s cubic-bezier(0.19, 1, 0.22, 1), opacity 0.3s ease;
+}
 
-.op-pill-ic { width: 15px; height: 15px; flex: none; }
+.op-pill-ic { width: 14px; height: 14px; flex: none; }
 
 /* Cuando todo funciona el color lo ponen SOLO el lomo y el pulso: la frase en verde se
    leía como un aviso más, y "todo bien" no es un aviso.
@@ -185,21 +170,11 @@
    0,8 ES EL SUELO, no un gusto. El verde sobre blanco a esa opacidad da 3,66:1, y el
    mínimo AA para un elemento gráfico que porta información es 3:1. Si hay que hacerla
    más discreta, estréchala o acorta el lomo; no le bajes la opacidad. */
-.op-pill.tono-ok     { --op-tono: var(--op-ok);    color: var(--op-ink-soft); opacity: .8; }
-.op-pill.tono-ok:hover,
-.op-pill.tono-ok:focus-visible,
-.op-pill.tono-ok.op-desplegada { opacity: 1; }
-.op-pill.tono-warn   { --op-tono: var(--op-warn);  background: var(--op-warn-bg);  color: var(--op-warn); }
-.op-pill.tono-alert  { --op-tono: var(--op-alert); background: var(--op-alert-bg); color: var(--op-alert); }
-.op-pill.tono-info   { --op-tono: var(--op-info);  background: var(--op-info-bg);  color: var(--op-info); }
-.op-pill.tono-warn, .op-pill.tono-alert, .op-pill.tono-info {
-  border-color: color-mix(in srgb, var(--op-tono) 34%, transparent);
-}
-@supports not (color: color-mix(in srgb, red 50%, transparent)) {
-  .op-pill.tono-warn  { border-color: var(--op-warn); }
-  .op-pill.tono-alert { border-color: var(--op-alert); }
-  .op-pill.tono-info  { border-color: var(--op-info); }
-}
+.op-pill.tono-ok     { --op-tono: var(--op-ok); }
+.op-pill.tono-warn   { --op-tono: var(--op-warn); }
+.op-pill.tono-alert  { --op-tono: var(--op-alert); }
+.op-pill.tono-info   { --op-tono: var(--op-info); }
+/* El fondo y color general ahora siempre lo da el cristal esmerilado, no sobreescribimos */
 
 /* Solo lo que ESPERA algo se mueve. Es la única animación permanente del módulo, y por
    eso se distingue sin tener que leerla.
@@ -683,6 +658,21 @@
 
     pastilla.addEventListener('click', function () { abrir(this); });
     scrim.addEventListener('click', function () { cerrar(); });
+
+    pastilla.addEventListener('mouseenter', function() {
+      if (window.gsap && !pastilla.classList.contains('op-desplegada')) {
+        gsap.to(pastilla.querySelector('.op-pill-tx'), {
+          maxWidth: 240, marginLeft: 6, paddingRight: 4, opacity: 1, duration: 0.5, ease: "expo.out", overwrite: "auto"
+        });
+      }
+    });
+    pastilla.addEventListener('mouseleave', function() {
+      if (window.gsap && !pastilla.classList.contains('op-desplegada')) {
+        gsap.to(pastilla.querySelector('.op-pill-tx'), {
+          maxWidth: 0, marginLeft: 0, paddingRight: 0, opacity: 0, duration: 0.4, ease: "power2.inOut", overwrite: "auto"
+        });
+      }
+    });
 
     document.addEventListener('keydown', function (e) {
       if (e.key === 'Escape' && abierto) { e.stopPropagation(); cerrar(); }
