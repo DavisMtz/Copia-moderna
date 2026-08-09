@@ -44,7 +44,7 @@
                         <div class="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-3">
                             <span class="w-5 h-5 block text-slate-400" data-icon="search"></span>
                         </div>
-                        <input type="search" id="searchInput" name="search" placeholder="Busca por folio o cliente · Enter busca en todo el sistema" class="v-input" style="padding-left: 2.5rem;">
+                        <input type="search" id="searchInput" name="search" placeholder="Folio, cliente o su correo · si no es tuya, se busca en todo el equipo" class="v-input" style="padding-left: 2.5rem;">
                     </form>
                 </div>
             </div>
@@ -94,11 +94,13 @@
         window.__APP__ = { baseUrl: <?!= JSON.stringify(baseUrl) ?>, q: <?!= JSON.stringify(q) ?> };
     </script>
     <?!= include('app_core'); ?>
+    <?!= include('app_buscar'); ?>
     <?!= include('app_icons'); ?>
     <?!= include('app_estatus'); ?>
     <?!= include('app_motion'); ?>
     <?!= include('app_support'); ?>
     <?!= include('app_shell'); ?>
+    <?!= include('app_comando'); ?>
     <?!= include('app_onboarding'); ?>
     <?!= include('LoaderPartial'); ?>
     <?!= include('app_operacion'); ?>
@@ -132,9 +134,13 @@
               sel: '#searchInput',
               pos: 'abajo',
               titulo: 'Encontrar un folio',
-              texto: 'Escribe el <b>folio</b> (LVP-…) o el <b>nombre del cliente</b> y la tabla se filtra al momento.' +
-                     '<br><br>Con <b>Enter</b> la búsqueda sale de tu lista y va a todo el sistema: útil cuando ' +
-                     'el folio lo hizo otra persona del equipo.'
+              texto: 'Escribe el <b>folio</b> (LVP-…), el <b>nombre del cliente</b> o su <b>correo</b> y la tabla ' +
+                     'se filtra al momento. No hace falta escribirlo perfecto: encuentra igual sin acentos y ' +
+                     'con algún dedazo.' +
+                     '<br><br>Si no aparece entre las tuyas, la búsqueda sigue sola en las de todo el equipo ' +
+                     'y te dice de quién es cada folio.' +
+                     '<br><br>¿Buscas otra pantalla y no un folio? <b>Ctrl + K</b> abre el buscador general ' +
+                     'desde cualquier parte del sistema.'
             },
             {
               sel: '#stat-total',
@@ -270,6 +276,8 @@
         const syncStatus = document.getElementById('sync-status');
         const refreshButton = document.getElementById('refreshButton');
         let myQuotes = []; // Última lista propia conocida (para filtrar sin red y calcular el resumen).
+        let buscandoFuera = false;  // hay una búsqueda del equipo en marcha o en pantalla
+        let relojFuera = null;      // antirrebote de esa búsqueda
 
         const setSyncStatus = (text) => { if (syncStatus) syncStatus.textContent = text; };
 
@@ -320,9 +328,17 @@
                         const term = searchInput.value.trim();
                         if (term) { filterLocal(term); return; }
                     } else {
-                        setSyncStatus('Resultados de búsqueda global');
+                        // Una respuesta que ya no corresponde a lo que está escrito no debe
+                        // pisar la tabla: se teclea más rápido de lo que contesta la hoja.
+                        if (searchInput.value.trim() !== String(searchTerm).trim()) return;
+                        const ajenas = quotes.filter(q => !esMia(q)).length;
+                        setSyncStatus(quotes.length
+                            ? `${quotes.length} en todo el sistema${ajenas ? ` · ${ajenas} de otros asesores` : ''}`
+                            : 'Sin resultados en todo el sistema');
                     }
-                    displayQuotes(quotes);
+                    displayQuotes(quotes, searchTerm
+                        ? 'Nada coincide en todo el sistema. Revisa el folio o prueba con el correo del cliente.'
+                        : null);
                 })
                 .withFailureHandler(error => {
                     finBusy();
@@ -339,51 +355,39 @@
                 .getQuotesForUser(currentUserEmail, searchTerm, forzarRecarga === true);
         };
 
-        // --- Búsqueda tolerante a errores (fuzzy) para el filtro instantáneo local ---
-        // Mismo criterio que fuzzyScore_ en Code.gs: sin acentos, sin importar
-        // mayúsculas y con tolerancia a pequeños errores de tipeo.
-        const fzNorm = (s) => String(s == null ? '' : s)
-            .normalize('NFD').replace(/[\u0300-\u036f]/g, '')
-            .toLowerCase().replace(/\s+/g, ' ').trim();
-        const fzLev = (a, b) => {
-            if (a === b) return 0;
-            const al = a.length, bl = b.length;
-            if (!al) return bl;
-            if (!bl) return al;
-            let prev = Array.from({ length: bl + 1 }, (_, j) => j);
-            for (let i = 1; i <= al; i++) {
-                const cur = [i], ca = a.charCodeAt(i - 1);
-                for (let j = 1; j <= bl; j++) {
-                    const cost = ca === b.charCodeAt(j - 1) ? 0 : 1;
-                    cur[j] = Math.min(prev[j] + 1, cur[j - 1] + 1, prev[j - 1] + cost);
-                }
-                prev = cur;
-            }
-            return prev[bl];
-        };
-        const fzTol = (len) => len <= 3 ? 0 : len <= 5 ? 1 : len <= 8 ? 2 : 3;
-        const fzMatches = (text, term) => {
-            const q = fzNorm(term);
-            if (!q) return true;
-            const t = fzNorm(text);
-            if (!t) return false;
-            if (t.indexOf(q) !== -1) return true;
-            const tTokens = t.split(' ').filter(Boolean);
-            return q.split(' ').filter(Boolean).every(qt => tTokens.some(tt => {
-                if (tt.indexOf(qt) !== -1) return true;
-                const tol = fzTol(qt.length);
-                if (tol === 0) return false;
-                if (fzLev(qt, tt) <= tol) return true;
-                return tt.length > qt.length && fzLev(qt, tt.substring(0, qt.length)) <= tol;
-            }));
-        };
+        /* --- Filtro instantáneo (sin red) sobre las cotizaciones propias ---
+         *
+         * El criterio de coincidencia ya no vive aquí: lo pone AppBuscar (app_buscar.html),
+         * el mismo motor que usan el buscador general, el panel de supervisión y el monitor
+         * de promociones. Antes cada pantalla llevaba su propia copia del algoritmo y la
+         * misma palabra encontraba cosas distintas según dónde se escribiera.
+         *
+         * Se busca por FOLIO, CLIENTE, CORREO DEL CLIENTE y estatus. El correo es la
+         * novedad y no es un adorno: cuando el cliente vuelve a llamar rara vez trae el
+         * folio a la mano, pero su correo sí está a la vista en el chat o en el pedido.
+         *
+         * Los pesos dicen qué manda. Un folio que coincide vale más que un estatus que
+         * coincide, así que escribir "118" no entierra el folio bajo las cotizaciones
+         * cuyo total lleva un 118.
+         */
+        const camposCotizacion = (q) => [
+            { t: q.folio, p: 3 },
+            { t: q.cliente, p: 2 },
+            { t: q.correoCliente, p: 2 },
+            { t: q.asesor, p: 1 },
+            { t: q.estatus, p: 0.6 }
+        ];
 
-        // Filtro instantáneo (sin red) sobre las cotizaciones propias ya cargadas.
+        /** Filtra la lista propia ya cargada. Devuelve cuántas quedaron. */
         const filterLocal = (term) => {
-            const filtered = myQuotes.filter(q =>
-                fzMatches([q.folio, q.cliente, q.estatus].join(' '), term)
-            );
-            displayQuotes(filtered, 'Sin coincidencias entre tus cotizaciones. Presiona Enter para buscar en todo el sistema.');
+            const filtered = window.AppBuscar
+                ? AppBuscar.filtra(myQuotes, term, camposCotizacion)
+                : myQuotes.filter(q => [q.folio, q.cliente, q.correoCliente, q.estatus]
+                    .join(' ').toLowerCase().indexOf(String(term).toLowerCase()) !== -1);
+            displayQuotes(filtered, buscandoFuera
+                ? 'Sin coincidencias entre tus cotizaciones. Buscando en las de todo el equipo…'
+                : 'Sin coincidencias entre tus cotizaciones. Presiona Enter para buscar en todo el sistema.');
+            return filtered.length;
         };
 
         /*
@@ -402,6 +406,21 @@
         const esc = window.escapeHtml || ((s) => String(s == null ? '' : s));
         const escapeFolio = window.escapeJsString || ((folio) => String(folio || '').replace(/'/g, "\\'"));
 
+        /* ¿Es mía esta cotización? Lo decide la pantalla y no el servidor: los resultados
+           de una búsqueda se guardan en caché por término y esa copia la comparte todo el
+           equipo, así que la marca tiene que calcularse contra ESTA sesión. */
+        const esMia = (q) => {
+            const suyo = String(q.asesorCorreo || '').trim().toLowerCase();
+            return !suyo || suyo === String(currentUserEmail || '').trim().toLowerCase();
+        };
+
+        /* Resalta lo que coincidió. Ver el PORQUÉ de una fila es lo que vuelve creíble una
+           búsqueda tolerante: sin esto, encontrar "González" al escribir "gonzales" parece
+           un error del sistema en vez de la ayuda que es. */
+        const marca = (texto, termino) => (window.AppBuscar && termino)
+            ? AppBuscar.resalta(texto == null ? '' : texto, termino)
+            : esc(texto == null ? '' : texto);
+
         const displayQuotes = (quotes, emptyMessage = null) => {
             tableBody.innerHTML = '';
             if (quotes.length === 0) {
@@ -410,6 +429,8 @@
                 return;
             }
             updateTablePlaceholder("");
+
+            const termino = searchInput.value.trim();
 
             quotes.forEach(quote => {
                 const row = document.createElement('tr');
@@ -421,9 +442,22 @@
                 if (est.pendiente) row.className = 'v-fila-pendiente';
                 else if (est.clave === 'rechazada') row.className = 'v-fila-rechazada';
 
+                /* De quién es y a qué correo fue. En una búsqueda de todo el sistema, la
+                   mitad de las filas son de otros asesores y antes no había forma de
+                   distinguirlas: se veían dos folios iguales de gente distinta sin saber
+                   a quién preguntarle. El correo del cliente va debajo del nombre porque
+                   es el dato con el que más se vuelve a buscar la misma cotización. */
+                const ajena = !esMia(quote);
+                const sello = ajena
+                    ? `<span class="v-badge v-badge-blue ml-2" title="La creó ${esc(quote.asesor || 'otro asesor')}">${esc(quote.asesor || 'Otro asesor')}</span>`
+                    : '';
+                const correo = quote.correoCliente
+                    ? `<div class="text-xs text-slate-500">${marca(quote.correoCliente, termino)}</div>`
+                    : '';
+
                 row.innerHTML = `
-                    <td class="font-medium text-slate-900">${esc(quote.folio || 'N/A')}</td>
-                    <td>${esc(quote.cliente || 'N/A')}</td>
+                    <td class="font-medium text-slate-900">${marca(quote.folio || 'N/A', termino)}${sello}</td>
+                    <td>${marca(quote.cliente || 'N/A', termino)}${correo}</td>
                     <td>${esc(quote.fecha || 'N/A')}</td>
                     <td class="font-medium">${formatMoney(quote.total)}</td>
                     <td>${AppEstatus.badge(quote.estatus, quote.revisionEstado)}</td>
@@ -476,24 +510,57 @@
             e.preventDefault();
             const term = searchInput.value.trim();
             if (!term) return;
+            clearTimeout(relojFuera);
             if (AppSession.can('supervision')) { AppUrl.go('inicio_avanzado', { q: term }); return; }
             loadUserQuotes(term);
         });
 
-        // Teclear = filtro instantáneo local sobre tus cotizaciones (sin esperar al servidor).
+        /* Teclear = filtro instantáneo local sobre tus cotizaciones (sin esperar al servidor)
+           Y, si ahí no hay nada, la misma búsqueda sale sola a las de todo el equipo.
+           Antes había que adivinar que existía esa segunda búsqueda y pulsar Enter: quien
+           no lo sabía leía "no se encontraron cotizaciones" y daba por perdido un folio que
+           sí estaba en el sistema, solo que lo había hecho alguien más.
+
+           Se espera un poco y se exigen tres caracteres para no mandar a la hoja de cálculo
+           una consulta por cada tecla. */
+        const BUSCAR_FUERA_MS = 420;
         searchInput.addEventListener('input', () => {
             const term = searchInput.value.trim();
+            clearTimeout(relojFuera);
+
             if (term === '') {
+                buscandoFuera = false;
                 displayQuotes(myQuotes);
                 updateStats(myQuotes);
-            } else {
-                filterLocal(term);
+                setSyncStatus('');
+                return;
             }
+
+            /* Se sabe de antemano si la búsqueda va a poder salir al equipo, y por eso se
+               decide ANTES de pintar: el aviso de "sin coincidencias" tiene que decir lo
+               que está a punto de pasar, no pedir que se pulse Enter mientras la búsqueda
+               ya va en camino. */
+            buscandoFuera = term.length >= 3;
+            const encontradas = filterLocal(term);
+            if (encontradas > 0) {
+                buscandoFuera = false;
+                setSyncStatus(`${encontradas} de tus cotizaciones`);
+                return;
+            }
+            if (!buscandoFuera) { setSyncStatus(''); return; }
+
+            setSyncStatus('Buscando en las cotizaciones del equipo…');
+            relojFuera = setTimeout(() => {
+                if (searchInput.value.trim() !== term) return;
+                loadUserQuotes(term);
+            }, BUSCAR_FUERA_MS);
         });
 
         refreshButton.addEventListener('click', () => {
             AppCache.remove(QUOTES_CACHE_KEY);
             searchInput.value = '';
+            clearTimeout(relojFuera);
+            buscandoFuera = false;
             loadUserQuotes(null, true);   // sin caché local NI de servidor
         });
 

@@ -322,7 +322,7 @@
               <label class="pc-search">
                 <span class="ic" aria-hidden="true"></span>
                 <span class="pc-sr">Buscar en esta sección</span>
-                <input class="v-input" type="search" id="buscar" placeholder="Buscar…" autocomplete="off">
+                <input class="v-input" type="search" id="buscar" placeholder="Buscar en esta sección…" autocomplete="off">
               </label>
               <span class="pc-count" id="conteo" aria-live="polite"></span>
             </div>
@@ -374,9 +374,11 @@
         window.__APP__ = { baseUrl: <?!= JSON.stringify(baseUrl) ?>, sec: <?!= JSON.stringify(sec) ?> };
     </script>
     <?!= include('app_core'); ?>
+    <?!= include('app_buscar'); ?>
     <?!= include('app_icons'); ?>
     <?!= include('app_motion'); ?>
     <?!= include('app_shell'); ?>
+    <?!= include('app_comando'); ?>
     <?!= include('LoaderPartial'); ?>
     <?!= include('app_operacion'); ?>
     <script>
@@ -610,14 +612,28 @@
         });
       }
 
+      /* El filtro miraba todas las columnas por igual y exigía escribir exacto: en una
+         sección con "Observaciones" larga, buscar una herramienta por su nombre la
+         devolvía enterrada bajo cualquier fila que mencionara esa palabra al final.
+         Ahora puntúa con AppBuscar dando prioridad al título y al subtítulo de cada
+         entrada —lo que de verdad se está buscando— y tolera acentos y dedazos. */
       function filasVisibles() {
-        var q = pcState.filtro.trim().toLowerCase();
+        var q = pcState.filtro.trim();
         if (!q) return pcState.filas;
-        return pcState.filas.filter(function (f) {
-          for (var k in f.valores) {
-            if (String(f.valores[k] || '').toLowerCase().indexOf(q) !== -1) return true;
-          }
-          return false;
+        var col = pcState.actual;
+        if (!window.AppBuscar) {
+          var ql = q.toLowerCase();
+          return pcState.filas.filter(function (f) {
+            for (var k in f.valores) {
+              if (String(f.valores[k] || '').toLowerCase().indexOf(ql) !== -1) return true;
+            }
+            return false;
+          });
+        }
+        return AppBuscar.filtra(pcState.filas, q, function (f) {
+          var campos = [{ t: tituloDe(col, f), p: 3 }, { t: subtituloDe(col, f), p: 1.6 }];
+          for (var k in f.valores) campos.push({ t: f.valores[k], p: 0.8 });
+          return campos;
         });
       }
 

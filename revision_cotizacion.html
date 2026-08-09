@@ -1001,10 +1001,12 @@
         window.__APP__ = { baseUrl: <?!= JSON.stringify(baseUrl) ?>, folio: <?!= JSON.stringify(folio) ?> };
     </script>
     <?!= include('app_core'); ?>
+    <?!= include('app_buscar'); ?>
     <?!= include('app_icons'); ?>
     <?!= include('app_estatus'); ?>
     <?!= include('app_motion'); ?>
     <?!= include('app_shell'); ?>
+    <?!= include('app_comando'); ?>
     <?!= include('LoaderPartial'); ?>
     <?!= include('app_operacion'); ?>
     <script>

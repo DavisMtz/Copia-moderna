@@ -447,7 +447,7 @@
                 <div class="cns-bloque-head">
                     <div class="cns-buscar">
                         <span class="ic" data-icon="search"></span>
-                        <input type="search" id="cns-buscar-miembro" class="v-input" placeholder="Buscar por nombre o correo" aria-label="Buscar miembro">
+                        <input type="search" id="cns-buscar-miembro" class="v-input" placeholder="Nombre, correo o rol · sin acentos también" aria-label="Buscar miembro">
                     </div>
                     <div class="cns-head-acciones">
                         <label class="cns-fila-sw" style="padding:0;border:0;gap:.5rem;align-items:center">
@@ -664,10 +664,12 @@
     window.__APP__ = { baseUrl: <?!= JSON.stringify(baseUrl) ?> };
 </script>
 <?!= include('app_core'); ?>
+<?!= include('app_buscar'); ?>
 <?!= include('app_icons'); ?>
 <?!= include('app_motion'); ?>
 <?!= include('app_support'); ?>
 <?!= include('app_shell'); ?>
+<?!= include('app_comando'); ?>
 <?!= include('LoaderPartial'); ?>
 <?!= include('app_operacion'); ?>
 
@@ -930,14 +932,27 @@
 
     // ── Miembros ─────────────────────────────────────────────────────────────
 
+    /* Buscar un miembro con indexOf obligaba a escribirlo exacto: "martinez" no
+       encontraba a "Martínez" y medio equipo tiene acento en el apellido. Ahora lo
+       resuelve AppBuscar —el mismo motor del resto del sistema— y además ordena por
+       relevancia y entiende el correo por partes ("ana lopez" llega a
+       ana.lopez@liverpool.com.mx). El rol entra al pajar para poder listar de un
+       tirón a los supervisores. */
     function miembrosVisibles() {
-        var q = ($('cns-buscar-miembro').value || '').trim().toLowerCase();
+        var q = ($('cns-buscar-miembro').value || '').trim();
         var verBajas = $('cns-ver-bajas').checked;
-        return D.miembros.filter(function (m) {
-            if (!verBajas && !m.activo) return false;
-            if (!q) return true;
-            return (m.nombre || '').toLowerCase().indexOf(q) !== -1 ||
-                   (m.email || '').toLowerCase().indexOf(q) !== -1;
+        var base = D.miembros.filter(function (m) { return verBajas || m.activo; });
+        if (!q) return base;
+        if (!window.AppBuscar) {
+            var ql = q.toLowerCase();
+            return base.filter(function (m) {
+                return (m.nombre || '').toLowerCase().indexOf(ql) !== -1 ||
+                       (m.email || '').toLowerCase().indexOf(ql) !== -1;
+            });
+        }
+        return AppBuscar.filtra(base, q, function (m) {
+            return [{ t: m.nombre, p: 3 }, { t: m.email, p: 2.5 },
+                    { t: m.rolNombre || m.rol, p: 1 }];
         });
     }
 

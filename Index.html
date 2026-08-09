@@ -3984,20 +3984,47 @@ function parseScope(input){
    Permite que el buscador global lleve directo a las pantallas del Sistema de
    Cotizaciones y a las plantillas de correo ya hechas. Cada acción define su
    navegación en `act`: page '__home' respeta el rol; `tpl` preselecciona una
-   plantilla en la pantalla "Correos a clientes". */
+   plantilla en la pantalla "Correos a clientes".
+
+   `bloques` es el permiso que hace falta (basta UNO). Antes esta lista salía entera
+   para todo el mundo: a un asesor le aparecía "Panel avanzado" en los resultados,
+   pulsaba, y el servidor lo devolvía al panel con un aviso de que no tiene acceso.
+   Un buscador que ofrece puertas cerradas hace perder más tiempo del que ahorra.
+   Sin sesión se ofrecen todas —llevan al login y de ahí a su destino, que es
+   exactamente lo que hay que hacer—; con sesión, solo lo que esa persona abre.
+
+   Esto no es seguridad: el candado real sigue en el servidor, que vuelve a exigir el
+   bloque al abrir cada pantalla. Es no anunciar lo que no se puede usar. */
 const APP_ACTIONS = [
-  { name:'Sistema de cotizaciones', sub:'Ir a mi panel de cotizaciones', icon:'document', kw:'cotizaciones sistema panel inicio dashboard mis cotizaciones ventas cotizar', act:{ page:'__home' } },
-  { name:'Nueva cotización',        sub:'Crear una cotización desde cero', icon:'document', kw:'nueva cotizacion crear cotizar generar folio productos precio', act:{ page:'cotizacion' } },
-  { name:'Enviar cotización por correo', sub:'Mandar una cotización con su PDF', icon:'send', kw:'enviar correo cotizacion pdf mandar cliente folio adjunto', act:{ page:'correoventel' } },
-  { name:'Correos a clientes',      sub:'Plantillas de correo listas para enviar', icon:'mail', kw:'correos clientes plantillas enviar mensaje', act:{ page:'correo_cliente' } },
-  { name:'Panel avanzado',          sub:'Supervisión y métricas (solo avanzados)', icon:'chart', kw:'panel avanzado supervision metricas reportes estadisticas admin', act:{ page:'inicio_avanzado' } },
-  { name:'Plantilla · Ticket de compra',        sub:'Reenvío del ticket de una compra', icon:'mail', kw:'ticket compra comprobante pedido reenvio plantilla correo', act:{ page:'correo_cliente', tpl:'ticket' } },
-  { name:'Plantilla · Edo. de cuenta PF',       sub:'Solicitud de estado de cuenta', icon:'mail', kw:'estado cuenta pf persona fisica validacion tarjeta plantilla correo', act:{ page:'correo_cliente', tpl:'edodecuenta' } },
-  { name:'Plantilla · Edo. cuenta extranjera',  sub:'Validación con tarjeta extranjera', icon:'mail', kw:'estado cuenta extranjera tarjeta internacional plantilla correo', act:{ page:'correo_cliente', tpl:'edodecuentaextranjera' } },
-  { name:'Plantilla · Validación exitosa',      sub:'Avisar que la validación fue correcta', icon:'mail', kw:'validacion exitosa aprobada correcta pedido plantilla correo', act:{ page:'correo_cliente', tpl:'validacionexitosa' } },
-  { name:'Plantilla · Formato personalizable',  sub:'Correo libre con estructura de marca', icon:'mail', kw:'formato personalizable libre generico plantilla correo', act:{ page:'correo_cliente', tpl:'formato' } },
-  { name:'Plantilla · Texto plano',             sub:'Escribir un correo desde cero', icon:'mail', kw:'texto plano sin plantilla libre escribir correo cero', act:{ page:'correo_cliente', tpl:'textoplano' } }
+  { name:'Sistema de cotizaciones', sub:'Ir a mi panel de cotizaciones', icon:'document', kw:'cotizaciones sistema panel inicio dashboard mis cotizaciones ventas cotizar folios', act:{ page:'__home' } },
+  { name:'Nueva cotización',        sub:'Crear una cotización desde cero', icon:'document', kw:'nueva cotizacion crear cotizar generar folio productos precio alta', bloques:['cotizar'], act:{ page:'cotizacion' } },
+  { name:'Enviar cotización por correo', sub:'Mandar una cotización con su PDF', icon:'send', kw:'enviar correo cotizacion pdf mandar cliente folio adjunto reenviar', bloques:['enviar_cotizacion'], act:{ page:'correoventel' } },
+  { name:'Correos a clientes',      sub:'Plantillas de correo listas para enviar', icon:'mail', kw:'correos clientes plantillas enviar mensaje redactar', bloques:['correos_cliente'], act:{ page:'correo_cliente' } },
+  { name:'Panel avanzado',          sub:'Métricas, búsqueda global y reportes', icon:'chart', kw:'panel avanzado supervision metricas reportes estadisticas csv admin', bloques:['supervision'], act:{ page:'inicio_avanzado' } },
+  { name:'Revisar cotizaciones',    sub:'Cola de cotizaciones por autorizar', icon:'check', kw:'revisar revision autorizar aprobar rechazar cola pendientes', bloques:['revisar'], act:{ page:'inicio_avanzado' } },
+  { name:'Política de revisión',    sub:'Reglas que mandan una cotización a revisión', icon:'gear', kw:'politica reglas umbral descuento revision configurar', bloques:['politica_revision'], act:{ page:'inicio_avanzado' } },
+  { name:'Anuncios del Portal',     sub:'Publicar avisos para todo el equipo', icon:'megaphone', kw:'anuncios aviso publicar comunicado banner novedades', bloques:['anuncios'], act:{ page:'anuncios' } },
+  { name:'Contenido del Portal',    sub:'Editar herramientas, plantillas y formatos', icon:'layers', kw:'contenido administrar editar catalogo herramientas formatos ligas promos', bloques:['portal_contenido'], act:{ page:'portal_contenido' } },
+  { name:'Estado de operación',     sub:'Confirmar y atender las fallas reportadas', icon:'bolt', kw:'operacion incidencias fallas caido confirmar sistemas problemas', bloques:['operacion'], act:{ page:'operacion' } },
+  { name:'Consola maestra',         sub:'Miembros, permisos y ajustes del sistema', icon:'lock', kw:'consola administracion usuarios altas bajas roles permisos bitacora salud', bloques:['adm_miembros','adm_permisos','adm_ajustes'], maestro:true, act:{ page:'consola' } },
+  { name:'Plantilla · Ticket de compra',        sub:'Reenvío del ticket de una compra', icon:'mail', kw:'ticket compra comprobante pedido reenvio plantilla correo', bloques:['correos_cliente'], act:{ page:'correo_cliente', tpl:'ticket' } },
+  { name:'Plantilla · Edo. de cuenta PF',       sub:'Solicitud de estado de cuenta', icon:'mail', kw:'estado cuenta pf persona fisica validacion tarjeta plantilla correo', bloques:['correos_cliente'], act:{ page:'correo_cliente', tpl:'edodecuenta' } },
+  { name:'Plantilla · Edo. cuenta extranjera',  sub:'Validación con tarjeta extranjera', icon:'mail', kw:'estado cuenta extranjera tarjeta internacional plantilla correo', bloques:['correos_cliente'], act:{ page:'correo_cliente', tpl:'edodecuentaextranjera' } },
+  { name:'Plantilla · Validación exitosa',      sub:'Avisar que la validación fue correcta', icon:'mail', kw:'validacion exitosa aprobada correcta pedido plantilla correo', bloques:['correos_cliente'], act:{ page:'correo_cliente', tpl:'validacionexitosa' } },
+  { name:'Plantilla · Formato personalizable',  sub:'Correo libre con estructura de marca', icon:'mail', kw:'formato personalizable libre generico plantilla correo', bloques:['correos_cliente'], act:{ page:'correo_cliente', tpl:'formato' } },
+  { name:'Plantilla · Texto plano',             sub:'Escribir un correo desde cero', icon:'mail', kw:'texto plano sin plantilla libre escribir correo cero', bloques:['correos_cliente'], act:{ page:'correo_cliente', tpl:'textoplano' } }
 ];
+
+/** Las acciones que ESTA sesión puede abrir. Sin sesión, todas (llevan al login). */
+function appActionsPermitidas(){
+  const conSesion = !!(window.AppSession && AppSession.isLoggedIn());
+  if (!conSesion) return APP_ACTIONS;
+  return APP_ACTIONS.filter(a => {
+    if (a.maestro && !AppSession.isMaster) return false;
+    if (!a.bloques) return true;
+    return a.bloques.some(b => AppSession.can(b));
+  });
+}
 
 /* Navega a una acción de la app respetando la sesión: las pantallas de la app
    exigen login, así que sin sesión se va a login (y de ahí a su destino). */
@@ -4132,9 +4159,11 @@ function doGlobalSearch(){
 
   // Acciones de la app: llevan a las pantallas del Sistema de Cotizaciones y a las
   // plantillas de correo ya hechas. Se muestran arriba porque son acciones directas.
-  const appMatches = APP_ACTIONS
-    .map((a, i) => ({ idx:i, name:a.name, sub:a.sub, icon:a.icon,
-                      score: scoreMatch(Q, norm(a.name), norm(a.sub), norm(a.kw || '')) }))
+  // El índice que viaja al DOM es el de APP_ACTIONS, no el de la lista filtrada:
+  // goAppAction lo usa para resolver el destino y filtrar corría la numeración.
+  const appMatches = appActionsPermitidas()
+    .map(a => ({ idx:APP_ACTIONS.indexOf(a), name:a.name, sub:a.sub, icon:a.icon,
+                 score: scoreMatch(Q, norm(a.name), norm(a.sub), norm(a.kw || '')) }))
     .filter(r => r.score > 0)
     .sort((a, b) => b.score - a.score)
     .slice(0, 6);
