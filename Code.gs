@@ -91,6 +91,34 @@ const PORTAL_PAGES = {
   'estado':      { file: 'estado',      title: 'Estado de operación · VENTEL' }
 };
 
+/**
+ * PARÁMETROS DE VISTA · el contrato de las URLs del sistema.
+ *
+ * Cada uno se inyecta en TODA plantilla de app, aunque esa pantalla no lo use. Suena a
+ * desperdicio y no lo es: una plantilla de Apps Script revienta al evaluar una variable
+ * que no se le pasó, así que la alternativa —inyectar solo los que cada pantalla
+ * necesita— obliga a tocar este archivo cada vez que alguien añade un enlace profundo, y
+ * el día que se olvida, la pantalla no falla aquí sino al renderizar, con un error que
+ * no dice qué falta. Inyectarlos todos convierte "añadir un parámetro" en una sola línea
+ * en esta lista, y el cliente los lee por el mismo nombre desde AppUrl.param().
+ *
+ * Qué va en cada uno (el criterio, para que la lista no se llene de sinónimos):
+ *   folio   IDENTIDAD de una cotización. Es lo que la pantalla abre.
+ *   action  qué hacer con ella ('edit'). Modificador, no identidad.
+ *   format  formato del documento a generar.
+ *   q       filtro ya aplicado sobre una tabla (enlace a un resultado concreto).
+ *   buscar  término con el que ABRIR EL BUSCADOR general. Distinto de `q`: uno filtra
+ *           lo que ya hay en pantalla, el otro abre el panel de búsqueda encima.
+ *   tpl     plantilla preseleccionada en "Correos a clientes".
+ *   sec     sección/pestaña abierta dentro de una pantalla con varias.
+ *   ancla   a qué apartado bajar al cargar. Se escribe también como #fragmento.
+ *   inc     incidencia a abrir en el tablero de estado.
+ *   next    a dónde volver tras el login. Es una CLAVE de página, jamás una URL: el
+ *           cliente solo acepta las de su lista blanca (AppUrl.PAGINAS_TRAS_LOGIN), de
+ *           modo que este parámetro no puede sacar a nadie fuera del sistema.
+ */
+const PARAMS_VISTA = ['folio', 'action', 'format', 'q', 'buscar', 'tpl', 'sec', 'ancla', 'inc', 'next'];
+
 function doGet(e) {
   try {
     return servirPagina_(e);
@@ -119,10 +147,14 @@ function servirPagina_(e) {
     const pConfig = PORTAL_PAGES[page] || PORTAL_PAGES['portal'];
     const pTemplate = HtmlService.createTemplateFromFile(pConfig.file);
     pTemplate.APP_URL = getScriptUrl() || '';
-    // Incidencia a abrir en el tablero de estado (?page=estado&inc=inc-xxxx). Es el enlace
-    // que viaja en el aviso de Google Chat. Se define SIEMPRE aunque solo lo lea estado.html:
-    // una plantilla de Apps Script falla si usa una variable que no se le pasó.
-    pTemplate.inc = (e && e.parameter && e.parameter.inc) || '';
+    // Las páginas públicas reciben los MISMOS parámetros de vista que las de app: el
+    // Portal también tiene buscador general y anclas, y un enlace profundo no puede
+    // dejar de funcionar por el lado de la valla en el que caiga la pantalla. Se
+    // definen todos aunque cada plantilla lea uno: una plantilla de Apps Script falla
+    // si usa una variable que no se le pasó (así llegó aquí `inc`, para estado.html).
+    PARAMS_VISTA.forEach(function (nombre) {
+      pTemplate[nombre] = (e && e.parameter && e.parameter[nombre]) || '';
+    });
     return pTemplate.evaluate()
       .setTitle(pConfig.title)
       .setXFrameOptionsMode(HtmlService.XFrameOptionsMode.ALLOWALL)
@@ -134,27 +166,12 @@ function servirPagina_(e) {
   const template = HtmlService.createTemplateFromFile(config.file);
   // La URL base se inyecta al renderizar: el cliente ya no necesita pedirla por red
   // en cada clic, que era lo que dejaba la navegación colgada cuando fallaba.
-  // Los parámetros de navegación también se inyectan porque el iframe del sandbox
-  // no siempre conserva el query string original.
   template.baseUrl = getScriptUrl() || '';
-  template.folio = (e && e.parameter && e.parameter.folio) || '';
-  template.action = (e && e.parameter && e.parameter.action) || '';
-  template.format = (e && e.parameter && e.parameter.format) || '';
-  // Término de búsqueda para deep-links: ?page=dashboard&q=LVP-... llega con la
-  // búsqueda ya aplicada (compartir enlaces a resultados concretos).
-  template.q = (e && e.parameter && e.parameter.q) || '';
-  // Deep-link opcional: preselecciona una plantilla en "Correos a clientes"
-  // (?page=correo_cliente&tpl=ticket). Lo usa el buscador del Portal.
-  template.tpl = (e && e.parameter && e.parameter.tpl) || '';
-  // Sección abierta en "Contenido del Portal" (?page=portal_contenido&sec=plantillas).
-  // Va inyectada, como el resto: dentro del iframe del sandbox el cliente no puede
-  // leer el query string original con location.search.
-  template.sec = (e && e.parameter && e.parameter.sec) || '';
-  // Pantalla a la que hay que volver después de iniciar sesión
-  // (?page=login&next=cotizacion). Viaja siempre como CLAVE de página, nunca como
-  // URL: el cliente solo acepta las de su lista blanca (AppUrl.PAGINAS_TRAS_LOGIN),
-  // así que este parámetro no puede sacar a nadie del sistema.
-  template.next = (e && e.parameter && e.parameter.next) || '';
+
+  // Y con ella TODOS los parámetros de vista, de una vez (ver PARAMS_VISTA).
+  PARAMS_VISTA.forEach(function (nombre) {
+    template[nombre] = (e && e.parameter && e.parameter[nombre]) || '';
+  });
 
   return template.evaluate()
     .setTitle(config.title)

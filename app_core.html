@@ -609,19 +609,77 @@
     return { mostrar: mostrar, ocultar: ocultar, programar: programar, visible: function () { return !!anclaje; } };
   })();
 
+  /**
+   * ===========================================================================
+   * PARÁMETROS DE VISTA (espejo de PARAMS_VISTA en Code.gs)
+   * ===========================================================================
+   * La lista está en los dos lados a propósito, y las dos tienen que decir lo mismo:
+   * el servidor los INYECTA al renderizar y el cliente los LEE. Escribirlos aquí
+   * también permite lo que antes no se podía: preguntar "¿con qué parámetros me
+   * abrieron?" sin ir nombre por nombre, y volver a escribirlos en la barra de
+   * direcciones cuando la pantalla cambia de estado.
+   *
+   * `ancla` viaja además como fragmento (#), que es su sitio natural: dice a qué
+   * apartado bajar y no es asunto del servidor. Se manda por los dos canales porque
+   * dentro del iframe de Apps Script el fragmento se pierde con facilidad.
+   */
+  const PARAMS_VISTA = ['folio', 'action', 'format', 'q', 'buscar', 'tpl', 'sec', 'ancla', 'inc', 'next'];
+
+  /** Parámetros de campaña que ensucian un enlace compartido y no significan nada aquí. */
+  const PARAMS_BASURA = /^(utm_|fbclid$|gclid$|mc_eid$|_ga$)/i;
+
   const AppUrl = {
     base: cfg.baseUrl || '',
 
-    /** Construye la URL completa de una página con sus parámetros. */
-    build: function (page, params) {
+    /** Todas las pantallas que el enrutador conoce (espejo de PAGES + PORTAL_PAGES). */
+    PAGINAS: [
+      'login', 'registro', 'recuperar',
+      'dashboard', 'inicio_avanzado', 'cotizacion', 'cotizado_preview', 'consulta_cotizacion',
+      'revision_cotizacion', 'correoventel', 'correo_cliente', 'anuncios', 'portal_contenido',
+      'operacion', 'consola',
+      'portal', 'promociones', 'estado'
+    ],
+
+    /**
+     * ¿Es una clave de pantalla que existe?
+     *
+     * Importa porque el enrutador del servidor manda al Portal CUALQUIER cosa que no
+     * reconozca: una página mal escrita no da error, da la landing. Eso está bien para
+     * quien llega con un enlace viejo y fatal para quien está programando, porque el
+     * fallo se ve como "el botón lleva al Portal" y no como "esa pantalla no existe".
+     */
+    existe: function (page) { return this.PAGINAS.indexOf(String(page || '')) !== -1; },
+
+    /**
+     * Construye la URL completa de una página con sus parámetros.
+     *
+     * Nunca se concatena a mano: URLSearchParams codifica los espacios, los acentos y
+     * los «&» que traen los nombres de cliente, y evita el clásico doble «?».
+     * Los parámetros salen ORDENADOS para que el mismo destino produzca siempre la
+     * misma cadena —dos enlaces al mismo folio se ven iguales al pegarlos en un chat—.
+     *
+     * @param {string} page
+     * @param {object=} params  Los vacíos se descartan: '?folio=' no dice nada.
+     * @param {string=} ancla   Apartado al que bajar (#). Se manda también como
+     *   parámetro porque dentro del iframe del sandbox el fragmento no siempre llega.
+     */
+    build: function (page, params, ancla) {
       if (!this.base) return null;
+      if (!this.existe(page)) {
+        // No se devuelve null: el enlace sigue siendo utilizable y el servidor lo
+        // resolverá como Portal. Lo que no puede pasar es que nadie se entere.
+        console.warn('AppUrl: la pantalla "' + page + '" no está en el catálogo de páginas.');
+      }
       const search = new URLSearchParams();
       search.set('page', page);
-      Object.keys(params || {}).forEach(function (key) {
-        const value = params[key];
-        if (value !== '' && value !== null && value !== undefined) search.set(key, value);
-      });
-      return this.base + '?' + search.toString();
+      const claves = Object.keys(params || {}).filter(function (k) {
+        const v = params[k];
+        return v !== '' && v !== null && v !== undefined && !PARAMS_BASURA.test(k);
+      }).sort();
+      claves.forEach(function (k) { search.set(k, params[k]); });
+      if (ancla) search.set('ancla', String(ancla).replace(/^#/, ''));
+      return this.base + '?' + search.toString() +
+             (ancla ? '#' + encodeURIComponent(String(ancla).replace(/^#/, '')) : '');
     },
 
     /**
@@ -636,8 +694,8 @@
      * esa sí navega. Devuelve false solo cuando falta la URL base, que es lo
      * único que las pantallas tratan como error.
      */
-    go: function (page, params) {
-      const url = this.build(page, params);
+    go: function (page, params, ancla) {
+      const url = this.build(page, params, ancla);
       if (!url) {
         // Antes esto era un alert() del navegador: bloquea el iframe, no explica
         // nada y al cerrarlo no deja ninguna salida. El aviso sí ofrece la acción
@@ -705,11 +763,16 @@
 
     /**
      * Página de inicio que corresponde a los permisos del usuario.
-     * Se pregunta por el BLOQUE y no por el rol: a un supervisor al que se le retiró
+     * Se pregunta por los BLOQUES y no por el rol: a un supervisor al que se le retiró
      * la supervisión hay que dejarlo en el panel normal, no en una pantalla que el
-     * servidor le va a rechazar entera.
+     * servidor le va a rechazar entera. Y al revés: a quien solo se le concedió la
+     * gestión del equipo, el panel avanzado SÍ le sirve —es donde vive su apartado—,
+     * así que preguntar únicamente por 'supervision' lo mandaba al panel equivocado.
      */
-    homePage: function () { return AppSession.can('supervision') ? PAGE_HOME_ADVANCED : PAGE_HOME_NORMAL; },
+    homePage: function () {
+      const deCasa = ['supervision', 'sup_equipo'];
+      return deCasa.some(function (b) { return AppSession.can(b); }) ? PAGE_HOME_ADVANCED : PAGE_HOME_NORMAL;
+    },
     goHome: function (params) { return this.go(this.homePage(), params); },
 
     /**
@@ -746,6 +809,105 @@
     param: function (name) {
       if (cfg[name]) return String(cfg[name]);
       try { return new URLSearchParams(window.location.search).get(name) || ''; } catch (e) { return ''; }
+    },
+
+    /** Todos los parámetros de vista con los que se abrió esta pantalla. */
+    params: function () {
+      const self = this;
+      const out = {};
+      PARAMS_VISTA.forEach(function (n) {
+        const v = self.param(n);
+        if (v) out[n] = v;
+      });
+      return out;
+    },
+
+    /**
+     * Reescribe la URL de la barra de direcciones SIN recargar.
+     *
+     * Es lo que convierte una pantalla con estado en algo que se puede compartir: abrir
+     * una sección, filtrar una tabla o elegir una plantilla deja de ser algo que solo
+     * existe en la cabeza del navegador y pasa a estar en el enlace. Quien lo pegue en
+     * un chat abre exactamente lo mismo, y el botón "atrás" hace lo que promete.
+     *
+     * Dentro del iframe de Apps Script `history.replaceState` no sirve —cambiaría la
+     * URL del iframe, que nadie ve—: hay que pasar por google.script.history, que habla
+     * con la ventana de arriba. Donde no exista, no pasa nada: es una mejora, no un
+     * requisito, y ninguna pantalla debe depender de que haya funcionado.
+     *
+     * @param {object} params  Los vacíos o nulos se QUITAN de la URL.
+     * @param {string=} ancla
+     * @param {boolean=} apilar true = entrada nueva en el historial (atrás vuelve aquí).
+     *   Por omisión reemplaza: filtrar una tabla no merece una entrada por cada tecla.
+     */
+    actualizar: function (params, ancla, apilar) {
+      try {
+        if (!(window.google && google.script && google.script.history)) return false;
+        const limpio = {};
+        Object.keys(params || {}).forEach(function (k) {
+          const v = params[k];
+          if (v !== '' && v !== null && v !== undefined) limpio[k] = String(v);
+        });
+        const hash = ancla ? String(ancla).replace(/^#/, '') : null;
+        const metodo = apilar ? google.script.history.push : google.script.history.replace;
+        metodo.call(google.script.history, limpio, limpio, hash);
+        return true;
+      } catch (e) { return false; }
+    },
+
+    /**
+     * Avisa cuando el usuario usa atrás/adelante. El callback recibe
+     * {parameter, parameters, hash} tal como los da Apps Script.
+     */
+    alCambiarUrl: function (cb) {
+      try {
+        if (!(window.google && google.script && google.script.history)) return false;
+        google.script.history.setChangeHandler(function (e) {
+          try { cb((e && e.location) || {}); } catch (err) { console.error(err); }
+        });
+        return true;
+      } catch (e) { return false; }
+    },
+
+    /**
+     * Baja al apartado que pide la URL (?ancla=… o #…), una vez que está pintado.
+     *
+     * Se reintenta un momento porque casi todas estas pantallas dibujan su contenido
+     * después de una llamada al servidor: buscar el elemento al cargar encontraría el
+     * esqueleto y no el apartado. Se rinde en silencio: un ancla que ya no existe no
+     * es motivo para molestar a nadie.
+     */
+    irAncla: function (nombre, intentos) {
+      const self = this;
+      const id = String(nombre || this.param('ancla') || '').replace(/^#/, '');
+      if (!id) return;
+      const el = document.getElementById(id);
+      if (!el) {
+        if ((intentos || 0) < 20) setTimeout(function () { self.irAncla(id, (intentos || 0) + 1); }, 150);
+        return;
+      }
+      const suave = !(window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches);
+      try { el.scrollIntoView({ behavior: suave ? 'smooth' : 'auto', block: 'start' }); } catch (e) { el.scrollIntoView(); }
+      // Un destello corto: sin él, en una pantalla larga no se sabe cuál de los seis
+      // apartados era el que traía el enlace.
+      if (window.gsap && suave) {
+        gsap.fromTo(el, { boxShadow: '0 0 0 0 rgba(225,0,152,.45)' },
+          { boxShadow: '0 0 0 6px rgba(225,0,152,0)', duration: 1.4, ease: 'power2.out', clearProps: 'boxShadow' });
+      }
+    },
+
+    /**
+     * Atributos listos para un <a> interno: href + target="_top" + rel.
+     *
+     * Existe porque un enlace sin target="_top" navega DENTRO del iframe del sandbox y
+     * deja la app anidada dentro de sí misma —un fallo que no da error, solo una
+     * pantalla rarísima—, y porque a un href fabricado a mano se le olvida codificar
+     * el primer nombre con acento que le pasa por delante.
+     */
+    attrs: function (page, params, ancla) {
+      const url = this.build(page, params, ancla);
+      if (!url) return 'href="#"';
+      return 'href="' + escapeHtml(url) + '" target="_top" rel="noopener"';
     }
   };
 
@@ -1466,6 +1628,7 @@
       { bloque: 'supervision',       page: 'inicio_avanzado', nombre: 'Panel avanzado',       corto: 'supervisión',        sub: 'Métricas y revisión' },
       { bloque: 'revisar',           page: 'inicio_avanzado', nombre: 'Revisar cotizaciones', corto: 'revisión',           sub: 'Cotizaciones por autorizar' },
       { bloque: 'politica_revision', page: 'inicio_avanzado', nombre: 'Política de revisión', corto: 'reglas de revisión', sub: 'Reglas de revisión' },
+      { bloque: 'sup_equipo',        page: 'inicio_avanzado', nombre: 'Tu equipo',            corto: 'roles del equipo',   sub: 'Roles y accesos de tus asesores' },
       { bloque: 'anuncios',          page: 'anuncios',        nombre: 'Anuncios del Portal',  corto: 'anuncios',           sub: 'Anuncios del Portal' },
       { bloque: 'portal_contenido',  page: 'portal_contenido', nombre: 'Contenido del Portal', corto: 'contenido del Portal', sub: 'Herramientas, plantillas y promos' },
       { bloque: 'operacion',         page: 'operacion',       nombre: 'Estado de operación',  corto: 'estado de operación', sub: 'Fallas reportadas por el equipo' },
@@ -1477,6 +1640,100 @@
       return null;
     }
 
+    /* ── MÓDULOS APAGADOS, TAMBIÉN SIN SESIÓN ──────────────────────────────────
+       Con sesión esto ya funcionaba: el servidor resta los módulos apagados de la
+       lista de bloques, así que hacerle caso a la lista bastaba.
+
+       Sin sesión no había nada que restar y se enseñaba todo. Eso convertía el
+       mantenimiento en una trampa en la pantalla donde más gente entra: se veía
+       Promociones en el menú del Portal, se hacía clic, se tecleaba la contraseña
+       y solo entonces aparecía el "no disponible". El menú prometía algo que la
+       app ya sabía que no podía cumplir.
+
+       Ahora el Portal pregunta —una llamada barata, cacheada cinco minutos, que no
+       revela nada que no descubra igual quien intente abrir el módulo— y esconde lo
+       que está apagado desde el primer fotograma en que lo sabe.
+
+       Si la consulta falla, se enseña todo: un error de lectura no debe dejar la
+       landing sin puertas. */
+    const CACHE_MODULOS = 'modulos-publicos';
+    const TTL_MODULOS = 5 * 60 * 1000;
+    let apagadosMem = null;         // null = todavía no sabemos
+    let nombresApagados = {};
+    let sincronizando = false;
+    const oyentesModulos = [];
+
+    function apagados() {
+      if (apagadosMem) return apagadosMem;
+      const g = AppCache.get(CACHE_MODULOS, TTL_MODULOS);
+      if (g && g.data && Array.isArray(g.data.apagados)) {
+        apagadosMem = g.data.apagados;
+        nombresApagados = g.data.nombres || {};
+        return apagadosMem;
+      }
+      return [];
+    }
+
+    /** ¿Este bloque está apagado por mantenimiento? */
+    function moduloApagado(bloqueId) {
+      return apagados().indexOf(bloqueId) !== -1;
+    }
+
+    /** Nombre en cristiano de un módulo apagado, para poder decirlo. */
+    function nombreModulo(bloqueId) {
+      apagados();
+      return nombresApagados[bloqueId] || bloqueId;
+    }
+
+    function avisarCambio() {
+      oyentesModulos.forEach(function (cb) { try { cb(); } catch (e) {} });
+    }
+
+    /**
+     * Pregunta al servidor qué está apagado y avisa a quien esté pintando un menú.
+     *
+     * CACHÉ PRIMERO, no stale-while-revalidate. Es deliberado y va contra el patrón
+     * que usa el resto de la app, así que conviene decir por qué: swr revalida SIEMPRE,
+     * y esto se llama al cargar cualquier pantalla. Serían dieciocho llamadas más al
+     * día por persona para enterarse de algo que cambia una vez al mes y que, además,
+     * el servidor vuelve a comprobar por su cuenta al abrir cada pantalla. Con la copia
+     * fresca no se pregunta; caducada a los cinco minutos, sí.
+     *
+     * Nunca rechaza: el menú de antes es mejor que ningún menú.
+     */
+    function sincronizar() {
+      if (sincronizando) return Promise.resolve(apagados());
+      // Copia fresca en el almacén local: no hay nada que preguntar.
+      const g = AppCache.get(CACHE_MODULOS, TTL_MODULOS);
+      if (g && g.data && Array.isArray(g.data.apagados)) {
+        apagadosMem = g.data.apagados;
+        nombresApagados = g.data.nombres || {};
+        return Promise.resolve(apagadosMem);
+      }
+
+      sincronizando = true;
+      return AppRun.call('obtenerModulosPublicos', [], { key: 'modulos-publicos', busy: false })
+        .then(function (r) {
+          sincronizando = false;
+          if (!r || !r.success) return apagados();
+          AppCache.set(CACHE_MODULOS, r, { ttl: TTL_MODULOS });
+          const antes = (apagadosMem || []).join('|');
+          apagadosMem = Array.isArray(r.apagados) ? r.apagados : [];
+          nombresApagados = r.nombres || {};
+          if (antes !== apagadosMem.join('|')) avisarCambio();
+          return apagadosMem;
+        }, function () { sincronizando = false; return apagados(); });
+    }
+
+    /** Se llama cuando cambia la lista de apagados (para repintar el menú). */
+    function alCambiarModulos(cb) {
+      oyentesModulos.push(cb);
+      return function () {
+        const i = oyentesModulos.indexOf(cb);
+        if (i !== -1) oyentesModulos.splice(i, 1);
+      };
+    }
+
     /**
      * ¿Se enseña esta área de trabajo?
      * @param {string} id  'portal' | 'cotizaciones' | 'correos' | 'promociones'
@@ -1484,12 +1741,19 @@
     function visible(id) {
       const area = porId(id);
       if (!area) return true;
-      // Sin sesión estamos en la landing pública y estas opciones llevan al login,
-      // que es justo lo que toca hacer: se enseñan.
-      if (!AppSession.isLoggedIn()) return true;
-      if (!AppSession.bloquesConocidos) return true;
-      const lista = AppSession.bloques;
-      return area.bloques.some(function (b) { return lista.indexOf(b) !== -1; });
+
+      // Con sesión manda la lista de bloques, que el servidor ya depuró de apagados.
+      if (AppSession.isLoggedIn() && AppSession.bloquesConocidos) {
+        const lista = AppSession.bloques;
+        return area.bloques.some(function (b) { return lista.indexOf(b) !== -1; });
+      }
+
+      // Sin sesión (o sin saber los bloques todavía): se enseña salvo que TODO lo que
+      // el área sabe hacer esté apagado. A Cotizaciones le basta con que quede en pie
+      // una de sus tres facultades para seguir mereciendo su sitio en el menú.
+      const off = apagados();
+      if (!off.length) return true;
+      return area.bloques.some(function (b) { return off.indexOf(b) === -1; });
     }
 
     /**
@@ -1543,7 +1807,43 @@
       return texto.charAt(0).toUpperCase() + texto.slice(1);
     }
 
-    return { visible: visible, gestion: gestion, subtituloGestion: subtituloGestion, enumerar: enumerar };
+    return {
+      visible: visible,
+      gestion: gestion,
+      subtituloGestion: subtituloGestion,
+      enumerar: enumerar,
+      apagados: apagados,
+      moduloApagado: moduloApagado,
+      nombreModulo: nombreModulo,
+      sincronizar: sincronizar,
+      alCambiarModulos: alCambiarModulos
+    };
+  })();
+
+  /**
+   * La lista de módulos apagados se pide sola al cargar CUALQUIER pantalla.
+   *
+   * Va aquí y no en cada pantalla porque el error que arregla es el de olvidarse: hay
+   * cinco sitios que pintan un conmutador de áreas y basta que uno no pregunte para
+   * que siga ofreciendo la puerta que los otros cuatro ya escondieron. Es una llamada
+   * cacheada, sin indicador y sin bloqueo: si falla, no se nota.
+   */
+  (function () {
+    const arrancar = function () {
+      // Solo hace falta cuando NO sabemos los bloques de esta persona —sin sesión, o
+      // con una sesión que todavía no los trae—, que es justo el caso que este cambio
+      // vino a arreglar. Con sesión ya resuelta, la lista de bloques del servidor
+      // viene con los apagados restados y preguntar otra vez sería preguntar dos
+      // veces lo mismo en cada pantalla.
+      if (!AppSession.isLoggedIn() || !AppSession.bloquesConocidos) AppFunciones.sincronizar();
+
+      // ?ancla=… (o #…) baja al apartado que pedía el enlace. Aquí y no en cada
+      // pantalla: es el mismo gesto en las dieciocho, y la que se olvidara de hacerlo
+      // dejaría muerto un enlace que en las demás funciona.
+      if (AppUrl.param('ancla')) AppUrl.irAncla();
+    };
+    if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', arrancar);
+    else arrancar();
   })();
 
   window.AppSession = AppSession;

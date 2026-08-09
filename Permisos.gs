@@ -109,6 +109,14 @@ const PERM_BLOQUES = [
   { id: 'operacion',         nombre: 'Estado de operación',      grupo: 'Supervisión',
     detalle: 'Confirmar, descartar y actualizar las fallas que reporta el equipo.',
     pagina: 'operacion',           admin: false, fijo: false },
+  // Gestión del equipo SIN ser maestro. Deja cambiar el rol y los accesos de los
+  // ASESORES —solo de ellos— y nunca los propios: ver Equipo.gs, donde están los
+  // candados. Es lo que permite que una coordinación dé de baja a quien se fue el
+  // viernes sin tener que despertar a un maestro, que era el motivo real por el que
+  // circulaban cuentas maestras de más.
+  { id: 'sup_equipo',        nombre: 'Roles del equipo',         grupo: 'Supervisión',
+    detalle: 'Cambiar el rol, los accesos y el alta o baja de los asesores. No alcanza a supervisores ni maestros, ni a la propia cuenta.',
+    pagina: '',                    admin: false, fijo: false },
 
   // ── Administración (consola maestra) ──────────────────────────────────────
   { id: 'adm_miembros',      nombre: 'Miembros',                 grupo: 'Administración',
@@ -164,11 +172,11 @@ const PERM_ROLES = {
   avanzado: {
     id: 'avanzado',
     nombre: 'Supervisor',
-    detalle: 'Todo lo del asesor, más métricas, revisión de cotizaciones, el contenido del Portal y el estado de operación.',
+    detalle: 'Todo lo del asesor, más métricas, revisión de cotizaciones, el contenido del Portal, el estado de operación y los roles de su equipo de asesores.',
     orden: 2,
     bloques: ['portal', 'promociones', 'cotizar', 'consultar', 'enviar_cotizacion', 'correos_cliente',
               'supervision', 'revisar', 'politica_revision', 'trazabilidad', 'anuncios', 'portal_contenido',
-              'operacion']
+              'operacion', 'sup_equipo']
   },
   maestro: {
     id: 'maestro',
@@ -933,6 +941,46 @@ function obtenerPermisosSesion(emailCliente) {
     Logger.log('obtenerPermisosSesion error: ' + e);
     return { success: false, rol: 'normal', rolNombre: '', maestro: false, avanzado: false,
              bloques: [], nombre: '', activo: true, message: e.message };
+  }
+}
+
+/**
+ * Qué módulos están apagados por mantenimiento. SIN sesión.
+ *
+ * POR QUÉ EXISTE
+ * --------------
+ * El menú de áreas del Portal se apagaba solo para quien había iniciado sesión: sin
+ * sesión, AppFunciones enseñaba todo "por si acaso". El resultado era el peor de los
+ * dos mundos justo cuando más duele —el Portal es la landing pública y la primera
+ * pantalla del día—: un asesor sin sesión veía Promociones en el menú, entraba, hacía
+ * el login, y solo entonces se enteraba de que el módulo estaba caído por
+ * mantenimiento. Tres pasos para llegar a una puerta cerrada que ya sabíamos que
+ * estaba cerrada.
+ *
+ * QUÉ REVELA
+ * ----------
+ * Nada que no se vea igual desde fuera. "El monitor de promociones está en
+ * mantenimiento" es exactamente lo que descubre cualquiera que intente abrirlo, y es
+ * lo mismo que dice el tablero de estado, que también es público a propósito. No
+ * viajan correos, ni nombres, ni quién apagó qué: solo la lista de identificadores
+ * apagados y el catálogo de nombres para poder decirlo en cristiano.
+ *
+ * @return {{success:boolean, apagados:string[], nombres:Object<string,string>}}
+ */
+function obtenerModulosPublicos() {
+  try {
+    const apagados = permModulosApagados_();
+    const nombres = {};
+    PERM_BLOQUES.forEach(function (b) {
+      if (apagados.indexOf(b.id) !== -1) nombres[b.id] = b.nombre;
+    });
+    return { success: true, apagados: apagados, nombres: nombres };
+  } catch (e) {
+    Logger.log('obtenerModulosPublicos error: ' + e);
+    // Un fallo aquí NO debe esconder el menú: sin respuesta, el cliente se queda con
+    // el criterio de siempre (enseñarlo todo). Esconder de más por un error de lectura
+    // sería dejar la landing sin puertas por un problema que no es del usuario.
+    return { success: false, apagados: [], nombres: {} };
   }
 }
 

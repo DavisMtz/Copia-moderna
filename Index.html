@@ -1296,6 +1296,7 @@ table.ds-matrix{width:100%;border-collapse:separate;border-spacing:0;min-width:5
      el acceso del sidebar y el control del topbar lo llevan directo a su panel. -->
 <script>window.__APP__ = { baseUrl: '<?= APP_URL ?>' };</script>
 <?!= include('app_core') ?>
+<?!= include('app_guardado') ?>
 <?!= include('app_onboarding') ?>
 <?!= include('app_operacion') ?>
 <template id="__bundler_thumbnail" data-bg-color="#E10098">
@@ -6452,6 +6453,14 @@ function mockData(){
     // Primera pasada con lo que ya hay guardado: el menú correcto se ve desde el
     // primer fotograma para quien ya entró alguna vez.
     aplicarAreas();
+
+    // El Portal es la landing PÚBLICA: aquí hay menú aunque no haya sesión, y hasta
+    // ahora ese menú era el único que no se enteraba del mantenimiento. Cuando llega
+    // la lista de módulos apagados se vuelve a aplicar, con sesión o sin ella.
+    if (window.AppFunciones && AppFunciones.alCambiarModulos) {
+      AppFunciones.alCambiarModulos(aplicarAreas);
+      AppFunciones.sincronizar().then(aplicarAreas, function () {});
+    }
 
     if (!(window.AppSession && AppSession.isLoggedIn() && AppSession.refrescar)) return;
     // refrescar() de paso pone al día el rol guardado, así que entrar al Portal ya deja

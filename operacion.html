@@ -211,6 +211,7 @@
     window.__APP__ = { baseUrl: <?!= JSON.stringify(baseUrl) ?> };
   </script>
   <?!= include('app_core'); ?>
+  <?!= include('app_guardado'); ?>
   <?!= include('app_buscar'); ?>
   <?!= include('app_icons'); ?>
   <?!= include('app_motion'); ?>
@@ -742,45 +743,78 @@
         if (!payload.submotivo) { errorModal('Dinos qué es lo que está pasando.'); return; }
       }
 
-      m.guardando = true; pintarModal();
-      AppRun.call(fn, [payload]).then(function (r) {
-        m.guardando = false;
-        if (r && r.success) {
-          cerrarModal();
+      /**
+       * El modal se cierra al soltar el botón y la escritura sube por detrás.
+       *
+       * Aquí importa más que en otras pantallas: quien está actualizando una falla
+       * suele tener tres o cuatro que atender, y el sitio donde se lleva el pulso de
+       * la operación no puede ser el sitio donde más se espera. Si el servidor
+       * rechaza, el modal vuelve con lo escrito y con el motivo.
+       *
+       * Solo `opActualizarIncidente` se reintenta: cambiar el estado de una falla
+       * deja lo mismo si se repite. Crear una incidencia o elevar un reporte avisa
+       * al equipo por Chat, y un reintento sería un segundo aviso.
+       */
+      var estadoAnterior = m;
+      var esAlta = (fn !== 'opActualizarIncidente');
+      var quePasa = m.tipo === 'actualizar' ? 'Actualizando la falla'
+                  : (m.tipo === 'elevar' ? 'Elevando el reporte' : 'Publicando la falla');
+
+      AppGuardado.guardar({
+        clave: 'operacion:' + (payload.id || payload.reporteId || 'nueva'),
+        etiqueta: quePasa,
+        hecho: m.tipo === 'actualizar' ? 'Falla actualizada'
+             : (m.tipo === 'elevar' ? 'Reporte elevado' : 'Falla publicada'),
+        fn: fn,
+        args: [payload],
+        reintentos: esAlta ? 0 : 2,
+        valida: function (r) { return !!(r && r.success); },
+        optimista: function () { cerrarModal(); },
+        revertir: function (r) {
+          estadoModal = estadoAnterior;
+          estadoModal.guardando = false;
+          estadoModal.error = (r && r.message) || 'No pudimos guardar el cambio.';
+          modalOv.classList.add('abierto');
+          document.body.style.overflow = 'hidden';
+          pintarModal();
+        },
+        alLograr: function () {
           AppCache.remove('operacion-panel');
           AppCache.remove('operacion-estado');
-          AppMotion.toast(r.message || 'Guardado.', 'ok');
           datos = null;
           cargar(true);
           if (window.AppOperacion) AppOperacion.refrescar(true);
-        } else {
-          m.error = (r && r.message) || 'No pudimos guardar el cambio.';
-          pintarModal();
         }
-      }, function () {
-        m.guardando = false;
-        m.error = 'No hay conexión con el sistema. Revisa tu internet.';
-        pintarModal();
       });
     }
 
     function descartarReporte(repId, boton) {
-      boton.disabled = true;
-      AppRun.call('opDescartarReporte', [{ email: correo(), reporteId: repId }])
-        .then(function (r) {
-          if (r && r.success) {
-            AppCache.remove('operacion-panel');
-            AppMotion.toast('Reporte descartado.', 'ok');
-            datos = null;
-            cargar(true);
-          } else {
-            boton.disabled = false;
-            AppMotion.toast((r && r.message) || 'No pudimos descartarlo.', 'error');
-          }
-        }, function () {
+      // La fila se va en cuanto se toca el botón: descartar un reporte es una decisión
+      // ya tomada —se estaba leyendo—, y verla quedarse medio segundo con el botón
+      // gris es lo que hace que la bandeja se sienta lenta cuando hay quince.
+      var fila = boton.closest ? boton.closest('[data-reporte], li, tr, article') : null;
+
+      AppGuardado.guardar({
+        clave: 'reporte:' + repId,
+        etiqueta: 'Descartando el reporte',
+        hecho: 'Reporte descartado.',
+        fn: 'opDescartarReporte',
+        args: [{ email: correo(), reporteId: repId }],
+        valida: function (r) { return !!(r && r.success); },
+        optimista: function () {
+          boton.disabled = true;
+          if (fila) fila.style.display = 'none';
+        },
+        revertir: function () {
           boton.disabled = false;
-          AppMotion.toast('No hay conexión con el sistema.', 'error');
-        });
+          if (fila) fila.style.display = '';
+        },
+        alLograr: function () {
+          AppCache.remove('operacion-panel');
+          datos = null;
+          cargar(true);
+        }
+      });
     }
 
     /* ── Barra superior ── */
