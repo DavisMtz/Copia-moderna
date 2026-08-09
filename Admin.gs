@@ -188,7 +188,54 @@ function revisionMaestra() {
       ' · códigos vigentes ahora: ' + vivos + ' · cuota de correo restante: ' + MailApp.getRemainingDailyQuota();
   });
 
-  // ── 8. INFRAESTRUCTURA ────────────────────────────────────────────────────
+  // ── 8. PERMISOS Y CONSOLA MAESTRA ─────────────────────────────────────────
+  check('Permisos', 'Modelo de bloques (Permisos.gs)', function () {
+    if (typeof PERM_BLOQUES === 'undefined' || typeof permBloquesEfectivos_ !== 'function') {
+      throw new Error('Permisos.gs no está en el proyecto: la app funciona con el interruptor ' +
+        '"Avanzado" de siempre, pero no hay permisos por bloque ni consola maestra.');
+    }
+    return PERM_BLOQUES.length + ' bloques en ' + PERM_GRUPOS.length + ' grupos · ' +
+      PERM_ROLES_ORDEN.length + ' roles';
+  });
+  check('Permisos', 'Hay al menos un maestro', function () {
+    const maestros = permListaMaestros_();
+    if (!maestros.length) {
+      throw new Error('NINGUNA cuenta tiene el rol maestro: la consola no se puede abrir. ' +
+        'Ejecuta permSembrarMaestro("tu.correo@dominio.com") una vez desde este editor.');
+    }
+    return maestros.length + ' maestro(s): ' + maestros.join(', ');
+  });
+  check('Permisos', 'Hoja oculta de permisos', function () {
+    const sheet = permHoja_(false);
+    if (!sheet) {
+      // No es un fallo: se crea sola al primer guardado, y mientras tanto manda la
+      // columna "Avanzado" de "Registros" como siempre.
+      return 'aún sin crear · se crea sola al nombrar al primer maestro';
+    }
+    const filas = Math.max(0, sheet.getLastRow() - 1);
+    const oculta = (typeof sheet.isSheetHidden === 'function') ? sheet.isSheetHidden() : true;
+    return '"' + PERM_HOJA + '" con ' + filas + ' fila(s) · ' +
+      (oculta ? 'oculta' : 'VISIBLE (conviene ocultarla)');
+  });
+  check('Permisos', 'Módulos en mantenimiento', function () {
+    const off = permModulosApagados_();
+    return off.length
+      ? off.length + ' apagado(s): ' + off.join(', ') + ' — el equipo NO los ve'
+      : 'ninguno: todo en servicio';
+  });
+  check('Permisos', 'Consola maestra (Consola.gs)', function () {
+    if (typeof consolaPanorama !== 'function') {
+      throw new Error('Consola.gs no está en el proyecto: la pantalla ?page=consola no tendrá datos.');
+    }
+    if (!PAGES['consola']) {
+      throw new Error('La página "consola" no está registrada en PAGES (Code.gs).');
+    }
+    const sheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName(CONSOLA_BITACORA_SHEET);
+    return 'API lista · bitácora: ' +
+      (sheet ? Math.max(0, sheet.getLastRow() - 1) + ' movimientos' : 'se creará al primer cambio');
+  });
+
+  // ── 9. INFRAESTRUCTURA ────────────────────────────────────────────────────
   check('Infra', 'CacheService', function () {
     const c = CacheService.getScriptCache();
     c.put('diag_ping', 'ok', 60);
@@ -258,7 +305,13 @@ function verificarVersionDelCodigo() {
     { nombre: 'isAdvancedUser', fn: typeof isAdvancedUser === 'function' ? isAdvancedUser : null,
       marca: 'secIdentidadAvanzada_', pista: 'debe delegar en Seguridad.gs' },
     { nombre: 'portalGateAvanzado_', fn: typeof portalGateAvanzado_ === 'function' ? portalGateAvanzado_ : null,
-      marca: 'secIdentidadAvanzada_', pista: 'debe delegar en Seguridad.gs' },
+      marca: 'secIdentidadConBloque_', pista: 'debe exigir el bloque "anuncios" (Permisos.gs)' },
+    { nombre: 'portalContenidoGuardar', fn: typeof portalContenidoGuardar === 'function' ? portalContenidoGuardar : null,
+      marca: 'pcGate_', pista: 'debe exigir el bloque "portal_contenido" (PortalContenido.gs)' },
+    { nombre: 'secIdentidad_', fn: typeof secIdentidad_ === 'function' ? secIdentidad_ : null,
+      marca: 'permBloquesEfectivos_', pista: 'debe resolver los bloques del modelo de permisos' },
+    { nombre: 'loginUser', fn: typeof loginUser === 'function' ? loginUser : null,
+      marca: 'permUsuario_', pista: 'debe devolver el rol y los bloques al cliente' },
     { nombre: 'loginUser', fn: typeof loginUser === 'function' ? loginUser : null,
       marca: 'secIntentosRevisar_', pista: 'debe traer el freno de fuerza bruta' },
     { nombre: 'getVerifiedImageUrl', fn: typeof getVerifiedImageUrl === 'function' ? getVerifiedImageUrl : null,

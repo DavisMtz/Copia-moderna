@@ -255,8 +255,9 @@
             '   |   Folio: ' + (data.folio || 'NUEVO');
 
         document.getElementById('ccl-asesorNombre').textContent = data.advisorName || 'N/A';
-        document.getElementById('ccl-asesorTelefono').textContent =
-            data.advisorExt ? `55-52-62-99-99 / Extensión: ${data.advisorExt}` : '55-52-62-99-99 / Pregunte por su asesor';
+        // La extensión del asesor se retiró del sistema: siempre se pide por su nombre.
+        // Se conserva la línea entera (misma celda, mismo alto) para no mover el formato.
+        document.getElementById('ccl-asesorTelefono').textContent = '55-52-62-99-99 / Pregunte por su asesor';
 
         document.getElementById('ccl-clienteNombre').textContent = 'Dirigida a: ' + (data.clientName || 'Cliente');
         document.getElementById('ccl-clienteEmail').textContent = 'Correo: ' + (data.clientEmail || '');

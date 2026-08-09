@@ -12,6 +12,7 @@
  *   AppCache   -> almacén local con namespace, versión, TTL y respaldo en memoria.
  *   AppRun     -> google.script.run como promesa, con deduplicación de llamadas.
  *   requireSession() -> guardia: si no hay sesión, redirige a login.
+ *   requireBlock()   -> guardia por bloque de permisos (ver Permisos.gs en el servidor).
  */
 (function () {
   const cfg = window.__APP__ || {};
@@ -28,6 +29,12 @@
   const K_EMAIL = 'ventel-user-email';
   const K_ADV = 'ventel-user-advanced';
   const K_FOLIO = 'ventel-selected-folio';
+  // Rol y bloques del modelo de permisos (Permisos.gs). Se guardan para DIBUJAR el
+  // menú sin pedirle al servidor la lista en cada pantalla. No son una credencial:
+  // cualquiera puede editarlos desde la consola del navegador, y por eso el servidor
+  // vuelve a resolverlos en cada llamada. Aquí solo deciden qué botones se pintan.
+  const K_ROL = 'ventel-user-role';
+  const K_BLOQUES = 'ventel-user-blocks';
   const LEGACY_KEYS = {
     'userName': K_NAME,
     'userEmail': K_EMAIL,
@@ -53,6 +60,116 @@
     get userEmail() { return lsGet(K_EMAIL); },
     get isAdvanced() { return lsGet(K_ADV) === 'true'; },
     get firstName() { return (this.userName || 'Usuario').split(' ')[0]; },
+
+    /** Rol del modelo de permisos: 'normal' | 'avanzado' | 'maestro'. */
+    get rol() {
+      const r = lsGet(K_ROL);
+      if (r) return r;
+      // Sesión abierta antes de que existieran los roles: se deduce del interruptor
+      // viejo para que nadie tenga que volver a entrar tras el despliegue.
+      return this.isAdvanced ? 'avanzado' : 'normal';
+    },
+    get isMaster() { return this.rol === 'maestro'; },
+
+    /** Bloques concedidos. Vacío = sesión vieja; entonces se cae al rol. */
+    get bloques() {
+      try {
+        const crudo = lsGet(K_BLOQUES);
+        const lista = crudo ? JSON.parse(crudo) : [];
+        return Array.isArray(lista) ? lista : [];
+      } catch (e) { return []; }
+    },
+
+    /**
+     * ¿Sabemos QUÉ bloques tiene esta persona?
+     *
+     * No es lo mismo "no tiene ninguno" que "todavía no se lo hemos preguntado al
+     * servidor", y antes se confundían: una lista vacía se leía igual que una lista
+     * ausente. La diferencia importa, porque de ella depende si una función apagada
+     * por mantenimiento se esconde o se sigue enseñando.
+     */
+    get bloquesConocidos() { return lsGet(K_BLOQUES) !== ''; },
+
+    /**
+     * ¿Se le pinta este bloque a esta persona?
+     *
+     * Cuando la sesión no trae la lista —porque se abrió antes de este cambio— se
+     * responde que SÍ: la alternativa sería esconderle media app a alguien que sí
+     * tiene permiso, y el servidor va a rechazar igualmente lo que no le toque.
+     * Ocultar de más es un fallo de usabilidad; ocultar de menos, ninguno: el
+     * candado real está del otro lado.
+     *
+     * En cuanto la lista SÍ existe manda la lista, aunque venga vacía. Ese caso es
+     * real: los módulos apagados por mantenimiento se restan en el servidor, así que
+     * "sin bloques" puede significar "hoy no hay nada disponible" y hay que hacerle
+     * caso.
+     */
+    can: function (bloqueId) {
+      if (!bloqueId) return true;
+      if (!this.bloquesConocidos) return true;
+      return this.bloques.indexOf(bloqueId) !== -1;
+    },
+
+    /**
+     * Igual que can(), pero sin el beneficio de la duda: si no sabemos los bloques,
+     * responde NO.
+     *
+     * Se usa para las puertas de administración. Enseñarle a un asesor un acceso de
+     * gestión que el servidor le va a rechazar no es solo un menú equivocado: es
+     * anunciarle a todo el equipo dónde está la puerta y que existe. Ahí el error
+     * barato es esconder de más, no de menos —justo al revés que en el resto del
+     * menú—, y el enlace aparece medio segundo después, cuando el servidor confirma.
+     */
+    canStrict: function (bloqueId) {
+      if (!bloqueId) return false;
+      if (!this.bloquesConocidos) return false;
+      return this.bloques.indexOf(bloqueId) !== -1;
+    },
+
+    /**
+     * Vuelve a preguntarle al servidor el rol y los bloques de esta sesión.
+     *
+     * POR QUÉ HACE FALTA: el rol se guardaba SOLO al iniciar sesión. Eso significaba
+     * que ascender a alguien no surtía efecto hasta que esa persona cerraba sesión y
+     * volvía a entrar —y mientras tanto veía el menú de antes y creía que el cambio
+     * no se había hecho—. Con esto, basta recargar la pantalla.
+     *
+     * Si el servidor responde que la cuenta ya no vale (dada de baja, borrada), se
+     * cierra la sesión aquí mismo: quitarle el acceso a alguien tiene que notarse en
+     * la siguiente pantalla que abra, no en la siguiente vez que se le ocurra entrar.
+     *
+     * Nunca rechaza: un fallo de red no debe tumbar una pantalla que ya está pintada.
+     * @return {Promise<{cambio:boolean, permisos:object}|null>}
+     */
+    refrescar: function () {
+      const self = this;
+      if (!self.isLoggedIn()) return Promise.resolve(null);
+
+      return AppRun.call('obtenerPermisosSesion', [self.userEmail], { key: 'permisos-sesion' })
+        .then(function (r) {
+          if (!r) return null;
+
+          if (!r.success) {
+            // activo:false es el servidor diciendo "esta cuenta ya no entra". Un error
+            // cualquiera (red, cuota) llega con activo:true y no se toca la sesión.
+            if (r.activo === false) {
+              self.clear();
+              AppUrl.go('login');
+            }
+            return null;
+          }
+
+          const antes = lsGet(K_ROL) + '|' + lsGet(K_BLOQUES);
+          try {
+            localStorage.setItem(K_ROL, r.rol || 'normal');
+            localStorage.setItem(K_BLOQUES, JSON.stringify(r.bloques || []));
+            localStorage.setItem(K_ADV, String(r.avanzado === true));
+            if (r.nombre) localStorage.setItem(K_NAME, r.nombre);
+          } catch (e) {}
+
+          return { cambio: antes !== (lsGet(K_ROL) + '|' + lsGet(K_BLOQUES)), permisos: r };
+        }, function () { return null; });
+    },
     /** Último correo con el que se inició sesión; sobrevive al cierre de sesión
      *  para precargar el login (persistencia amable, no credencial). */
     get lastEmail() { return lsGet('ventel-last-email'); },
@@ -62,6 +179,8 @@
         localStorage.setItem(K_NAME, data.userName || '');
         localStorage.setItem(K_EMAIL, data.userEmail || '');
         localStorage.setItem(K_ADV, String(data.isAdvanced === true));
+        localStorage.setItem(K_ROL, data.rol || (data.isAdvanced ? 'avanzado' : 'normal'));
+        localStorage.setItem(K_BLOQUES, JSON.stringify(Array.isArray(data.bloques) ? data.bloques : []));
         if (data.userEmail) localStorage.setItem('ventel-last-email', data.userEmail);
       } catch (e) { console.error('No se pudo guardar la sesión:', e); }
     },
@@ -82,7 +201,7 @@
      */
     clear: function () {
       try {
-        [K_NAME, K_EMAIL, K_ADV, K_FOLIO].forEach(function (k) { localStorage.removeItem(k); });
+        [K_NAME, K_EMAIL, K_ADV, K_ROL, K_BLOQUES, K_FOLIO].forEach(function (k) { localStorage.removeItem(k); });
       } catch (e) {}
       try {
         Object.keys(localStorage)
@@ -105,7 +224,9 @@
     'correo_cliente':      'los correos a clientes',
     'dashboard':           'el panel',
     'inicio_avanzado':     'el panel avanzado',
+    'consola':             'la consola maestra',
     'anuncios':            'el constructor de anuncios',
+    'portal_contenido':    'el contenido del Portal',
     'login':               'el inicio de sesión',
     'registro':            'la creación de cuenta',
     'recuperar':           'la recuperación de contraseña',
@@ -580,8 +701,13 @@
       } catch (e) { return Promise.resolve(false); }
     },
 
-    /** Página de inicio que corresponde al rol del usuario. */
-    homePage: function () { return AppSession.isAdvanced ? PAGE_HOME_ADVANCED : PAGE_HOME_NORMAL; },
+    /**
+     * Página de inicio que corresponde a los permisos del usuario.
+     * Se pregunta por el BLOQUE y no por el rol: a un supervisor al que se le retiró
+     * la supervisión hay que dejarlo en el panel normal, no en una pantalla que el
+     * servidor le va a rechazar entera.
+     */
+    homePage: function () { return AppSession.can('supervision') ? PAGE_HOME_ADVANCED : PAGE_HOME_NORMAL; },
     goHome: function (params) { return this.go(this.homePage(), params); },
 
     /**
@@ -597,7 +723,8 @@
      */
     PAGINAS_TRAS_LOGIN: [
       'cotizacion', 'cotizado_preview', 'consulta_cotizacion', 'revision_cotizacion',
-      'correoventel', 'correo_cliente', 'anuncios', 'dashboard', 'inicio_avanzado'
+      'correoventel', 'correo_cliente', 'anuncios', 'portal_contenido', 'dashboard',
+      'inicio_avanzado', 'consola'
     ],
 
     /**
@@ -634,6 +761,36 @@
     sesionExigida = true;
     if (AppSession.isLoggedIn()) return true;
     AppUrl.go('login', paginaActual ? { next: paginaActual } : null);
+    return false;
+  }
+
+  /**
+   * Guardia de pantalla por BLOQUE (ver Permisos.gs).
+   *
+   * Exige sesión y, además, que la sesión traiga el bloque. No es una medida de
+   * seguridad —la lista vive en localStorage y se puede editar— sino de cortesía:
+   * evita que alguien llegue por un enlace a una pantalla que va a rechazarle cada
+   * llamada y se quede mirando errores sin entender por qué. El candado de verdad
+   * está en el servidor, en secIdentidadConBloque_.
+   *
+   * Admite VARIOS bloques: basta tener uno. Hay pantallas que son la casa de varias
+   * facultades distintas —el panel avanzado reúne métricas, cola de revisión y política—
+   * y exigir el bloque principal dejaba fuera a quien tenía concedida solo una de las
+   * otras: el permiso existía pero no había puerta por la que ejercerlo. Lo que se
+   * enseña DENTRO lo decide luego cada apartado por su cuenta.
+   *
+   * @param {string|string[]} bloqueId 'cotizar' · ['supervision','revisar']…
+   * @param {string=} paginaActual Para que el login sepa a dónde devolver.
+   */
+  function requireBlock(bloqueId, paginaActual) {
+    if (!requireSession(paginaActual)) return false;
+    const lista = Array.isArray(bloqueId) ? bloqueId : [bloqueId];
+    if (lista.some(function (b) { return AppSession.can(b); })) return true;
+    const nombre = NOMBRES_PAGINA[paginaActual] || 'esta pantalla';
+    try {
+      if (window.AppMotion) AppMotion.toast('Tu cuenta no tiene acceso a ' + nombre + '.', 'error');
+    } catch (e) {}
+    AppUrl.goHome();
     return false;
   }
 
@@ -943,9 +1100,141 @@
     }
   });
 
+  /**
+   * ===========================================================================
+   * FUNCIONES DEL CONMUTADOR DE ÁREA
+   * ===========================================================================
+   * Qué áreas se enseñan en "Funciones" y cuáles no. Vive aquí —y no en cada
+   * pantalla— porque el mismo conmutador está pintado en tres sitios distintos
+   * (Portal, Monitor de promociones y el shell de Cotizaciones) y hasta ahora
+   * cada uno decidía por su cuenta; bastaba tocar uno para que los otros dos se
+   * quedaran enseñando puertas que ya no llevaban a ningún lado.
+   *
+   * DOS REGLAS, Y LA DIFERENCIA ENTRE ELLAS ES DELIBERADA:
+   *
+   *  · Un área de trabajo (Portal, Cotizaciones, Correos) se esconde cuando el
+   *    servidor ya nos dijo que esta persona no tiene NINGUNO de sus bloques. Eso
+   *    incluye el caso de mantenimiento: apagar un módulo lo resta de la lista de
+   *    bloques, así que la opción desaparece del menú en vez de quedarse ahí para
+   *    llevar a una pantalla que va a contestar "no disponible". Un menú que
+   *    ofrece lo que no funciona hace perder más tiempo que uno más corto.
+   *
+   *  · El área de Gestión se esconde también mientras no sepamos nada. Es la
+   *    puerta de administración y el Portal es una landing pública: enseñarla "por
+   *    si acaso" es anunciar dónde tocar.
+   *
+   * Nada de esto es seguridad —el candado real está en el servidor, que vuelve a
+   * exigir el permiso al abrir cada pantalla—; es no ofrecer lo que no se puede.
+   */
+  const AppFunciones = (function () {
+    /* Áreas de trabajo. `bloques` = con tener UNO basta para que el área exista:
+       a quien puede consultar pero ya no cotizar, Cotizaciones le sigue sirviendo. */
+    const AREAS = [
+      { id: 'portal',       page: 'portal',         bloques: ['portal'] },
+      { id: 'cotizaciones', page: 'dashboard',      bloques: ['cotizar', 'consultar', 'enviar_cotizacion'] },
+      { id: 'correos',      page: 'correo_cliente', bloques: ['correos_cliente'] },
+      { id: 'promociones',  page: 'promociones',    bloques: ['promociones'] }
+    ];
+
+    /* Destinos del área de Gestión, en orden de preferencia al entrar: el área se
+       abre por la primera pantalla que ESA persona sí puede abrir. */
+    /* VARIOS BLOQUES PUEDEN LLEVAR A LA MISMA PANTALLA, y es a propósito. El panel
+       avanzado es la casa de tres facultades —métricas, cola de revisión y política de
+       revisión— que se conceden por separado. Antes aquí solo figuraba 'supervision',
+       así que a quien se le daba únicamente 'revisar' no le aparecía nada: tenía el
+       permiso y no tenía puerta por la que ejercerlo. Ahora entra por la razón por la
+       que puede entrar, y el menú se lo dice con ese nombre —"Revisar cotizaciones" y
+       no "Panel avanzado"—, porque es lo que va a encontrar dentro.
+       Se depuran por página en gestion(), para que quien tenga las tres no vea la
+       misma pantalla listada tres veces. */
+    const GESTION = [
+      { bloque: 'supervision',       page: 'inicio_avanzado', nombre: 'Panel avanzado',       corto: 'supervisión',        sub: 'Métricas y revisión' },
+      { bloque: 'revisar',           page: 'inicio_avanzado', nombre: 'Revisar cotizaciones', corto: 'revisión',           sub: 'Cotizaciones por autorizar' },
+      { bloque: 'politica_revision', page: 'inicio_avanzado', nombre: 'Política de revisión', corto: 'reglas de revisión', sub: 'Reglas de revisión' },
+      { bloque: 'anuncios',          page: 'anuncios',        nombre: 'Anuncios del Portal',  corto: 'anuncios',           sub: 'Anuncios del Portal' },
+      { bloque: 'portal_contenido',  page: 'portal_contenido', nombre: 'Contenido del Portal', corto: 'contenido del Portal', sub: 'Herramientas, plantillas y promos' },
+      { bloque: 'adm_miembros',      page: 'consola',         nombre: 'Consola maestra',      corto: 'ajustes',            sub: 'Miembros y ajustes', soloMaestro: true }
+    ];
+
+    function porId(id) {
+      for (let i = 0; i < AREAS.length; i++) if (AREAS[i].id === id) return AREAS[i];
+      return null;
+    }
+
+    /**
+     * ¿Se enseña esta área de trabajo?
+     * @param {string} id  'portal' | 'cotizaciones' | 'correos' | 'promociones'
+     */
+    function visible(id) {
+      const area = porId(id);
+      if (!area) return true;
+      // Sin sesión estamos en la landing pública y estas opciones llevan al login,
+      // que es justo lo que toca hacer: se enseñan.
+      if (!AppSession.isLoggedIn()) return true;
+      if (!AppSession.bloquesConocidos) return true;
+      const lista = AppSession.bloques;
+      return area.bloques.some(function (b) { return lista.indexOf(b) !== -1; });
+    }
+
+    /**
+     * Destinos de gestión que ESTA persona puede abrir. Lista vacía = no se dibuja
+     * el área.
+     * @param {object=} permisos Respuesta fresca de obtenerPermisosSesion. Si se pasa,
+     *   manda ella; si no, se usa lo guardado en la sesión (con criterio estricto).
+     */
+    function gestion(permisos) {
+      let lista, maestro;
+      if (permisos) {
+        if (!permisos.success) return [];
+        lista = permisos.bloques || [];
+        maestro = !!permisos.maestro;
+      } else {
+        if (!AppSession.isLoggedIn() || !AppSession.bloquesConocidos) return [];
+        lista = AppSession.bloques;
+        maestro = AppSession.isMaster;
+      }
+      const concedidos = GESTION.filter(function (d) {
+        if (d.soloMaestro && !maestro) return false;
+        return lista.indexOf(d.bloque) !== -1;
+      });
+
+      // Una pantalla, una entrada. Gana la primera del catálogo, que es la de mayor
+      // alcance: a un supervisor le sale "Panel avanzado" (lo ve todo) y no tres
+      // entradas al mismo sitio; a quien solo puede revisar le sale "Revisar
+      // cotizaciones", que es exactamente lo que ese permiso le deja hacer.
+      const vistas = {};
+      return concedidos.filter(function (d) {
+        if (vistas[d.page]) return false;
+        vistas[d.page] = true;
+        return true;
+      });
+    }
+
+    /** Enumera en castellano: "a", "a y b", "a, b y c". */
+    function enumerar(items) {
+      if (items.length <= 1) return items[0] || '';
+      return items.slice(0, -1).join(', ') + ' y ' + items[items.length - 1];
+    }
+
+    /**
+     * Subtítulo del área de Gestión: enumera lo que ESA persona encontrará dentro,
+     * no lo que existe. A un supervisor sin consola no le sirve leer "ajustes".
+     */
+    function subtituloGestion(disponibles) {
+      if (!disponibles || !disponibles.length) return '';
+      if (disponibles.length === 1) return disponibles[0].sub;
+      const texto = enumerar(disponibles.map(function (d) { return d.corto; }));
+      return texto.charAt(0).toUpperCase() + texto.slice(1);
+    }
+
+    return { visible: visible, gestion: gestion, subtituloGestion: subtituloGestion, enumerar: enumerar };
+  })();
+
   window.AppSession = AppSession;
+  window.AppFunciones = AppFunciones;
   window.AppUrl = AppUrl;
   window.requireSession = requireSession;
+  window.requireBlock = requireBlock;
   window.formatMoney = formatMoney;
   window.escapeHtml = escapeHtml;
   window.escapeJsString = escapeJsString;

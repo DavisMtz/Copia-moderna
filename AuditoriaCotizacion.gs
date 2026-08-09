@@ -823,29 +823,20 @@ function audAuditar_(quote, productos, opciones) {
   // 4 · Asesor ---------------------------------------------------------------------------
   // La regla del negocio: en el documento el asesor sale con NOMBRE y APELLIDO. Ni la firma
   // completa del acta de nacimiento ni solo el nombre de pila.
+  // La extensión telefónica salió del sistema (ya no se usa), así que aquí ya no se
+  // revisa. Si no se quitara, TODA cotización nueva saldría marcada con "no trae
+  // extensión" —un defecto que nadie puede corregir porque el campo ya no existe—, y
+  // una auditoría que siempre se queja de lo mismo deja de leerse.
   const ase = audValidarNombrePersona_(q.advisorName, {
     quien: 'el nombre del asesor', maxPalabras: 2, exigirExacto: true
   });
-  const ext = String(q.advisorExt == null ? '' : q.advisorExt).trim();
-  let estadoAsesor = ase.estado;
-  let detalleAsesor = ase.mensaje;
-  if (ext && !/^[0-9]{2,8}$/.test(ext.replace(/\D/g, '')) ) {
-    estadoAsesor = estadoAsesor === 'ok' ? 'atencion' : estadoAsesor;
-    detalleAsesor += ' La extensión "' + ext + '" no parece un número de extensión.';
-  } else if (!ext) {
-    estadoAsesor = estadoAsesor === 'ok' ? 'atencion' : estadoAsesor;
-    detalleAsesor += ' No trae extensión: el cliente no tendrá a dónde llamar.';
-  } else {
-    detalleAsesor += ' Extensión ' + ext + '.';
-  }
   puntos.push(audPunto_('asesor',
-    'El asesor aparece con nombre y apellido, y su extensión es correcta',
-    estadoAsesor, detalleAsesor,
+    'El asesor aparece con nombre y apellido',
+    ase.estado, ase.mensaje,
     { sugerencia: ase.sugerencia,
       evidencia: [
         { etiqueta: 'Asesor', valor: String(q.advisorName || '(vacío)') },
-        { etiqueta: 'Correo', valor: String(q.advisorEmail || '(vacío)') },
-        { etiqueta: 'Extensión', valor: ext || '(vacía)' }
+        { etiqueta: 'Correo', valor: String(q.advisorEmail || '(vacío)') }
       ] }));
 
   // 5 · Precios contra el sitio ----------------------------------------------------------

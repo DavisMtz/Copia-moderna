@@ -134,13 +134,23 @@ function secIndiceRegistros_() {
       const iEmail = headers.indexOf('Email');
       const iNombre = headers.indexOf('Nombre');
       const iAdv = headers.indexOf('Avanzado');
+      // OJO: aquí NO se leen rol ni permisos. Esta hoja dice QUIÉN es cada persona
+      // (nombre, correo, contraseña); QUÉ PUEDE hacer vive en la hoja oculta
+      // "_PermisosSistema" (ver Permisos.gs). Se separaron porque "Registros" es una
+      // hoja que edita gente, con sus validaciones y sus columnas propias, y meter
+      // ahí la configuración del sistema acababa en choques silenciosos.
+      // "Avanzado" sí se sigue leyendo: es el respaldo para quien aún no tiene fila
+      // en la hoja de permisos.
+      const iAlta = headers.indexOf('Timestamp') >= 0 ? headers.indexOf('Timestamp') : headers.indexOf('Fecha');
       if (iEmail >= 0) {
         for (let r = 0; r < data.length; r++) {
           const correo = secNormalizarCorreo_(data[r][iEmail]);
           if (!correo || indice[correo]) continue; // el primer registro gana
           indice[correo] = {
             nombre: iNombre >= 0 ? String(data[r][iNombre] || '') : '',
-            avanzado: iAdv >= 0 && secEsAfirmativo_(data[r][iAdv])
+            avanzado: iAdv >= 0 && secEsAfirmativo_(data[r][iAdv]),
+            alta: iAlta >= 0 ? data[r][iAlta] : '',
+            fila: r + 2   // número de fila real en la hoja, para la consola
           };
         }
       }
@@ -180,10 +190,55 @@ function secIdentidad_(emailCliente) {
   const declarado = secNormalizarCorreo_(emailCliente);
 
   const fallo = function (mensaje) {
-    return { ok: false, email: '', nombre: '', avanzado: false, origen: 'ninguno', error: mensaje };
+    return { ok: false, email: '', nombre: '', avanzado: false, rol: 'normal', maestro: false,
+             bloques: [], origen: 'ninguno', error: mensaje };
   };
+
+  /**
+   * Arma la identidad de alguien que SÍ está dado de alta.
+   *
+   * Aquí es donde el modelo de bloques (Permisos.gs) entra al sistema: como toda
+   * llamada pasa por secIdentidad_, basta resolver el rol y los bloques una vez y
+   * el resto de la app los recibe ya calculados. Si Permisos.gs no estuviera en el
+   * proyecto, se cae al comportamiento anterior —la columna "Avanzado" mandando—
+   * en vez de dejar a todo el mundo fuera.
+   */
   const exito = function (reg, origen) {
-    return { ok: true, email: reg.email, nombre: reg.nombre, avanzado: reg.avanzado, origen: origen, error: '' };
+    // Los permisos se piden a Permisos.gs, que los lee de su hoja oculta. Si ese
+    // archivo no estuviera en el proyecto, se cae al comportamiento anterior —la
+    // columna "Avanzado" mandando— en vez de dejar a todo el mundo fuera.
+    if (typeof permUsuario_ !== 'function') {
+      return {
+        ok: true, email: reg.email, nombre: reg.nombre, avanzado: reg.avanzado,
+        rol: reg.avanzado ? 'avanzado' : 'normal', maestro: false, bloques: [],
+        origen: origen, error: ''
+      };
+    }
+
+    const u = permUsuario_(reg.email);
+
+    // Una cuenta dada de baja existe en la hoja pero no puede hacer nada: se corta
+    // aquí, en el único punto por el que pasan todas las funciones de servidor.
+    if (!u.activo) {
+      const negado = fallo('Tu cuenta está dada de baja. Pide al administrador que la reactive.');
+      negado.email = reg.email;
+      negado.nombre = reg.nombre;
+      return negado;
+    }
+
+    return {
+      ok: true,
+      email: reg.email,
+      nombre: reg.nombre,
+      // 'avanzado' se conserva porque decenas de funciones ya lo consultan; ahora
+      // se deriva del rol, de modo que un maestro pasa todas esas puertas también.
+      avanzado: u.avanzado,
+      rol: u.rol,
+      maestro: u.maestro,
+      bloques: u.bloques,
+      origen: origen,
+      error: ''
+    };
   };
 
   // Modo predeterminado: la sesión es la del PORTAL. La cuenta de Google del navegador
@@ -241,8 +296,55 @@ function secIdentidadAvanzada_(emailCliente) {
   const id = secIdentidad_(emailCliente);
   if (!id.ok) return id;
   if (!id.avanzado) {
-    return { ok: false, email: id.email, nombre: id.nombre, avanzado: false, origen: id.origen,
+    return { ok: false, email: id.email, nombre: id.nombre, avanzado: false, rol: id.rol,
+             maestro: false, bloques: id.bloques, origen: id.origen,
              error: 'Tu cuenta no tiene permisos de usuario avanzado.' };
+  }
+  return id;
+}
+
+/**
+ * Igual que secIdentidad_ pero exigiendo un BLOQUE concreto (ver Permisos.gs).
+ * Es la puerta fina: en vez de preguntar "¿es avanzado?" se pregunta "¿puede
+ * revisar cotizaciones?", que es lo que de verdad se está a punto de dejar hacer.
+ *
+ * @param {string} emailCliente Correo de la sesión del portal.
+ * @param {string} bloqueId     Identificador de bloque ('revisar', 'anuncios', …).
+ */
+function secIdentidadConBloque_(emailCliente, bloqueId) {
+  const id = secIdentidad_(emailCliente);
+  if (!id.ok) return id;
+  if (!bloqueId) return id;
+  if ((id.bloques || []).indexOf(bloqueId) !== -1) return id;
+
+  // Se distingue "no te toca" de "está apagado por mantenimiento": son dos problemas
+  // distintos y el asesor no debería ir a pedir permisos cuando lo que hay es una
+  // ventana de mantenimiento.
+  const bloque = (typeof permBloque_ === 'function') ? permBloque_(bloqueId) : null;
+  const apagado = (typeof permModulosApagados_ === 'function') &&
+                  permModulosApagados_().indexOf(bloqueId) !== -1 && !id.maestro;
+  const nombre = (bloque && bloque.nombre) || bloqueId;
+  return {
+    ok: false, email: id.email, nombre: id.nombre, avanzado: id.avanzado, rol: id.rol,
+    maestro: id.maestro, bloques: id.bloques, origen: id.origen,
+    error: apagado
+      ? 'El módulo "' + nombre + '" está en mantenimiento. Vuelve a intentarlo más tarde.'
+      : 'Tu cuenta no tiene acceso a "' + nombre + '".'
+  };
+}
+
+/**
+ * Exige el rol MAESTRO. Es el gate de toda la consola de administración: cambiar
+ * roles, ajustes o módulos solo puede hacerlo quien ya lo es, y el primer maestro
+ * se nombra a mano desde el editor (permSembrarMaestro en Permisos.gs).
+ */
+function secIdentidadMaestra_(emailCliente) {
+  const id = secIdentidad_(emailCliente);
+  if (!id.ok) return id;
+  if (!id.maestro) {
+    return { ok: false, email: id.email, nombre: id.nombre, avanzado: id.avanzado, rol: id.rol,
+             maestro: false, bloques: id.bloques, origen: id.origen,
+             error: 'Solo el rol maestro puede entrar a la consola de administración.' };
   }
   return id;
 }

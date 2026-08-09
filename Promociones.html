@@ -154,6 +154,11 @@ html[data-contrast="high"] :focus-visible{outline:3px solid var(--brand);outline
 .app-switch{display:flex;flex-direction:column;gap:.2rem;padding:.4rem;margin-bottom:.55rem;background:rgba(0,0,0,.18);border:1px solid var(--side-line);border-radius:14px}
 .app-switch-lbl{font-size:.56rem;font-weight:800;letter-spacing:.16em;text-transform:uppercase;color:var(--side-faint);padding:.3rem .5rem .2rem}
 .app-switch-item{display:flex;align-items:center;gap:.55rem;padding:.48rem .55rem;border-radius:10px;text-decoration:none;color:var(--side-ink-soft);transition:background .18s,color .18s}
+/* [hidden] no basta por sí solo: display:flex gana a la hoja del navegador y el
+   elemento "oculto" se sigue viendo. Sin esto, el acceso a Gestión se enseñaba a
+   cualquiera, incluido quien entra al Monitor sin iniciar sesión. */
+.app-switch-item[hidden]{display:none}
+.side-link[hidden]{display:none}
 .app-switch-item .asw-ic{width:30px;height:30px;border-radius:8px;display:flex;align-items:center;justify-content:center;background:rgba(255,255,255,.09);color:var(--side-faint);flex:none;transition:background .18s,color .18s}
 .app-switch-item .asw-ic .ic{width:17px;height:17px}
 .app-switch-item .asw-tx{display:flex;flex-direction:column;line-height:1.18;min-width:0}
@@ -466,6 +471,80 @@ select.filter-select:focus{border-color:var(--rosa);background-color:#fff}
 }
 .cal-section{margin-bottom:2.6rem}
 
+/* ═══ AGENDA · tabla de vigentes, próximas y terminadas ══════════════════════
+   La página solo enseñaba lo activo HOY: lo que ya terminó desaparecía de la
+   vista sin dejar rastro, y no había forma de consultar qué se promocionó la
+   semana pasada ni qué viene la que entra. Esta tabla es esa vista.
+
+   Filtros con clase PROPIA (.ag-filter-btn) a propósito: filterCalendar() apaga
+   todos los .cal-filter-btn de la página, así que compartir clase haría que
+   cambiar de filtro aquí desactivara los del calendario y al revés. */
+.ag-toolbar{display:flex;gap:.7rem;flex-wrap:wrap;align-items:center;margin-bottom:1.1rem}
+.ag-filter-btn{
+  display:inline-flex;align-items:center;gap:.45rem;
+  padding:.5rem 1rem;border:1.5px solid var(--line);background:var(--surface);
+  color:var(--ink-soft);border-radius:999px;cursor:pointer;font-weight:700;font-size:var(--fs-sm);
+  transition:var(--tr);
+}
+.ag-filter-btn .n{
+  font-variant-numeric:tabular-nums;font-size:var(--fs-xs);font-weight:800;
+  background:var(--paper);border:1px solid var(--line);border-radius:999px;padding:.02rem .45rem;
+}
+.ag-filter-btn.active{background:var(--rosa);color:#fff;border-color:var(--rosa);box-shadow:var(--sh-rosa)}
+.ag-filter-btn.active .n{background:rgba(255,255,255,.2);border-color:transparent;color:#fff}
+.ag-filter-btn:hover:not(.active){color:var(--rosa);border-color:var(--rosa-soft)}
+.ag-filter-btn:focus-visible{outline:none;box-shadow:var(--ring)}
+.ag-search{position:relative;flex:1 1 240px;min-width:0;max-width:420px}
+.ag-search input{
+  width:100%;padding:.55rem .8rem;border:1.5px solid var(--line);border-radius:var(--rad-sm);
+  background:var(--surface);color:var(--ink);font:inherit;font-size:var(--fs-sm);
+}
+.ag-search input:focus{outline:none;border-color:var(--rosa);box-shadow:var(--ring)}
+
+/* El scroll horizontal vive DENTRO de esta caja, nunca en la página: una tabla
+   ancha no puede arrastrar consigo a toda la pantalla. */
+.ag-caja{
+  overflow-x:auto;background:var(--surface);border:1px solid var(--line);
+  border-radius:var(--rad);box-shadow:var(--sh-sm);max-width:100%;
+}
+.ag-tabla{width:100%;border-collapse:collapse;font-size:var(--fs-sm);min-width:640px}
+.ag-tabla th,.ag-tabla td{padding:.6rem .8rem;text-align:left;border-bottom:1px solid var(--line-soft);vertical-align:top}
+.ag-tabla tbody tr:last-child td{border-bottom:0}
+.ag-tabla tbody tr:hover{background:var(--surface-2)}
+.ag-tabla thead th{
+  position:sticky;top:0;z-index:2;background:var(--surface-2);
+  font-size:var(--fs-xs);font-weight:800;letter-spacing:.04em;text-transform:uppercase;
+  color:var(--ink-soft);white-space:nowrap;border-bottom:1px solid var(--line);
+}
+.ag-tabla th.orden{cursor:pointer;user-select:none}
+.ag-tabla th.orden:hover{color:var(--rosa)}
+.ag-tabla th .flecha{opacity:.35;margin-left:.25rem}
+.ag-tabla th[aria-sort] .flecha{opacity:1;color:var(--rosa)}
+.ag-tabla th.orden:focus-visible{outline:none;box-shadow:var(--ring)}
+.ag-per{white-space:nowrap;font-variant-numeric:tabular-nums;font-weight:600}
+.ag-dias{display:block;font-size:var(--fs-xs);color:var(--ink-faint);font-weight:600}
+.ag-promo{min-width:200px;max-width:380px;color:var(--ink-soft);line-height:1.4}
+.ag-dir{font-weight:700;white-space:nowrap}
+.ag-cat{white-space:nowrap}
+.ag-link{color:var(--rosa);text-decoration:none;font-weight:700;white-space:nowrap}
+.ag-link:hover{text-decoration:underline}
+.ag-tabla td.ag-vacia{color:var(--ink-faint)}
+
+/* En pantalla estrecha se esconden las columnas accesorias en vez de obligar a
+   arrastrar la tabla de lado. Lo que identifica la promoción se queda. */
+@media(max-width:900px){ .ag-c-marca{display:none} }
+@media(max-width:720px){ .ag-c-origen{display:none} .ag-tabla{min-width:480px} }
+
+.ag-nota{
+  font-size:var(--fs-xs);color:var(--ink-faint);margin-top:.7rem;line-height:1.5;
+}
+/* Etiqueta solo para lectores de pantalla: el campo se entiende por su
+   marcador de posición, pero sin <label> asociado no tiene nombre accesible. */
+.sr-only-ag{
+  position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;
+  clip:rect(0 0 0 0);white-space:nowrap;border:0;
+}
+
 .vig-group-list{display:flex;flex-direction:column;gap:1rem}
 .vig-group{
   background:var(--surface);border:1px solid var(--line);border-radius:var(--rad);
@@ -660,6 +739,7 @@ select.filter-select:focus{border-color:var(--rosa);background-color:#fff}
      igual que el Portal (con sesión → panel según rol; sin sesión → login). -->
 <script>window.__APP__ = { baseUrl: '<?= APP_URL ?>' };</script>
 <?!= include('app_core') ?>
+<?!= include('app_onboarding') ?>
 <div class="app">
 
 <!-- ══ SIDEBAR ══ -->
@@ -676,6 +756,11 @@ select.filter-select:focus{border-color:var(--rosa);background-color:#fff}
     <a class="app-switch-item active" aria-current="page" href="<?= APP_URL ?>?page=portal" target="_top" onclick="if(window.VentelLoader)VentelLoader.show()"><span class="asw-ic"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M3 12h18M12 3a14.5 14.5 0 0 1 0 18 14.5 14.5 0 0 1 0-18Z"/></svg></span><span class="asw-tx"><b>Portal</b><small>Información y procesos</small></span></a>
     <a class="app-switch-item" id="cotizacionesNavLink" href="<?= APP_URL ?>?page=login" target="_top" onclick="handleCotizacionesNav(event,this)"><span class="asw-ic"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M13 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V9z"/><path d="M13 2v7h7"/><path d="M12 12v6M9 15h6"/></svg></span><span class="asw-tx"><b>Cotizaciones</b><small>Crear, consultar y enviar</small></span></a>
     <a class="app-switch-item" id="correoClienteNavLink" href="<?= APP_URL ?>?page=correo_cliente" target="_top" onclick="handleCorreoClienteNav(event,this)"><span class="asw-ic"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12.5V7a2 2 0 0 0-2-2H5a2 2 0 0 0-2 2v10a2 2 0 0 0 2 2h8.5"/><path d="m3.5 7 8.5 6 8.5-6"/><path d="M18.5 15.5v5M16 18h5"/></svg></span><span class="asw-tx"><b>Enviar un Correo</b><small>Plantillas y envíos</small></span></a>
+    <!-- Gestión: solo para quien puede EDITAR algo (panel avanzado, anuncios, consola).
+         Nace oculto y solo aparece si la sesión lo permite: el Monitor es público y lo
+         ve cualquiera, así que enseñar aquí una puerta de administración a todo el
+         mundo sería anunciar dónde llamar. -->
+    <a class="app-switch-item" id="gestionNavLink" hidden href="<?= APP_URL ?>?page=inicio_avanzado" target="_top"><span class="asw-ic"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3.2"/><path d="M19.4 15a1.6 1.6 0 0 0 .32 1.77l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.6 1.6 0 0 0-1.77-.32 1.6 1.6 0 0 0-1 1.47V21a2 2 0 1 1-4 0v-.1a1.6 1.6 0 0 0-1.05-1.47 1.6 1.6 0 0 0-1.77.32l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.6 1.6 0 0 0 .32-1.77 1.6 1.6 0 0 0-1.47-1H3a2 2 0 1 1 0-4h.1a1.6 1.6 0 0 0 1.47-1.05 1.6 1.6 0 0 0-.32-1.77l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.6 1.6 0 0 0 1.77.32H9a1.6 1.6 0 0 0 1-1.47V3a2 2 0 1 1 4 0v.1a1.6 1.6 0 0 0 1 1.47 1.6 1.6 0 0 0 1.77-.32l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.6 1.6 0 0 0-.32 1.77V9a1.6 1.6 0 0 0 1.47 1H21a2 2 0 1 1 0 4h-.1a1.6 1.6 0 0 0-1.47 1Z"/></svg></span><span class="asw-tx"><b>Gestión</b><small id="gestionNavSub">Supervisión y ajustes</small></span></a>
   </nav>
 
   <span class="side-label">Panel</span>
@@ -711,6 +796,13 @@ select.filter-select:focus{border-color:var(--rosa);background-color:#fff}
   <a class="side-link ext active" aria-current="page"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3l2.3 6.2L21 11l-6 2 6 2-6.7 1.8L12 21l-2.3-4.2L3 15l6-2-6-2 6.7-1.8Z"/></svg> Monitor Promos</a>
 
   <div class="side-foot">
+    <!-- Mismo botón, mismo sitio y mismo texto que en el Portal: la ayuda se busca
+         donde se buscó la última vez. Nace oculto; AppOnboarding lo enseña. -->
+    <button type="button" class="onb-lanzador" data-onb-abrir="promociones" hidden>
+      <svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M9.6 9.4a2.5 2.5 0 0 1 4.8.9c0 1.7-2.4 2.1-2.4 3.6"/><path d="M12 17.2h.01"/></svg>
+      <span>Ver el tutorial</span>
+    </button>
+
     <div class="theme-switch" role="tablist" aria-label="Tema visual">
       <button class="theme-btn active" data-theme-btn="aurora" onclick="setTheme('aurora')"><span class="sw aurora"></span>Aurora</button>
       <button class="theme-btn" data-theme-btn="slate" onclick="setTheme('slate')"><span class="sw slate"></span>Slate</button>
@@ -762,13 +854,13 @@ select.filter-select:focus{border-color:var(--rosa);background-color:#fff}
     </div>
   </header>
 
-  <div class="preview-banner" id="previewBanner"><span>⚠ Vista previa con datos de ejemplo — sin conexión a Apps Script</span></div>
+  <div class="preview-banner" id="previewBanner"><span>⚠ Vista de ejemplo — no estás conectado al sistema</span></div>
 
 <section class="date-hero">
   <div class="hero-left">
     <span class="hero-eyebrow">Hoy · actualizado en vivo</span>
     <h1 id="hero-day">—</h1>
-    <p class="hero-sub" id="hero-date-full">Sincronizando tiempo…</p>
+    <p class="hero-sub" id="hero-date-full">Poniendo la fecha en hora…</p>
     <div class="hero-sync" id="heroSync" title="Última actualización de las promociones">
       <span class="hs-dot"></span>
       <span class="hs-text" id="syncText">Cargando datos…</span>
@@ -800,6 +892,9 @@ select.filter-select:focus{border-color:var(--rosa);background-color:#fff}
     </button>
     <button class="tab-btn" id="tab-calendar" onclick="switchTab('calendar', this)">
       📅 Calendario <span class="tab-count" id="tabCountCal">…</span>
+    </button>
+    <button class="tab-btn" id="tab-agenda" onclick="switchTab('agenda', this)">
+      🗂️ Agenda <span class="tab-count" id="tabCountAgenda">…</span>
     </button>
   </nav>
 </div>
@@ -838,7 +933,7 @@ select.filter-select:focus{border-color:var(--rosa);background-color:#fff}
   <section id="calendar-view" class="view-section">
     <div id="calendar-loader" class="loader">
       <div class="spinner"></div>
-      <p>Sincronizando calendario de promociones…</p>
+      <p>Cargando el calendario de promociones…</p>
     </div>
 
     <div class="cal-section" id="ganttSection" style="display:none;">
@@ -868,6 +963,46 @@ select.filter-select:focus{border-color:var(--rosa);background-color:#fff}
         <button id="btn-cal-proximos" class="cal-filter-btn" onclick="filterCalendar('proximos')">→ Próximas (60 días)</button>
       </div>
       <div class="vig-group-list" id="vigGroupList"></div>
+    </div>
+  </section>
+
+  <!-- ══ AGENDA ══════════════════════════════════════════════════════════════
+       Todo lo que hay en la hoja, no solo lo de hoy: lo que está corriendo, lo
+       que viene y lo que ya pasó. Es la única vista donde se puede consultar el
+       historial y comprobar qué se promocionó en una fecha concreta. -->
+  <section id="agenda-view" class="view-section">
+    <div class="cal-section">
+      <h2 class="cal-section-title">🗂️ Agenda de promociones <span class="badge-n" id="agTotal">0</span></h2>
+      <p class="ag-nota" style="margin:-.6rem 0 1.1rem">
+        Aquí está <b>todo lo que hay en la hoja</b>: lo que corre hoy, lo que empieza más adelante
+        y lo que ya terminó. Las fechas se deducen del texto de la columna «Vigencia».
+      </p>
+
+      <div class="ag-toolbar" id="agFiltros" role="group" aria-label="Filtrar por estado"></div>
+
+      <div class="ag-search">
+        <label class="sr-only-ag" for="agBuscar">Buscar en la agenda</label>
+        <input type="text" id="agBuscar" placeholder="Busca por categoría, dirección, marca o promoción…" autocomplete="off">
+      </div>
+
+      <div class="ag-caja" id="agCaja" style="margin-top:1.1rem">
+        <table class="ag-tabla" id="agTabla">
+          <thead>
+            <tr>
+              <th class="orden" tabindex="0" data-ord="estado">Estado <span class="flecha">↕</span></th>
+              <th class="orden" tabindex="0" data-ord="inicio">Periodo <span class="flecha">↕</span></th>
+              <th class="orden" tabindex="0" data-ord="direccion">Dirección <span class="flecha">↕</span></th>
+              <th class="orden" tabindex="0" data-ord="categoria">Categoría <span class="flecha">↕</span></th>
+              <th>Promoción</th>
+              <th class="ag-c-marca">Marca</th>
+              <th class="ag-c-origen">Origen</th>
+              <th></th>
+            </tr>
+          </thead>
+          <tbody id="agCuerpo"></tbody>
+        </table>
+      </div>
+      <p class="ag-nota" id="agPie"></p>
     </div>
   </section>
 </main>
@@ -1065,6 +1200,7 @@ document.addEventListener('DOMContentLoaded', () => {
   document.getElementById('searchInput').addEventListener('input', handleSearchDebounce);
   document.getElementById('searchInput').addEventListener('keydown', e => { if (e.key === 'Escape') clearSearch(); });
   document.getElementById('filterOrigen').addEventListener('change', applyFilters);
+  agEnganchar();
 
   const backTop = document.getElementById('backTop');
   window.addEventListener('scroll', () => backTop.classList.toggle('show', window.scrollY > 600), { passive:true });
@@ -1198,15 +1334,16 @@ function refreshActiveData(){
     return Object.assign({}, p, { _start: range ? range.start : null, _end: range ? range.end : null });
   });
   activePromosToday = parsedPromos.filter(p => p._start && currentNow >= p._start && currentNow <= p._end);
-  buildDeptColors(); populateChips(); renderHeroStats(); applyFilters(); renderCalendar();
+  buildDeptColors(); populateChips(); renderHeroStats(); applyFilters(); renderCalendar(); renderAgenda();
   document.getElementById('tabCountPromos').textContent = activePromosToday.length;
 }
 
 function handleDataError(error){
   if (window.VentelLoader) VentelLoader.hide();
   if (globalData) return; // el caché local ya pintó contenido; no lo tapamos con el error
-  document.getElementById('promos-loader').innerHTML = `<div class="empty-state"><h3>Error de conexión</h3><p>${error}</p></div>`;
-  document.getElementById('calendar-loader').innerHTML = `<div class="empty-state"><h3>Error de conexión</h3><p>No se pudo sincronizar el calendario.</p></div>`;
+  console.error('Promociones:', error);
+  document.getElementById('promos-loader').innerHTML = `<div class="empty-state"><h3>Sin conexión</h3><p>No pudimos cargar las promociones. Revisa tu internet y recarga la página.</p></div>`;
+  document.getElementById('calendar-loader').innerHTML = `<div class="empty-state"><h3>Sin conexión</h3><p>No pudimos cargar el calendario. Revisa tu internet y recarga la página.</p></div>`;
 }
 
 function renderHeroStats(){
@@ -1459,6 +1596,179 @@ function renderVigGroups(){
   else{document.querySelectorAll('#vigGroupList .tl-fill').forEach(el=>el.style.width=el.dataset.progress+'%');}
 }
 
+/* ═══ AGENDA ════════════════════════════════════════════════════════════════
+   El resto de la página trabaja con activePromosToday, que es un subconjunto:
+   lo vigente HOY. Aquí se usa parsedPromos ENTERO —que ya trae _start y _end—
+   y se clasifica cada fila. Así lo que terminó deja de desaparecer y lo que
+   está por empezar se puede consultar antes de que arranque. */
+
+let agEstado = 'todas';
+let agOrden = { campo: 'estado', dir: 1 };
+let agBusqueda = '';
+let agTimeout;
+
+/* Orden de los estados cuando se ordena por «Estado»: primero lo que corre. */
+const AG_PESO = { vigente: 0, proxima: 1, terminada: 2, sinfecha: 3 };
+const AG_ETIQUETA = { vigente: 'En curso', proxima: 'Próxima', terminada: 'Terminada', sinfecha: 'Sin fecha' };
+const AG_PILL = { vigente: 'ok', proxima: 'warn', terminada: 'muted', sinfecha: 'muted' };
+
+/* Esta página interpola datos de la hoja directamente en HTML. Para la tabla se
+   escapan: el texto lo teclea gente en un Sheet y un «<» rompería la tabla. */
+function escAg(s){
+  return String(s == null ? '' : s)
+    .replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')
+    .replace(/"/g,'&quot;').replace(/'/g,'&#39;');
+}
+
+function agEstadoDe(p){
+  if (!p._start) return 'sinfecha';
+  if (currentNow < p._start) return 'proxima';
+  if (currentNow > p._end) return 'terminada';
+  return 'vigente';
+}
+
+/** Filas de la agenda, ya clasificadas. Se recalcula con cada carga de datos. */
+function agFilas(){
+  return parsedPromos.map(p => Object.assign({}, p, { _estado: agEstadoDe(p) }));
+}
+
+function agVisibles(){
+  const todas = agFilas();
+  const t = agBusqueda.trim().toLowerCase();
+  return todas.filter(p => {
+    if (agEstado !== 'todas' && p._estado !== agEstado) return false;
+    if (!t) return true;
+    return ['direccion','categoria','promocion','marca','vigencia','origen']
+      .some(k => p[k] && String(p[k]).toLowerCase().includes(t));
+  });
+}
+
+function agComparar(a, b){
+  const d = agOrden.dir;
+  switch (agOrden.campo) {
+    case 'estado': {
+      const r = AG_PESO[a._estado] - AG_PESO[b._estado];
+      // Dentro del mismo estado manda la fecha: lo más reciente arriba, que es
+      // como se lee un historial.
+      if (r !== 0) return r * d;
+      return ((b._start ? b._start.getTime() : 0) - (a._start ? a._start.getTime() : 0));
+    }
+    case 'inicio': {
+      const av = a._start ? a._start.getTime() : -Infinity;
+      const bv = b._start ? b._start.getTime() : -Infinity;
+      return (av - bv) * d;
+    }
+    default: {
+      const av = String(a[agOrden.campo] || '').toLowerCase();
+      const bv = String(b[agOrden.campo] || '').toLowerCase();
+      return av.localeCompare(bv, 'es') * d;
+    }
+  }
+}
+
+function renderAgenda(){
+  const todas = agFilas();
+  document.getElementById('agTotal').textContent = todas.length;
+  document.getElementById('tabCountAgenda').textContent = todas.length;
+
+  // ── Botones de filtro con su conteo ──
+  const cuenta = { todas: todas.length, vigente: 0, proxima: 0, terminada: 0, sinfecha: 0 };
+  todas.forEach(p => { cuenta[p._estado]++; });
+
+  const orden = ['todas','vigente','proxima','terminada','sinfecha'];
+  const rotulo = { todas: 'Todas', vigente: '● En curso', proxima: '→ Próximas',
+                   terminada: '✓ Terminadas', sinfecha: '⚠ Sin fecha' };
+  document.getElementById('agFiltros').innerHTML = orden
+    // "Sin fecha" solo aparece si de verdad hay alguna: un filtro que siempre da
+    // cero es ruido. Cuando aparece, es que hay vigencias mal escritas que revisar.
+    .filter(k => k !== 'sinfecha' || cuenta.sinfecha > 0)
+    .map(k => `<button class="ag-filter-btn${agEstado===k?' active':''}" type="button" data-est="${k}"` +
+              ` aria-pressed="${agEstado===k}">${rotulo[k]} <span class="n">${cuenta[k]}</span></button>`)
+    .join('');
+  document.querySelectorAll('#agFiltros [data-est]').forEach(b => {
+    b.onclick = () => { agEstado = b.dataset.est; renderAgenda(); };
+  });
+
+  // ── Encabezados: solo el que ordena lleva aria-sort ──
+  document.querySelectorAll('#agTabla th.orden').forEach(th => {
+    if (th.dataset.ord === agOrden.campo) {
+      th.setAttribute('aria-sort', agOrden.dir === 1 ? 'ascending' : 'descending');
+      th.querySelector('.flecha').textContent = agOrden.dir === 1 ? '↑' : '↓';
+    } else {
+      th.removeAttribute('aria-sort');
+      th.querySelector('.flecha').textContent = '↕';
+    }
+  });
+
+  // ── Cuerpo ──
+  const filas = agVisibles().sort(agComparar);
+  const cuerpo = document.getElementById('agCuerpo');
+  const pie = document.getElementById('agPie');
+
+  if (!filas.length) {
+    cuerpo.innerHTML = `<tr><td colspan="8" class="ag-vacia" style="padding:2.4rem;text-align:center">` +
+      (agBusqueda ? `Nada coincide con «${escAg(agBusqueda)}».`
+                  : `No hay promociones en este estado.`) + `</td></tr>`;
+    pie.textContent = '';
+    return;
+  }
+
+  cuerpo.innerHTML = filas.map(p => {
+    const per = p._start
+      ? `${fmtShort(p._start)} → ${fmtShort(p._end)}`
+      : `<span class="ag-vacia">${escAg(p.vigencia) || 'sin dato'}</span>`;
+    let extra = '';
+    if (p._estado === 'vigente') { const dl = daysLeft(p._end); extra = dl <= 1 ? 'termina hoy' : `quedan ${dl} días`; }
+    else if (p._estado === 'proxima') { const du = daysUntil(p._start); extra = du <= 1 ? 'empieza mañana' : `en ${du} días`; }
+    else if (p._estado === 'terminada' && p._end) {
+      const hace = Math.max(1, Math.round((currentNow - p._end) / 86400000));
+      extra = `hace ${hace} ${hace === 1 ? 'día' : 'días'}`;
+    } else { extra = 'revisa el texto de la vigencia'; }
+
+    const liga = (p.liga && p.liga !== '#' && /^https?:\/\//i.test(p.liga))
+      ? `<a class="ag-link" href="${escAg(p.liga)}" target="_blank" rel="noopener noreferrer">Abrir ↗</a>` : '';
+
+    return `<tr>
+      <td><span class="vig-pill ${AG_PILL[p._estado]}">${AG_ETIQUETA[p._estado]}</span></td>
+      <td class="ag-per">${per}<span class="ag-dias">${extra}</span></td>
+      <td class="ag-dir">${escAg(p.direccion)}</td>
+      <td class="ag-cat">${escAg(p.categoria)}</td>
+      <td class="ag-promo">${escAg(p.promocion)}</td>
+      <td class="ag-c-marca">${escAg(p.marca)}</td>
+      <td class="ag-c-origen">${escAg(p.origen)}</td>
+      <td>${liga}</td>
+    </tr>`;
+  }).join('');
+
+  pie.textContent = `Mostrando ${filas.length} de ${todas.length} filas de la hoja.` +
+    (cuenta.sinfecha ? ` ${cuenta.sinfecha} tienen una vigencia que el sistema no sabe leer.` : '');
+
+  if (window.gsap && !RM) {
+    gsap.fromTo('#agCuerpo tr', {opacity:0, y:6},
+      {opacity:1, y:0, duration:.22, stagger:.012, ease:'power2.out', clearProps:'all'});
+  }
+}
+
+function agEnganchar(){
+  document.querySelectorAll('#agTabla th.orden').forEach(th => {
+    const activar = () => {
+      const c = th.dataset.ord;
+      // Volver a pulsar la misma columna invierte el orden; cambiar de columna
+      // empieza por el sentido natural de esa columna.
+      if (agOrden.campo === c) agOrden.dir = -agOrden.dir;
+      else agOrden = { campo: c, dir: c === 'inicio' ? -1 : 1 };
+      renderAgenda();
+    };
+    th.onclick = activar;
+    th.onkeydown = e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); activar(); } };
+  });
+  const inp = document.getElementById('agBuscar');
+  inp.oninput = () => {
+    clearTimeout(agTimeout);
+    agTimeout = setTimeout(() => { agBusqueda = inp.value; renderAgenda(); }, 150);
+  };
+}
+
 function buildMockData(){
   const y=currentNow.getFullYear(),hoy0=new Date(currentNow.getFullYear(),currentNow.getMonth(),currentNow.getDate()).getTime(),DIA=86400000;
   const mName=MESES[currentNow.getMonth()].toLowerCase(),d=currentNow.getDate();
@@ -1644,6 +1954,128 @@ document.addEventListener('DOMContentLoaded', function(){
   });
   inp.addEventListener('input', pcClear);
 });
+</script>
+
+<script>
+/**
+ * CONMUTADOR DE FUNCIONES del Monitor de promociones.
+ *
+ * Mismo comportamiento y mismo juez que el Portal: las reglas viven en AppFunciones
+ * (app_core) y aquí solo se aplican al HTML ya pintado. Gestión nace oculta y solo
+ * aparece si el servidor confirma que esta sesión puede editar algo; un área apagada
+ * por mantenimiento desaparece del menú en vez de quedarse ofreciendo una puerta que
+ * va a contestar "no disponible".
+ */
+(function () {
+  var ENLACES = [
+    { id: 'cotizacionesNavLink',  area: 'cotizaciones' },
+    { id: 'correoClienteNavLink', area: 'correos' }
+  ];
+
+  function aplicarAreas() {
+    if (!window.AppFunciones) return;
+    ENLACES.forEach(function (e) {
+      var el = document.getElementById(e.id);
+      if (el) el.hidden = !AppFunciones.visible(e.area);
+    });
+  }
+
+  function pintarGestion(permisos) {
+    var enlace = document.getElementById('gestionNavLink');
+    if (!enlace || !window.AppFunciones) return;
+
+    var disponibles = AppFunciones.gestion(permisos);
+    if (!disponibles.length) return;
+
+    var destino = disponibles[0];
+    if (window.AppUrl && AppUrl.base) enlace.href = AppUrl.build(destino.page) || enlace.href;
+    var sub = document.getElementById('gestionNavSub');
+    if (sub) sub.textContent = AppFunciones.subtituloGestion(disponibles);
+    enlace.hidden = false;
+
+    enlace.addEventListener('click', function (e) {
+      if (window.VentelLoader) VentelLoader.show();
+      if (typeof closeSidebar === 'function') closeSidebar();
+      if (!(window.AppUrl && AppUrl.base)) return;   // sin URL base, que el href haga su trabajo
+      e.preventDefault();
+      AppUrl.go(destino.page);
+    });
+  }
+
+  function arrancar() {
+    aplicarAreas();
+    if (!(window.AppSession && AppSession.isLoggedIn() && AppSession.refrescar)) return;
+    // refrescar() de paso pone al día el rol guardado, así que pasar por el Monitor ya
+    // deja la sesión correcta para el resto de la app.
+    AppSession.refrescar().then(function (res) {
+      aplicarAreas();
+      pintarGestion(res && res.permisos);
+    }, function () { /* sin red: se queda lo pintado con lo guardado */ });
+  }
+
+  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', arrancar);
+  else arrancar();
+})();
+</script>
+
+<script>
+/**
+ * RECORRIDO GUIADO DEL MONITOR DE PROMOCIONES.
+ *
+ * Cinco paradas. Lo que de verdad se pierde la gente aquí es que hay DOS vistas
+ * —tarjetas y calendario—, y que el buscador entiende marca además de categoría.
+ * El resto de la pantalla se lee sola.
+ *
+ * Los pasos apuntan al panel de filtros y a la barra de pestañas, que aparecen
+ * cuando terminan de cargar los datos; por eso el retraso es más largo que en el
+ * Portal: iluminar un contenedor que todavía tiene display:none no señala nada.
+ */
+(function () {
+  if (!window.AppOnboarding) return;
+
+  AppOnboarding.auto({
+    pantalla: 'promociones',
+    version: 1,
+    retraso: 1400,
+    pasos: [
+      {
+        titulo: 'Monitor de promociones',
+        texto: 'Todas las promociones vigentes de Liverpool, al día y en un solo sitio, ' +
+               'para responderle al cliente sin abrir cinco pestañas.<br><br>Cinco paradas rápidas.'
+      },
+      {
+        sel: '#searchInput',
+        pos: 'abajo',
+        titulo: 'Busca por lo que te digan',
+        texto: 'Entiende <b>categoría</b>, <b>marca</b> y <b>texto de la promoción</b>: sirve tanto ' +
+               '«pantallas» como «Nike» o «50%».<br><br>Con <b>Enter</b> saltas a la primera tarjeta y ' +
+               'con otro <b>Enter</b> abres su enlace.'
+      },
+      {
+        sel: '.tabs',
+        pos: 'abajo',
+        titulo: 'Dos formas de verlo',
+        texto: '<b>Promociones</b> es la lista de lo que está vigente hoy. <b>Calendario</b> es la misma ' +
+               'información en el tiempo: qué empieza, qué termina y cuándo.<br><br>' +
+               'Para prometerle una fecha a un cliente, la vista de calendario es la buena.'
+      },
+      {
+        sel: '#heroSync',
+        pos: 'abajo',
+        titulo: 'Qué tan frescos son los datos',
+        texto: 'Aquí dice cuándo se actualizó por última vez. Si algo no cuadra con lo que ves en la ' +
+               'tienda, primero <b>actualiza</b> con este botón y vuelve a mirar.'
+      },
+      {
+        sel: '.app-switch',
+        pos: 'derecha',
+        titulo: 'Volver al trabajo',
+        texto: 'Desde <b>Funciones</b> saltas al Portal o a Cotizaciones sin perder lo que estabas haciendo.' +
+               '<br><br>El botón <b>Ver el tutorial</b>, abajo en esta misma barra, repite este recorrido.'
+      }
+    ]
+  });
+})();
 </script>
 </body>
 </html>

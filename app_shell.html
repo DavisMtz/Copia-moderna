@@ -22,6 +22,14 @@
 .app { display: flex; min-height: 100vh; align-items: flex-start; }
 .app-main { flex: 1; min-width: 0; display: flex; flex-direction: column; }
 
+/* El <main> de cada pantalla es un ítem flex de .app-main y le toca min-width:auto,
+   así que en vez de encogerse se estira hasta su ancho MÍNIMO INTRÍNSECO: basta una
+   tabla ancha, una URL larga o un texto sin puntos de corte para que toda la página
+   crezca y aparezca la barra de desplazamiento horizontal de abajo. Con esto el main
+   nunca puede pasarse de su columna; lo que no quepa lo resuelve cada pantalla por
+   dentro (truncando el texto o con su propio contenedor con scroll). */
+.app-main > main { min-width: 0; max-width: 100%; }
+
 /* ── Barra lateral ── */
 .sidebar {
   width: 252px; flex-shrink: 0; align-self: stretch;
@@ -197,34 +205,111 @@
   var IC_GLOBE = '<svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M3 12h18M12 3a14.5 14.5 0 0 1 0 18 14.5 14.5 0 0 1 0-18Z"/></svg>';
   var IC_STAR  = '<svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3l2.3 6.2L21 11l-6 2 6 2-6.7 1.8L12 21l-2.3-4.2L3 15l6-2-6-2 6.7-1.8Z"/></svg>';
   var IC_MEGA  = '<svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M3 11v2a1 1 0 0 0 1 1h2l9 4V6L6 10H4a1 1 0 0 0-1 1Z"/><path d="M15 8a4 4 0 0 1 0 8"/><path d="M7 14v5"/></svg>';
+  var IC_SHIELD= '<svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3l7.5 3v5.5c0 4.4-3.1 8.4-7.5 9.5-4.4-1.1-7.5-5.1-7.5-9.5V6Z"/><path d="m9.2 12.2 1.9 1.9 3.7-3.7"/></svg>';
+  var IC_STACK = '<svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="m12 3 9 4.5-9 4.5-9-4.5L12 3Z"/><path d="m3 12 9 4.5 9-4.5"/><path d="m3 16.5 9 4.5 9-4.5"/></svg>';
+  var IC_GEAR  = '<svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3.2"/><path d="M19.4 15a1.6 1.6 0 0 0 .32 1.77l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.6 1.6 0 0 0-1.77-.32 1.6 1.6 0 0 0-1 1.47V21a2 2 0 1 1-4 0v-.1a1.6 1.6 0 0 0-1.05-1.47 1.6 1.6 0 0 0-1.77.32l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.6 1.6 0 0 0 .32-1.77 1.6 1.6 0 0 0-1.47-1H3a2 2 0 1 1 0-4h.1a1.6 1.6 0 0 0 1.47-1.05 1.6 1.6 0 0 0-.32-1.77l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.6 1.6 0 0 0 1.77.32H9a1.6 1.6 0 0 0 1-1.47V3a2 2 0 1 1 4 0v.1a1.6 1.6 0 0 0 1 1.47 1.6 1.6 0 0 0 1.77-.32l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.6 1.6 0 0 0-.32 1.77V9a1.6 1.6 0 0 0 1.47 1H21a2 2 0 1 1 0 4h-.1a1.6 1.6 0 0 0-1.47 1Z"/></svg>';
 
   function esc(s) { return String(s == null ? '' : s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;'); }
+
+  function puede(bloque) {
+    return !!(window.AppSession && AppSession.can(bloque));
+  }
+
+  /**
+   * ÁREA DE GESTIÓN — las pantallas donde se EDITA lo que ve el resto del equipo.
+   *
+   * Panel avanzado, anuncios y consola no son "más cotizaciones": son el gobierno de
+   * la app. Estaban repartidos en apartados sueltos de la barra, y eso hacía que un
+   * asesor viera rótulos vacíos y que un supervisor tuviera que buscar sus dos
+   * herramientas en dos sitios distintos. Ahora son un área propia del conmutador,
+   * y el área entera no existe para quien no puede editar nada.
+   *
+   * QUÉ destinos hay y QUIÉN los alcanza lo decide AppFunciones (app_core), que es
+   * el mismo juez para el Portal y el Monitor de promociones. Aquí solo queda el
+   * icono de cada uno, que es lo único propio de esta barra.
+   */
+  var ICONO_GESTION = { inicio_avanzado: IC_CHART, anuncios: IC_MEGA, portal_contenido: IC_STACK, consola: IC_SHIELD };
+
+  /** Las de gestión que ESTA persona puede abrir. Vacío = no se dibuja el área. */
+  function gestionDisponible() {
+    return (window.AppFunciones ? AppFunciones.gestion() : []);
+  }
+
+  /** ¿Se enseña esta área de trabajo? Sin AppFunciones (nunca debería), se enseña. */
+  function areaVisible(id) {
+    return window.AppFunciones ? AppFunciones.visible(id) : true;
+  }
 
   // Conmutador de área compartido: mismo bloque, mismas etiquetas y mismo orden
   // que el del Portal y Promociones, para que se sienta una sola app.
   function appSwitchHTML(active) {
-    var area = (active === 'correo_cliente') ? 'correos'
+    var esGestion = ['inicio_avanzado', 'anuncios', 'portal_contenido', 'consola'].indexOf(active) !== -1;
+    var area = esGestion ? 'gestion'
+             : (active === 'correo_cliente') ? 'correos'
              : (active === 'portal' || active === 'promociones') ? 'portal'
              : 'cotizaciones';
     function it(a, page, icon, name, sub) {
+      // El área donde estamos parados nunca se esconde: quitar de debajo de los pies
+      // el rótulo de la pantalla abierta deja al asesor sin saber dónde está.
+      if (area !== a && !areaVisible(a)) return '';
       var cls = 'app-switch-item' + (area === a ? ' active' : '');
       return '<a class="' + cls + '" href="#" onclick="AppShell.nav(\'' + page + '\');return false;">' +
         '<span class="asw-ic">' + icon + '</span>' +
         '<span class="asw-tx"><b>' + name + '</b><small>' + sub + '</small></span></a>';
     }
+
+    var gestion = gestionDisponible();
+    var bloqueGestion = '';
+    if (gestion.length) {
+      // El área entra por la primera pantalla que esta persona sí puede abrir: para un
+      // supervisor sin consola es el panel; para un maestro sin supervisión, la consola.
+      var cls = 'app-switch-item' + (area === 'gestion' ? ' active' : '');
+      bloqueGestion = '<a class="' + cls + '" href="#" onclick="AppShell.nav(\'' + gestion[0].page + '\');return false;">' +
+        '<span class="asw-ic">' + IC_GEAR + '</span>' +
+        '<span class="asw-tx"><b>Gestión</b><small>' + esc(AppFunciones.subtituloGestion(gestion)) + '</small></span></a>';
+    }
+
     return '<nav class="app-switch" aria-label="Funciones">' +
       '<span class="app-switch-lbl">Funciones</span>' +
       it('portal', 'portal', IC_GLOBE, 'Portal', 'Información y procesos') +
       it('cotizaciones', 'dashboard', IC_DOC, 'Cotizaciones', 'Crear, consultar y enviar') +
       it('correos', 'correo_cliente', IC_MAILP, 'Enviar un Correo', 'Plantillas y envíos') +
+      bloqueGestion +
       '</nav>';
   }
 
-  function sidebarHTML(active, isAdv) {
+  /**
+   * Barra lateral construida a partir de los BLOQUES de la sesión (ver Permisos.gs).
+   *
+   * Antes había un solo interruptor —isAdv— y por eso el bloque de "Supervisión"
+   * salía entero o no salía nada. Ahora cada enlace declara el bloque que necesita y
+   * un apartado sin enlaces visibles desaparece con su encabezado: un rótulo
+   * "Supervisión" sobre un hueco es peor que no tener el rótulo.
+   *
+   * AppSession.can() responde SÍ cuando la sesión no trae lista de bloques (sesiones
+   * abiertas antes de este cambio), así que nadie pierde su menú al desplegar.
+   */
+  function sidebarHTML(active) {
     function link(page, label, icon) {
       var cls = 'side-link' + (active === page ? ' active' : '');
       return '<button class="' + cls + '" onclick="AppShell.nav(\'' + page + '\')">' + icon + ' ' + label + '</button>';
     }
+    /** Devuelve el apartado solo si al menos uno de sus enlaces sobrevivió al filtro. */
+    function apartado(rotulo, entradas) {
+      var html = entradas.filter(function (e) { return puede(e[0]); })
+                         .map(function (e) { return link(e[1], e[2], e[3]); })
+                         .join('');
+      return html ? ('<span class="side-label">' + rotulo + '</span>' + html) : '';
+    }
+
+    // Las pantallas de gestión ya no tienen apartados propios: se listan bajo un solo
+    // rótulo, y solo para quien puede abrir alguna.
+    var gestion = gestionDisponible();
+    var bloqueGestion = gestion.length
+      ? ('<span class="side-label">Gestión</span>' +
+         gestion.map(function (p) { return link(p.page, p.nombre, ICONO_GESTION[p.page] || IC_GEAR); }).join(''))
+      : '';
+
     return '' +
       '<div class="side-brand">' +
         '<img src="' + LOGO + '" alt="Liverpool" onerror="this.onerror=null;this.outerHTML=\'<span style=&quot;color:#fff;font-weight:900;font-size:16px&quot;>Liverpool</span>\'">' +
@@ -234,19 +319,27 @@
       appSwitchHTML(active) +
       '<span class="side-label">Panel</span>' +
       link('dashboard', 'Inicio', IC_HOME) +
-      '<span class="side-label">Cotizaciones</span>' +
-      link('cotizacion', 'Nueva cotización', IC_DOC) +
-      link('correoventel', 'Enviar cotización', IC_MAIL) +
-      link('correo_cliente', 'Enviar correo a clientes', IC_MAILP) +
-      (isAdv ? ('<span class="side-label">Supervisión</span>' + link('inicio_avanzado', 'Panel avanzado', IC_CHART) + link('anuncios', 'Anuncios del Portal', IC_MEGA)) : '') +
-      '<span class="side-label">Portal Ventel</span>' +
-      link('promociones', 'Monitor Promos', IC_STAR) +
+      apartado('Cotizaciones', [
+        ['cotizar',           'cotizacion',       'Nueva cotización',         IC_DOC],
+        ['enviar_cotizacion', 'correoventel',     'Enviar cotización',        IC_MAIL],
+        ['correos_cliente',   'correo_cliente',   'Enviar correo a clientes', IC_MAILP]
+      ]) +
+      bloqueGestion +
+      apartado('Portal Ventel', [
+        ['promociones', 'promociones', 'Monitor Promos', IC_STAR]
+      ]) +
       sideFootHTML();
   }
+
+  var IC_AYUDA = '<svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M9.6 9.4a2.5 2.5 0 0 1 4.8.9c0 1.7-2.4 2.1-2.4 3.6"/><path d="M12 17.2h.01"/></svg>';
 
   function sideFootHTML() {
     return '' +
       '<div class="side-foot">' +
+        /* Puerta de vuelta al recorrido guiado. Nace oculto y AppOnboarding lo enseña
+           solo en las pantallas que tienen recorrido: un botón de ayuda que no hace
+           nada al pulsarlo enseña a desconfiar del resto de la barra. */
+        '<button type="button" class="onb-lanzador" data-onb-abrir="" hidden>' + IC_AYUDA + '<span>Ver el tutorial</span></button>' +
         '<div class="theme-switch" role="tablist" aria-label="Tema visual">' +
           '<button class="theme-btn" data-theme-btn="aurora" onclick="AppShell.setTheme(\'aurora\')"><span class="sw aurora"></span>Aurora</button>' +
           '<button class="theme-btn" data-theme-btn="slate" onclick="AppShell.setTheme(\'slate\')"><span class="sw slate"></span>Slate</button>' +
@@ -307,11 +400,9 @@
       if (!main) { console.warn('AppShell: no se encontró #main-content'); return; }
       mounted = true;
 
-      var isAdv = !!(window.AppSession && AppSession.isAdvanced);
-
       var root = document.createElement('div'); root.className = 'app';
       var aside = document.createElement('aside'); aside.className = 'sidebar'; aside.id = 'appSidebar';
-      aside.innerHTML = sidebarHTML(opts.active || '', isAdv);
+      aside.innerHTML = sidebarHTML(opts.active || '');
       var scrim = document.createElement('div'); scrim.className = 'scrim'; scrim.id = 'appScrim';
       scrim.addEventListener('click', closeDrawer);
       var col = document.createElement('div'); col.className = 'app-main';
@@ -327,6 +418,25 @@
       var un = document.getElementById('user-name');
       if (un && window.AppSession) un.textContent = AppSession.firstName;
       syncPrefUI();
+      // La barra se construye por JS, así que el botón de "Ver el tutorial" no existía
+      // cuando AppOnboarding repartió sus escuchas: se le avisa en cuanto está puesto.
+      if (window.AppOnboarding) AppOnboarding.cablearBotones();
+
+      // El menú se pinta YA con lo que hay guardado —esperar al servidor para dibujar
+      // la barra dejaría la pantalla coja medio segundo— y después se corrige si el rol
+      // cambió desde el último inicio de sesión. Sin esto, ascender a alguien no se
+      // notaba hasta que cerraba sesión, y parecía que el cambio no se había guardado.
+      if (window.AppSession && AppSession.refrescar) {
+        AppSession.refrescar().then(function (res) {
+          if (!res || !res.cambio) return;
+          aside.innerHTML = sidebarHTML(opts.active || '');
+          syncPrefUI();
+          // Repintar la barra tira el botón de ayuda con sus escuchas: se vuelve a cablear.
+          if (window.AppOnboarding) AppOnboarding.cablearBotones();
+          var un2 = document.getElementById('user-name');
+          if (un2) un2.textContent = AppSession.firstName;
+        });
+      }
     },
 
     nav: function (page) { closeDrawer(); if (window.AppUrl) AppUrl.go(page); },

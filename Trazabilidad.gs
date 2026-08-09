@@ -199,11 +199,11 @@ function trazConstruir_() {
     try {
       procesos = trazLeerHoja_(encontrada.hoja, cfg.prefijo);
     } catch (e) {
-      salida.avisos.push('Error al leer "' + encontrada.nombre + '": ' + e.message);
+      Logger.log('trazLeerHoja_ (' + encontrada.nombre + '): ' + e);
+      salida.avisos.push('No pudimos leer los procesos de "' + encontrada.nombre + '".');
     }
     if (!procesos.length) {
-      salida.avisos.push('La pestaña "' + encontrada.nombre + '" no devolvió procesos: ' +
-                         'revisa que la fila de encabezados incluya "Tiempo p/reporte".');
+      salida.avisos.push('Todavía no hay procesos publicados en "' + encontrada.nombre + '".');
     }
 
     salida.secciones.push({

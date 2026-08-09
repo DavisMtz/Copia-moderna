@@ -1,0 +1,586 @@
+<style>
+/**
+ * =====================================================================================
+ * RECORRIDO GUIADO (onboarding) | Sistema Ventel
+ * =====================================================================================
+ * Una capa que oscurece la pantalla, deja iluminado UN elemento y explica qué es.
+ *
+ * POR QUÉ ASÍ Y NO CON UNA PÁGINA DE AYUDA: nadie lee la ayuda antes de usar algo.
+ * Lo que sí funciona es explicar el botón cuando el botón está delante. El recorrido
+ * apunta a elementos REALES de la pantalla; si un elemento no está —porque el permiso
+ * no lo alcanza o el módulo está en mantenimiento—, su paso simplemente no existe.
+ *
+ * TOKENS: usa los del tema (--surface, --ink, --brand…) con valor de respaldo, porque
+ * el Portal y el Monitor definen los suyos a mano y no incluyen app_theme.
+ */
+
+.onb-root {
+  position: fixed; inset: 0; z-index: 9000;
+  font-family: var(--f-ui, 'Inter', system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif);
+}
+.onb-root[hidden] { display: none; }
+
+/* El velo es un SVG con un agujero: así el borde redondeado del foco se mantiene
+   nítido a cualquier tamaño, cosa que un box-shadow escalado no consigue. */
+.onb-velo { position: absolute; inset: 0; width: 100%; height: 100%; display: block; }
+.onb-velo rect.onb-tapa { fill: rgba(13, 17, 24, .66); }
+[data-theme="carbon"] .onb-velo rect.onb-tapa { fill: rgba(0, 0, 0, .74); }
+.onb-aro { fill: none; stroke: var(--brand, #E10098); stroke-width: 2.5; }
+
+.onb-tarjeta {
+  position: fixed; top: 0; left: 0;
+  width: min(384px, calc(100vw - 32px));
+  background: var(--surface, #fff);
+  color: var(--ink, #1B2330);
+  border: 1px solid var(--line, #E4E9F0);
+  border-radius: var(--rad-lg, 14px);
+  box-shadow: var(--sh-lg, 0 30px 60px -24px rgba(27,35,48,.26));
+  padding: 18px 18px 14px;
+  will-change: transform;
+}
+.onb-tarjeta:focus { outline: none; }
+
+/* Barra de avance: dice cuánto falta sin obligar a contar puntos. */
+.onb-avance { height: 3px; border-radius: 99px; background: var(--line, #E4E9F0); overflow: hidden; margin-bottom: 14px; }
+.onb-avance i { display: block; height: 100%; width: 0; border-radius: 99px; background: var(--brand, #E10098); }
+
+.onb-paso {
+  font-size: .66rem; font-weight: 700; letter-spacing: .1em; text-transform: uppercase;
+  color: var(--ink-faint, #94A1B2); display: block; margin-bottom: 6px;
+}
+.onb-titulo { font-size: 1.06rem; font-weight: 600; line-height: 1.3; margin: 0 0 6px; color: var(--ink, #1B2330); }
+.onb-texto { font-size: .875rem; line-height: 1.58; margin: 0; color: var(--ink-soft, #5C6B7E); max-width: 62ch; }
+.onb-texto b, .onb-texto strong { color: var(--ink, #1B2330); font-weight: 600; }
+
+.onb-pie { display: flex; align-items: center; gap: 8px; margin-top: 16px; }
+.onb-pie .onb-sep { flex: 1; }
+
+.onb-btn {
+  font: inherit; font-size: .82rem; font-weight: 600;
+  border-radius: var(--rad-sm, 8px); border: 1px solid transparent;
+  padding: 9px 15px; min-height: 38px; cursor: pointer;
+  transition: background .15s, border-color .15s, color .15s;
+}
+.onb-btn-primario { background: var(--brand, #E10098); color: #fff; }
+.onb-btn-primario:hover { background: var(--brand-deep, #A8006F); }
+.onb-btn-secundario { background: transparent; color: var(--ink, #1B2330); border-color: var(--line, #E4E9F0); }
+.onb-btn-secundario:hover { background: var(--surface-2, #F4F7FA); }
+.onb-btn-texto { background: transparent; color: var(--ink-soft, #5C6B7E); padding-inline: 6px; }
+.onb-btn-texto:hover { color: var(--ink, #1B2330); text-decoration: underline; }
+.onb-btn:focus-visible { outline: 2px solid var(--brand, #E10098); outline-offset: 2px; }
+
+.onb-pista {
+  margin-top: 10px; font-size: .68rem; color: var(--ink-faint, #94A1B2);
+  display: flex; align-items: center; gap: 6px; flex-wrap: wrap;
+}
+.onb-pista kbd {
+  font-family: var(--f-mono, ui-monospace, Consolas, monospace); font-size: .64rem;
+  border: 1px solid var(--line, #E4E9F0); border-bottom-width: 2px;
+  border-radius: 4px; padding: 1px 5px; color: var(--ink-soft, #5C6B7E);
+}
+@media (max-width: 600px) { .onb-pista { display: none; } }
+
+/* Disparador "Ver el tutorial". Vive donde cada pantalla lo ponga; aquí solo se le
+   da forma para que se vea igual en las tres barras laterales del sistema. */
+.onb-lanzador {
+  display: flex; align-items: center; gap: .5rem; width: 100%;
+  font: inherit; font-size: .78rem; font-weight: 600; text-align: left;
+  padding: .5rem .6rem; border-radius: 10px; cursor: pointer;
+  background: rgba(255,255,255,.1); color: var(--side-ink, #fff);
+  border: 1px solid rgba(255,255,255,.16);
+  transition: background .18s;
+}
+/* Mismo motivo que en el conmutador: display:flex gana a [hidden] de la hoja del
+   navegador, y sin esta línea el botón "nace oculto" pero se ve igual. */
+.onb-lanzador[hidden] { display: none; }
+.onb-lanzador:hover { background: rgba(255,255,255,.2); }
+.onb-lanzador .ic { width: 16px; height: 16px; flex: none; }
+.onb-lanzador:focus-visible { outline: 2px solid #fff; outline-offset: 2px; }
+
+@media (prefers-reduced-motion: reduce) {
+  .onb-tarjeta, .onb-velo rect, .onb-aro { transition: none !important; }
+}
+</style>
+<script>
+/**
+ * =====================================================================================
+ * AppOnboarding — recorridos guiados que se anotan para no repetirse
+ * =====================================================================================
+ *
+ * USO en una pantalla (después de app_core y app_motion):
+ *
+ *   AppOnboarding.auto({
+ *     pantalla: 'cotizacion',      // clave con la que se anota; no se renombra
+ *     version: 1,                  // súbela y ese recorrido vuelve a salir una vez
+ *     titulo: 'Cotizar en tres pasos',
+ *     pasos: [
+ *       { titulo:'…', texto:'…' },                    // sin sel = tarjeta centrada
+ *       { sel:'#cliente', titulo:'…', texto:'…' }     // con sel = foco sobre el elemento
+ *     ]
+ *   });
+ *
+ * DECISIONES QUE VALE LA PENA CONOCER:
+ *
+ *  · UN PASO SIN ELEMENTO NO EXISTE. Si el selector no encuentra nada o el elemento
+ *    está oculto, el paso se cae del recorrido. Es lo que hace que el tutorial siga
+ *    siendo cierto cuando el menú cambia por permisos o por mantenimiento: nunca
+ *    apunta a un hueco ni dice "y aquí verás…" señalando la nada.
+ *
+ *  · SI NO QUEDA NINGÚN PASO, NO SE ANOTA NADA. Alguien que abrió la pantalla en un
+ *    móvil, donde media interfaz está plegada, no debe perder el tutorial para
+ *    siempre por haber pasado por ahí.
+ *
+ *  · OMITIR CUENTA COMO VISTO (ver Onboarding.gs). El botón "Ver el tutorial" queda
+ *    a la mano para quien cambie de opinión.
+ *
+ *  · EL SERVIDOR MANDA, EL NAVEGADOR ADELANTA. Lo visto se guarda en la hoja, pero
+ *    también en localStorage: así no aparece un parpadeo de tutorial mientras llega
+ *    la respuesta, y sin red la pantalla sigue comportándose bien.
+ */
+(function () {
+  'use strict';
+
+  var CLAVE_LOCAL = 'ventel-onb-v1';
+  var MARGEN = 16;          // aire mínimo entre la tarjeta y el borde de la ventana
+  var SEPARACION = 14;      // aire entre el elemento iluminado y la tarjeta
+  var RELLENO = 8;          // cuánto se agranda el foco alrededor del elemento
+
+  var reducido = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+  function animable() { return typeof window.gsap !== 'undefined' && !reducido; }
+
+  // ── Memoria de lo visto ────────────────────────────────────────────────────
+
+  function localLeer() {
+    try { return JSON.parse(localStorage.getItem(CLAVE_LOCAL) || '{}') || {}; }
+    catch (e) { return {}; }
+  }
+  function localEscribir(mapa) {
+    try { localStorage.setItem(CLAVE_LOCAL, JSON.stringify(mapa)); } catch (e) {}
+  }
+  /** Clave por persona: dos asesores que comparten equipo no comparten tutoriales. */
+  function quien() {
+    return (window.AppSession && AppSession.userEmail) ? AppSession.userEmail.toLowerCase() : 'anonimo';
+  }
+  function vistosLocales() { return localLeer()[quien()] || {}; }
+  function anotarLocal(pantalla, version) {
+    var mapa = localLeer();
+    var yo = quien();
+    mapa[yo] = mapa[yo] || {};
+    mapa[yo][pantalla] = version;
+    localEscribir(mapa);
+  }
+
+  /* Estado del servidor: se pide UNA vez por carga de pantalla y se reparte a quien
+     lo pregunte, en vez de que cada recorrido dispare su propia llamada. */
+  var promesaServidor = null;
+  function vistosServidor() {
+    if (promesaServidor) return promesaServidor;
+    if (!(window.AppSession && AppSession.isLoggedIn() && window.AppRun)) {
+      promesaServidor = Promise.resolve(null);
+      return promesaServidor;
+    }
+    promesaServidor = AppRun.call('onbEstado', [AppSession.userEmail], { key: 'onb-estado' })
+      .then(function (r) {
+        if (!r || !r.success) return null;
+        // Lo que dice la hoja se copia al navegador: la próxima carga ya no espera.
+        var mapa = localLeer();
+        mapa[quien()] = r.vistos || {};
+        localEscribir(mapa);
+        return r.vistos || {};
+      }, function () { return null; });
+    return promesaServidor;
+  }
+
+  function anotarServidor(pantalla, version, estado, paso, total) {
+    if (!(window.AppSession && AppSession.isLoggedIn() && window.AppRun)) return;
+    AppRun.call('onbMarcar', [AppSession.userEmail, {
+      pantalla: pantalla, version: version, estado: estado, paso: paso, total: total
+    }]).catch(function () { /* si no se pudo anotar, manda lo local */ });
+  }
+
+  // ── Construcción de la capa ────────────────────────────────────────────────
+
+  var raiz = null, velo = null, hueco = null, aro = null, tarjeta = null;
+  var elPaso, elTitulo, elTexto, elAvance, elAtras, elSiguiente, elSaltar;
+
+  function construir() {
+    if (raiz) return;
+    raiz = document.createElement('div');
+    raiz.className = 'onb-root';
+    raiz.hidden = true;
+
+    raiz.innerHTML =
+      '<svg class="onb-velo" aria-hidden="true">' +
+        '<defs><mask id="onbMascara" maskUnits="userSpaceOnUse" x="0" y="0" width="100%" height="100%">' +
+          '<rect x="0" y="0" width="100%" height="100%" fill="#fff"></rect>' +
+          '<rect class="onb-hueco" x="-40" y="-40" width="0" height="0" rx="12" fill="#000"></rect>' +
+        '</mask></defs>' +
+        '<rect class="onb-tapa" x="0" y="0" width="100%" height="100%" mask="url(#onbMascara)"></rect>' +
+        '<rect class="onb-aro" x="-40" y="-40" width="0" height="0" rx="12"></rect>' +
+      '</svg>' +
+      '<div class="onb-tarjeta" role="dialog" aria-modal="true" aria-labelledby="onbTitulo" aria-describedby="onbTexto" tabindex="-1">' +
+        '<div class="onb-avance"><i></i></div>' +
+        '<span class="onb-paso" id="onbPaso"></span>' +
+        '<h2 class="onb-titulo" id="onbTitulo"></h2>' +
+        '<p class="onb-texto" id="onbTexto"></p>' +
+        '<div class="onb-pie">' +
+          '<button type="button" class="onb-btn onb-btn-texto" data-onb="saltar">Saltar</button>' +
+          '<span class="onb-sep"></span>' +
+          '<button type="button" class="onb-btn onb-btn-secundario" data-onb="atras">Atrás</button>' +
+          '<button type="button" class="onb-btn onb-btn-primario" data-onb="siguiente">Siguiente</button>' +
+        '</div>' +
+        '<div class="onb-pista"><kbd>←</kbd><kbd>→</kbd><span>para moverte</span><kbd>Esc</kbd><span>para salir</span></div>' +
+      '</div>';
+
+    document.body.appendChild(raiz);
+
+    velo        = raiz.querySelector('.onb-velo');
+    hueco       = raiz.querySelector('.onb-hueco');
+    aro         = raiz.querySelector('.onb-aro');
+    tarjeta     = raiz.querySelector('.onb-tarjeta');
+    elPaso      = raiz.querySelector('#onbPaso');
+    elTitulo    = raiz.querySelector('#onbTitulo');
+    elTexto     = raiz.querySelector('#onbTexto');
+    elAvance    = raiz.querySelector('.onb-avance i');
+    elAtras     = raiz.querySelector('[data-onb="atras"]');
+    elSiguiente = raiz.querySelector('[data-onb="siguiente"]');
+    elSaltar    = raiz.querySelector('[data-onb="saltar"]');
+
+    elAtras.addEventListener('click', function () { mover(-1); });
+    elSiguiente.addEventListener('click', function () { mover(1); });
+    elSaltar.addEventListener('click', function () { cerrar('omitido'); });
+    // Clic en el velo = salir. Es lo que todo el mundo intenta primero.
+    velo.addEventListener('click', function () { cerrar('omitido'); });
+  }
+
+  // ── Estado del recorrido en curso ──────────────────────────────────────────
+
+  var activo = null;   // { pantalla, version, pasos, indice, alCerrar }
+  var focoPrevio = null;
+  var pendienteRecolocar = 0;
+
+  function visible(el) {
+    if (!el) return false;
+    if (el.hidden) return false;
+    var r = el.getBoundingClientRect();
+    if (!r.width && !r.height) return false;
+    var estilo = window.getComputedStyle(el);
+    return estilo.visibility !== 'hidden' && estilo.display !== 'none' && estilo.opacity !== '0';
+  }
+
+  /** Deja solo los pasos que hoy tienen sentido en esta pantalla. */
+  function pasosUtiles(pasos) {
+    var angosto = window.innerWidth < 720;
+    return (pasos || []).filter(function (p) {
+      if (!p) return false;
+      if (angosto && p.movil === false) return false;
+      if (!p.sel) return true;                       // tarjeta centrada: siempre vale
+      var el = document.querySelector(p.sel);
+      return visible(el) || p.centrarSiOculto === true;
+    });
+  }
+
+  function elementoDe(paso) {
+    if (!paso || !paso.sel) return null;
+    var el = document.querySelector(paso.sel);
+    return visible(el) ? el : null;
+  }
+
+  // ── Colocación ─────────────────────────────────────────────────────────────
+
+  function moverForma(nodo, r, radio) {
+    var vars = { x: r.x, y: r.y, width: r.w, height: r.h, rx: radio };
+    if (!animable()) {
+      Object.keys(vars).forEach(function (k) { nodo.setAttribute(k, vars[k]); });
+      return;
+    }
+    gsap.to(nodo, { attr: vars, duration: .45, ease: 'power3.inOut', overwrite: 'auto' });
+  }
+
+  /** Rectángulo del foco, ya con su relleno y recortado a la ventana. */
+  function focoDe(el, paso) {
+    var r = el.getBoundingClientRect();
+    var p = (paso && typeof paso.relleno === 'number') ? paso.relleno : RELLENO;
+    return {
+      x: Math.max(0, r.left - p),
+      y: Math.max(0, r.top - p),
+      w: Math.min(window.innerWidth, r.width + p * 2),
+      h: Math.min(window.innerHeight, r.height + p * 2)
+    };
+  }
+
+  /**
+   * Dónde cae la tarjeta. Se prueba debajo, arriba, a un lado y, si nada cabe, al
+   * centro: más vale una tarjeta centrada que una mitad fuera de la pantalla.
+   */
+  function sitioTarjeta(foco, preferido) {
+    var vw = window.innerWidth, vh = window.innerHeight;
+    var cw = tarjeta.offsetWidth, ch = tarjeta.offsetHeight;
+
+    if (!foco) return { left: (vw - cw) / 2, top: (vh - ch) / 2 };
+
+    var cabeAbajo    = foco.y + foco.h + SEPARACION + ch <= vh - MARGEN;
+    var cabeArriba   = foco.y - SEPARACION - ch >= MARGEN;
+    var cabeDerecha  = foco.x + foco.w + SEPARACION + cw <= vw - MARGEN;
+    var cabeIzquierda= foco.x - SEPARACION - cw >= MARGEN;
+
+    var orden = ['abajo', 'arriba', 'derecha', 'izquierda'];
+    if (preferido && preferido !== 'auto') orden = [preferido].concat(orden);
+
+    var cabe = { abajo: cabeAbajo, arriba: cabeArriba, derecha: cabeDerecha, izquierda: cabeIzquierda };
+    var elegido = null;
+    for (var i = 0; i < orden.length; i++) { if (cabe[orden[i]]) { elegido = orden[i]; break; } }
+    if (!elegido) return { left: (vw - cw) / 2, top: (vh - ch) / 2 };
+
+    var left, top;
+    if (elegido === 'abajo' || elegido === 'arriba') {
+      left = foco.x + foco.w / 2 - cw / 2;
+      top = elegido === 'abajo' ? foco.y + foco.h + SEPARACION : foco.y - SEPARACION - ch;
+    } else {
+      top = foco.y + foco.h / 2 - ch / 2;
+      left = elegido === 'derecha' ? foco.x + foco.w + SEPARACION : foco.x - SEPARACION - cw;
+    }
+    return {
+      left: Math.min(Math.max(left, MARGEN), vw - cw - MARGEN),
+      top: Math.min(Math.max(top, MARGEN), vh - ch - MARGEN)
+    };
+  }
+
+  function colocar(animar) {
+    if (!activo) return;
+    var paso = activo.pasos[activo.indice];
+    var el = elementoDe(paso);
+    var foco = el ? focoDe(el, paso) : null;
+
+    if (foco) {
+      moverForma(hueco, foco, paso.radio || 12);
+      moverForma(aro, foco, paso.radio || 12);
+    } else {
+      // Sin objetivo: sin agujero. El velo queda liso y la tarjeta manda al centro.
+      var nada = { x: -40, y: -40, w: 0, h: 0 };
+      moverForma(hueco, nada, 12);
+      moverForma(aro, nada, 12);
+    }
+
+    var sitio = sitioTarjeta(foco, paso.pos);
+    if (animar && animable()) {
+      gsap.to(tarjeta, { x: sitio.left, y: sitio.top, duration: .45, ease: 'power3.inOut', overwrite: 'auto' });
+    } else if (animable()) {
+      gsap.set(tarjeta, { x: sitio.left, y: sitio.top });
+    } else {
+      tarjeta.style.transform = 'translate(' + sitio.left + 'px,' + sitio.top + 'px)';
+    }
+  }
+
+  function recolocar() {
+    if (!activo) return;
+    if (pendienteRecolocar) return;
+    pendienteRecolocar = requestAnimationFrame(function () {
+      pendienteRecolocar = 0;
+      colocar(false);
+    });
+  }
+
+  // ── Pintado de un paso ─────────────────────────────────────────────────────
+
+  function pintar(animar) {
+    var paso = activo.pasos[activo.indice];
+    var total = activo.pasos.length;
+    var n = activo.indice + 1;
+
+    elPaso.textContent = 'Paso ' + n + ' de ' + total;
+    elTitulo.textContent = paso.titulo || '';
+    // Se permite <b> y <br> en el texto para poder resaltar el nombre de un botón.
+    elTexto.innerHTML = paso.texto || '';
+    elAvance.style.width = Math.round((n / total) * 100) + '%';
+
+    elAtras.hidden = activo.indice === 0;
+    elSiguiente.textContent = (n === total) ? 'Listo' : 'Siguiente';
+    elSaltar.hidden = (n === total);
+
+    var el = elementoDe(paso);
+    if (el && el.scrollIntoView) {
+      try { el.scrollIntoView({ block: 'center', inline: 'nearest', behavior: reducido ? 'auto' : 'smooth' }); }
+      catch (e) { el.scrollIntoView(); }
+    }
+
+    // Se mide después de escribir el contenido: la altura de la tarjeta depende del texto.
+    requestAnimationFrame(function () {
+      colocar(animar);
+      if (animable() && animar) {
+        gsap.fromTo([elTitulo, elTexto], { opacity: 0, y: 8 },
+          { opacity: 1, y: 0, duration: .3, ease: 'power2.out', stagger: .05, clearProps: 'transform' });
+      }
+    });
+  }
+
+  function mover(delta) {
+    if (!activo) return;
+    var destino = activo.indice + delta;
+    if (destino < 0) return;
+    if (destino >= activo.pasos.length) { cerrar('completado'); return; }
+    activo.indice = destino;
+    pintar(true);
+  }
+
+  // ── Apertura y cierre ──────────────────────────────────────────────────────
+
+  function alTeclado(e) {
+    if (!activo) return;
+    if (e.key === 'Escape') { e.preventDefault(); cerrar('omitido'); return; }
+    if (e.key === 'ArrowRight' || e.key === 'Enter') { e.preventDefault(); mover(1); return; }
+    if (e.key === 'ArrowLeft') { e.preventDefault(); mover(-1); return; }
+    if (e.key !== 'Tab') return;
+
+    // Trampa de foco: mientras el recorrido está abierto, el tabulador no se escapa
+    // a la pantalla de atrás, que está tapada y no se puede usar.
+    var focos = Array.prototype.filter.call(
+      tarjeta.querySelectorAll('button'),
+      function (b) { return !b.hidden; });
+    if (!focos.length) return;
+    var primero = focos[0], ultimo = focos[focos.length - 1];
+    if (e.shiftKey && document.activeElement === primero) { e.preventDefault(); ultimo.focus(); }
+    else if (!e.shiftKey && document.activeElement === ultimo) { e.preventDefault(); primero.focus(); }
+  }
+
+  function abrir(config, forzado) {
+    construir();
+    if (activo) return false;
+
+    var pasos = pasosUtiles(config.pasos);
+    if (!pasos.length) return false;
+
+    activo = {
+      pantalla: config.pantalla || '',
+      version: Number(config.version) || 1,
+      pasos: pasos,
+      indice: 0,
+      forzado: !!forzado
+    };
+
+    focoPrevio = document.activeElement;
+    raiz.hidden = false;
+    document.addEventListener('keydown', alTeclado, true);
+    window.addEventListener('resize', recolocar);
+    window.addEventListener('scroll', recolocar, true);
+
+    if (animable()) gsap.fromTo(raiz, { opacity: 0 }, { opacity: 1, duration: .3, ease: 'power2.out' });
+    pintar(false);
+    // El foco entra a la tarjeta para que el lector de pantalla lea el paso y para
+    // que el tabulador ya esté dentro de la trampa.
+    setTimeout(function () { if (tarjeta) tarjeta.focus(); }, 60);
+    return true;
+  }
+
+  function cerrar(estado) {
+    if (!activo) return;
+    var datos = activo;
+    activo = null;
+
+    document.removeEventListener('keydown', alTeclado, true);
+    window.removeEventListener('resize', recolocar);
+    window.removeEventListener('scroll', recolocar, true);
+
+    var fin = function () {
+      raiz.hidden = true;
+      if (focoPrevio && focoPrevio.focus) { try { focoPrevio.focus(); } catch (e) {} }
+      focoPrevio = null;
+    };
+    if (animable()) gsap.to(raiz, { opacity: 0, duration: .25, ease: 'power2.in', onComplete: fin });
+    else fin();
+
+    if (datos.pantalla) {
+      anotarLocal(datos.pantalla, datos.version);
+      anotarServidor(datos.pantalla, datos.version, estado, datos.indice + 1, datos.pasos.length);
+    }
+  }
+
+  // ── API pública ────────────────────────────────────────────────────────────
+
+  var registrados = {};
+
+  /**
+   * Registra el recorrido de esta pantalla y lo lanza si es la primera vez.
+   * @param {{pantalla:string, version:number, pasos:Array, retraso:number}} config
+   * @return {Promise<boolean>} si se llegó a mostrar
+   */
+  function auto(config) {
+    if (!config || !config.pantalla) return Promise.resolve(false);
+    registrados[config.pantalla] = config;
+    cablearBotones();
+    var version = Number(config.version) || 1;
+
+    // Lo guardado en el navegador decide YA; el servidor solo puede añadir pantallas
+    // vistas en otro equipo. Nunca puede "desmarcar" algo que aquí ya se vio.
+    if ((vistosLocales()[config.pantalla] || 0) >= version) return Promise.resolve(false);
+
+    return vistosServidor().then(function (remotos) {
+      if (remotos && (remotos[config.pantalla] || 0) >= version) return false;
+      return new Promise(function (resolver) {
+        // Se espera a que la pantalla termine de pintarse: apuntar a un elemento que
+        // todavía se está colocando ilumina el sitio equivocado.
+        var lanzar = function () {
+          setTimeout(function () { resolver(abrir(config, false)); }, config.retraso || 400);
+        };
+        if (document.readyState === 'complete') lanzar();
+        else window.addEventListener('load', lanzar, { once: true });
+      });
+    });
+  }
+
+  /** Registra el recorrido sin lanzarlo (para pantallas que solo quieren el botón). */
+  function definir(config) {
+    if (!config || !config.pantalla) return;
+    registrados[config.pantalla] = config;
+    cablearBotones();
+  }
+
+  /** Lanza un recorrido a petición, lo haya visto o no. */
+  function ver(pantalla) {
+    var config = registrados[pantalla] || registrados[Object.keys(registrados)[0]];
+    if (!config) return false;
+    return abrir(config, true);
+  }
+
+  /** ¿Hay algún recorrido registrado en esta pantalla? Lo usan los botones. */
+  function hay() { return Object.keys(registrados).length > 0; }
+
+  /**
+   * Cablea cualquier elemento con [data-onb-abrir] para que lance el recorrido.
+   * El valor del atributo es la pantalla; vacío = el recorrido de esta pantalla.
+   * Se esconden solos si no hay recorrido: un botón de ayuda que no hace nada es
+   * peor que no tener botón.
+   */
+  function cablearBotones() {
+    var botones = document.querySelectorAll('[data-onb-abrir]');
+    Array.prototype.forEach.call(botones, function (b) {
+      // La visibilidad se recalcula SIEMPRE, no solo al cablear: el recorrido puede
+      // registrarse después de que la barra se pintó, y si solo se mirara la primera
+      // vez el botón se quedaría escondido para siempre en esas pantallas.
+      b.hidden = !hay();
+      if (b.dataset.onbCableado) return;
+      b.dataset.onbCableado = '1';
+      b.addEventListener('click', function (e) {
+        e.preventDefault();
+        ver(b.getAttribute('data-onb-abrir') || Object.keys(registrados)[0]);
+      });
+    });
+  }
+
+  document.addEventListener('DOMContentLoaded', function () {
+    // Se cablea al cargar y otra vez un poco después: las barras laterales que se
+    // construyen por JS (AppShell) todavía no existen en DOMContentLoaded.
+    cablearBotones();
+    setTimeout(cablearBotones, 800);
+  });
+
+  window.AppOnboarding = {
+    auto: auto,
+    definir: definir,
+    ver: ver,
+    hay: hay,
+    cablearBotones: cablearBotones,
+    cerrar: function () { cerrar('omitido'); }
+  };
+})();
+</script>

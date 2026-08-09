@@ -385,7 +385,7 @@
                     </span>
                     <input type="file" id="f-imagenFile" accept="image/*">
                   </label>
-                  <label class="anc-lbl" for="f-imagen" style="margin-top:var(--s2)">…o pega una URL pública</label>
+                  <label class="anc-lbl" for="f-imagen" style="margin-top:var(--s2)">…o pega el enlace de una imagen</label>
                   <input class="v-input" type="url" id="f-imagen" placeholder="https://…/imagen.jpg" aria-describedby="err-f-imagen">
                   <p class="anc-err" id="err-f-imagen" role="alert"></p>
                 </div>
@@ -777,10 +777,10 @@
 
         var imgRaw = $('f-imagen').value.trim();
         if (imgRaw && !safeUrl(imgRaw) && !$('grp-imagen').classList.contains('anc-hidden'))
-          falla('f-imagen', 'La URL debe empezar por http:// o https://');
+          falla('f-imagen', 'El enlace debe empezar con https://');
 
         var d = parseISO($('f-desde').value), h = parseISO($('f-hasta').value);
-        if (d && h && h < d) falla('f-hasta', 'La expiración es anterior a la publicación: no se vería nunca.');
+        if (d && h && h < d) falla('f-hasta', 'La fecha de retiro es anterior a la de publicación: el anuncio no se vería nunca.');
 
         return malo;
       }
@@ -836,12 +836,13 @@
               resetForm();
               cargarLista(res.id);
             } else {
-              if (window.AppMotion) AppMotion.toast('No se pudo publicar: ' + ((res && res.error) || 'error desconocido'), 'error');
+              if (window.AppMotion) AppMotion.toast('No se pudo publicar. ' + ((res && res.error) || 'Inténtalo de nuevo.'), 'error');
             }
           })
           .withFailureHandler(function(e){
             btn.disabled = false; btn.textContent = etiqueta;
-            if (window.AppMotion) AppMotion.toast('No se pudo publicar: ' + e.message, 'error');
+            console.error('publicarAnuncio:', e);
+            if (window.AppMotion) AppMotion.toast('No se pudo publicar. Revisa tu conexión e inténtalo de nuevo.', 'error');
           })
           .publicarAnuncio(payload);
       }
@@ -1056,7 +1057,7 @@
           $('filtros').innerHTML = '';
           $('lista').innerHTML = '<div class="anc-empty">' + ancIcon('warning')
             + '<div class="anc-empty-t">No se pudo cargar la lista</div>'
-            + '<div class="anc-empty-s">' + esc((res && res.error) || 'Error desconocido.') + '</div></div>';
+            + '<div class="anc-empty-s">' + esc((res && res.error) || 'Revisa tu conexión e inténtalo de nuevo.') + '</div></div>';
           return;
         }
         listaActual = res.anuncios || [];
@@ -1200,13 +1201,14 @@
                 state.dirty = true;
                 renderPreview(true);
               } else {
-                $('imgHint').textContent = 'No se pudo subir: ' + ((res && res.error) || 'error desconocido');
+                $('imgHint').textContent = 'No se pudo subir la imagen. ' + ((res && res.error) || 'Inténtalo de nuevo.');
                 if (window.AppMotion) AppMotion.shake($('imgDrop'));
               }
             })
             .withFailureHandler(function(err){
               $('btnPublicar').disabled = false;
-              $('imgHint').textContent = 'No se pudo subir: ' + err.message;
+              console.error('subirImagenAnuncio:', err);
+              $('imgHint').textContent = 'No se pudo subir la imagen. Revisa tu conexión e inténtalo de nuevo.';
               if (window.AppMotion) AppMotion.shake($('imgDrop'));
             })
             .subirImagenAnuncio({ dataUrl: dataUrl, nombre: file.name, asesor: ADV_EMAIL });
@@ -1339,14 +1341,13 @@
         });
       }
 
-      // ── Arranque: sesión + rol avanzado + shell, luego el constructor ──
+      // ── Arranque: sesión + bloque "anuncios" + shell, luego el constructor ──
+      // El bloque sustituye a la comprobación de "rol avanzado" que había aquí: ahora
+      // publicar anuncios se puede conceder por separado, sin dar de paso las métricas
+      // ni la revisión de cotizaciones. El servidor lo vuelve a exigir en cada llamada
+      // (portalGateAvanzado_), así que esto solo evita entrar a una pantalla inútil.
       document.addEventListener('DOMContentLoaded', function () {
-        if (!requireSession()) return;
-        // Esta pantalla es solo para usuarios avanzados.
-        if (!(window.AppSession && AppSession.isAdvanced)) {
-          if (window.AppUrl) AppUrl.goHome();
-          return;
-        }
+        if (!requireBlock('anuncios', 'anuncios')) return;
         ADV_EMAIL = AppSession.userEmail;
 
         AppShell.mount({ active: 'anuncios', title: 'Anuncios del Portal' });

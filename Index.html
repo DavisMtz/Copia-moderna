@@ -171,6 +171,12 @@ a{text-decoration:none;color:inherit}
 .app-switch{display:flex;flex-direction:column;gap:.2rem;padding:.4rem;margin-bottom:.55rem;background:rgba(0,0,0,.18);border:1px solid var(--side-line);border-radius:14px}
 .app-switch-lbl{font-size:.56rem;font-weight:800;letter-spacing:.16em;text-transform:uppercase;color:var(--side-faint);padding:.3rem .5rem .2rem}
 .app-switch-item{display:flex;align-items:center;gap:.55rem;padding:.48rem .55rem;border-radius:10px;text-decoration:none;color:var(--side-ink-soft);transition:background .18s,color .18s}
+/* [hidden] no basta por sí solo: display:flex gana a la hoja del navegador y el
+   elemento "oculto" se sigue viendo. Sin estas dos líneas, el acceso a Gestión —que
+   nace hidden y solo debe aparecer con permiso— se le enseñaba a cualquiera que
+   abriera el Portal, incluido quien no ha iniciado sesión. */
+.app-switch-item[hidden]{display:none}
+.side-link[hidden]{display:none}
 .app-switch-item .asw-ic{width:30px;height:30px;border-radius:8px;display:flex;align-items:center;justify-content:center;background:rgba(255,255,255,.09);color:var(--side-faint);flex:none;transition:background .18s,color .18s}
 .app-switch-item .asw-ic .ic{width:17px;height:17px}
 .app-switch-item .asw-tx{display:flex;flex-direction:column;line-height:1.18;min-width:0}
@@ -1287,6 +1293,7 @@ table.ds-matrix{width:100%;border-collapse:separate;border-spacing:0;min-width:5
      el acceso del sidebar y el control del topbar lo llevan directo a su panel. -->
 <script>window.__APP__ = { baseUrl: '<?= APP_URL ?>' };</script>
 <?!= include('app_core') ?>
+<?!= include('app_onboarding') ?>
 <template id="__bundler_thumbnail" data-bg-color="#E10098">
   <svg viewBox="0 0 1200 800" xmlns="http://www.w3.org/2000/svg">
     <rect width="1200" height="800" fill="#E10098"/>
@@ -1318,6 +1325,11 @@ table.ds-matrix{width:100%;border-collapse:separate;border-spacing:0;min-width:5
     <a class="app-switch-item active" aria-current="page" href="<?= APP_URL ?>?page=portal" target="_top" onclick="event.preventDefault()"><span class="asw-ic"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M3 12h18M12 3a14.5 14.5 0 0 1 0 18 14.5 14.5 0 0 1 0-18Z"/></svg></span><span class="asw-tx"><b>Portal</b><small>Información y procesos</small></span></a>
     <a class="app-switch-item" id="cotizacionesNavLink" href="<?= APP_URL ?>?page=login" target="_top" onclick="handleCotizacionesNav(event,this)"><span class="asw-ic"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M13 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V9z"/><path d="M13 2v7h7"/><path d="M12 12v6M9 15h6"/></svg></span><span class="asw-tx"><b>Cotizaciones</b><small>Crear, consultar y enviar</small></span></a>
     <a class="app-switch-item" id="correoClienteNavLink" href="<?= APP_URL ?>?page=correo_cliente" target="_top" onclick="handleCorreoClienteNav(event,this)"><span class="asw-ic"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12.5V7a2 2 0 0 0-2-2H5a2 2 0 0 0-2 2v10a2 2 0 0 0 2 2h8.5"/><path d="m3.5 7 8.5 6 8.5-6"/><path d="M18.5 15.5v5M16 18h5"/></svg></span><span class="asw-tx"><b>Enviar un Correo</b><small>Plantillas y envíos</small></span></a>
+    <!-- Gestión: solo para quien puede EDITAR algo (panel avanzado, anuncios, consola).
+         Nace oculto y solo aparece si la sesión lo permite: el Portal es la landing y
+         la ve cualquiera, así que enseñar aquí una puerta de administración a todo el
+         mundo sería anunciar dónde llamar. -->
+    <a class="app-switch-item" id="gestionNavLink" hidden href="<?= APP_URL ?>?page=inicio_avanzado" target="_top"><span class="asw-ic"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3.2"/><path d="M19.4 15a1.6 1.6 0 0 0 .32 1.77l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.6 1.6 0 0 0-1.77-.32 1.6 1.6 0 0 0-1 1.47V21a2 2 0 1 1-4 0v-.1a1.6 1.6 0 0 0-1.05-1.47 1.6 1.6 0 0 0-1.77.32l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.6 1.6 0 0 0 .32-1.77 1.6 1.6 0 0 0-1.47-1H3a2 2 0 1 1 0-4h.1a1.6 1.6 0 0 0 1.47-1.05 1.6 1.6 0 0 0-.32-1.77l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.6 1.6 0 0 0 1.77.32H9a1.6 1.6 0 0 0 1-1.47V3a2 2 0 1 1 4 0v.1a1.6 1.6 0 0 0 1 1.47 1.6 1.6 0 0 0 1.77-.32l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.6 1.6 0 0 0-.32 1.77V9a1.6 1.6 0 0 0 1.47 1H21a2 2 0 1 1 0 4h-.1a1.6 1.6 0 0 0-1.47 1Z"/></svg></span><span class="asw-tx"><b>Gestión</b><small id="gestionNavSub">Supervisión y ajustes</small></span></a>
   </nav>
 
   <span class="side-label">Panel</span>
@@ -1353,6 +1365,14 @@ table.ds-matrix{width:100%;border-collapse:separate;border-spacing:0;min-width:5
   <a class="side-link ext" id="promoNavLink" href="<?= APP_URL ?>?page=promociones" target="_top" onclick="handlePromoNav(event,this)"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3l2.3 6.2L21 11l-6 2 6 2-6.7 1.8L12 21l-2.3-4.2L3 15l6-2-6-2 6.7-1.8Z"/></svg> Monitor Promos <span class="ext-arrow"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M7 17 17 7M8 7h9v9"/></svg></span></a>
 
   <div class="side-foot">
+    <!-- El recorrido guiado sale solo la primera vez; este botón es la puerta de
+         vuelta para quien lo saltó o quiere repasarlo. Nace oculto y AppOnboarding
+         lo enseña solo si esta pantalla tiene recorrido registrado. -->
+    <button type="button" class="onb-lanzador" data-onb-abrir="portal" hidden>
+      <svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M9.6 9.4a2.5 2.5 0 0 1 4.8.9c0 1.7-2.4 2.1-2.4 3.6"/><path d="M12 17.2h.01"/></svg>
+      <span>Ver el tutorial</span>
+    </button>
+
     <div class="theme-switch" role="tablist" aria-label="Tema visual">
       <button class="theme-btn active" data-theme-btn="aurora" onclick="setTheme('aurora')"><span class="sw aurora"></span>Aurora</button>
       <button class="theme-btn" data-theme-btn="slate" onclick="setTheme('slate')"><span class="sw slate"></span>Slate</button>
@@ -3026,7 +3046,7 @@ function finishRefresh(ok, manual){
   const sync = document.getElementById('heroSync');
   if (sync) sync.classList.remove('is-loading');
   if (ok) { renderSyncStatus(); if (manual) showToast(null, 'Datos actualizados'); }
-  else { if (sync) sync.classList.add('is-stale'); setSyncText('No se pudo actualizar'); }
+  else { if (sync) sync.classList.add('is-stale'); setSyncText('No pudimos actualizar'); }
 }
 
 function setSyncText(txt){ const el = document.getElementById('syncText'); if (el) el.textContent = txt; }
@@ -3083,10 +3103,24 @@ function pushNav(id){
 /* ──────── INTRO ──────── */
 function playIntro(){
   if (!GS()) return;
-  gsap.timeline({ defaults:{ ease:'power3.out' } })
-    .fromTo('.sidebar', { x:-12, opacity:0 }, { x:0, opacity:1, duration:.32 })
-    .fromTo('.side-link', { x:-8, opacity:0 }, { x:0, opacity:1, duration:.24, stagger:.025 }, '-=.22')
-    .fromTo('.topbar', { y:-10, opacity:0 }, { y:0, opacity:1, duration:.28 }, '-=.28')
+
+  /* La barra lateral NO se anima cuando es un cajón (≤1024px).
+     Animarla dejaba un transform EN LÍNEA al terminar, y ese transform gana a la
+     regla `.sidebar{transform:translateX(-100%)}` que la mantiene fuera de pantalla:
+     el resultado era que en móvil y tableta el Portal abría con el menú encima del
+     contenido y el botón de cerrar no podía con él, porque closeSidebar() solo quita
+     una clase y la clase ya no mandaba. clearProps deja el transform como estaba. */
+  const esCajon = window.matchMedia('(max-width:1024px)').matches;
+  const tl = gsap.timeline({ defaults:{ ease:'power3.out' } });
+
+  if (!esCajon) {
+    tl.fromTo('.sidebar', { x:-12, opacity:0 },
+      { x:0, opacity:1, duration:.32, clearProps:'transform,opacity' });
+  }
+  tl.fromTo('.side-link', { x:-8, opacity:0 },
+      { x:0, opacity:1, duration:.24, stagger:.025, clearProps:'transform,opacity' }, esCajon ? 0 : '-=.22')
+    .fromTo('.topbar', { y:-10, opacity:0 },
+      { y:0, opacity:1, duration:.28, clearProps:'transform,opacity' }, '-=.28')
     .add(() => sectionEnter(document.querySelector('.view-section.active')), '-=.12');
 }
 
@@ -3206,14 +3240,15 @@ function onToolsData(data, fromCache){
 }
 function onToolsError(err){
   if (window.VentelLoader) VentelLoader.hide();
+  console.error('fetchToolsData:', err);
   // Si el caché local ya pintó contenido, no lo tapamos con el error
   if (store.herramientas.length || store.formatos.length || store.paqueterias.length) return;
   ['herramientas','presentaciones','paqueterias','formatos','pdepago','plantillas'].forEach(id => {
     const el = document.getElementById(`ld-${id}`);
-    if (el) el.innerHTML = `<div class="empty-card"><span class="big">${icon('chat')}</span><h3>Sin conexión</h3><p>${err || 'Error al cargar datos'}</p></div>`;
+    if (el) el.innerHTML = `<div class="empty-card"><span class="big">${icon('chat')}</span><h3>Sin conexión</h3><p>No pudimos cargar la información. Revisa tu conexión y recarga la página.</p></div>`;
   });
   const qa = document.getElementById('qaGrid');
-  if (qa) qa.innerHTML = `<div class="empty-card"><span class="big">${icon('chat')}</span><h3>Sin conexión</h3><p>${err || 'Error al cargar datos'}</p></div>`;
+  if (qa) qa.innerHTML = `<div class="empty-card"><span class="big">${icon('chat')}</span><h3>Sin conexión</h3><p>No pudimos cargar la información. Revisa tu conexión y recarga la página.</p></div>`;
 }
 function setCount(id, n){
   const el = document.getElementById(`n-${id}`);
@@ -4804,15 +4839,14 @@ function onTrazData(data, fromCache){
 }
 
 function onTrazError(err){
-  const detalle = (err && err.message) ? err.message : (err || '');
+  console.error('fetchTrazabilidadData:', err);
   if (trazData){
-    trazAviso = { tipo:'warn', texto:'No se pudo consultar la hoja de Homologación. Estás viendo la copia guardada' +
+    trazAviso = { tipo:'warn', texto:'No pudimos buscar los procesos más recientes. Estás viendo la copia guardada' +
                   (trazGuardadoEn ? ' (' + relTime(trazGuardadoEn) + ')' : '') + '.' };
     trazPintarAvisos();
     return;
   }
-  trazAviso = { tipo:'alert', texto:'No se pudieron cargar los procesos de trazabilidad. ' +
-                (detalle ? String(detalle).slice(0, 180) : 'Revisa tu conexión e inténtalo de nuevo.') };
+  trazAviso = { tipo:'alert', texto:'No pudimos cargar los procesos de trazabilidad. Revisa tu conexión e inténtalo de nuevo.' };
   TRAZ_CFG.forEach(function(cfg){
     const host = document.getElementById('traz-' + cfg.id);
     if (host) host.innerHTML = trazAvisoHTML();
@@ -4867,8 +4901,8 @@ function trazRenderSeccion(cfg){
   if (!procesos.length){
     host.innerHTML = trazAvisoHTML() +
       '<div class="traz-empty show"><strong>Sin procesos publicados</strong>' +
-      'Esta sección no tiene filas en la hoja de Homologación, o su pestaña cambió de nombre. ' +
-      'Un administrador puede ejecutar <code>trazDiagnostico()</code> desde el editor para ver qué encontró.</div>';
+      'Todavía no hay procesos cargados en esta sección. ' +
+      'Avisa al equipo de Ventel para que los publiquen.</div>';
     return;
   }
 
@@ -6243,6 +6277,162 @@ function mockData(){
   function initBridge(){ renderSessionCtl(); wireQuoteSearchBridge(); }
   if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', initBridge);
   else initBridge();
+})();
+</script>
+
+<script>
+/**
+ * CONMUTADOR DE FUNCIONES del Portal.
+ *
+ * Decide qué áreas se enseñan. Las reglas viven en AppFunciones (app_core), que es el
+ * mismo juez para el Monitor de promociones y para el shell de Cotizaciones; aquí solo
+ * se aplican al HTML que ya está pintado.
+ *
+ * Dos cosas que se resuelven aquí y antes no:
+ *
+ *  1. GESTIÓN nace oculta y solo aparece si el servidor confirma que esta sesión puede
+ *     editar algo. Se pregunta al servidor —no se cree lo guardado— porque el Portal es
+ *     la landing pública y el dato del navegador puede estar viejo o tocado a mano.
+ *
+ *  2. Un área APAGADA POR MANTENIMIENTO desaparece del menú. El servidor resta los
+ *     módulos apagados de la lista de bloques, así que basta con hacerle caso: es
+ *     preferible un menú más corto que uno que ofrece una puerta que va a contestar
+ *     "no disponible" después de dos clics y una espera.
+ *
+ * Nada de esto es el candado: cada pantalla vuelve a exigir su permiso al abrirse.
+ */
+(function () {
+  /* Enlaces del conmutador que pueden esconderse, con el área a la que pertenecen.
+     El Portal no está: es la pantalla en la que estamos parados. */
+  var ENLACES = [
+    { id: 'cotizacionesNavLink', area: 'cotizaciones' },
+    { id: 'correoClienteNavLink', area: 'correos' },
+    { id: 'promoNavLink',        area: 'promociones' }
+  ];
+
+  function aplicarAreas() {
+    if (!window.AppFunciones) return;
+    ENLACES.forEach(function (e) {
+      var el = document.getElementById(e.id);
+      if (el) el.hidden = !AppFunciones.visible(e.area);
+    });
+  }
+
+  function pintarGestion(permisos) {
+    var enlace = document.getElementById('gestionNavLink');
+    if (!enlace || !window.AppFunciones) return;
+
+    var disponibles = AppFunciones.gestion(permisos);
+    if (!disponibles.length) return;
+
+    var destino = disponibles[0];
+    if (window.AppUrl && AppUrl.base) enlace.href = AppUrl.build(destino.page) || enlace.href;
+    var sub = document.getElementById('gestionNavSub');
+    if (sub) sub.textContent = AppFunciones.subtituloGestion(disponibles);
+    enlace.hidden = false;
+
+    enlace.addEventListener('click', function (e) {
+      if (!(window.AppUrl && AppUrl.base)) return;   // sin URL base, que el href haga su trabajo
+      e.preventDefault();
+      if (window.VentelLoader) VentelLoader.show();
+      AppUrl.go(destino.page);
+    });
+  }
+
+  function arrancar() {
+    // Primera pasada con lo que ya hay guardado: el menú correcto se ve desde el
+    // primer fotograma para quien ya entró alguna vez.
+    aplicarAreas();
+
+    if (!(window.AppSession && AppSession.isLoggedIn() && AppSession.refrescar)) return;
+    // refrescar() de paso pone al día el rol guardado, así que entrar al Portal ya deja
+    // la sesión correcta para el resto de la app.
+    AppSession.refrescar().then(function (res) {
+      aplicarAreas();
+      pintarGestion(res && res.permisos);
+    }, function () { /* sin red: se queda lo pintado con lo guardado */ });
+  }
+
+  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', arrancar);
+  else arrancar();
+})();
+</script>
+
+<script>
+/**
+ * RECORRIDO GUIADO DEL PORTAL · la primera vez que alguien entra.
+ *
+ * Siete paradas, ni una más. Un tutorial largo se salta entero, y quien lo salta se
+ * queda sin lo poco que sí necesitaba saber. Se explica lo que NO se adivina mirando
+ * —el buscador con «/», que Funciones cambia de área, que Trazabilidad se pliega— y
+ * se callan los botones que se explican solos.
+ *
+ * Se lanza después del conmutador a propósito: para entonces ya se sabe qué áreas
+ * existen para esta persona, y ningún paso apunta a un enlace que no está.
+ */
+(function () {
+  if (!window.AppOnboarding) return;
+
+  AppOnboarding.auto({
+    pantalla: 'portal',
+    version: 1,
+    // Un respiro extra: el Portal entra con su propia animación de bienvenida y
+    // solaparse con ella deja el foco iluminando un elemento que aún se mueve.
+    retraso: 900,
+    pasos: [
+      {
+        titulo: 'Bienvenido al Portal VENTEL',
+        texto: 'Este es el centro de operación del equipo: herramientas, paqueterías, formas de pago, ' +
+               'trazabilidad y formatos, todo en un solo sitio.<br><br>Son <b>siete paradas</b> de unos segundos. ' +
+               'Puedes salir cuando quieras y volver cuando quieras.'
+      },
+      {
+        sel: '#globalSearch',
+        pos: 'abajo',
+        titulo: 'Busca en vez de navegar',
+        texto: 'Escribe lo que necesitas —una paquetería, un formato, un proceso— y aparece al momento. ' +
+               'Con la tecla <b>/</b> saltas aquí desde cualquier parte de la pantalla.<br><br>' +
+               'Es el camino más corto: casi siempre es más rápido escribir que buscar en el menú.'
+      },
+      {
+        sel: '.app-switch',
+        pos: 'derecha',
+        titulo: 'Funciones: cambiar de área',
+        texto: 'Desde aquí saltas entre el <b>Portal</b>, las <b>Cotizaciones</b> y el <b>envío de correos</b>. ' +
+               'Solo se enseñan las áreas a las que tienes acceso, así que lo que veas aquí es lo que ' +
+               'realmente puedes abrir.'
+      },
+      {
+        sel: '.side-link[data-sec="herramientas"]',
+        pos: 'derecha',
+        titulo: 'El panel, por secciones',
+        texto: 'Cada apartado del menú cambia el contenido sin recargar la página. ' +
+               '<b>Operación</b> es el día a día; <b>Recursos</b> son los formatos y plantillas que se descargan.'
+      },
+      {
+        sel: '.side-group-tog[data-group="trazabilidad"]',
+        pos: 'derecha',
+        titulo: 'Trazabilidad',
+        texto: 'Aquí vive el seguimiento por tipo de venta: Big Ticket, Soft Line, MarketPlace, Tienda y ' +
+               'Devoluciones SAP.<br><br>El grupo se <b>pliega y despliega</b> con un clic en el título, ' +
+               'para que el menú no se haga interminable.'
+      },
+      {
+        sel: '#sessionCtl',
+        pos: 'abajo',
+        titulo: 'Tu sesión',
+        texto: 'El Portal se consulta sin entrar, pero para <b>cotizar, consultar folios o enviar correos</b> ' +
+               'hace falta iniciar sesión. Desde aquí entras y, una vez dentro, vuelves a tus cotizaciones.'
+      },
+      {
+        sel: '[data-onb-abrir="portal"]',
+        pos: 'derecha',
+        titulo: 'Y si se te olvida algo',
+        texto: 'Este botón vuelve a lanzar el recorrido cuando quieras. No hace falta que memorices nada hoy.' +
+               '<br><br>Cada pantalla del sistema tiene el suyo, con lo propio de esa pantalla.'
+      }
+    ]
+  });
 })();
 </script>
 </body>

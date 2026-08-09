@@ -295,6 +295,7 @@
     <?!= include('app_icons'); ?>
     <?!= include('app_motion'); ?>
     <?!= include('app_shell'); ?>
+    <?!= include('app_onboarding'); ?>
     <?!= include('LoaderPartial'); ?>
     <script>
 /* ═══════════════════════════════════════════════════════════════════════════
@@ -661,7 +662,7 @@ function fmtSize(b){ return b < 1024*1024 ? Math.max(1,Math.round(b/1024))+' KB'
    AppRun deduplica por si la pantalla la pide dos veces al arrancar. */
 function loadSender(){
   if (typeof google === 'undefined' || !google.script) {
-    $id('senderInfoText').textContent = 'Modo local: el envío solo funciona dentro de Apps Script.';
+    $id('senderInfoText').textContent = 'Vista de ejemplo: para enviar correos entra al sistema desde el portal.';
     return;
   }
   const pintar = (info) => {
@@ -751,7 +752,7 @@ function revisarEnvio(){
 
 function confirmarEnvio(){
   if (enviando) return;
-  if (typeof google === 'undefined' || !google.script) { toast('El envío solo funciona dentro de Apps Script.'); return; }
+  if (typeof google === 'undefined' || !google.script) { toast('Para enviar correos entra al sistema desde el portal.'); return; }
   enviando = true;
   mostrarPaso('mSending');
 
@@ -815,7 +816,7 @@ function toast(msg){
 
 /* ── Arranque ── */
 document.addEventListener('DOMContentLoaded', () => {
-    if (!requireSession()) return;
+    if (!requireBlock('correos_cliente', 'correo_cliente')) return;
 
     // Marco lateral compartido con el Portal (envuelve el <main> y aporta sesión/tema).
     AppShell.mount({ active: 'correo_cliente', title: 'Correos a clientes' });
@@ -827,6 +828,45 @@ document.addEventListener('DOMContentLoaded', () => {
     renderPreview();
     initAdjuntos();
     loadSender();
+
+    /* Recorrido guiado. Lo que se explica es el ORDEN de la pantalla —plantilla,
+       campos, vista previa, revisión— porque es lo que evita el error caro de aquí:
+       mandarle a un cliente un correo con un dato de otro. */
+    if (window.AppOnboarding) AppOnboarding.auto({
+      pantalla: 'correos_cliente',
+      version: 1,
+      retraso: 700,
+      pasos: [
+        {
+          titulo: 'Correos a clientes',
+          texto: 'Plantillas ya redactadas y revisadas, para no escribir desde cero ni improvisar el tono. ' +
+                 'Cuatro paradas.'
+        },
+        {
+          sel: '#tplGrid',
+          pos: 'abajo',
+          titulo: '1 · Elige la plantilla',
+          texto: 'Cada tarjeta es un tipo de correo distinto. Al elegir una, el asunto y el cuerpo se ' +
+                 'rellenan solos y abajo solo te quedan los datos que hay que completar.'
+        },
+        {
+          sel: '#fieldsBody',
+          pos: 'derecha',
+          titulo: '2 · Completa lo que falta',
+          texto: 'Solo aparecen los campos que ESA plantilla necesita.<br><br>' +
+                 'En <b>Para</b> puedes poner varios correos separados por coma; ' +
+                 '<b>CCO</b> es el camino correcto cuando escribes a varios clientes que no deben verse entre sí.'
+        },
+        {
+          sel: '#btnReview',
+          pos: 'arriba',
+          titulo: '3 · Revisa antes de mandar',
+          texto: 'A la derecha ves el correo <b>exactamente</b> como le llegará al cliente. ' +
+                 'Este botón abre la última revisión: destinatarios, asunto y adjuntos juntos, en una sola pantalla.' +
+                 '<br><br>Es el único momento en que todavía se puede corregir.'
+        }
+      ]
+    });
 
     // Deep-link desde el buscador del Portal: ?tpl=<id> abre esa plantilla lista.
     const tplParam = (window.AppUrl && AppUrl.param('tpl')) || (window.__APP__ && window.__APP__.tpl) || '';

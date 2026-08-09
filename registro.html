@@ -408,7 +408,8 @@
                 })
                 .withFailureHandler(err => {
                     ocupado(btn, false);
-                    showMessage('Error de comunicación: ' + err.message);
+                    console.error(err);
+                    showMessage('No hay conexión con el sistema. Revisa tu internet e inténtalo de nuevo.');
                 })
                 .solicitarCodigoRegistro(pendiente.nombre, pendiente.correo, pendiente.clave);
         };
@@ -480,7 +481,8 @@
                 })
                 .withFailureHandler(err => {
                     ocultarCarga();
-                    showMessage('Error de comunicación: ' + err.message);
+                    console.error(err);
+                    showMessage('No hay conexión con el sistema. Revisa tu internet e inténtalo de nuevo.');
                 })
                 .confirmarCodigoRegistro(pendiente.correo, codigo);
         };

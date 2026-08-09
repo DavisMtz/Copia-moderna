@@ -304,7 +304,7 @@
                     <img src="https://upload.wikimedia.org/wikipedia/commons/thumb/3/35/Liverpool_logo.svg/1280px-Liverpool_logo.svg.png" alt="Logo Liverpool" style="max-height: 42px; width: auto;">
                     <p>Centro de Contacto Liverpool</p>
                     <p>postventaomnicanal@liverpool.com.mx</p>
-                    <p>Tel: 55 5262 9999, opción 3 (preguntar por ext: <span id="preview-asesorExtension"></span>)</p>
+                    <p>Tel: 55 5262 9999, opción 3</p>
                 </div>
             </header>
             <div class="info-grid">
@@ -312,7 +312,6 @@
                     <h2 class="section-title" style="margin-top:0;">Información del Asesor</h2>
                     <p><strong>Nombre:</strong> <span id="preview-asesorNombre"></span></p>
                     <p><strong>Puesto:</strong> Asesor de Ventas por Teléfono e Internet</p>
-                    <p><strong>Extensión:</strong> <span id="preview-asesorExtension-body"></span></p>
                 </div>
                 <div class="info-box">
                     <h2 class="section-title" style="margin-top:0;">Información del Cliente</h2>
@@ -440,7 +439,7 @@
                 populatePreview(data);
             } catch (e) {
                 console.error('Error al pintar la vista previa:', e);
-                showPreviewFailure('No se pudo dibujar la vista previa (' + (e && e.message ? e.message : e) + '). Tus datos ya se guardaron; puedes reintentar o editar la cotización.');
+                showPreviewFailure('No pudimos mostrar la vista previa. Tus datos ya quedaron guardados: vuelve a intentarlo o edita la cotización.');
             } finally {
                 hideLoader();
             }
@@ -559,7 +558,7 @@
                 // respaldo legible y se ofrece reintentar, en vez de dejar la pantalla en
                 // blanco o degradar en silencio a un formato que no es el que se pidió.
                 console.error('Error al dibujar la vista previa CCL:', e);
-                showPreviewFailure('No se pudo dibujar la vista previa del formato CCL (' + (e && e.message ? e.message : e) + '). Se muestra el formato estándar como respaldo.');
+                showPreviewFailure('No pudimos mostrar el formato CCL. Mientras tanto verás el formato estándar.');
                 actual.classList.remove('hidden');
                 ccl.classList.add('hidden');
                 return;
@@ -584,8 +583,6 @@
             loadPreviewFormats(data.format);
             document.getElementById('preview-fechaEmision').textContent = new Date(data.timestamp || Date.now()).toLocaleDateString('es-MX', { day: '2-digit', month: 'long', year: 'numeric' });
             document.getElementById('preview-asesorNombre').textContent = data.advisorName || 'N/A';
-            document.getElementById('preview-asesorExtension').textContent = data.advisorExt || 'N/A';
-            document.getElementById('preview-asesorExtension-body').textContent = data.advisorExt || 'N/A';
             document.getElementById('preview-clienteNombre').textContent = data.clientName || 'N/A';
             document.getElementById('preview-clienteEmail').textContent = data.clientEmail || 'N/A';
             document.getElementById('preview-clienteTelefono').textContent = data.clientPhone || 'N/A';
@@ -667,7 +664,7 @@
             if (!AppUrl.go(page, params)) {
                 if (redirectOverlay) redirectOverlay.classList.add('hidden');
                 if (window.VentelLoader) VentelLoader.hide();
-                showPreviewMessage('Error al obtener URL para redirigir.', true);
+                showPreviewMessage('No pudimos abrir la siguiente pantalla. Recarga la página e inténtalo de nuevo.', true);
             }
         }
 
@@ -677,7 +674,7 @@
             // sesión igual que cotizacion y correoventel. Sin la guardia, un deep-link con
             // folio abría la cotización sin identificar al asesor y dejaba
             // currentUserEmailForSave vacío.
-            if (!requireSession()) return;
+            if (!requireBlock('cotizar', 'cotizado_preview')) return;
 
             const folioFromUrl = AppUrl.param('folio');
             currentUserEmailForSave = AppSession.userEmail;
@@ -704,7 +701,7 @@
                 
                 // 2. Fallback: Si no había caché válida para este folio, descargar desde Sheets
                 if (!loadedFromCache) {
-                    showPreviewMessage('Descargando datos actualizados del servidor...', false);
+                    showPreviewMessage('Buscando la versión más reciente de la cotización…', false);
                     
                     if (typeof google !== 'undefined' && google.script && google.script.run) {
                         google.script.run
@@ -722,23 +719,24 @@
                                     }
                                     
                                     safeRenderPreview(response.quote);
-                                    showPreviewMessage('Cotización sincronizada del servidor correctamente.', false);
+                                    showPreviewMessage('Cotización actualizada.', false);
                                 } else {
-                                    showPreviewFailure(response.message || 'Error al obtener la cotización del servidor.');
+                                    showPreviewFailure(response.message || 'No pudimos traer esta cotización. Inténtalo de nuevo en un momento.');
                                     document.getElementById('pdf-preview-content').classList.add('hidden');
                                     document.getElementById('ccl-preview-content').classList.add('hidden');
                                 }
                             })
                             .withFailureHandler(function(error) {
                                 hideLoader();
-                                showPreviewFailure('Error de comunicación con el servidor: ' + error.message);
+                                console.error('getQuoteDetails:', error);
+                                showPreviewFailure('No hay conexión con el sistema. Revisa tu internet y recarga la página.');
                                 document.getElementById('pdf-preview-content').classList.add('hidden');
                                 document.getElementById('ccl-preview-content').classList.add('hidden');
                             })
                             .getQuoteDetails(folioFromUrl);
                     } else {
                         hideLoader();
-                        showPreviewFailure('Ambiente Google Apps Script no detectado y no hay datos locales en caché para el folio: ' + folioFromUrl);
+                        showPreviewFailure('No pudimos mostrar el folio ' + folioFromUrl + '. Ábrelo desde "Mis cotizaciones" en el portal.');
                         document.getElementById('pdf-preview-content').classList.add('hidden');
                         document.getElementById('ccl-preview-content').classList.add('hidden');
                     }
@@ -754,12 +752,12 @@
                         currentFolioForPreview = quoteDataForSave.folio;
                         safeRenderPreview(quoteDataForSave);
                     } else {
-                        showPreviewFailure('No se especificó un folio ni se encontraron datos en caché.');
+                        showPreviewFailure('No sabemos qué cotización mostrar. Ábrela desde "Mis cotizaciones".');
                         document.getElementById('pdf-preview-content').classList.add('hidden');
                         document.getElementById('ccl-preview-content').classList.add('hidden');
                     }
                 } catch (e) {
-                    showPreviewFailure('Error al cargar datos en la vista previa.');
+                    showPreviewFailure('No pudimos mostrar la cotización. Ábrela otra vez desde "Mis cotizaciones".');
                     document.getElementById('pdf-preview-content').classList.add('hidden');
                     document.getElementById('ccl-preview-content').classList.add('hidden');
                 }
@@ -773,7 +771,7 @@
             if (downloadPdfButton) {
                 downloadPdfButton.addEventListener('click', () => {
                     if (!currentFolioForPreview) {
-                        showPreviewMessage('No hay folio de cotización para generar el PDF.', true);
+                        showPreviewMessage('No pudimos identificar esta cotización para generar el PDF.', true);
                         return;
                     }
 
@@ -811,7 +809,8 @@
                         })
                         .withFailureHandler(function(error) {
                             restoreButton();
-                            showPreviewMessage('Error al generar el PDF: ' + error.message, true);
+                            console.error('downloadQuotePdf:', error);
+                            showPreviewMessage('No pudimos generar el PDF. Inténtalo de nuevo en un momento.', true);
                         })
                         .downloadQuotePdf(currentFolioForPreview, chosenFormat);
                 });
@@ -835,7 +834,7 @@
             if (editQuoteButton) {
                 editQuoteButton.addEventListener('click', () => {
                     if (!currentFolioForPreview) {
-                        showPreviewMessage('No hay folio para editar.', true);
+                        showPreviewMessage('No pudimos identificar esta cotización para editarla.', true);
                         return;
                     }
                     navigateToPage('cotizacion', { folio: currentFolioForPreview, action: 'edit' });
@@ -870,7 +869,7 @@
                         if (currentFolioForPreview) {
                             navigateToPage('correoventel', { folio: currentFolioForPreview, format: selectedFormatId || '' });
                         } else {
-                            showPreviewMessage('Error: No se encontró el folio de la cotización para enviar.', true);
+                            showPreviewMessage('No pudimos identificar esta cotización. Ábrela otra vez desde "Mis cotizaciones".', true);
                         }
                     });
                 });

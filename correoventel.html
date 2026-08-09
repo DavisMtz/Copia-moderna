@@ -107,7 +107,7 @@
     <?!= include('LoaderPartial'); ?>
     <script>
     document.addEventListener('DOMContentLoaded', () => {
-        if (!requireSession()) return;
+        if (!requireBlock('enviar_cotizacion', 'correoventel')) return;
 
         // Marco lateral compartido con el Portal (envuelve el <main> y aporta sesión/tema).
         AppShell.mount({ active: 'correoventel', title: 'Enviar correo' });
@@ -151,7 +151,7 @@
         const renderFormats = (response, preferredId) => {
             if (!response || !response.success || !response.formats || response.formats.length === 0) {
                 formatSelect.innerHTML = '<option value="">Sin formatos disponibles</option>';
-                formatHint.textContent = 'No hay formatos habilitados. Revisa el panel de administración o los registros del script.';
+                formatHint.textContent = 'No hay ningún formato disponible. Pide a un usuario avanzado que habilite al menos uno.';
                 return;
             }
 
@@ -187,8 +187,9 @@
                 })
                 .withFailureHandler(error => {
                     if (cached && cached.data) return; // Ya hay opciones pintadas desde caché.
-                    formatSelect.innerHTML = '<option value="">Error al cargar formatos</option>';
-                    formatHint.textContent = 'Error al cargar los formatos: ' + error.message;
+                    console.error('getEnabledQuoteFormats:', error);
+                    formatSelect.innerHTML = '<option value="">No se pudieron cargar</option>';
+                    formatHint.textContent = 'No pudimos cargar los formatos. Revisa tu conexión y recarga la página.';
                 })
                 .getEnabledQuoteFormats();
         };
@@ -200,7 +201,7 @@
                 if (!info || !senderInfoText) { if (senderInfoText) senderInfoText.textContent = ''; return; }
                 senderInfoText.innerHTML = info.aliasAvailable
                     ? `El correo saldrá desde <strong>${info.alias}</strong> y las respuestas del cliente llegarán a tu correo.`
-                    : `El correo saldrá desde la cuenta del sistema (el alias <strong>${info.alias}</strong> aún no está configurado). Las respuestas llegarán a tu correo.`;
+                    : `El correo saldrá desde la cuenta del sistema, porque <strong>${info.alias}</strong> todavía no está habilitado. Las respuestas del cliente llegarán a tu correo.`;
             };
             // Se pinta al instante con lo guardado (30 min) y se revalida detrás;
             // misma entrada de caché que usa la pantalla de correos a clientes.
@@ -336,7 +337,7 @@
                 })
                 .withFailureHandler(error => {
                     setButtonLoadingState(searchQuoteButton, false);
-                    showAlert("Error de comunicación al buscar la cotización.", "error");
+                    showAlert("No pudimos buscar la cotización. Revisa tu conexión e inténtalo de nuevo.", "error");
                     console.error("Error en getQuoteDetailsForEmail:", error);
                 })
                 .getQuoteDetailsForEmail(folio);
@@ -392,7 +393,7 @@
                 .withFailureHandler(error => {
                     if (window.VentelLoader) VentelLoader.hide();
                     setButtonLoadingState(sendButton, false);
-                    showAlert("Error de comunicación al enviar el correo.", "error");
+                    showAlert("No pudimos enviar el correo. Revisa tu conexión e inténtalo de nuevo.", "error");
                     console.error("Error en sendQuoteByEmail:", error);
                 })
                 .sendQuoteByEmail(emailData);

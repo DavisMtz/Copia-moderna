@@ -476,7 +476,7 @@ function revpolResumen_(p) {
  */
 function getPoliticaRevision(email) {
   try {
-    const id = secIdentidadAvanzada_(email);
+    const id = secIdentidadConBloque_(email, 'politica_revision');
     if (!id.ok) {
       return { success: false, message: id.error || 'Solo un usuario avanzado puede ver la política de revisión.' };
     }
@@ -500,7 +500,7 @@ function getPoliticaRevision(email) {
     };
   } catch (error) {
     Logger.log('getPoliticaRevision falló: ' + error.message);
-    return { success: false, message: 'No se pudo leer la política: ' + error.message };
+    return { success: false, message: 'No pudimos cargar las reglas de revisión. Inténtalo de nuevo en un momento.' };
   }
 }
 
@@ -514,7 +514,7 @@ function getPoliticaRevision(email) {
  */
 function guardarPoliticaRevision(email, politica) {
   try {
-    const id = secIdentidadAvanzada_(email);
+    const id = secIdentidadConBloque_(email, 'politica_revision');
     if (!id.ok) {
       return { success: false, message: id.error || 'Solo un usuario avanzado puede cambiar la política de revisión.' };
     }
@@ -552,7 +552,7 @@ function guardarPoliticaRevision(email, politica) {
     return respuesta;
   } catch (error) {
     Logger.log('guardarPoliticaRevision falló: ' + error.message + ' Stack: ' + error.stack);
-    return { success: false, message: 'No se pudo guardar la política: ' + error.message };
+    return { success: false, message: 'No pudimos guardar las reglas de revisión. Inténtalo de nuevo en un momento.' };
   }
 }
 
@@ -585,7 +585,7 @@ function revpolDiferencias_(a, b) {
  */
 function simularPoliticaRevision(email, caso, politicaBorrador) {
   try {
-    const id = secIdentidadAvanzada_(email);
+    const id = secIdentidadConBloque_(email, 'politica_revision');
     if (!id.ok) {
       return { success: false, message: id.error || 'Solo un usuario avanzado puede simular la política.' };
     }
@@ -628,7 +628,7 @@ function simularPoliticaRevision(email, caso, politicaBorrador) {
     };
   } catch (error) {
     Logger.log('simularPoliticaRevision falló: ' + error.message);
-    return { success: false, message: 'No se pudo simular: ' + error.message };
+    return { success: false, message: 'No pudimos hacer la prueba. Inténtalo de nuevo en un momento.' };
   }
 }
 

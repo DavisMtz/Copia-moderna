@@ -40,7 +40,7 @@
                         <div class="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-3">
                             <span class="w-5 h-5 block text-slate-400" data-icon="search"></span>
                         </div>
-                        <input type="search" id="searchInput" name="search" placeholder="Filtra tus cotizaciones; Enter busca en todo el sistema" class="v-input" style="padding-left: 2.5rem;">
+                        <input type="search" id="searchInput" name="search" placeholder="Busca por folio o cliente · Enter busca en todo el sistema" class="v-input" style="padding-left: 2.5rem;">
                     </form>
                 </div>
             </div>
@@ -56,7 +56,7 @@
             </div>
             <div class="flex items-center gap-2">
                 <span id="sync-status" class="text-xs text-slate-500"></span>
-                <button id="refreshButton" class="v-btn v-btn-ghost v-btn-sm" title="Volver a cargar desde el servidor">
+                <button id="refreshButton" class="v-btn v-btn-ghost v-btn-sm" title="Buscar la información más reciente">
                     <span class="button-icon"><span class="w-4 h-4 block" data-icon="refresh"></span></span>
                     <span class="button-text">Actualizar</span>
                 </button>
@@ -95,6 +95,7 @@
     <?!= include('app_motion'); ?>
     <?!= include('app_support'); ?>
     <?!= include('app_shell'); ?>
+    <?!= include('app_onboarding'); ?>
     <?!= include('LoaderPartial'); ?>
     <script>
     document.addEventListener('DOMContentLoaded', () => {
@@ -102,6 +103,52 @@
 
         // Marco lateral compartido con el Portal (envuelve el <main> y aporta sesión/tema).
         AppShell.mount({ active: 'dashboard', title: 'Panel' });
+
+        /* Recorrido guiado del Panel. Se registra después de montar la barra para que
+           los pasos que apuntan al menú encuentren el menú ya pintado. */
+        if (window.AppOnboarding) AppOnboarding.auto({
+          pantalla: 'dashboard',
+          version: 1,
+          retraso: 700,
+          pasos: [
+            {
+              titulo: 'Tu panel de cotizaciones',
+              texto: 'Aquí vive todo lo que has cotizado: qué se envió, qué falta por enviar y en qué ' +
+                     'estatus va cada folio.<br><br>Cinco paradas y te dejo trabajar.'
+            },
+            {
+              sel: '#newQuoteButton',
+              pos: 'abajo',
+              titulo: 'Empezar una cotización',
+              texto: 'Este es el botón del día a día. Abre la pantalla de cotización con tus datos ya puestos; ' +
+                     'tú solo agregas cliente y productos.'
+            },
+            {
+              sel: '#searchInput',
+              pos: 'abajo',
+              titulo: 'Encontrar un folio',
+              texto: 'Escribe el <b>folio</b> (LVP-…) o el <b>nombre del cliente</b> y la tabla se filtra al momento.' +
+                     '<br><br>Con <b>Enter</b> la búsqueda sale de tu lista y va a todo el sistema: útil cuando ' +
+                     'el folio lo hizo otra persona del equipo.'
+            },
+            {
+              sel: '#stat-total',
+              pos: 'abajo',
+              relleno: 12,
+              titulo: 'Tus números de un vistazo',
+              texto: 'Cuántas llevas, cuántas se enviaron y cuántas siguen <b>por enviar</b>. ' +
+                     'Esa última es la que conviene mirar antes de terminar el día.'
+            },
+            {
+              sel: '.v-table',
+              pos: 'arriba',
+              titulo: 'La tabla manda',
+              texto: 'Cada fila tiene sus acciones al final: ver, enviar o duplicar. El <b>estatus</b> te dice ' +
+                     'si una cotización está esperando algo de ti.<br><br>' +
+                     'El botón <b>Ver el tutorial</b>, abajo en la barra lateral, repite este recorrido.'
+            }
+          ]
+        });
 
         // El loader de marca cubre el arranque; se retira en cuanto la pantalla está lista.
         if (window.VentelLoader) VentelLoader.hide();
@@ -150,31 +197,31 @@
         };
 
         window.navigateToQuoteView = function (folio) {
-            if (!folio) return AppMotion.toast('Error: Folio no disponible.', 'error');
+            if (!folio) return AppMotion.toast('No pudimos identificar esa cotización. Actualiza la lista e inténtalo de nuevo.', 'error');
             AppSession.selectedFolio = folio;   // respaldo si el parámetro no llega (ver app_core)
             navigateToPage('consulta_cotizacion', { folio: folio }, this);
         };
 
         window.navigateToQuoteEdit = function (folio) {
-            if (!folio) return AppMotion.toast('Error: Folio no disponible.', 'error');
+            if (!folio) return AppMotion.toast('No pudimos identificar esa cotización. Actualiza la lista e inténtalo de nuevo.', 'error');
             navigateToPage('cotizacion', { folio: folio, action: 'edit' }, this);
         };
 
         window.navigateToResend = function (folio) {
-            if (!folio) return AppMotion.toast('Error: Folio no disponible.', 'error');
+            if (!folio) return AppMotion.toast('No pudimos identificar esa cotización. Actualiza la lista e inténtalo de nuevo.', 'error');
             navigateToPage('correoventel', { folio: folio }, this);
         };
 
         // Copia un deep-link a la consulta de la cotización (para compartir por chat/correo).
         window.copyQuoteLink = function (folio) {
-            if (!folio) return AppMotion.toast('Error: Folio no disponible.', 'error');
+            if (!folio) return AppMotion.toast('No pudimos identificar esa cotización. Actualiza la lista e inténtalo de nuevo.', 'error');
             AppUrl.copyLink('consulta_cotizacion', { folio: folio }).then(ok => {
                 AppMotion.toast(ok ? `Enlace de ${folio} copiado. Pégalo donde lo necesites.` : 'No se pudo copiar el enlace.', ok ? 'ok' : 'error');
             });
         };
 
         window.openQuoteInSheets = function (folio) {
-            if (!folio) return AppMotion.toast('Error: Folio no disponible.', 'error');
+            if (!folio) return AppMotion.toast('No pudimos identificar esa cotización. Actualiza la lista e inténtalo de nuevo.', 'error');
 
             const button = this;
             // La pestaña se abre aquí, durante el clic. Si se abriera al llegar la respuesta
@@ -202,7 +249,8 @@
                     setButtonLoadingState(button, false);
                     button.disabled = false;
                     if (tab) tab.close();
-                    AppMotion.toast('Error al abrir el documento en Sheets: ' + error.message, 'error');
+                    console.error('openQuoteInSheets:', error);
+                    AppMotion.toast('No pudimos abrir el documento. Inténtalo de nuevo en un momento.', 'error');
                 })
                 .openQuoteInSheets(folio);
         };
@@ -269,9 +317,9 @@
                     console.error("Fallo en la llamada a getQuotesForUser:", error);
                     if (cached) {
                         setSyncStatus('Sin conexión · mostrando datos guardados ' + AppCache.ageLabel(cached.at));
-                        AppMotion.toast('No se pudo actualizar desde el servidor; se muestran los datos guardados.', 'warn');
+                        AppMotion.toast('No pudimos conectarnos: te mostramos la última información guardada.', 'warn');
                     } else {
-                        updateTablePlaceholder("Error de comunicación al cargar cotizaciones.");
+                        updateTablePlaceholder("No pudimos cargar tus cotizaciones. Revisa tu conexión e inténtalo de nuevo.");
                     }
                 })
                 // El tercer argumento salta la caché del servidor: "Actualizar" debe
@@ -416,7 +464,7 @@
             e.preventDefault();
             const term = searchInput.value.trim();
             if (!term) return;
-            if (AppSession.isAdvanced) { AppUrl.go('inicio_avanzado', { q: term }); return; }
+            if (AppSession.can('supervision')) { AppUrl.go('inicio_avanzado', { q: term }); return; }
             loadUserQuotes(term);
         });
 

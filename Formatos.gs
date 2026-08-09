@@ -163,7 +163,7 @@ function getFormatSettings(email) {
     return { success: true, formats: formats };
   } catch (error) {
     Logger.log("Error en getFormatSettings: " + error.message);
-    return { success: false, message: "Error al leer los formatos: " + error.message };
+    return { success: false, message: "No pudimos cargar los formatos. Inténtalo de nuevo en un momento." };
   }
 }
 
@@ -197,7 +197,7 @@ function setQuoteFormatEnabled(email, formatId, enabled) {
     return getFormatSettings(email);
   } catch (error) {
     Logger.log("Error en setQuoteFormatEnabled: " + error.message);
-    return { success: false, message: "Error al guardar el formato: " + error.message };
+    return { success: false, message: "No pudimos guardar el cambio. Inténtalo de nuevo en un momento." };
   }
 }
 
@@ -252,7 +252,7 @@ function getEnabledQuoteFormats() {
     return { success: true, formats: formats, defaultId: defaultId };
   } catch (error) {
     Logger.log("Error en getEnabledQuoteFormats: " + error.message);
-    return { success: false, message: "Error al obtener los formatos: " + error.message, formats: [] };
+    return { success: false, message: "No pudimos cargar los formatos. Inténtalo de nuevo en un momento.", formats: [] };
   }
 }
 
@@ -627,7 +627,7 @@ function openQuoteInSheets(folio) {
     return { success: true, url: url };
   } catch (error) {
     Logger.log(`Error en openQuoteInSheets (folio ${folio}): ${error.message}`);
-    return { success: false, message: "No se pudo abrir el documento en Sheets: " + error.message };
+    return { success: false, message: "No pudimos abrir el documento. Inténtalo de nuevo en un momento." };
   }
 }
 
@@ -688,6 +688,6 @@ function downloadQuotePdf(folio, formatId) {
     };
   } catch (error) {
     Logger.log(`Error en downloadQuotePdf (folio ${folio}, formato ${formatId}): ${error.message}`);
-    return { success: false, message: "No se pudo generar el PDF: " + error.message };
+    return { success: false, message: "No pudimos generar el PDF. Inténtalo de nuevo en un momento." };
   }
 }

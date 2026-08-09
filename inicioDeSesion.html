@@ -82,6 +82,61 @@
                     </form>
                 </div>
 
+                <!--
+                  PASO 2 · Elegir contraseña propia.
+                  Solo aparece si se entró con una contraseña temporal de la consola. No
+                  hay forma de saltárselo —ni botón de "luego"— porque la sesión no se
+                  abre hasta que se guarda: el vale que trae loginUser es lo único que
+                  vale aquí, y solo sirve para esto.
+                -->
+                <div id="setPasswordContainer" class="hidden">
+                    <div id="set-message" role="status" aria-live="polite"></div>
+
+                    <h2 class="auth-title" style="font-size:1.35rem;margin-bottom:.35rem">Crea tu contraseña</h2>
+                    <p class="auth-sub" style="margin-bottom:1.1rem">
+                        Entraste con una contraseña temporal. Elige una que solo sepas tú:
+                        será la que uses a partir de ahora.
+                    </p>
+
+                    <form id="setPasswordForm" class="auth-form">
+                        <div class="auth-row">
+                            <label for="newPassword" class="v-label">Contraseña nueva</label>
+                            <div class="field">
+                                <span class="field-ic" data-icon="lock" aria-hidden="true"></span>
+                                <input id="newPassword" name="newPassword" type="password" required minlength="6"
+                                       autocomplete="new-password" placeholder="Mínimo 6 caracteres"
+                                       class="v-input" data-has-toggle aria-describedby="newPasswordError">
+                                <button type="button" id="toggleNewPassword" class="field-toggle"
+                                        aria-label="Mostrar contraseña" aria-pressed="false">
+                                    <span id="toggleNewIcon" data-icon="eye"></span>
+                                </button>
+                            </div>
+                            <p id="newPasswordError" class="auth-error">La contraseña debe tener al menos 6 caracteres.</p>
+                        </div>
+
+                        <div class="auth-row">
+                            <label for="confirmPassword" class="v-label">Repítela</label>
+                            <div class="field">
+                                <span class="field-ic" data-icon="lock" aria-hidden="true"></span>
+                                <input id="confirmPassword" name="confirmPassword" type="password" required
+                                       autocomplete="new-password" placeholder="La misma de arriba"
+                                       class="v-input" aria-describedby="confirmPasswordError">
+                            </div>
+                            <p id="confirmPasswordError" class="auth-error">Las dos contraseñas no coinciden.</p>
+                        </div>
+
+                        <div>
+                            <button type="submit" id="setPasswordButton" class="v-btn v-btn-primary auth-submit">
+                                Guardar y entrar
+                                <svg class="auth-arrow" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                                     stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                                    <path d="M4 12h15M13 6l6 6-6 6"/>
+                                </svg>
+                            </button>
+                        </div>
+                    </form>
+                </div>
+
                 <div id="loadingContainer" class="auth-loading hidden">
                     <div class="auth-loader" id="loadingIcon" data-liv="stroke" data-liv-width="5" aria-hidden="true"></div>
                     <h2 id="loadingText">Verificando credenciales…</h2>
@@ -168,10 +223,133 @@
                 // vuelve a ella; si no, al panel del rol de siempre.
                 if (!AppUrl.goNextOrHome()) {
                     hideLoadingState();
-                    showMessage('No se pudo determinar la URL de la aplicación. Recarga e intenta de nuevo.');
+                    showMessage('No pudimos abrir tu panel. Recarga la página e inténtalo de nuevo.');
                 }
             }, 900);
         };
+
+        // ── Paso 2: elegir contraseña propia tras entrar con una temporal ──────────
+        const setPasswordContainer = document.getElementById('setPasswordContainer');
+        const setPasswordForm = document.getElementById('setPasswordForm');
+        const setPasswordButton = document.getElementById('setPasswordButton');
+        const newPassword = document.getElementById('newPassword');
+        const confirmPassword = document.getElementById('confirmPassword');
+        const newPasswordError = document.getElementById('newPasswordError');
+        const confirmPasswordError = document.getElementById('confirmPasswordError');
+        const setMessage = document.getElementById('set-message');
+        const toggleNewPassword = document.getElementById('toggleNewPassword');
+        const toggleNewIcon = document.getElementById('toggleNewIcon');
+
+        /* Correo + vale de quien está a medio camino. Vive solo en memoria: si se
+           recarga la página se vuelve a empezar por el login, que es lo correcto. */
+        let pendiente = null;
+
+        const showSetMessage = (text, isError = true) => {
+            setMessage.textContent = text || '';
+            setMessage.classList.toggle('ok', !isError);
+            if (text && isError) AppMotion.shake(setMessage);
+        };
+
+        const marcarError = (input, parrafo, mostrar) => {
+            parrafo.classList.toggle('show', mostrar);
+            if (mostrar) input.setAttribute('aria-invalid', 'true');
+            else input.removeAttribute('aria-invalid');
+        };
+
+        const mostrarPasoContrasena = (mensaje) => {
+            AuthStage.stopLoader(loaderTween, loadingIcon);
+            loaderTween = null;
+            loadingIcon.__livDone = false;
+            loadingIcon.style.color = '';
+            loadingText.textContent = 'Verificando credenciales…';
+            AuthStage.paint();
+            AppMotion.swap(loadingContainer, setPasswordContainer, () => {
+                showSetMessage(mensaje || '', false);
+                newPassword.focus();
+            });
+        };
+
+        toggleNewPassword.addEventListener('click', () => {
+            const willShow = newPassword.type === 'password';
+            newPassword.type = willShow ? 'text' : 'password';
+            toggleNewIcon.innerHTML = Icons.svg(willShow ? 'eye-off' : 'eye');
+            toggleNewPassword.setAttribute('aria-pressed', String(willShow));
+            toggleNewPassword.setAttribute('aria-label', willShow ? 'Ocultar contraseña' : 'Mostrar contraseña');
+            AppMotion.pop(toggleNewPassword);
+        });
+
+        newPassword.addEventListener('input', () => {
+            if (newPassword.value.length >= 6) marcarError(newPassword, newPasswordError, false);
+        });
+        confirmPassword.addEventListener('input', () => {
+            if (confirmPassword.value === newPassword.value) marcarError(confirmPassword, confirmPasswordError, false);
+        });
+
+        setPasswordForm.addEventListener('submit', (event) => {
+            event.preventDefault();
+            showSetMessage('');
+
+            if (newPassword.value.length < 6) {
+                marcarError(newPassword, newPasswordError, true);
+                AppMotion.shake(newPassword.parentElement);
+                newPassword.focus();
+                return;
+            }
+            if (confirmPassword.value !== newPassword.value) {
+                marcarError(confirmPassword, confirmPasswordError, true);
+                AppMotion.shake(confirmPassword.parentElement);
+                confirmPassword.focus();
+                return;
+            }
+            if (!pendiente) {
+                showSetMessage('Se perdió la verificación. Vuelve a iniciar sesión.');
+                return;
+            }
+
+            setPasswordButton.disabled = true;
+            setPasswordButton.textContent = 'Guardando…';
+
+            google.script.run
+                .withSuccessHandler(response => {
+                    setPasswordButton.disabled = false;
+                    setPasswordButton.textContent = 'Guardar y entrar';
+                    if (response && response.success) {
+                        // La respuesta ES la sesión: se entra sin volver a teclear nada.
+                        AppSession.save(response);
+                        pendiente = null;
+                        AppMotion.swap(setPasswordContainer, loadingContainer, () => {
+                            loaderTween = AuthStage.startLoader(loadingIcon);
+                            showSuccessStateAndRedirect();
+                        });
+                        return;
+                    }
+                    // El vale caducó: no queda más remedio que volver a empezar, y se
+                    // dice con esas palabras en vez de dejar un error sin salida.
+                    if (response && response.expirado) {
+                        pendiente = null;
+                        AppMotion.swap(setPasswordContainer, formContainer, () => {
+                            showMessage(response.message || 'Vuelve a entrar con tu contraseña temporal.');
+                            passwordInput.value = '';
+                            passwordInput.focus();
+                        });
+                        return;
+                    }
+                    if (response && response.campo === 'password') {
+                        marcarError(newPassword, newPasswordError, false);
+                        showSetMessage(response.message);
+                        newPassword.focus();
+                        return;
+                    }
+                    showSetMessage((response && response.message) || 'No pudimos guardar tu contraseña.');
+                })
+                .withFailureHandler(error => {
+                    setPasswordButton.disabled = false;
+                    setPasswordButton.textContent = 'Guardar y entrar';
+                    console.error(error);
+                    showSetMessage('No hay conexión con el sistema. Revisa tu internet e inténtalo de nuevo.');
+                })
+                .establecerPasswordInicial(pendiente.email, pendiente.vale, newPassword.value);
+        });
 
         togglePassword.addEventListener('click', () => {
             const willShow = passwordInput.type === 'password';
@@ -200,7 +378,13 @@
 
             google.script.run
                 .withSuccessHandler(response => {
-                    if (response.success) {
+                    if (response.success && response.debeCambiarPassword) {
+                        // Credencial correcta, pero temporal: NO se guarda sesión todavía.
+                        // Lo único que se conserva es el vale, y solo sirve para elegir
+                        // contraseña. Ver loginUser en Code.gs.
+                        pendiente = { email: response.userEmail, vale: response.vale };
+                        mostrarPasoContrasena(response.message);
+                    } else if (response.success) {
                         AppSession.save(response);
                         showSuccessStateAndRedirect();
                     } else {
@@ -210,7 +394,8 @@
                 })
                 .withFailureHandler(error => {
                     hideLoadingState();
-                    showMessage('Error de comunicación: ' + error.message);
+                    console.error(error);
+                    showMessage('No hay conexión con el sistema. Revisa tu internet e inténtalo de nuevo.');
                 })
                 .loginUser(emailInput.value, passwordInput.value);
         });

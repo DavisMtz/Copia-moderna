@@ -95,7 +95,7 @@ function metRegistrarEnvio_(ev) {
  */
 function getResumenMetricasCorreos(solicitanteEmail) {
   try {
-    const who = secIdentidadAvanzada_(solicitanteEmail);
+    const who = secIdentidadConBloque_(solicitanteEmail, 'supervision');
     if (!who.ok) return { success: false, message: who.error || 'Solo los usuarios avanzados pueden ver las métricas de correos.' };
 
     // Ya pasó el permiso: el resumen es el mismo para todos los avanzados, así que la
@@ -106,7 +106,7 @@ function getResumenMetricasCorreos(solicitanteEmail) {
     return calcularResumenMetricas_();
   } catch (error) {
     Logger.log('getResumenMetricasCorreos: ' + error);
-    return { success: false, message: 'No se pudo calcular el resumen: ' + error.message };
+    return { success: false, message: 'No pudimos calcular el resumen. Inténtalo de nuevo en un momento.' };
   }
 }
 
@@ -170,6 +170,6 @@ function calcularResumenMetricas_() {
     return { success: true, total: total, enviados: enviados, errores: errores, porTipo: porTipo, porDia: porDia, porAsesor: porAsesor, recientes: recientes };
   } catch (e) {
     Logger.log('getResumenMetricasCorreos error: ' + e);
-    return { success: false, message: 'Error al leer las métricas: ' + e.message };
+    return { success: false, message: 'No pudimos leer las métricas. Inténtalo de nuevo en un momento.' };
   }
 }

@@ -307,6 +307,12 @@
                 <span data-icon="home"></span>
                 <span>Volver al Inicio</span>
             </button>
+            <!-- Pantalla sin barra lateral: el acceso al recorrido guiado va con las
+                 demás acciones. Nace oculto; AppOnboarding lo enseña. -->
+            <button type="button" class="v-btn v-btn-ghost" data-onb-abrir="consulta" hidden>
+                <svg class="w-4 h-4 block" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M9.6 9.4a2.5 2.5 0 0 1 4.8.9c0 1.7-2.4 2.1-2.4 3.6"/><path d="M12 17.2h.01"/></svg>
+                <span>Ver el tutorial</span>
+            </button>
             <button id="edit-quote-button" class="v-btn v-btn-indigo hidden" title="Editar esta cotización en el formulario">
                 <span data-icon="pencil"></span>
                 <span>Editar</span>
@@ -372,15 +378,14 @@
                     <img src="https://upload.wikimedia.org/wikipedia/commons/thumb/3/35/Liverpool_logo.svg/1280px-Liverpool_logo.svg.png" alt="Logo Liverpool" style="max-height: 42px; width: auto;">
                     <p>Centro de Contacto Liverpool</p>
                     <p>postventaomnicanal@liverpool.com.mx</p>
-                    <p>Tel: 55 5262 9999, opción 3 (preguntar por ext: <span id="view-asesorExtension" class="placeholder-text"></span>)</p>
+                    <p>Tel: 55 5262 9999, opción 3</p>
                 </div>
             </header>
             <div class="info-grid">
                 <div class="info-box">
                     <h2 class="section-title" style="margin-top:0;">Información del Asesor</h2>
                     <p><strong>Nombre:</strong> <span id="view-asesorNombre" class="placeholder-text"></span></p>
-                    <p><strong>Puesto:</strong> Asesor de Ventas por Teléfono e Internet</p> 
-                    <p><strong>Extensión:</strong> <span id="view-asesorExtension-body" class="placeholder-text"></span></p>
+                    <p><strong>Puesto:</strong> Asesor de Ventas por Teléfono e Internet</p>
                 </div>
                 <div class="info-box">
                     <h2 class="section-title" style="margin-top:0;">Información del Cliente</h2>
@@ -450,6 +455,7 @@
     <?!= include('app_icons'); ?>
     <?!= include('app_estatus'); ?>
     <?!= include('app_motion'); ?>
+    <?!= include('app_onboarding'); ?>
     <?!= include('LoaderPartial'); ?>
     <script>
         function navigateWithOverlay(page, params = {}) {
@@ -460,7 +466,7 @@
             if (!AppUrl.go(page, params)) {
                 if (redirectOverlay) redirectOverlay.classList.add('hidden');
                 if (window.VentelLoader) VentelLoader.hide();
-                showViewMessage('Error al obtener URL para redirigir.', true);
+                showViewMessage('No pudimos abrir la siguiente pantalla. Recarga la página e inténtalo de nuevo.', true);
             }
         }
 
@@ -632,9 +638,9 @@
                     : 'Esta cotización todavía no está autorizada: no se puede enviar al cliente.';
             }
 
-            // AppSession.isAdvanced vive en el navegador; la autoridad la tiene el
-            // servidor al abrir la revisión. Aquí solo decide si se ENSEÑA el botón.
-            if (reviewButton && data.folio && AppSession.isAdvanced && !aprobada) {
+            // Lo que dice el navegador no es autoridad; la tiene el servidor al abrir la
+            // revisión. Aquí el bloque 'revisar' solo decide si se ENSEÑA el botón.
+            if (reviewButton && data.folio && AppSession.can('revisar') && !aprobada) {
                 reviewButton.classList.remove('hidden');
                 reviewButton.onclick = () => navigateWithOverlay('revision_cotizacion', { folio: data.folio });
             }
@@ -664,8 +670,6 @@
             setText('view-folio', data.folio);
             setText('view-fechaEmision', data.timestamp ? new Date(data.timestamp).toLocaleDateString('es-MX', { day: '2-digit', month: 'long', year: 'numeric' }) : 'N/A');
             setText('view-asesorNombre', data.advisorName);
-            setText('view-asesorExtension', data.advisorExt);
-            setText('view-asesorExtension-body', data.advisorExt);
             setText('view-clienteNombre', data.clientName);
             setText('view-clienteEmail', data.clientEmail);
             setText('view-clienteTelefono', data.clientPhone);
@@ -810,6 +814,40 @@
             }
             console.log("Folio obtenido para consulta:", folioToView);
 
+            /* Recorrido guiado. Aquí la confusión típica es creer que el PDF que se ve
+               en pantalla es el que le llega al cliente, y que "Editar" existe siempre.
+               Los pasos que apuntan a botones ocultos se caen solos del recorrido. */
+            if (window.AppOnboarding) AppOnboarding.auto({
+                pantalla: 'consulta',
+                version: 1,
+                retraso: 900,
+                pasos: [
+                    {
+                        titulo: 'Consultar una cotización',
+                        texto: 'Esto es lo que se guardó del folio: los mismos datos con los que se generó el ' +
+                               'documento del cliente. Tres paradas.'
+                    },
+                    {
+                        sel: '#revision-strip',
+                        pos: 'abajo',
+                        centrarSiOculto: true,
+                        titulo: 'Primero, el estado',
+                        texto: 'Esta franja dice si la cotización <b>ya está autorizada</b> para salir al cliente, ' +
+                               'si sigue esperando revisión o si la rechazaron y por qué.<br><br>' +
+                               'Mírala antes que el documento: manda sobre todo lo demás.'
+                    },
+                    {
+                        sel: '#print-quote-button',
+                        pos: 'abajo',
+                        centrarSiOculto: true,
+                        titulo: 'Descargar el PDF oficial',
+                        texto: 'Lo que ves en pantalla es una vista; el <b>PDF oficial</b> lo genera el servidor con el ' +
+                               'formato con el que se guardó la cotización.<br><br>' +
+                               'Descárgalo desde aquí: imprimir la pantalla produce un documento distinto.'
+                    }
+                ]
+            });
+
             const backToDashboardButton = document.getElementById('back-to-dashboard-button');
             if (backToDashboardButton) {
                 backToDashboardButton.addEventListener('click', navigateToDashboardPage);
@@ -850,7 +888,8 @@
                         })
                         .withFailureHandler(error => {
                             restore();
-                            showViewMessage('Error al generar el PDF: ' + error.message, true);
+                            console.error('downloadQuotePdf:', error);
+                            showViewMessage('No pudimos generar el PDF. Inténtalo de nuevo en un momento.', true);
                         })
                         .downloadQuotePdf(folioToView, null);
                 });
@@ -901,7 +940,8 @@
                         .withFailureHandler(error => {
                             restoreSheets();
                             if (tab) tab.close();
-                            showViewMessage('Error al abrir el documento en Sheets: ' + error.message, true);
+                            console.error('openQuoteInSheets:', error);
+                            showViewMessage('No pudimos abrir el documento. Inténtalo de nuevo en un momento.', true);
                         })
                         .openQuoteInSheets(folioToView);
                 });
@@ -929,8 +969,9 @@
                     })
                     .withFailureHandler(function(error) {
                         hideLoader(); 
-                        showViewMessage('Error de comunicación al cargar la cotización: ' + error.message, true);
-                        if (quoteViewContentContainer) quoteViewContentContainer.innerHTML = '<div class="pdf-content-wrapper"><p class="text-center text-red-600 p-10">Error de comunicación al cargar los datos. Revise la consola para más detalles.</p></div>';
+                        console.error('getQuoteDetails:', error);
+                        showViewMessage('No hay conexión con el sistema. Revisa tu internet y recarga la página.', true);
+                        if (quoteViewContentContainer) quoteViewContentContainer.innerHTML = '<div class="pdf-content-wrapper"><p class="text-center text-red-600 p-10">No pudimos cargar esta cotización. Revisa tu conexión y recarga la página.</p></div>';
                         console.error("Error en llamada a getQuoteDetails:", error);
                     })
                     .getQuoteDetails(folioToView);

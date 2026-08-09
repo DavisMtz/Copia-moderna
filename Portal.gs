@@ -119,11 +119,14 @@ function buildToolsData_() {
       claves:      ['clave']
     }, 'nombre');
 
-    // Hoja: Presentaciones — Nombre | LIGA | DESCRIPCION
+    // Hoja: Presentaciones — Nombre | LIGA | DESCRPCION
+    // El encabezado de la hoja dice «DESCRPCION» (sin la i). Con el alias 'descrip'
+    // esa columna nunca se encontraba y la descripción de las presentaciones llegaba
+    // vacía al Portal. 'descr' cubre las dos grafías.
     response.presentaciones = readPortalSheet_(ss, 'Presentaciones', {
       nombre:      ['nombre'],
       liga:        ['liga', 'enlace', 'link', 'url'],
-      descripcion: ['descrip']
+      descripcion: ['descr']
     }, 'nombre');
 
     // Hoja: Paqueterias — Nombre | Liga | Soms
@@ -297,7 +300,12 @@ function buildApplicationData_() {
       const idxBan  = headers.findIndex(h => h.includes('banner / carrusel'));
       const idxPro  = headers.findIndex(h => h.includes('promoción 2026'));
       const idxDesc = headers.findIndex(h => h.includes('desc mkp'));
-      const idxMarca= headers.findIndex(h => h.includes('marca'));
+      // OJO con "contiene" aquí: el encabezado de la columna E dice «Desc Mkp (Se
+      // MARCA el cuadro en color amarillo…)», así que findIndex(h.includes('marca'))
+      // enganchaba ESA columna y el monitor enseñaba el texto de Desc Mkp como si
+      // fuera la marca del producto. La columna buena se llama "Marca" a secas.
+      let idxMarca = headers.indexOf('marca');
+      if (idxMarca < 0) idxMarca = headers.findIndex(h => h.includes('marca'));
       const idxVig  = headers.findIndex(h => h.includes('vigencia'));
       const idxLiga = headers.findIndex(h => h.includes('liga'));
 
@@ -453,18 +461,24 @@ var PORTAL_ANUNCIOS_HEADERS = ['ID', 'Formato', 'Activo', 'Orden', 'Desde', 'Has
 var PORTAL_ANUNCIOS_FOLDER_ID = '1CPLtO65_xRWgL2IAuOG-n8UFMyMg8R97';
 var PORTAL_ANUNCIOS_FOLDER    = 'Portal Ventel';
 
-// Verifica sesión + rol avanzado leyendo la hoja "Registros" (autónomo: no depende
-// de otros archivos). Devuelve {ok, email, nombre} o {ok:false, error}.
+// Verifica sesión + permiso para publicar anuncios del Portal.
+// Devuelve {ok, email, nombre} o {ok:false, error}.
 function portalGateAvanzado_(email) {
   try {
     // Una sola puerta para todo el sistema (Seguridad.gs): manda el correo con el que
     // se inició sesión en el portal, que debe estar dado de alta en "Registros".
-    const id = secIdentidadAvanzada_(email);
+    //
+    // Antes exigía "rol avanzado" a secas; ahora pide el BLOQUE 'anuncios' (Permisos.gs).
+    // Para un supervisor no cambia nada —ese bloque viene con su rol— pero ahora se le
+    // puede dar a alguien que solo se encarga de comunicación, sin abrirle de paso las
+    // métricas del equipo y la revisión de cotizaciones.
+    const id = secIdentidadConBloque_(email, 'anuncios');
     return id.ok
       ? { ok: true, email: id.email, nombre: id.nombre }
       : { ok: false, error: id.error };
   } catch (e) {
-    return { ok: false, error: 'No se pudo verificar tu cuenta: ' + e.message };
+    Logger.log('portalGateAvanzado_: ' + e);
+    return { ok: false, error: 'No pudimos verificar tu cuenta. Vuelve a entrar al sistema e inténtalo de nuevo.' };
   }
 }
 
@@ -641,7 +655,7 @@ function eliminarAnuncio(id, email) {
     if (!gate.ok) return { status: 'error', error: gate.error };
     const ss = portalSS_();
     const sheet = ss.getSheetByName(PORTAL_ANUNCIOS_SHEET);
-    if (!sheet) return { status: 'error', error: 'No existe la hoja Anuncios.' };
+    if (!sheet) return { status: 'error', error: 'No encontramos dónde se guardan los anuncios. Avisa al equipo de Ventel.' };
     const c = portalAnunciosColsW_(sheet.getRange(1, 1, 1, sheet.getLastColumn()).getValues()[0]);
     const rowIdx = portalFindAnuncioRow_(sheet, c, String(id).trim());
     if (rowIdx < 0) return { status: 'error', error: 'No se encontró el anuncio.' };
@@ -659,7 +673,7 @@ function toggleAnuncio(id, activo, email) {
     if (!gate.ok) return { status: 'error', error: gate.error };
     const ss = portalSS_();
     const sheet = ss.getSheetByName(PORTAL_ANUNCIOS_SHEET);
-    if (!sheet) return { status: 'error', error: 'No existe la hoja Anuncios.' };
+    if (!sheet) return { status: 'error', error: 'No encontramos dónde se guardan los anuncios. Avisa al equipo de Ventel.' };
     const c = portalAnunciosColsW_(sheet.getRange(1, 1, 1, sheet.getLastColumn()).getValues()[0]);
     const rowIdx = portalFindAnuncioRow_(sheet, c, String(id).trim());
     if (rowIdx < 0 || c.activo < 0) return { status: 'error', error: 'No se encontró el anuncio.' };
@@ -678,10 +692,10 @@ function moverAnuncio(id, dir, email) {
     if (!gate.ok) return { status: 'error', error: gate.error };
     const ss = portalSS_();
     const sheet = ss.getSheetByName(PORTAL_ANUNCIOS_SHEET);
-    if (!sheet) return { status: 'error', error: 'No existe la hoja Anuncios.' };
+    if (!sheet) return { status: 'error', error: 'No encontramos dónde se guardan los anuncios. Avisa al equipo de Ventel.' };
     const width = sheet.getLastColumn();
     const c = portalAnunciosColsW_(sheet.getRange(1, 1, 1, width).getValues()[0]);
-    if (c.id < 0 || c.orden < 0) return { status: 'error', error: 'Faltan columnas ID/Orden.' };
+    if (c.id < 0 || c.orden < 0) return { status: 'error', error: 'No pudimos reordenar los anuncios. Avisa al equipo de Ventel.' };
     const last = sheet.getLastRow();
     if (last < 3) return { status: 'ok' }; // 0-1 anuncios: nada que mover
 

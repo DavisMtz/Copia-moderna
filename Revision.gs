@@ -265,6 +265,92 @@ function revPuedeEnviarse_(folio) {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────────────────
+// COLA DE REVISIÓN PARA QUIEN SOLO PUEDE REVISAR
+// ─────────────────────────────────────────────────────────────────────────────────────────
+
+/**
+ * ¿Por qué esta función existiendo ya getSupervisionQuotes?
+ *
+ * Porque son dos permisos distintos y hasta ahora compartían puerta. La cola de
+ * pendientes se alimentaba de getSupervisionQuotes, que exige el bloque "supervision";
+ * así que a quien se le concedía SOLO "revisar" —justo el caso de un asesor al que se
+ * le da la facultad de aprobar— se le quedaba el permiso sin ninguna pantalla desde la
+ * que ejercerlo: podía abrir un folio concreto por enlace, pero no había forma de saber
+ * cuáles esperaban.
+ *
+ * La diferencia con getSupervisionQuotes no es solo el candado: esto devuelve
+ * ÚNICAMENTE las cotizaciones pendientes y solo los campos de la cola. Quien puede
+ * revisar necesita saber qué hay por revisar; no necesita el historial completo del
+ * equipo ni los importes de lo ya cerrado. El permiso más pequeño trae el dato más
+ * pequeño que lo hace útil.
+ *
+ * @param {string} email Correo de la sesión del Portal (AppSession.userEmail).
+ * @return {{success:boolean, quotes:Array, message:string}}
+ */
+function revListaPendientes(email) {
+  try {
+    const id = secIdentidadConBloque_(email, 'revisar');
+    if (!id.ok) {
+      return { success: false, quotes: [], message: id.error || 'No tienes permiso para revisar cotizaciones.' };
+    }
+
+    if (typeof leerSupervision_ !== 'function') {
+      return { success: false, quotes: [], message: 'No se pudo leer la hoja de cotizaciones.' };
+    }
+    const datos = leerSupervision_();
+    if (!datos || !datos.success) {
+      return { success: false, quotes: [],
+               message: (datos && datos.message) || 'No se pudieron leer las cotizaciones.' };
+    }
+
+    const pendientes = (datos.quotes || [])
+      .filter(function (q) { return revEsPendiente_(q.status, q.revisionEstado); })
+      .map(function (q) {
+        return {
+          folio: q.folio,
+          timestamp: q.timestamp,
+          advisorName: q.advisorName,
+          clientName: q.clientName,
+          total: q.total,
+          status: q.status,
+          revisionEstado: q.revisionEstado
+        };
+      });
+
+    return { success: true, quotes: pendientes, message: '' };
+  } catch (e) {
+    Logger.log('revListaPendientes error: ' + e);
+    return { success: false, quotes: [], message: 'No pudimos cargar la cola de revisión.' };
+  }
+}
+
+/** "En Revisión", "en revision" y "EN  REVISIÓN" son el mismo estado. */
+function revClaveEstado_(valor) {
+  return String(valor == null ? '' : valor)
+    .normalize('NFD').replace(new RegExp('[\\u0300-\\u036f]', 'g'), '')
+    .toLowerCase().trim().replace(/\s+/g, '-');
+}
+
+/* Estados que el sistema reconoce, y de ellos los que siguen esperando a una persona.
+   Es el mismo criterio que app_estatus.html usa en el cliente; si allí se añade un
+   estado, aquí también. Duplicarlo es feo, pero la alternativa —que el servidor mande
+   todo y filtre el navegador— significaría entregarle el historial completo a quien
+   solo puede revisar. */
+const REV_ESTADOS_CONOCIDOS = ['en-revision', 'folio-generado', 'pendiente',
+                               'aprobada', 'autorizada', 'rechazada', 'enviada-por-correo'];
+const REV_ESTADOS_PENDIENTES = ['en-revision', 'folio-generado', 'pendiente'];
+
+/** ¿Este folio sigue esperando a que alguien lo apruebe o lo rechace? */
+function revEsPendiente_(estatus, revisionEstado) {
+  const k = revClaveEstado_(estatus);
+  // Una cotización ya ENVIADA está cerrada, diga lo que diga la columna de revisión.
+  if (k === 'enviada-por-correo') return false;
+  const kRev = revClaveEstado_(revisionEstado);
+  const elegida = REV_ESTADOS_CONOCIDOS.indexOf(kRev) !== -1 ? kRev : k;
+  return REV_ESTADOS_PENDIENTES.indexOf(elegida) !== -1;
+}
+
+// ─────────────────────────────────────────────────────────────────────────────────────────
 // LECTURA PARA LA PANTALLA DE REVISIÓN
 // ─────────────────────────────────────────────────────────────────────────────────────────
 
@@ -280,7 +366,7 @@ function getRevisionCotizacion(folio, email) {
   try {
     if (!folio) return { success: false, message: 'Falta el folio de la cotización.' };
 
-    const id = secIdentidadAvanzada_(email);
+    const id = secIdentidadConBloque_(email, 'revisar');
     if (!id.ok) {
       return { success: false, sinPermiso: true,
                message: id.error || 'Solo un usuario avanzado puede revisar cotizaciones.' };
@@ -366,7 +452,7 @@ function getRevisionCotizacion(folio, email) {
     };
   } catch (error) {
     Logger.log('getRevisionCotizacion falló: ' + error.message + ' Stack: ' + error.stack);
-    return { success: false, message: 'Error al cargar la revisión: ' + error.message };
+    return { success: false, message: 'No pudimos abrir la revisión. Inténtalo de nuevo en un momento.' };
   }
 }
 
@@ -386,7 +472,7 @@ function guardarRevisionCotizacion(payload) {
     const folio = String(p.folio || '').trim();
     if (!folio) return { success: false, message: 'Falta el folio de la cotización.' };
 
-    const id = secIdentidadAvanzada_(p.email);
+    const id = secIdentidadConBloque_(p.email, 'revisar');
     if (!id.ok) {
       return { success: false, sinPermiso: true,
                message: id.error || 'Solo un usuario avanzado puede cerrar una revisión.' };
@@ -519,7 +605,7 @@ function guardarRevisionCotizacion(payload) {
     };
   } catch (error) {
     Logger.log('guardarRevisionCotizacion falló: ' + error.message + ' Stack: ' + error.stack);
-    return { success: false, message: 'No se pudo guardar la revisión: ' + error.message };
+    return { success: false, message: 'No pudimos guardar la revisión. Inténtalo de nuevo en un momento.' };
   }
 }
 
@@ -750,7 +836,7 @@ const REV_IMG_SUBDOMINIOS = ['ss571', 'sm571', 'sp514'];
  */
 function revFichaArticulo(url, sku, email) {
   try {
-    const id = secIdentidadAvanzada_(email);
+    const id = secIdentidadConBloque_(email, 'revisar');
     if (!id.ok) {
       return { ok: false, motivo: 'sin-permiso',
                mensaje: 'Solo un usuario avanzado puede consultar la ficha del artículo.' };
@@ -878,7 +964,7 @@ function revExtraerFicha_(html, url) {
     return {
       ok: false, motivo: 'sin-precio',
       titulo: titulo, imagen: imagen,
-      mensaje: 'Se leyó la página pero no se reconoció el precio (Liverpool cambió su maquetación). ' +
+      mensaje: 'Se abrió la página pero no encontramos el precio (Liverpool cambió el diseño de su sitio). ' +
                'Ábrela en una pestaña para compararla a mano.'
     };
   }
@@ -999,7 +1085,7 @@ function revAuditar_(quote, productos) {
  */
 function revVerificarPreciosLote(folio, email) {
   try {
-    const id = secIdentidadAvanzada_(email);
+    const id = secIdentidadConBloque_(email, 'revisar');
     if (!id.ok) {
       return { ok: false, sinPermiso: true,
                mensaje: id.error || 'Solo un usuario avanzado puede verificar precios.' };
@@ -1178,7 +1264,7 @@ const REV_HOJA_MAX_COLS  = 30;
  */
 function revHojaCotizacion(folio, email) {
   try {
-    const id = secIdentidadAvanzada_(email);
+    const id = secIdentidadConBloque_(email, 'revisar');
     if (!id.ok) {
       return { ok: false, sinPermiso: true,
                mensaje: id.error || 'Solo un usuario avanzado puede ver la hoja.' };
@@ -1200,7 +1286,7 @@ function revHojaCotizacion(folio, email) {
       ss = SpreadsheetApp.openById(ref.id);
     } catch (e) {
       return { ok: false, motivo: 'sin-acceso',
-               mensaje: 'El sistema no pudo abrir la hoja (' + e.message + '). Comprueba que el archivo no se haya borrado o movido.' };
+               mensaje: 'No pudimos abrir el documento de esta cotización. Comprueba que no se haya borrado ni movido de carpeta.' };
     }
 
     let hoja = null;
@@ -1211,7 +1297,7 @@ function revHojaCotizacion(folio, email) {
       }
     }
     if (!hoja) hoja = ss.getSheets()[0];
-    if (!hoja) return { ok: false, mensaje: 'La hoja está vacía.' };
+    if (!hoja) return { ok: false, mensaje: 'El documento está vacío.' };
 
     const filas = Math.min(hoja.getLastRow() || 1, REV_HOJA_MAX_FILAS);
     const cols  = Math.min(hoja.getLastColumn() || 1, REV_HOJA_MAX_COLS);
@@ -1284,7 +1370,7 @@ function revHojaCotizacion(folio, email) {
     };
   } catch (error) {
     Logger.log('revHojaCotizacion falló: ' + error.message + ' Stack: ' + error.stack);
-    return { ok: false, mensaje: 'No se pudo leer la hoja: ' + error.message };
+    return { ok: false, mensaje: 'No pudimos leer el documento. Inténtalo de nuevo en un momento.' };
   }
 }
 
@@ -1338,7 +1424,7 @@ const REV_PAGINA_FUERA = [
  */
 function revPaginaArticulo(url, sku, email) {
   try {
-    const id = secIdentidadAvanzada_(email);
+    const id = secIdentidadConBloque_(email, 'revisar');
     if (!id.ok) {
       return { ok: false, motivo: 'sin-permiso',
                mensaje: 'Solo un usuario avanzado puede abrir la página del artículo aquí dentro.' };
@@ -1392,17 +1478,17 @@ function revPaginaArticulo(url, sku, email) {
     const partes = revPartesPagina_(resp.getContentText());
     if (!partes || !partes.cuerpo) {
       return { ok: false, motivo: 'vacia', url: limpia,
-               mensaje: 'La respuesta del sitio no traía una página que se pueda mostrar.' };
+               mensaje: 'La página del artículo llegó vacía. Ábrela en una pestaña para verla.' };
     }
 
     const html = revArmarPaginaIncrustada_(partes, limpia, revHojasDeEstilo_(partes.hojas, limpia));
     if (!html) {
       return { ok: false, motivo: 'vacia', url: limpia,
-               mensaje: 'No se pudo armar la copia de la página.' };
+               mensaje: 'No pudimos mostrar la página aquí dentro. Ábrela en una pestaña.' };
     }
     if (html.length > REV_PAGINA_MAX_BYTES) {
       return { ok: false, motivo: 'demasiado-grande', url: limpia, bytes: html.length,
-               mensaje: 'La página pesa ' + Math.round(html.length / 1024) + ' KB: se abre más rápido en una pestaña.' };
+               mensaje: 'La página es muy pesada para verla aquí dentro: se abre más rápido en una pestaña.' };
     }
 
     const salida = { ok: true, html: html, bytes: html.length, url: limpia,

@@ -343,6 +343,97 @@ function cuentasActualizarPassword_(correo, passwordHash) {
   }
 }
 
+// ── CONTRASEÑAS TEMPORALES ───────────────────────────────────────────────────
+//
+// Cuando la consola da de alta a alguien —o le restablece la contraseña— le pone una
+// temporal y se la manda por correo. Esa contraseña ha viajado por un buzón, alguien
+// pudo dictarla en voz alta y suele acabar apuntada en un papel: sirve para entrar UNA
+// vez, no para ser la contraseña de la persona.
+//
+// La marca vive en una columna OPCIONAL de "Registros". Se crea sola la primera vez que
+// hace falta, y todo lo que la lee tolera que no exista: una hoja vieja se comporta
+// exactamente como antes en vez de dejar a nadie fuera.
+
+const CUENTAS_COL_TEMPORAL = 'PasswordTemporal';
+
+/**
+ * Índice (0-based) de la columna de la marca. Si `crear` es true y no existe, la añade.
+ * @return {number} -1 si no existe y no se pidió crearla.
+ */
+function cuentasIndiceTemporal_(sheet, crear) {
+  const ancho = sheet.getLastColumn();
+  const headers = sheet.getRange(1, 1, 1, ancho).getValues()[0].map(String);
+  let i = headers.indexOf(CUENTAS_COL_TEMPORAL);
+  if (i > -1 || !crear) return i;
+  sheet.getRange(1, ancho + 1).setValue(CUENTAS_COL_TEMPORAL);
+  return ancho;   // la nueva quedó al final, en índice = ancho anterior
+}
+
+/**
+ * Marca o desmarca que la contraseña de este correo es temporal.
+ * Nunca lanza: si falla, lo peor que pasa es que no se pida el cambio.
+ * @return {boolean} si se pudo escribir
+ */
+function cuentasMarcarPasswordTemporal_(correo, esTemporal) {
+  const lock = LockService.getScriptLock();
+  let conCandado = false;
+  try { conCandado = lock.tryLock(10000); } catch (e) {}
+  try {
+    const objetivo = secNormalizarCorreo_(correo);
+    const sheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName(REGISTROS_SHEET_NAME);
+    if (!sheet) return false;
+
+    // Al desmarcar no se crea la columna: si no existe, no había nada que limpiar.
+    const iTemp = cuentasIndiceTemporal_(sheet, esTemporal === true);
+    if (iTemp === -1) return false;
+
+    const data = sheet.getDataRange().getValues();
+    const iEmail = data[0].map(String).indexOf('Email');
+    if (iEmail === -1) return false;
+
+    for (let r = 1; r < data.length; r++) {
+      if (secNormalizarCorreo_(data[r][iEmail]) !== objetivo) continue;
+      sheet.getRange(r + 1, iTemp + 1).setValue(esTemporal ? 'Sí' : '');
+      SEC_REGISTROS_CACHE = null;
+      return true;
+    }
+    return false;
+  } catch (e) {
+    Logger.log('cuentasMarcarPasswordTemporal_: ' + e);
+    return false;
+  } finally {
+    if (conCandado) { try { lock.releaseLock(); } catch (e) {} }
+  }
+}
+
+/**
+ * ¿La contraseña de este correo es una temporal pendiente de cambiar?
+ * Ante cualquier duda responde NO: equivocarse hacia el "sí" dejaría a alguien
+ * atrapado en la pantalla de cambio sin motivo.
+ */
+function cuentasPasswordEsTemporal_(correo) {
+  try {
+    const objetivo = secNormalizarCorreo_(correo);
+    const sheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName(REGISTROS_SHEET_NAME);
+    if (!sheet) return false;
+
+    const data = sheet.getDataRange().getValues();
+    const headers = data[0].map(String);
+    const iTemp = headers.indexOf(CUENTAS_COL_TEMPORAL);
+    const iEmail = headers.indexOf('Email');
+    if (iTemp === -1 || iEmail === -1) return false;   // hoja sin la columna: nada que exigir
+
+    for (let r = 1; r < data.length; r++) {
+      if (secNormalizarCorreo_(data[r][iEmail]) !== objetivo) continue;
+      return secEsAfirmativo_(data[r][iTemp]);
+    }
+    return false;
+  } catch (e) {
+    Logger.log('cuentasPasswordEsTemporal_: ' + e);
+    return false;
+  }
+}
+
 /** Hash actual de la contraseña de un correo ('' si no lo encuentra). */
 function cuentasHashActual_(correo) {
   try {
@@ -404,7 +495,7 @@ function solicitarCodigoRegistro(name, email, password) {
     });
   } catch (error) {
     Logger.log('solicitarCodigoRegistro: ' + error.message);
-    return { success: false, message: 'No se pudo iniciar el registro: ' + error.message };
+    return { success: false, message: 'No pudimos iniciar tu registro. Inténtalo de nuevo en un minuto.' };
   }
 }
 
@@ -453,7 +544,7 @@ function confirmarCodigoRegistro(email, codigo) {
     };
   } catch (error) {
     Logger.log('confirmarCodigoRegistro: ' + error.message);
-    return { success: false, message: 'No se pudo confirmar el código: ' + error.message };
+    return { success: false, message: 'No pudimos confirmar tu código. Inténtalo de nuevo en un minuto.' };
   }
 }
 
@@ -491,7 +582,7 @@ function solicitarCodigoRecuperacion(email) {
     });
   } catch (error) {
     Logger.log('solicitarCodigoRecuperacion: ' + error.message);
-    return { success: false, message: 'No se pudo enviar el código: ' + error.message };
+    return { success: false, message: 'No pudimos enviarte el código. Inténtalo de nuevo en un minuto.' };
   }
 }
 
@@ -528,7 +619,7 @@ function confirmarCodigoRecuperacion(email, codigo) {
     };
   } catch (error) {
     Logger.log('confirmarCodigoRecuperacion: ' + error.message);
-    return { success: false, message: 'No se pudo verificar el código: ' + error.message };
+    return { success: false, message: 'No pudimos verificar tu código. Inténtalo de nuevo en un minuto.' };
   }
 }
 
@@ -593,11 +684,95 @@ function restablecerContrasena(email, vale, nueva) {
       Logger.log('Aviso de cambio de contraseña no enviado (la contraseña sí cambió): ' + e);
     }
 
+    // La eligió la persona: deja de ser temporal, si es que lo era.
+    cuentasMarcarPasswordTemporal_(correo, false);
+
     Logger.log('Contraseña restablecida para ' + correo);
     return { success: true, message: 'Tu contraseña se actualizó. Ya puedes iniciar sesión.', userEmail: correo };
   } catch (error) {
     Logger.log('restablecerContrasena: ' + error.message);
-    return { success: false, message: 'No se pudo actualizar la contraseña: ' + error.message };
+    return { success: false, message: 'No pudimos actualizar tu contraseña. Inténtalo de nuevo en un minuto.' };
+  }
+}
+
+// =================================================================================================
+// PRIMERA CONTRASEÑA (tras entrar con una temporal)
+// =================================================================================================
+
+/**
+ * Cambia la contraseña temporal por la definitiva y ABRE LA SESIÓN.
+ *
+ * POR QUÉ UN VALE Y NO LA CONTRASEÑA TEMPORAL OTRA VEZ: loginUser comprueba la temporal
+ * y, en lugar de devolver la sesión, emite este vale de un solo uso. Así una contraseña
+ * temporal NUNCA llega a abrir sesión —ni aunque alguien cierre la pestaña a medias— y
+ * la contraseña que viajó por correo no vuelve a viajar por la red.
+ *
+ * Devuelve exactamente lo mismo que un login correcto, para que la pantalla guarde la
+ * sesión y entre sin pedir credenciales de nuevo: obligar a teclear otra vez lo que
+ * acaba de escribir sería castigar a quien hizo lo correcto.
+ *
+ * @param {string} email  correo de la cuenta
+ * @param {string} vale   token emitido por loginUser
+ * @param {string} nueva  contraseña nueva en claro
+ */
+function establecerPasswordInicial(email, vale, nueva) {
+  try {
+    const correo = secNormalizarCorreo_(email);
+    const clave = String(nueva == null ? '' : nueva);
+    if (!secCorreoValido_(correo)) return { success: false, message: 'Correo no válido.' };
+    if (clave.length < 6) {
+      return { success: false, campo: 'password', message: 'La contraseña debe tener al menos 6 caracteres.' };
+    }
+
+    const claveVale = cuentasClave_('inicial', correo);
+    const reg = cuentasLeer_(claveVale);
+    if (!reg || !reg.c || Date.now() > reg.exp) {
+      cuentasBorrar_(claveVale);
+      return { success: false, expirado: true,
+               message: 'Se acabó el tiempo para elegir tu contraseña. Vuelve a entrar con la temporal.' };
+    }
+    if (!secComparacionSegura_(cuentasHash_('vale', vale), reg.c)) {
+      cuentasBorrar_(claveVale);
+      Logger.log('Vale de primera contraseña inválido para ' + correo);
+      return { success: false, expirado: true,
+               message: 'La verificación no es válida. Vuelve a entrar con la contraseña temporal.' };
+    }
+
+    // Que no repita la temporal: es justo la que hay que dejar de usar.
+    const hashNuevo = secHashContrasena_(clave);
+    if (secComparacionSegura_(hashNuevo, cuentasHashActual_(correo))) {
+      return { success: false, campo: 'password',
+               message: 'Esa es la contraseña temporal. Elige una distinta, solo tuya.' };
+    }
+
+    if (!cuentasActualizarPassword_(correo, hashNuevo)) {
+      return { success: false, message: 'No encontramos tu cuenta al guardar la contraseña. Avisa al equipo del sistema.' };
+    }
+    cuentasMarcarPasswordTemporal_(correo, false);
+    cuentasBorrar_(claveVale);
+    secIntentosLimpiar_(correo);
+
+    // Sesión: se resuelve igual que en loginUser, por el mismo camino de permisos.
+    const id = secIdentidad_(correo);
+    if (!id.ok) {
+      return { success: false, message: id.error || 'Tu contraseña se guardó, pero no pudimos abrir la sesión. Inicia sesión de nuevo.' };
+    }
+
+    Logger.log('Primera contraseña establecida para ' + correo);
+    return {
+      success: true,
+      message: 'Listo. Esta es tu contraseña a partir de ahora.',
+      userName: id.nombre,
+      userEmail: id.email,
+      isAdvanced: id.avanzado,
+      rol: id.rol,
+      rolNombre: (typeof PERM_ROLES !== 'undefined' && PERM_ROLES[id.rol]) ? PERM_ROLES[id.rol].nombre : '',
+      isMaster: id.maestro === true,
+      bloques: id.bloques || []
+    };
+  } catch (error) {
+    Logger.log('establecerPasswordInicial: ' + error.message);
+    return { success: false, message: 'No pudimos guardar tu contraseña. Inténtalo de nuevo en un minuto.' };
   }
 }
 

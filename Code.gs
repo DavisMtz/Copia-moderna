@@ -65,7 +65,16 @@ const PAGES = {
   'revision_cotizacion': { file: 'revision_cotizacion', title: 'Revisión de Cotización - Sistema Ventel' },
   'correoventel':        { file: 'correoventel',        title: 'Enviar Correo - Sistema Ventel' },
   'correo_cliente':      { file: 'correo_cliente',      title: 'Correos a Clientes - Sistema Ventel' },
-  'anuncios':            { file: 'anuncios',            title: 'Constructor de Anuncios - Sistema Ventel' }
+  'anuncios':            { file: 'anuncios',            title: 'Constructor de Anuncios - Sistema Ventel' },
+  // Gestión del contenido del Portal (herramientas, plantillas, formatos, promos…).
+  // Igual que la consola: el cascarón se sirve a quien lo pida y no enseña nada hasta
+  // que el servidor confirma el bloque 'portal_contenido' en cada llamada.
+  'portal_contenido':    { file: 'portal_contenido',    title: 'Contenido del Portal - Sistema Ventel' },
+  // Consola de administración (rol maestro). La página se sirve a cualquiera que la
+  // pida —igual que las demás—, pero no enseña NADA hasta que el servidor confirma el
+  // rol: todo su contenido llega de consolaPanorama, que exige maestro. Servir el
+  // cascarón no filtra nada y evita tener dos formas distintas de rutear.
+  'consola':             { file: 'consola',             title: 'Consola Maestra - Sistema Ventel' }
 };
 
 // Páginas públicas del Portal Ventel (sin sesión). El Portal es la landing por
@@ -88,7 +97,7 @@ function doGet(e) {
       '<h1 style="color:#E10098;font-size:20px;margin:0 0 12px">No pudimos abrir esta pantalla</h1>' +
       '<p style="margin:0 0 16px">Vuelve a intentarlo en un momento. Si sigue igual, avisa al equipo del sistema ' +
       'con la hora exacta y qué estabas haciendo.</p>' +
-      '<p style="margin:0;font-size:12px;color:#8a7480">Detalle técnico: ' + secEscapeHtml_(error.message) + '</p>' +
+      '<p style="margin:0;font-size:12px;color:#8a7480">Si necesitas ayuda, escribe al equipo de Ventel.</p>' +
       '</div>'
     ).setTitle('Error · Sistema Ventel');
   }
@@ -126,6 +135,10 @@ function servirPagina_(e) {
   // Deep-link opcional: preselecciona una plantilla en "Correos a clientes"
   // (?page=correo_cliente&tpl=ticket). Lo usa el buscador del Portal.
   template.tpl = (e && e.parameter && e.parameter.tpl) || '';
+  // Sección abierta en "Contenido del Portal" (?page=portal_contenido&sec=plantillas).
+  // Va inyectada, como el resto: dentro del iframe del sandbox el cliente no puede
+  // leer el query string original con location.search.
+  template.sec = (e && e.parameter && e.parameter.sec) || '';
   // Pantalla a la que hay que volver después de iniciar sesión
   // (?page=login&next=cotizacion). Viaja siempre como CLAVE de página, nunca como
   // URL: el cliente solo acepta las de su lista blanca (AppUrl.PAGINAS_TRAS_LOGIN),
@@ -234,16 +247,71 @@ function loginUser(email, password) {
     const providedHashString = secHashContrasena_(password);
 
     if (secComparacionSegura_(providedHashString, storedHash)) {
+      // El rol y los bloques se resuelven en Permisos.gs, que es el único lugar donde
+      // se decide quién puede qué. Aquí solo se cobran para mandárselos al cliente,
+      // que los usa para dibujar el menú; la app NO confía en esa copia: cada llamada
+      // de servidor vuelve a preguntar (secIdentidadConBloque_).
+      const permisos = (typeof permUsuario_ === 'function')
+        ? permUsuario_(correo)
+        : { activo: true, rol: secEsAfirmativo_(userRow[avanzadoColumnIndex]) ? 'avanzado' : 'normal',
+            rolNombre: '', maestro: false, avanzado: secEsAfirmativo_(userRow[avanzadoColumnIndex]), bloques: [] };
+
+      if (permisos.activo === false) {
+        Logger.log('Login rechazado (cuenta dada de baja): ' + correo);
+        return { success: false, message: 'Tu cuenta está dada de baja. Pide al administrador que la reactive.' };
+      }
+
       secIntentosLimpiar_(correo);
-      const isAdvanced = secEsAfirmativo_(userRow[avanzadoColumnIndex]);
-      Logger.log(`Login exitoso para: ${correo}. Es avanzado: ${isAdvanced}`);
+
+      /**
+       * CONTRASEÑA TEMPORAL: la credencial es correcta, pero no abre sesión.
+       *
+       * Una contraseña que la consola generó y mandó por correo ha viajado por un
+       * buzón, ha podido dictarse en voz alta y suele acabar apuntada. Sirve para
+       * demostrar UNA vez que el correo es de quien dice, no para ser su contraseña.
+       * En vez de la sesión se devuelve un vale de un solo uso con el que la pantalla
+       * pide la contraseña definitiva (establecerPasswordInicial, en Cuentas.gs), y es
+       * ESA llamada la que abre la sesión. Así una temporal nunca deja a nadie dentro,
+       * ni siquiera si cierra la pestaña a medio camino.
+       *
+       * Si algo falla al emitir el vale se entra con normalidad: dejar a alguien fuera
+       * de su cuenta por un fallo nuestro es peor que un cambio de contraseña tardío.
+       */
+      if (typeof cuentasPasswordEsTemporal_ === 'function' && cuentasPasswordEsTemporal_(correo)) {
+        try {
+          const vale = Utilities.getUuid().replace(/-/g, '') + Utilities.getUuid().replace(/-/g, '').slice(0, 8);
+          cuentasGuardar_(cuentasClave_('inicial', correo), {
+            c: cuentasHash_('vale', vale),
+            exp: Date.now() + CUENTAS_VALE_MINUTOS * 60000,
+            ini: Date.now()
+          });
+          Logger.log('Login con contraseña temporal: ' + correo + ' — se pedirá contraseña nueva.');
+          return {
+            success: true,
+            debeCambiarPassword: true,
+            message: 'Entraste con una contraseña temporal. Elige la tuya para continuar.',
+            userName: userRow[nameColumnIndex],
+            userEmail: correo,
+            vale: vale,
+            expiraSegundos: CUENTAS_VALE_MINUTOS * 60
+          };
+        } catch (e) {
+          Logger.log('No se pudo emitir el vale de contraseña inicial para ' + correo + ': ' + e);
+        }
+      }
+
+      Logger.log(`Login exitoso para: ${correo}. Rol: ${permisos.rol}`);
 
       return {
         success: true,
         message: "Inicio de sesión exitoso.",
         userName: userRow[nameColumnIndex],
         userEmail: secNormalizarCorreo_(userRow[emailColumnIndex]),
-        isAdvanced: isAdvanced // El cliente usará esto para redirigir.
+        isAdvanced: permisos.avanzado, // El cliente usará esto para redirigir.
+        rol: permisos.rol,
+        rolNombre: permisos.rolNombre || '',
+        isMaster: permisos.maestro === true,
+        bloques: permisos.bloques || []
       };
     } else {
       const n = secIntentosSumar_(correo, LOGIN_VENTANA_SEGUNDOS);
@@ -252,7 +320,7 @@ function loginUser(email, password) {
     }
   } catch (error) {
     Logger.log("Error en loginUser: " + error.message);
-    return { success: false, message: "Error interno al iniciar sesión: " + error.message };
+    return { success: false, message: "No pudimos iniciar tu sesión en este momento. Inténtalo de nuevo en un minuto." };
   }
 }
 
@@ -578,7 +646,7 @@ function saveQuoteAndGoToPreview(quoteDataFromClient) {
 
   } catch (error) {
     Logger.log("Error en saveQuoteAndGoToPreview: " + error.message);
-    return { success: false, message: "Error del servidor: " + error.message, folio: quoteDataFromClient ? quoteDataFromClient.folio : null };
+    return { success: false, message: "No pudimos guardar la cotización. Inténtalo de nuevo en un momento.", folio: quoteDataFromClient ? quoteDataFromClient.folio : null };
   }
 }
 
@@ -684,7 +752,7 @@ function leerCotizacionesDeUsuario_(callingUserEmail, searchTerm) {
 
   } catch (error) {
     Logger.log(`Error en getQuotesForUser: ${error.message} Stack: ${error.stack}`);
-    return { success: false, quotes: null, message: `Error interno al obtener cotizaciones: ${error.message}` };
+    return { success: false, quotes: null, message: "No pudimos cargar las cotizaciones. Inténtalo de nuevo en un momento." };
   }
 }
 
@@ -713,7 +781,7 @@ function leerDetalleCotizacion_(folio) {
     if (!detalleSheet) throw new Error(`Hoja "${DETALLE_COTIZACIONES_SHEET_NAME}" no encontrada.`);
     
     const cotAllData = cotizacionesSheet.getDataRange().getValues();
-    if (cotAllData.length === 0) return { success: false, message: "Hoja de cotizaciones vacía." };
+    if (cotAllData.length === 0) return { success: false, message: "Todavía no hay ninguna cotización registrada." };
     const cotHeaders = cotAllData.shift() || [];
     const folioColIdxCot = cotHeaders.indexOf("Folio");
     if (folioColIdxCot === -1) throw new Error("Columna 'Folio' no encontrada en 'Cotizaciones'.");
@@ -826,7 +894,7 @@ function leerDetalleCotizacion_(folio) {
 
   } catch (error) {
     Logger.log("Error en getQuoteDetails para folio " + folio + ": " + error.message + " Stack: " + error.stack);
-    return { success: false, message: "Error al obtener detalles de cotización: " + error.message };
+    return { success: false, message: "No pudimos abrir esta cotización. Inténtalo de nuevo en un momento." };
   }
 }
 
@@ -949,7 +1017,7 @@ function calcularDashboardStats_() {
     };
   } catch (error) {
     Logger.log("Error en getDashboardStats: " + error.message + " Stack: " + error.stack);
-    return { success: false, message: "Error al obtener estadísticas: " + error.message };
+    return { success: false, message: "No pudimos calcular el resumen. Inténtalo de nuevo en un momento." };
   }
 }
 
@@ -965,7 +1033,7 @@ function getSupervisionQuotes(email) {
     // El permiso se resuelve contra la identidad REAL de quien llama (Seguridad.gs),
     // no contra el correo que manda el navegador: si no, bastaba con llamar esta
     // función con el correo de un supervisor para ver todas las cotizaciones.
-    const id = secIdentidadAvanzada_(email);
+    const id = secIdentidadConBloque_(email, 'supervision');
     if (!id.ok) {
       return { success: false, message: id.error || "No tienes permisos para ver el panel de supervisión." };
     }
@@ -979,7 +1047,7 @@ function getSupervisionQuotes(email) {
     return leerSupervision_();
   } catch (error) {
     Logger.log("Error en getSupervisionQuotes: " + error.message + " Stack: " + error.stack);
-    return { success: false, message: "Error al obtener las cotizaciones: " + error.message };
+    return { success: false, message: "No pudimos cargar las cotizaciones. Inténtalo de nuevo en un momento." };
   }
 }
 
@@ -1028,7 +1096,7 @@ function leerSupervision_() {
     return { success: true, quotes: quotes };
   } catch (error) {
     Logger.log("Error en getSupervisionQuotes: " + error.message + " Stack: " + error.stack);
-    return { success: false, message: "Error al obtener las cotizaciones: " + error.message };
+    return { success: false, message: "No pudimos cargar las cotizaciones. Inténtalo de nuevo en un momento." };
   }
 }
 

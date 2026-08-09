@@ -69,7 +69,7 @@ function generateQuoteHtml(folio) {
   try {
     const quoteResponse = getQuoteDetails(folio);
     if (!quoteResponse.success) {
-      return { success: false, message: "No se pudieron obtener los detalles de la cotización para generar el HTML." };
+      return { success: false, message: "No pudimos leer los datos de la cotización para armar el correo." };
     }
     const data = quoteResponse.quote;
 
@@ -180,7 +180,7 @@ function generateQuoteHtml(folio) {
                 <img src="https://upload.wikimedia.org/wikipedia/commons/thumb/3/35/Liverpool_logo.svg/1280px-Liverpool_logo.svg.png" alt="Logo Liverpool" style="max-height: 42px; width: auto; margin-bottom: 8px;">
                 <p style="font-size: 10px; margin: 2px 0; color: #666666; text-align: right;">Centro de Contacto Liverpool</p>
                 <p style="font-size: 10px; margin: 2px 0; color: #666666; text-align: right;">postventaomnicanal@liverpool.com.mx</p>
-                <p style="font-size: 10px; margin: 2px 0; color: #666666; text-align: right;">Tel: 55 5262 9999, opción 3 (ext: ${secEscapeHtml_(data.advisorExt || 'N/A')})</p>
+                <p style="font-size: 10px; margin: 2px 0; color: #666666; text-align: right;">Tel: 55 5262 9999, opción 3</p>
               </td>
             </tr>
           </table>
@@ -190,7 +190,6 @@ function generateQuoteHtml(folio) {
                 <h2 style="margin-top:0; font-size: 14px; font-weight: 700; color: #E10098; margin-bottom: 8px; border-bottom: 1px solid #eeeeee; padding-bottom: 4px;">Información del Asesor</h2>
                 <p style="margin: 2px 0; line-height: 1.5;"><strong>Nombre:</strong> ${secEscapeHtml_(data.advisorName || 'N/A')}</p>
                 <p style="margin: 2px 0; line-height: 1.5;"><strong>Puesto:</strong> Asesor de Ventas</p>
-                <p style="margin: 2px 0; line-height: 1.5;"><strong>Extensión:</strong> ${secEscapeHtml_(data.advisorExt || 'N/A')}</p>
               </td>
               <td width="4%">&nbsp;</td>
               <td width="48%" valign="top" style="background-color: #fdfdfd; padding: 10px; border-radius: 4px; border: 1px solid #f0f0f0;">
@@ -237,7 +236,7 @@ function generateQuoteHtml(folio) {
     return { success: true, html: fullHtml };
   } catch (error) {
     Logger.log(`Error en generateQuoteHtml para folio ${folio}: ${error.message}`);
-    return { success: false, message: `Error al generar el HTML de la cotización: ${error.message}` };
+    return { success: false, message: "No pudimos preparar el documento de la cotización. Inténtalo de nuevo en un momento." };
   }
 }
 
@@ -255,7 +254,7 @@ function getQuoteDetailsForEmail(folio) {
     if (!cotizacionesSheet) throw new Error(`Hoja "${COTIZACIONES_SHEET_NAME}" no encontrada.`);
 
     const cotAllData = cotizacionesSheet.getDataRange().getValues();
-    if (cotAllData.length <= 1) return { success: false, message: "No hay cotizaciones en la hoja." };
+    if (cotAllData.length <= 1) return { success: false, message: "Todavía no hay ninguna cotización registrada." };
 
     const cotHeaders = cotAllData.shift();
     const folioColIdx = cotHeaders.indexOf("Folio");
@@ -290,7 +289,7 @@ function getQuoteDetailsForEmail(folio) {
 
   } catch (error) {
     Logger.log(`Error en getQuoteDetailsForEmail para folio ${folio}: ${error.message}`);
-    return { success: false, message: `Error del servidor: ${error.message}` };
+    return { success: false, message: "No pudimos leer los datos de la cotización. Inténtalo de nuevo en un momento." };
   }
 }
 
@@ -600,7 +599,6 @@ function sendQuoteByEmail(emailData) {
                             <td width="48%" valign="top" style="padding-left:10px;">
                               <p style="margin:2px 0;color:#e10098;font-weight:bold;font-size:13px;">Atendido por:</p>
                               <p style="margin:2px 0;"><strong>Asesor:</strong> ${secEscapeHtml_(quote.advisorName || 'N/A')}</p>
-                              <p style="margin:2px 0;"><strong>Extensión:</strong> ${secEscapeHtml_(quote.advisorExt || 'N/A')}</p>
                               <p style="margin:2px 0;"><strong>Folio:</strong> ${secEscapeHtml_(quote.folio || 'N/A')}</p>
                             </td>
                           </tr>
@@ -766,7 +764,7 @@ function sendQuoteByEmail(emailData) {
       asesorEmail: String(emailData.asesor || '').toLowerCase(),
       para: String(emailData.to || ''), resultado: 'Error', detalle: error.message
     });
-    return { success: false, message: `No se pudo enviar el correo: ${error.message}` };
+    return { success: false, message: 'No pudimos enviar el correo. Revisa la dirección del cliente e inténtalo de nuevo.' };
   }
 }
 

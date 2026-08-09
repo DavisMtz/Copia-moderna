@@ -1,0 +1,722 @@
+<style>
+/**
+ * =====================================================================================
+ * GUÍA DE LA EXTENSIÓN "Ventel Extractor de Bolsa"  ·  demostración paso a paso
+ * =====================================================================================
+ * Instalar una extensión sin empaquetar tiene seis pasos y ninguno es adivinable: hay
+ * que descargar de Drive, descomprimir, abrir una dirección que no está en ningún menú,
+ * encender un interruptor escondido y fijar el icono. Explicado con palabras se pierde
+ * cualquiera; por eso cada paso se ENSEÑA: una maqueta de lo que va a ver en pantalla,
+ * con el puntero haciendo el clic que toca.
+ *
+ * LAS MAQUETAS SON DECORACIÓN, NO INSTRUCCIÓN. Van con aria-hidden y el texto de cada
+ * paso se basta solo: quien use lector de pantalla, o tenga el movimiento reducido,
+ * recibe exactamente la misma información sin depender del dibujo.
+ *
+ * DÓNDE VIVE: se abre desde el modal de "Importar desde la Bolsa" —el momento exacto
+ * en que a alguien le hace falta— y desde el recorrido guiado. No ocupa sitio fijo en
+ * ninguna pantalla: una guía de instalación se necesita una vez.
+ */
+
+.xg-overlay {
+  position: fixed; inset: 0; z-index: 9500;
+  background: rgba(13, 17, 24, .62);
+  display: flex; align-items: center; justify-content: center;
+  padding: 20px;
+  font-family: var(--f-ui, 'Inter', system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif);
+}
+.xg-overlay[hidden] { display: none; }
+
+.xg-modal {
+  background: var(--surface, #fff);
+  color: var(--ink, #1B2330);
+  border: 1px solid var(--line, #E4E9F0);
+  border-radius: var(--rad-lg, 14px);
+  box-shadow: var(--sh-lg, 0 30px 60px -24px rgba(27,35,48,.26));
+  width: min(980px, 100%);
+  max-height: calc(100vh - 40px);
+  display: flex; flex-direction: column;
+  overflow: hidden;
+}
+
+.xg-head {
+  display: flex; align-items: flex-start; gap: 16px;
+  padding: 18px 20px 14px;
+  border-bottom: 1px solid var(--line, #E4E9F0);
+}
+.xg-eyebrow {
+  display: block; font-size: .64rem; font-weight: 700; letter-spacing: .11em;
+  text-transform: uppercase; color: var(--brand, #E10098); margin-bottom: 4px;
+}
+.xg-head h2 { margin: 0; font-size: 1.12rem; font-weight: 600; line-height: 1.25; }
+.xg-head .xg-sub { margin: 4px 0 0; font-size: .8rem; color: var(--ink-soft, #5C6B7E); }
+.xg-cerrar {
+  margin-left: auto; flex: none; width: 34px; height: 34px; border-radius: 8px;
+  border: 1px solid var(--line, #E4E9F0); background: transparent; cursor: pointer;
+  color: var(--ink-soft, #5C6B7E); font-size: 1rem; line-height: 1;
+}
+.xg-cerrar:hover { background: var(--surface-2, #F4F7FA); color: var(--ink, #1B2330); }
+
+/* Índice de pasos: además de navegar, dice de un vistazo cuántos son y dónde va. */
+.xg-indice {
+  display: flex; gap: 6px; padding: 12px 20px; overflow-x: auto;
+  border-bottom: 1px solid var(--line-soft, #EEF2F7);
+  list-style: none; margin: 0;
+}
+.xg-chip {
+  flex: none; font: inherit; font-size: .72rem; font-weight: 600;
+  padding: 5px 11px; border-radius: 99px; cursor: pointer;
+  border: 1px solid var(--line, #E4E9F0); background: transparent;
+  color: var(--ink-soft, #5C6B7E); white-space: nowrap;
+  transition: background .15s, color .15s, border-color .15s;
+}
+.xg-chip:hover { background: var(--surface-2, #F4F7FA); color: var(--ink, #1B2330); }
+.xg-chip[aria-selected="true"] { background: var(--brand, #E10098); border-color: var(--brand, #E10098); color: #fff; }
+.xg-chip .xg-n { opacity: .7; margin-right: 5px; }
+.xg-chip[aria-selected="true"] .xg-n { opacity: .85; }
+
+.xg-cuerpo {
+  display: grid; grid-template-columns: 1.35fr 1fr; gap: 0;
+  overflow: auto; flex: 1; min-height: 0;
+}
+@media (max-width: 800px) { .xg-cuerpo { grid-template-columns: 1fr; } }
+
+/* ── Escenario: la maqueta animada ── */
+.xg-escena-wrap { padding: 20px; background: var(--surface-2, #F4F7FA); border-right: 1px solid var(--line, #E4E9F0); }
+@media (max-width: 800px) { .xg-escena-wrap { border-right: 0; border-bottom: 1px solid var(--line, #E4E9F0); } }
+.xg-escena {
+  position: relative; aspect-ratio: 16 / 10; width: 100%;
+  border-radius: 10px; overflow: hidden;
+  background: var(--surface, #fff);
+  border: 1px solid var(--line, #E4E9F0);
+  box-shadow: var(--sh-sm, 0 2px 8px -2px rgba(27,35,48,.08));
+  font-size: clamp(8px, 1.35vw, 11px);
+}
+
+/* Primitivas de maqueta. Deliberadamente esquemáticas: no se busca imitar Chrome al
+   píxel, se busca que alguien reconozca la pantalla cuando la tenga delante. */
+.xgw { position: absolute; inset: 0; display: flex; flex-direction: column; background: var(--surface, #fff); }
+.xgw-bar {
+  display: flex; align-items: center; gap: 6px; padding: 6px 8px;
+  background: var(--surface-2, #F4F7FA); border-bottom: 1px solid var(--line, #E4E9F0);
+  flex: none;
+}
+.xgw-dots { display: flex; gap: 3px; }
+.xgw-dots i { width: 6px; height: 6px; border-radius: 99px; background: var(--line, #E4E9F0); display: block; }
+.xgw-url {
+  flex: 1; background: var(--surface, #fff); border: 1px solid var(--line, #E4E9F0);
+  border-radius: 99px; padding: 3px 9px; color: var(--ink-soft, #5C6B7E);
+  font-family: var(--f-mono, ui-monospace, Consolas, monospace); font-size: .92em;
+  white-space: nowrap; overflow: hidden;
+}
+.xgw-cuerpo { flex: 1; padding: 10px; position: relative; overflow: hidden; }
+.xgw-titulo { font-weight: 700; font-size: 1.15em; margin: 0 0 8px; color: var(--ink, #1B2330); }
+.xgw-ruta { font-size: .95em; color: var(--ink-faint, #94A1B2); margin: 0 0 8px; }
+
+.xgw-fila {
+  display: flex; align-items: center; gap: 7px; padding: 6px 8px;
+  border-radius: 6px; color: var(--ink, #1B2330);
+}
+.xgw-fila + .xgw-fila { margin-top: 3px; }
+.xgw-fila.sel { background: var(--brand-tint, #FDE7F4); outline: 1.5px solid var(--brand, #E10098); }
+.xgw-ic { width: 14px; height: 14px; flex: none; color: var(--ink-faint, #94A1B2); }
+.xgw-fila.sel .xgw-ic { color: var(--brand, #E10098); }
+
+.xgw-menu {
+  position: absolute; background: var(--surface, #fff);
+  border: 1px solid var(--line, #E4E9F0); border-radius: 8px;
+  box-shadow: var(--sh-md, 0 14px 34px -16px rgba(27,35,48,.22));
+  padding: 4px; min-width: 108px; opacity: 0;
+}
+.xgw-mi { padding: 4px 8px; border-radius: 5px; color: var(--ink-soft, #5C6B7E); white-space: nowrap; }
+.xgw-mi.destacado { color: var(--ink, #1B2330); font-weight: 700; }
+.xgw-mi.activo { background: var(--brand-tint, #FDE7F4); color: var(--brand-deep, #A8006F); }
+
+.xgw-btn {
+  display: inline-flex; align-items: center; gap: 5px;
+  border: 1px solid var(--line, #E4E9F0); border-radius: 6px;
+  padding: 4px 9px; background: var(--surface, #fff); color: var(--ink, #1B2330);
+  font-weight: 600; font-size: .95em;
+}
+.xgw-btn.primario { background: var(--brand, #E10098); border-color: var(--brand, #E10098); color: #fff; }
+
+/* Interruptor de "Modo de desarrollador" */
+.xgw-switch { width: 26px; height: 14px; border-radius: 99px; background: var(--line, #E4E9F0); position: relative; flex: none; }
+.xgw-switch i { position: absolute; top: 2px; left: 2px; width: 10px; height: 10px; border-radius: 99px; background: #fff; box-shadow: 0 1px 2px rgba(0,0,0,.25); display: block; }
+.xgw-switch.on { background: var(--brand, #E10098); }
+
+.xgw-tarjeta {
+  border: 1px solid var(--line, #E4E9F0); border-radius: 8px; padding: 8px 10px;
+  background: var(--surface, #fff); box-shadow: var(--sh-xs, 0 1px 2px rgba(27,35,48,.06));
+}
+
+/* Puntero de ratón. Es lo que convierte una captura en una demostración. */
+.xg-cursor { position: absolute; top: 0; left: 0; width: 15px; height: 15px; pointer-events: none; z-index: 20; filter: drop-shadow(0 1px 2px rgba(0,0,0,.35)); }
+.xg-clic {
+  position: absolute; top: 0; left: 0; width: 26px; height: 26px; margin: -13px 0 0 -13px;
+  border-radius: 99px; border: 2px solid var(--brand, #E10098); opacity: 0; pointer-events: none; z-index: 19;
+}
+
+/* ── Panel de explicación ── */
+.xg-explica { padding: 20px; display: flex; flex-direction: column; gap: 10px; }
+.xg-explica h3 { margin: 0; font-size: 1rem; font-weight: 600; line-height: 1.3; }
+.xg-explica p { margin: 0; font-size: .875rem; line-height: 1.6; color: var(--ink-soft, #5C6B7E); max-width: 60ch; }
+.xg-explica b { color: var(--ink, #1B2330); font-weight: 600; }
+.xg-explica code {
+  font-family: var(--f-mono, ui-monospace, Consolas, monospace); font-size: .82em;
+  background: var(--surface-2, #F4F7FA); border: 1px solid var(--line, #E4E9F0);
+  border-radius: 5px; padding: 1px 5px; color: var(--ink, #1B2330);
+}
+.xg-nota {
+  font-size: .78rem; line-height: 1.55; color: var(--ink-soft, #5C6B7E);
+  background: var(--warn-bg, #FDF1E0); border: 1px solid rgba(180,83,9,.22);
+  border-left: 3px solid var(--warn, #B45309);
+  border-radius: 8px; padding: 9px 11px;
+}
+.xg-acciones { display: flex; flex-wrap: wrap; gap: 8px; margin-top: auto; padding-top: 8px; }
+
+.xg-btn {
+  font: inherit; font-size: .82rem; font-weight: 600;
+  border-radius: var(--rad-sm, 8px); border: 1px solid transparent;
+  padding: 9px 15px; min-height: 38px; cursor: pointer;
+  display: inline-flex; align-items: center; gap: 7px; text-decoration: none;
+  transition: background .15s, border-color .15s, color .15s;
+}
+.xg-btn-primario { background: var(--brand, #E10098); color: #fff; }
+.xg-btn-primario:hover { background: var(--brand-deep, #A8006F); }
+.xg-btn-secundario { background: transparent; color: var(--ink, #1B2330); border-color: var(--line, #E4E9F0); }
+.xg-btn-secundario:hover { background: var(--surface-2, #F4F7FA); }
+.xg-btn:focus-visible { outline: 2px solid var(--brand, #E10098); outline-offset: 2px; }
+.xg-btn[disabled] { opacity: .45; cursor: default; }
+.xg-btn .ic { width: 15px; height: 15px; flex: none; }
+
+.xg-pie {
+  display: flex; align-items: center; gap: 10px;
+  padding: 12px 20px; border-top: 1px solid var(--line, #E4E9F0);
+  background: var(--surface, #fff);
+}
+.xg-progreso { font-size: .74rem; color: var(--ink-faint, #94A1B2); font-variant-numeric: tabular-nums; }
+.xg-pie .xg-sep { flex: 1; }
+
+/* Enlace discreto para abrir la guía desde donde haga falta. */
+.xg-abrir {
+  font: inherit; font-size: .78rem; font-weight: 600; color: var(--brand, #E10098);
+  background: none; border: 0; padding: 0; cursor: pointer; text-decoration: underline;
+  text-underline-offset: 2px;
+}
+.xg-abrir:hover { color: var(--brand-deep, #A8006F); }
+</style>
+<script>
+/**
+ * AppExtensionGuia — la demostración de "cómo instalar y usar la extensión".
+ *
+ *   AppExtensionGuia.abrir();      // desde un botón
+ *   AppExtensionGuia.cerrar();
+ *
+ * Cada paso declara su maqueta (HTML) y su animación (una línea de tiempo GSAP). Sin
+ * GSAP, o con movimiento reducido, se pinta el estado FINAL de la maqueta: la demo
+ * deja de moverse pero sigue enseñando dónde está cada cosa.
+ */
+(function () {
+  'use strict';
+
+  var DRIVE = 'https://drive.google.com/drive/folders/1NSPE-03rT4G5iO5soZeEiScexSY_ZJ4l';
+  var DIRECCION = 'chrome://extensions/';
+
+  var reducido = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+  function animable() { return typeof window.gsap !== 'undefined' && !reducido; }
+
+  var IC_CARPETA = '<svg class="xgw-ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2Z"/></svg>';
+  var IC_ZIP     = '<svg class="xgw-ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8Z"/><path d="M14 3v5h5"/><path d="M11 7h1M11 10h1M11 13h1"/></svg>';
+  var IC_PIEZA   = '<svg class="xgw-ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M10 4a2 2 0 1 1 4 0v1h3a1 1 0 0 1 1 1v3h1a2 2 0 1 1 0 4h-1v3a1 1 0 0 1-1 1h-3v-1a2 2 0 1 0-4 0v1H7a1 1 0 0 1-1-1v-3H5a2 2 0 1 1 0-4h1V6a1 1 0 0 1 1-1h3Z"/></svg>';
+  var IC_PIN     = '<svg class="xgw-ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 17v4"/><path d="M9 3h6l-1 6 3 3v2H7v-2l3-3Z"/></svg>';
+  var IC_COPIAR  = '<svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="12" height="12" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>';
+  var IC_SALIR   = '<svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M7 17 17 7M8 7h9v9"/></svg>';
+
+  var CURSOR =
+    '<svg class="xg-cursor" viewBox="0 0 24 24" fill="#fff" stroke="#1B2330" stroke-width="1.5" stroke-linejoin="round">' +
+    '<path d="M5 3l13 8.5-5.6 1.1L15 19l-2.6 1-2.6-6.2L5 17.6Z"/></svg>';
+
+  /* ── Maquetas ─────────────────────────────────────────────────────────────
+     Cada una devuelve el HTML del escenario. Los elementos que la animación va a
+     mover llevan clase propia (.j-*) para no depender de la estructura. */
+
+  function marcoNavegador(url, cuerpo) {
+    return '<div class="xgw">' +
+      '<div class="xgw-bar"><span class="xgw-dots"><i></i><i></i><i></i></span>' +
+      '<span class="xgw-url j-url">' + url + '</span></div>' +
+      '<div class="xgw-cuerpo">' + cuerpo + '</div></div>';
+  }
+
+  var PASOS = [
+    {
+      chip: 'Descargar',
+      titulo: 'Descarga la carpeta desde Drive',
+      texto: 'Abre la carpeta compartida, <b>haz clic sobre el nombre del archivo</b> para seleccionarlo y elige ' +
+             '<b>Descargar</b>. Drive te la entrega como un <b>.zip</b>.',
+      nota: 'Si Drive avisa de que va a comprimir la carpeta, es lo normal: acepta y espera a que termine.',
+      acciones: [{ tipo: 'enlace', texto: 'Abrir la carpeta en Drive', href: DRIVE, icono: IC_SALIR }],
+      escena: function () {
+        return marcoNavegador('drive.google.com/drive/folders/…',
+          '<p class="xgw-ruta">Mi unidad · Compartido conmigo</p>' +
+          '<div class="xgw-fila j-fila">' + IC_CARPETA + '<span>Extension Ventel · Extractor de Bolsa</span></div>' +
+          '<div class="xgw-fila">' + IC_CARPETA + '<span>Formatos de cotización</span></div>' +
+          '<div class="xgw-menu j-menu" style="left:34%;top:30%">' +
+            '<div class="xgw-mi">Abrir</div>' +
+            '<div class="xgw-mi j-mi destacado">Descargar</div>' +
+            '<div class="xgw-mi">Añadir acceso directo</div>' +
+          '</div>' +
+          '<div class="xgw-tarjeta j-descarga" style="position:absolute;left:10px;bottom:10px;opacity:0">' +
+            '<b>Extension-Ventel.zip</b> · descargado</div>');
+      },
+      animar: function (tl, e, X, Y) {
+        tl.to(e.cursor, { x: X(.30), y: Y(.26), duration: .5 })
+          .add(clic(e))
+          .set(e.escena.querySelector('.j-fila'), { className: 'xgw-fila sel j-fila' })
+          .to(e.escena.querySelector('.j-menu'), { opacity: 1, duration: .2 })
+          .to(e.cursor, { x: X(.40), y: Y(.45), duration: .4 })
+          .set(e.escena.querySelector('.j-mi'), { className: 'xgw-mi j-mi destacado activo' })
+          .add(clic(e))
+          .to(e.escena.querySelector('.j-descarga'), { opacity: 1, y: -4, duration: .35 });
+      },
+      final: function (e) {
+        e.escena.querySelector('.j-fila').className = 'xgw-fila sel j-fila';
+        e.escena.querySelector('.j-menu').style.opacity = 1;
+        e.escena.querySelector('.j-mi').className = 'xgw-mi j-mi destacado activo';
+        e.escena.querySelector('.j-descarga').style.opacity = 1;
+      }
+    },
+
+    {
+      chip: 'Descomprimir',
+      titulo: 'Descomprime el archivo',
+      texto: 'En tu carpeta de <b>Descargas</b>, haz <b>clic derecho</b> sobre el .zip y elige ' +
+             '<b>Extraer todo…</b> (o «Extraer aquí»). Te queda una carpeta con el mismo nombre.',
+      nota: 'Este paso no se puede saltar: Chrome no acepta una extensión que siga dentro del .zip. Necesita la carpeta ya descomprimida.',
+      escena: function () {
+        return '<div class="xgw">' +
+          '<div class="xgw-bar"><span class="xgw-url j-url">Descargas</span></div>' +
+          '<div class="xgw-cuerpo">' +
+          '<div class="xgw-fila j-fila">' + IC_ZIP + '<span>Extension-Ventel.zip</span></div>' +
+          '<div class="xgw-fila j-carpeta" style="opacity:0">' + IC_CARPETA + '<span>Extension-Ventel</span></div>' +
+          '<div class="xgw-menu j-menu" style="left:30%;top:26%">' +
+            '<div class="xgw-mi">Abrir</div>' +
+            '<div class="xgw-mi j-mi destacado">Extraer todo…</div>' +
+            '<div class="xgw-mi">Copiar</div>' +
+          '</div>' +
+          '</div></div>';
+      },
+      animar: function (tl, e, X, Y) {
+        tl.to(e.cursor, { x: X(.26), y: Y(.24), duration: .5 })
+          .add(clic(e))
+          .set(e.escena.querySelector('.j-fila'), { className: 'xgw-fila sel j-fila' })
+          .to(e.escena.querySelector('.j-menu'), { opacity: 1, duration: .2 })
+          .to(e.cursor, { x: X(.36), y: Y(.42), duration: .4 })
+          .set(e.escena.querySelector('.j-mi'), { className: 'xgw-mi j-mi destacado activo' })
+          .add(clic(e))
+          .to(e.escena.querySelector('.j-menu'), { opacity: 0, duration: .2 })
+          .to(e.escena.querySelector('.j-carpeta'), { opacity: 1, duration: .4 });
+      },
+      final: function (e) {
+        e.escena.querySelector('.j-menu').style.opacity = 0;
+        e.escena.querySelector('.j-carpeta').style.opacity = 1;
+      }
+    },
+
+    {
+      chip: 'Extensiones',
+      titulo: 'Abre la página de extensiones',
+      texto: 'En la barra de direcciones de Chrome escribe <code>chrome://extensions/</code> y pulsa Enter.',
+      nota: 'Esa dirección no se puede abrir con un enlace: Chrome solo la deja escribir a mano. Cópiala con el botón y pégala en la barra.',
+      acciones: [{ tipo: 'copiar', texto: 'Copiar la dirección', valor: DIRECCION, icono: IC_COPIAR }],
+      escena: function () {
+        return marcoNavegador('<span class="j-escribe"></span><span class="j-caret">|</span>',
+          '<p class="xgw-titulo j-vacio" style="opacity:.35">Nueva pestaña</p>' +
+          '<div class="j-pagina" style="opacity:0">' +
+            '<p class="xgw-titulo">Extensiones</p>' +
+            '<div class="xgw-tarjeta">Aún no hay extensiones instaladas</div>' +
+          '</div>');
+      },
+      animar: function (tl, e) {
+        var destino = e.escena.querySelector('.j-escribe');
+        var texto = DIRECCION;
+        var estado = { n: 0 };
+        // Aquí no se pulsa nada, se teclea: el puntero sobra y distrae.
+        tl.to(e.cursor, { opacity: 0, duration: .2 })
+          .to(estado, {
+            n: texto.length, duration: 1.1, ease: 'none',
+            onUpdate: function () { destino.textContent = texto.slice(0, Math.round(estado.n)); }
+          })
+          .to(e.escena.querySelector('.j-vacio'), { opacity: 0, duration: .2 })
+          .to(e.escena.querySelector('.j-pagina'), { opacity: 1, duration: .35 });
+      },
+      final: function (e) {
+        e.escena.querySelector('.j-escribe').textContent = DIRECCION;
+        e.escena.querySelector('.j-vacio').style.opacity = 0;
+        e.escena.querySelector('.j-pagina').style.opacity = 1;
+      }
+    },
+
+    {
+      chip: 'Modo desarrollador',
+      titulo: 'Activa el Modo de desarrollador',
+      texto: 'Arriba a la derecha de esa página hay un interruptor: <b>Modo de desarrollador</b>. ' +
+             'Enciéndelo y aparecerá una fila nueva de botones justo debajo.',
+      nota: 'Sin este interruptor, el botón del paso siguiente no existe. Si no ves «Cargar descomprimida», es que el interruptor sigue apagado.',
+      escena: function () {
+        return marcoNavegador(DIRECCION,
+          '<div style="display:flex;align-items:center;gap:6px;margin-bottom:8px">' +
+            '<span class="xgw-titulo" style="margin:0;flex:1">Extensiones</span>' +
+            '<span style="color:var(--ink-soft,#5C6B7E)">Modo de desarrollador</span>' +
+            '<span class="xgw-switch j-switch"><i></i></span>' +
+          '</div>' +
+          '<div class="j-barra" style="display:flex;gap:6px;opacity:0">' +
+            '<span class="xgw-btn">Cargar descomprimida</span>' +
+            '<span class="xgw-btn">Empaquetar extensión</span>' +
+            '<span class="xgw-btn">Actualizar</span>' +
+          '</div>');
+      },
+      animar: function (tl, e, X, Y) {
+        var sw = e.escena.querySelector('.j-switch');
+        tl.to(e.cursor, { x: X(.88), y: Y(.16), duration: .55 })
+          .add(clic(e))
+          .set(sw, { className: 'xgw-switch on j-switch' })
+          .to(sw.querySelector('i'), { x: 12, duration: .25, ease: 'power2.out' })
+          .to(e.escena.querySelector('.j-barra'), { opacity: 1, y: 0, duration: .35 });
+      },
+      final: function (e) {
+        var sw = e.escena.querySelector('.j-switch');
+        sw.className = 'xgw-switch on j-switch';
+        sw.querySelector('i').style.transform = 'translateX(12px)';
+        e.escena.querySelector('.j-barra').style.opacity = 1;
+      }
+    },
+
+    {
+      chip: 'Cargar',
+      titulo: 'Cargar descomprimida',
+      texto: 'Pulsa <b>Cargar descomprimida</b> y elige la <b>carpeta</b> que descomprimiste. ' +
+             'No selecciones un archivo suelto: hay que señalar la carpeta entera.',
+      nota: 'La carpeta correcta es la que contiene el archivo manifest.json. Si Chrome se queja, casi siempre es porque se eligió la carpeta de un nivel más arriba.',
+      escena: function () {
+        return marcoNavegador(DIRECCION,
+          '<div style="display:flex;gap:6px;margin-bottom:8px">' +
+            '<span class="xgw-btn j-cargar">Cargar descomprimida</span>' +
+            '<span class="xgw-btn">Empaquetar extensión</span>' +
+          '</div>' +
+          '<div class="xgw-menu j-selector" style="left:12%;top:34%;min-width:52%">' +
+            '<div class="xgw-mi destacado">Seleccionar carpeta</div>' +
+            '<div class="xgw-mi j-mi">' + IC_CARPETA + ' Extension-Ventel</div>' +
+          '</div>' +
+          '<div class="xgw-tarjeta j-tarjeta" style="opacity:0">' +
+            '<b>Ventel Extractor de Bolsa</b><br>' +
+            '<span style="color:var(--ink-faint,#94A1B2)">Versión 1.4 · Sin empaquetar</span></div>');
+      },
+      animar: function (tl, e, X, Y) {
+        tl.to(e.cursor, { x: X(.22), y: Y(.18), duration: .5 })
+          .add(clic(e))
+          .to(e.escena.querySelector('.j-selector'), { opacity: 1, duration: .25 })
+          .to(e.cursor, { x: X(.34), y: Y(.52), duration: .45 })
+          .set(e.escena.querySelector('.j-mi'), { className: 'xgw-mi j-mi activo' })
+          .add(clic(e))
+          .to(e.escena.querySelector('.j-selector'), { opacity: 0, duration: .2 })
+          .to(e.escena.querySelector('.j-tarjeta'), { opacity: 1, y: -4, duration: .4 });
+      },
+      final: function (e) {
+        e.escena.querySelector('.j-selector').style.opacity = 0;
+        e.escena.querySelector('.j-tarjeta').style.opacity = 1;
+      }
+    },
+
+    {
+      chip: 'Fijar',
+      titulo: 'Fija el icono en la barra',
+      texto: 'Chrome esconde las extensiones nuevas detrás del icono de <b>pieza de rompecabezas</b>. ' +
+             'Púlsalo, busca <b>Ventel Extractor de Bolsa</b> y haz clic en el <b>alfiler</b>.',
+      nota: 'Si no la fijas, la extensión funciona igual, pero tendrás que abrir el rompecabezas cada vez. Fijada, queda a un solo clic.',
+      escena: function () {
+        return '<div class="xgw">' +
+          '<div class="xgw-bar"><span class="xgw-url">liverpool.com.mx/tienda/cart</span>' +
+            '<span class="j-pieza">' + IC_PIEZA + '</span>' +
+            '<span class="j-fijado" style="opacity:0;width:14px;height:14px;border-radius:4px;background:var(--brand,#E10098);display:inline-block"></span>' +
+          '</div>' +
+          '<div class="xgw-cuerpo">' +
+          '<div class="xgw-menu j-menu" style="right:8px;top:6px;min-width:56%">' +
+            '<div class="xgw-mi destacado">Extensiones</div>' +
+            '<div class="xgw-mi j-mi" style="display:flex;align-items:center;gap:6px">' +
+              '<span style="flex:1">Ventel Extractor de Bolsa</span>' + IC_PIN + '</div>' +
+          '</div>' +
+          '</div></div>';
+      },
+      animar: function (tl, e, X, Y) {
+        tl.to(e.cursor, { x: X(.84), y: Y(.07), duration: .5 })
+          .add(clic(e))
+          .to(e.escena.querySelector('.j-menu'), { opacity: 1, duration: .25 })
+          .to(e.cursor, { x: X(.90), y: Y(.32), duration: .4 })
+          .set(e.escena.querySelector('.j-mi'), { className: 'xgw-mi j-mi activo' })
+          .add(clic(e))
+          .to(e.escena.querySelector('.j-menu'), { opacity: 0, duration: .2 })
+          .to(e.escena.querySelector('.j-fijado'), { opacity: 1, scale: 1.15, duration: .25, yoyo: true, repeat: 1 });
+      },
+      final: function (e) {
+        e.escena.querySelector('.j-menu').style.opacity = 0;
+        e.escena.querySelector('.j-fijado').style.opacity = 1;
+      }
+    },
+
+    {
+      chip: 'Usarla',
+      titulo: 'Y ya: extraer la bolsa y traerla aquí',
+      texto: 'Abre la <b>bolsa de compras</b> del cliente en liverpool.com.mx, pulsa el icono de la extensión y ' +
+             'luego <b>Extraer Artículos de Bolsa</b>. Después <b>Copiar JSON</b> y pégalo en ' +
+             '«Importar desde la Bolsa» de esta pantalla.',
+      nota: 'La extensión también tiene el botón «Cotizar», que abre esta pantalla con los artículos ya puestos: si lo usas, no hace falta copiar ni pegar nada.',
+      escena: function () {
+        return '<div class="xgw">' +
+          '<div class="xgw-bar"><span class="xgw-url">liverpool.com.mx/tienda/cart</span>' +
+            '<span style="width:14px;height:14px;border-radius:4px;background:var(--brand,#E10098);display:inline-block"></span></div>' +
+          '<div class="xgw-cuerpo">' +
+          '<div class="xgw-fila">' + IC_ZIP + '<span>Tenis Adidas Others para mujer · $899.50</span></div>' +
+          '<div class="xgw-menu j-popup" style="right:8px;top:4px;min-width:58%;padding:8px">' +
+            '<div style="font-weight:700;color:var(--brand,#E10098);margin-bottom:6px">Ventel · Extractor de Bolsa</div>' +
+            '<div class="xgw-btn primario j-extraer" style="width:100%;justify-content:center">Extraer Artículos de Bolsa</div>' +
+            '<div class="xgw-tarjeta j-json" style="margin-top:6px;opacity:0;font-family:var(--f-mono,monospace);font-size:.85em">{ "products": [ … ] }</div>' +
+            '<div class="xgw-btn j-copiar" style="width:100%;justify-content:center;margin-top:6px;opacity:0">Copiar JSON</div>' +
+          '</div>' +
+          '</div></div>';
+      },
+      animar: function (tl, e, X, Y) {
+        tl.to(e.escena.querySelector('.j-popup'), { opacity: 1, duration: .3 })
+          .to(e.cursor, { x: X(.70), y: Y(.28), duration: .5 })
+          .add(clic(e))
+          .to(e.escena.querySelector('.j-json'), { opacity: 1, duration: .3 })
+          .to(e.escena.querySelector('.j-copiar'), { opacity: 1, duration: .25 })
+          .to(e.cursor, { x: X(.70), y: Y(.72), duration: .4 })
+          .add(clic(e));
+      },
+      final: function (e) {
+        e.escena.querySelector('.j-popup').style.opacity = 1;
+        e.escena.querySelector('.j-json').style.opacity = 1;
+        e.escena.querySelector('.j-copiar').style.opacity = 1;
+      }
+    }
+  ];
+
+  /**
+   * Onda de clic: el gesto que hace legible que el puntero "pulsó" algo.
+   *
+   * La posición se lee CUANDO SUENA, no cuando se arma la línea de tiempo. Leerla al
+   * armarla dejaba todas las ondas en el sitio donde arrancó el puntero, que es
+   * justamente donde no ocurre ningún clic.
+   */
+  function clic(e) {
+    var tl = gsap.timeline();
+    tl.call(function () {
+        gsap.set(e.onda, {
+          x: gsap.getProperty(e.cursor, 'x'),
+          y: gsap.getProperty(e.cursor, 'y'),
+          scale: .3, opacity: 1
+        });
+      })
+      .to(e.onda, { scale: 1, opacity: 0, duration: .45, ease: 'power2.out' })
+      .to(e.cursor, { scale: .88, duration: .1, yoyo: true, repeat: 1 }, 0);
+    return tl;
+  }
+
+  // ── Construcción del modal ────────────────────────────────────────────────
+
+  var raiz = null, escena = null, cursor = null, onda = null;
+  var elTitulo, elTexto, elNota, elAcciones, elIndice, elProgreso, elAtras, elSiguiente;
+  var indice = 0, linea = null, focoPrevio = null;
+
+  function construir() {
+    if (raiz) return;
+    raiz = document.createElement('div');
+    raiz.className = 'xg-overlay';
+    raiz.hidden = true;
+    raiz.innerHTML =
+      '<div class="xg-modal" role="dialog" aria-modal="true" aria-labelledby="xgTitulo">' +
+        '<div class="xg-head">' +
+          '<div>' +
+            '<span class="xg-eyebrow">Extensión · Ventel Extractor de Bolsa</span>' +
+            '<h2 id="xgTitulo">Instalarla lleva dos minutos y se hace una sola vez</h2>' +
+            '<p class="xg-sub">Extrae la bolsa de compras del cliente y la trae a la cotización sin teclear producto por producto.</p>' +
+          '</div>' +
+          '<button type="button" class="xg-cerrar" aria-label="Cerrar la guía">✕</button>' +
+        '</div>' +
+        '<ul class="xg-indice" role="tablist" aria-label="Pasos de la guía"></ul>' +
+        '<div class="xg-cuerpo">' +
+          '<div class="xg-escena-wrap"><div class="xg-escena" aria-hidden="true"></div></div>' +
+          '<div class="xg-explica">' +
+            '<h3 id="xgPasoTitulo"></h3>' +
+            '<p id="xgPasoTexto"></p>' +
+            '<p class="xg-nota" id="xgPasoNota"></p>' +
+            '<div class="xg-acciones" id="xgPasoAcciones"></div>' +
+          '</div>' +
+        '</div>' +
+        '<div class="xg-pie">' +
+          '<span class="xg-progreso" id="xgProgreso"></span>' +
+          '<span class="xg-sep"></span>' +
+          '<button type="button" class="xg-btn xg-btn-secundario" data-xg="atras">Atrás</button>' +
+          '<button type="button" class="xg-btn xg-btn-primario" data-xg="siguiente">Siguiente</button>' +
+        '</div>' +
+      '</div>';
+    document.body.appendChild(raiz);
+
+    escena     = raiz.querySelector('.xg-escena');
+    elIndice   = raiz.querySelector('.xg-indice');
+    elTitulo   = raiz.querySelector('#xgPasoTitulo');
+    elTexto    = raiz.querySelector('#xgPasoTexto');
+    elNota     = raiz.querySelector('#xgPasoNota');
+    elAcciones = raiz.querySelector('#xgPasoAcciones');
+    elProgreso = raiz.querySelector('#xgProgreso');
+    elAtras    = raiz.querySelector('[data-xg="atras"]');
+    elSiguiente= raiz.querySelector('[data-xg="siguiente"]');
+
+    PASOS.forEach(function (p, i) {
+      var li = document.createElement('li');
+      var b = document.createElement('button');
+      b.type = 'button';
+      b.className = 'xg-chip';
+      b.setAttribute('role', 'tab');
+      b.innerHTML = '<span class="xg-n">' + (i + 1) + '</span>' + p.chip;
+      b.addEventListener('click', function () { ir(i); });
+      li.appendChild(b);
+      elIndice.appendChild(li);
+    });
+
+    elAtras.addEventListener('click', function () { ir(indice - 1); });
+    elSiguiente.addEventListener('click', function () {
+      if (indice === PASOS.length - 1) cerrar(); else ir(indice + 1);
+    });
+    raiz.querySelector('.xg-cerrar').addEventListener('click', cerrar);
+    raiz.addEventListener('click', function (e) { if (e.target === raiz) cerrar(); });
+  }
+
+  function alTeclado(e) {
+    if (raiz.hidden) return;
+    if (e.key === 'Escape') { e.preventDefault(); cerrar(); }
+    else if (e.key === 'ArrowRight') { e.preventDefault(); ir(indice + 1); }
+    else if (e.key === 'ArrowLeft') { e.preventDefault(); ir(indice - 1); }
+  }
+
+  function ir(n) {
+    if (n < 0 || n >= PASOS.length) return;
+    indice = n;
+    var paso = PASOS[n];
+
+    if (linea) { linea.kill(); linea = null; }
+
+    escena.innerHTML = paso.escena() + CURSOR + '<span class="xg-clic"></span>';
+    cursor = escena.querySelector('.xg-cursor');
+    onda   = escena.querySelector('.xg-clic');
+
+    elTitulo.textContent = paso.titulo;
+    elTexto.innerHTML = paso.texto;
+    elNota.textContent = paso.nota || '';
+    elNota.hidden = !paso.nota;
+    elProgreso.textContent = 'Paso ' + (n + 1) + ' de ' + PASOS.length;
+    elAtras.disabled = n === 0;
+    elSiguiente.textContent = (n === PASOS.length - 1) ? 'Entendido' : 'Siguiente';
+
+    Array.prototype.forEach.call(elIndice.querySelectorAll('.xg-chip'), function (c, i) {
+      c.setAttribute('aria-selected', i === n ? 'true' : 'false');
+    });
+
+    elAcciones.innerHTML = '';
+    (paso.acciones || []).forEach(function (a) { elAcciones.appendChild(crearAccion(a)); });
+
+    var contexto = { escena: escena, cursor: cursor, onda: onda };
+    if (!animable()) {
+      cursor.style.display = 'none';
+      if (paso.final) paso.final(contexto);
+      return;
+    }
+
+    // Coordenadas relativas: la maqueta se escala con la ventana, así que el puntero
+    // se mueve en FRACCIONES del escenario y no en píxeles fijos. X(.3) es "el 30 %
+    // del ancho"; Y(.4), "el 40 % del alto".
+    var caja = escena.getBoundingClientRect();
+    var X = function (f) { return caja.width * f; };
+    var Y = function (f) { return caja.height * f; };
+
+    gsap.set(cursor, { x: X(.5), y: Y(.85) });
+    linea = gsap.timeline({ defaults: { ease: 'power2.inOut' }, delay: .25 });
+    paso.animar(linea, contexto, X, Y);
+  }
+
+  function crearAccion(a) {
+    if (a.tipo === 'enlace') {
+      var enlace = document.createElement('a');
+      enlace.className = 'xg-btn xg-btn-primario';
+      enlace.href = a.href;
+      enlace.target = '_blank';
+      enlace.rel = 'noopener noreferrer';
+      enlace.innerHTML = (a.icono || '') + '<span>' + a.texto + '</span>';
+      return enlace;
+    }
+    var boton = document.createElement('button');
+    boton.type = 'button';
+    boton.className = 'xg-btn xg-btn-secundario';
+    boton.innerHTML = (a.icono || '') + '<span>' + a.texto + '</span>';
+    boton.addEventListener('click', function () {
+      copiar(a.valor).then(function (ok) {
+        var etiqueta = boton.querySelector('span');
+        etiqueta.textContent = ok ? 'Copiada' : 'No se pudo copiar';
+        setTimeout(function () { etiqueta.textContent = a.texto; }, 2000);
+      });
+    });
+    return boton;
+  }
+
+  function copiar(texto) {
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+      return navigator.clipboard.writeText(texto).then(function () { return true; }, function () { return false; });
+    }
+    try {
+      var ta = document.createElement('textarea');
+      ta.value = texto; ta.style.position = 'fixed'; ta.style.opacity = '0';
+      document.body.appendChild(ta); ta.select();
+      var ok = document.execCommand('copy');
+      document.body.removeChild(ta);
+      return Promise.resolve(!!ok);
+    } catch (e) { return Promise.resolve(false); }
+  }
+
+  function abrir(paso) {
+    construir();
+    focoPrevio = document.activeElement;
+    raiz.hidden = false;
+    document.addEventListener('keydown', alTeclado, true);
+    if (animable()) {
+      gsap.fromTo(raiz, { opacity: 0 }, { opacity: 1, duration: .25 });
+      gsap.fromTo(raiz.querySelector('.xg-modal'), { y: 18, scale: .985 },
+        { y: 0, scale: 1, duration: .35, ease: 'power3.out', clearProps: 'transform' });
+    }
+    ir(typeof paso === 'number' ? paso : 0);
+    setTimeout(function () { elSiguiente.focus(); }, 80);
+  }
+
+  function cerrar() {
+    if (!raiz || raiz.hidden) return;
+    if (linea) { linea.kill(); linea = null; }
+    document.removeEventListener('keydown', alTeclado, true);
+    var fin = function () { raiz.hidden = true; if (focoPrevio && focoPrevio.focus) { try { focoPrevio.focus(); } catch (e) {} } };
+    if (animable()) gsap.to(raiz, { opacity: 0, duration: .2, onComplete: fin });
+    else fin();
+  }
+
+  /** Cablea cualquier elemento con [data-xg-abrir] para que abra la guía. */
+  function cablear() {
+    Array.prototype.forEach.call(document.querySelectorAll('[data-xg-abrir]'), function (b) {
+      if (b.dataset.xgCableado) return;
+      b.dataset.xgCableado = '1';
+      b.addEventListener('click', function (e) { e.preventDefault(); abrir(); });
+    });
+  }
+
+  document.addEventListener('DOMContentLoaded', function () { cablear(); setTimeout(cablear, 800); });
+
+  window.AppExtensionGuia = { abrir: abrir, cerrar: cerrar, cablear: cablear, DRIVE: DRIVE };
+})();
+</script>

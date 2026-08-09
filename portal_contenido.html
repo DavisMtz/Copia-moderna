@@ -1,0 +1,1758 @@
+<!DOCTYPE html>
+<html lang="es" class="h-full">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Contenido del Portal - Sistema Ventel</title>
+    <!-- Preferencias de vista (tema · densidad · texto · contraste) ANTES del tema,
+         igual que el resto de pantallas: sin esto la vista ignora el tema del usuario. -->
+    <?!= include('ViewPrefsPartial'); ?>
+    <?!= include('app_theme'); ?>
+    <style>
+      /* ═══ Contenido del Portal ═══════════════════════════════════════════════
+         QUIÉN LA USA: un supervisor con prisa que viene a arreglar UNA cosa —un
+         enlace roto, una plantilla nueva, la vigencia de una promo— y volver a lo
+         suyo. Es herramienta interna: densidad alta, mucha fila visible, nada de
+         aire decorativo.
+
+         ACCIÓN PRINCIPAL: guardar una entrada. Solo hay una primaria en pantalla.
+         Duplicar, mover y borrar son secundarias o terciarias, siempre.
+
+         Consume los tokens de app_theme y NO redefine colores. Lo único propio es
+         la escala de espaciado/tipografía y los componentes de esta pantalla. */
+      .pc-wrap{
+        --s1:4px; --s2:8px; --s3:12px; --s4:16px; --s5:24px; --s6:32px;
+        --fs-xs:.75rem; --fs-sm:.8125rem; --fs-md:.875rem; --fs-lg:1.0625rem;
+        color:var(--ink); font-family:var(--f-ui); font-size:var(--fs-md); line-height:1.5;
+      }
+      .pc-wrap *{box-sizing:border-box}
+      /* La utilidad `max-w-[1180px]` del marcado NO existe en app_tailwind (el CSS
+         compilado no trae ninguna clase max-w-[...]), así que el ancho máximo y el
+         centrado se declaran aquí, que es donde sí se aplican. */
+      #main-content{max-width:1180px;margin-inline:auto;min-width:0}
+      .pc-wrap,.pc-card{max-width:100%}
+      .pc-wrap .ic{display:inline-block;width:1em;height:1em;vertical-align:-.15em;flex:none}
+      .pc-hidden{display:none !important}
+      /* Texto solo para lectores de pantalla. app_tailwind no compila `sr-only`, así
+         que la etiqueta del buscador se habría quedado visible encima del campo. */
+      .pc-sr{position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;
+        clip:rect(0 0 0 0);white-space:nowrap;border:0}
+
+      .pc-card{background:var(--surface);border:1px solid var(--line);border-radius:var(--rad);
+        box-shadow:var(--sh-sm)}
+
+      /* ── Conmutador de secciones ───────────────────────────────────────────
+         Es el eje de la pantalla: decide QUÉ se está publicando. Por eso va
+         arriba del todo, siempre visible, y no escondido en un <select>. */
+      .pc-secs{display:flex;gap:var(--s2);flex-wrap:wrap;margin-bottom:var(--s5)}
+      .pc-sec{display:inline-flex;align-items:center;gap:var(--s2);border:1.5px solid var(--line);
+        background:var(--surface);border-radius:999px;padding:var(--s2) var(--s4);font:inherit;
+        font-size:var(--fs-sm);font-weight:600;color:var(--ink-soft);cursor:pointer;transition:var(--tr)}
+      .pc-sec:hover{border-color:var(--brand-soft);color:var(--ink)}
+      .pc-sec:focus-visible{outline:none;box-shadow:var(--ring)}
+      .pc-sec[aria-selected="true"]{border-color:var(--brand);background:var(--brand-tint);
+        color:var(--brand-deep);font-weight:700}
+      .pc-sec .n{font-size:var(--fs-xs);font-weight:700;background:var(--surface-2);color:var(--ink-faint);
+        border-radius:999px;padding:1px 7px;font-variant-numeric:tabular-nums}
+      .pc-sec[aria-selected="true"] .n{background:var(--surface);color:var(--brand-deep)}
+      /* Anuncios no se edita aquí: se va al constructor que ya existe. El estilo
+         punteado dice "esto te saca de esta pantalla" antes de pulsarlo. */
+      .pc-sec.pc-sec-ext{border-style:dashed}
+
+      /* ── Cabecera de la sección abierta ── */
+      .pc-head{display:flex;align-items:flex-start;gap:var(--s4);flex-wrap:wrap;
+        padding:var(--s5);border-bottom:1px solid var(--line-soft)}
+      .pc-head-t{flex:1 1 320px;min-width:0;overflow-wrap:anywhere}
+      .pc-head h2{font-size:var(--fs-lg);font-weight:800;color:var(--ink);margin:0 0 2px;letter-spacing:-.01em}
+      .pc-head p{font-size:var(--fs-sm);color:var(--ink-soft);margin:0;max-width:62ch}
+      .pc-donde{display:inline-flex;align-items:center;gap:6px;margin-top:var(--s2);
+        font-size:var(--fs-xs);font-weight:600;color:var(--ink-faint)}
+      .pc-donde .ic{width:13px;height:13px}
+      .pc-head-a{display:flex;gap:var(--s2);align-items:center;flex-wrap:wrap}
+
+      /* ── Barra de búsqueda ── */
+      .pc-tools{display:flex;gap:var(--s3);align-items:center;flex-wrap:wrap;
+        padding:var(--s3) var(--s5);border-bottom:1px solid var(--line-soft);background:var(--surface-2)}
+      .pc-search{position:relative;flex:1 1 260px;min-width:0}
+      .pc-search .ic{position:absolute;left:var(--s3);top:50%;transform:translateY(-50%);
+        width:15px;height:15px;color:var(--ink-faint);pointer-events:none}
+      .pc-search input{padding-left:34px}
+      .pc-count{font-size:var(--fs-xs);font-weight:600;color:var(--ink-faint);
+        font-variant-numeric:tabular-nums;white-space:nowrap}
+
+      /* ── Lista de filas ───────────────────────────────────────────────────
+         Filas, no tabla: el número de columnas cambia con cada sección y una
+         tabla de 6 columnas de texto largo no se lee ni cabe en un portátil. */
+      .pc-list{padding:var(--s2) 0}
+      /* GRID y no flex, por una razón concreta: `minmax(0,1fr)` es la única forma que
+         GARANTIZA que la columna de texto puede encogerse hasta cero. En flex, ni
+         `min-width:0` ni `flex-basis:0` ni `overflow:hidden` impiden que un título con
+         white-space:nowrap imponga su ancho como mínimo de toda la fila — y ese era el
+         motivo de que la página se fuera 150 px a la derecha entre 680 y 1100 px. */
+      .pc-row{display:grid;grid-template-columns:minmax(0,1fr) auto;align-items:center;
+        gap:var(--s3);padding:var(--s3) var(--s5);
+        border-bottom:1px solid var(--line-soft);transition:background .12s}
+      .pc-row:last-child{border-bottom:0}
+      .pc-row:hover{background:var(--surface-2)}
+      /* Marca de aviso + acciones: van juntas en la columna que NO se encoge. */
+      .pc-row-r{display:flex;align-items:center;gap:var(--s3);justify-content:flex-end}
+      .pc-row-t{min-width:0;overflow:hidden}
+      .pc-row-n{font-size:var(--fs-md);font-weight:600;color:var(--ink);
+        overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+      .pc-row-s{font-size:var(--fs-sm);color:var(--ink-soft);margin-top:1px;
+        overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+      .pc-row-a{display:flex;gap:var(--s1);align-items:center;flex:none}
+
+      /* Botón de acción de fila: cuadrado, solo icono, con nombre accesible. */
+      .pc-ia{width:32px;height:32px;display:inline-flex;align-items:center;justify-content:center;
+        border:1px solid transparent;background:none;border-radius:var(--rad-sm);color:var(--ink-faint);
+        cursor:pointer;transition:var(--tr)}
+      .pc-ia .ic{width:16px;height:16px}
+      .pc-ia:hover{background:var(--surface);border-color:var(--line);color:var(--ink)}
+      .pc-ia:focus-visible{outline:none;box-shadow:var(--ring)}
+      .pc-ia:disabled{opacity:.3;cursor:not-allowed}
+      .pc-ia.danger:hover{color:var(--alert);border-color:var(--alert);background:var(--alert-bg)}
+
+      /* Señal de enlace que no va a abrir. Color + icono + texto: el color solo
+         no informa a todo el mundo. */
+      .pc-flag{display:inline-flex;align-items:center;gap:4px;font-size:var(--fs-xs);font-weight:700;
+        color:var(--warn);background:var(--warn-bg);border-radius:999px;padding:2px 8px;flex:none}
+      .pc-flag .ic{width:12px;height:12px}
+
+      /* ── Estados: vacío, sin resultados, error, carga ── */
+      .pc-estado{padding:var(--s6) var(--s5);text-align:center;max-width:46ch;margin:0 auto}
+      .pc-estado .big{display:inline-flex;width:44px;height:44px;align-items:center;justify-content:center;
+        border-radius:var(--rad);background:var(--surface-2);color:var(--ink-faint);margin-bottom:var(--s3)}
+      .pc-estado .big .ic{width:22px;height:22px}
+      .pc-estado h3{font-size:var(--fs-md);font-weight:700;color:var(--ink);margin:0 0 var(--s1)}
+      .pc-estado p{font-size:var(--fs-sm);color:var(--ink-soft);margin:0 0 var(--s4);line-height:1.55}
+      .pc-sk{height:52px;border-bottom:1px solid var(--line-soft);
+        background:linear-gradient(90deg,var(--surface-2) 25%,var(--line-soft) 50%,var(--surface-2) 75%);
+        background-size:200% 100%;animation:pcSk 1.4s linear infinite}
+      @keyframes pcSk{0%{background-position:200% 0}100%{background-position:-200% 0}}
+
+      /* Aviso de columna ausente: si un campo del formulario no tiene columna en la
+         hoja, lo que se escriba ahí no llega a ninguna parte. Hay que decirlo. */
+      .pc-aviso{display:flex;gap:var(--s2);align-items:flex-start;margin:var(--s4) var(--s5) 0;
+        padding:var(--s3);border-radius:var(--rad-sm);background:var(--warn-bg);color:var(--warn);
+        font-size:var(--fs-sm);font-weight:600;line-height:1.45}
+      .pc-aviso .ic{width:16px;height:16px;flex:none;margin-top:1px}
+
+      /* ── Editor lateral ───────────────────────────────────────────────────
+         Panel y no modal: el supervisor necesita seguir viendo la lista mientras
+         edita, para comparar con las entradas que ya existen. */
+      .pc-scrim{position:fixed;inset:0;background:rgba(27,35,48,.44);backdrop-filter:blur(2px);
+        z-index:300;opacity:0;pointer-events:none}
+      .pc-scrim.on{opacity:1;pointer-events:auto}
+      .pc-drawer{position:fixed;top:0;right:0;bottom:0;width:min(520px,100%);z-index:301;
+        background:var(--surface);border-left:1px solid var(--line);box-shadow:var(--sh-lg);
+        display:flex;flex-direction:column;transform:translateX(100%)}
+      /* `display:flex` de la regla de arriba GANA al display:none que el navegador
+         aplica por el atributo [hidden] (una clase pesa más que un estilo de agente
+         de usuario). Sin esta línea el panel se ve siempre. */
+      .pc-drawer[hidden]{display:none}
+      .pc-drawer.on{transform:none}
+      .pc-dr-hd{display:flex;align-items:flex-start;gap:var(--s3);padding:var(--s5);
+        border-bottom:1px solid var(--line-soft);flex:none}
+      .pc-dr-hd h2{font-size:var(--fs-lg);font-weight:800;color:var(--ink);margin:0;letter-spacing:-.01em}
+      .pc-dr-hd p{font-size:var(--fs-sm);color:var(--ink-soft);margin:2px 0 0}
+      .pc-dr-body{flex:1 1 auto;overflow-y:auto;padding:var(--s5)}
+      .pc-dr-foot{flex:none;display:flex;align-items:center;gap:var(--s3);padding:var(--s4) var(--s5);
+        border-top:1px solid var(--line-soft);background:var(--surface-2)}
+      .pc-dr-foot .v-btn-primary{flex:1}
+      @media(max-width:640px){
+        .pc-drawer{width:100%;top:auto;height:92vh;border-left:0;border-top-left-radius:var(--rad-lg);
+          border-top-right-radius:var(--rad-lg);transform:translateY(100%)}
+        .pc-drawer.on{transform:none}
+      }
+
+      /* ── Modo rápido (importación) ─────────────────────────────────────────
+         Va en el mismo panel lateral, pero más ancho: aquí hay que leer una tabla
+         de previsualización y en 520 px no se lee nada. */
+      .pc-drawer.ancho{width:min(820px,100%)}
+
+      .pc-tabs{display:flex;gap:var(--s1);background:var(--surface-2);border:1px solid var(--line);
+        border-radius:var(--rad-sm);padding:3px;margin-bottom:var(--s5)}
+      .pc-tab{flex:1;border:0;background:none;border-radius:6px;padding:var(--s2) var(--s3);
+        font:inherit;font-size:var(--fs-sm);font-weight:700;color:var(--ink-soft);cursor:pointer;
+        transition:var(--tr)}
+      .pc-tab:hover{color:var(--ink)}
+      .pc-tab[aria-selected="true"]{background:var(--surface);color:var(--brand-deep);box-shadow:var(--sh-xs)}
+      .pc-tab:focus-visible{outline:none;box-shadow:var(--ring)}
+
+      .pc-paso{margin-bottom:var(--s5)}
+      .pc-paso>h3{font-size:var(--fs-xs);font-weight:700;text-transform:uppercase;letter-spacing:.06em;
+        color:var(--ink-faint);margin:0 0 var(--s2)}
+      .pc-wrap textarea.pc-pegar{min-height:130px;font-family:var(--f-mono,ui-monospace,SFMono-Regular,Menlo,monospace);
+        font-size:var(--fs-xs);line-height:1.5;white-space:pre;overflow-wrap:normal;overflow-x:auto}
+
+      /* Tabla de previsualización: el scroll horizontal vive AQUÍ dentro, nunca en la
+         página. Una tabla ancha no puede arrastrar consigo a toda la pantalla. */
+      .pc-tabla-caja{overflow-x:auto;border:1px solid var(--line);border-radius:var(--rad-sm);max-width:100%}
+      .pc-tabla{border-collapse:collapse;font-size:var(--fs-xs);white-space:nowrap;min-width:100%}
+      .pc-tabla th,.pc-tabla td{padding:6px var(--s2);border-bottom:1px solid var(--line-soft);text-align:left;
+        max-width:230px;overflow:hidden;text-overflow:ellipsis}
+      .pc-tabla thead th{background:var(--surface-2);position:sticky;top:0;font-weight:700;color:var(--ink-soft)}
+      .pc-tabla tbody tr:last-child td{border-bottom:0}
+      .pc-tabla select{width:100%;font:inherit;font-size:var(--fs-xs);padding:2px 4px;
+        border:1px solid var(--line);border-radius:5px;background:var(--surface);color:var(--ink)}
+
+      /* Resumen del análisis: números grandes, uno por desenlace posible. */
+      .pc-resumen{display:flex;gap:var(--s2);flex-wrap:wrap;margin-bottom:var(--s3)}
+      .pc-chip{display:flex;flex-direction:column;gap:1px;border:1px solid var(--line);border-radius:var(--rad-sm);
+        padding:var(--s2) var(--s3);min-width:88px;background:var(--surface)}
+      .pc-chip b{font-size:1.15rem;font-weight:800;line-height:1;font-variant-numeric:tabular-nums}
+      .pc-chip span{font-size:var(--fs-xs);font-weight:600;color:var(--ink-faint)}
+      .pc-chip.nueva{border-color:var(--ok);background:var(--ok-bg)} .pc-chip.nueva b{color:var(--ok)}
+      .pc-chip.actualiza{border-color:var(--info);background:var(--info-bg)} .pc-chip.actualiza b{color:var(--info)}
+      .pc-chip.igual b{color:var(--ink-faint)}
+      .pc-chip.duplicada{border-color:var(--warn);background:var(--warn-bg)} .pc-chip.duplicada b{color:var(--warn)}
+      .pc-chip.error{border-color:var(--alert);background:var(--alert-bg)} .pc-chip.error b{color:var(--alert)}
+
+      .pc-plan{max-height:260px;overflow-y:auto;border:1px solid var(--line);border-radius:var(--rad-sm)}
+      .pc-plan-i{display:flex;align-items:baseline;gap:var(--s2);padding:6px var(--s3);
+        border-bottom:1px solid var(--line-soft);font-size:var(--fs-xs)}
+      .pc-plan-i:last-child{border-bottom:0}
+      .pc-plan-i .et{flex:none;font-weight:800;text-transform:uppercase;letter-spacing:.04em;
+        font-size:.6875rem;min-width:74px}
+      .pc-plan-i .tt{flex:1 1 auto;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;
+        font-weight:600;color:var(--ink)}
+      .pc-plan-i .de{flex:none;color:var(--ink-faint);max-width:46%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+      .pc-plan-i[data-a=nueva] .et{color:var(--ok)}
+      .pc-plan-i[data-a=actualiza] .et{color:var(--info)}
+      .pc-plan-i[data-a=igual] .et{color:var(--ink-faint)}
+      .pc-plan-i[data-a=duplicada] .et{color:var(--warn)}
+      .pc-plan-i[data-a=error] .et{color:var(--alert)}
+
+      .pc-nota{display:flex;gap:var(--s2);align-items:flex-start;border-radius:var(--rad-sm);
+        padding:var(--s3);font-size:var(--fs-sm);line-height:1.45;background:var(--info-bg);color:var(--info);
+        font-weight:600;margin-bottom:var(--s3)}
+      .pc-nota.warn{background:var(--warn-bg);color:var(--warn)}
+      .pc-nota .ic{width:16px;height:16px;flex:none;margin-top:1px}
+
+      .pc-hojas{display:flex;flex-direction:column;gap:var(--s1);max-height:230px;overflow-y:auto;
+        border:1px solid var(--line);border-radius:var(--rad-sm);padding:var(--s1)}
+      .pc-hoja{display:flex;align-items:center;gap:var(--s2);border:0;background:none;border-radius:6px;
+        padding:var(--s2) var(--s3);font:inherit;font-size:var(--fs-sm);color:var(--ink);cursor:pointer;
+        text-align:left;width:100%;transition:var(--tr)}
+      .pc-hoja:hover{background:var(--surface-2)}
+      .pc-hoja[aria-pressed="true"]{background:var(--brand-tint);color:var(--brand-deep);font-weight:700}
+      .pc-hoja:focus-visible{outline:none;box-shadow:var(--ring)}
+      .pc-hoja .nm{flex:1 1 auto;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+      .pc-hoja .pe{flex:none;font-size:var(--fs-xs);color:var(--ink-faint);font-variant-numeric:tabular-nums}
+      .pc-hoy{flex:none;font-size:.625rem;font-weight:800;text-transform:uppercase;letter-spacing:.05em;
+        background:var(--ok-bg);color:var(--ok);border-radius:999px;padding:2px 7px}
+
+      /* ── Campos ── */
+      .pc-field+.pc-field{margin-top:var(--s4)}
+      .pc-lbl{display:flex;align-items:baseline;justify-content:space-between;gap:var(--s2);
+        font-size:var(--fs-sm);font-weight:600;color:var(--ink-soft);margin-bottom:var(--s1)}
+      .pc-req{color:var(--brand);font-weight:800}
+      .pc-help{font-size:var(--fs-xs);color:var(--ink-faint);margin-top:var(--s1);line-height:1.45}
+      .pc-wrap textarea.v-textarea{min-height:84px;resize:vertical}
+      .pc-cc{font-size:var(--fs-xs);font-weight:600;color:var(--ink-faint);font-variant-numeric:tabular-nums}
+      .pc-cc.warn{color:var(--warn)} .pc-cc.over{color:var(--alert)}
+      .pc-err{display:none;align-items:center;gap:6px;font-size:var(--fs-xs);font-weight:600;
+        color:var(--alert);margin-top:var(--s1)}
+      .pc-err.on{display:flex}
+      .pc-err .ic{width:13px;height:13px;flex:none}
+      /* Aviso (no error): el valor se puede guardar, pero no va a funcionar. */
+      .pc-warn{display:flex;align-items:flex-start;gap:6px;font-size:var(--fs-xs);font-weight:600;
+        color:var(--warn);margin-top:var(--s1);line-height:1.45}
+      .pc-warn .ic{width:13px;height:13px;flex:none;margin-top:2px}
+      .pc-wrap [aria-invalid="true"]{border-color:var(--alert)}
+      .pc-wrap [aria-invalid="true"]:focus{box-shadow:0 0 0 4px var(--alert-bg)}
+      /* Campo que no tiene columna en la hoja: se enseña deshabilitado y explicado,
+         no se esconde. Esconderlo dejaría al supervisor buscando un campo que la
+         documentación dice que existe. */
+      .pc-field.sin-col .v-input,.pc-field.sin-col .v-textarea{opacity:.55;pointer-events:none}
+
+      /* ── Móvil: la fila deja de ser una fila ──────────────────────────────
+         En un teléfono no caben el título, la marca de enlace roto y seis
+         acciones en la misma línea (a 360 px sobran unos 20). En vez de dejar
+         que la tabla se salga en horizontal —que es como se pierde el botón de
+         borrar sin enterarse— cada parte baja a su propia línea. */
+      @media(max-width:680px){
+        .pc-head,.pc-tools,.pc-row{padding-left:var(--s4);padding-right:var(--s4)}
+        /* Una sola columna: título arriba, marca y acciones debajo. */
+        .pc-row{grid-template-columns:minmax(0,1fr);gap:var(--s2)}
+        /* Ya no compite por el ancho: el texto puede ocupar dos líneas. */
+        .pc-row-n,.pc-row-s{white-space:normal}
+        .pc-row-r{flex-wrap:wrap;justify-content:space-between}
+        .pc-ia{width:36px;height:36px}   /* objetivo táctil, ya hay sitio */
+      }
+
+      @media (prefers-reduced-motion:reduce){
+        .pc-sk{animation:none}
+      }
+    </style>
+<?!= include('app_tailwind'); ?>
+</head>
+<body class="h-full text-slate-800">
+    <div class="app-aurora"></div>
+
+    <main id="main-content" class="max-w-[1180px] mx-auto p-4 sm:p-6 lg:p-8">
+        <header class="mb-6" data-animate>
+            <h1 class="text-3xl font-bold tracking-tight" style="color:var(--ink)">Contenido del Portal</h1>
+            <p class="mt-1" style="color:var(--ink-soft)">
+              Todo lo que el equipo ve en el Portal —herramientas, plantillas, formatos, promociones— se
+              edita desde aquí. Se guarda en la hoja del Portal y el cambio aparece al recargar.
+            </p>
+        </header>
+
+        <div class="pc-wrap" data-animate>
+          <div class="pc-secs" id="secciones" role="tablist" aria-label="Secciones del Portal"></div>
+
+          <div class="pc-card" id="panel">
+            <div class="pc-head">
+              <div class="pc-head-t">
+                <h2 id="secNombre">Cargando…</h2>
+                <p id="secResumen"></p>
+                <span class="pc-donde" id="secDonde"></span>
+              </div>
+              <div class="pc-head-a">
+                <button class="v-btn v-btn-ghost pc-hidden" id="btnRapido" type="button">Modo rápido</button>
+                <button class="v-btn v-btn-primary pc-hidden" id="btnNuevo" type="button">Nueva entrada</button>
+              </div>
+            </div>
+
+            <div id="avisoCols" class="pc-aviso pc-hidden" role="status"></div>
+
+            <div class="pc-tools" id="tools">
+              <label class="pc-search">
+                <span class="ic" aria-hidden="true"></span>
+                <span class="pc-sr">Buscar en esta sección</span>
+                <input class="v-input" type="search" id="buscar" placeholder="Buscar…" autocomplete="off">
+              </label>
+              <span class="pc-count" id="conteo" aria-live="polite"></span>
+            </div>
+
+            <div class="pc-list" id="lista"></div>
+          </div>
+        </div>
+    </main>
+
+    <!-- ══ EDITOR LATERAL ══ -->
+    <div class="pc-scrim" id="scrim"></div>
+    <aside class="pc-drawer" id="drawer" role="dialog" aria-modal="true" aria-labelledby="drTitulo" hidden>
+      <div class="pc-wrap" style="display:flex;flex-direction:column;height:100%">
+        <div class="pc-dr-hd">
+          <div style="flex:1 1 auto;min-width:0">
+            <h2 id="drTitulo">Nueva entrada</h2>
+            <p id="drSub"></p>
+          </div>
+          <button class="pc-ia" type="button" id="drCerrar" aria-label="Cerrar sin guardar"></button>
+        </div>
+        <div class="pc-dr-body" id="drCampos"></div>
+        <div class="pc-dr-foot" id="drFoot">
+          <button class="v-btn v-btn-primary" type="button" id="drGuardar">Guardar</button>
+          <button class="v-btn v-btn-ghost" type="button" id="drCancelar">Cancelar</button>
+        </div>
+        <!-- Pie propio del modo rápido: importar son DOS pasos (analizar y aplicar),
+             y el de aplicar no se enciende hasta que hay un análisis que enseñar. -->
+        <div class="pc-dr-foot pc-hidden" id="drFootImport">
+          <button class="v-btn v-btn-primary" type="button" id="impAplicar" disabled>Aplicar</button>
+          <button class="v-btn v-btn-ghost" type="button" id="impAnalizar">Analizar</button>
+          <button class="v-btn v-btn-ghost" type="button" id="impCancelar">Cerrar</button>
+        </div>
+      </div>
+    </aside>
+
+    <!-- Confirmación de borrado: modal del tema, no confirm() nativo (bloquea el iframe de GAS). -->
+    <div class="v-modal-overlay" id="pcConfirm" role="dialog" aria-modal="true" aria-labelledby="pcConfirmT" aria-describedby="pcConfirmD">
+      <div class="v-modal" id="pcConfirmCard">
+        <h2 id="pcConfirmT" style="font-size:1.15rem;font-weight:800;color:var(--ink);margin:0 0 .5rem">¿Borrar esta entrada?</h2>
+        <p id="pcConfirmD" style="color:var(--ink-soft);font-size:.875rem;line-height:1.55;margin:0 0 1.25rem"></p>
+        <div style="display:flex;gap:.75rem;justify-content:flex-end">
+          <button class="v-btn v-btn-ghost" type="button" id="pcConfirmNo">Cancelar</button>
+          <button class="v-btn v-btn-danger" type="button" id="pcConfirmYes">Sí, borrar</button>
+        </div>
+      </div>
+    </div>
+
+    <script>
+        window.__APP__ = { baseUrl: <?!= JSON.stringify(baseUrl) ?>, sec: <?!= JSON.stringify(sec) ?> };
+    </script>
+    <?!= include('app_core'); ?>
+    <?!= include('app_icons'); ?>
+    <?!= include('app_motion'); ?>
+    <?!= include('app_shell'); ?>
+    <?!= include('LoaderPartial'); ?>
+    <script>
+      /**
+       * ══ CONTENIDO DEL PORTAL (cliente) ══════════════════════════════════════
+       * Todo lo que se dibuja aquí sale del CATÁLOGO que manda el servidor
+       * (PortalContenido.gs). Esta pantalla no sabe qué columnas tiene la hoja
+       * "Herramientas" ni cuántos campos lleva una plantilla: pinta lo que le
+       * describen. Añadir una sección al catálogo la hace aparecer sola.
+       *
+       * El permiso lo vuelve a exigir el servidor en CADA llamada; requireBlock
+       * solo evita entrar a una pantalla que iba a rechazarlo todo.
+       */
+      var PC_EMAIL = '';
+
+      var pcState = {
+        colecciones: [],
+        actual: null,      // la colección abierta
+        filas: [],
+        filtro: '',
+        editando: null,    // id de la fila en el editor; null = alta
+        sinColumna: [],
+        dirty: false,
+        ocupado: false,
+        devolverFoco: null
+      };
+
+      function $(id) { return document.getElementById(id); }
+
+      function esc(s) {
+        return String(s == null ? '' : s)
+          .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+          .replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+      }
+
+      function motionOK() {
+        return typeof window.gsap !== 'undefined' &&
+               !(window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches);
+      }
+
+      function toast(msg, tipo) {
+        if (window.AppMotion) AppMotion.toast(msg, tipo);
+      }
+
+      /* ── Iconos ────────────────────────────────────────────────────────────
+         Se dibujan en línea en vez de depender de un registro externo: son ocho
+         trazos y así esta pantalla no se queda muda si el registro cambia. */
+      var IC = {
+        buscar:  '<path d="M11 19a8 8 0 1 1 0-16 8 8 0 0 1 0 16Z"/><path d="m21 21-4.3-4.3"/>',
+        pin:     '<path d="M12 21s7-5.4 7-11a7 7 0 1 0-14 0c0 5.6 7 11 7 11Z"/><circle cx="12" cy="10" r="2.6"/>',
+        lapiz:   '<path d="M4 20h4l10.5-10.5a2.1 2.1 0 0 0-3-3L5 17v3Z"/><path d="m14.5 6.5 3 3"/>',
+        copia:   '<rect x="9" y="9" width="11" height="11" rx="2"/><path d="M5 15H4a1 1 0 0 1-1-1V5a2 2 0 0 1 2-2h9a1 1 0 0 1 1 1v1"/>',
+        arriba:  '<path d="M12 19V5"/><path d="m6 11 6-6 6 6"/>',
+        abajo:   '<path d="M12 5v14"/><path d="m6 13 6 6 6-6"/>',
+        abrir:   '<path d="M14 4h6v6"/><path d="M20 4 11 13"/><path d="M18 14v5a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V7a1 1 0 0 1 1-1h5"/>',
+        basura:  '<path d="M4 7h16"/><path d="M9 7V5a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"/><path d="M6 7v13a1 1 0 0 0 1 1h10a1 1 0 0 0 1-1V7"/>',
+        cerrar:  '<path d="m6 6 12 12M18 6 6 18"/>',
+        alerta:  '<path d="M12 9v4.5"/><path d="M12 17h.01"/><path d="M10.3 3.9 2.5 17.4A2 2 0 0 0 4.2 20.4h15.6a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0Z"/>',
+        vacio:   '<path d="M3 7.5 12 3l9 4.5-9 4.5-9-4.5Z"/><path d="m3 12 9 4.5 9-4.5"/><path d="m3 16.5 9 4.5 9-4.5"/>',
+        candado: '<rect x="4.5" y="10" width="15" height="10" rx="2"/><path d="M8 10V7a4 4 0 0 1 8 0v3"/>'
+      };
+      function svg(nombre, clase) {
+        return '<svg class="ic ' + (clase || '') + '" viewBox="0 0 24 24" fill="none" stroke="currentColor" ' +
+               'stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">' +
+               (IC[nombre] || '') + '</svg>';
+      }
+
+      /* ── Enlaces ───────────────────────────────────────────────────────────
+         El Portal dibuja los enlaces con linkHref(): si el valor no empieza por
+         "http", le antepone "https://". Un valor como «Service Center (liverpool.
+         com.mx)» se convierte así en una dirección que no abre. Aquí se detecta
+         para poder señalarlo en la lista: son enlaces rotos que hoy nadie ve
+         hasta que un asesor los pulsa y reporta.
+         El navegador SÍ tiene la API URL (Apps Script no), así que la validación
+         fina se hace de este lado. */
+      function urlNormalizada(v) {
+        var s = String(v == null ? '' : v).trim();
+        if (!s) return null;
+        if (/^\s*(javascript|data|vbscript|file|blob)\s*:/i.test(s)) return null;
+        try {
+          var u = new URL(/^https?:\/\//i.test(s) ? s : 'https://' + s);
+          if (u.protocol !== 'http:' && u.protocol !== 'https:') return null;
+          // Un host real lleva punto y ninguna letra rara: descarta el texto libre.
+          if (!/^[a-z0-9.-]+\.[a-z]{2,}$/i.test(u.hostname)) return null;
+          return u.href;
+        } catch (e) {
+          return null;
+        }
+      }
+
+      /* ══ SECCIONES ════════════════════════════════════════════════════════ */
+
+      function pintarSecciones() {
+        var html = pcState.colecciones.map(function (c) {
+          var activa = pcState.actual && pcState.actual.id === c.id;
+          var n = c.total < 0 ? '!' : c.total;
+          return '<button class="pc-sec" role="tab" type="button" data-sec="' + esc(c.id) + '" ' +
+                 'aria-selected="' + (activa ? 'true' : 'false') + '">' +
+                 esc(c.nombre) + '<span class="n">' + esc(String(n)) + '</span></button>';
+        }).join('');
+
+        // El constructor de anuncios ya existe y es mejor que un formulario genérico
+        // (vista previa, imágenes, programación). Se enlaza, no se duplica. Solo a
+        // quien tenga ese bloque: ofrecer una puerta cerrada no ayuda a nadie.
+        if (window.AppSession && AppSession.can('anuncios')) {
+          html += '<button class="pc-sec pc-sec-ext" type="button" id="secAnuncios" ' +
+                  'title="Se edita en el constructor de anuncios">Anuncios ' + svg('abrir') + '</button>';
+        }
+
+        $('secciones').innerHTML = html;
+
+        Array.prototype.forEach.call($('secciones').querySelectorAll('[data-sec]'), function (b) {
+          b.addEventListener('click', function () { abrirSeccion(b.getAttribute('data-sec')); });
+        });
+        var ext = $('secAnuncios');
+        if (ext) ext.addEventListener('click', function () { AppShell.nav('anuncios'); });
+      }
+
+      function abrirSeccion(id) {
+        var col = null;
+        for (var i = 0; i < pcState.colecciones.length; i++) {
+          if (pcState.colecciones[i].id === id) col = pcState.colecciones[i];
+        }
+        if (!col) return;
+
+        pcState.actual = col;
+        pcState.filtro = '';
+        pcState.filas = [];
+        pcState.sinColumna = [];
+        $('buscar').value = '';
+
+        pintarSecciones();
+        $('secNombre').textContent = col.nombre;
+        $('secResumen').textContent = col.resumen;
+        $('secDonde').innerHTML = svg('pin') + '<span>' + esc(col.donde) + '</span>';
+
+        // Reportes es una bandeja de entrada, no un catálogo: se atiende y se archiva,
+        // no se dan de alta enlaces rotos a mano.
+        $('btnNuevo').classList.toggle('pc-hidden', !!col.soloLectura);
+        $('btnNuevo').textContent = 'Nueva entrada';
+        $('btnRapido').classList.toggle('pc-hidden', !!col.soloLectura);
+
+        $('avisoCols').classList.add('pc-hidden');
+        $('lista').innerHTML = esqueleto();
+        $('conteo').textContent = '';
+
+        // Deep link: la sección abierta viaja en la URL para poder compartirla y para
+        // que recargar no devuelva siempre a la primera.
+        try {
+          if (window.google && google.script && google.script.history) {
+            google.script.history.replace(null, { page: 'portal_contenido', sec: col.id });
+          }
+        } catch (e) {}
+
+        cargarFilas();
+      }
+
+      function esqueleto() {
+        var s = '';
+        for (var i = 0; i < 6; i++) s += '<div class="pc-sk"></div>';
+        return s;
+      }
+
+      /* ══ LISTA ════════════════════════════════════════════════════════════ */
+
+      function cargarFilas() {
+        var col = pcState.actual;
+        if (!col) return;
+        pcState.ocupado = true;
+
+        google.script.run
+          .withSuccessHandler(function (res) {
+            pcState.ocupado = false;
+            if (!res || res.status !== 'ok') {
+              pintarError((res && res.error) || 'No pudimos leer esta sección.');
+              return;
+            }
+            pcState.filas = res.filas || [];
+            pcState.sinColumna = res.camposSinColumna || [];
+
+            if (pcState.sinColumna.length) {
+              $('avisoCols').innerHTML = svg('alerta') +
+                '<span>La hoja «' + esc(col.hoja) + '» no tiene columna para: <b>' +
+                esc(pcState.sinColumna.join(', ')) + '</b>. Esos campos aparecen bloqueados porque lo que ' +
+                'se escriba en ellos no se guardaría en ningún sitio.</span>';
+              $('avisoCols').classList.remove('pc-hidden');
+            }
+            if (res.truncado) {
+              toast('Esta sección tiene muchas filas: se muestran las primeras ' + pcState.filas.length + '.', 'warn');
+            }
+            pintarLista();
+          })
+          .withFailureHandler(function (err) {
+            pcState.ocupado = false;
+            pintarError(err && err.message ? err.message : 'No pudimos conectar con el servidor.');
+          })
+          .portalContenidoListar({ email: PC_EMAIL, coleccion: col.id });
+      }
+
+      function filasVisibles() {
+        var q = pcState.filtro.trim().toLowerCase();
+        if (!q) return pcState.filas;
+        return pcState.filas.filter(function (f) {
+          for (var k in f.valores) {
+            if (String(f.valores[k] || '').toLowerCase().indexOf(q) !== -1) return true;
+          }
+          return false;
+        });
+      }
+
+      function pintarLista() {
+        var col = pcState.actual;
+        var lista = $('lista');
+        var filas = filasVisibles();
+
+        $('conteo').textContent = filas.length === pcState.filas.length
+          ? pcState.filas.length + (pcState.filas.length === 1 ? ' entrada' : ' entradas')
+          : filas.length + ' de ' + pcState.filas.length;
+
+        if (!pcState.filas.length) { lista.innerHTML = estadoVacio(col); enganchaVacio(); return; }
+        if (!filas.length) {
+          lista.innerHTML = '<div class="pc-estado"><span class="big">' + svg('buscar') + '</span>' +
+            '<h3>Sin coincidencias</h3><p>Nada en «' + esc(col.nombre) + '» contiene «' +
+            esc(pcState.filtro) + '».</p>' +
+            '<button class="v-btn v-btn-ghost" type="button" id="limpiarBusq">Limpiar la búsqueda</button></div>';
+          var lb = $('limpiarBusq');
+          if (lb) lb.addEventListener('click', function () {
+            $('buscar').value = ''; pcState.filtro = ''; pintarLista(); $('buscar').focus();
+          });
+          return;
+        }
+
+        var ultimo = filas.length - 1;
+        lista.innerHTML = filas.map(function (f, i) {
+          var titulo = tituloDe(col, f);
+          var sub = subtituloDe(col, f);
+          var href = col.enlaceCampo ? urlNormalizada(f.valores[col.enlaceCampo]) : null;
+          var tieneEnlace = col.enlaceCampo && String(f.valores[col.enlaceCampo] || '').trim() !== '';
+          var roto = tieneEnlace && !href;
+
+          var acciones = '';
+          if (col.ordenable) {
+            acciones +=
+              '<button class="pc-ia" type="button" data-mover="up" data-id="' + esc(f.id) + '" ' +
+              'aria-label="Subir «' + esc(titulo) + '»"' + (i === 0 ? ' disabled' : '') + '>' + svg('arriba') + '</button>' +
+              '<button class="pc-ia" type="button" data-mover="down" data-id="' + esc(f.id) + '" ' +
+              'aria-label="Bajar «' + esc(titulo) + '»"' + (i === ultimo ? ' disabled' : '') + '>' + svg('abajo') + '</button>';
+          }
+          // El hueco de "abrir" se dibuja SIEMPRE que la sección tenga enlace, aunque
+          // el enlace no sirva: si la fila rota se saltara el botón, sus iconos se
+          // correrían un puesto y la columna de acciones dejaría de estar alineada
+          // entre filas. Deshabilitado dice lo mismo y no mueve nada.
+          if (col.enlaceCampo) {
+            acciones += href
+              ? '<a class="pc-ia" href="' + esc(href) + '" target="_blank" rel="noopener noreferrer" ' +
+                'aria-label="Abrir el enlace de «' + esc(titulo) + '» en otra pestaña">' + svg('abrir') + '</a>'
+              : '<button class="pc-ia" type="button" disabled aria-label="«' + esc(titulo) +
+                '» no tiene un enlace que se pueda abrir">' + svg('abrir') + '</button>';
+          }
+          if (!col.soloLectura) {
+            acciones += '<button class="pc-ia" type="button" data-editar="' + esc(f.id) + '" ' +
+                        'aria-label="Editar «' + esc(titulo) + '»">' + svg('lapiz') + '</button>';
+          }
+          if (col.duplicable) {
+            acciones += '<button class="pc-ia" type="button" data-duplicar="' + esc(f.id) + '" ' +
+                        'aria-label="Duplicar «' + esc(titulo) + '»">' + svg('copia') + '</button>';
+          }
+          acciones += '<button class="pc-ia danger" type="button" data-borrar="' + esc(f.id) + '" ' +
+                      'aria-label="Borrar «' + esc(titulo) + '»">' + svg('basura') + '</button>';
+
+          return '<div class="pc-row" data-fila="' + esc(f.id) + '">' +
+            '<div class="pc-row-t">' +
+              '<div class="pc-row-n">' + esc(titulo) + '</div>' +
+              (sub ? '<div class="pc-row-s">' + esc(sub) + '</div>' : '') +
+            '</div>' +
+            // Marca y acciones comparten la columna fija de la rejilla: así la de
+            // texto es la única que se encoge y los iconos quedan siempre alineados.
+            '<div class="pc-row-r">' +
+              (roto ? '<span class="pc-flag" title="El portal no puede abrir este enlace">' +
+                       svg('alerta') + 'Enlace roto</span>' : '') +
+              '<div class="pc-row-a">' + acciones + '</div>' +
+            '</div>' +
+          '</div>';
+        }).join('');
+
+        enganchaFilas();
+        if (window.AppMotion) AppMotion.staggerRows(lista.querySelectorAll('.pc-row'));
+      }
+
+      function estadoVacio(col) {
+        if (col.soloLectura) {
+          return '<div class="pc-estado"><span class="big">' + svg('vacio') + '</span>' +
+            '<h3>Nada reportado</h3><p>Cuando alguien pulse «Reportar» en una tarjeta del Portal, ' +
+            'el enlace aparecerá aquí para que lo arregles en su sección.</p></div>';
+        }
+        return '<div class="pc-estado"><span class="big">' + svg('vacio') + '</span>' +
+          '<h3>«' + esc(col.nombre) + '» está vacía</h3>' +
+          '<p>' + esc(col.resumen) + ' Publica la primera y aparecerá en ' + esc(col.donde) + '.</p>' +
+          '<button class="v-btn v-btn-primary" type="button" id="vacioNuevo">Crear la primera</button></div>';
+      }
+
+      function enganchaVacio() {
+        var b = $('vacioNuevo');
+        if (b) b.addEventListener('click', function () { abrirEditor(null); });
+      }
+
+      function pintarError(msg) {
+        $('lista').innerHTML = '<div class="pc-estado"><span class="big">' + svg('alerta') + '</span>' +
+          '<h3>No pudimos cargar la sección</h3><p>' + esc(msg) + '</p>' +
+          '<button class="v-btn v-btn-ghost" type="button" id="reintentar">Reintentar</button></div>';
+        var r = $('reintentar');
+        if (r) r.addEventListener('click', function () { $('lista').innerHTML = esqueleto(); cargarFilas(); });
+      }
+
+      /** Un solo listener por acción, delegando desde la lista. */
+      function enganchaFilas() {
+        var lista = $('lista');
+        Array.prototype.forEach.call(lista.querySelectorAll('[data-editar]'), function (b) {
+          b.addEventListener('click', function () { abrirEditor(b.getAttribute('data-editar')); });
+        });
+        Array.prototype.forEach.call(lista.querySelectorAll('[data-duplicar]'), function (b) {
+          b.addEventListener('click', function () { duplicar(b.getAttribute('data-duplicar')); });
+        });
+        Array.prototype.forEach.call(lista.querySelectorAll('[data-borrar]'), function (b) {
+          b.addEventListener('click', function () { pedirBorrado(b.getAttribute('data-borrar')); });
+        });
+        Array.prototype.forEach.call(lista.querySelectorAll('[data-mover]'), function (b) {
+          b.addEventListener('click', function () { mover(b.getAttribute('data-id'), b.getAttribute('data-mover')); });
+        });
+      }
+
+      /**
+       * Rótulo de una fila. Si el campo que titula viene vacío —una promoción sin
+       * categoría, por ejemplo— cae al campo obligatorio, que siempre tiene algo.
+       * Sin esto, media lista de Promociones se leería «(sin título)».
+       */
+      function tituloDe(col, f) {
+        var t = String(f.valores[col.titulo] || '').trim();
+        if (t) return t;
+        for (var i = 0; i < col.campos.length; i++) {
+          if (!col.campos[i].requerido) continue;
+          var v = String(f.valores[col.campos[i].id] || '').trim();
+          if (v) return v;
+        }
+        return '(sin título)';
+      }
+
+      /** El subtítulo puede declarar VARIOS campos separados por coma ("direccion,promocion"). */
+      function subtituloDe(col, f) {
+        if (!col.subtitulo) return '';
+        return col.subtitulo.split(',')
+          .map(function (k) { return String(f.valores[k.trim()] || '').trim(); })
+          .filter(function (v) { return v; })
+          .join(' · ');
+      }
+
+      function filaPorId(id) {
+        for (var i = 0; i < pcState.filas.length; i++) if (pcState.filas[i].id === id) return pcState.filas[i];
+        return null;
+      }
+
+      /* ══ EDITOR ═══════════════════════════════════════════════════════════ */
+
+      function abrirEditor(id) {
+        var col = pcState.actual;
+        if (!col || col.soloLectura) return;
+
+        pcState.editando = id;
+        pcState.dirty = false;
+        pcState.devolverFoco = document.activeElement;
+
+        // El panel se comparte con el modo rápido: hay que devolverlo a su estado
+        // normal o se abriría ancho y con los botones de importar.
+        $('drawer').classList.remove('ancho');
+        $('drFoot').classList.remove('pc-hidden');
+        $('drFootImport').classList.add('pc-hidden');
+
+        var fila = id ? filaPorId(id) : null;
+        $('drTitulo').textContent = id ? ('Editar · ' + tituloDe(col, fila || { valores: {} })) : 'Nueva entrada';
+        $('drSub').textContent = col.nombre + ' · se verá en ' + col.donde;
+        $('drGuardar').textContent = id ? 'Guardar cambios' : 'Publicar';
+
+        $('drCampos').innerHTML = col.campos.map(function (campo) {
+          var v = fila ? (fila.valores[campo.id] || '') : '';
+          var sinCol = pcState.sinColumna.indexOf(campo.etiqueta) !== -1;
+          var fid = 'f-' + campo.id;
+          var largo = campo.tipo === 'parrafo';
+          var listaId = campo.sugerencias && campo.sugerencias.length ? fid + '-sug' : '';
+
+          var control = largo
+            ? '<textarea class="v-textarea" id="' + fid + '" data-campo="' + esc(campo.id) + '" ' +
+              'aria-describedby="err-' + fid + '"' + (sinCol ? ' disabled' : '') + '>' + esc(v) + '</textarea>'
+            : '<input class="v-input" type="' + (campo.tipo === 'url' ? 'url' : 'text') + '" id="' + fid + '" ' +
+              'data-campo="' + esc(campo.id) + '" value="' + esc(v) + '" ' +
+              (listaId ? 'list="' + listaId + '" ' : '') +
+              (campo.tipo === 'url' ? 'placeholder="https://…" ' : '') +
+              'aria-describedby="err-' + fid + '"' + (sinCol ? ' disabled' : '') + '>';
+
+          var datalist = listaId
+            ? '<datalist id="' + listaId + '">' +
+              campo.sugerencias.map(function (s) { return '<option value="' + esc(s) + '">'; }).join('') +
+              '</datalist>'
+            : '';
+
+          return '<div class="pc-field' + (sinCol ? ' sin-col' : '') + '" data-f>' +
+            '<label class="pc-lbl" for="' + fid + '">' +
+              '<span>' + esc(campo.etiqueta) + (campo.requerido ? ' <span class="pc-req" title="Obligatorio">*</span>' : '') + '</span>' +
+              (campo.max ? '<span class="pc-cc" id="cc-' + fid + '"></span>' : '') +
+            '</label>' +
+            control + datalist +
+            '<p class="pc-err" id="err-' + fid + '" role="alert"></p>' +
+            (sinCol
+              ? '<p class="pc-help" style="color:var(--warn)">Sin columna en la hoja: este campo no se puede guardar.</p>'
+              : (campo.ayuda ? '<p class="pc-help">' + esc(campo.ayuda) + '</p>' : '')) +
+          '</div>';
+        }).join('');
+
+        // Contadores y marca de "hay cambios sin guardar".
+        col.campos.forEach(function (campo) {
+          var el = $('f-' + campo.id);
+          if (!el) return;
+          if (campo.max) contar(campo);
+          el.addEventListener('input', function () {
+            pcState.dirty = true;
+            if (campo.max) contar(campo);
+            limpiarError(campo.id);
+          });
+          // El aviso de enlace que no abre se enseña AQUÍ, que es donde se arregla.
+          // La lista lo señala, pero al abrir el editor el supervisor tiene que ver
+          // cuál de los campos es el del problema.
+          if (campo.tipo === 'url') {
+            el.addEventListener('blur', function () { avisarUrl(campo); });
+            avisarUrl(campo);
+          }
+        });
+
+        mostrarDrawer(true);
+      }
+
+      function contar(campo) {
+        var el = $('f-' + campo.id);
+        var cc = $('cc-f-' + campo.id);
+        if (!el || !cc) return;
+        var n = el.value.length;
+        cc.textContent = n + '/' + campo.max;
+        cc.className = 'pc-cc' + (n > campo.max ? ' over' : (n > campo.max * 0.9 ? ' warn' : ''));
+      }
+
+      /**
+       * Aviso —no error— bajo un campo de enlace cuyo valor el Portal no podrá abrir.
+       * No bloquea guardar: la hoja ya arrastra valores así desde antes y obligar a
+       * arreglarlos para tocar cualquier otra cosa de la fila sería peor.
+       */
+      function avisarUrl(campo) {
+        var el = $('f-' + campo.id);
+        var caja = el && el.parentNode;
+        if (!caja) return;
+        var previo = caja.querySelector('.pc-warn');
+        if (previo) previo.parentNode.removeChild(previo);
+
+        var v = el.value.trim();
+        if (!v || urlNormalizada(v)) return;
+
+        var p = document.createElement('p');
+        p.className = 'pc-warn';
+        p.innerHTML = svg('alerta') + '<span>Esto no parece una dirección web: el botón del portal no abrirá nada.</span>';
+        el.parentNode.insertBefore(p, el.nextSibling);
+      }
+
+      function marcarError(campoId, msg) {
+        var el = $('f-' + campoId);
+        var err = $('err-f-' + campoId);
+        if (el) el.setAttribute('aria-invalid', 'true');
+        if (err) { err.innerHTML = svg('alerta') + '<span>' + esc(msg) + '</span>'; err.classList.add('on'); }
+      }
+
+      function limpiarError(campoId) {
+        var el = $('f-' + campoId);
+        var err = $('err-f-' + campoId);
+        if (el) el.removeAttribute('aria-invalid');
+        if (err) { err.classList.remove('on'); err.textContent = ''; }
+      }
+
+      /** Validación de cortesía: el servidor la repite entera y es la que manda. */
+      function validarLocal() {
+        var col = pcState.actual;
+        var ok = true;
+        var primero = null;
+
+        col.campos.forEach(function (campo) {
+          var el = $('f-' + campo.id);
+          if (!el || el.disabled) return;
+          var v = el.value.trim();
+          limpiarError(campo.id);
+
+          if (campo.requerido && !v) {
+            marcarError(campo.id, 'Este campo no puede quedar vacío.');
+            ok = false; primero = primero || el; return;
+          }
+          if (campo.max && v.length > campo.max) {
+            marcarError(campo.id, 'Máximo ' + campo.max + ' caracteres (llevas ' + v.length + ').');
+            ok = false; primero = primero || el; return;
+          }
+          if (campo.tipo === 'url' && v && /^\s*(javascript|data|vbscript|file|blob)\s*:/i.test(v)) {
+            marcarError(campo.id, 'Ese tipo de enlace no se permite. Usa una dirección http:// o https://.');
+            ok = false; primero = primero || el;
+          }
+        });
+
+        if (!ok && primero) {
+          primero.focus();
+          if (window.AppMotion) AppMotion.shake($('drCampos'));
+        }
+        return ok;
+      }
+
+      function guardar() {
+        var col = pcState.actual;
+        if (!col || pcState.ocupado) return;
+        if (!validarLocal()) return;
+
+        var datos = {};
+        col.campos.forEach(function (campo) {
+          var el = $('f-' + campo.id);
+          if (el && !el.disabled) datos[campo.id] = el.value;
+        });
+
+        var btn = $('drGuardar');
+        var textoOriginal = btn.textContent;
+        btn.disabled = true; btn.textContent = 'Guardando…';
+        pcState.ocupado = true;
+
+        google.script.run
+          .withSuccessHandler(function (res) {
+            pcState.ocupado = false;
+            btn.disabled = false; btn.textContent = textoOriginal;
+
+            if (!res || res.status !== 'ok') {
+              if (res && res.errores) {
+                Object.keys(res.errores).forEach(function (k) { marcarError(k, res.errores[k]); });
+              }
+              toast((res && res.error) || 'No pudimos guardar.', 'error');
+              return;
+            }
+            pcState.dirty = false;
+            (res.avisos || []).forEach(function (a) { toast(a, 'warn'); });
+            toast(res.nueva ? 'Publicado. Ya está en el Portal.' : 'Cambios guardados.', 'ok');
+            cerrarDrawer();
+            $('lista').innerHTML = esqueleto();
+            cargarFilas();
+            refrescarConteo(res.nueva ? 1 : 0);
+          })
+          .withFailureHandler(function (err) {
+            pcState.ocupado = false;
+            btn.disabled = false; btn.textContent = textoOriginal;
+            toast(err && err.message ? err.message : 'No pudimos conectar con el servidor.', 'error');
+          })
+          .portalContenidoGuardar({
+            email: PC_EMAIL, coleccion: col.id, id: pcState.editando || '', datos: datos
+          });
+      }
+
+      /** Ajusta el contador del conmutador sin volver a pedir el catálogo entero. */
+      function refrescarConteo(delta) {
+        if (!pcState.actual || !delta) return;
+        if (pcState.actual.total >= 0) pcState.actual.total += delta;
+        pintarSecciones();
+      }
+
+      /* ── Apertura y cierre del panel ──────────────────────────────────────
+         Panel de diálogo de verdad: Esc cierra, el foco se queda dentro mientras
+         está abierto y vuelve al botón que lo abrió al cerrarse. */
+      function mostrarDrawer(abrir) {
+        var drawer = $('drawer');
+        var scrim = $('scrim');
+
+        if (abrir) {
+          drawer.hidden = false;
+          scrim.classList.add('on');
+          drawer.classList.add('on');
+          document.body.style.overflow = 'hidden';
+
+          if (motionOK()) {
+            var movil = window.matchMedia('(max-width:640px)').matches;
+            gsap.fromTo(scrim, { opacity: 0 }, { opacity: 1, duration: .2, ease: 'power1.out' });
+            gsap.fromTo(drawer,
+              movil ? { yPercent: 100 } : { xPercent: 100 },
+              { yPercent: 0, xPercent: 0, duration: .38, ease: 'power3.out', clearProps: 'transform' });
+            gsap.from(drawer.querySelectorAll('[data-f]'),
+              { opacity: 0, y: 12, duration: .34, stagger: .035, ease: 'power2.out', delay: .08, clearProps: 'all' });
+          }
+
+          var primero = drawer.querySelector('input:not([disabled]),textarea:not([disabled])');
+          if (primero) setTimeout(function () { primero.focus(); }, motionOK() ? 260 : 0);
+        }
+      }
+
+      function cerrarDrawer() {
+        var drawer = $('drawer');
+        var scrim = $('scrim');
+        if (drawer.hidden) return;
+
+        var fin = function () {
+          drawer.classList.remove('on');
+          drawer.classList.remove('ancho');
+          drawer.hidden = true;
+          scrim.classList.remove('on');
+          document.body.style.overflow = '';
+          pcState.editando = null;
+          pcState.dirty = false;
+          if (pcState.devolverFoco && pcState.devolverFoco.focus) {
+            try { pcState.devolverFoco.focus(); } catch (e) {}
+          }
+          pcState.devolverFoco = null;
+        };
+
+        if (!motionOK()) { fin(); return; }
+        var movil = window.matchMedia('(max-width:640px)').matches;
+        // fin() ANTES de limpiar el transform: si se limpia primero, el panel vuelve
+        // por un fotograma a su posición abierta (la clase .on sigue puesta).
+        var tl = gsap.timeline({ onComplete: function () { fin(); gsap.set(drawer, { clearProps: 'transform' }); } });
+        tl.to(drawer, movil ? { yPercent: 100, duration: .26, ease: 'power2.in' }
+                            : { xPercent: 100, duration: .26, ease: 'power2.in' }, 0);
+        tl.to(scrim, { opacity: 0, duration: .26, ease: 'power1.in', clearProps: 'opacity' }, 0);
+      }
+
+      /** Cierre con guardia: si hay cambios sin guardar, se pregunta antes. */
+      function intentarCerrar() {
+        if (!pcState.dirty) { cerrarDrawer(); return; }
+        pedirConfirmacion(
+          '¿Descartar los cambios?',
+          'Lo que escribiste en este formulario se perderá. La entrada se queda como estaba.',
+          'Sí, descartar',
+          function () { cerrarDrawer(); }
+        );
+      }
+
+      /** Mantiene el tabulador dentro del panel mientras está abierto. */
+      function atraparFoco(e) {
+        if (e.key !== 'Tab') return;
+        var contenedor = $('pcConfirm').classList.contains('active') ? $('pcConfirmCard')
+                       : (!$('drawer').hidden ? $('drawer') : null);
+        if (!contenedor) return;
+        var focos = contenedor.querySelectorAll(
+          'button:not([disabled]),input:not([disabled]),textarea:not([disabled]),select:not([disabled]),a[href]');
+        if (!focos.length) return;
+        var primero = focos[0], ultimo = focos[focos.length - 1];
+        if (e.shiftKey && document.activeElement === primero) { e.preventDefault(); ultimo.focus(); }
+        else if (!e.shiftKey && document.activeElement === ultimo) { e.preventDefault(); primero.focus(); }
+      }
+
+      /* ══ ACCIONES DE FILA ═════════════════════════════════════════════════ */
+
+      function duplicar(id) {
+        var col = pcState.actual;
+        if (!col || pcState.ocupado) return;
+        pcState.ocupado = true;
+
+        google.script.run
+          .withSuccessHandler(function (res) {
+            pcState.ocupado = false;
+            if (!res || res.status !== 'ok') { toast((res && res.error) || 'No pudimos duplicar.', 'error'); return; }
+            toast('Copia creada. Edítala antes de que el equipo la vea repetida.', 'ok');
+            $('lista').innerHTML = esqueleto();
+            cargarFilas();
+            refrescarConteo(1);
+          })
+          .withFailureHandler(function () {
+            pcState.ocupado = false;
+            toast('No pudimos conectar con el servidor.', 'error');
+          })
+          .portalContenidoDuplicar({ email: PC_EMAIL, coleccion: col.id, id: id });
+      }
+
+      function mover(id, dir) {
+        var col = pcState.actual;
+        if (!col || pcState.ocupado) return;
+        pcState.ocupado = true;
+
+        // Movimiento optimista: la fila se desplaza en pantalla al instante y el
+        // servidor confirma. Esperar la ida y vuelta para cada clic hace que
+        // reordenar diez tarjetas se sienta roto.
+        var filas = filasVisibles();
+        var pos = filas.map(function (f) { return f.id; }).indexOf(id);
+        var destino = dir === 'up' ? pos - 1 : pos + 1;
+        if (pos > -1 && destino > -1 && destino < filas.length) {
+          var iReal = pcState.filas.indexOf(filas[pos]);
+          var jReal = pcState.filas.indexOf(filas[destino]);
+          var tmp = pcState.filas[iReal];
+          pcState.filas[iReal] = pcState.filas[jReal];
+          pcState.filas[jReal] = tmp;
+          pintarLista();
+          // Se busca recorriendo, no con un selector de atributo: el id puede venir
+          // tecleado a mano en la hoja y llevar comillas o corchetes que romperían
+          // el selector.
+          var movida = null;
+          Array.prototype.forEach.call($('lista').querySelectorAll('[data-fila]'), function (el) {
+            if (el.getAttribute('data-fila') === id) movida = el;
+          });
+          if (movida && motionOK()) {
+            gsap.fromTo(movida, { backgroundColor: 'var(--brand-tint)' },
+              { backgroundColor: 'rgba(0,0,0,0)', duration: .8, ease: 'power2.out', clearProps: 'backgroundColor' });
+          }
+        }
+
+        google.script.run
+          .withSuccessHandler(function (res) {
+            pcState.ocupado = false;
+            if (!res || res.status !== 'ok') {
+              toast((res && res.error) || 'No pudimos cambiar el orden.', 'error');
+              $('lista').innerHTML = esqueleto();
+              cargarFilas();   // el servidor manda: se recarga el orden real
+            }
+          })
+          .withFailureHandler(function () {
+            pcState.ocupado = false;
+            toast('No pudimos conectar con el servidor.', 'error');
+            $('lista').innerHTML = esqueleto();
+            cargarFilas();
+          })
+          .portalContenidoMover({ email: PC_EMAIL, coleccion: col.id, id: id, dir: dir });
+      }
+
+      function pedirBorrado(id) {
+        var col = pcState.actual;
+        var fila = filaPorId(id);
+        var titulo = fila ? tituloDe(col, fila) : 'esta entrada';
+        pedirConfirmacion(
+          '¿Borrar «' + titulo + '»?',
+          'Se elimina de la hoja «' + col.hoja + '» y desaparece de ' + col.donde + '. No se puede deshacer.',
+          'Sí, borrar',
+          function () { borrar(id); }
+        );
+      }
+
+      function borrar(id) {
+        var col = pcState.actual;
+        if (!col || pcState.ocupado) return;
+        pcState.ocupado = true;
+
+        google.script.run
+          .withSuccessHandler(function (res) {
+            pcState.ocupado = false;
+            if (!res || res.status !== 'ok') { toast((res && res.error) || 'No pudimos borrar.', 'error'); return; }
+            toast('Entrada borrada.', 'ok');
+            $('lista').innerHTML = esqueleto();
+            cargarFilas();
+            refrescarConteo(-1);
+          })
+          .withFailureHandler(function () {
+            pcState.ocupado = false;
+            toast('No pudimos conectar con el servidor.', 'error');
+          })
+          .portalContenidoEliminar({ email: PC_EMAIL, coleccion: col.id, id: id });
+      }
+
+      /* ══ MODO RÁPIDO ══════════════════════════════════════════════════════
+         Dos orígenes, un mismo embudo:
+           · pegar lo copiado de una hoja de cálculo, o
+           · traer una pestaña del archivo de comercial (solo promociones).
+         Los dos acaban en el MISMO arreglo de filas, y de ahí en el mismo
+         análisis del servidor. Nada se escribe sin ver antes qué va a pasar. */
+
+      var imp = {
+        modo: 'pegar',
+        rejilla: [],        // celdas tal cual se pegaron (sin la fila de encabezados)
+        encabezados: [],    // textos de la fila de encabezados, si la hay
+        conEncabezado: true,
+        mapeo: [],          // columna → id de campo ('' = no importar)
+        filas: [],          // ya en formato {campoId: valor}
+        pendientes: [],     // filas buenas a las que les falta la dirección
+        plan: null,
+        actualizar: true,
+        hojas: null,
+        hojaSel: '',
+        origen: ''          // de dónde salieron las filas, para el resumen
+      };
+
+      function esPromo() {
+        return pcState.actual && (pcState.actual.id === 'promociones' || pcState.actual.id === 'mkp');
+      }
+
+      /** Normaliza como lo hace el servidor: sin acentos, minúsculas, espacios simples. */
+      function claveTexto(v) {
+        return String(v == null ? '' : v)
+          .normalize('NFD').replace(new RegExp('[\\u0300-\\u036f]', 'g'), '')
+          .toLowerCase().replace(/\s+/g, ' ').trim();
+      }
+
+      /**
+       * Parsea lo pegado desde una hoja de cálculo (formato TSV).
+       * Las celdas con saltos de línea vienen entre comillas dobles y con las comillas
+       * internas duplicadas; sin tratarlas, una plantilla de correo de diez líneas se
+       * convertía en diez filas rotas.
+       */
+      function parsearPegado(texto) {
+        var filas = [], celda = '', fila = [], enComillas = false;
+        var t = String(texto || '').replace(/\r\n/g, '\n').replace(/\r/g, '\n');
+        for (var i = 0; i < t.length; i++) {
+          var ch = t[i];
+          if (enComillas) {
+            if (ch === '"') {
+              if (t[i + 1] === '"') { celda += '"'; i++; }
+              else enComillas = false;
+            } else celda += ch;
+            continue;
+          }
+          if (ch === '"' && celda === '') { enComillas = true; continue; }
+          if (ch === '\t') { fila.push(celda); celda = ''; continue; }
+          if (ch === '\n') { fila.push(celda); filas.push(fila); fila = []; celda = ''; continue; }
+          celda += ch;
+        }
+        if (celda !== '' || fila.length) { fila.push(celda); filas.push(fila); }
+        // Fuera las filas totalmente vacías (el pegado casi siempre trae una al final).
+        return filas.filter(function (f) {
+          return f.some(function (c) { return String(c).trim() !== ''; });
+        });
+      }
+
+      /**
+       * Adivina a qué campo corresponde cada columna pegada, usando LOS MISMOS alias
+       * con los que el servidor localiza las columnas en la hoja. Por eso reconoce
+       * «Banner / Carrusel» como Categoría, que es como se llama en el original.
+       */
+      function autoMapear(encabezados) {
+        var col = pcState.actual;
+        var tomadas = {}, mapeo = [];
+        for (var i = 0; i < encabezados.length; i++) mapeo[i] = '';
+
+        col.campos.forEach(function (campo) {
+          var alias = (campo.alias && campo.alias.length ? campo.alias : [campo.etiqueta]).slice();
+          alias.push(campo.etiqueta);
+          alias.push(campo.id);
+          for (var a = 0; a < alias.length; a++) {
+            var exacto = String(alias[a]).charAt(0) === '=';
+            var buscado = claveTexto(exacto ? String(alias[a]).slice(1) : alias[a]);
+            if (!buscado) continue;
+            for (var c = 0; c < encabezados.length; c++) {
+              if (tomadas[c]) continue;
+              var h = claveTexto(encabezados[c]);
+              if (!h) continue;
+              if (exacto ? (h === buscado) : (h.indexOf(buscado) !== -1)) {
+                mapeo[c] = campo.id; tomadas[c] = true; return;
+              }
+            }
+          }
+        });
+        return mapeo;
+      }
+
+      /** ¿La primera fila parece encabezado? Lo es si reconocemos al menos dos campos. */
+      function pareceEncabezado(primera) {
+        var m = autoMapear(primera);
+        return m.filter(function (x) { return x; }).length >= 2;
+      }
+
+      function construirFilas() {
+        var filas = [];
+        imp.rejilla.forEach(function (f) {
+          var reg = {}, algo = false;
+          for (var c = 0; c < imp.mapeo.length; c++) {
+            if (!imp.mapeo[c]) continue;
+            var v = String(f[c] == null ? '' : f[c]).trim();
+            reg[imp.mapeo[c]] = v;
+            if (v) algo = true;
+          }
+          if (algo) filas.push(reg);
+        });
+        imp.filas = filas;
+        // Cerrar con filas preparadas y sin aplicar es perder trabajo: cuenta como
+        // "cambios sin guardar" para que el panel pregunte antes de irse.
+        pcState.dirty = filas.length > 0;
+      }
+
+      /* ── Apertura ── */
+
+      function abrirImport() {
+        var col = pcState.actual;
+        if (!col || col.soloLectura) return;
+
+        imp.modo = 'pegar'; imp.rejilla = []; imp.encabezados = []; imp.conEncabezado = true;
+        imp.mapeo = []; imp.filas = []; imp.pendientes = []; imp.plan = null;
+        imp.actualizar = true; imp.hojaSel = ''; imp.origen = '';
+        pcState.editando = null; pcState.dirty = false;
+        pcState.devolverFoco = document.activeElement;
+
+        $('drTitulo').textContent = 'Modo rápido · ' + col.nombre;
+        $('drSub').textContent = 'Pega muchas filas de golpe. Nada se publica hasta que veas qué va a pasar.';
+        $('drawer').classList.add('ancho');
+        $('drFoot').classList.add('pc-hidden');
+        $('drFootImport').classList.remove('pc-hidden');
+
+        pintarImport();
+        mostrarDrawer(true);
+      }
+
+      function pintarImport() {
+        var col = pcState.actual;
+        var h = '';
+
+        // Pestañas de origen. La de comercial solo existe donde tiene sentido.
+        if (esPromo()) {
+          h += '<div class="pc-tabs" role="tablist">' +
+               '<button class="pc-tab" role="tab" type="button" data-modo="pegar" aria-selected="' +
+                 (imp.modo === 'pegar') + '">Pegar de una hoja</button>' +
+               '<button class="pc-tab" role="tab" type="button" data-modo="comercial" aria-selected="' +
+                 (imp.modo === 'comercial') + '">Traer de comercial</button>' +
+               '</div>';
+        }
+
+        if (imp.modo === 'pegar') {
+          h += '<div class="pc-paso"><h3>1 · Pega aquí</h3>' +
+               '<textarea class="v-textarea pc-pegar" id="impTexto" spellcheck="false" ' +
+               'placeholder="Selecciona las filas en la hoja de cálculo, cópialas (Ctrl+C) y pégalas aquí (Ctrl+V)."></textarea>' +
+               '<p class="pc-help">Incluye la fila de encabezados si puedes: así las columnas se reconocen solas.</p>' +
+               '</div>';
+        } else {
+          h += '<div class="pc-paso"><h3>1 · Elige la campaña</h3><div id="impHojas"></div></div>';
+        }
+
+        h += '<div id="impResto"></div>';
+        $('drCampos').innerHTML = h;
+
+        Array.prototype.forEach.call($('drCampos').querySelectorAll('[data-modo]'), function (b) {
+          b.addEventListener('click', function () {
+            imp.modo = b.getAttribute('data-modo');
+            imp.rejilla = []; imp.filas = []; imp.plan = null; imp.pendientes = [];
+            pintarImport();
+            if (imp.modo === 'comercial') cargarHojasComercial();
+          });
+        });
+
+        var ta = $('impTexto');
+        if (ta) {
+          ta.addEventListener('input', function () {
+            var g = parsearPegado(ta.value);
+            if (!g.length) { imp.rejilla = []; imp.filas = []; imp.plan = null; pintarResto(); return; }
+            imp.conEncabezado = pareceEncabezado(g[0]);
+            imp.encabezados = imp.conEncabezado ? g[0] : g[0].map(function (_, i) { return 'Columna ' + (i + 1); });
+            imp.rejilla = imp.conEncabezado ? g.slice(1) : g;
+            imp.mapeo = autoMapear(imp.encabezados);
+            imp.origen = 'pegado';
+            imp.plan = null;
+            construirFilas();
+            pintarResto();
+          });
+        }
+
+        if (imp.modo === 'comercial') { pintarHojas(); if (!imp.hojas) cargarHojasComercial(); }
+        pintarResto();
+      }
+
+      /** Todo lo que va DEBAJO del origen: mapeo, vista previa, plan. */
+      function pintarResto() {
+        var caja = $('impResto');
+        if (!caja) return;
+        var col = pcState.actual;
+
+        if (!imp.rejilla.length && !imp.filas.length) {
+          caja.innerHTML = '';
+          $('impAplicar').disabled = true;
+          return;
+        }
+
+        var h = '';
+
+        // ── Mapeo de columnas (solo en pegado: de comercial ya viene resuelto) ──
+        if (imp.origen === 'pegado') {
+          var opciones = '<option value="">— no importar —</option>' +
+            col.campos.map(function (c) {
+              return '<option value="' + esc(c.id) + '">' + esc(c.etiqueta) + '</option>';
+            }).join('');
+          h += '<div class="pc-paso"><h3>2 · Qué es cada columna</h3><div class="pc-tabla-caja"><table class="pc-tabla"><thead><tr>';
+          for (var c = 0; c < imp.encabezados.length; c++) {
+            h += '<th><div style="margin-bottom:3px;color:var(--ink-faint)">' + esc(imp.encabezados[c]) + '</div>' +
+                 '<select data-col="' + c + '" aria-label="Campo de la columna ' + (c + 1) + '">' + opciones + '</select></th>';
+          }
+          h += '</tr></thead><tbody>';
+          imp.rejilla.slice(0, 4).forEach(function (f) {
+            h += '<tr>';
+            for (var c2 = 0; c2 < imp.encabezados.length; c2++) h += '<td>' + esc(f[c2] || '') + '</td>';
+            h += '</tr>';
+          });
+          h += '</tbody></table></div>' +
+               '<p class="pc-help">' + imp.rejilla.length + ' fila(s) detectada(s). Se muestran las primeras.</p></div>';
+        }
+
+        // ── Filas rescatadas: solo les falta la dirección ──
+        if (imp.pendientes.length) {
+          h += '<div class="pc-paso"><div class="pc-nota warn">' + svg('alerta') +
+               '<span><b>' + imp.pendientes.length + ' fila(s) sin dirección utilizable.</b> ' +
+               'Esa columna trae un número en el original, así que no se pueden publicar tal cual. ' +
+               'Escribe la dirección que les corresponde y se suman al resto.</span></div>' +
+               '<div class="anc-row" style="display:flex;gap:var(--s2)">' +
+               '<input class="v-input" id="impDir" placeholder="Ej. Belleza" style="flex:1 1 auto;min-width:0">' +
+               '<button class="v-btn v-btn-ghost" type="button" id="impAddDir">Añadirlas</button></div></div>';
+        }
+
+        // ── Confirmación ──
+        h += '<div class="pc-paso"><h3>' + (imp.origen === 'pegado' ? '3' : '2') + ' · Qué va a pasar</h3>' +
+             '<label class="pc-chk" style="display:flex;align-items:center;gap:var(--s2);font-size:var(--fs-md);font-weight:600;cursor:pointer">' +
+             '<input type="checkbox" id="impActualizar" style="width:18px;height:18px;accent-color:var(--brand)"' +
+             (imp.actualizar ? ' checked' : '') + '> Actualizar las que ya existen</label>' +
+             '<p class="pc-help">Si lo desmarcas, solo se dan de alta las nuevas y las existentes se dejan como están. ' +
+             'Nunca se borra nada: lo que está en el Portal y no venga aquí se queda.</p>' +
+             '<div id="impPlan" style="margin-top:var(--s3)"></div></div>';
+
+        caja.innerHTML = h;
+
+        Array.prototype.forEach.call(caja.querySelectorAll('select[data-col]'), function (s) {
+          s.value = imp.mapeo[Number(s.getAttribute('data-col'))] || '';
+          s.addEventListener('change', function () {
+            var idx = Number(s.getAttribute('data-col'));
+            // Un campo solo puede venir de UNA columna: si se reasigna, se libera la otra.
+            if (s.value) {
+              for (var k = 0; k < imp.mapeo.length; k++) if (k !== idx && imp.mapeo[k] === s.value) imp.mapeo[k] = '';
+            }
+            imp.mapeo[idx] = s.value;
+            imp.plan = null;
+            construirFilas();
+            pintarResto();
+          });
+        });
+
+        var chk = $('impActualizar');
+        if (chk) chk.addEventListener('change', function () { imp.actualizar = chk.checked; });
+
+        var add = $('impAddDir');
+        if (add) add.addEventListener('click', function () {
+          var d = ($('impDir').value || '').trim();
+          if (!d) { toast('Escribe la dirección primero.', 'warn'); $('impDir').focus(); return; }
+          imp.pendientes.forEach(function (p) { p.direccion = d; imp.filas.push(p); });
+          toast(imp.pendientes.length + ' fila(s) añadidas como «' + d + '».', 'ok');
+          imp.pendientes = [];
+          imp.plan = null;
+          pintarResto();
+        });
+
+        pintarPlan();
+      }
+
+      function pintarPlan() {
+        var caja = $('impPlan');
+        if (!caja) return;
+
+        if (!imp.plan) {
+          caja.innerHTML = '<p class="pc-help">' + imp.filas.length +
+            ' fila(s) listas. Pulsa <b>Analizar</b> para ver, una por una, cuáles son nuevas, ' +
+            'cuáles cambian algo y cuáles ya estaban igual.</p>';
+          $('impAplicar').disabled = true;
+          return;
+        }
+
+        var r = imp.plan.resumen;
+        var chip = function (cls, n, txt) {
+          return '<div class="pc-chip ' + cls + '"><b>' + n + '</b><span>' + txt + '</span></div>';
+        };
+        var h = '<div class="pc-resumen">' +
+          chip('nueva', r.nuevas, 'nuevas') +
+          chip('actualiza', r.actualiza, 'cambian') +
+          chip('igual', r.iguales, 'sin cambios') +
+          chip('duplicada', r.duplicadas, 'duplicadas') +
+          chip('error', r.errores, 'con error') +
+          '</div>';
+
+        h += '<div class="pc-nota">' + svg('alerta') + '<span>Se comparan por <b>' +
+             esc((imp.plan.clave || []).join(' + ')) + '</b>. Mayúsculas, acentos y espacios de más no cuentan.</span></div>';
+
+        var ETIQ = { nueva: 'Nueva', actualiza: 'Cambia', igual: 'Igual',
+                     duplicada: 'Duplicada', error: 'Error' };
+        h += '<div class="pc-plan">' + imp.plan.plan.map(function (x) {
+          var det = x.accion === 'actualiza' ? (x.cambios || []).join(', ') : (x.detalle || '');
+          return '<div class="pc-plan-i" data-a="' + x.accion + '">' +
+                 '<span class="et">' + ETIQ[x.accion] + '</span>' +
+                 '<span class="tt">' + esc(x.titulo || '(sin título)') + '</span>' +
+                 (det ? '<span class="de">' + esc(det) + '</span>' : '') +
+                 '</div>';
+        }).join('') + '</div>';
+
+        caja.innerHTML = h;
+
+        var haraAlgo = r.nuevas > 0 || (imp.actualizar && r.actualiza > 0);
+        $('impAplicar').disabled = !haraAlgo;
+        $('impAplicar').textContent = haraAlgo
+          ? ('Aplicar (' + (r.nuevas + (imp.actualizar ? r.actualiza : 0)) + ')')
+          : 'Nada que aplicar';
+      }
+
+      /* ── Servidor ── */
+
+      function analizarImport() {
+        if (!imp.filas.length) { toast('Todavía no hay filas que analizar.', 'warn'); return; }
+        if (pcState.ocupado) return;
+        pcState.ocupado = true;
+        var b = $('impAnalizar'); b.disabled = true; b.textContent = 'Analizando…';
+
+        google.script.run
+          .withSuccessHandler(function (res) {
+            pcState.ocupado = false;
+            b.disabled = false; b.textContent = 'Analizar';
+            if (!res || res.status !== 'ok') { toast((res && res.error) || 'No pudimos analizar.', 'error'); return; }
+            imp.plan = res;
+            pintarPlan();
+          })
+          .withFailureHandler(function (err) {
+            pcState.ocupado = false;
+            b.disabled = false; b.textContent = 'Analizar';
+            toast(err && err.message ? err.message : 'No pudimos conectar con el servidor.', 'error');
+          })
+          .portalContenidoAnalizarImport({
+            email: PC_EMAIL, coleccion: pcState.actual.id, filas: imp.filas
+          });
+      }
+
+      function aplicarImport() {
+        if (!imp.plan || pcState.ocupado) return;
+        var r = imp.plan.resumen;
+        pedirConfirmacion(
+          '¿Publicar estos cambios?',
+          r.nuevas + ' entrada(s) nueva(s)' +
+          (imp.actualizar ? ' y ' + r.actualiza + ' actualizada(s)' : ' (las existentes se dejan igual)') +
+          ' en «' + pcState.actual.nombre + '». No se borra nada.',
+          'Sí, publicar',
+          function () { aplicarImportYa(); }
+        );
+      }
+
+      function aplicarImportYa() {
+        pcState.ocupado = true;
+        var b = $('impAplicar'); b.disabled = true; b.textContent = 'Publicando…';
+
+        google.script.run
+          .withSuccessHandler(function (res) {
+            pcState.ocupado = false;
+            b.textContent = 'Aplicar';
+            if (!res || res.status !== 'ok') {
+              b.disabled = false;
+              toast((res && res.error) || 'No pudimos publicar.', 'error');
+              return;
+            }
+            var s = res.resumen;
+            toast(s.nuevas + ' nuevas · ' + s.actualiza + ' actualizadas · ' +
+                  s.iguales + ' sin cambios.', 'ok');
+            cerrarDrawer();
+            $('lista').innerHTML = esqueleto();
+            cargarFilas();
+            refrescarConteo(s.nuevas);
+          })
+          .withFailureHandler(function (err) {
+            pcState.ocupado = false;
+            b.disabled = false; b.textContent = 'Aplicar';
+            toast(err && err.message ? err.message : 'No pudimos conectar con el servidor.', 'error');
+          })
+          .portalContenidoAplicarImport({
+            email: PC_EMAIL, coleccion: pcState.actual.id,
+            filas: imp.filas, actualizar: imp.actualizar
+          });
+      }
+
+      /* ── Origen: archivo de comercial ── */
+
+      function cargarHojasComercial() {
+        var caja = $('impHojas');
+        if (caja) caja.innerHTML = '<p class="pc-help">Abriendo el archivo de comercial…</p>';
+
+        google.script.run
+          .withSuccessHandler(function (res) {
+            if (!res || res.status !== 'ok') {
+              if (caja) caja.innerHTML = '<div class="pc-nota warn">' + svg('alerta') +
+                '<span>' + esc((res && res.error) || 'No pudimos abrir el archivo de comercial.') + '</span></div>';
+              return;
+            }
+            imp.hojas = res;
+            imp.hojaSel = imp.hojaSel || res.sugerida;
+            pintarHojas();
+          })
+          .withFailureHandler(function () {
+            if (caja) caja.innerHTML = '<div class="pc-nota warn">' + svg('alerta') +
+              '<span>No pudimos conectar con el servidor.</span></div>';
+          })
+          .portalPromosHojas(PC_EMAIL);
+      }
+
+      function pintarHojas() {
+        var caja = $('impHojas');
+        if (!caja || !imp.hojas) return;
+
+        var h = '<p class="pc-help" style="margin-bottom:var(--s2)">De <b>' + esc(imp.hojas.archivo) +
+                '</b> · solo se ofrecen las pestañas visibles (el archivo arrastra cientos de campañas viejas ocultas).</p>' +
+                '<div class="pc-hojas">' +
+                imp.hojas.hojas.map(function (x) {
+                  return '<button class="pc-hoja" type="button" data-hoja="' + esc(x.nombre) + '" aria-pressed="' +
+                    (imp.hojaSel === x.nombre) + '">' +
+                    '<span class="nm">' + esc(x.nombre) + '</span>' +
+                    (x.vigente ? '<span class="pc-hoy">hoy</span>' : '') +
+                    '<span class="pe">' + esc(x.periodo) + '</span></button>';
+                }).join('') + '</div>' +
+                '<button class="v-btn v-btn-ghost" type="button" id="impLeer" style="margin-top:var(--s3)">' +
+                'Leer esta campaña</button>' +
+                '<div id="impLectura" style="margin-top:var(--s3)"></div>';
+        caja.innerHTML = h;
+
+        Array.prototype.forEach.call(caja.querySelectorAll('[data-hoja]'), function (b) {
+          b.addEventListener('click', function () {
+            imp.hojaSel = b.getAttribute('data-hoja');
+            pintarHojas();
+          });
+        });
+        $('impLeer').addEventListener('click', leerHojaComercial);
+      }
+
+      function leerHojaComercial() {
+        if (!imp.hojaSel) { toast('Elige primero una campaña.', 'warn'); return; }
+        if (pcState.ocupado) return;
+        pcState.ocupado = true;
+        var b = $('impLeer'); b.disabled = true; b.textContent = 'Leyendo…';
+        $('impLectura').innerHTML = '<p class="pc-help">Interpretando la hoja…</p>';
+
+        google.script.run
+          .withSuccessHandler(function (res) {
+            pcState.ocupado = false;
+            b.disabled = false; b.textContent = 'Leer esta campaña';
+            if (!res || res.status !== 'ok') {
+              $('impLectura').innerHTML = '<div class="pc-nota warn">' + svg('alerta') +
+                '<span>' + esc((res && res.error) || 'No pudimos leer la hoja.') + '</span></div>';
+              return;
+            }
+
+            var mio = pcState.actual.id === 'mkp' ? 'mkp' : 'promociones';
+            var otro = mio === 'mkp' ? 'promociones' : 'mkp';
+            imp.filas = res[mio] || [];
+            imp.pendientes = (res.pendientes && res.pendientes[mio]) || [];
+            imp.rejilla = [];
+            imp.origen = 'comercial';
+            imp.plan = null;
+
+            var n = '<div class="pc-nota">' + svg('alerta') + '<span>' +
+              '<b>' + imp.filas.length + ' promocion(es)</b> encontradas en «' + esc(res.hoja) + '». ' +
+              'Encabezado detectado en la fila ' +
+              res.tablas.filter(function (t) { return t.tipo === mio; })
+                        .map(function (t) { return t.filaEncabezado; }).join(' y ') + '.';
+            if ((res[otro] || []).length) {
+              n += ' Esta campaña trae además <b>' + res[otro].length + '</b> de ' +
+                   (otro === 'mkp' ? 'Marketplace' : 'tienda') + ': se publican desde su propia sección.';
+            }
+            if (res.descartes && res.descartes.length) {
+              n += ' Se descartaron ' + res.descartes.length + ' fila(s) que no eran promociones (notas y rótulos).';
+            }
+            n += '</span></div>';
+            $('impLectura').innerHTML = n;
+
+            if (!imp.filas.length && !imp.pendientes.length) {
+              toast('Esa campaña no trae filas para «' + pcState.actual.nombre + '».', 'warn');
+            }
+            pintarResto();
+          })
+          .withFailureHandler(function () {
+            pcState.ocupado = false;
+            b.disabled = false; b.textContent = 'Leer esta campaña';
+            toast('No pudimos conectar con el servidor.', 'error');
+          })
+          .portalPromosLeer({ email: PC_EMAIL, hoja: imp.hojaSel });
+      }
+
+      /* ══ CONFIRMACIÓN ═════════════════════════════════════════════════════ */
+
+      var pcConfirmCb = null;
+
+      function pedirConfirmacion(titulo, descripcion, textoSi, cb) {
+        pcConfirmCb = cb;
+        $('pcConfirmT').textContent = titulo;
+        $('pcConfirmD').textContent = descripcion;
+        $('pcConfirmYes').textContent = textoSi;
+        if (window.AppMotion) AppMotion.modalIn($('pcConfirm'), $('pcConfirmCard'));
+        else $('pcConfirm').classList.add('active');
+        setTimeout(function () { $('pcConfirmNo').focus(); }, 60);
+      }
+
+      function cerrarConfirmacion(aceptado) {
+        var cb = pcConfirmCb;
+        pcConfirmCb = null;
+        var fin = function () { if (aceptado && cb) cb(); };
+        if (window.AppMotion) AppMotion.modalOut($('pcConfirm'), $('pcConfirmCard'), fin);
+        else { $('pcConfirm').classList.remove('active'); fin(); }
+      }
+
+      /* ══ ARRANQUE ═════════════════════════════════════════════════════════ */
+
+      function cargarCatalogo() {
+        google.script.run
+          .withSuccessHandler(function (res) {
+            if (!res || res.status !== 'ok') {
+              pintarError((res && res.error) || 'No pudimos leer las secciones del Portal.');
+              $('secNombre').textContent = 'Contenido del Portal';
+              return;
+            }
+            pcState.colecciones = res.colecciones || [];
+            if (!pcState.colecciones.length) {
+              pintarError('El catálogo llegó vacío. Avisa al equipo de Ventel.');
+              return;
+            }
+            pintarSecciones();
+
+            // ?sec=plantillas abre esa sección directamente (enlaces compartibles).
+            // El valor lo inyecta el servidor: dentro del iframe de Apps Script,
+            // location.search no trae los parámetros de la app.
+            var pedida = (window.__APP__ && window.__APP__.sec) || '';
+            var existe = pcState.colecciones.filter(function (c) { return c.id === pedida; }).length > 0;
+            abrirSeccion(existe ? pedida : pcState.colecciones[0].id);
+          })
+          .withFailureHandler(function (err) {
+            pintarError(err && err.message ? err.message : 'No pudimos conectar con el servidor.');
+          })
+          .portalContenidoCatalogo(PC_EMAIL);
+      }
+
+      function enganchar() {
+        $('btnNuevo').addEventListener('click', function () { abrirEditor(null); });
+        $('btnRapido').addEventListener('click', abrirImport);
+        $('impAnalizar').addEventListener('click', analizarImport);
+        $('impAplicar').addEventListener('click', aplicarImport);
+        $('impCancelar').addEventListener('click', intentarCerrar);
+        $('drGuardar').addEventListener('click', guardar);
+        $('drCancelar').addEventListener('click', intentarCerrar);
+        $('drCerrar').addEventListener('click', intentarCerrar);
+        $('drCerrar').innerHTML = svg('cerrar');
+        $('scrim').addEventListener('click', intentarCerrar);
+
+        $('pcConfirmNo').addEventListener('click', function () { cerrarConfirmacion(false); });
+        $('pcConfirmYes').addEventListener('click', function () { cerrarConfirmacion(true); });
+        $('pcConfirm').addEventListener('click', function (e) { if (e.target === this) cerrarConfirmacion(false); });
+
+        // Búsqueda: se filtra en el cliente. Las secciones caben en memoria y así el
+        // filtrado es instantáneo, sin ida y vuelta al servidor por cada tecla.
+        var t = null;
+        $('buscar').addEventListener('input', function () {
+          clearTimeout(t);
+          var v = this.value;
+          t = setTimeout(function () { pcState.filtro = v; pintarLista(); }, 120);
+        });
+
+        $('tools').querySelector('.pc-search .ic').outerHTML = svg('buscar');
+
+        document.addEventListener('keydown', function (e) {
+          if (e.key === 'Escape') {
+            if ($('pcConfirm').classList.contains('active')) { cerrarConfirmacion(false); return; }
+            if (!$('drawer').hidden) { intentarCerrar(); return; }
+          }
+          // Ctrl/Cmd+S guarda sin bajar hasta el botón: es una pantalla de teclear.
+          if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 's' && !$('drawer').hidden) {
+            e.preventDefault(); guardar(); return;
+          }
+          atraparFoco(e);
+        });
+
+        // Aviso del navegador si se cierra la pestaña con el editor a medias.
+        window.addEventListener('beforeunload', function (e) {
+          if (!pcState.dirty) return;
+          e.preventDefault(); e.returnValue = '';
+        });
+      }
+
+      // ── Sesión + bloque 'portal_contenido' + shell, luego el catálogo ──
+      // El servidor vuelve a exigir el bloque en CADA llamada (pcGate_): esto solo
+      // evita entrar a una pantalla que iba a rechazarlo todo.
+      document.addEventListener('DOMContentLoaded', function () {
+        if (!requireBlock('portal_contenido', 'portal_contenido')) return;
+        PC_EMAIL = AppSession.userEmail;
+
+        AppShell.mount({ active: 'portal_contenido', title: 'Contenido del Portal' });
+        if (window.VentelLoader) VentelLoader.hide();
+
+        enganchar();
+        $('lista').innerHTML = esqueleto();
+        cargarCatalogo();
+        if (window.Icons) Icons.render();
+      });
+    </script>
+</body>
+</html>

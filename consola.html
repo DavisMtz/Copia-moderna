@@ -1,0 +1,1778 @@
+<!DOCTYPE html>
+<html lang="es" class="h-full">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Consola maestra - Sistema Ventel</title>
+    <?!= include('app_theme'); ?>
+    <style>
+    /**
+     * =====================================================================================
+     * CONSOLA MAESTRA | Sistema de cotizaciones Ventel
+     * =====================================================================================
+     * QUIÉN LA USA: una sola persona (o muy pocas), de vez en cuando, para hacer cambios
+     * que afectan a todo el equipo. No es una pantalla de trabajo diario: es una sala de
+     * máquinas. De ahí las tres decisiones de diseño que explican todo lo demás:
+     *
+     *   1. DENSA, no aireada. Herramienta interna con tablas: cabe más información por
+     *      pantalla y se navega leyendo, no desplazándose.
+     *   2. El ROSA de marca casi no aparece. En una consola donde se pueden dar de baja
+     *      personas y apagar módulos, el acento tiene que quedar libre para señalar la
+     *      acción primaria y el estado actual — si todo es rosa, nada resalta.
+     *   3. Lo DESTRUCTIVO se ve distinto y cuesta más. Rojo, confirmación escrita y
+     *      separado del resto de acciones.
+     *
+     * NO define ni un color, ni un tamaño de fuente, ni un radio propios: todo sale de los
+     * tokens de app_theme, así que hereda los tres temas (aurora/slate/carbon), la escala
+     * de texto y el alto contraste sin una línea extra. Las clases van con prefijo cns-
+     * para no chocar con las utilidades de Tailwind ni con los componentes v-*.
+     */
+
+    /* El atributo [hidden] es la forma en que esta pantalla muestra y esconde todo.
+       Varias clases de aquí fijan `display`, y eso GANA a la regla del navegador para
+       [hidden]: sin esta línea, un panel "oculto" se seguiría viendo. Va primero y con
+       !important a propósito — es la única excepción de toda la hoja. */
+    [hidden] { display: none !important; }
+
+    /* Texto solo para lectores de pantalla (Tailwind compilado aquí no trae sr-only).
+       Se usa en los <caption> de las tablas y en el significado de los iconos de la
+       matriz: sin él, un ✓ sin texto no dice nada a quien no lo ve. */
+    .sr-only {
+        position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px;
+        overflow: hidden; clip: rect(0, 0, 0, 0); white-space: nowrap; border: 0;
+    }
+
+    /* ── Marco ──
+       `min-width: 0` no es decorativo: AppShell mete este <main> dentro de un
+       contenedor flex, y un ítem flex se niega por omisión a encogerse por debajo del
+       contenido más ancho que lleva dentro. Con una tabla de miembros de ~960 px eso
+       hacía que la PÁGINA ENTERA se desplazara en horizontal en el móvil —cabecera
+       incluida— en vez de desplazarse solo la tabla dentro de su contenedor. */
+    .cns { max-width: 78rem; width: 100%; min-width: 0; margin: 0 auto; padding: 1.5rem 1rem 5rem; }
+    @media (min-width: 640px) { .cns { padding: 2rem 1.5rem 5rem; } }
+
+    .cns-head { display: flex; flex-wrap: wrap; align-items: flex-start; gap: 1rem; margin-bottom: 1.75rem; }
+    .cns-head h1 { margin: 0; font-size: 1.75rem; font-weight: var(--fw-semibold); letter-spacing: -.02em; color: var(--ink); line-height: 1.15; }
+    .cns-head p { margin: .35rem 0 0; font-size: .9rem; color: var(--ink-soft); max-width: 58ch; line-height: 1.55; }
+    .cns-head-acciones { margin-left: auto; display: flex; align-items: center; gap: .6rem; flex-wrap: wrap; }
+
+    /* Distintivo de rol: el único uso decorativo del rosa en la pantalla, y va aquí
+       porque responde a "¿con qué poderes estoy entrando?", que es lo primero que
+       alguien debería confirmar al abrir esto. */
+    .cns-rol {
+        display: inline-flex; align-items: center; gap: .4rem;
+        padding: .32rem .7rem; border-radius: 999px;
+        background: var(--brand-tint); color: var(--brand-deep);
+        font-size: .74rem; font-weight: var(--fw-bold); letter-spacing: .06em; text-transform: uppercase;
+    }
+    .cns-rol .ic { width: .95rem; height: .95rem; }
+
+    /* ── Estados de pantalla completa (cargando / sin permiso / error) ── */
+    .cns-estado {
+        display: flex; flex-direction: column; align-items: center; text-align: center;
+        gap: .85rem; padding: 4rem 1.5rem; border: 1px solid var(--line);
+        border-radius: var(--rad-lg); background: var(--surface);
+    }
+    .cns-estado h2 { margin: 0; font-size: 1.15rem; font-weight: var(--fw-semibold); color: var(--ink); }
+    .cns-estado p { margin: 0; font-size: .9rem; color: var(--ink-soft); max-width: 46ch; line-height: 1.6; }
+    .cns-estado-ic {
+        width: 3rem; height: 3rem; border-radius: 50%; display: flex; align-items: center; justify-content: center;
+        background: var(--surface-2); color: var(--ink-faint);
+    }
+    .cns-estado-ic .ic { width: 1.5rem; height: 1.5rem; }
+    .cns-estado.malo .cns-estado-ic { background: var(--alert-bg); color: var(--alert); }
+
+    /* ── Navegación por secciones ──
+       Ocho secciones no caben en la barra lateral global sin ahogar el resto de la app,
+       así que viven aquí dentro. Es una lista de pestañas real (role=tablist) para que
+       las flechas del teclado funcionen como se espera. */
+    .cns-tabs {
+        display: flex; gap: .2rem; overflow-x: auto; margin-bottom: 1.5rem;
+        padding-bottom: .3rem; border-bottom: 1px solid var(--line);
+        scrollbar-width: thin;
+    }
+    .cns-tab {
+        flex: none; display: inline-flex; align-items: center; gap: .45rem;
+        padding: .6rem .85rem; border: 0; background: transparent; cursor: pointer;
+        border-radius: var(--rad-sm) var(--rad-sm) 0 0;
+        font-family: var(--f-ui); font-size: .86rem; font-weight: var(--fw-medium); color: var(--ink-soft);
+        position: relative; white-space: nowrap; transition: color .15s ease, background-color .15s ease;
+    }
+    .cns-tab .ic { width: 1.05rem; height: 1.05rem; }
+    .cns-tab:hover { color: var(--ink); background: var(--surface-2); }
+    .cns-tab[aria-selected="true"] { color: var(--brand-deep); font-weight: var(--fw-semibold); }
+    .cns-tab[aria-selected="true"]::after {
+        content: ''; position: absolute; left: .5rem; right: .5rem; bottom: -.3rem;
+        height: 2px; border-radius: 2px 2px 0 0; background: var(--brand);
+    }
+    .cns-tab:focus-visible { outline: 2px solid var(--brand); outline-offset: -2px; }
+    .cns-tab-num {
+        min-width: 1.4rem; padding: 0 .3rem; height: 1.4rem; border-radius: 999px;
+        display: inline-flex; align-items: center; justify-content: center;
+        background: var(--surface-2); color: var(--ink-soft);
+        font-size: .7rem; font-weight: var(--fw-bold); font-variant-numeric: tabular-nums;
+    }
+    .cns-tab[aria-selected="true"] .cns-tab-num { background: var(--brand-tint); color: var(--brand-deep); }
+
+    .cns-panel[hidden] { display: none; }
+
+    /* ── Bloque de contenido ──
+       Un solo mecanismo de separación en toda la pantalla: borde + superficie. Sin
+       sombras encima; apilar borde, sombra y fondo distinto es lo que convierte una
+       consola en ruido. */
+    .cns-bloque { border: 1px solid var(--line); border-radius: var(--rad-lg); background: var(--surface); margin-bottom: 1.25rem; overflow: hidden; }
+    .cns-bloque-head { display: flex; align-items: flex-start; gap: .85rem; flex-wrap: wrap; padding: 1.1rem 1.25rem; border-bottom: 1px solid var(--line-soft); }
+    .cns-bloque-head h2 { margin: 0; font-size: 1rem; font-weight: var(--fw-semibold); color: var(--ink); }
+    .cns-bloque-head h3 { margin: 0; font-size: .95rem; font-weight: var(--fw-semibold); color: var(--ink); }
+    .cns-bloque-head p { margin: .2rem 0 0; font-size: .82rem; color: var(--ink-soft); max-width: 62ch; line-height: 1.55; }
+    .cns-bloque-head .cns-head-acciones { margin-left: auto; }
+    .cns-bloque-cuerpo { padding: 1.25rem; }
+    .cns-bloque-cuerpo.sin-aire { padding: 0; }
+
+    /* ── Resumen: fichas de cifras ── */
+    .cns-kpis { display: grid; grid-template-columns: repeat(auto-fit, minmax(11rem, 1fr)); gap: .85rem; }
+    .cns-kpi { border: 1px solid var(--line); border-radius: var(--rad); background: var(--surface); padding: 1rem 1.1rem; }
+    .cns-kpi dt { font-size: .74rem; font-weight: var(--fw-semibold); letter-spacing: .07em; text-transform: uppercase; color: var(--ink-faint); margin: 0 0 .45rem; }
+    .cns-kpi dd { margin: 0; font-size: 1.75rem; font-weight: var(--fw-bold); color: var(--ink); font-variant-numeric: tabular-nums; line-height: 1; }
+    .cns-kpi small { display: block; margin-top: .4rem; font-size: .78rem; color: var(--ink-soft); font-weight: var(--fw-normal); }
+    .cns-kpi.alerta { border-color: var(--warn); }
+    .cns-kpi.alerta dd { color: var(--warn); }
+
+    /* Ficha de datos del despliegue */
+    .cns-datos { display: grid; gap: 0; }
+    .cns-datos div { display: flex; gap: 1rem; align-items: baseline; padding: .7rem 0; border-top: 1px solid var(--line-soft); }
+    .cns-datos div:first-child { border-top: 0; }
+    .cns-datos dt { flex: none; width: 11rem; font-size: .8rem; font-weight: var(--fw-medium); color: var(--ink-soft); }
+    .cns-datos dd { margin: 0; font-size: .86rem; color: var(--ink); word-break: break-word; min-width: 0; }
+    .cns-datos dd.mono { font-family: var(--f-mono); font-size: .8rem; }
+
+    /* ── Tablas ── */
+    .cns-tabla-wrap { overflow-x: auto; }
+    .cns-tabla { width: 100%; border-collapse: collapse; font-size: .85rem; }
+    .cns-tabla th {
+        text-align: left; padding: .7rem 1.25rem; background: var(--surface-2);
+        font-size: .72rem; font-weight: var(--fw-bold); letter-spacing: .07em; text-transform: uppercase;
+        color: var(--ink-soft); border-bottom: 1px solid var(--line); white-space: nowrap;
+    }
+    .cns-tabla td { padding: .7rem 1.25rem; border-bottom: 1px solid var(--line-soft); color: var(--ink-soft); vertical-align: middle; }
+    .cns-tabla tbody tr { transition: background-color .12s ease; }
+    .cns-tabla tbody tr:hover { background: var(--surface-2); }
+    .cns-tabla tbody tr:last-child td { border-bottom: 0; }
+    .cns-tabla .num { text-align: right; font-variant-numeric: tabular-nums; }
+    .cns-tabla .acciones { text-align: right; white-space: nowrap; }
+
+    .cns-persona { display: flex; align-items: center; gap: .7rem; min-width: 0; }
+    .cns-avatar {
+        flex: none; width: 2.1rem; height: 2.1rem; border-radius: 50%;
+        display: flex; align-items: center; justify-content: center;
+        background: var(--surface-2); color: var(--ink-soft);
+        font-size: .78rem; font-weight: var(--fw-bold); text-transform: uppercase;
+    }
+    .cns-persona-tx { min-width: 0; }
+    .cns-persona-tx b { display: block; font-weight: var(--fw-semibold); color: var(--ink); font-size: .88rem; }
+    .cns-persona-tx small { display: block; font-size: .76rem; color: var(--ink-faint); overflow: hidden; text-overflow: ellipsis; }
+    .cns-baja .cns-persona-tx b { color: var(--ink-faint); text-decoration: line-through; }
+
+    /* Distintivos de rol y estado. Llevan SIEMPRE texto: el color por sí solo no
+       informa a quien no lo distingue, ni sobrevive a una captura en blanco y negro. */
+    .cns-tag {
+        display: inline-flex; align-items: center; gap: .35rem; padding: .2rem .55rem;
+        border-radius: 999px; font-size: .72rem; font-weight: var(--fw-bold);
+        letter-spacing: .03em; white-space: nowrap;
+    }
+    .cns-tag::before { content: ''; width: .4rem; height: .4rem; border-radius: 999px; background: currentColor; }
+    .cns-tag-maestro { background: var(--brand-tint); color: var(--brand-deep); }
+    .cns-tag-avanzado { background: var(--info-bg); color: var(--info); }
+    .cns-tag-normal { background: var(--surface-2); color: var(--ink-soft); }
+    .cns-tag-baja { background: var(--alert-bg); color: var(--alert); }
+    .cns-tag-ok { background: var(--ok-bg); color: var(--ok); }
+    .cns-tag-aviso { background: var(--warn-bg); color: var(--warn); }
+    .cns-tag-suave { background: transparent; color: var(--ink-faint); border: 1px dashed var(--line); }
+    .cns-tag-suave::before { display: none; }
+
+    /* ── Interruptor ── */
+    .cns-sw { position: relative; display: inline-flex; align-items: center; flex: none; cursor: pointer; }
+    .cns-sw input { position: absolute; opacity: 0; width: 100%; height: 100%; margin: 0; cursor: pointer; }
+    .cns-sw .pista {
+        width: 2.5rem; height: 1.4rem; border-radius: 999px; background: var(--line);
+        transition: background-color .2s ease; display: block;
+    }
+    .cns-sw .bolita {
+        position: absolute; left: .2rem; top: 50%; transform: translateY(-50%);
+        width: 1rem; height: 1rem; border-radius: 50%; background: #fff;
+        box-shadow: 0 1px 3px rgba(0,0,0,.25);
+        transition: transform .2s cubic-bezier(.34,1.56,.64,1);
+    }
+    .cns-sw input:checked ~ .pista { background: var(--brand); }
+    .cns-sw input:checked ~ .bolita { transform: translate(1.1rem, -50%); }
+    .cns-sw input:focus-visible ~ .pista { box-shadow: var(--ring); }
+    .cns-sw input:disabled ~ .pista { opacity: .45; cursor: not-allowed; }
+    .cns-sw input:disabled { cursor: not-allowed; }
+
+    /* Fila con interruptor: módulos, formatos */
+    .cns-fila-sw { display: flex; align-items: flex-start; gap: 1rem; padding: .9rem 0; border-top: 1px solid var(--line-soft); }
+    .cns-fila-sw:first-child { border-top: 0; padding-top: 0; }
+    .cns-fila-sw-tx { min-width: 0; flex: 1; }
+    .cns-fila-sw-tx b { display: block; font-size: .9rem; font-weight: var(--fw-semibold); color: var(--ink); }
+    .cns-fila-sw-tx p { margin: .2rem 0 0; font-size: .81rem; color: var(--ink-soft); line-height: 1.5; max-width: 62ch; }
+    .cns-fila-sw-tx .aviso { color: var(--warn); font-weight: var(--fw-medium); }
+
+    /* ── Matriz de roles × bloques ── */
+    .cns-matriz { width: 100%; border-collapse: collapse; font-size: .84rem; }
+    .cns-matriz th, .cns-matriz td { padding: .55rem .75rem; border-bottom: 1px solid var(--line-soft); }
+    .cns-matriz thead th { background: var(--surface-2); font-size: .72rem; letter-spacing: .06em; text-transform: uppercase; color: var(--ink-soft); font-weight: var(--fw-bold); }
+    .cns-matriz thead th.rol { text-align: center; width: 7rem; }
+    .cns-matriz td.rol { text-align: center; }
+    .cns-matriz tbody tr:hover { background: var(--surface-2); }
+    .cns-matriz .grupo td {
+        background: var(--content-bg); font-size: .72rem; font-weight: var(--fw-bold);
+        letter-spacing: .08em; text-transform: uppercase; color: var(--ink-faint); padding: .5rem .75rem;
+    }
+    .cns-matriz b { color: var(--ink); font-weight: var(--fw-semibold); }
+    .cns-matriz small { display: block; color: var(--ink-faint); font-size: .76rem; margin-top: .1rem; line-height: 1.45; }
+    .cns-si { color: var(--ok); font-weight: var(--fw-bold); }
+    .cns-no { color: var(--ink-faint); }
+
+    /* ── Panel lateral de edición (cajón) ──
+       Un cajón y no un modal: al cambiar permisos hace falta seguir viendo a quién se
+       le están cambiando y qué más hay en la lista. El modal tapa justamente eso. */
+    .cns-cajon-fondo {
+        position: fixed; inset: 0; background: rgba(27,35,48,.42);
+        backdrop-filter: blur(2px); -webkit-backdrop-filter: blur(2px);
+        opacity: 0; pointer-events: none; z-index: 200; transition: opacity .25s ease;
+    }
+    .cns-cajon-fondo.abierto { opacity: 1; pointer-events: auto; }
+    .cns-cajon {
+        position: fixed; top: 0; right: 0; bottom: 0; width: min(30rem, 100%);
+        background: var(--surface); border-left: 1px solid var(--line);
+        box-shadow: var(--sh-lg); z-index: 201;
+        display: flex; flex-direction: column;
+        transform: translateX(100%); transition: transform .3s cubic-bezier(.32,.72,0,1);
+    }
+    .cns-cajon.abierto { transform: translateX(0); }
+    .cns-cajon-head { padding: 1.15rem 1.25rem; border-bottom: 1px solid var(--line); display: flex; align-items: flex-start; gap: .75rem; }
+    .cns-cajon-head h2 { margin: 0; font-size: 1.05rem; font-weight: var(--fw-semibold); color: var(--ink); }
+    .cns-cajon-head p { margin: .15rem 0 0; font-size: .8rem; color: var(--ink-soft); word-break: break-all; }
+    .cns-cajon-cerrar {
+        margin-left: auto; flex: none; width: 2rem; height: 2rem; border-radius: var(--rad-sm);
+        border: 1px solid var(--line); background: var(--surface); color: var(--ink-soft);
+        display: flex; align-items: center; justify-content: center; cursor: pointer;
+    }
+    .cns-cajon-cerrar:hover { color: var(--ink); border-color: var(--brand-soft); }
+    .cns-cajon-cerrar .ic { width: 1rem; height: 1rem; }
+    .cns-cajon-cuerpo { flex: 1; overflow-y: auto; padding: 1.25rem; }
+    .cns-cajon-pie {
+        padding: .9rem 1.25rem; border-top: 1px solid var(--line); background: var(--surface-2);
+        display: flex; align-items: center; gap: .6rem; flex-wrap: wrap;
+    }
+    .cns-cajon-pie .crece { margin-left: auto; }
+
+    .cns-seccion { margin-bottom: 1.5rem; }
+    .cns-seccion:last-child { margin-bottom: 0; }
+    .cns-seccion > h3 {
+        margin: 0 0 .2rem; font-size: .74rem; font-weight: var(--fw-bold);
+        letter-spacing: .08em; text-transform: uppercase; color: var(--ink-faint);
+    }
+    .cns-seccion > p.ayuda { margin: 0 0 .75rem; font-size: .8rem; color: var(--ink-soft); line-height: 1.5; }
+
+    /* Selector de rol en el cajón: tarjetas, no un <select>. El rol es la decisión más
+       importante de la pantalla y cada opción necesita explicar qué significa. */
+    .cns-roles { display: grid; gap: .5rem; }
+    .cns-rol-op { display: flex; gap: .7rem; align-items: flex-start; padding: .75rem .85rem; border: 1px solid var(--line); border-radius: var(--rad); cursor: pointer; transition: border-color .15s ease, background-color .15s ease; }
+    .cns-rol-op:hover { border-color: var(--brand-soft); background: var(--surface-2); }
+    .cns-rol-op input { margin: .2rem 0 0; accent-color: var(--brand); flex: none; }
+    .cns-rol-op b { display: block; font-size: .88rem; font-weight: var(--fw-semibold); color: var(--ink); }
+    .cns-rol-op small { display: block; font-size: .78rem; color: var(--ink-soft); line-height: 1.5; margin-top: .1rem; }
+    .cns-rol-op:has(input:checked) { border-color: var(--brand); background: var(--brand-tint); }
+    .cns-rol-op:has(input:focus-visible) { box-shadow: var(--ring); }
+
+    /* Lista de bloques con casilla */
+    .cns-bloques-grupo { margin-bottom: .9rem; }
+    .cns-bloques-grupo > span {
+        display: block; font-size: .7rem; font-weight: var(--fw-bold); letter-spacing: .08em;
+        text-transform: uppercase; color: var(--ink-faint); margin: 0 0 .3rem;
+    }
+    .cns-bq { display: flex; gap: .65rem; align-items: flex-start; padding: .5rem .6rem; border-radius: var(--rad-sm); cursor: pointer; }
+    .cns-bq:hover { background: var(--surface-2); }
+    .cns-bq input { margin: .15rem 0 0; accent-color: var(--brand); flex: none; }
+    .cns-bq input:disabled { cursor: not-allowed; }
+    .cns-bq-tx { min-width: 0; }
+    .cns-bq-tx b { display: block; font-size: .84rem; font-weight: var(--fw-medium); color: var(--ink); }
+    .cns-bq-tx small { display: block; font-size: .75rem; color: var(--ink-faint); line-height: 1.45; }
+    .cns-bq.deshabilitado { opacity: .55; cursor: not-allowed; }
+    .cns-bq.deshabilitado:hover { background: transparent; }
+
+    /* Zona peligrosa: separada, roja y al final. Nunca junto a "Guardar". */
+    .cns-peligro { border: 1px solid var(--alert); border-radius: var(--rad); padding: .95rem 1rem; background: var(--alert-bg); }
+    .cns-peligro h3 { margin: 0 0 .25rem; font-size: .84rem; font-weight: var(--fw-bold); color: var(--alert); letter-spacing: 0; text-transform: none; }
+    .cns-peligro p { margin: 0 0 .7rem; font-size: .8rem; color: var(--ink); line-height: 1.5; }
+    .cns-peligro .fila { display: flex; gap: .5rem; flex-wrap: wrap; }
+
+    /* ── Ajustes ── */
+    .cns-ajuste { padding: 1.1rem 0; border-top: 1px solid var(--line-soft); }
+    .cns-ajuste:first-child { border-top: 0; padding-top: 0; }
+    .cns-ajuste-top { display: flex; align-items: baseline; gap: .6rem; flex-wrap: wrap; margin-bottom: .15rem; }
+    .cns-ajuste label.tit { font-size: .9rem; font-weight: var(--fw-semibold); color: var(--ink); }
+    .cns-ajuste p.det { margin: 0 0 .6rem; font-size: .81rem; color: var(--ink-soft); line-height: 1.55; max-width: 62ch; }
+    .cns-ajuste-campo { display: flex; gap: .5rem; align-items: flex-start; flex-wrap: wrap; }
+    .cns-ajuste-campo .v-input, .cns-ajuste-campo .v-select { flex: 1 1 20rem; min-width: 0; }
+    .cns-ajuste-nota { margin: .5rem 0 0; font-size: .8rem; line-height: 1.5; }
+    .cns-ajuste-nota.ok { color: var(--ok); }
+    .cns-ajuste-nota.mal { color: var(--alert); }
+    .cns-ajuste-nota.aviso { color: var(--warn); }
+    .cns-op-det { display: block; font-size: .78rem; color: var(--ink-soft); margin-top: .35rem; line-height: 1.5; }
+
+    /* ── Salud ── */
+    .cns-salud-area { margin-bottom: 1.1rem; }
+    .cns-salud-area > h3 { margin: 0 0 .4rem; font-size: .72rem; font-weight: var(--fw-bold); letter-spacing: .08em; text-transform: uppercase; color: var(--ink-faint); }
+    .cns-check { display: flex; gap: .6rem; align-items: flex-start; padding: .5rem .65rem; border-radius: var(--rad-sm); font-size: .84rem; }
+    .cns-check + .cns-check { border-top: 1px solid var(--line-soft); border-radius: 0; }
+    .cns-check-ic { flex: none; width: 1.05rem; height: 1.05rem; margin-top: .1rem; }
+    .cns-check.bien .cns-check-ic { color: var(--ok); }
+    .cns-check.mal { background: var(--alert-bg); }
+    .cns-check.mal .cns-check-ic { color: var(--alert); }
+    /* Advertencia ≠ error. "Falta configurar el calendario" no es lo mismo que "la
+       plantilla CCL está rota": si ambas salen en rojo, el rojo deja de significar
+       nada y quien abre la consola no sabe qué atender primero. */
+    .cns-check.aviso { background: var(--warn-bg); }
+    .cns-check.aviso .cns-check-ic { color: var(--warn); }
+    .cns-check b { display: block; font-weight: var(--fw-medium); color: var(--ink); }
+    .cns-check span { display: block; color: var(--ink-soft); font-size: .8rem; line-height: 1.5; word-break: break-word; }
+
+    /* ── Bitácora ── */
+    .cns-bit-fecha { font-family: var(--f-mono); font-size: .76rem; color: var(--ink-faint); white-space: nowrap; }
+
+    /* ── Estado vacío dentro de un bloque ── */
+    .cns-vacio { padding: 2.5rem 1.25rem; text-align: center; color: var(--ink-soft); font-size: .88rem; }
+    .cns-vacio .v-spinner { margin: 0 auto .6rem; }
+
+    /* ── Buscador de miembros ── */
+    .cns-buscar { position: relative; flex: 1 1 16rem; max-width: 22rem; }
+    .cns-buscar .ic { position: absolute; left: .7rem; top: 50%; transform: translateY(-50%); width: 1rem; height: 1rem; color: var(--ink-faint); pointer-events: none; }
+    .cns-buscar input { padding-left: 2.2rem; }
+
+    /* ── Modal de confirmación ── */
+    .cns-confirm-tx { font-size: .88rem; color: var(--ink-soft); line-height: 1.6; margin: 0 0 1rem; }
+    .cns-confirm-tx strong { color: var(--ink); }
+
+    @media (max-width: 640px) {
+        .cns-head-acciones { margin-left: 0; width: 100%; }
+        .cns-datos div { flex-direction: column; gap: .15rem; }
+        .cns-datos dt { width: auto; }
+        .cns-cajon { width: 100%; }
+    }
+    </style>
+<?!= include('app_tailwind'); ?>
+</head>
+<body class="h-full">
+<div class="app-aurora"></div>
+
+<main id="main-content" class="cns">
+
+    <header class="cns-head" data-animate>
+        <div>
+            <h1>Consola maestra</h1>
+            <p>Miembros, permisos, ajustes y estado del sistema. Todo lo que se cambia aquí queda apuntado en la bitácora.</p>
+        </div>
+        <div class="cns-head-acciones">
+            <span class="cns-rol"><span class="ic" data-icon="shield"></span><span id="cns-rol-tx">Maestro</span></span>
+            <button type="button" id="cns-recargar" class="v-btn v-btn-ghost v-btn-sm">
+                <span class="w-4 h-4 block" data-icon="refresh"></span>
+                Actualizar
+            </button>
+        </div>
+    </header>
+
+    <!-- Cargando -->
+    <div id="cns-cargando" class="cns-estado">
+        <div class="v-spinner"></div>
+        <p>Leyendo miembros, ajustes y estado del sistema…</p>
+    </div>
+
+    <!-- Sin permiso / error -->
+    <div id="cns-negado" class="cns-estado malo" hidden>
+        <div class="cns-estado-ic"><span class="ic" data-icon="lock"></span></div>
+        <h2 id="cns-negado-tit">No puedes entrar aquí</h2>
+        <p id="cns-negado-tx">Esta consola es solo para el rol maestro.</p>
+        <div style="display:flex;gap:.5rem;flex-wrap:wrap;justify-content:center">
+            <button type="button" id="cns-negado-volver" class="v-btn v-btn-ghost v-btn-sm">Volver a mi panel</button>
+            <button type="button" id="cns-negado-reintentar" class="v-btn v-btn-primary v-btn-sm">Reintentar</button>
+        </div>
+    </div>
+
+    <!-- Consola -->
+    <div id="cns-app" hidden>
+
+        <nav class="cns-tabs" role="tablist" aria-label="Secciones de la consola">
+            <button class="cns-tab" role="tab" id="tab-resumen"  aria-controls="panel-resumen"  aria-selected="true"  data-panel="resumen"><span class="ic" data-icon="grid"></span>Resumen</button>
+            <button class="cns-tab" role="tab" id="tab-miembros" aria-controls="panel-miembros" aria-selected="false" data-panel="miembros"><span class="ic" data-icon="user"></span>Miembros <span class="cns-tab-num" id="tab-num-miembros">—</span></button>
+            <button class="cns-tab" role="tab" id="tab-permisos" aria-controls="panel-permisos" aria-selected="false" data-panel="permisos"><span class="ic" data-icon="key"></span>Permisos</button>
+            <button class="cns-tab" role="tab" id="tab-modulos"  aria-controls="panel-modulos"  aria-selected="false" data-panel="modulos"><span class="ic" data-icon="bolt"></span>Módulos <span class="cns-tab-num" id="tab-num-modulos" hidden>0</span></button>
+            <button class="cns-tab" role="tab" id="tab-ajustes"  aria-controls="panel-ajustes"  aria-selected="false" data-panel="ajustes"><span class="ic" data-icon="shield"></span>Ajustes</button>
+            <button class="cns-tab" role="tab" id="tab-formatos" aria-controls="panel-formatos" aria-selected="false" data-panel="formatos"><span class="ic" data-icon="document"></span>Formatos</button>
+            <button class="cns-tab" role="tab" id="tab-salud"    aria-controls="panel-salud"    aria-selected="false" data-panel="salud"><span class="ic" data-icon="sparkle"></span>Salud</button>
+            <button class="cns-tab" role="tab" id="tab-bitacora" aria-controls="panel-bitacora" aria-selected="false" data-panel="bitacora"><span class="ic" data-icon="clock"></span>Bitácora</button>
+        </nav>
+
+        <!-- ══ RESUMEN ══════════════════════════════════════════════════════ -->
+        <section class="cns-panel" id="panel-resumen" role="tabpanel" aria-labelledby="tab-resumen" tabindex="-1">
+            <dl class="cns-kpis" id="cns-kpis" style="margin-bottom:1.25rem"></dl>
+
+            <div class="cns-bloque">
+                <div class="cns-bloque-head">
+                    <div>
+                        <h2>Despliegue</h2>
+                        <p>Dónde vive la app y con qué recursos cuenta ahora mismo.</p>
+                    </div>
+                </div>
+                <div class="cns-bloque-cuerpo">
+                    <dl class="cns-datos" id="cns-despliegue"></dl>
+                </div>
+            </div>
+
+            <div class="cns-bloque" id="cns-atencion-bloque" hidden>
+                <div class="cns-bloque-head">
+                    <div>
+                        <h2>Requiere atención</h2>
+                        <p>Cosas que no impiden trabajar hoy pero conviene resolver.</p>
+                    </div>
+                </div>
+                <div class="cns-bloque-cuerpo" id="cns-atencion"></div>
+            </div>
+        </section>
+
+        <!-- ══ MIEMBROS ═════════════════════════════════════════════════════ -->
+        <section class="cns-panel" id="panel-miembros" role="tabpanel" aria-labelledby="tab-miembros" tabindex="-1" hidden>
+            <div class="cns-bloque">
+                <div class="cns-bloque-head">
+                    <div class="cns-buscar">
+                        <span class="ic" data-icon="search"></span>
+                        <input type="search" id="cns-buscar-miembro" class="v-input" placeholder="Buscar por nombre o correo" aria-label="Buscar miembro">
+                    </div>
+                    <div class="cns-head-acciones">
+                        <label class="cns-fila-sw" style="padding:0;border:0;gap:.5rem;align-items:center">
+                            <span class="cns-sw">
+                                <input type="checkbox" id="cns-ver-bajas">
+                                <span class="pista"></span><span class="bolita"></span>
+                            </span>
+                            <span style="font-size:.82rem;color:var(--ink-soft);font-weight:500">Ver dados de baja</span>
+                        </label>
+                        <button type="button" id="cns-alta" class="v-btn v-btn-primary v-btn-sm">
+                            <span class="w-4 h-4 block" data-icon="plus"></span>
+                            Dar de alta
+                        </button>
+                    </div>
+                </div>
+                <div class="cns-bloque-cuerpo sin-aire">
+                    <div class="cns-tabla-wrap">
+                        <table class="cns-tabla">
+                            <caption class="sr-only">Miembros del sistema con su rol y accesos</caption>
+                            <thead>
+                                <tr>
+                                    <th scope="col">Persona</th>
+                                    <th scope="col">Rol</th>
+                                    <th scope="col">Estado</th>
+                                    <th scope="col" class="num">Bloques</th>
+                                    <th scope="col" class="acciones">&nbsp;</th>
+                                </tr>
+                            </thead>
+                            <tbody id="cns-miembros-tbody"></tbody>
+                        </table>
+                    </div>
+                    <div id="cns-miembros-vacio" class="cns-vacio" hidden></div>
+                </div>
+            </div>
+        </section>
+
+        <!-- ══ PERMISOS ═════════════════════════════════════════════════════ -->
+        <section class="cns-panel" id="panel-permisos" role="tabpanel" aria-labelledby="tab-permisos" tabindex="-1" hidden>
+            <div class="cns-bloque">
+                <div class="cns-bloque-head">
+                    <div>
+                        <h2>Qué trae cada rol</h2>
+                        <p>El punto de partida de todo el mundo. Los ajustes por persona se hacen desde la ficha de cada miembro y aparecen abajo como excepciones.</p>
+                    </div>
+                </div>
+                <div class="cns-bloque-cuerpo sin-aire">
+                    <div class="cns-tabla-wrap">
+                        <table class="cns-matriz" id="cns-matriz">
+                            <caption class="sr-only">Bloques que concede cada rol</caption>
+                        </table>
+                    </div>
+                </div>
+            </div>
+
+            <div class="cns-bloque">
+                <div class="cns-bloque-head">
+                    <div>
+                        <h2>Excepciones</h2>
+                        <p>Personas con accesos concedidos o retirados por encima de su rol. Si la lista crece mucho, probablemente falte un rol.</p>
+                    </div>
+                </div>
+                <div class="cns-bloque-cuerpo sin-aire">
+                    <div class="cns-tabla-wrap">
+                        <table class="cns-tabla">
+                            <caption class="sr-only">Personas con permisos distintos a los de su rol</caption>
+                            <thead>
+                                <tr>
+                                    <th scope="col">Persona</th>
+                                    <th scope="col">Rol</th>
+                                    <th scope="col">Concedido aparte</th>
+                                    <th scope="col">Retirado</th>
+                                    <th scope="col" class="acciones">&nbsp;</th>
+                                </tr>
+                            </thead>
+                            <tbody id="cns-excepciones-tbody"></tbody>
+                        </table>
+                    </div>
+                    <div id="cns-excepciones-vacio" class="cns-vacio" hidden></div>
+                </div>
+            </div>
+        </section>
+
+        <!-- ══ MÓDULOS ══════════════════════════════════════════════════════ -->
+        <section class="cns-panel" id="panel-modulos" role="tabpanel" aria-labelledby="tab-modulos" tabindex="-1" hidden>
+            <div class="cns-bloque">
+                <div class="cns-bloque-head">
+                    <div>
+                        <h2>Mantenimiento por módulo</h2>
+                        <p>Apagar un módulo lo retira para todo el equipo de golpe, sin tocar los permisos de nadie. Tú lo sigues viendo, para poder comprobar el arreglo antes de volver a encenderlo.</p>
+                    </div>
+                </div>
+                <div class="cns-bloque-cuerpo" id="cns-modulos"></div>
+            </div>
+        </section>
+
+        <!-- ══ AJUSTES ══════════════════════════════════════════════════════ -->
+        <section class="cns-panel" id="panel-ajustes" role="tabpanel" aria-labelledby="tab-ajustes" tabindex="-1" hidden>
+            <div id="cns-ajustes"></div>
+        </section>
+
+        <!-- ══ FORMATOS ═════════════════════════════════════════════════════ -->
+        <section class="cns-panel" id="panel-formatos" role="tabpanel" aria-labelledby="tab-formatos" tabindex="-1" hidden>
+            <div class="cns-bloque">
+                <div class="cns-bloque-head">
+                    <div>
+                        <h2>Formatos de cotización</h2>
+                        <p>Con cuáles puede imprimir y enviar el equipo. Siempre tiene que quedar al menos uno habilitado.</p>
+                    </div>
+                </div>
+                <div class="cns-bloque-cuerpo" id="cns-formatos"></div>
+            </div>
+        </section>
+
+        <!-- ══ SALUD ════════════════════════════════════════════════════════ -->
+        <section class="cns-panel" id="panel-salud" role="tabpanel" aria-labelledby="tab-salud" tabindex="-1" hidden>
+            <div class="cns-bloque">
+                <div class="cns-bloque-head">
+                    <div>
+                        <h2>Revisión del sistema</h2>
+                        <p>Revisa una por una las hojas, los formatos, el correo y el calendario. Tarda unos segundos porque comprueba cada cosa de verdad.</p>
+                    </div>
+                    <div class="cns-head-acciones">
+                        <button type="button" id="cns-correr-salud" class="v-btn v-btn-primary v-btn-sm">
+                            <span class="w-4 h-4 block" data-icon="bolt"></span>
+                            Correr revisión
+                        </button>
+                    </div>
+                </div>
+                <div class="cns-bloque-cuerpo" id="cns-salud">
+                    <p class="cns-vacio" style="padding:1.5rem 0">Aún no se ha corrido en esta sesión.</p>
+                </div>
+            </div>
+        </section>
+
+        <!-- ══ BITÁCORA ═════════════════════════════════════════════════════ -->
+        <section class="cns-panel" id="panel-bitacora" role="tabpanel" aria-labelledby="tab-bitacora" tabindex="-1" hidden>
+            <div class="cns-bloque">
+                <div class="cns-bloque-head">
+                    <div>
+                        <h2>Bitácora de la consola</h2>
+                        <p>Quién cambió qué y cuándo. Se guarda en la hoja «BitacoraConsola» del sistema.</p>
+                    </div>
+                    <div class="cns-head-acciones">
+                        <button type="button" id="cns-recargar-bitacora" class="v-btn v-btn-ghost v-btn-sm">
+                            <span class="w-4 h-4 block" data-icon="refresh"></span>
+                            Actualizar
+                        </button>
+                    </div>
+                </div>
+                <div class="cns-bloque-cuerpo sin-aire">
+                    <div class="cns-tabla-wrap">
+                        <table class="cns-tabla">
+                            <caption class="sr-only">Movimientos administrativos recientes</caption>
+                            <thead>
+                                <tr>
+                                    <th scope="col">Cuándo</th>
+                                    <th scope="col">Quién</th>
+                                    <th scope="col">Qué</th>
+                                    <th scope="col">Sobre</th>
+                                    <th scope="col">Detalle</th>
+                                </tr>
+                            </thead>
+                            <tbody id="cns-bitacora-tbody"></tbody>
+                        </table>
+                    </div>
+                    <div id="cns-bitacora-vacio" class="cns-vacio" hidden></div>
+                </div>
+            </div>
+        </section>
+
+    </div>
+</main>
+
+<!-- ══ CAJÓN: ficha del miembro ═══════════════════════════════════════════ -->
+<div class="cns-cajon-fondo" id="cns-cajon-fondo"></div>
+<aside class="cns-cajon" id="cns-cajon" role="dialog" aria-modal="true" aria-labelledby="cns-cajon-nombre" hidden>
+    <div class="cns-cajon-head">
+        <div style="min-width:0">
+            <h2 id="cns-cajon-nombre">—</h2>
+            <p id="cns-cajon-correo">—</p>
+        </div>
+        <!-- La X va en línea: el juego de iconos compartido (app_icons) no trae una, y
+             un chevron aquí se lee como "colapsar", no como "cerrar". Mismo lenguaje
+             que el resto: lienzo 24×24, sin relleno, trazo 1.6, currentColor. -->
+        <button type="button" class="cns-cajon-cerrar" id="cns-cajon-cerrar" aria-label="Cerrar ficha">
+            <svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"
+                 stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 18 18 6M6 6l12 12"/></svg>
+        </button>
+    </div>
+    <div class="cns-cajon-cuerpo" id="cns-cajon-cuerpo"></div>
+    <div class="cns-cajon-pie">
+        <button type="button" class="v-btn v-btn-ghost v-btn-sm" id="cns-cajon-cancelar">Cancelar</button>
+        <span class="crece"></span>
+        <button type="button" class="v-btn v-btn-primary v-btn-sm" id="cns-cajon-guardar">
+            <span class="w-4 h-4 block" data-icon="check"></span>
+            Guardar cambios
+        </button>
+    </div>
+</aside>
+
+<!-- ══ MODAL: confirmación / alta ═════════════════════════════════════════ -->
+<div class="v-modal-overlay" id="cns-modal-fondo">
+    <div class="v-modal" role="dialog" aria-modal="true" aria-labelledby="cns-modal-tit" style="max-width:28rem">
+        <h3 id="cns-modal-tit" style="margin:0 0 .6rem;font-size:1.1rem;font-weight:600;color:var(--ink)">—</h3>
+        <div id="cns-modal-cuerpo"></div>
+        <div style="display:flex;gap:.5rem;justify-content:flex-end;flex-wrap:wrap;margin-top:1.25rem">
+            <button type="button" class="v-btn v-btn-ghost v-btn-sm" id="cns-modal-no">Cancelar</button>
+            <button type="button" class="v-btn v-btn-primary v-btn-sm" id="cns-modal-si">Confirmar</button>
+        </div>
+    </div>
+</div>
+
+<script>
+    window.__APP__ = { baseUrl: <?!= JSON.stringify(baseUrl) ?> };
+</script>
+<?!= include('app_core'); ?>
+<?!= include('app_icons'); ?>
+<?!= include('app_motion'); ?>
+<?!= include('app_support'); ?>
+<?!= include('app_shell'); ?>
+<?!= include('LoaderPartial'); ?>
+
+<script>
+/**
+ * =====================================================================================
+ * CONSOLA MAESTRA — cliente
+ * =====================================================================================
+ * Esta pantalla NO decide permisos: los pinta. Cada acción vuelve a preguntarle al
+ * servidor (Consola.gs), que resuelve la identidad por su cuenta y puede decir que no
+ * aunque el botón estuviera visible. Ocultar un botón es cortesía; la puerta está en
+ * el servidor. Por eso aquí no hay ni una comprobación de rol que sirva de candado.
+ */
+(function () {
+    'use strict';
+
+    // ── Estado en memoria ────────────────────────────────────────────────────
+    var D = {
+        yo: null,           // { email, nombre, rol, bloques }
+        catalogo: null,     // { bloques, grupos, roles, apagados }
+        miembros: [],
+        ajustes: [],
+        gruposAjustes: [],
+        formatos: [],
+        resumen: null,
+        bitacora: []
+    };
+    var editando = null;    // miembro abierto en el cajón
+    var seleccion = {};     // { bloqueId: true } estado de las casillas del cajón
+    var rolElegido = '';
+    var ultimoFoco = null;  // a dónde devolver el foco al cerrar el cajón
+
+    var $ = function (id) { return document.getElementById(id); };
+    var esc = window.escapeHtml || function (s) {
+        return String(s == null ? '' : s)
+            .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+            .replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+    };
+    function ic(nombre, clase) {
+        return (window.Icons && Icons.svg) ? Icons.svg(nombre, clase || 'ic') : '';
+    }
+    function toast(msg, tipo) {
+        if (window.AppMotion) AppMotion.toast(msg, tipo);
+    }
+    function num(n) { return Number(n || 0).toLocaleString('es-MX'); }
+
+    /** Fecha corta y legible; las del servidor llegan en ISO. */
+    function fecha(iso) {
+        if (!iso) return '—';
+        var d = new Date(iso);
+        if (isNaN(d.getTime())) return String(iso);
+        return d.toLocaleDateString('es-MX', { day: '2-digit', month: 'short', year: 'numeric' }) +
+               ' · ' + d.toLocaleTimeString('es-MX', { hour: '2-digit', minute: '2-digit' });
+    }
+
+    /**
+     * Llamada al servidor. Se delega en AppRun (app_core) en vez de armar aquí otro
+     * google.script.run: esa librería exige que el runner se invoque SOBRE SÍ MISMO
+     * —un `apply(null, …)` se traga los handlers en silencio y la pantalla se queda
+     * cargando para siempre— y además AppRun deduplica, que aquí evita de paso el
+     * doble clic en "Guardar".
+     *
+     * La clave incluye un sello de tiempo en las escrituras porque dos guardados
+     * idénticos seguidos (apagar y volver a apagar) son dos intenciones distintas,
+     * no una repetición que convenga fusionar.
+     */
+    function llamar(nombre, args) {
+        var esLectura = nombre === 'consolaPanorama' || nombre === 'consolaBitacora';
+        return AppRun.call(nombre, args || [], esLectura ? {} : { key: nombre + ':' + Date.now() });
+    }
+
+    function bloquePorId(id) {
+        var lista = (D.catalogo && D.catalogo.bloques) || [];
+        for (var i = 0; i < lista.length; i++) if (lista[i].id === id) return lista[i];
+        return null;
+    }
+    function nombreBloque(id) {
+        var b = bloquePorId(id);
+        return b ? b.nombre : id;
+    }
+    function rolDef(id) {
+        var lista = (D.catalogo && D.catalogo.roles) || [];
+        for (var i = 0; i < lista.length; i++) if (lista[i].id === id) return lista[i];
+        return null;
+    }
+    function bloquesDeRol(id) {
+        var r = rolDef(id);
+        return r ? r.bloques : [];
+    }
+
+    // ── Carga ────────────────────────────────────────────────────────────────
+
+    function cargar() {
+        $('cns-cargando').hidden = false;
+        $('cns-negado').hidden = true;
+        $('cns-app').hidden = true;
+
+        llamar('consolaPanorama', [AppSession.userEmail]).then(function (r) {
+            // Se exige también `yo` y `catalogo`: una respuesta a medias reventaría al
+            // pintar y el asesor vería un error de JavaScript en vez de una explicación.
+            if (!r || !r.success || !r.yo || !r.catalogo) return negar(r && r.message);
+
+            D.yo = r.yo; D.catalogo = r.catalogo; D.miembros = r.miembros || [];
+            D.ajustes = r.ajustes || []; D.gruposAjustes = r.gruposAjustes || [];
+            D.formatos = r.formatos || []; D.resumen = r.resumen; D.bitacora = r.bitacora || [];
+
+            $('cns-cargando').hidden = true;
+            $('cns-app').hidden = false;
+            $('cns-rol-tx').textContent = (rolDef(D.yo.rol) || {}).nombre || 'Maestro';
+
+            pintarTodo();
+            if (window.Icons) Icons.render(document);
+            if (window.AppMotion) AppMotion.enter($('cns-app'));
+        }).catch(function (e) {
+            console.error('consolaPanorama:', e);
+            negar('No hay conexión con el sistema. Revisa tu internet y recarga la página.');
+        });
+    }
+
+    function negar(mensaje) {
+        $('cns-cargando').hidden = true;
+        $('cns-app').hidden = true;
+        $('cns-negado').hidden = false;
+        var esPermiso = !mensaje || mensaje.indexOf('maestro') !== -1 || mensaje.indexOf('acceso') !== -1;
+        $('cns-negado-tit').textContent = esPermiso ? 'No puedes entrar aquí' : 'No se pudo abrir la consola';
+        $('cns-negado-tx').textContent = mensaje ||
+            'Esta consola es solo para el rol maestro. Si crees que deberías tener acceso, pídeselo a quien administra el sistema.';
+        $('cns-negado-reintentar').hidden = esPermiso;
+        if (window.Icons) Icons.render($('cns-negado'));
+    }
+
+    function pintarTodo() {
+        pintarResumen();
+        pintarMiembros();
+        pintarMatriz();
+        pintarExcepciones();
+        pintarModulos();
+        pintarAjustes();
+        pintarFormatos();
+        pintarBitacora();
+    }
+
+    // ── Resumen ──────────────────────────────────────────────────────────────
+
+    function pintarResumen() {
+        var r = D.resumen || {};
+        var apagados = (D.catalogo && D.catalogo.apagados) || [];
+
+        var kpis = [
+            { t: 'Miembros activos', v: r.activos, s: (r.bajas ? num(r.bajas) + ' dados de baja' : 'sin bajas') },
+            { t: 'Maestros', v: (r.porRol || {}).maestro, s: 'control total' },
+            { t: 'Supervisores', v: (r.porRol || {}).avanzado, s: 'revisión y métricas' },
+            { t: 'Cotizaciones', v: r.cotizaciones, s: 'en la base' },
+            { t: 'Módulos apagados', v: apagados.length, s: apagados.length ? 'en mantenimiento' : 'todo en servicio', alerta: apagados.length > 0 }
+        ];
+
+        $('cns-kpis').innerHTML = kpis.map(function (k) {
+            return '<div class="cns-kpi' + (k.alerta ? ' alerta' : '') + '">' +
+                '<dt>' + esc(k.t) + '</dt>' +
+                '<dd data-kpi="' + esc(String(k.v || 0)) + '">' + num(k.v) + '</dd>' +
+                '<small>' + esc(k.s) + '</small>' +
+            '</div>';
+        }).join('');
+
+        // Las cifras cuentan hasta su valor: en un resumen que se abre a diario, el
+        // movimiento es lo que hace notar que el dato se acaba de releer.
+        if (window.AppMotion) {
+            Array.prototype.forEach.call($('cns-kpis').querySelectorAll('[data-kpi]'), function (el) {
+                AppMotion.countUp(el, Number(el.getAttribute('data-kpi')) || 0);
+            });
+        }
+
+        var filas = [
+            ['Dirección de la aplicación', r.urlApp || '(aún no publicada)', true],
+            ['Zona horaria', r.zonaHoraria || '—', false],
+            ['Correos disponibles hoy', r.cuotaCorreo >= 0 ? num(r.cuotaCorreo) : '—', false],
+            ['Tu cuenta', (D.yo && D.yo.email) || '—', true]
+        ];
+        $('cns-despliegue').innerHTML = filas.map(function (f) {
+            return '<div><dt>' + esc(f[0]) + '</dt><dd' + (f[2] ? ' class="mono"' : '') + '>' + esc(f[1]) + '</dd></div>';
+        }).join('');
+
+        // Avisos accionables: secretos que siguen en el código y módulos apagados.
+        var avisos = [];
+        (D.ajustes || []).forEach(function (a) {
+            if (a.enCodigo && a.secreto) {
+                avisos.push('<b>' + esc(a.nombre) + '</b> todavía vive en el código fuente en vez de en las propiedades del script. ' +
+                    'Ejecuta <code>secGuardarConfiguracion()</code> una vez desde el editor para moverlo.');
+            }
+            if (!a.configurado && !a.soloLectura) {
+                avisos.push('<b>' + esc(a.nombre) + '</b> está sin configurar.');
+            }
+        });
+        apagados.forEach(function (id) {
+            avisos.push('<b>' + esc(nombreBloque(id)) + '</b> está apagado por mantenimiento: nadie del equipo lo ve.');
+        });
+
+        $('cns-atencion-bloque').hidden = avisos.length === 0;
+        $('cns-atencion').innerHTML = avisos.map(function (a) {
+            return '<div class="cns-check aviso"><span class="cns-check-ic">' + ic('warning') + '</span><span>' + a + '</span></div>';
+        }).join('');
+    }
+
+    // ── Miembros ─────────────────────────────────────────────────────────────
+
+    function miembrosVisibles() {
+        var q = ($('cns-buscar-miembro').value || '').trim().toLowerCase();
+        var verBajas = $('cns-ver-bajas').checked;
+        return D.miembros.filter(function (m) {
+            if (!verBajas && !m.activo) return false;
+            if (!q) return true;
+            return (m.nombre || '').toLowerCase().indexOf(q) !== -1 ||
+                   (m.email || '').toLowerCase().indexOf(q) !== -1;
+        });
+    }
+
+    function iniciales(nombre, correo) {
+        var base = (nombre || correo || '?').trim();
+        var partes = base.split(/\s+/);
+        if (partes.length > 1) return (partes[0][0] || '') + (partes[1][0] || '');
+        return base.substring(0, 2);
+    }
+
+    function tagRol(rol, rolNombre) {
+        return '<span class="cns-tag cns-tag-' + esc(rol) + '">' + esc(rolNombre || rol) + '</span>';
+    }
+
+    function pintarMiembros() {
+        var lista = miembrosVisibles();
+        $('tab-num-miembros').textContent = num(D.miembros.filter(function (m) { return m.activo; }).length);
+
+        var tbody = $('cns-miembros-tbody');
+        var vacio = $('cns-miembros-vacio');
+
+        if (!lista.length) {
+            tbody.innerHTML = '';
+            vacio.hidden = false;
+            vacio.innerHTML = D.miembros.length
+                ? 'Nadie coincide con esa búsqueda.'
+                : 'Todavía no hay nadie dado de alta.';
+            return;
+        }
+        vacio.hidden = true;
+
+        tbody.innerHTML = lista.map(function (m) {
+            var total = (D.catalogo.bloques || []).filter(function (b) { return !b.admin; }).length;
+            var suyos = (m.bloques || []).filter(function (id) {
+                var b = bloquePorId(id);
+                return b && !b.admin;
+            }).length;
+            var extras = (m.ajustes && (m.ajustes.mas.length || m.ajustes.menos.length));
+
+            return '<tr class="' + (m.activo ? '' : 'cns-baja') + '" data-email="' + esc(m.email) + '">' +
+                '<td><div class="cns-persona">' +
+                    '<span class="cns-avatar" aria-hidden="true">' + esc(iniciales(m.nombre, m.email)) + '</span>' +
+                    '<span class="cns-persona-tx"><b>' + esc(m.nombre || '(sin nombre)') + '</b>' +
+                    '<small>' + esc(m.email) + '</small></span>' +
+                '</div></td>' +
+                '<td>' + tagRol(m.rol, m.rolNombre) +
+                    (m.heredado ? ' <span class="cns-tag cns-tag-suave" title="El rol se dedujo de la columna Avanzado; se escribirá en cuanto lo guardes">heredado</span>' : '') +
+                '</td>' +
+                '<td>' + (m.activo
+                    ? '<span class="cns-tag cns-tag-ok">Activo</span>'
+                    : '<span class="cns-tag cns-tag-baja">De baja</span>') + '</td>' +
+                '<td class="num">' + suyos + ' <span style="color:var(--ink-faint)">/ ' + total + '</span>' +
+                    (extras ? ' <span class="cns-tag cns-tag-aviso" title="Tiene permisos distintos a los de su rol">ajustado</span>' : '') +
+                '</td>' +
+                '<td class="acciones">' +
+                    '<button type="button" class="v-btn v-btn-ghost v-btn-sm" data-abrir="' + esc(m.email) + '">Ver ficha</button>' +
+                '</td>' +
+            '</tr>';
+        }).join('');
+
+        if (window.AppMotion) AppMotion.staggerRows(tbody.querySelectorAll('tr'));
+    }
+
+    // ── Matriz de roles ──────────────────────────────────────────────────────
+
+    function pintarMatriz() {
+        var roles = (D.catalogo.roles || []);
+        var html = '<thead><tr><th scope="col">Bloque</th>' +
+            roles.map(function (r) { return '<th scope="col" class="rol">' + esc(r.nombre) + '</th>'; }).join('') +
+            '</tr></thead><tbody>';
+
+        (D.catalogo.grupos || []).forEach(function (grupo) {
+            var delGrupo = (D.catalogo.bloques || []).filter(function (b) { return b.grupo === grupo; });
+            if (!delGrupo.length) return;
+            html += '<tr class="grupo"><td colspan="' + (roles.length + 1) + '">' + esc(grupo) + '</td></tr>';
+            delGrupo.forEach(function (b) {
+                html += '<tr><td><b>' + esc(b.nombre) + '</b>' +
+                    (b.apagado ? ' <span class="cns-tag cns-tag-aviso">en mantenimiento</span>' : '') +
+                    '<small>' + esc(b.detalle) + '</small></td>' +
+                    roles.map(function (r) {
+                        var tiene = r.bloques.indexOf(b.id) !== -1;
+                        return '<td class="rol">' + (tiene
+                            ? '<span class="cns-si" title="Incluido">' + ic('check', 'ic') + '<span class="sr-only">Incluido</span></span>'
+                            : '<span class="cns-no" aria-label="No incluido">·</span>') + '</td>';
+                    }).join('') +
+                '</tr>';
+            });
+        });
+
+        $('cns-matriz').innerHTML = html + '</tbody>';
+        if (window.Icons) Icons.render($('cns-matriz'));
+    }
+
+    function pintarExcepciones() {
+        var conAjustes = D.miembros.filter(function (m) {
+            return m.ajustes && (m.ajustes.mas.length || m.ajustes.menos.length);
+        });
+        var tbody = $('cns-excepciones-tbody');
+        var vacio = $('cns-excepciones-vacio');
+
+        if (!conAjustes.length) {
+            tbody.innerHTML = '';
+            vacio.hidden = false;
+            vacio.textContent = 'Nadie tiene permisos distintos a los de su rol. Así es más fácil de entender.';
+            return;
+        }
+        vacio.hidden = true;
+
+        tbody.innerHTML = conAjustes.map(function (m) {
+            var pinta = function (ids, clase) {
+                if (!ids.length) return '<span style="color:var(--ink-faint)">—</span>';
+                return ids.map(function (id) {
+                    return '<span class="cns-tag ' + clase + '">' + esc(nombreBloque(id)) + '</span>';
+                }).join(' ');
+            };
+            return '<tr>' +
+                '<td><div class="cns-persona"><span class="cns-avatar" aria-hidden="true">' + esc(iniciales(m.nombre, m.email)) + '</span>' +
+                '<span class="cns-persona-tx"><b>' + esc(m.nombre || m.email) + '</b><small>' + esc(m.email) + '</small></span></div></td>' +
+                '<td>' + tagRol(m.rol, m.rolNombre) + '</td>' +
+                '<td>' + pinta(m.ajustes.mas, 'cns-tag-ok') + '</td>' +
+                '<td>' + pinta(m.ajustes.menos, 'cns-tag-baja') + '</td>' +
+                '<td class="acciones"><button type="button" class="v-btn v-btn-ghost v-btn-sm" data-abrir="' + esc(m.email) + '">Ver ficha</button></td>' +
+            '</tr>';
+        }).join('');
+    }
+
+    // ── Módulos ──────────────────────────────────────────────────────────────
+
+    function pintarModulos() {
+        var apagados = D.catalogo.apagados || [];
+        $('tab-num-modulos').hidden = apagados.length === 0;
+        $('tab-num-modulos').textContent = apagados.length;
+
+        var html = '';
+        (D.catalogo.grupos || []).forEach(function (grupo) {
+            var delGrupo = (D.catalogo.bloques || []).filter(function (b) { return b.grupo === grupo && !b.admin; });
+            if (!delGrupo.length) return;
+            html += '<div class="cns-seccion"><h3>' + esc(grupo) + '</h3>';
+            delGrupo.forEach(function (b) {
+                var off = apagados.indexOf(b.id) !== -1;
+                html += '<div class="cns-fila-sw">' +
+                    '<div class="cns-fila-sw-tx">' +
+                        '<b>' + esc(b.nombre) + '</b>' +
+                        '<p>' + esc(b.detalle) +
+                        (b.fijo ? ' <span class="aviso">No se puede apagar: la app se quedaría sin puerta de entrada.</span>' : '') +
+                        (off ? ' <span class="aviso">Ahora mismo el equipo no lo ve.</span>' : '') +
+                        '</p>' +
+                    '</div>' +
+                    '<label class="cns-sw" title="' + (off ? 'Encender' : 'Apagar') + ' ' + esc(b.nombre) + '">' +
+                        '<input type="checkbox" data-modulo="' + esc(b.id) + '"' +
+                            (off ? '' : ' checked') + (b.fijo ? ' disabled' : '') +
+                            ' aria-label="' + esc(b.nombre) + ' en servicio">' +
+                        '<span class="pista"></span><span class="bolita"></span>' +
+                    '</label>' +
+                '</div>';
+            });
+            html += '</div>';
+        });
+        $('cns-modulos').innerHTML = html;
+    }
+
+    // ── Ajustes ──────────────────────────────────────────────────────────────
+
+    function pintarAjustes() {
+        var html = '';
+        (D.gruposAjustes || []).forEach(function (grupo) {
+            var delGrupo = (D.ajustes || []).filter(function (a) { return a.grupo === grupo; });
+            if (!delGrupo.length) return;
+
+            html += '<div class="cns-bloque"><div class="cns-bloque-head"><div><h2>' + esc(grupo) + '</h2></div></div>' +
+                    '<div class="cns-bloque-cuerpo">';
+
+            delGrupo.forEach(function (a) {
+                html += '<div class="cns-ajuste" data-ajuste="' + esc(a.clave) + '">' +
+                    '<div class="cns-ajuste-top">' +
+                        '<label class="tit" for="aj-' + esc(a.clave) + '">' + esc(a.nombre) + '</label>' +
+                        (a.soloLectura ? '<span class="cns-tag cns-tag-suave">solo lectura</span>' : '') +
+                        (a.secreto && a.configurado ? '<span class="cns-tag cns-tag-ok">' + esc(a.pista) + '</span>' : '') +
+                        (a.secreto && !a.configurado ? '<span class="cns-tag cns-tag-aviso">sin configurar</span>' : '') +
+                        (a.enCodigo ? '<span class="cns-tag cns-tag-aviso" title="Este valor viene escrito dentro del sistema; desde aquí solo se consulta">no editable aquí</span>' : '') +
+                    '</div>' +
+                    '<p class="det">' + esc(a.detalle) + '</p>' +
+                    campoAjuste(a) +
+                    '<p class="cns-ajuste-nota" data-nota="' + esc(a.clave) + '" hidden></p>' +
+                '</div>';
+            });
+
+            html += '</div></div>';
+        });
+        $('cns-ajustes').innerHTML = html;
+    }
+
+    function campoAjuste(a) {
+        if (a.soloLectura) {
+            return '<div class="cns-ajuste-campo"><input id="aj-' + esc(a.clave) + '" class="v-input" disabled ' +
+                'value="' + esc(a.secreto ? (a.configurado ? '••••••••••••' : '(sin configurar)') : (a.valor || '')) + '"></div>';
+        }
+
+        if (a.tipo === 'opcion') {
+            var sel = '<select id="aj-' + esc(a.clave) + '" class="v-select" data-campo="' + esc(a.clave) + '">' +
+                (a.opciones || []).map(function (o) {
+                    return '<option value="' + esc(o.valor) + '"' + (o.valor === a.valor ? ' selected' : '') + '>' + esc(o.nombre) + '</option>';
+                }).join('') + '</select>';
+            var actual = (a.opciones || []).filter(function (o) { return o.valor === a.valor; })[0];
+            return '<div class="cns-ajuste-campo">' + sel + botonGuardar(a.clave) + '</div>' +
+                (actual ? '<span class="cns-op-det" data-opdet="' + esc(a.clave) + '">' + esc(actual.detalle) + '</span>' : '');
+        }
+
+        var tipo = a.secreto ? 'password' : 'text';
+        return '<div class="cns-ajuste-campo">' +
+            '<input id="aj-' + esc(a.clave) + '" class="v-input" type="' + tipo + '" data-campo="' + esc(a.clave) + '" ' +
+            'autocomplete="off" spellcheck="false" placeholder="' + esc(a.marcador || '') + '" ' +
+            'value="' + esc(a.secreto ? '' : (a.valor || '')) + '">' +
+            botonGuardar(a.clave) +
+        '</div>';
+    }
+
+    function botonGuardar(clave) {
+        return '<button type="button" class="v-btn v-btn-dark v-btn-sm" data-guardar="' + esc(clave) + '">Guardar</button>';
+    }
+
+    function guardarAjuste(clave) {
+        var campo = $('aj-' + clave);
+        var boton = document.querySelector('[data-guardar="' + clave + '"]');
+        var nota = document.querySelector('[data-nota="' + clave + '"]');
+        if (!campo) return;
+
+        boton.disabled = true;
+        var textoPrevio = boton.textContent;
+        boton.textContent = 'Guardando…';
+        nota.hidden = true;
+
+        llamar('consolaGuardarAjuste', [AppSession.userEmail, clave, campo.value]).then(function (r) {
+            boton.disabled = false;
+            boton.textContent = textoPrevio;
+
+            if (!r || !r.success) {
+                nota.hidden = false;
+                nota.className = 'cns-ajuste-nota mal';
+                nota.textContent = (r && r.message) || 'No se pudo guardar.';
+                if (window.AppMotion) AppMotion.shake(campo);
+                return;
+            }
+
+            D.ajustes = r.ajustes || D.ajustes;
+            nota.hidden = false;
+            nota.className = 'cns-ajuste-nota ' + (r.aviso ? 'aviso' : 'ok');
+            nota.textContent = r.aviso || 'Guardado.';
+            toast(r.message, 'ok');
+            if (window.AppMotion) AppMotion.pop(boton);
+
+            // Un secreto no vuelve del servidor: se limpia el campo para que no quede
+            // en pantalla algo que ya no representa el valor real.
+            var def = (D.ajustes || []).filter(function (a) { return a.clave === clave; })[0];
+            if (def && def.secreto) campo.value = '';
+            pintarResumen();
+        }).catch(function (e) {
+            boton.disabled = false;
+            boton.textContent = textoPrevio;
+            nota.hidden = false;
+            nota.className = 'cns-ajuste-nota mal';
+            nota.textContent = 'Error de conexión: ' + (e && e.message ? e.message : e);
+        });
+    }
+
+    // ── Formatos ─────────────────────────────────────────────────────────────
+
+    function pintarFormatos() {
+        if (!D.formatos.length) {
+            $('cns-formatos').innerHTML = '<p class="cns-vacio" style="padding:1rem 0">No pudimos cargar los formatos.</p>';
+            return;
+        }
+        $('cns-formatos').innerHTML = D.formatos.map(function (f) {
+            return '<div class="cns-fila-sw">' +
+                '<div class="cns-fila-sw-tx">' +
+                    '<b>' + esc(f.name) + '</b>' +
+                    '<p>' + esc(f.description) +
+                    (f.available ? '' : ' <span class="aviso">No se puede usar: ' + esc(f.unavailableReason) + '</span>') +
+                    '</p>' +
+                '</div>' +
+                '<label class="cns-sw">' +
+                    '<input type="checkbox" data-formato="' + esc(f.id) + '"' + (f.enabled ? ' checked' : '') +
+                    ' aria-label="' + esc(f.name) + ' habilitado">' +
+                    '<span class="pista"></span><span class="bolita"></span>' +
+                '</label>' +
+            '</div>';
+        }).join('');
+    }
+
+    // ── Salud ────────────────────────────────────────────────────────────────
+
+    function correrSalud() {
+        var boton = $('cns-correr-salud');
+        boton.disabled = true;
+        $('cns-salud').innerHTML = '<div class="cns-vacio"><div class="v-spinner"></div>Revisando hojas, formatos, correo y calendario…</div>';
+
+        llamar('consolaSalud', [AppSession.userEmail]).then(function (r) {
+            boton.disabled = false;
+            if (!r || !r.success) {
+                $('cns-salud').innerHTML = '<div class="cns-check mal"><span class="cns-check-ic">' + ic('warning') +
+                    '</span><span>' + esc((r && r.message) || 'No se pudo correr la revisión.') + '</span></div>';
+                if (window.Icons) Icons.render($('cns-salud'));
+                return;
+            }
+            pintarSalud(r.reporte);
+        }).catch(function (e) {
+            boton.disabled = false;
+            console.error('consolaSalud:', e);
+            $('cns-salud').innerHTML = '<div class="cns-check mal"><span class="cns-check-ic">' + ic('warning') +
+                '</span><span>No hay conexión con el sistema. Revisa tu internet e inténtalo de nuevo.</span></div>';
+            if (window.Icons) Icons.render($('cns-salud'));
+        });
+    }
+
+    function pintarSalud(reporte) {
+        var checks = (reporte && reporte.checks) || [];
+        var fallos = checks.filter(function (c) { return !c.ok; });
+
+        var cabecera = '<div style="margin-bottom:1rem">' +
+            (fallos.length
+                ? '<span class="cns-tag cns-tag-baja">' + fallos.length + ' problema' + (fallos.length === 1 ? '' : 's') + '</span>'
+                : '<span class="cns-tag cns-tag-ok">Todo en orden</span>') +
+            ' <span style="font-size:.82rem;color:var(--ink-soft);margin-left:.4rem">' +
+            checks.length + ' verificaciones en ' + num(reporte.duracionMs) + ' ms</span></div>';
+
+        var areas = [];
+        checks.forEach(function (c) {
+            if (!areas.length || areas[areas.length - 1].nombre !== c.area) {
+                areas.push({ nombre: c.area, items: [] });
+            }
+            areas[areas.length - 1].items.push(c);
+        });
+
+        var html = cabecera + areas.map(function (a) {
+            return '<div class="cns-salud-area"><h3>' + esc(a.nombre) + '</h3>' +
+                a.items.map(function (c) {
+                    return '<div class="cns-check ' + (c.ok ? 'bien' : 'mal') + '">' +
+                        '<span class="cns-check-ic">' + ic(c.ok ? 'check' : 'warning') + '</span>' +
+                        '<span><b>' + esc(c.nombre) + '</b>' + esc(c.detalle) + '</span>' +
+                    '</div>';
+                }).join('') +
+            '</div>';
+        }).join('');
+
+        $('cns-salud').innerHTML = html;
+        if (window.Icons) Icons.render($('cns-salud'));
+    }
+
+    // ── Bitácora ─────────────────────────────────────────────────────────────
+
+    function pintarBitacora() {
+        var tbody = $('cns-bitacora-tbody');
+        var vacio = $('cns-bitacora-vacio');
+
+        if (!D.bitacora.length) {
+            tbody.innerHTML = '';
+            vacio.hidden = false;
+            vacio.textContent = 'Todavía no hay movimientos apuntados.';
+            return;
+        }
+        vacio.hidden = true;
+
+        tbody.innerHTML = D.bitacora.map(function (b) {
+            return '<tr>' +
+                '<td class="cns-bit-fecha">' + esc(fecha(b.fecha)) + '</td>' +
+                '<td>' + esc(b.quien) + '</td>' +
+                '<td><b style="color:var(--ink);font-weight:600">' + esc(b.accion) + '</b></td>' +
+                '<td>' + esc(b.objetivo || '—') + '</td>' +
+                '<td>' + esc(b.detalle || '—') + '</td>' +
+            '</tr>';
+        }).join('');
+    }
+
+    function recargarBitacora() {
+        llamar('consolaBitacora', [AppSession.userEmail, 150]).then(function (r) {
+            if (!r || !r.success) return toast((r && r.message) || 'No se pudo leer la bitácora.', 'error');
+            D.bitacora = r.bitacora || [];
+            pintarBitacora();
+            toast('Bitácora actualizada.', 'ok');
+        }).catch(function (e) { toast('Error: ' + e.message, 'error'); });
+    }
+
+    // ── Cajón: ficha del miembro ─────────────────────────────────────────────
+
+    function abrirFicha(correo) {
+        var m = D.miembros.filter(function (x) { return x.email === correo; })[0];
+        if (!m) return;
+
+        editando = m;
+        rolElegido = m.rol;
+        seleccion = {};
+        (m.bloques || []).forEach(function (id) { seleccion[id] = true; });
+        ultimoFoco = document.activeElement;
+
+        $('cns-cajon-nombre').textContent = m.nombre || '(sin nombre)';
+        $('cns-cajon-correo').textContent = m.email;
+        pintarFicha();
+
+        var cajon = $('cns-cajon');
+        cajon.hidden = false;
+        // El reflow fuerza que el navegador registre el estado inicial antes de la
+        // clase que dispara la transición; sin él, el cajón aparece de golpe.
+        void cajon.offsetWidth;
+        cajon.classList.add('abierto');
+        $('cns-cajon-fondo').classList.add('abierto');
+        document.body.style.overflow = 'hidden';
+        $('cns-cajon-cerrar').focus();
+    }
+
+    function cerrarFicha() {
+        var cajon = $('cns-cajon');
+        cajon.classList.remove('abierto');
+        $('cns-cajon-fondo').classList.remove('abierto');
+        document.body.style.overflow = '';
+        setTimeout(function () { cajon.hidden = true; }, 300);
+        editando = null;
+        if (ultimoFoco && ultimoFoco.focus) ultimoFoco.focus();
+    }
+
+    function pintarFicha() {
+        var m = editando;
+        if (!m) return;
+        var soyYo = m.email === D.yo.email;
+        var esMaestroElegido = rolElegido === 'maestro';
+
+        var html = '';
+
+        // 1. Rol
+        html += '<div class="cns-seccion"><h3>Rol</h3>' +
+            '<p class="ayuda">Define el punto de partida de sus accesos. Los ajustes finos van abajo.</p>' +
+            '<div class="cns-roles">' +
+            (D.catalogo.roles || []).map(function (r) {
+                return '<label class="cns-rol-op">' +
+                    '<input type="radio" name="cns-rol" value="' + esc(r.id) + '"' +
+                    (r.id === rolElegido ? ' checked' : '') +
+                    (soyYo && r.id !== 'maestro' ? ' disabled' : '') + '>' +
+                    '<span><b>' + esc(r.nombre) + '</b><small>' + esc(r.detalle) + '</small></span>' +
+                '</label>';
+            }).join('') +
+            '</div>' +
+            (soyYo ? '<p class="ayuda" style="margin-top:.5rem;color:var(--warn)">Es tu propia cuenta: no puedes quitarte el rol maestro. Pídeselo a otro maestro.</p>' : '') +
+            '</div>';
+
+        // 2. Estado
+        html += '<div class="cns-seccion"><h3>Estado</h3>' +
+            '<div class="cns-fila-sw" style="padding-top:0">' +
+                '<div class="cns-fila-sw-tx"><b>Cuenta activa</b>' +
+                '<p>Al darla de baja deja de poder entrar, pero se conserva todo lo que ya hizo.</p></div>' +
+                '<label class="cns-sw">' +
+                    '<input type="checkbox" id="cns-ficha-activo"' + (m.activo ? ' checked' : '') +
+                    (soyYo ? ' disabled' : '') + ' aria-label="Cuenta activa">' +
+                    '<span class="pista"></span><span class="bolita"></span>' +
+                '</label>' +
+            '</div></div>';
+
+        // 3. Bloques
+        html += '<div class="cns-seccion"><h3>Accesos</h3>' +
+            '<p class="ayuda">Marca lo que esta persona debe poder hacer. Lo que se aparte de su rol queda registrado como excepción.</p>';
+
+        (D.catalogo.grupos || []).forEach(function (grupo) {
+            var delGrupo = (D.catalogo.bloques || []).filter(function (b) { return b.grupo === grupo; });
+            if (!delGrupo.length) return;
+
+            html += '<div class="cns-bloques-grupo"><span>' + esc(grupo) + '</span>';
+            delGrupo.forEach(function (b) {
+                // Los bloques de administración solo existen para un maestro: marcarlos
+                // en otro rol no haría nada, así que se muestran apagados y explicados
+                // en vez de dejar que alguien crea que sirvió de algo.
+                var bloqueado = b.admin && !esMaestroElegido;
+                var marcado = bloqueado ? false : !!seleccion[b.id];
+                var delRol = bloquesDeRol(rolElegido).indexOf(b.id) !== -1;
+
+                var etiqueta = '';
+                if (bloqueado) etiqueta = 'Solo para el rol maestro.';
+                else if (marcado && !delRol) etiqueta = 'Concedido aparte de su rol.';
+                else if (!marcado && delRol) etiqueta = 'Retirado de lo que da su rol.';
+                else if (delRol) etiqueta = 'Viene con su rol.';
+                else etiqueta = b.detalle;
+
+                html += '<label class="cns-bq' + (bloqueado ? ' deshabilitado' : '') + '">' +
+                    '<input type="checkbox" data-bloque="' + esc(b.id) + '"' +
+                        (marcado ? ' checked' : '') + (bloqueado ? ' disabled' : '') + '>' +
+                    '<span class="cns-bq-tx"><b>' + esc(b.nombre) + '</b>' +
+                    '<small>' + esc(etiqueta) + '</small></span>' +
+                '</label>';
+            });
+            html += '</div>';
+        });
+        html += '</div>';
+
+        // 4. Zona peligrosa
+        html += '<div class="cns-seccion"><div class="cns-peligro">' +
+            '<h3>Acciones delicadas</h3>' +
+            '<p>Restablecer la contraseña le manda una temporal por correo. Borrar quita la fila de la hoja y no se puede deshacer; para casi todo, la baja de arriba es mejor.</p>' +
+            '<div class="fila">' +
+                '<button type="button" class="v-btn v-btn-ghost v-btn-sm" id="cns-reset-pass">' +
+                    '<span class="w-4 h-4 block" data-icon="key"></span>Restablecer contraseña</button>' +
+                (soyYo || m.rol === 'maestro' ? '' :
+                '<button type="button" class="v-btn v-btn-danger v-btn-sm" id="cns-borrar">Borrar del sistema</button>') +
+            '</div></div></div>';
+
+        $('cns-cajon-cuerpo').innerHTML = html;
+        if (window.Icons) Icons.render($('cns-cajon-cuerpo'));
+    }
+
+    /** Al cambiar de rol se recalculan los accesos: es lo que la gente espera ver. */
+    function cambiarRolEnFicha(nuevo) {
+        rolElegido = nuevo;
+        seleccion = {};
+        bloquesDeRol(nuevo).forEach(function (id) { seleccion[id] = true; });
+        // Se conservan las concesiones y retiros que ya tenía: cambiar de rol no debería
+        // borrar en silencio una decisión que alguien tomó a propósito.
+        (editando.ajustes.mas || []).forEach(function (id) { seleccion[id] = true; });
+        (editando.ajustes.menos || []).forEach(function (id) { delete seleccion[id]; });
+        pintarFicha();
+    }
+
+    function guardarFicha() {
+        if (!editando) return;
+        var boton = $('cns-cajon-guardar');
+        boton.disabled = true;
+
+        var delRol = bloquesDeRol(rolElegido);
+        var mas = [], menos = [];
+        (D.catalogo.bloques || []).forEach(function (b) {
+            var tiene = !!seleccion[b.id];
+            var enRol = delRol.indexOf(b.id) !== -1;
+            if (tiene && !enRol) mas.push(b.id);
+            if (!tiene && enRol) menos.push(b.id);
+        });
+
+        var activoEl = $('cns-ficha-activo');
+        var cambio = {
+            email: editando.email,
+            rol: rolElegido,
+            activo: activoEl ? activoEl.checked : undefined
+        };
+
+        // Los permisos por bloque solo se mandan si DE VERDAD cambiaron. El servidor
+        // exige el bloque 'adm_permisos' en cuanto ve esas dos llaves, así que mandarlas
+        // siempre le impediría a un maestro que solo reparte roles guardar un cambio de
+        // rol —una puerta cerrada por un campo que ni siquiera tocó—.
+        var iguales = function (a, b) {
+            return a.slice().sort().join('|') === b.slice().sort().join('|');
+        };
+        if (!iguales(mas, editando.ajustes.mas || []) || !iguales(menos, editando.ajustes.menos || [])) {
+            cambio.mas = mas;
+            cambio.menos = menos;
+        }
+
+        llamar('consolaGuardarMiembro', [AppSession.userEmail, cambio]).then(function (r) {
+            boton.disabled = false;
+            if (!r || !r.success) {
+                toast((r && r.message) || 'No se pudo guardar.', 'error');
+                if (window.AppMotion) AppMotion.shake($('cns-cajon'));
+                return;
+            }
+            D.miembros = r.miembros || D.miembros;
+            D.resumen = r.resumen || D.resumen;
+            toast(r.sinCambios ? 'No había nada que cambiar.' : r.message, 'ok');
+            pintarMiembros(); pintarExcepciones(); pintarResumen();
+            cerrarFicha();
+        }).catch(function (e) {
+            boton.disabled = false;
+            toast('Error: ' + (e && e.message ? e.message : e), 'error');
+        });
+    }
+
+    // ── Modal genérico ───────────────────────────────────────────────────────
+
+    var modalAlAceptar = null;
+
+    function abrirModal(titulo, cuerpoHtml, textoBoton, claseBoton, alAceptar) {
+        $('cns-modal-tit').textContent = titulo;
+        $('cns-modal-cuerpo').innerHTML = cuerpoHtml;
+        var si = $('cns-modal-si');
+        si.textContent = textoBoton || 'Confirmar';
+        si.className = 'v-btn v-btn-sm ' + (claseBoton || 'v-btn-primary');
+        si.disabled = false;
+        modalAlAceptar = alAceptar;
+
+        var overlay = $('cns-modal-fondo');
+        if (window.AppMotion) AppMotion.modalIn(overlay, overlay.querySelector('.v-modal'));
+        else overlay.classList.add('active');
+
+        var primero = $('cns-modal-cuerpo').querySelector('input, select, textarea');
+        if (primero) primero.focus(); else si.focus();
+    }
+
+    function cerrarModal() {
+        var overlay = $('cns-modal-fondo');
+        if (window.AppMotion) AppMotion.modalOut(overlay, overlay.querySelector('.v-modal'));
+        else overlay.classList.remove('active');
+        modalAlAceptar = null;
+    }
+
+    // ── Alta de miembro ──────────────────────────────────────────────────────
+
+    function abrirAlta() {
+        var roles = (D.catalogo.roles || []).map(function (r) {
+            return '<option value="' + esc(r.id) + '">' + esc(r.nombre) + '</option>';
+        }).join('');
+
+        abrirModal('Dar de alta a alguien',
+            '<p class="cns-confirm-tx">Se le crea la cuenta y se le manda una contraseña temporal por correo. ' +
+            'Tú no la ves: la cambia esa persona la primera vez que entra.</p>' +
+            '<div style="display:grid;gap:.75rem">' +
+                '<div><label class="v-label" for="alta-nombre">Nombre completo</label>' +
+                '<input id="alta-nombre" class="v-input" autocomplete="off" placeholder="Ana López Ruiz"></div>' +
+                '<div><label class="v-label" for="alta-correo">Correo</label>' +
+                '<input id="alta-correo" class="v-input" type="email" autocomplete="off" placeholder="ana.lopez@liverpool.com.mx"></div>' +
+                '<div><label class="v-label" for="alta-rol">Rol inicial</label>' +
+                '<select id="alta-rol" class="v-select">' + roles + '</select></div>' +
+            '</div>' +
+            '<p class="cns-ajuste-nota mal" id="alta-error" hidden></p>',
+            'Dar de alta', 'v-btn-primary', function () {
+                var nombre = $('alta-nombre').value.trim();
+                var correo = $('alta-correo').value.trim();
+                var rol = $('alta-rol').value;
+                var err = $('alta-error');
+
+                if (!nombre || !correo) {
+                    err.hidden = false;
+                    err.textContent = 'Hacen falta el nombre y el correo.';
+                    return;
+                }
+
+                var si = $('cns-modal-si');
+                si.disabled = true;
+                si.textContent = 'Dando de alta…';
+
+                llamar('consolaAltaMiembro', [AppSession.userEmail, { nombre: nombre, email: correo, rol: rol, avisar: true }])
+                    .then(function (r) {
+                        si.disabled = false;
+                        si.textContent = 'Dar de alta';
+                        if (!r || !r.success) {
+                            err.hidden = false;
+                            err.textContent = (r && r.message) || 'No se pudo dar de alta.';
+                            return;
+                        }
+                        D.miembros = r.miembros || D.miembros;
+                        D.resumen = r.resumen || D.resumen;
+                        cerrarModal();
+                        pintarMiembros(); pintarResumen(); pintarExcepciones();
+
+                        if (r.passwordTemporal) {
+                            // El correo no salió: la contraseña tiene que verse en pantalla o
+                            // esa cuenta nace inservible.
+                            abrirModal('Cuenta creada, pero el correo no salió',
+                                '<p class="cns-confirm-tx">Dile esta contraseña temporal a <strong>' + esc(correo) + '</strong> ' +
+                                'por un medio seguro. No se volverá a mostrar.</p>' +
+                                '<p style="font-family:var(--f-mono);font-size:1.2rem;font-weight:700;text-align:center;' +
+                                'padding:.9rem;background:var(--surface-2);border:1px solid var(--line);border-radius:var(--rad);' +
+                                'color:var(--ink);letter-spacing:.05em">' + esc(r.passwordTemporal) + '</p>',
+                                'Entendido', 'v-btn-dark', function () { cerrarModal(); });
+                        } else {
+                            toast(r.message + ' Ya le llegó su contraseña temporal.', 'ok');
+                        }
+                    })
+                    .catch(function (e) {
+                        si.disabled = false;
+                        si.textContent = 'Dar de alta';
+                        err.hidden = false;
+                        err.textContent = 'Error: ' + (e && e.message ? e.message : e);
+                    });
+            });
+    }
+
+    // ── Acciones delicadas ───────────────────────────────────────────────────
+
+    function confirmarReset() {
+        var m = editando;
+        if (!m) return;
+        abrirModal('Restablecer la contraseña',
+            '<p class="cns-confirm-tx">Se le generará una contraseña temporal a <strong>' + esc(m.nombre || m.email) +
+            '</strong> y se le mandará a <strong>' + esc(m.email) + '</strong>. La actual dejará de servir enseguida.</p>',
+            'Restablecer', 'v-btn-dark', function () {
+                var si = $('cns-modal-si');
+                si.disabled = true; si.textContent = 'Restableciendo…';
+                llamar('consolaResetPassword', [AppSession.userEmail, m.email]).then(function (r) {
+                    cerrarModal();
+                    if (!r || !r.success) return toast((r && r.message) || 'No se pudo restablecer.', 'error');
+                    if (r.passwordTemporal) {
+                        abrirModal('Contraseña cambiada, pero el correo no salió',
+                            '<p class="cns-confirm-tx">Dísela a <strong>' + esc(m.email) + '</strong> por un medio seguro.</p>' +
+                            '<p style="font-family:var(--f-mono);font-size:1.2rem;font-weight:700;text-align:center;' +
+                            'padding:.9rem;background:var(--surface-2);border:1px solid var(--line);border-radius:var(--rad);' +
+                            'color:var(--ink);letter-spacing:.05em">' + esc(r.passwordTemporal) + '</p>',
+                            'Entendido', 'v-btn-dark', function () { cerrarModal(); });
+                    } else {
+                        toast(r.message, 'ok');
+                    }
+                }).catch(function (e) {
+                    cerrarModal();
+                    toast('Error: ' + (e && e.message ? e.message : e), 'error');
+                });
+            });
+    }
+
+    function confirmarBorrado() {
+        var m = editando;
+        if (!m) return;
+        abrirModal('Borrar a ' + (m.nombre || m.email),
+            '<p class="cns-confirm-tx">Esto quita su fila de la hoja de registros y <strong>no se puede deshacer</strong>. ' +
+            'Si solo quieres quitarle el acceso, cierra esto y usa la baja: conserva su historial.</p>' +
+            '<label class="v-label" for="borrar-conf">Escribe su correo para confirmar</label>' +
+            '<input id="borrar-conf" class="v-input" autocomplete="off" placeholder="' + esc(m.email) + '">' +
+            '<p class="cns-ajuste-nota mal" id="borrar-error" hidden></p>',
+            'Borrar definitivamente', 'v-btn-danger', function () {
+                var conf = $('borrar-conf').value.trim();
+                var err = $('borrar-error');
+                if (conf.toLowerCase() !== m.email.toLowerCase()) {
+                    err.hidden = false;
+                    err.textContent = 'El correo no coincide.';
+                    if (window.AppMotion) AppMotion.shake($('borrar-conf'));
+                    return;
+                }
+                var si = $('cns-modal-si');
+                si.disabled = true; si.textContent = 'Borrando…';
+                llamar('consolaEliminarMiembro', [AppSession.userEmail, m.email, conf]).then(function (r) {
+                    cerrarModal();
+                    if (!r || !r.success) return toast((r && r.message) || 'No se pudo borrar.', 'error');
+                    D.miembros = r.miembros || D.miembros;
+                    D.resumen = r.resumen || D.resumen;
+                    cerrarFicha();
+                    pintarMiembros(); pintarResumen(); pintarExcepciones();
+                    toast(r.message, 'ok');
+                }).catch(function (e) {
+                    cerrarModal();
+                    toast('Error: ' + (e && e.message ? e.message : e), 'error');
+                });
+            });
+    }
+
+    // ── Pestañas ─────────────────────────────────────────────────────────────
+
+    function irAPanel(nombre) {
+        var tabs = document.querySelectorAll('.cns-tab');
+        Array.prototype.forEach.call(tabs, function (t) {
+            var activa = t.getAttribute('data-panel') === nombre;
+            t.setAttribute('aria-selected', activa ? 'true' : 'false');
+            t.tabIndex = activa ? 0 : -1;
+        });
+        Array.prototype.forEach.call(document.querySelectorAll('.cns-panel'), function (p) {
+            p.hidden = p.id !== 'panel-' + nombre;
+        });
+        var panel = $('panel-' + nombre);
+        if (panel && window.gsap && !window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
+            gsap.fromTo(panel, { opacity: 0, y: 10 },
+                { opacity: 1, y: 0, duration: .3, ease: 'power2.out', clearProps: 'transform' });
+        }
+    }
+
+    // ── Arranque ─────────────────────────────────────────────────────────────
+
+    document.addEventListener('DOMContentLoaded', function () {
+        if (!requireSession('consola')) return;
+
+        AppShell.mount({ active: 'consola', title: 'Consola maestra' });
+        if (window.VentelLoader) VentelLoader.hide();
+
+        cargar();
+
+        // Pestañas: clic y flechas del teclado, como manda el patrón de tablist.
+        document.querySelector('.cns-tabs').addEventListener('click', function (e) {
+            var tab = e.target.closest('.cns-tab');
+            if (tab) irAPanel(tab.getAttribute('data-panel'));
+        });
+        document.querySelector('.cns-tabs').addEventListener('keydown', function (e) {
+            if (e.key !== 'ArrowRight' && e.key !== 'ArrowLeft') return;
+            var tabs = Array.prototype.slice.call(document.querySelectorAll('.cns-tab'));
+            var i = tabs.indexOf(document.activeElement);
+            if (i === -1) return;
+            e.preventDefault();
+            var siguiente = tabs[(i + (e.key === 'ArrowRight' ? 1 : -1) + tabs.length) % tabs.length];
+            siguiente.focus();
+            irAPanel(siguiente.getAttribute('data-panel'));
+        });
+
+        $('cns-recargar').addEventListener('click', cargar);
+        $('cns-negado-reintentar').addEventListener('click', cargar);
+        $('cns-negado-volver').addEventListener('click', function () { AppUrl.goHome(); });
+        $('cns-recargar-bitacora').addEventListener('click', recargarBitacora);
+        $('cns-correr-salud').addEventListener('click', correrSalud);
+        $('cns-alta').addEventListener('click', abrirAlta);
+
+        $('cns-buscar-miembro').addEventListener('input', pintarMiembros);
+        $('cns-ver-bajas').addEventListener('change', pintarMiembros);
+
+        // Un solo oyente para toda la pantalla: las tablas se repintan enteras y volver
+        // a colgar oyentes en cada fila es la vía rápida a las fugas de memoria.
+        document.addEventListener('click', function (e) {
+            var abrir = e.target.closest('[data-abrir]');
+            if (abrir) return abrirFicha(abrir.getAttribute('data-abrir'));
+
+            var guardar = e.target.closest('[data-guardar]');
+            if (guardar) return guardarAjuste(guardar.getAttribute('data-guardar'));
+
+            if (e.target.closest('#cns-reset-pass')) return confirmarReset();
+            if (e.target.closest('#cns-borrar')) return confirmarBorrado();
+        });
+
+        document.addEventListener('change', function (e) {
+            var t = e.target;
+
+            if (t.matches('[data-modulo]')) return cambiarModulo(t);
+            if (t.matches('[data-formato]')) return cambiarFormato(t);
+            if (t.matches('[name="cns-rol"]')) return cambiarRolEnFicha(t.value);
+            if (t.matches('[data-bloque]')) {
+                var id = t.getAttribute('data-bloque');
+                if (t.checked) seleccion[id] = true; else delete seleccion[id];
+                pintarFicha();
+                // El repintado destruye el nodo que tenía el foco; se devuelve al mismo
+                // sitio para que se pueda seguir marcando casillas con el teclado.
+                var vuelta = $('cns-cajon-cuerpo').querySelector('[data-bloque="' + id + '"]');
+                if (vuelta) vuelta.focus();
+                return;
+            }
+            if (t.matches('[data-campo]')) {
+                var det = document.querySelector('[data-opdet="' + t.getAttribute('data-campo') + '"]');
+                if (det) {
+                    var def = (D.ajustes || []).filter(function (a) { return a.clave === t.getAttribute('data-campo'); })[0];
+                    var op = def && (def.opciones || []).filter(function (o) { return o.valor === t.value; })[0];
+                    if (op) det.textContent = op.detalle;
+                }
+            }
+        });
+
+        $('cns-cajon-cerrar').addEventListener('click', cerrarFicha);
+        $('cns-cajon-cancelar').addEventListener('click', cerrarFicha);
+        $('cns-cajon-fondo').addEventListener('click', cerrarFicha);
+        $('cns-cajon-guardar').addEventListener('click', guardarFicha);
+
+        $('cns-modal-no').addEventListener('click', cerrarModal);
+        $('cns-modal-fondo').addEventListener('click', function (e) {
+            if (e.target === $('cns-modal-fondo')) cerrarModal();
+        });
+        $('cns-modal-si').addEventListener('click', function () {
+            if (modalAlAceptar) modalAlAceptar();
+        });
+
+        document.addEventListener('keydown', function (e) {
+            if (e.key !== 'Escape') return;
+            if ($('cns-modal-fondo').classList.contains('active')) return cerrarModal();
+            if (!$('cns-cajon').hidden) return cerrarFicha();
+        });
+    });
+
+    // ── Interruptores que llaman al servidor ─────────────────────────────────
+
+    function cambiarModulo(input) {
+        var id = input.getAttribute('data-modulo');
+        var apagar = !input.checked;
+        input.disabled = true;
+
+        llamar('consolaGuardarModulo', [AppSession.userEmail, id, apagar]).then(function (r) {
+            input.disabled = false;
+            if (!r || !r.success) {
+                input.checked = !input.checked;   // se deshace lo que el servidor no aceptó
+                return toast((r && r.message) || 'No pudimos guardar el cambio. Inténtalo de nuevo.', 'error');
+            }
+            D.catalogo = r.catalogo || D.catalogo;
+            D.miembros = r.miembros || D.miembros;
+            pintarModulos(); pintarMatriz(); pintarResumen(); pintarMiembros();
+            if (r.message) toast(r.message, apagar ? 'warn' : 'ok');
+        }).catch(function (e) {
+            input.disabled = false;
+            input.checked = !input.checked;
+            toast('Error: ' + (e && e.message ? e.message : e), 'error');
+        });
+    }
+
+    function cambiarFormato(input) {
+        var id = input.getAttribute('data-formato');
+        var habilitar = input.checked;
+        input.disabled = true;
+
+        llamar('consolaGuardarFormato', [AppSession.userEmail, id, habilitar]).then(function (r) {
+            input.disabled = false;
+            if (!r || !r.success) {
+                input.checked = !input.checked;
+                return toast((r && r.message) || 'No se pudo cambiar el formato.', 'error');
+            }
+            D.formatos = r.formatos || D.formatos;
+            pintarFormatos();
+            toast(r.message, 'ok');
+        }).catch(function (e) {
+            input.disabled = false;
+            input.checked = !input.checked;
+            toast('Error: ' + (e && e.message ? e.message : e), 'error');
+        });
+    }
+})();
+</script>
+</body>
+</html>

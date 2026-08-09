@@ -693,7 +693,6 @@
                                      <p class="rev-dd rev-dd-flex"><span id="rev-fecha">—</span><span id="rev-marca-vigencia"></span></p></div>
                                 <div><p class="rev-dt">Asesor</p>
                                      <p class="rev-dd rev-dd-flex"><span id="rev-asesor">—</span><span id="rev-marca-asesor"></span></p></div>
-                                <div><p class="rev-dt">Extensión</p><p class="rev-dd" id="rev-asesor-ext">—</p></div>
                                 <div><p class="rev-dt">Formato</p><p class="rev-dd" id="rev-formato">—</p></div>
                                 <div><p class="rev-dt">Artículos</p><p class="rev-dd" id="rev-num-articulos">—</p></div>
                             </dl>
@@ -766,7 +765,7 @@
                                              hoja se cargaría siempre aunque nadie la mire. -->
                                         <div id="rev-sheet-host"></div>
                                         <div class="rev-frame-bar">
-                                            <span>Esta vista la sirve Google: si sale en blanco, tu cuenta del navegador no tiene acceso al archivo. Usa «Vista en el portal».</span>
+                                            <span>Esta vista la muestra Google. Si sale en blanco, tu cuenta de Google no tiene acceso al archivo: usa «Vista en el portal».</span>
                                         </div>
                                     </div>
                                 </div>
@@ -990,7 +989,7 @@
             </div>
 
             <div class="rev-viewer-foot">
-                <span class="rev-foot-txt" id="rev-viewer-foot-txt">Los datos y la página los trae el servidor desde liverpool.com.mx.</span>
+                <span class="rev-foot-txt" id="rev-viewer-foot-txt">La información se toma directo de liverpool.com.mx.</span>
                 <button type="button" id="rev-cmp-marcar" class="v-btn v-btn-success v-btn-sm">
                     <span data-icon="check" aria-hidden="true"></span><span id="rev-cmp-marcar-txt">Marcar como verificado</span>
                 </button>
@@ -1170,7 +1169,6 @@
             set('rev-cliente-correo', d.quote.clientEmail);
             set('rev-cliente-tel', d.quote.clientPhone);
             set('rev-asesor', d.quote.advisorName || d.quote.advisorEmail);
-            set('rev-asesor-ext', d.quote.advisorExt);
             set('rev-formato', NOMBRE_FORMATO[d.quote.format] || d.quote.format || '—');
             set('rev-num-articulos', d.products.length);
             set('rev-fecha', d.quote.timestamp
@@ -1682,7 +1680,7 @@
             document.getElementById('rev-pag-host').innerHTML =
                 '<div class="rev-pag-estado"><p>Abre esta pestaña para ver la página del artículo.</p></div>';
             document.getElementById('rev-viewer-foot-txt').textContent =
-                'Los datos y la página los trae el servidor desde liverpool.com.mx.';
+                'La información se toma directo de liverpool.com.mx.';
 
             // Columna izquierda: lo que se está autorizando. Se pinta ya, sin esperar red.
             pintarLadoCotizacion(p);
@@ -1722,7 +1720,7 @@
                 .withFailureHandler(function (err) {
                     if (peticion !== visorPeticion) return;
                     pintarLadoLiverpool({ ok: false, motivo: 'error',
-                        mensaje: 'No se pudo hablar con el servidor: ' + err.message }, p);
+                        mensaje: 'No hay conexión con el sistema. Revisa tu internet e inténtalo de nuevo.' }, p);
                 })
                 .revFichaArticulo(url, p.sku || '', AppSession.userEmail);
         }
@@ -1928,7 +1926,7 @@
                 .withFailureHandler(function (err) {
                     if (peticion !== estado.paginaPeticion) return;
                     pintarPaginaArticulo({ ok: false,
-                        mensaje: 'No se pudo hablar con el servidor: ' + err.message }, url);
+                        mensaje: 'No hay conexión con el sistema. Revisa tu internet e inténtalo de nuevo.' }, url);
                 })
                 .revPaginaArticulo(url, p.sku || '', AppSession.userEmail);
         }
@@ -1966,9 +1964,8 @@
                 : '';
             const pie = document.getElementById('rev-viewer-foot-txt');
             if (pie) {
-                pie.textContent = 'Página traída por el servidor' + (cuando ? ' a las ' + cuando : '') +
-                    (res.deCache ? ' (copia guardada hasta 15 minutos)' : '') +
-                    ' · ' + Math.round((res.bytes || 0) / 1024) + ' KB.';
+                pie.textContent = 'Página de liverpool.com.mx' + (cuando ? ', vista a las ' + cuando : '') +
+                    (res.deCache ? ' (copia guardada hasta 15 minutos)' : '') + '.';
             }
         }
 
@@ -2049,7 +2046,7 @@
             google.script.run
                 .withSuccessHandler(function (res) { pintarHoja(res || {}); })
                 .withFailureHandler(function (err) {
-                    pintarHoja({ ok: false, mensaje: 'No se pudo hablar con el servidor: ' + err.message });
+                    pintarHoja({ ok: false, mensaje: 'No hay conexión con el sistema. Revisa tu internet e inténtalo de nuevo.' });
                 })
                 .revHojaCotizacion(estado.folio, AppSession.userEmail);
         }
@@ -2155,7 +2152,7 @@
                     if (res.auditoria) aplicarAuditoria(res.auditoria);
                 })
                 .withFailureHandler(function (err) {
-                    marcarPreciosNoDisponibles('No se pudo hablar con el servidor: ' + err.message);
+                    marcarPreciosNoDisponibles('No hay conexión con el sistema. Revisa tu internet e inténtalo de nuevo.');
                 })
                 .revVerificarPreciosLote(estado.folio, AppSession.userEmail);
         }
@@ -2329,7 +2326,8 @@
                 .withFailureHandler(function (err) {
                     estado.enviando = false;
                     actualizarBotones();
-                    AppMotion.toast('Error de comunicación: ' + err.message, 'error');
+                    console.error('guardarRevisionCotizacion:', err);
+                    AppMotion.toast('No pudimos guardar tu decisión. Revisa tu conexión e inténtalo de nuevo.', 'error');
                 })
                 .guardarRevisionCotizacion(carga);
         }
@@ -2423,7 +2421,7 @@
         }
 
         document.addEventListener('DOMContentLoaded', function () {
-            if (!requireSession()) return;
+            if (!requireBlock('revisar', 'revision_cotizacion')) return;
 
             AppShell.mount({ active: 'revision_cotizacion', title: 'Revisión de cotización' });
 
@@ -2513,13 +2511,13 @@
             document.getElementById('rev-btn-aprobar').addEventListener('click', function () { cerrarRevision('aprobada'); });
             document.getElementById('rev-btn-rechazar').addEventListener('click', function () { cerrarRevision('rechazada'); });
 
-            // El rol se comprueba aquí para dar un mensaje inmediato, pero el permiso REAL
-            // lo aplica el servidor en getRevisionCotizacion: isAdvanced vive en el
-            // navegador y cualquiera puede ponerlo a mano.
-            if (!AppSession.isAdvanced) {
-                mostrarBloqueo('Esta pantalla es para usuarios avanzados',
-                    'La revisión de cotizaciones la hacen las cuentas con permisos de supervisión. ' +
-                    'Si necesitas revisar folios, pídele a tu coordinación que habilite tu cuenta.', 'lock');
+            // El permiso se comprueba aquí para dar un mensaje inmediato, pero el REAL lo
+            // aplica el servidor en getRevisionCotizacion (bloque 'revisar'): lo que hay
+            // en el navegador puede editarlo cualquiera a mano.
+            if (!AppSession.can('revisar')) {
+                mostrarBloqueo('No tienes acceso a la revisión',
+                    'Revisar cotizaciones es un permiso que se concede por separado. ' +
+                    'Si necesitas revisar folios, pídele a tu coordinación que te lo habilite.', 'lock');
                 return;
             }
             if (!estado.folio) {
@@ -2540,8 +2538,9 @@
                     pintarTodo(res);
                 })
                 .withFailureHandler(function (err) {
+                    console.error('getRevisionCotizacion:', err);
                     mostrarBloqueo('No se pudo abrir la revisión',
-                        'Error de comunicación con el servidor: ' + err.message, 'warning');
+                        'No hay conexión con el sistema. Revisa tu internet y recarga la página.', 'warning');
                 })
                 .getRevisionCotizacion(estado.folio, AppSession.userEmail);
         });

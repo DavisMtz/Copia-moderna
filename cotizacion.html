@@ -188,7 +188,14 @@
                  sería ruido constante en un lector de pantalla. Lo que sí se anuncia
                  son las acciones (recuperar / descartar), vía toast. -->
             <span id="draft-status" class="bdr-chip" hidden><span class="bdr-dot"></span><span id="draft-status-text"></span></span>
-            <div class="ml-auto">
+            <div class="ml-auto flex items-center gap-2">
+                <!-- Esta pantalla no lleva barra lateral, así que el acceso al recorrido
+                     guiado vive aquí arriba. Nace oculto: AppOnboarding lo enseña solo si
+                     hay recorrido registrado. -->
+                <button type="button" class="v-btn v-btn-ghost v-btn-sm onb-lanzador-plano" data-onb-abrir="cotizacion" hidden>
+                    <svg class="w-4 h-4 block" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M9.6 9.4a2.5 2.5 0 0 1 4.8.9c0 1.7-2.4 2.1-2.4 3.6"/><path d="M12 17.2h.01"/></svg>
+                    <span>Ver el tutorial</span>
+                </button>
                 <button id="cancel-quote-button-top" class="v-btn v-btn-ghost v-btn-sm">
                     <span class="w-4 h-4 block" data-icon="arrow-left"></span>
                     <span>Cancelar y Volver</span>
@@ -226,7 +233,6 @@
                         <p><strong>Nombre:</strong> <input type="text" id="advisor-name" class="editable-input py-2" placeholder="Nombre del Asesor"></p>
                         <p><strong>Puesto:</strong> Asesor de Ventas por Teléfono e Internet</p>
                         <p><strong>Email:</strong> <span id="advisor-email-display">cargando...</span></p>
-                        <p><strong>Extensión:</strong> <input type="text" id="advisor-ext" class="editable-input py-2" placeholder="Ext."></p>
                     </div>
                 </div>
                 <div class="bg-gray-50 p-6 rounded-xl border border-gray-200" data-animate>
@@ -269,8 +275,12 @@
                     </button>
                     <button id="import-json-btn" class="v-btn v-btn-indigo">
                         <span class="w-5 h-5 block" data-icon="clipboard"></span>
-                        <span>Importar desde Bolsa (JSON)</span>
+                        <span>Importar desde la Bolsa</span>
                     </button>
+                    <!-- La guía de instalación se ofrece JUNTO al botón que la necesita, no en
+                         un menú de ayuda aparte: quien no tiene la extensión se entera aquí,
+                         que es donde le hace falta, y a quien ya la tiene no le estorba. -->
+                    <button type="button" class="xg-abrir self-center" data-xg-abrir>¿Aún no tienes la extensión?</button>
                 </div>
             </section>
 
@@ -327,13 +337,14 @@
     <!-- MODAL: Importar JSON desde Extensión -->
     <div id="json-import-modal" class="v-modal-overlay">
         <div class="v-modal modal-content" style="max-width: 600px;">
-            <h3 class="text-xl font-bold text-slate-800 mb-2">📋 Importar Artículos desde JSON</h3>
-            <p class="text-sm text-slate-500 mb-4">Pega aquí el JSON generado por la extensión <strong>Ventel Extractor de Bolsa</strong>. Los productos se agregarán automáticamente a la cotización.</p>
-            <textarea id="json-import-textarea" placeholder='Pega el JSON aquí... { "products": [...] }'></textarea>
+            <h3 class="text-xl font-bold text-slate-800 mb-2">📋 Importar artículos de la Bolsa</h3>
+            <p class="text-sm text-slate-500 mb-2">Copia los artículos con la extensión <strong>Ventel Extractor de Bolsa</strong> y pégalos aquí. Se agregarán solos a la cotización.</p>
+            <p class="text-sm mb-4"><button type="button" class="xg-abrir" data-xg-abrir>Ver cómo instalarla y usarla (2 min)</button></p>
+            <textarea id="json-import-textarea" placeholder="Pega aquí lo que copiaste de la Bolsa…"></textarea>
             <div id="json-import-error" style="color: #dc2626; font-size: 0.8rem; margin-bottom: 10px; display: none;"></div>
             <div class="flex justify-end gap-3">
                 <button id="json-import-cancel" class="v-btn v-btn-ghost v-btn-sm">Cancelar</button>
-                <button id="json-import-confirm" class="v-btn v-btn-success v-btn-sm" onclick="importJsonProducts()">✅ Importar Productos</button>
+                <button id="json-import-confirm" class="v-btn v-btn-success v-btn-sm" onclick="importJsonProducts()">✅ Agregar artículos</button>
             </div>
         </div>
     </div>
@@ -368,6 +379,8 @@
     <?!= include('app_core'); ?>
     <?!= include('app_icons'); ?>
     <?!= include('app_motion'); ?>
+    <?!= include('app_onboarding'); ?>
+    <?!= include('app_extension_guia'); ?>
     <?!= include('LoaderPartial'); ?>
     <script>
         const productRowsContainer = document.getElementById('product-rows');
@@ -386,6 +399,14 @@
 
         let currentUserEmail = null;
         let currentAdvisorName = '';
+
+        /* Extensión telefónica del asesor: se retiró del formulario porque ya no se usa,
+           pero la columna de la hoja se conserva con su histórico. Al EDITAR una
+           cotización vieja se guarda aquí lo que ya tenía y se devuelve tal cual al
+           grabar: si se mandara vacío, abrir una cotización antigua y volver a
+           guardarla le borraría un dato que nadie pidió borrar. En las nuevas queda
+           vacía, que es justo lo que se quería. */
+        let extensionHeredada = '';
 
         function formatCurrency(amount) {
             if (isNaN(amount) || amount === null) amount = 0;
@@ -418,7 +439,7 @@
             };
 
             if (!AppUrl.go(page, params)) {
-                showGeneralMessage('Error: URL base no cargada. No se puede navegar.', true, false);
+                showGeneralMessage('No pudimos abrir la vista previa. Recarga la página e inténtalo de nuevo.', true, false);
                 reenable();
                 return;
             }
@@ -432,7 +453,7 @@
                 // Si AppUrl ya ofreció el enlace directo, ese aviso manda: repetir aquí
                 // "vuelve a presionar" mandaría al asesor a guardar la cotización otra vez.
                 if (document.getElementById('ventel-nav-fallback')) return;
-                showGeneralMessage('La redirección está tardando. Si no avanzaste a la vista previa, vuelve a presionar "Ir a Vista Previa".', true, false);
+                showGeneralMessage('La vista previa está tardando en abrir. Si no avanzaste, vuelve a presionar "Ir a Vista Previa".', true, false);
             }, 6000);
         }
 
@@ -640,7 +661,7 @@
             currentQuoteFolioInput.value = quoteDetails.folio || '';
             quoteFolioDisplay.textContent = quoteDetails.folio || 'NUEVO';
             advisorNameInput.value = quoteDetails.advisorName || currentAdvisorName || '';
-            document.getElementById('advisor-ext').value = quoteDetails.advisorExt || '';
+            extensionHeredada = quoteDetails.advisorExt || '';
             if (advisorEmailDisplay) advisorEmailDisplay.textContent = quoteDetails.advisorEmail || currentUserEmail || 'No disponible';
             document.getElementById('client-name').value = quoteDetails.clientName || '';
             document.getElementById('client-email').value = quoteDetails.clientEmail || '';
@@ -687,7 +708,7 @@
             const quoteData = {
                 folio: currentQuoteFolioInput.value || null,
                 advisorName: advisorNameInput.value.trim() || currentAdvisorName,
-                advisorExt: document.getElementById('advisor-ext').value.trim(),
+                advisorExt: extensionHeredada,
                 advisorEmail: currentUserEmail,
                 clientName: document.getElementById('client-name').value.trim(),
                 clientEmail: document.getElementById('client-email').value.trim(),
@@ -779,7 +800,8 @@
                     }
                 })
                 .withFailureHandler(function(error) {
-                    container.innerHTML = '<p class="text-sm text-red-600">Error al cargar los formatos: ' + error.message + '</p>';
+                    console.error('getEnabledQuoteFormats:', error);
+                    container.innerHTML = '<p class="text-sm text-red-600">No pudimos cargar los formatos. Revisa tu conexión y recarga la página.</p>';
                 })
                 .getEnabledQuoteFormats();
         }
@@ -803,7 +825,7 @@
                         // qué es "sin cambios" y si hay un borrador que ofrecer.
                         Borrador.iniciar({ folio: folio, edicion: true });
                     } else {
-                        showGeneralMessage(response.message || 'Error al cargar la cotización. Creando nueva.', true, false);
+                        showGeneralMessage(response.message || 'No encontramos esa cotización. Empezamos una nueva.', true, false);
                         currentQuoteFolioInput.value = '';
                         quoteFolioDisplay.textContent = 'NUEVO';
                         if (productRowsContainer.children.length === 0) addRow(false);
@@ -813,7 +835,8 @@
                 })
                 .withFailureHandler(function(error) {
                     if (window.VentelLoader) VentelLoader.hide();
-                    showGeneralMessage('Error de comunicación al cargar cotización: ' + error.message, true, false);
+                    console.error('loadQuoteDetails:', error);
+                    showGeneralMessage('No pudimos abrir esa cotización. Revisa tu conexión e inténtalo de nuevo.', true, false);
                     if (productRowsContainer.children.length === 0) addRow(false);
                      else calculateTotals();
                     Borrador.iniciar({});
@@ -902,7 +925,7 @@
                     chipTexto.textContent = 'Guardando borrador…';
                 } else if (estado === 'lleno') {
                     chip.classList.add('is-warn');
-                    chipTexto.textContent = 'El borrador solo vive en esta pestaña (sin espacio en el equipo)';
+                    chipTexto.textContent = 'Tu equipo no tiene espacio para guardar el borrador: no cierres esta pestaña';
                 } else {
                     chip.classList.add('is-saved');
                     chipTexto.textContent = 'Borrador guardado ' + AppCache.ageLabel(guardadoEn);
@@ -1230,7 +1253,7 @@
         document.addEventListener('DOMContentLoaded', () => {
             // Se dice el nombre de la pantalla para que el login devuelva aquí: quien
             // llega desde la extensión con su bolsa no puede acabar en el panel.
-            if (!requireSession('cotizacion')) return;
+            if (!requireBlock('cotizar', 'cotizacion')) return;
 
             loadQuoteFormats();
 
@@ -1289,6 +1312,61 @@
                 // son los que ya están guardados en el sistema.)
                 Borrador.iniciar({ alResolver: BolsaExtension.pedir });
             }
+
+            /* Recorrido guiado de la pantalla de cotización.
+               Se explica lo que cuesta dinero no saber: que hay autoguardado (y por
+               tanto no se pierde el trabajo), que la Bolsa se importa en vez de
+               teclearse, y que el formato decide el PDF que verá el cliente. */
+            if (window.AppOnboarding) AppOnboarding.auto({
+                pantalla: 'cotizacion',
+                version: 1,
+                retraso: 800,
+                pasos: [
+                    {
+                        titulo: 'Armar una cotización',
+                        texto: 'Seis paradas cortas. Al final sabrás lo único que no se adivina de esta pantalla.'
+                    },
+                    {
+                        sel: '#client-name',
+                        pos: 'abajo',
+                        titulo: 'Empieza por el cliente',
+                        texto: 'El <b>nombre</b> es obligatorio: es lo que sale impreso en la cotización. ' +
+                               'Correo y teléfono no lo son, pero si los pones podrás enviársela sin volver a buscarlos.'
+                    },
+                    {
+                        sel: '#import-json-btn',
+                        pos: 'arriba',
+                        titulo: 'No teclees los productos',
+                        texto: 'Si el cliente ya tiene su <b>bolsa de compras</b> armada en liverpool.com.mx, la extensión ' +
+                               'de Chrome la trae entera —precio, descuento y enlace— en un par de clics.<br><br>' +
+                               'Es la diferencia entre cinco minutos y treinta segundos.'
+                    },
+                    {
+                        sel: '[data-xg-abrir]',
+                        pos: 'arriba',
+                        titulo: '¿Todavía no la tienes?',
+                        texto: 'Aquí está la guía de instalación, con la demostración de cada paso. ' +
+                               'Se instala una sola vez y toma unos dos minutos.'
+                    },
+                    {
+                        sel: '#draft-status',
+                        pos: 'abajo',
+                        centrarSiOculto: true,
+                        titulo: 'Se guarda solo',
+                        texto: 'Mientras escribes, la cotización se guarda sola en este equipo. Si se cierra el navegador ' +
+                               'o se va la luz, al volver te ofrece <b>recuperar</b> lo que estabas haciendo.<br><br>' +
+                               'No hace falta que corras a guardar.'
+                    },
+                    {
+                        sel: '#format-section',
+                        pos: 'arriba',
+                        titulo: 'El formato es el PDF',
+                        texto: 'Lo que elijas aquí decide cómo se ve el documento que se imprime y se le envía al cliente. ' +
+                               'Si no estás seguro, deja el que viene marcado.<br><br>' +
+                               'Al terminar, <b>Ir a Vista Previa</b> te lo enseña antes de mandar nada.'
+                    }
+                ]
+            });
         });
 
         if (requestReviewButton) {
@@ -1355,13 +1433,13 @@
 
                             navigateToPage('cotizado_preview', { folio: response.folio });
                         } else {
-                            showGeneralMessage(response.message || 'Error desconocido al guardar la cotización en Sheets.', true, false);
+                            showGeneralMessage(response.message || 'No se pudo guardar la cotización. Inténtalo de nuevo.', true, false);
                              if (requestReviewButton) requestReviewButton.disabled = false;
                         }
                     })
                     .withFailureHandler(function(error) {
                         setLoadingState(false, requestReviewButton, reviewButtonText, "Ir a Vista Previa", reviewSpinner);
-                        showGeneralMessage('Error de comunicación al guardar cotización: ' + error.message, true, false);
+                        showGeneralMessage('No pudimos guardar la cotización. Revisa tu conexión e inténtalo de nuevo; lo que capturaste no se pierde.', true, false);
                         console.error("Error en llamada a saveQuoteAndGoToPreview:", error);
                          if (requestReviewButton) requestReviewButton.disabled = false;
                     })
@@ -1432,7 +1510,7 @@
                     const errorEl = document.getElementById('json-import-error');
                     errorEl.style.display = 'block';
                     errorEl.style.color = '#10B981';
-                    errorEl.textContent = '⚡ JSON detectado y pegado automáticamente desde tu portapapeles.';
+                    errorEl.textContent = '⚡ Ya pegamos los artículos que traías copiados.';
                 }
             } catch (err) {
                 console.log("La lectura automática del portapapeles no fue permitida o no es compatible:", err);
@@ -1451,7 +1529,7 @@
 
             const raw = textarea.value.trim();
             if (!raw) {
-                errorEl.textContent = 'Por favor, pega el JSON antes de importar.';
+                errorEl.textContent = 'Primero pega aquí los artículos que copiaste de la Bolsa.';
                 errorEl.style.display = 'block';
                 return;
             }
@@ -1460,13 +1538,13 @@
             try {
                 data = JSON.parse(raw);
             } catch (e) {
-                errorEl.textContent = 'El texto no es un JSON válido. Verifica el formato e intenta de nuevo.';
+                errorEl.textContent = 'No reconocimos ese texto. Vuelve a copiar los artículos con la extensión e inténtalo de nuevo.';
                 errorEl.style.display = 'block';
                 return;
             }
 
             if (!data.products || !Array.isArray(data.products) || data.products.length === 0) {
-                errorEl.textContent = 'El JSON no contiene un arreglo "products" válido o está vacío.';
+                errorEl.textContent = 'El texto que pegaste no trae ningún artículo. Vuelve a copiarlo desde la Bolsa.';
                 errorEl.style.display = 'block';
                 return;
             }
@@ -1547,7 +1625,7 @@
                 resumen += ` ${externos} de proveedor externo: su descuento se marcó como Descuento Adicional.`;
             }
             if (sinVendedor > 0) {
-                resumen += ` ⚠️ ${sinVendedor} sin el campo "soldBy" en el JSON: no se pudo saber quién los vende y se respetó el descuento tal como venía.`;
+                resumen += ` ⚠️ En ${sinVendedor} no venía quién los vende: se respetó el descuento tal como llegó. Revísalos antes de enviar.`;
             }
             return resumen;
         }

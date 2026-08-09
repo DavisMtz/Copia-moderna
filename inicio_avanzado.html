@@ -503,36 +503,37 @@
     <?!= include('app_motion'); ?>
     <?!= include('app_support'); ?>
     <?!= include('app_shell'); ?>
+    <?!= include('app_onboarding'); ?>
     <?!= include('LoaderPartial'); ?>
     <script>
         // --- Navegación (modelo compartido de URLs) ---
         window.navigateToQuoteView = function (folio) {
-            if (!folio) return AppMotion.toast('Error: no se pudo obtener el folio.', 'error');
+            if (!folio) return AppMotion.toast('No pudimos identificar esa cotización. Actualiza la lista e inténtalo de nuevo.', 'error');
             try { localStorage.setItem('selectedQuoteFolio', folio); } catch (e) {}
             AppUrl.go('consulta_cotizacion', { folio: folio });
         };
         window.navigateToQuoteEdit = function (folio) {
-            if (!folio) return AppMotion.toast('Error: no se pudo obtener el folio.', 'error');
+            if (!folio) return AppMotion.toast('No pudimos identificar esa cotización. Actualiza la lista e inténtalo de nuevo.', 'error');
             AppUrl.go('cotizacion', { folio: folio, action: 'edit' });
         };
         /** Abre la pantalla de revisión. Solo sale en las filas que aún no están autorizadas. */
         window.navigateToRevision = function (folio) {
-            if (!folio) return AppMotion.toast('Error: no se pudo obtener el folio.', 'error');
+            if (!folio) return AppMotion.toast('No pudimos identificar esa cotización. Actualiza la lista e inténtalo de nuevo.', 'error');
             AppUrl.go('revision_cotizacion', { folio: folio });
         };
         window.navigateToResend = function (folio) {
-            if (!folio) return AppMotion.toast('Error: no se pudo obtener el folio.', 'error');
+            if (!folio) return AppMotion.toast('No pudimos identificar esa cotización. Actualiza la lista e inténtalo de nuevo.', 'error');
             AppUrl.go('correoventel', { folio: folio });
         };
         // Copia un deep-link a la consulta de la cotización (para compartir por chat/correo).
         window.copyQuoteLink = function (folio) {
-            if (!folio) return AppMotion.toast('Error: no se pudo obtener el folio.', 'error');
+            if (!folio) return AppMotion.toast('No pudimos identificar esa cotización. Actualiza la lista e inténtalo de nuevo.', 'error');
             AppUrl.copyLink('consulta_cotizacion', { folio: folio }).then(ok => {
                 AppMotion.toast(ok ? `Enlace de ${folio} copiado. Pégalo donde lo necesites.` : 'No se pudo copiar el enlace.', ok ? 'ok' : 'error');
             });
         };
         window.openQuoteInSheets = function (folio) {
-            if (!folio) return AppMotion.toast('Error: no se pudo obtener el folio.', 'error');
+            if (!folio) return AppMotion.toast('No pudimos identificar esa cotización. Actualiza la lista e inténtalo de nuevo.', 'error');
             // La pestaña se abre durante el clic para que el navegador no la trate como popup.
             const tab = window.open('', '_blank');
             google.script.run
@@ -547,19 +548,101 @@
                 })
                 .withFailureHandler(error => {
                     if (tab) tab.close();
-                    AppMotion.toast('Error al abrir el documento en Sheets: ' + error.message, 'error');
+                    console.error('openQuoteInSheets:', error);
+                    AppMotion.toast('No pudimos abrir el documento. Inténtalo de nuevo en un momento.', 'error');
                 })
                 .openQuoteInSheets(folio);
         };
 
         document.addEventListener('DOMContentLoaded', () => {
-            if (!requireSession()) return;
+            /* Esta pantalla es la casa de TRES facultades que se conceden por separado:
+               métricas (supervision), cola de revisión (revisar) y reglas (politica_revision).
+               Entra quien tenga cualquiera de ellas; lo que ve dentro lo decide cada
+               apartado. Antes se exigía 'supervision' a secas, y por eso a un asesor con
+               el permiso de revisar concedido se le rebotaba de la única pantalla desde
+               la que podía usarlo. */
+            const PUEDE = {
+                metricas: AppSession.can('supervision'),
+                revisar:  AppSession.can('revisar'),
+                politica: AppSession.can('politica_revision')
+            };
+            if (!requireBlock(['supervision', 'revisar', 'politica_revision'], 'inicio_avanzado')) return;
+
+            // El título dice a qué vino esta persona. A quien solo puede revisar,
+            // "Supervisión" le suena a una pantalla que no le corresponde.
+            const TITULO = PUEDE.metricas ? 'Supervisión'
+                         : PUEDE.revisar  ? 'Revisar cotizaciones'
+                         : 'Política de revisión';
 
             // Marco lateral compartido con el Portal (envuelve el <main> y aporta sesión/tema).
-            AppShell.mount({ active: 'inicio_avanzado', title: 'Supervisión' });
+            AppShell.mount({ active: 'inicio_avanzado', title: TITULO });
+
+            /* Se retira lo que esta persona no puede usar. Un apartado vacío o que
+               responde "no tienes permiso" al tocarlo es peor que no estar. */
+            (function ocultarLoQueNoToca() {
+                // Se OCULTAN, no se borran: media pantalla guarda referencias a estos
+                // nodos y quitarlos del DOM convertiría un apartado de más en un error
+                // de JavaScript que se lleva por delante los apartados que sí tocan.
+                const ocultar = function (id) {
+                    const el = document.getElementById(id);
+                    if (el) el.style.display = 'none';
+                };
+                // La cola la ve quien puede revisar y también el supervisor, que necesita
+                // saber qué tiene parado al equipo aunque apruebe otra persona.
+                if (!PUEDE.revisar && !PUEDE.metricas) ocultar('pend-seccion');
+                if (!PUEDE.politica) ocultar('pol-seccion');
+                if (!PUEDE.metricas) {
+                    ocultar('dashboard-content');
+                    ocultar('loading-placeholder');
+                }
+            })();
 
             // El loader de marca cubre el arranque; se retira en cuanto la pantalla está lista.
             if (window.VentelLoader) VentelLoader.hide();
+
+            /* Recorrido guiado del panel de supervisión. Se explica lo que un supervisor
+               nuevo no sabe que existe: que las pendientes de revisión se atienden desde
+               aquí y que la política de revisión es editable, no una regla fija. */
+            if (window.AppOnboarding) AppOnboarding.auto({
+                pantalla: 'supervision',
+                version: 1,
+                retraso: 900,
+                pasos: [
+                    {
+                        titulo: 'Panel de supervisión',
+                        texto: 'Aquí ves lo que está esperando una decisión tuya y, si tienes acceso a las ' +
+                               'métricas, cómo va el equipo.<br><br>El recorrido solo pasa por los apartados ' +
+                               'que tú puedes usar, así que será corto.'
+                    },
+                    {
+                        // Sin centrarSiOculto a propósito: si el apartado está escondido
+                        // porque esta persona no tiene ese permiso, su paso debe caerse del
+                        // recorrido, no convertirse en una tarjeta que explica algo invisible.
+                        sel: '#pend-seccion',
+                        pos: 'abajo',
+                        titulo: 'Lo que te está esperando',
+                        texto: 'Las cotizaciones que cayeron a revisión se atienden desde aquí. Mientras una siga ' +
+                               'en esta lista, <b>el asesor no puede enviarla al cliente</b>.<br><br>' +
+                               'Es lo primero que conviene mirar al entrar.'
+                    },
+                    {
+                        sel: '#pol-seccion',
+                        pos: 'arriba',
+                        titulo: 'Las reglas las pones tú',
+                        texto: 'La <b>política de revisión</b> decide qué cotizaciones se detienen: por monto, por ' +
+                               'descuento o por lo que definas.<br><br>' +
+                               'Si te llega demasiado —o demasiado poco—, esto es lo que hay que ajustar, no el criterio de cada día.'
+                    },
+                    {
+                        sel: '#kpi-monthly-count',
+                        pos: 'abajo',
+                        relleno: 14,
+                        titulo: 'Cómo va el mes',
+                        texto: 'Los indicadores comparan contra el periodo anterior, así que una cifra sola no dice ' +
+                               'nada: lo que importa es la <b>flecha</b> que la acompaña.'
+                    }
+                ]
+            });
 
             const currentUserEmail = AppSession.userEmail;
 
@@ -632,16 +715,21 @@
                         </tr>`).join('');
             };
 
-            google.script.run
-                .withSuccessHandler(response => {
-                    if (response.success) renderDashboard(response.stats);
-                    else loadingPlaceholder.textContent = `Error al cargar datos: ${response.message}`;
-                })
-                .withFailureHandler(error => {
-                    loadingPlaceholder.textContent = `Error de comunicación con el servidor: ${error.message}`;
-                    console.error(error);
-                })
-                .getDashboardStats();
+            // Las métricas solo se piden si hay permiso para verlas: sin él, el servidor
+            // rechaza la llamada y lo único que se consigue es un error en consola y una
+            // espera inútil en una zona de la pantalla que además está oculta.
+            if (PUEDE.metricas) {
+                google.script.run
+                    .withSuccessHandler(response => {
+                        if (response.success) renderDashboard(response.stats);
+                        else loadingPlaceholder.textContent = response.message || 'No pudimos cargar el resumen.';
+                    })
+                    .withFailureHandler(error => {
+                        loadingPlaceholder.textContent = 'No hay conexión con el sistema. Revisa tu internet y recarga la página.';
+                        console.error(error);
+                    })
+                    .getDashboardStats();
+            }
 
             // ==========================================================
             // MÉTRICAS DE CORREOS  (SWR + carga diferida = poco impacto)
@@ -712,7 +800,9 @@
                     .getResumenMetricasCorreos(currentUserEmail);
             };
             // Diferido: deja que el dashboard principal pinte primero.
-            requestAnimationFrame(() => setTimeout(cargarMetricasCorreos, 0));
+            // Va dentro del bloque de métricas, que está oculto sin el permiso: pedirlo
+            // ahí sería gastar una llamada al servidor para pintar algo que nadie ve.
+            if (PUEDE.metricas) requestAnimationFrame(() => setTimeout(cargarMetricasCorreos, 0));
 
             // ==========================================================
             // PANEL DE SUPERVISIÓN (búsqueda, filtros, reporte)
@@ -1107,8 +1197,9 @@
                         polPintar();
                     })
                     .withFailureHandler(err => {
+                        console.error('getPoliticaRevision:', err);
                         document.getElementById('pol-body').innerHTML =
-                            '<div class="pol-vacio">Error de comunicación: ' + escapeHtml(err.message) + '</div>';
+                            '<div class="pol-vacio">No hay conexión con el sistema. Revisa tu internet y recarga la página.</div>';
                     })
                     .getPoliticaRevision(currentUserEmail);
             };
@@ -1519,7 +1610,7 @@
                     fechaHora: document.getElementById('sim-fecha').value
                 };
                 const caja = document.getElementById('pol-veredicto');
-                caja.innerHTML = '<div class="pol-veredicto"><div class="v-spinner"></div><span>Consultando al servidor…</span></div>';
+                caja.innerHTML = '<div class="pol-veredicto"><div class="v-spinner"></div><span>Calculando el resultado…</span></div>';
 
                 google.script.run
                     .withSuccessHandler(res => {
@@ -1541,8 +1632,9 @@
                             </div>`;
                     })
                     .withFailureHandler(err => {
+                        console.error('simularPoliticaRevision:', err);
                         caja.innerHTML = '<div class="pol-veredicto pol-ver-revisar">' + Icons.svg('warning') +
-                            '<div><strong>Error de comunicación</strong><span>' + escapeHtml(err.message) + '</span></div></div>';
+                            '<div><strong>Sin conexión</strong><span>No pudimos calcular la prueba. Revisa tu internet e inténtalo de nuevo.</span></div></div>';
                     })
                     // Se manda el BORRADOR: la gracia es ver el efecto de lo que aún no se guarda.
                     .simularPoliticaRevision(currentUserEmail, caso, polBorrador);
@@ -1581,7 +1673,9 @@
                 polCargar();
             });
 
-            polCargar();
+            // Mismo criterio que con las métricas: sin el bloque de política, su apartado
+            // está oculto y pedirlo solo produce un rechazo del servidor.
+            if (PUEDE.politica) polCargar();
 
             const paintSupervision = (quotes) => {
                 allQuotes = quotes || [];
@@ -1607,7 +1701,32 @@
                     '<div class="pend-vacio">' + escapeHtml(mensaje) + '</div>';
             };
 
+            /**
+             * Cola de revisión para quien NO es supervisor.
+             *
+             * A alguien con solo el bloque "revisar" el servidor le niega
+             * getSupervisionQuotes —y hace bien: no le toca el historial del equipo—,
+             * así que la cola se pide por su propia puerta, que solo devuelve lo
+             * pendiente. Sin esto el permiso de revisar existía sobre el papel y no
+             * había pantalla desde la que ejercerlo.
+             */
+            const loadPendientesSolo = () => {
+                document.getElementById('pend-lista').innerHTML =
+                    '<div class="pend-vacio"><div class="v-spinner"></div> Cargando la cola…</div>';
+                google.script.run
+                    .withSuccessHandler(r => {
+                        if (r && r.success) renderPendientes(r.quotes || []);
+                        else pendientesEnError((r && r.message) || 'No se pudo leer la cola de revisión.');
+                    })
+                    .withFailureHandler(() => pendientesEnError('Sin conexión. Vuelve a intentarlo.'))
+                    .revListaPendientes(currentUserEmail);
+            };
+
             const loadSupervisionQuotes = () => {
+                // Sin el bloque de supervisión no se piden las métricas: se pide solo la
+                // cola, que es lo único que esta persona puede (y necesita) ver.
+                if (!AppSession.can('supervision')) { loadPendientesSolo(); return; }
+
                 const cached = AppCache.get(SUP_CACHE_KEY);
                 if (cached && Array.isArray(cached.data)) {
                     paintSupervision(cached.data);
@@ -1627,10 +1746,11 @@
                     })
                     .withFailureHandler(error => {
                         if (cached) {
-                            AppMotion.toast('No se pudo actualizar desde el servidor; se muestran los últimos datos guardados.', 'warn');
+                            AppMotion.toast('No pudimos conectarnos: te mostramos la última información guardada.', 'warn');
                         } else {
-                            showSupPlaceholder('Error de comunicación al cargar las cotizaciones: ' + escapeHtml(error.message));
-                            pendientesEnError('Error de comunicación: ' + error.message);
+                            console.error('getSupervisionQuotes:', error);
+                            showSupPlaceholder('No hay conexión con el sistema. Revisa tu internet y vuelve a intentarlo.');
+                            pendientesEnError('Sin conexión. Vuelve a intentarlo.');
                         }
                     })
                     .getSupervisionQuotes(currentUserEmail);
@@ -1712,22 +1832,28 @@
                             .withFailureHandler(error => {
                                 toggle.checked = !enabled;
                                 formatsContainer.querySelectorAll('.format-toggle').forEach(t => t.disabled = false);
-                                AppMotion.toast('Error al guardar el formato: ' + error.message, 'error');
+                                console.error('setQuoteFormatEnabled:', error);
+                                AppMotion.toast('No pudimos guardar el cambio. Inténtalo de nuevo.', 'error');
                             })
                             .setQuoteFormatEnabled(currentUserEmail, formatId, enabled);
                     });
                 });
             };
 
-            google.script.run
-                .withSuccessHandler(response => {
-                    if (response.success) renderFormatsAdmin(response.formats);
-                    else formatsContainer.innerHTML = `<div class="p-6 text-sm text-slate-500">${response.message}</div>`;
-                })
-                .withFailureHandler(error => {
-                    formatsContainer.innerHTML = `<div class="p-6 text-sm text-red-600">Error al cargar los formatos: ${error.message}</div>`;
-                })
-                .getFormatSettings(currentUserEmail);
+            // Los formatos viven dentro del bloque de métricas, que está oculto sin el
+            // permiso de supervisión: no se piden si no se van a poder ver.
+            if (PUEDE.metricas) {
+                google.script.run
+                    .withSuccessHandler(response => {
+                        if (response.success) renderFormatsAdmin(response.formats);
+                        else formatsContainer.innerHTML = `<div class="p-6 text-sm text-slate-500">${response.message}</div>`;
+                    })
+                    .withFailureHandler(error => {
+                        console.error('getFormatSettings:', error);
+                        formatsContainer.innerHTML = `<div class="p-6 text-sm text-red-600">No pudimos cargar los formatos. Revisa tu conexión y recarga la página.</div>`;
+                    })
+                    .getFormatSettings(currentUserEmail);
+            }
         });
     </script>
 </body>
