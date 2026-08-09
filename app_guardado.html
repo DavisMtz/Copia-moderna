@@ -93,7 +93,13 @@
     try {
       if (window.AppMotion && AppMotion.toast) { AppMotion.toast(mensaje, tipo); return; }
     } catch (e) {}
-    // Sin app_motion (el Portal no lo carga) el aviso no se pierde: va a la pastilla.
+    // Sin app_motion (el Portal no lo carga) el aviso no se pierde: lo dice el
+    // indicador, sea la isla de estado o la pastilla de respaldo.
+    if (delegado) {
+      try { delegado({ modo: tipo === 'error' ? 'error' : 'hecho', texto: mensaje, pendientes: pendientes }); }
+      catch (e) {}
+      return;
+    }
     pastillaMensaje(mensaje, tipo);
   }
 
@@ -210,16 +216,64 @@
     pastillaMuestra(texto, tipo === 'error' ? 'vg-mal' : 'vg-listo', tipo === 'error' ? 6000 : 3200);
   }
 
-  /** Único sitio que decide qué dice la pastilla ahora mismo. */
-  function pinta() {
+  /* ── QUIÉN PINTA EL INDICADOR ───────────────────────────────────────────────
+     Este módulo sabe CUÁNTO falta por subir; no tiene por qué saber dónde se enseña.
+
+     Al principio se dibujaba su propia pastilla abajo a la izquierda… que es justo
+     donde vive la pestaña de estado de los sistemas (app_operacion). Dos pastillas
+     apiladas en la misma esquina, tapándose. El arreglo no es moverla tres
+     centímetros: es que no haya dos. La pestaña que ya está ahí cambia de forma
+     mientras algo sube y vuelve a lo suyo al terminar, como una isla dinámica.
+
+     Así que app_operacion RECLAMA el indicador con delegarIndicador() y a partir de
+     ahí lo pinta él. La pastilla propia sigue existiendo como red de seguridad para
+     una pantalla que no cargue app_operacion: sin ella, un guardado en vuelo no se
+     vería en ninguna parte, que es peor que verse en un sitio poco elegante. */
+  var delegado = null;
+  var huboActividad = false;   // ¿ha subido algo en esta pantalla? decide si cerrar tiene sentido
+  var falloSinDecir = false;   // hay un fallo que el indicador todavía no ha anunciado
+
+  /**
+   * Estado que se publica: lo mínimo para pintarlo sin saber nada de este módulo.
+   *
+   * El fallo se anuncia UNA vez y se da por dicho. `fallidas` sigue contando para
+   * quien quiera preguntarlo, pero no puede gobernar el indicador: si lo hiciera,
+   * un solo fallo dejaría la pestaña en rojo el resto de la sesión, anunciando
+   * "hay cambios sin guardar" cada vez que la cola se vacía —cuando lo que hay es
+   * un cambio que YA se deshizo en pantalla, y por tanto nada pendiente—.
+   */
+  function instantanea() {
     if (pendientes > 0) {
-      pastillaMuestra(pendientes === 1 ? 'Guardando un cambio…' : 'Guardando ' + pendientes + ' cambios…', '');
+      return {
+        modo: 'guardando',
+        texto: pendientes === 1 ? 'Guardando un cambio…' : 'Guardando ' + pendientes + ' cambios…',
+        pendientes: pendientes
+      };
+    }
+    if (falloSinDecir) return { modo: 'error', texto: 'No se pudo guardar', pendientes: 0 };
+    return { modo: 'hecho', texto: 'Todo guardado', pendientes: 0 };
+  }
+
+  /**
+   * Único sitio que decide qué se enseña ahora mismo. `instantanea()` es una lectura
+   * limpia; el aviso de fallo se marca como dicho AQUÍ, al entregarlo, para que
+   * preguntar el estado desde fuera no se lo trague sin querer.
+   */
+  function pinta() {
+    var s = instantanea();
+
+    if (delegado) {
+      // 'hecho' solo se anuncia si hubo algo que cerrar: la pestaña de estado no debe
+      // ponerse a decir "todo guardado" en una pantalla donde nadie ha guardado nada.
+      if (s.modo === 'hecho' && !huboActividad) return;
+      if (s.modo === 'error') falloSinDecir = false;
+      try { delegado(s); } catch (e) { console.error(e); }
       return;
     }
-    if (fallidas > 0) { pastillaMuestra('Hay cambios sin guardar', 'vg-mal', 8000); return; }
-    // El cierre solo tiene sentido si hubo algo que cerrar: la pastilla nunca aparece
-    // sola para decir que no pasa nada.
-    if (pill && pill.classList.contains('vg-on')) pastillaMuestra('Todo guardado', 'vg-listo', 2200);
+
+    if (s.modo === 'guardando') { pastillaMuestra(s.texto, '', 0); return; }
+    if (s.modo === 'error') { falloSinDecir = false; pastillaMuestra(s.texto, 'vg-mal', 8000); return; }
+    if (pill && pill.classList.contains('vg-on')) pastillaMuestra(s.texto, 'vg-listo', 2200);
   }
 
   function cambio() {
@@ -306,6 +360,7 @@
         if (t._resolver) t._resolver(respuesta);
       } else {
         fallidas++;
+        falloSinDecir = true;
         // Deshacer antes de avisar: el asesor lee el aviso mirando la pantalla, y la
         // pantalla ya tiene que estar diciendo la verdad cuando lo lea.
         if (t.revertir) { try { t.revertir(error || respuesta); } catch (e) { console.error(e); } }
@@ -397,6 +452,7 @@
 
     cola(t.clave).tareas.push(t);
     pendientes++;
+    huboActividad = true;
     cambio();
     bombea();
     return p;
@@ -601,13 +657,29 @@
     guardar: guardar,
     esperar: esperar,
     alCambiar: alCambiar,
+
+    /**
+     * Reclama el indicador: a partir de aquí lo pinta `fn` y este módulo retira su
+     * pastilla propia. `fn` recibe {modo:'guardando'|'hecho'|'error', texto, pendientes}.
+     *
+     * Se llama de inmediato con el estado actual para que quien lo reclame tarde no se
+     * pierda una subida que ya estaba en marcha —el orden en que cargan los archivos no
+     * debería decidir si un guardado se ve o no—.
+     */
+    delegarIndicador: function (fn) {
+      delegado = fn;
+      pastillaOculta();
+      if (pendientes > 0 || falloSinDecir) pinta();
+    },
+    /** Estado actual, por si alguien pinta el indicador en otro sitio además. */
+    instantanea: instantanea,
     permiteSalir: permiteSalir,
     resumen: resumen,
     get pendientes() { return pendientes; },
     get fallidas() { return fallidas; },
     hayPendientes: function () { return pendientes > 0; },
     /** Olvida los fallos acumulados (la pantalla ya los resolvió o los reintentó). */
-    limpiarFallidas: function () { fallidas = 0; cambio(); }
+    limpiarFallidas: function () { fallidas = 0; falloSinDecir = false; cambio(); }
   };
 })();
 </script>

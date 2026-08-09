@@ -174,6 +174,41 @@
 .op-pill.tono-warn   { --op-tono: var(--op-warn); }
 .op-pill.tono-alert  { --op-tono: var(--op-alert); }
 .op-pill.tono-info   { --op-tono: var(--op-info); }
+
+/* ── ISLA DINÁMICA ───────────────────────────────────────────────────────────
+   La misma pestaña, prestada un momento a otra cosa.
+
+   Antes el guardado en segundo plano dibujaba SU pastilla en esta misma esquina y
+   las dos se tapaban. Se quitó aquella: cuando algo sube, esta pestaña se ensancha,
+   cambia de tono, su trazo se transforma en una rampa que asciende y dice cuántos
+   cambios faltan. Al terminar, el trazo se vuelve una palomita un segundo y medio y
+   la pestaña regresa a lo suyo. No aparece nada nuevo en pantalla: lo que ya estaba
+   ahí es lo que informa, que es la única forma de que una esquina no se llene de
+   avisos compitiendo.
+
+   El color de la marca en vez de verde a propósito: guardar no es un estado de
+   salud del sistema, y usar el verde de "todo bien" para "estoy subiendo algo"
+   confundiría las dos cosas justo en el sitio donde se leen de reojo. */
+.op-pill.tono-guardando { --op-tono: var(--op-brand); }
+
+.op-sr { position: absolute; width: 1px; height: 1px; margin: -1px; padding: 0;
+  overflow: hidden; clip: rect(0 0 0 0); clip-path: inset(50%); white-space: nowrap; border: 0; }
+
+/* La transición de color la lleva CSS y la de forma GSAP: cada una a lo que sabe.
+   Se excluye `transform`, que es de GSAP durante el morfismo y no admite dos dueños. */
+.op-pill, .op-pill-sig { transition: background-color .35s ease, color .35s ease; }
+
+/* Mientras la isla está puesta, la pestaña no reacciona al ratón: no es un botón que
+   invita a pulsarse, es un parte de lo que está ocurriendo. Sigue siendo pulsable
+   —abre el panel de estado, como siempre— pero deja de crecer al apuntarla, que
+   pelearía con el ancho que está animando GSAP. */
+.op-pill.op-isla:hover { transform: none; }
+.op-pill.op-isla:hover .op-pill-sig { transform: none; }
+
+/* El ancho lo sigue dando .op-desplegada —la isla se pone siempre con esa clase—, así
+   que el ensanchado reutiliza exactamente la misma transición que el rótulo de estado
+   al desplegarse. Una segunda regla de ancho aquí solo serviría para que un día las
+   dos dijeran cosas distintas. */
 /* El fondo y color general ahora siempre lo da el cristal esmerilado, no sobreescribimos */
 
 /* Solo lo que ESPERA algo se mueve. Es la única animación permanente del módulo, y por
@@ -564,6 +599,26 @@
 
   var ICONO_TONO = { ok: IC.ok, warn: IC.reloj, alert: IC.alerta, info: IC.info, neutro: IC.info };
 
+  /* ── LOS TRAZOS DE LA ISLA ──────────────────────────────────────────────────
+     Los cuatro son POLILÍNEAS DE UN SOLO SUBTRAZO en el mismo lienzo 24×12 que el
+     pulso, y no es casualidad: MorphSVG interpola punto a punto, así que dos formas
+     con la misma naturaleza —una línea que sube y baja— se transforman una en otra
+     sin que aparezcan cruces ni nudos por el camino. Un icono de nube con flecha
+     habría sido más literal y habría morfado como una bolsa de papel.
+
+     Lo que cada uno dice, y por qué se distingue sin leer el texto:
+       pulso     el latido de siempre: el sistema está vivo.
+       subiendo  una rampa que asciende de izquierda a derecha.
+       hecho     una palomita, con entrada y salida planas para que ocupe el mismo
+                 ancho que las demás y el morfismo no dé un tirón lateral.
+       falla     un pico brusco hacia abajo. */
+  var TRAZO = {
+    pulso:    'M1 6.4h3.6L6.8 2l3 8.2 2.2-4.4 1.5 2.6H23',
+    subiendo: 'M1 10.2h3.6L6.8 8.4l3 -2.6 2.2 -1.6 1.5 -1.1H23',
+    hecho:    'M1 6.4h3.6L6.8 6.6l3 3.4 2.2 -4.2 1.5 -3.2H23',
+    falla:    'M1 6.4h3.6L6.8 6.4l3 4.4 2.2 -8.6 1.5 4.2H23'
+  };
+
   /* ── Utilidades ─────────────────────────────────────────────────────────── */
 
   function esc(s) {
@@ -641,6 +696,12 @@
         '<span class="op-pill-sig">' + IC.pulso + '</span>' +
         '<span class="op-pill-tx">Estado de los sistemas</span>' +
       '</button>' +
+      /* Sala de anuncios para la isla. Va aparte del botón a propósito: marcar el
+         rótulo de la pestaña como aria-live haría que el lector de pantalla leyera
+         también cada despliegue al pasar el ratón y cada repintado del estado, que
+         ocurren solos y muchas veces. Aquí solo se escribe lo que de verdad hay que
+         anunciar: que algo se está guardando, y que terminó. */
+      '<span class="op-sr" id="op-sr" role="status" aria-live="polite"></span>' +
       '<div class="op-scrim" id="op-scrim"></div>' +
       '<aside class="op-panel" id="op-panel" role="dialog" aria-modal="true" ' +
              'aria-labelledby="op-titulo" aria-hidden="true">' +
@@ -659,20 +720,30 @@
     pastilla.addEventListener('click', function () { abrir(this); });
     scrim.addEventListener('click', function () { cerrar(); });
 
+    // El rótulo se despliega al apuntar… salvo mientras la pestaña está prestada al
+    // guardado: ahí el ancho lo lleva la isla, y dos dueños animando el mismo max-width
+    // se pisan y dejan el texto cortado a media palabra.
     pastilla.addEventListener('mouseenter', function() {
-      if (window.gsap && !pastilla.classList.contains('op-desplegada')) {
+      if (window.gsap && !isla.activa && !pastilla.classList.contains('op-desplegada')) {
         gsap.to(pastilla.querySelector('.op-pill-tx'), {
           maxWidth: 240, marginLeft: 6, paddingRight: 4, opacity: 1, duration: 0.5, ease: "expo.out", overwrite: "auto"
         });
       }
     });
     pastilla.addEventListener('mouseleave', function() {
-      if (window.gsap && !pastilla.classList.contains('op-desplegada')) {
+      if (window.gsap && !isla.activa && !pastilla.classList.contains('op-desplegada')) {
         gsap.to(pastilla.querySelector('.op-pill-tx'), {
           maxWidth: 0, marginLeft: 0, paddingRight: 0, opacity: 0, duration: 0.4, ease: "power2.inOut", overwrite: "auto"
         });
       }
     });
+
+    // La pestaña se ofrece como indicador del guardado en segundo plano. Va aquí,
+    // al montarla, y no al cargar el módulo: hasta este punto no existe el nodo que
+    // habría que transformar.
+    if (window.AppGuardado && AppGuardado.delegarIndicador) {
+      AppGuardado.delegarIndicador(pintarIsla);
+    }
 
     document.addEventListener('keydown', function (e) {
       if (e.key === 'Escape' && abierto) { e.stopPropagation(); cerrar(); }
@@ -700,10 +771,182 @@
     else if (!e.shiftKey && document.activeElement === ultimo) { e.preventDefault(); primero.focus(); }
   }
 
+  /* ═══════════════════════════════════════════════════════════════════════════
+     ISLA DINÁMICA · la pestaña prestada al guardado en segundo plano
+     ═══════════════════════════════════════════════════════════════════════════
+     app_guardado sabe cuánto falta por subir pero no dónde enseñarlo; esta pestaña
+     ya ocupa la esquina. Se reclama el indicador y se pinta aquí, cambiando de
+     forma en vez de apilar una pastilla encima de otra.
+
+     TRES REGLAS QUE NO SON OBVIAS:
+
+      1. Mientras la isla está puesta, pintarPastilla() NO toca el DOM. Reconstruye
+         el innerHTML entero, y hacerlo a media transformación arrancaría el <path>
+         que GSAP está interpolando —la animación no falla, simplemente desaparece a
+         mitad—. El estado que llegue durante ese rato se pinta al devolver la pestaña.
+
+      2. Se guarda el HTML anterior y se restaura tal cual. La pestaña normal tiene
+         variantes (contador de sistemas, rótulo desplegado, clase `late`) y
+         reconstruirlas de memoria aquí sería copiar una lógica que ya vive treinta
+         líneas más abajo, con la garantía de que las dos copias divergirían.
+
+      3. Sin MorphSVGPlugin el trazo cambia con un cruce de opacidad en vez de
+         transformarse. Se ve peor y se entiende igual; lo que no puede pasar es que
+         la esquina se quede muda porque no cargó un plugin de un CDN. */
+
+  /* `saliendo` no es lo mismo que `!activa`: el regreso dura casi medio segundo y en
+     ese rato puede empezar otro guardado. Si `activa` se apagara al empezar a volver,
+     el guardado nuevo reconstruiría la pestaña y la animación de regreso —que sigue
+     corriendo— acabaría restaurando el estado ENCIMA de lo recién puesto. Con las dos
+     banderas, empezar a guardar durante el regreso simplemente lo cancela. */
+  var isla = { activa: false, saliendo: false, clasePrevia: '', temporizador: null, tl: null, latido: null };
+
+  var morphListo;
+  function hayMorph() {
+    if (typeof morphListo !== 'undefined') return morphListo;
+    try {
+      if (typeof MorphSVGPlugin === 'undefined' || !window.gsap) { morphListo = false; return false; }
+      // El registro es idempotente, pero se hace UNA vez: esto se pregunta en cada
+      // cambio de estado y registrar un plugin no es gratis.
+      gsap.registerPlugin(MorphSVGPlugin);
+      morphListo = true;
+    } catch (e) { morphListo = false; }
+    return morphListo;
+  }
+
+  /** El <path> del trazo de la pestaña, para transformarlo. */
+  function trazoActual() {
+    return pastilla ? pastilla.querySelector('.op-pill-sig path') : null;
+  }
+
+  function entrarEnIsla() {
+    if (isla.activa || !pastilla) return;
+    isla.activa = true;
+    isla.clasePrevia = pastilla.className;
+    // La pestaña puede estar oculta si el estado todavía no ha llegado del servidor;
+    // guardar algo tiene que verse igual, así que se enseña.
+    pastilla.hidden = false;
+    pastilla.innerHTML =
+      '<span class="op-pill-sig">' + IC.pulso + '</span>' +
+      '<span class="op-pill-tx"></span>';
+  }
+
+  /** Devuelve la pestaña a lo suyo: el trazo vuelve al latido y se repinta el estado. */
+  function salirDeIsla() {
+    if (!isla.activa || isla.saliendo || !pastilla) return;
+    isla.saliendo = true;
+    clearTimeout(isla.temporizador);
+    if (isla.tl) { isla.tl.kill(); isla.tl = null; }
+    if (isla.latido) { isla.latido.kill(); isla.latido = null; }
+
+    var sr = raiz && raiz.querySelector('#op-sr');
+    if (sr) sr.textContent = '';
+
+    var restaurar = function () {
+      // Si mientras volvía arrancó otro guardado, la isla ya está reclamada de nuevo:
+      // restaurar ahora borraría el estado que se acaba de poner.
+      if (!isla.saliendo) return;
+      isla.saliendo = false;
+      isla.activa = false;
+      if (window.gsap) gsap.set(pastilla, { clearProps: 'transform' });
+      // Se repinta desde el ESTADO REAL, no desde el HTML que había antes: el guardado
+      // pudo durar más que el sondeo de operación y devolver la foto vieja enseñaría un
+      // estado caducado. Si todavía no hay estado, pintarPastilla esconde la pestaña,
+      // que es justo lo que hacía antes de que se la tomáramos prestada.
+      pastilla.className = isla.clasePrevia || 'op-pill tono-ok';
+      pintarPastilla();
+    };
+
+    var path = trazoActual();
+    if (!conGsap() || !path || !hayMorph()) { restaurar(); return; }
+
+    // El trazo vuelve al latido ANTES de soltar la pestaña. Sin esto, la palomita
+    // desaparecía de golpe y el regreso se veía como un corte, no como el final del
+    // mismo gesto.
+    isla.tl = gsap.timeline({ onComplete: restaurar });
+    isla.tl.to(path, { morphSVG: TRAZO.pulso, duration: .42, ease: 'power3.inOut' }, 0);
+    isla.tl.to(pastilla, { scaleX: 1, scaleY: 1, duration: .3, ease: 'power2.out' }, 0);
+  }
+
+  /**
+   * Pinta un estado de guardado en la pestaña.
+   * @param {{modo:string, texto:string, pendientes:number}} s
+   */
+  function pintarIsla(s) {
+    if (!pastilla) return;
+    // Cancela un regreso a medias: la pestaña ya estaba puesta y solo cambia de estado,
+    // así que se sigue transformando desde la forma que tenga ahora mismo.
+    isla.saliendo = false;
+    entrarEnIsla();
+    clearTimeout(isla.temporizador);
+
+    var tono = s.modo === 'error' ? 'alert' : (s.modo === 'hecho' ? 'ok' : 'guardando');
+    var forma = s.modo === 'error' ? TRAZO.falla : (s.modo === 'hecho' ? TRAZO.hecho : TRAZO.subiendo);
+
+    pastilla.className = 'op-pill op-isla op-desplegada tono-' + tono;
+    pastilla.setAttribute('aria-label', s.texto + '. Abrir el estado de los sistemas.');
+
+    var tx = pastilla.querySelector('.op-pill-tx');
+    var sr = raiz.querySelector('#op-sr');
+    var sig = pastilla.querySelector('.op-pill-sig');
+    var path = trazoActual();
+    if (sr) sr.textContent = s.texto;
+
+    if (!conGsap()) {
+      tx.textContent = s.texto;
+      if (path) path.setAttribute('d', forma);
+    } else {
+      // El texto se cambia en el punto muerto de un pequeño rebote, no de golpe: es lo
+      // que hace que se lea como UNA pieza que cambia y no como dos letreros distintos.
+      if (isla.tl) isla.tl.kill();
+      isla.tl = gsap.timeline();
+      isla.tl.to(pastilla, { scaleX: 1.04, scaleY: .93, duration: .16, ease: 'power2.out',
+                             transformOrigin: 'left center' }, 0);
+      isla.tl.add(function () { tx.textContent = s.texto; }, .12);
+      isla.tl.to(pastilla, { scaleX: 1, scaleY: 1, duration: .5, ease: 'elastic.out(1, .62)' }, .16);
+
+      // El disco del trazo acompaña el rebote. A 12×6 px el cambio de forma es
+      // pequeño; sin este golpe de escala el morfismo se pierde y solo se nota que
+      // ha cambiado el texto.
+      if (sig) isla.tl.fromTo(sig, { scale: .82 },
+        { scale: 1, duration: .55, ease: 'back.out(2.6)', clearProps: 'transform' }, .06);
+
+      if (path) {
+        if (hayMorph()) isla.tl.to(path, { morphSVG: forma, duration: .55, ease: 'power3.inOut' }, 0);
+        else isla.tl.to(path, { opacity: 0, duration: .12, ease: 'power1.in',
+                                onComplete: function () { path.setAttribute('d', forma); } }, 0)
+                    .to(path, { opacity: 1, duration: .2, ease: 'power1.out' }, .14);
+      }
+    }
+
+    // Mientras sube, algo tiene que moverse. El lomo animado de la pestaña está
+    // desactivado en este diseño (.op-pill::before { display:none }), así que la señal
+    // de "esto sigue en marcha" la lleva el propio trazo, subiendo y bajando despacio.
+    // Sin ella, una subida lenta se ve idéntica a una pestaña colgada.
+    if (isla.latido) { isla.latido.kill(); isla.latido = null; }
+    if (s.modo === 'guardando' && conGsap() && path) {
+      isla.latido = gsap.fromTo(path, { yPercent: 6 },
+        { yPercent: -6, duration: .9, ease: 'sine.inOut', repeat: -1, yoyo: true, delay: .5 });
+    } else if (path && window.gsap) {
+      // Se vuelve al centro ANIMANDO, no de un salto: el latido pudo quedarse parado
+      // arriba o abajo, y un clearProps ahí da un tirón justo cuando la palomita entra.
+      gsap.to(path, { yPercent: 0, duration: .3, ease: 'power2.out', overwrite: 'auto' });
+    }
+
+    // Un guardado en curso se queda puesto hasta que termine. Un desenlace se enseña
+    // y se retira solo: dejar "Todo guardado" para siempre convertiría el indicador de
+    // estado en un cartel de otra cosa.
+    if (s.modo !== 'guardando') {
+      isla.temporizador = setTimeout(salirDeIsla, s.modo === 'error' ? 6000 : 1800);
+    }
+  }
+
   /* ── Pastilla ───────────────────────────────────────────────────────────── */
 
   function pintarPastilla() {
     if (!pastilla) return;
+    // Mientras la isla está prestada, el estado se guarda y se pinta al devolverla.
+    if (isla.activa) return;
     var e = estado && estado.estado ? estado.estado : estado;
     if (!e || !e.success) { pastilla.hidden = true; return; }
 
