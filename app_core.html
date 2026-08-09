@@ -1046,28 +1046,93 @@
    *   3. CONTEO DE REFERENCIAS. Varias llamadas a la vez encienden un solo
    *      indicador, y se apaga cuando termina la última. Cada pantalla puede
    *      pedirlo sin saber qué están pidiendo las demás.
+   *
+   * ── FORMA: por qué es un disco y no un letrero ──────────────────────────────
+   *
+   * Antes ponía "Consultando…" con todas las letras, y ese fue el error: un
+   * cartel de texto en la esquina se lee como un cartel de espera, así que la
+   * pantalla parecía tardar aunque los datos llevaran ahí desde el primer
+   * fotograma. El aviso contaba lo que ya no era cierto.
+   *
+   * Ahora es el isotipo de Liverpool girando —los ocho puntos naranja y morado,
+   * los mismos del loader de marca— dentro de un disco de cristal de 34 px. Sin
+   * texto. Basta para saber que algo se está comprobando y no compite con el
+   * contenido, que es lo que la persona vino a leer.
+   *
+   * ── SISTEMA COMPARTIDO CON LA PASTILLA DE ESTADO ────────────────────────────
+   *
+   * Este disco y el indicador de estado de los sistemas (app_operacion.html) son
+   * la misma pieza en dos esquinas, y tienen que verse como tal. Si se toca uno,
+   * se toca el otro:
+   *
+   *     diámetro   34 px
+   *     radio      999px
+   *     filo       1px de la línea del tema
+   *     cristal    76% de superficie + blur(14px) saturate(1.7)
+   *     sombra     dos capas, la de abajo abierta y muy suave
+   *     easing     cubic-bezier(.2,.8,.2,1)
+   *
+   * Se diferencian en lo único que importa: este es pasajero y lleva el color de
+   * la MARCA; el otro es permanente y lleva el color del ESTADO.
+   *
+   * Sin texto visible el indicador seguiría siendo invisible para un lector de
+   * pantalla, así que la etiqueta viaja en un span oculto: se ve quien mira y se
+   * oye quien escucha.
    */
   const AppBusy = (function () {
     const RETRASO_MS = 200;
     const MINIMO_MS = 500;
     const ETIQUETA_POR_OMISION = 'Consultando';
 
+    const PUNTOS = 8;                       // los ocho del isotipo de Liverpool
+    const NARANJA = '#EE7D00', MORADO = '#AC4581';   // hex exacto de la marca
+
     const CSS =
-      '.vb-pill{position:fixed;top:1rem;right:1rem;z-index:10001;display:flex;align-items:center;gap:.5rem;' +
-      'padding:.42rem .8rem .42rem .68rem;border-radius:999px;pointer-events:none;' +
-      "font-family:var(--f-body,'Instrument Sans',system-ui,sans-serif);font-size:.78rem;font-weight:600;" +
-      'color:var(--ink,#3d2f38);background:var(--surface,#fff);border:1px solid var(--line,#eadfe6);' +
-      'box-shadow:0 12px 30px -16px rgba(61,47,56,.5);-webkit-backdrop-filter:blur(8px);backdrop-filter:blur(8px);' +
-      'opacity:0;transform:translateY(-8px) scale(.96);transition:opacity .22s ease,transform .22s ease;' +
-      'max-width:min(72vw,18rem)}' +
+      // El disco. Mismas medidas, filo, cristal y sombra que la pastilla de estado.
+      // box-sizing propio: el Portal no trae preflight de Tailwind ni reset alguno, así
+      // que sin esto el filo suma 2 px y el disco deja de medir lo mismo que su pareja.
+      '.vb-pill{box-sizing:border-box;position:fixed;top:1rem;right:1rem;z-index:10001;' +
+      'display:grid;place-items:center;width:34px;height:34px;border-radius:999px;' +
+      'pointer-events:none;background:var(--surface,#fff);border:1px solid var(--line,#eadfe6);' +
+      // Mismas dos capas que --op-sh-pastilla, más el mismo filo de luz: un contacto
+      // corto que la despega del fondo y una difusa que le da altura.
+      'box-shadow:inset 0 1px 0 rgba(255,255,255,.65),0 1px 2px rgba(16,24,40,.06),' +
+      '0 10px 26px -14px rgba(16,24,40,.38);' +
+      'opacity:0;transform:scale(.84);' +
+      'transition:opacity .24s cubic-bezier(.2,.8,.2,1),transform .24s cubic-bezier(.2,.8,.2,1)}' +
       '.vb-pill.vb-on{opacity:1;transform:none}' +
-      '.vb-dots{display:inline-flex;gap:3px;flex:0 0 auto}' +
-      '.vb-dots i{width:5px;height:5px;border-radius:50%;background:#AC4581;animation:vb-bounce 1s ease-in-out infinite}' +
-      '.vb-dots i:nth-child(2){background:#EE7D00;animation-delay:.15s}' +
-      '.vb-dots i:nth-child(3){animation-delay:.3s}' +
-      '@keyframes vb-bounce{0%,100%{opacity:.25;transform:translateY(0)}40%{opacity:1;transform:translateY(-3px)}}' +
-      '.vb-tx{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}' +
-      '@media (prefers-reduced-motion:reduce){.vb-pill{transition:none}.vb-dots i{animation:none;opacity:.75}}' +
+
+      // Sobre fondo oscuro una sombra clara no existe: lo que despega el disco es una
+      // sombra mucho más densa y un filo de luz de una décima parte de fuerza. Mismos
+      // valores que la pastilla de estado en carbon.
+      '[data-theme="carbon"] .vb-pill{box-shadow:inset 0 1px 0 rgba(255,255,255,.07),' +
+      '0 1px 2px rgba(0,0,0,.44),0 12px 30px -14px rgba(0,0,0,.72)}' +
+
+      // Cristal solo donde el navegador sabe desenfocar: si color-mix no existe, la
+      // regla entera se descarta y queda el fondo sólido de arriba.
+      '@supports ((-webkit-backdrop-filter:blur(1px)) or (backdrop-filter:blur(1px))){' +
+      '.vb-pill{background:color-mix(in srgb,var(--surface,#fff) 76%,transparent);' +
+      '-webkit-backdrop-filter:blur(14px) saturate(1.7);backdrop-filter:blur(14px) saturate(1.7)}}' +
+
+      // El anillo: ocho puntos alternando naranja y morado, como el isotipo. Gira
+      // despacio y la estela de opacidad le da el sentido de avance. Girar el grupo
+      // entero (una sola capa compuesta) es más barato que animar los ocho puntos.
+      '.vb-ring{position:relative;width:18px;height:18px;animation:vb-giro 3.2s linear infinite}' +
+      '.vb-ring i{position:absolute;top:0;left:50%;width:3px;height:3px;margin-left:-1.5px;' +
+      'border-radius:50%;opacity:.15;transform-origin:50% 9px;' +
+      'animation:vb-estela 1.15s linear infinite}' +
+      '.vb-ring i:nth-child(odd){background:' + NARANJA + '}' +
+      '.vb-ring i:nth-child(even){background:' + MORADO + '}' +
+      '@keyframes vb-giro{to{transform:rotate(360deg)}}' +
+      '@keyframes vb-estela{0%,100%{opacity:.15}40%{opacity:1}}' +
+
+      // La etiqueta ya no se pinta, pero se sigue anunciando.
+      '.vb-sr{position:absolute;width:1px;height:1px;margin:-1px;padding:0;overflow:hidden;' +
+      'clip:rect(0 0 0 0);clip-path:inset(50%);white-space:nowrap;border:0}' +
+
+      // Sin movimiento el anillo se queda quieto y legible, no invisible.
+      '@media (prefers-reduced-motion:reduce){.vb-pill{transition:none}' +
+      '.vb-ring,.vb-ring i{animation:none}.vb-ring i{opacity:.62}}' +
       '@media print{.vb-pill{display:none}}';
 
     const activos = {};      // token -> etiqueta
@@ -1095,6 +1160,16 @@
       new MutationObserver(function () { pintar(); }).observe(o, { attributes: true, attributeFilter: ['class'] });
     }
 
+    /** Los ocho puntos del isotipo, repartidos en el anillo y desfasados en la estela. */
+    function anillo() {
+      let html = '';
+      for (let i = 0; i < PUNTOS; i++) {
+        html += '<i style="transform:rotate(' + (i * (360 / PUNTOS)) + 'deg);' +
+                'animation-delay:' + (-(PUNTOS - i) * (1.15 / PUNTOS)).toFixed(3) + 's"></i>';
+      }
+      return '<span class="vb-ring" aria-hidden="true">' + html + '</span>';
+    }
+
     function crear() {
       if (pill || !document.body) return pill;
       try {
@@ -1106,8 +1181,8 @@
         pill.className = 'vb-pill';
         pill.setAttribute('role', 'status');
         pill.setAttribute('aria-live', 'polite');
-        pill.innerHTML = '<span class="vb-dots" aria-hidden="true"><i></i><i></i><i></i></span><span class="vb-tx"></span>';
-        texto = pill.querySelector('.vb-tx');
+        pill.innerHTML = anillo() + '<span class="vb-sr"></span>';
+        texto = pill.querySelector('.vb-sr');
         document.body.appendChild(pill);
         vigilarOverlay();
       } catch (e) { pill = null; }
@@ -1142,6 +1217,9 @@
       if (!pill || !visible) return;
       visible = false;
       pill.classList.remove('vb-on');
+      // Se vacía la etiqueta oculta: si se quedara puesta, la próxima consulta con
+      // el mismo texto no sería un cambio y el lector de pantalla no diría nada.
+      if (texto) texto.textContent = '';
       reservarHueco('0px');
     }
 

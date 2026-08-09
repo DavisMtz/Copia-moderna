@@ -82,6 +82,17 @@
  * apunta, la enfoca con el teclado o —sin que nadie la toque— cuando algo falla, que
  * es cuando ocupar sitio está justificado. Esa es la jerarquía que este archivo decía
  * tener desde el principio y que el CSS no cumplía.
+ *
+ * ── LA PAREJA DE LA ESQUINA CONTRARIA ────────────────────────────────────────────
+ *
+ * Este disco y el de "consultando" (AppBusy, en app_core.html) son la misma pieza en
+ * dos esquinas y tienen que verse como tal. Comparten diámetro (34 px), radio, filo,
+ * cristal —76 % de superficie con blur(14px) saturate(1.7)—, las dos capas de sombra,
+ * el filo de luz y el easing. Tocar uno sin tocar el otro los desparejaría.
+ *
+ * Se distinguen en lo único que hay que distinguir: aquel es pasajero y lleva el color
+ * de la MARCA (el isotipo naranja y morado girando); este es permanente y lleva el
+ * color del ESTADO. Uno dice "estoy trabajando", el otro "así está el sistema".
  */
 
 .op-pill {
@@ -91,9 +102,11 @@
      esa barra y tapa justo lo que hay que tocar. */
   position: fixed; left: 20px; bottom: calc(20px + var(--op-pill-suelo, 0px)); z-index: 900;
   display: inline-flex; align-items: center; justify-content: center;
-  /* 14 + punto de 8 + 14 + los dos filos = 38, exactamente el alto: en reposo es un
-     círculo, no una cápsula achatada. */
-  height: 38px; padding: 0 14px;
+  /* 12 + punto de 8 + 12 + los dos filos = 34, exactamente el alto: en reposo es un
+     círculo, no una cápsula achatada. Los 34 px no son un número suelto: es el mismo
+     diámetro que el disco de "consultando" de app_core, para que las dos esquinas se
+     lean como la misma interfaz. Si cambia uno, cambia el otro. */
+  height: 34px; padding: 0 12px;
   border-radius: 999px; border: 1px solid var(--op-line);
   background: var(--op-surface); color: var(--op-ink-soft);
   font-family: var(--op-f); font-size: 12.5px; font-weight: 600;
@@ -101,7 +114,8 @@
   box-shadow: var(--op-brillo), var(--op-sh-pastilla);
   cursor: pointer; -webkit-tap-highlight-color: transparent;
   transition: transform .22s cubic-bezier(.2,.8,.2,1), box-shadow .22s ease,
-              background .22s ease, border-color .22s ease, color .22s ease;
+              background .22s ease, border-color .22s ease, color .22s ease,
+              opacity .22s ease;
   max-width: calc(100vw - 40px);
 }
 
@@ -148,8 +162,22 @@
 .op-pill-ic { width: 15px; height: 15px; flex: none; }
 
 /* Cuando todo funciona el color lo pone SOLO el punto: la frase en verde sobre cristal
-   se leía como un aviso más, y "todo bien" no es un aviso. */
-.op-pill.tono-ok     { --op-tono: var(--op-ok);    color: var(--op-ink-soft); }
+   se leía como un aviso más, y "todo bien" no es un aviso.
+
+   Y además se retira medio paso. "Todo bien" es la respuesta que ya se da por supuesta:
+   tiene que estar consultable, no presente. En reposo el disco baja a 0,72 de opacidad
+   —se ve si lo buscas, no te interrumpe si no— y recupera el 100 % en cuanto lo apuntas
+   o lo enfocas con el teclado. Los demás tonos NO se atenúan nunca: un aviso a media
+   tinta es un aviso a medias.
+
+   0,72 ES EL SUELO, no un gusto. El punto verde sobre blanco a esa opacidad da 3,17:1,
+   y el mínimo AA para un elemento gráfico que porta información es 3:1. Bajarlo a 0,65
+   —que a ojo parece el mismo gris— lo deja en 2,77:1 e incumple. Si hay que hacerlo más
+   discreto, encógelo o quítale peso al halo; no le bajes la opacidad. */
+.op-pill.tono-ok     { --op-tono: var(--op-ok);    color: var(--op-ink-soft); opacity: .72; }
+.op-pill.tono-ok:hover,
+.op-pill.tono-ok:focus-visible,
+.op-pill.tono-ok.op-desplegada { opacity: 1; }
 .op-pill.tono-warn   { --op-tono: var(--op-warn);  background: var(--op-warn-bg);  color: var(--op-warn); }
 .op-pill.tono-alert  { --op-tono: var(--op-alert); background: var(--op-alert-bg); color: var(--op-alert); }
 .op-pill.tono-info   { --op-tono: var(--op-info);  background: var(--op-info-bg);  color: var(--op-info); }
