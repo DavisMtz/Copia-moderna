@@ -100,11 +100,18 @@ const OP_MAX_REPORTES_HORA = 8;
 const OP_MIN_ENTRE_IGUALES = 10;
 
 /**
- * Un "posible" que nadie confirma y que deja de recibir reportes se apaga solo pasadas estas
- * horas. Sin esto, un falso positivo de un martes sigue asustando al equipo el viernes, y a
+ * Un "posible" que nadie confirma y que deja de recibir reportes se apaga solo pasada esta
+ * hora. Sin esto, un falso positivo de un martes sigue asustando al equipo el viernes, y a
  * la tercera vez que pasa nadie vuelve a mirar el indicador.
+ *
+ * Era de 4 horas cuando el aviso solo lo veía el equipo. Ahora que la sospecha se publica
+ * sola —sin que nadie la apruebe—, el plazo es también el tiempo que un cliente puede estar
+ * leyendo "es posible que existan problemas" por una falsa alarma, y cuatro horas de eso
+ * cuestan más credibilidad de la que ahorran. Con una hora sigue habiendo margen de sobra:
+ * el reloj se reinicia con CADA reporte nuevo, así que una caída de verdad —que no deja de
+ * recibirlos— no se apaga sola mientras siga pasando.
  */
-const OP_HORAS_CADUCA_POSIBLE = 4;
+const OP_HORAS_CADUCA_POSIBLE = 1;
 
 /** Evidencias: tope por archivo y por reporte. */
 const OP_MAX_EVIDENCIAS = 4;
@@ -668,7 +675,8 @@ function opCaducarPosibles_(catalogo) {
       opAgregarFila_(OP_SHEET_ACTUALIZACIONES, OP_COLS_ACTUALIZACIONES, {
         ID: opId_('act'), IncidenteId: i.id, Fecha: new Date(),
         Autor: 'sistema', AutorNombre: 'Sistema', Estado: 'descartado',
-        Nota: 'Sin reportes nuevos en ' + OP_HORAS_CADUCA_POSIBLE + ' horas y sin confirmar. Se cerró solo.',
+        Nota: 'Sin reportes nuevos en ' + OP_HORAS_CADUCA_POSIBLE +
+              (OP_HORAS_CADUCA_POSIBLE === 1 ? ' hora' : ' horas') + ' y sin confirmar. Se cerró solo.',
         Aviso: 'No'
       });
     } catch (e) {
