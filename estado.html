@@ -649,6 +649,8 @@
     window.__APP__ = { baseUrl: <?!= JSON.stringify(APP_URL) ?>, inc: <?!= JSON.stringify(inc) ?> };
   </script>
   <?!= include('app_core'); ?>
+  <?!= include('app_buscar'); ?>
+  <?!= include('app_comando'); ?>
   <?!= include('app_motion'); ?>
   <!-- ScrollTrigger y SplitText solo los necesita ESTA pantalla (app_motion carga el
        núcleo de GSAP para todas). Si el CDN no responde, el script de abajo comprueba

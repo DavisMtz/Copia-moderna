@@ -439,7 +439,7 @@
                     <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-6 gap-4">
                         <div class="lg:col-span-2">
                             <label class="v-label" for="sup-search">Buscar</label>
-                            <input type="search" id="sup-search" class="v-input" placeholder="Folio, cliente, correo o asesor...">
+                            <input type="search" id="sup-search" class="v-input" placeholder="Folio, cliente, su correo o asesor · sin acentos y con dedazos también">
                         </div>
                         <div>
                             <label class="v-label" for="sup-date-from">Desde</label>
@@ -502,11 +502,13 @@
         window.__APP__ = { baseUrl: <?!= JSON.stringify(baseUrl) ?>, q: <?!= JSON.stringify(q) ?> };
     </script>
     <?!= include('app_core'); ?>
+    <?!= include('app_buscar'); ?>
     <?!= include('app_icons'); ?>
     <?!= include('app_estatus'); ?>
     <?!= include('app_motion'); ?>
     <?!= include('app_support'); ?>
     <?!= include('app_shell'); ?>
+    <?!= include('app_comando'); ?>
     <?!= include('app_onboarding'); ?>
     <?!= include('LoaderPartial'); ?>
     <?!= include('app_operacion'); ?>
@@ -841,6 +843,12 @@
 
             const escapeFolio = (folio) => String(folio || '').replace(/'/g, "\\'");
             const escapeHtml = (s) => String(s == null ? '' : s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+            /* Marca lo que coincidió con la búsqueda. Con una tabla de ocho columnas es lo
+               que deja ver de un vistazo POR QUÉ salió cada fila: si fue por el folio, por
+               el nombre del cliente o por el asesor. */
+            const marcaSup = (texto, termino) => (window.AppBuscar && termino)
+                ? AppBuscar.resalta(texto == null ? '' : texto, termino)
+                : escapeHtml(texto);
 
             const showSupPlaceholder = (html) => {
                 supPlaceholder.innerHTML = html;
@@ -859,44 +867,25 @@
                 fill(supFormat, [...new Set(allQuotes.map(q => q.format))].sort(), FORMAT_NAMES);
             };
 
-            // --- Búsqueda tolerante a errores (fuzzy): sin acentos, sin importar
-            //     mayúsculas y con tolerancia a pequeños errores de tipeo. Mismo
-            //     criterio que fuzzyScore_ en Code.gs y fzMatches en inicio.html. ---
-            const fzNorm = (s) => String(s == null ? '' : s)
-                .normalize('NFD').replace(/[\u0300-\u036f]/g, '')
-                .toLowerCase().replace(/\s+/g, ' ').trim();
-            const fzLev = (a, b) => {
-                if (a === b) return 0;
-                const al = a.length, bl = b.length;
-                if (!al) return bl;
-                if (!bl) return al;
-                let prev = Array.from({ length: bl + 1 }, (_, j) => j);
-                for (let i = 1; i <= al; i++) {
-                    const cur = [i], ca = a.charCodeAt(i - 1);
-                    for (let j = 1; j <= bl; j++) {
-                        const cost = ca === b.charCodeAt(j - 1) ? 0 : 1;
-                        cur[j] = Math.min(prev[j] + 1, cur[j - 1] + 1, prev[j - 1] + cost);
-                    }
-                    prev = cur;
-                }
-                return prev[bl];
-            };
-            const fzTol = (len) => len <= 3 ? 0 : len <= 5 ? 1 : len <= 8 ? 2 : 3;
-            const fzMatches = (text, term) => {
-                const query = fzNorm(term);
-                if (!query) return true;
-                const t = fzNorm(text);
-                if (!t) return false;
-                if (t.indexOf(query) !== -1) return true;
-                const tTokens = t.split(' ').filter(Boolean);
-                return query.split(' ').filter(Boolean).every(qt => tTokens.some(tt => {
-                    if (tt.indexOf(qt) !== -1) return true;
-                    const tol = fzTol(qt.length);
-                    if (tol === 0) return false;
-                    if (fzLev(qt, tt) <= tol) return true;
-                    return tt.length > qt.length && fzLev(qt, tt.substring(0, qt.length)) <= tol;
-                }));
-            };
+            /* --- Búsqueda del panel ---
+             * El criterio de coincidencia lo pone AppBuscar (app_buscar.html), el mismo
+             * motor del buscador general y del panel del asesor: sin acentos, sin importar
+             * mayúsculas, tolerante a dedazos y capaz de reconocer un folio escrito sin
+             * guiones ("lvp2024118" encuentra "LVP-2024-118").
+             *
+             * Aquí además se ORDENA por relevancia cuando hay texto escrito. Es un panel de
+             * hasta miles de filas con un tope de 150 visibles: si lo más parecido a lo que
+             * se buscó cae en la fila 400, el aviso de "mostrando las primeras 150" era la
+             * única respuesta que recibía quien sí había escrito bien el folio.
+             */
+            const camposSup = (q) => [
+                { t: q.folio, p: 3 },
+                { t: q.clientName, p: 2 },
+                { t: q.clientEmail, p: 2 },
+                { t: q.advisorName, p: 1.5 },
+                { t: q.advisorEmail, p: 1 },
+                { t: q.status, p: 0.6 }
+            ];
 
             const applyFilters = () => {
                 const term = supSearch.value.trim();
@@ -906,11 +895,9 @@
                 const advisor = supAdvisor.value;
                 const format = supFormat.value;
 
+                // Los filtros duros (fechas, estatus, asesor, formato) se aplican primero:
+                // acotan la lista antes de puntuarla, que es la parte cara.
                 filteredQuotes = allQuotes.filter(q => {
-                    if (term) {
-                        const haystack = `${q.folio} ${q.clientName} ${q.clientEmail} ${q.advisorName} ${q.advisorEmail}`;
-                        if (!fzMatches(haystack, term)) return false;
-                    }
                     if (from || to) {
                         if (!q.timestamp) return false;
                         const d = new Date(q.timestamp);
@@ -923,12 +910,20 @@
                     return true;
                 });
 
+                if (term) {
+                    filteredQuotes = window.AppBuscar
+                        ? AppBuscar.filtra(filteredQuotes, term, camposSup)
+                        : filteredQuotes.filter(q => `${q.folio} ${q.clientName} ${q.clientEmail} ${q.advisorName}`
+                            .toLowerCase().indexOf(term.toLowerCase()) !== -1);
+                }
+
                 renderSupTable();
             };
 
             const renderSupTable = () => {
                 supBody.innerHTML = '';
                 supCapNote.classList.add('hidden');
+                const term = supSearch.value.trim();
 
                 const totalAmount = filteredQuotes.reduce((sum, q) => sum + (q.total || 0), 0);
                 supSummary.innerHTML = `<strong>${filteredQuotes.length}</strong> cotizaciones &middot; Monto total: <strong class="text-brand-pink">${formatMoney(totalAmount)}</strong>`;
@@ -953,10 +948,10 @@
                     const fecha = q.timestamp ? new Date(q.timestamp).toLocaleDateString('es-MX', { day: '2-digit', month: 'short', year: 'numeric' }) : 'N/A';
 
                     row.innerHTML = `
-                        <td class="font-medium text-slate-900">${escapeHtml(q.folio)}</td>
+                        <td class="font-medium text-slate-900">${marcaSup(q.folio, term)}</td>
                         <td>${fecha}</td>
-                        <td>${escapeHtml(q.advisorName)}</td>
-                        <td>${escapeHtml(q.clientName)}</td>
+                        <td>${marcaSup(q.advisorName, term)}</td>
+                        <td>${marcaSup(q.clientName, term)}${q.clientEmail ? `<div class="text-xs text-slate-500">${marcaSup(q.clientEmail, term)}</div>` : ''}</td>
                         <td class="font-medium">${formatMoney(q.total)}</td>
                         <td>${AppEstatus.badge(q.status, q.revisionEstado)}</td>
                         <td>${escapeHtml(FORMAT_NAMES[q.format] || q.format)}</td>

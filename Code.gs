@@ -708,6 +708,7 @@ function leerCotizacionesDeUsuario_(callingUserEmail, searchTerm) {
     const totalIdx = headers.indexOf("TotalGeneral");
     const statusIdx = headers.indexOf("Estatus");
     const advisorCorreoIdx = headers.indexOf("AsesorCorreo");
+    const advisorNombreIdx = headers.indexOf("AsesorNombre");
     const clienteCorreoIdx = headers.indexOf("CorreoCliente");
     const formatoIdx = headers.indexOf("Formato");
 
@@ -728,7 +729,13 @@ function leerCotizacionesDeUsuario_(callingUserEmail, searchTerm) {
       const term = searchTerm.trim();
       const scored = [];
       allSheetData.forEach(row => {
-        const haystack = [row[folioIdx], row[clienteNombreIdx], row[clienteCorreoIdx]].join(' ');
+        // El asesor también entra al pajar: la pregunta real detrás de una búsqueda
+        // suele ser "¿esto lo hizo Ana?" tanto como "¿dónde quedó este folio?", y el
+        // panel de supervisión ya ofrecía buscar por asesor sin que esto lo mirara.
+        const haystack = [
+          row[folioIdx], row[clienteNombreIdx], row[clienteCorreoIdx],
+          advisorNombreIdx > -1 ? row[advisorNombreIdx] : '', row[advisorCorreoIdx]
+        ].join(' ');
         const score = fuzzyScore_(haystack, term);
         if (score >= 0) scored.push({ row: row, score: score });
       });
@@ -742,17 +749,34 @@ function leerCotizacionesDeUsuario_(callingUserEmail, searchTerm) {
       return { success: true, quotes: [], message: "Inicia sesión para ver tus cotizaciones o realiza una búsqueda." };
     }
 
-    const formattedQuotes = resultingQuotes.map(row => ({
-      folio: row[folioIdx],
-      cliente: row[clienteNombreIdx],
-      fecha: (row[timestampIdx] instanceof Date) 
-                ? row[timestampIdx].toLocaleDateString('es-MX', {day:'2-digit', month:'short', year:'numeric'}) 
-                : (row[timestampIdx] ? new Date(row[timestampIdx]).toLocaleDateString('es-MX', {day:'2-digit', month:'short', year:'numeric'}) : 'N/A'),
-      total: parseFloat(row[totalIdx]) || 0,
-      estatus: row[statusIdx] || "Pendiente",
-      // 'Formato' es una columna auto-reparable: las cotizaciones viejas no la tienen.
-      formato: (formatoIdx > -1 && row[formatoIdx]) ? row[formatoIdx] : DEFAULT_FORMAT_ID
-    }));
+    /* De quién es cada folio va como CORREO del asesor y no como un "es tuya" ya
+       resuelto: los resultados de una búsqueda se guardan en caché por término y esa
+       copia la reaprovecha todo el equipo, así que una marca calculada aquí saldría
+       con la respuesta de quien buscó primero. Quién es el dueño lo decide la pantalla
+       comparando con su propia sesión, que es información que ya tiene. */
+    const formattedQuotes = resultingQuotes.map(row => {
+      const correoAsesor = String(row[advisorCorreoIdx] || '').trim();
+      return {
+        folio: row[folioIdx],
+        cliente: row[clienteNombreIdx],
+        // El correo del cliente viaja con cada fila para que el filtro instantáneo del
+        // navegador pueda buscar por él sin volver al servidor, que es la forma en que
+        // más se pregunta por una cotización cuando no se tiene el folio a la mano.
+        // No revela nada nuevo: getQuoteDetails ya lo entrega al abrir cualquier folio.
+        correoCliente: (clienteCorreoIdx > -1 ? String(row[clienteCorreoIdx] || '') : ''),
+        // En una búsqueda global la mitad de los resultados son de otros asesores y
+        // sin esto no había forma de distinguirlos en la tabla.
+        asesor: (advisorNombreIdx > -1 ? String(row[advisorNombreIdx] || '') : '') || correoAsesor,
+        asesorCorreo: correoAsesor,
+        fecha: (row[timestampIdx] instanceof Date)
+                  ? row[timestampIdx].toLocaleDateString('es-MX', {day:'2-digit', month:'short', year:'numeric'})
+                  : (row[timestampIdx] ? new Date(row[timestampIdx]).toLocaleDateString('es-MX', {day:'2-digit', month:'short', year:'numeric'}) : 'N/A'),
+        total: parseFloat(row[totalIdx]) || 0,
+        estatus: row[statusIdx] || "Pendiente",
+        // 'Formato' es una columna auto-reparable: las cotizaciones viejas no la tienen.
+        formato: (formatoIdx > -1 && row[formatoIdx]) ? row[formatoIdx] : DEFAULT_FORMAT_ID
+      };
+    });
     
     // En búsqueda se conserva el orden por relevancia calculado arriba; sin búsqueda
     // (lista propia) se ordena por folio más reciente.
@@ -765,6 +789,53 @@ function leerCotizacionesDeUsuario_(callingUserEmail, searchTerm) {
     Logger.log(`Error en getQuotesForUser: ${error.message} Stack: ${error.stack}`);
     return { success: false, quotes: null, message: "No pudimos cargar las cotizaciones. Inténtalo de nuevo en un momento." };
   }
+}
+
+/**
+ * Búsqueda de cotizaciones para el BUSCADOR GENERAL (app_comando), disponible en
+ * todas las pantallas.
+ *
+ * Es getQuotesForUser recortada a lo que cabe en una lista desplegable: unas pocas
+ * filas y solo los campos que se leen ahí. Existe aparte por dos razones concretas:
+ *
+ *   · El buscador dispara mientras se teclea. Devolver el sistema entero —cientos de
+ *     filas con productos, totales y formato— para enseñar cinco es pagar el envío
+ *     completo en cada pulsación; recortar en el servidor lo vuelve barato de verdad.
+ *   · Puede preguntar cualquier pantalla, incluidas las que no cargan la tabla de
+ *     cotizaciones, así que no debe arrastrar el contrato del panel.
+ *
+ * Busca en TODO el sistema (no solo lo propio): encontrar el folio que hizo otra
+ * persona del equipo es justo para lo que se abre. La caché es la misma de
+ * getQuotesForUser y se invalida con cualquier guardado (cotInvalidarCache_).
+ *
+ * @param {string} callingUserEmail Correo de la sesión (AppSession.userEmail).
+ * @param {string} termino          Folio, correo del cliente, nombre o asesor.
+ * @param {number=} limite          Cuántas filas devolver (tope 25, por omisión 8).
+ * @return {{success:boolean, quotes:Array, message:?string}}
+ */
+function buscarCotizaciones(callingUserEmail, termino, limite) {
+  const term = String(termino || '').trim();
+  const tope = Math.min(Math.max(parseInt(limite, 10) || 8, 1), 25);
+  // Con una o dos letras no hay búsqueda que valga: traería media hoja y ninguna
+  // de las filas sería la que se busca.
+  if (term.length < 3) return { success: true, quotes: [], message: null };
+
+  const base = getQuotesForUser(callingUserEmail, term, false);
+  if (!base || !base.success) {
+    return { success: false, quotes: [], message: (base && base.message) || 'No pudimos buscar cotizaciones.' };
+  }
+  const quotes = (base.quotes || []).slice(0, tope).map(function (q) {
+    return {
+      folio: q.folio,
+      cliente: q.cliente,
+      correoCliente: q.correoCliente,
+      asesor: q.asesor,
+      asesorCorreo: q.asesorCorreo,
+      fecha: q.fecha,
+      estatus: q.estatus
+    };
+  });
+  return { success: true, quotes: quotes, message: null };
 }
 
 /**
@@ -1181,8 +1252,20 @@ function sendWebhookNotification(folio, quoteData, estatus) {
  * Utilidades para que el buscador de cotizaciones encuentre resultados aunque el usuario
  * escriba sin acentos ("gonzalez" → "González"), con mayúsculas distintas o con pequeños
  * errores de tipeo ("jse" → "José", "cotisacion" → cliente "Cotización"). Se usa en
- * getQuotesForUser. El equivalente para el filtro instantáneo del cliente vive en inicio.html
- * (mismo criterio) para que ambos coincidan.
+ * getQuotesForUser y en buscarCotizaciones. El equivalente del navegador vive en
+ * app_buscar.html (mismo criterio) para que ambos encuentren lo mismo.
+ *
+ * LO QUE SE BUSCA AQUÍ son dos datos que casi nunca llegan completos ni bien escritos:
+ *
+ *   · El FOLIO. Se dicta por teléfono, se copia de un chat y se teclea a mano, así que
+ *     aparece como "LVP-2024-118", "lvp2024118", "2024 118" o solo "118". Comparar en
+ *     crudo fallaba en tres de esos cuatro casos; ahora se compara también la forma
+ *     COMPACTA (sin guiones ni espacios) y cada tramo por separado.
+ *
+ *   · El CORREO DEL CLIENTE. Buscarlo entero no acertaba si en la hoja estaba escrito
+ *     con otro punto o con mayúsculas, y buscar "ana lopez" no llegaba al correo.
+ *     Ahora el correo se parte en sus palabras ("ana", "lopez", "liverpool") y se
+ *     compara por los dos lados.
  */
 
 /** Normaliza texto: minúsculas, sin acentos/diacríticos y sin espacios sobrantes. */
@@ -1192,6 +1275,24 @@ function normalizeText_(s) {
     .toLowerCase()
     .replace(/\s+/g, ' ')
     .trim();
+}
+
+/** Solo letras y dígitos: la forma en que se teclean folios y números de pedido. */
+function compactText_(s) {
+  return normalizeText_(s).replace(/[^a-z0-9]/g, '');
+}
+
+/**
+ * Palabras de un texto, partiendo también en la frontera letra/dígito y por los
+ * signos del correo: "LVP-2024-118" → ["lvp","2024","118"] y
+ * "ana.lopez@liverpool.com.mx" → ["ana","lopez","liverpool","com","mx"].
+ */
+function searchTokens_(s) {
+  return normalizeText_(s)
+    .replace(/([a-z])([0-9])/g, '$1 $2')
+    .replace(/([0-9])([a-z])/g, '$1 $2')
+    .split(/[^a-z0-9]+/)
+    .filter(function (t) { return t; });
 }
 
 /** Distancia de edición (Levenshtein) entre dos cadenas ya normalizadas. */
@@ -1225,7 +1326,7 @@ function fuzzyTolerance_(len) {
 /**
  * Puntúa qué tan bien coincide `term` con `text`. Devuelve -1 si NO hay coincidencia.
  * Semántica AND: cada palabra de la búsqueda debe encontrar algo en el texto.
- * A mayor puntaje, más relevante (substring exacto pesa más que fuzzy).
+ * A mayor puntaje, más relevante (una coincidencia literal pesa más que una difusa).
  * @param {string} text - Texto donde buscar (p.ej. folio + cliente + correo).
  * @param {string} term - Lo que escribió el usuario.
  * @return {number} Puntaje de relevancia, o -1 si no coincide.
@@ -1237,12 +1338,36 @@ function fuzzyScore_(text, term) {
   if (!t) return -1;
 
   // Coincidencia directa de toda la frase: lo más fuerte (más temprana = mejor).
+  // Que TERMINE donde termina una palabra vale aparte, y mucho: buscando
+  // "LVP-2024-118" el folio exacto tiene que ganarle a "LVP-2024-1180", que también
+  // lo contiene. Sin ese desempate el folio correcto salía en segundo lugar.
   const idx = t.indexOf(q);
-  if (idx !== -1) return 2000 - idx;
+  if (idx !== -1) {
+    const sigue = t.charAt(idx + q.length);
+    return 3000 - idx + (sigue === '' || !/[a-z0-9]/.test(sigue) ? 400 : 0);
+  }
 
-  const qTokens = q.split(' ').filter(Boolean);
-  const tTokens = t.split(' ').filter(Boolean);
-  if (tTokens.length === 0) return -1;
+  // La misma frase con otros separadores. Es el caso del folio dictado: en la hoja
+  // dice "LVP-2024-118" y en el buscador se escribió "lvp2024118" o "lvp 2024 118".
+  // Sin esto, la búsqueda más común del sistema no encontraba nada.
+  const qc = compactText_(term);
+  if (qc.length >= 3) {
+    // Se compara contra cada "palabra" del texto ya compactada, para poder distinguir
+    // el folio completo de otro que solo empieza igual.
+    const trozos = t.split(' ');
+    for (let z = 0; z < trozos.length; z++) {
+      const tz = compactText_(trozos[z]);
+      if (!tz) continue;
+      if (tz === qc) return 3300;
+      if (tz.indexOf(qc) === 0) return 2900;
+    }
+    const ic = compactText_(text).indexOf(qc);
+    if (ic !== -1) return 2600 - ic;
+  }
+
+  const qTokens = searchTokens_(term);
+  const tTokens = searchTokens_(text);
+  if (qTokens.length === 0 || tTokens.length === 0) return -1;
 
   let total = 0;
   for (let i = 0; i < qTokens.length; i++) {
@@ -1251,10 +1376,12 @@ function fuzzyScore_(text, term) {
     for (let j = 0; j < tTokens.length; j++) {
       const tt = tTokens[j];
       if (tt === qt) { best = Math.max(best, 200); continue; }
-      if (tt.indexOf(qt) !== -1) { best = Math.max(best, 150); continue; } // prefijo/substring de palabra
+      if (tt.indexOf(qt) === 0) { best = Math.max(best, 160); continue; }     // prefijo de palabra
+      if (tt.indexOf(qt) !== -1) { best = Math.max(best, 120); continue; }    // dentro de la palabra
       const tol = fuzzyTolerance_(qt.length);
       if (tol > 0) {
-        if (levenshtein_(qt, tt) <= tol) best = Math.max(best, 90 - levenshtein_(qt, tt) * 10);
+        const d = levenshtein_(qt, tt);
+        if (d <= tol) { best = Math.max(best, 90 - d * 10); continue; }
         // Nombres largos con typo: compara contra el inicio de la palabra del texto.
         if (tt.length > qt.length) {
           const d2 = levenshtein_(qt, tt.substring(0, qt.length));

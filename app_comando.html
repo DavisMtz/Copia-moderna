@@ -1,0 +1,835 @@
+<style>
+/**
+ * =====================================================================================
+ * BUSCADOR GENERAL | Sistema de cotizaciones Ventel · Portal Ventel
+ * =====================================================================================
+ * El buscador del Portal, disponible en TODAS las pantallas. Antes solo existía en la
+ * portada: para saltar de "Enviar correo" a "Revisar cotizaciones" había que volver al
+ * panel, abrir el menú y bajar hasta el rótulo correcto. Ahora se abre con Ctrl+K (o
+ * con «/») desde donde sea y lleva a cualquier función que ESA persona tenga permitida.
+ *
+ * Lo que encuentra, por orden de cercanía a lo que se estaba haciendo:
+ *   1. Funciones de la app  — solo las que los permisos de la sesión dejan abrir.
+ *   2. Cotizaciones         — por folio o por el correo del cliente, propias y de todo
+ *                             el equipo (ver buscarCotizaciones en Code.gs).
+ *   3. Contenido del Portal — herramientas, plantillas, formatos, paqueterías y pagos.
+ *
+ * Es un include autónomo: se cuelga solo al cargar la pantalla. Necesita app_core
+ * (AppUrl/AppSession/AppCache/AppRun) y app_buscar (el motor de coincidencias); si
+ * alguno falta, no se monta y la pantalla sigue funcionando igual.
+ *
+ * Los estilos usan los tokens del tema (--surface, --ink, --brand…), así que hereda
+ * aurora/slate/carbón y el alto contraste sin código propio.
+ */
+
+.cmdk-backdrop {
+  position: fixed; inset: 0; z-index: 10060; display: none;
+  background: rgba(20, 14, 20, .46); backdrop-filter: blur(3px);
+  padding: 10vh 1rem 1rem; overflow-y: auto; overscroll-behavior: contain;
+}
+.cmdk-backdrop.open { display: block; }
+@media (max-width: 640px) { .cmdk-backdrop { padding-top: 4vh; } }
+
+.cmdk-panel {
+  width: min(43rem, 100%); margin: 0 auto;
+  background: var(--surface, #fff); color: var(--ink, #1B2330);
+  border: 1px solid var(--line, #E4E9F0); border-radius: 16px;
+  box-shadow: var(--sh-lg, 0 30px 60px -24px rgba(27,35,48,.3));
+  font-family: var(--f-ui, var(--f-body, system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif));
+  overflow: hidden; box-sizing: border-box;
+}
+.cmdk-panel *, .cmdk-panel *::before, .cmdk-panel *::after { box-sizing: border-box; }
+
+/* ── Caja de texto ── */
+.cmdk-head { display: flex; align-items: center; gap: .7rem; padding: .95rem 1.1rem; border-bottom: 1px solid var(--line, #E4E9F0); }
+.cmdk-head .cmdk-ic { width: 20px; height: 20px; color: var(--ink-faint, #94A1B2); flex: none; }
+.cmdk-input {
+  flex: 1; min-width: 0; border: 0; background: transparent; outline: none; padding: 0;
+  font-family: inherit; font-size: 1.02rem; font-weight: 500; color: var(--ink, #1B2330);
+}
+.cmdk-input::placeholder { color: var(--ink-faint, #94A1B2); font-weight: 400; }
+.cmdk-esc {
+  flex: none; font-size: .66rem; font-weight: 700; letter-spacing: .04em; text-transform: uppercase;
+  padding: .28rem .5rem; border-radius: 6px; border: 1px solid var(--line, #E4E9F0);
+  background: var(--surface-2, #F4F7FA); color: var(--ink-faint, #94A1B2); cursor: pointer;
+}
+.cmdk-esc:hover { color: var(--ink, #1B2330); }
+
+/* ── Resultados ── */
+.cmdk-list { max-height: min(58vh, 30rem); overflow-y: auto; overscroll-behavior: contain; padding: .35rem; }
+.cmdk-list::-webkit-scrollbar { width: 9px; }
+.cmdk-list::-webkit-scrollbar-thumb { background: var(--line, #E4E9F0); border-radius: 99px; }
+
+.cmdk-group {
+  display: flex; align-items: center; gap: .45rem;
+  padding: .7rem .8rem .3rem; font-size: .63rem; font-weight: 800;
+  letter-spacing: .12em; text-transform: uppercase; color: var(--ink-faint, #94A1B2);
+}
+.cmdk-group .n {
+  margin-left: auto; letter-spacing: 0; text-transform: none; font-weight: 700; font-size: .68rem;
+  background: var(--surface-2, #F4F7FA); border-radius: 99px; padding: .05rem .42rem;
+}
+
+.cmdk-item {
+  display: flex; align-items: center; gap: .75rem; width: 100%;
+  padding: .58rem .8rem; border: 0; border-radius: 10px; background: transparent;
+  text-align: left; cursor: pointer; font-family: inherit; color: inherit;
+}
+.cmdk-item:hover { background: var(--surface-2, #F4F7FA); }
+.cmdk-item.on { background: var(--brand-tint, #FDE7F4); }
+.cmdk-item.on .cmdk-chip { background: var(--brand, #E10098); color: #fff; }
+.cmdk-item.on .cmdk-go { opacity: 1; color: var(--brand, #E10098); }
+
+.cmdk-chip {
+  width: 32px; height: 32px; border-radius: 9px; flex: none;
+  display: inline-flex; align-items: center; justify-content: center;
+  background: var(--surface-2, #F4F7FA); color: var(--ink-soft, #5C6B7E);
+}
+.cmdk-chip .cmdk-ic { width: 17px; height: 17px; }
+.cmdk-tx { min-width: 0; flex: 1; line-height: 1.3; }
+.cmdk-name { font-size: .9rem; font-weight: 600; color: var(--ink, #1B2330); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.cmdk-sub { font-size: .74rem; color: var(--ink-soft, #5C6B7E); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; margin-top: .08rem; }
+.cmdk-name mark, .cmdk-sub mark { background: var(--brand-soft, #FBD0E9); color: inherit; border-radius: 3px; padding: 0 .1em; }
+.cmdk-go { flex: none; opacity: .45; color: var(--ink-faint, #94A1B2); display: inline-flex; }
+.cmdk-go .cmdk-ic { width: 15px; height: 15px; }
+
+/* Etiquetas: de quién es la cotización, en qué estatus va. */
+.cmdk-tag {
+  flex: none; font-size: .64rem; font-weight: 700; padding: .12rem .42rem; border-radius: 99px;
+  background: var(--surface-2, #F4F7FA); color: var(--ink-soft, #5C6B7E); border: 1px solid var(--line, #E4E9F0);
+  white-space: nowrap;
+}
+.cmdk-tag.mia { background: var(--brand-tint, #FDE7F4); color: var(--brand-deep, #A8006F); border-color: var(--brand-soft, #FBD0E9); }
+
+/* ── Estados ── */
+.cmdk-vacio { padding: 2.1rem 1.2rem; text-align: center; color: var(--ink-soft, #5C6B7E); font-size: .88rem; }
+.cmdk-vacio .big { display: block; margin: 0 auto .6rem; width: 30px; height: 30px; color: var(--ink-faint, #94A1B2); }
+.cmdk-vacio .cmdk-ic { width: 30px; height: 30px; }
+.cmdk-vacio b { color: var(--ink, #1B2330); }
+.cmdk-nota { padding: .45rem .85rem .6rem; font-size: .73rem; color: var(--ink-faint, #94A1B2); display: flex; align-items: center; gap: .4rem; }
+.cmdk-punto { width: 6px; height: 6px; border-radius: 50%; background: var(--brand, #E10098); flex: none; animation: cmdkLatido 1s ease-in-out infinite; }
+@keyframes cmdkLatido { 0%,100% { opacity: .3; } 50% { opacity: 1; } }
+
+/* ── Pie con los atajos ── */
+.cmdk-foot {
+  display: flex; flex-wrap: wrap; gap: .9rem; padding: .55rem 1.1rem;
+  border-top: 1px solid var(--line, #E4E9F0); background: var(--surface-2, #F4F7FA);
+  font-size: .7rem; color: var(--ink-faint, #94A1B2);
+}
+.cmdk-foot span { display: inline-flex; align-items: center; gap: .3rem; }
+.cmdk-foot kbd {
+  font-family: inherit; font-size: .66rem; font-weight: 700; min-width: 1.25rem; text-align: center;
+  padding: .1rem .3rem; border-radius: 5px; border: 1px solid var(--line, #E4E9F0);
+  background: var(--surface, #fff); color: var(--ink-soft, #5C6B7E);
+}
+
+/* ── Disparador en la barra superior ── */
+.cmdk-abrir {
+  display: inline-flex; align-items: center; gap: .5rem; max-width: 15rem;
+  padding: .42rem .6rem .42rem .55rem; border-radius: 10px; cursor: pointer;
+  border: 1px solid var(--line, #E4E9F0); background: var(--surface, #fff);
+  color: var(--ink-faint, #94A1B2); font-family: inherit; font-size: .8rem; font-weight: 500;
+  transition: border-color .18s, color .18s, box-shadow .18s;
+}
+.cmdk-abrir:hover { color: var(--ink-soft, #5C6B7E); border-color: var(--brand-soft, #FBD0E9); }
+.cmdk-abrir:focus-visible { outline: none; box-shadow: var(--ring, 0 0 0 4px rgba(225,0,152,.16)); }
+.cmdk-abrir .cmdk-ic { width: 16px; height: 16px; flex: none; }
+.cmdk-abrir .cmdk-abrir-tx { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.cmdk-abrir kbd {
+  font-family: inherit; font-size: .64rem; font-weight: 700; padding: .08rem .3rem; border-radius: 5px;
+  border: 1px solid var(--line, #E4E9F0); background: var(--surface-2, #F4F7FA); flex: none;
+}
+@media (max-width: 720px) {
+  .cmdk-abrir .cmdk-abrir-tx, .cmdk-abrir kbd { display: none; }
+  .cmdk-abrir { padding: .42rem; }
+}
+
+/* ── Disparador flotante ──
+   Para las pantallas que no tienen barra superior donde colgar el botón (la
+   cotización, la vista previa y la consulta ocupan el ancho completo). Va abajo a
+   la DERECHA: la pastilla de estado de operación vive abajo a la izquierda y dos
+   botones flotantes en la misma esquina se tapan. Un atajo que solo existe en el
+   teclado lo usa quien ya sabe que existe; el botón es cómo se entera el resto. */
+.cmdk-flota {
+  position: fixed; right: 20px; bottom: calc(20px + var(--op-pill-suelo, 0px)); z-index: 900;
+  display: inline-flex; align-items: center; gap: .5rem; padding: .6rem .85rem;
+  border-radius: 99px; cursor: pointer; font-family: inherit; font-size: .82rem; font-weight: 600;
+  border: 1px solid var(--line, #E4E9F0); background: var(--surface, #fff); color: var(--ink-soft, #5C6B7E);
+  box-shadow: var(--sh-md, 0 14px 34px -16px rgba(27,35,48,.28));
+  transition: transform .16s cubic-bezier(.32,.72,0,1), color .16s, border-color .16s;
+}
+.cmdk-flota:hover { transform: translateY(-2px); color: var(--brand, #E10098); border-color: var(--brand-soft, #FBD0E9); }
+.cmdk-flota:focus-visible { outline: none; box-shadow: var(--ring, 0 0 0 4px rgba(225,0,152,.16)); }
+.cmdk-flota .cmdk-ic { width: 17px; height: 17px; flex: none; }
+@media (max-width: 640px) { .cmdk-flota .cmdk-flota-tx { display: none; } .cmdk-flota { padding: .7rem; } }
+
+@media (prefers-reduced-motion: reduce) { .cmdk-punto { animation: none; opacity: .7; } .cmdk-flota:hover { transform: none; } }
+@media print { .cmdk-backdrop, .cmdk-abrir, .cmdk-flota { display: none !important; } }
+</style>
+
+<script>
+/**
+ * AppComando — el buscador general, montado en cualquier pantalla.
+ */
+(function () {
+  'use strict';
+
+  /* ── Iconos (mismo lenguaje de trazo que el resto de la app) ── */
+  function ic(d, extra) {
+    return '<svg class="cmdk-ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" ' +
+      'stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">' + d + (extra || '') + '</svg>';
+  }
+  var IC = {
+    lupa:    ic('<circle cx="11" cy="11" r="7"/><path d="m20 20-3.6-3.6"/>'),
+    casa:    ic('<path d="M3 10.5 12 3l9 7.5"/><path d="M5 9.4V21h5v-6h4v6h5V9.4"/>'),
+    doc:     ic('<path d="M13 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V9z"/><path d="M13 2v7h7"/><path d="M12 12v6M9 15h6"/>'),
+    correo:  ic('<rect x="3" y="5" width="18" height="14" rx="2"/><path d="m3.5 7 8.5 6 8.5-6"/>'),
+    correop: ic('<path d="M21 12.5V7a2 2 0 0 0-2-2H5a2 2 0 0 0-2 2v10a2 2 0 0 0 2 2h8.5"/><path d="m3.5 7 8.5 6 8.5-6"/><path d="M18.5 15.5v5M16 18h5"/>'),
+    grafica: ic('<path d="M4 20V10M10 20V4M16 20v-7M22 20H2"/>'),
+    check:   ic('<path d="M12 3l7.5 3v5.5c0 4.4-3.1 8.4-7.5 9.5-4.4-1.1-7.5-5.1-7.5-9.5V6Z"/><path d="m9.2 12.2 1.9 1.9 3.7-3.7"/>'),
+    megafono:ic('<path d="M3 11v2a1 1 0 0 0 1 1h2l9 4V6L6 10H4a1 1 0 0 0-1 1Z"/><path d="M15 8a4 4 0 0 1 0 8"/><path d="M7 14v5"/>'),
+    capas:   ic('<path d="m12 3 9 4.5-9 4.5-9-4.5L12 3Z"/><path d="m3 12 9 4.5 9-4.5"/><path d="m3 16.5 9 4.5 9-4.5"/>'),
+    pulso:   ic('<path d="M3 12h4l2.5-6 4 12L16 12h5"/>'),
+    globo:   ic('<circle cx="12" cy="12" r="9"/><path d="M3 12h18M12 3a14.5 14.5 0 0 1 0 18 14.5 14.5 0 0 1 0-18Z"/>'),
+    estrella:ic('<path d="M12 3l2.3 6.2L21 11l-6 2 6 2-6.7 1.8L12 21l-2.3-4.2L3 15l6-2-6-2 6.7-1.8Z"/>'),
+    engrane: ic('<circle cx="12" cy="12" r="3.2"/><path d="M19.4 15a1.6 1.6 0 0 0 .32 1.77l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.6 1.6 0 0 0-1.77-.32 1.6 1.6 0 0 0-1 1.47V21a2 2 0 1 1-4 0v-.1a1.6 1.6 0 0 0-1.05-1.47 1.6 1.6 0 0 0-1.77.32l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.6 1.6 0 0 0 .32-1.77 1.6 1.6 0 0 0-1.47-1H3a2 2 0 1 1 0-4h.1a1.6 1.6 0 0 0 1.47-1.05 1.6 1.6 0 0 0-.32-1.77l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.6 1.6 0 0 0 1.77.32H9a1.6 1.6 0 0 0 1-1.47V3a2 2 0 1 1 4 0v.1a1.6 1.6 0 0 0 1 1.47 1.6 1.6 0 0 0 1.77-.32l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.6 1.6 0 0 0-.32 1.77V9a1.6 1.6 0 0 0 1.47 1H21a2 2 0 1 1 0 4h-.1a1.6 1.6 0 0 0-1.47 1Z"/>'),
+    flecha:  ic('<path d="M5 12h13M13 6l6 6-6 6"/>'),
+    fuera:   ic('<path d="M14 4h3a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2h-3"/><path d="M10 8 6 12l4 4M6 12h9"/>'),
+    llave:   ic('<path d="M14.5 6.5a3.8 3.8 0 0 0-5 5l-6 6 2.5 2.5 6-6a3.8 3.8 0 0 0 5-5l-2.4 2.4-2-2 1.9-2.9Z"/>'),
+    caja:    ic('<path d="M21 7.5 12 12 3 7.5 12 3l9 4.5Z"/><path d="M3 7.5v9L12 21l9-4.5v-9M12 12v9"/>'),
+    tarjeta: ic('<rect x="2.5" y="6" width="19" height="12" rx="2.5"/><path d="M2.5 10h19"/>'),
+    reloj:   ic('<circle cx="12" cy="12" r="9"/><path d="M12 7.5V12l3 1.8"/>'),
+    salir:   ic('<path d="M15 12H4M11 8l-4 4 4 4"/><path d="M9 4h8a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2h-8"/>')
+  };
+
+  function hay(nombre) { return typeof window[nombre] !== 'undefined' && window[nombre]; }
+  function esc(s) { return hay('AppBuscar') ? AppBuscar.escapa(s) : String(s == null ? '' : s); }
+  function puede(bloque) { return !!(window.AppSession && AppSession.can(bloque)); }
+  function conSesion() { return !!(window.AppSession && AppSession.isLoggedIn()); }
+
+  /* ═══════════════════════════════════════════════════════════════════════════
+     CATÁLOGO DE FUNCIONES
+     ═══════════════════════════════════════════════════════════════════════════
+     Todo lo que la app sabe hacer, en un solo sitio, con el permiso que hace falta
+     para cada cosa. `bloques` = con tener UNO basta. Sin `bloques` la entrada es
+     para cualquiera con sesión.
+
+     Esto NO es seguridad: el servidor vuelve a exigir el permiso al abrir cada
+     pantalla (secIdentidadConBloque_). Es no ofrecerle a nadie una puerta que se
+     le va a cerrar en la cara. */
+  var CATALOGO = [
+    { id:'dashboard', nombre:'Panel de cotizaciones', sub:'Tus folios, su estatus y qué falta enviar',
+      icono:IC.casa, page:'dashboard', kw:'inicio panel principal dashboard mis cotizaciones tabla folios' },
+
+    { id:'cotizacion', nombre:'Nueva cotización', sub:'Crear una cotización desde cero',
+      icono:IC.doc, page:'cotizacion', bloques:['cotizar'], kw:'nueva crear cotizar generar folio productos precio alta' },
+
+    { id:'correoventel', nombre:'Enviar cotización por correo', sub:'Mandar una cotización con su PDF',
+      icono:IC.correo, page:'correoventel', bloques:['enviar_cotizacion'], kw:'enviar mandar correo pdf adjunto cliente reenviar' },
+
+    { id:'correo_cliente', nombre:'Correos a clientes', sub:'Plantillas de correo listas para enviar',
+      icono:IC.correop, page:'correo_cliente', bloques:['correos_cliente'], kw:'plantillas mensaje escribir redactar machote' },
+
+    { id:'inicio_avanzado', nombre:'Panel avanzado', sub:'Métricas, búsqueda global y reportes',
+      icono:IC.grafica, page:'inicio_avanzado', bloques:['supervision'], kw:'supervision metricas reportes csv estadisticas indicadores avanzado' },
+
+    { id:'revisar', nombre:'Revisar cotizaciones', sub:'Cola de cotizaciones por autorizar',
+      icono:IC.check, page:'inicio_avanzado', bloques:['revisar'], kw:'revision autorizar aprobar rechazar cola pendientes' },
+
+    { id:'politica', nombre:'Política de revisión', sub:'Reglas que mandan una cotización a revisión',
+      icono:IC.engrane, page:'inicio_avanzado', bloques:['politica_revision'], kw:'reglas politica umbral descuento revision configurar' },
+
+    { id:'anuncios', nombre:'Anuncios del Portal', sub:'Publicar avisos para todo el equipo',
+      icono:IC.megafono, page:'anuncios', bloques:['anuncios'], kw:'aviso publicar comunicado banner novedades' },
+
+    { id:'portal_contenido', nombre:'Contenido del Portal', sub:'Herramientas, plantillas, formatos y promos',
+      icono:IC.capas, page:'portal_contenido', bloques:['portal_contenido'], kw:'administrar editar catalogo herramientas formatos ligas' },
+
+    { id:'operacion', nombre:'Estado de operación', sub:'Fallas que reporta el equipo',
+      icono:IC.pulso, page:'operacion', bloques:['operacion'], kw:'incidencias caido fallas confirmar sistemas problemas' },
+
+    { id:'consola', nombre:'Consola maestra', sub:'Miembros, permisos y ajustes del sistema',
+      icono:IC.engrane, page:'consola', bloques:['adm_miembros','adm_permisos','adm_ajustes'], maestro:true,
+      kw:'administracion usuarios altas bajas roles bitacora salud modulos' },
+
+    { id:'portal', nombre:'Portal Ventel', sub:'Herramientas, procesos e información del área',
+      icono:IC.globo, page:'portal', kw:'inicio informacion guias procesos paqueterias devoluciones trazabilidad' },
+
+    { id:'promociones', nombre:'Monitor de promociones', sub:'Promociones vigentes y su agenda',
+      icono:IC.estrella, page:'promociones', bloques:['promociones'], kw:'promos descuentos ofertas vigencias rebajas calendario msi' },
+
+    { id:'estado', nombre:'Tablero de estado', sub:'¿Está caído el sistema o soy yo?',
+      icono:IC.pulso, page:'estado', kw:'estatus servicios caido intermitente connect sap salesforce' },
+
+    /* Plantillas de correo: se abren ya elegidas (?tpl=…). Son el destino real de
+       "necesito mandar un estado de cuenta", que es como se pide en voz alta. */
+    { id:'tpl-ticket', nombre:'Plantilla · Ticket de compra', sub:'Reenvío del ticket de una compra',
+      icono:IC.correop, page:'correo_cliente', params:{ tpl:'ticket' }, bloques:['correos_cliente'],
+      kw:'ticket compra comprobante pedido reenvio' },
+    { id:'tpl-edo', nombre:'Plantilla · Estado de cuenta PF', sub:'Solicitud de estado de cuenta',
+      icono:IC.correop, page:'correo_cliente', params:{ tpl:'edodecuenta' }, bloques:['correos_cliente'],
+      kw:'estado cuenta persona fisica validacion tarjeta' },
+    { id:'tpl-edoext', nombre:'Plantilla · Estado de cuenta extranjera', sub:'Validación con tarjeta extranjera',
+      icono:IC.correop, page:'correo_cliente', params:{ tpl:'edodecuentaextranjera' }, bloques:['correos_cliente'],
+      kw:'extranjera internacional tarjeta fuera pais' },
+    { id:'tpl-ok', nombre:'Plantilla · Validación exitosa', sub:'Avisar que la validación fue correcta',
+      icono:IC.correop, page:'correo_cliente', params:{ tpl:'validacionexitosa' }, bloques:['correos_cliente'],
+      kw:'validacion exitosa aprobada correcta pedido liberado' },
+    { id:'tpl-libre', nombre:'Plantilla · Formato personalizable', sub:'Correo libre con la estructura de marca',
+      icono:IC.correop, page:'correo_cliente', params:{ tpl:'formato' }, bloques:['correos_cliente'],
+      kw:'personalizable libre generico formato marca' },
+    { id:'tpl-plano', nombre:'Plantilla · Texto plano', sub:'Escribir un correo desde cero',
+      icono:IC.correop, page:'correo_cliente', params:{ tpl:'textoplano' }, bloques:['correos_cliente'],
+      kw:'texto plano sin plantilla escribir cero' }
+  ];
+
+  /* Ajustes de la propia pantalla. Solo existen donde hay barra (AppShell): en el
+     Portal el tema se cambia desde su panel de preferencias. */
+  var AJUSTES = [
+    { id:'tema-aurora', nombre:'Tema Aurora', sub:'Claro, el de siempre', icono:IC.engrane,
+      kw:'tema color claro aurora apariencia', shell:true, fn:function () { AppShell.setTheme('aurora'); } },
+    { id:'tema-slate', nombre:'Tema Slate', sub:'Claro y frío', icono:IC.engrane,
+      kw:'tema color slate gris apariencia', shell:true, fn:function () { AppShell.setTheme('slate'); } },
+    { id:'tema-carbon', nombre:'Tema Carbón', sub:'Oscuro', icono:IC.engrane,
+      kw:'tema color carbon oscuro noche modo dark apariencia', shell:true, fn:function () { AppShell.setTheme('carbon'); } },
+    { id:'contraste', nombre:'Alto contraste', sub:'Activar o desactivar', icono:IC.engrane,
+      kw:'contraste accesibilidad ver mejor vista', shell:true, fn:function () { AppShell.toggleContrast(); } },
+    { id:'salir', nombre:'Cerrar sesión', sub:'Salir del sistema en este equipo', icono:IC.salir,
+      kw:'salir logout cerrar sesion desconectar', sesion:true, fn:function () {
+        if (window.AppShell) AppShell.logout();
+        else { if (window.AppSession) AppSession.clear(); if (window.AppUrl) AppUrl.go('login'); }
+      } }
+  ];
+
+  /** Las funciones que ESTA sesión puede abrir de verdad. */
+  function destinos() {
+    var logueado = conSesion();
+    return CATALOGO.filter(function (d) {
+      // La landing pública y el tablero de estado se ofrecen siempre: no exigen sesión.
+      if (!logueado) return d.id === 'portal' || d.id === 'estado';
+      if (d.maestro && !(window.AppSession && AppSession.isMaster)) return false;
+      if (!d.bloques) return true;
+      for (var i = 0; i < d.bloques.length; i++) if (puede(d.bloques[i])) return true;
+      return false;
+    });
+  }
+
+  function acciones() {
+    var conShell = !!window.AppShell;
+    return AJUSTES.filter(function (a) {
+      if (a.shell && !conShell) return false;
+      if (a.sesion && !conSesion()) return false;
+      return true;
+    });
+  }
+
+  /* ═══════════════════════════════════════════════════════════════════════════
+     MEMORIA DE LO USADO
+     ═══════════════════════════════════════════════════════════════════════════
+     Con el buscador vacío se ofrece lo último que se abrió: en la práctica casi
+     todo el trabajo son cuatro pantallas, y recordarlas ahorra teclear. */
+  var K_RECIENTES = 'ventel-cmdk-recientes';
+  function recientes() {
+    try { return JSON.parse(localStorage.getItem(K_RECIENTES) || '[]'); } catch (e) { return []; }
+  }
+  function recordar(id) {
+    try {
+      var l = recientes().filter(function (x) { return x !== id; });
+      l.unshift(id);
+      localStorage.setItem(K_RECIENTES, JSON.stringify(l.slice(0, 6)));
+    } catch (e) {}
+  }
+
+  /* ═══════════════════════════════════════════════════════════════════════════
+     FUENTES QUE VIVEN EN EL SERVIDOR
+     ═══════════════════════════════════════════════════════════════════════════ */
+
+  /* ── Contenido del Portal ──
+     Se pide UNA vez por sesión de trabajo, la primera vez que alguien escribe algo
+     de dos letras para arriba, y se guarda en la caché local. El buscador del
+     Portal así deja de ser "el de la portada": llega igual desde la pantalla de
+     cotización sin cargar nada de más en pantallas donde nadie lo va a usar. */
+  var PORTAL_TTL = 30 * 60 * 1000;
+  var portalDatos = null;
+  var portalPidiendo = false;
+
+  function pidePortal(alLlegar) {
+    if (portalDatos) return;
+    if (!(window.AppRun && window.AppCache)) return;
+    var guardado = AppCache.get('cmdk-portal', PORTAL_TTL);
+    if (guardado && guardado.data) { portalDatos = indexaPortal(guardado.data); alLlegar(); return; }
+    if (portalPidiendo) return;
+    portalPidiendo = true;
+    AppRun.call('fetchToolsData', [], { key: 'cmdk-portal', busy: false }).then(function (d) {
+      portalPidiendo = false;
+      if (!d) return;
+      AppCache.set('cmdk-portal', d, { ttl: PORTAL_TTL });
+      portalDatos = indexaPortal(d);
+      alLlegar();
+    }, function () { portalPidiendo = false; });
+  }
+
+  /** Aplana las hojas del Portal a una sola lista buscable. */
+  function indexaPortal(d) {
+    var out = [];
+    function liga(v) {
+      var s = String(v == null ? '' : v).trim();
+      if (!s || s === '#') return '';
+      return s.indexOf('http') === 0 ? s : 'https://' + s;
+    }
+    function mete(filas, grupo, icono, fNombre, fSub, fLiga, fExtra) {
+      (filas || []).forEach(function (r) {
+        var nombre = String(r[fNombre] || '').trim();
+        if (!nombre) return;
+        out.push({
+          grupo: grupo, icono: icono, nombre: nombre,
+          sub: String(r[fSub] || '').trim(),
+          extra: (fExtra || []).map(function (f) { return String(r[f] || ''); }).join(' '),
+          href: fLiga ? liga(r[fLiga]) : ''
+        });
+      });
+    }
+    mete(d.herramientas,   'Herramientas',   IC.llave,   'nombre', 'descripcion',   'enlace', ['comoAcceder', 'claves']);
+    mete(d.paqueterias,    'Paqueterías',    IC.caja,    'nombre', 'soms',          'liga',   []);
+    mete(d.formatos,       'Formatos',       IC.doc,     'acceso', 'observaciones', 'liga',   []);
+    mete(d.pdePago,        'Pago web',       IC.tarjeta, 'nombre', 'detalles',      'liga',   []);
+    mete(d.presentaciones, 'Presentaciones', IC.capas,   'nombre', 'descripcion',   'liga',   []);
+    mete(d.plantillas,     'Plantillas',     IC.correo,  'titulo', 'asunto',        null,     ['cuerpo', 'tipo']);
+    return out;
+  }
+
+  /* ── Cotizaciones ──
+     Dos velocidades a propósito. La lista propia ya está en la caché del panel, así
+     que las cotizaciones de uno salen SIN red mientras se teclea. El servidor se
+     consulta aparte (con antirrebote) porque es el único que ve las de todo el
+     equipo, que es justo lo que se busca cuando el folio lo hizo alguien más. */
+  var COTS_TTL = 3 * 60 * 1000;
+  var cotsServidor = { termino: '', filas: [], pidiendo: false };
+
+  function cotsLocales() {
+    if (!window.AppCache || !window.AppSession) return [];
+    var g = AppCache.get('quotes-' + AppSession.userEmail);
+    return (g && g.data && g.data.quotes) ? g.data.quotes : (g && Array.isArray(g.data) ? g.data : []);
+  }
+
+  function pideCots(termino, alLlegar) {
+    if (!(window.AppRun && window.AppSession)) return;
+    var t = String(termino || '').trim();
+    if (t.length < 3) return;
+    if (cotsServidor.termino === t) return;
+
+    var clave = 'cmdk-cots-' + (hay('AppBuscar') ? AppBuscar.compacta(t) : t.toLowerCase());
+    var guardado = window.AppCache ? AppCache.get(clave, COTS_TTL) : null;
+    if (guardado && guardado.data) {
+      cotsServidor = { termino: t, filas: guardado.data, pidiendo: false };
+      alLlegar();
+      return;
+    }
+    cotsServidor = { termino: t, filas: cotsServidor.filas, pidiendo: true };
+    alLlegar();
+    AppRun.call('buscarCotizaciones', [AppSession.userEmail, t, 8], { key: 'cmdk-cot-' + t, busy: false })
+      .then(function (r) {
+        var filas = (r && r.success && r.quotes) ? r.quotes : [];
+        if (window.AppCache) {
+          AppCache.set(clave, filas, { ttl: COTS_TTL });
+          // Cada término escrito deja su propia entrada. Sin podar, una tarde de
+          // búsquedas llena el almacenamiento con respuestas que ya caducaron y le
+          // quita sitio a lo que sí se reaprovecha (la lista del panel).
+          AppCache.prune('cmdk-cots-', 12, clave);
+        }
+        if (cotsServidor.termino !== t) return;   // ya se tecleó otra cosa
+        cotsServidor = { termino: t, filas: filas, pidiendo: false };
+        alLlegar();
+      }, function () {
+        if (cotsServidor.termino === t) { cotsServidor.pidiendo = false; alLlegar(); }
+      });
+  }
+
+  /* ═══════════════════════════════════════════════════════════════════════════
+     PANEL
+     ═══════════════════════════════════════════════════════════════════════════ */
+  var fondo = null, caja = null, lista = null, nota = null;
+  var filas = [];        // resultados planos, en el orden en que se ven
+  var activo = -1;
+  var relojTecleo = null;
+  var abierto = false;
+  var devuelveFoco = null;
+
+  function construye() {
+    if (fondo) return;
+    fondo = document.createElement('div');
+    fondo.className = 'cmdk-backdrop';
+    fondo.id = 'cmdkFondo';
+    fondo.setAttribute('role', 'dialog');
+    fondo.setAttribute('aria-modal', 'true');
+    fondo.setAttribute('aria-label', 'Buscador general');
+    fondo.innerHTML =
+      '<div class="cmdk-panel">' +
+        '<div class="cmdk-head">' + IC.lupa +
+          '<input class="cmdk-input" id="cmdkInput" type="text" autocomplete="off" spellcheck="false" ' +
+            'placeholder="Busca una función, un folio o el correo del cliente…" ' +
+            'role="combobox" aria-expanded="true" aria-controls="cmdkLista" aria-autocomplete="list">' +
+          '<button type="button" class="cmdk-esc" id="cmdkEsc">esc</button>' +
+        '</div>' +
+        '<div class="cmdk-list" id="cmdkLista" role="listbox" aria-label="Resultados"></div>' +
+        '<div class="cmdk-foot">' +
+          '<span><kbd>↑</kbd><kbd>↓</kbd> Moverse</span>' +
+          '<span><kbd>↵</kbd> Abrir</span>' +
+          '<span><kbd>esc</kbd> Cerrar</span>' +
+          '<span><kbd>ctrl</kbd><kbd>K</kbd> Volver a abrir</span>' +
+        '</div>' +
+      '</div>';
+    document.body.appendChild(fondo);
+
+    caja = fondo.querySelector('#cmdkInput');
+    lista = fondo.querySelector('#cmdkLista');
+
+    fondo.addEventListener('mousedown', function (e) { if (e.target === fondo) cerrar(); });
+    fondo.querySelector('#cmdkEsc').addEventListener('click', cerrar);
+    caja.addEventListener('input', alTeclear);
+    caja.addEventListener('keydown', alTeclado);
+    lista.addEventListener('click', function (e) {
+      var el = e.target.closest ? e.target.closest('.cmdk-item') : null;
+      if (!el) return;
+      ejecuta(parseInt(el.getAttribute('data-i'), 10));
+    });
+    lista.addEventListener('mousemove', function (e) {
+      var el = e.target.closest ? e.target.closest('.cmdk-item') : null;
+      if (!el) return;
+      var i = parseInt(el.getAttribute('data-i'), 10);
+      if (i !== activo) marca(i, false);
+    });
+  }
+
+  function alTeclear() {
+    clearTimeout(relojTecleo);
+    pinta();                                  // lo local se ve en la misma tecla
+    var t = caja.value.trim();
+    if (t.length >= 2) {
+      // Al servidor se le pregunta con calma: sin esto, escribir un folio de doce
+      // caracteres dispararía doce búsquedas en la hoja de cálculo.
+      relojTecleo = setTimeout(function () {
+        pidePortal(pinta);
+        pideCots(t, pinta);
+      }, 240);
+    }
+  }
+
+  function alTeclado(e) {
+    if (e.key === 'Escape') { e.preventDefault(); cerrar(); return; }
+    if (e.key === 'ArrowDown') { e.preventDefault(); marca(activo + 1, true); return; }
+    if (e.key === 'ArrowUp') { e.preventDefault(); marca(activo - 1, true); return; }
+    if (e.key === 'Home' && filas.length) { e.preventDefault(); marca(0, true); return; }
+    if (e.key === 'End' && filas.length) { e.preventDefault(); marca(filas.length - 1, true); return; }
+    if (e.key === 'Enter') {
+      e.preventDefault();
+      // Con un folio escrito y nada seleccionado, Enter va derecho a buscarlo en
+      // todo el sistema: es lo que quiere quien pegó un folio y pulsó Enter.
+      if (activo < 0 && hay('AppBuscar') && AppBuscar.esFolio(caja.value)) { vaAFolio(caja.value.trim()); return; }
+      ejecuta(activo);
+    }
+  }
+
+  function marca(i, desplaza) {
+    if (!filas.length) { activo = -1; return; }
+    if (i < 0) i = filas.length - 1;
+    if (i >= filas.length) i = 0;
+    activo = i;
+    var nodos = lista.querySelectorAll('.cmdk-item');
+    for (var k = 0; k < nodos.length; k++) {
+      var on = parseInt(nodos[k].getAttribute('data-i'), 10) === i;
+      nodos[k].classList.toggle('on', on);
+      nodos[k].setAttribute('aria-selected', on ? 'true' : 'false');
+      if (on && desplaza && nodos[k].scrollIntoView) nodos[k].scrollIntoView({ block: 'nearest' });
+    }
+  }
+
+  /* ── Armado de los resultados ── */
+  function calcula(q) {
+    var B = window.AppBuscar;
+    var grupos = [];
+    var vacia = !q;
+
+    // 1) Funciones de la app
+    var dst = destinos().concat(acciones());
+    var fn;
+    if (vacia) {
+      var mem = recientes();
+      var pref = dst.filter(function (d) { return mem.indexOf(d.id) !== -1; })
+                    .sort(function (a, b) { return mem.indexOf(a.id) - mem.indexOf(b.id); });
+      var resto = dst.filter(function (d) { return mem.indexOf(d.id) === -1 && !d.fn; });
+      fn = pref.concat(resto).slice(0, 7);
+      if (fn.length) grupos.push({ tipo: 'fn', titulo: pref.length ? 'Lo que sueles abrir' : 'Ir a', icono: IC.flecha, filas: fn });
+    } else {
+      fn = B.filtra(dst, q, function (d) {
+        return [{ t: d.nombre, p: 3 }, { t: d.sub, p: 1 }, { t: d.kw, p: 1.4 }];
+      }, { limite: 7, exigirTodas: false });
+      if (fn.length) grupos.push({ tipo: 'fn', titulo: 'Funciones', icono: IC.flecha, filas: fn });
+    }
+
+    if (vacia) return grupos;
+
+    // 2) Cotizaciones: primero las propias (ya están aquí), luego las del equipo.
+    if (conSesion()) {
+      var mias = B.filtra(cotsLocales(), q, function (c) {
+        return [{ t: c.folio, p: 3 }, { t: c.cliente, p: 2 }, { t: c.correoCliente, p: 2 }, { t: c.estatus, p: .6 }];
+      }, { limite: 4 });
+      var vistos = {};
+      var cots = mias.map(function (c) {
+        vistos[String(c.folio || '').toLowerCase()] = true;
+        return { folio: c.folio, cliente: c.cliente, correoCliente: c.correoCliente,
+                 estatus: c.estatus, fecha: c.fecha, mia: true };
+      });
+      // De quién es cada folio lo resuelve la pantalla y no el servidor: la respuesta
+      // de una búsqueda se guarda en caché por término y la reaprovecha todo el equipo.
+      var yo = String((window.AppSession && AppSession.userEmail) || '').toLowerCase();
+      (cotsServidor.termino === q ? cotsServidor.filas : []).forEach(function (c) {
+        if (cots.length >= 8) return;
+        if (vistos[String(c.folio || '').toLowerCase()]) return;
+        c.mia = !!yo && String(c.asesorCorreo || '').toLowerCase() === yo;
+        cots.push(c);
+      });
+      if (cots.length) grupos.push({ tipo: 'cot', titulo: 'Cotizaciones', icono: IC.doc, filas: cots });
+    }
+
+    // 3) Contenido del Portal
+    if (portalDatos) {
+      var pc = B.filtra(portalDatos, q, function (p) {
+        return [{ t: p.nombre, p: 3 }, { t: p.sub, p: 1.2 }, { t: p.extra, p: .7 }];
+      }, { limite: 6 });
+      if (pc.length) grupos.push({ tipo: 'portal', titulo: 'Portal Ventel', icono: IC.globo, filas: pc });
+    }
+    return grupos;
+  }
+
+  function pinta() {
+    var q = caja.value.trim();
+    var B = window.AppBuscar;
+    var grupos = calcula(q);
+    filas = [];
+    var html = '';
+
+    grupos.forEach(function (g) {
+      html += '<div class="cmdk-group">' + g.icono + g.titulo + '<span class="n">' + g.filas.length + '</span></div>';
+      g.filas.forEach(function (r) {
+        var i = filas.length;
+        filas.push({ tipo: g.tipo, dato: r });
+        if (g.tipo === 'cot') {
+          var quien = r.mia ? '<span class="cmdk-tag mia">Tuya</span>'
+                            : (r.asesor ? '<span class="cmdk-tag">' + esc(r.asesor) + '</span>' : '');
+          var detalle = [r.cliente, r.correoCliente, r.fecha].filter(Boolean).join(' · ');
+          html +=
+            '<div class="cmdk-item" role="option" aria-selected="false" data-i="' + i + '">' +
+              '<span class="cmdk-chip">' + IC.doc + '</span>' +
+              '<span class="cmdk-tx">' +
+                '<span class="cmdk-name">' + B.resalta(r.folio || 'Sin folio', q) + '</span>' +
+                '<span class="cmdk-sub">' + B.resalta(detalle, q) + '</span>' +
+              '</span>' + quien +
+              '<span class="cmdk-go">' + IC.flecha + '</span>' +
+            '</div>';
+        } else if (g.tipo === 'portal') {
+          html +=
+            '<div class="cmdk-item" role="option" aria-selected="false" data-i="' + i + '">' +
+              '<span class="cmdk-chip">' + r.icono + '</span>' +
+              '<span class="cmdk-tx">' +
+                '<span class="cmdk-name">' + B.resalta(r.nombre, q) + '</span>' +
+                '<span class="cmdk-sub">' + B.resalta(B.extracto(r.sub, q, 90) || r.grupo, q) + '</span>' +
+              '</span>' +
+              '<span class="cmdk-tag">' + esc(r.grupo) + '</span>' +
+              '<span class="cmdk-go">' + (r.href ? IC.globo : IC.flecha) + '</span>' +
+            '</div>';
+        } else {
+          html +=
+            '<div class="cmdk-item" role="option" aria-selected="false" data-i="' + i + '">' +
+              '<span class="cmdk-chip">' + r.icono + '</span>' +
+              '<span class="cmdk-tx">' +
+                '<span class="cmdk-name">' + (q ? B.resalta(r.nombre, q) : esc(r.nombre)) + '</span>' +
+                '<span class="cmdk-sub">' + esc(r.sub) + '</span>' +
+              '</span>' +
+              '<span class="cmdk-go">' + IC.flecha + '</span>' +
+            '</div>';
+        }
+      });
+    });
+
+    if (!filas.length) {
+      html = '<div class="cmdk-vacio">' + IC.lupa +
+        (q ? 'Nada coincide con <b>' + esc(q) + '</b>.' : 'Escribe para buscar.') +
+        '<div style="margin-top:.4rem;font-size:.8rem">' +
+        (q ? 'Prueba con el folio completo, el correo del cliente o el nombre de la pantalla.'
+           : 'Funciones de la app, folios de cotización y contenido del Portal.') +
+        '</div></div>';
+    }
+
+    // Aviso de que el servidor sigue contestando: sin esto, "no hay resultados"
+    // parece definitivo cuando en realidad la búsqueda del equipo va en camino.
+    var esperando = q.length >= 2 && (cotsServidor.pidiendo || (portalPidiendo && !portalDatos));
+    html += esperando
+      ? '<div class="cmdk-nota"><span class="cmdk-punto"></span>Buscando también en las cotizaciones del equipo…</div>'
+      : '';
+
+    lista.innerHTML = html;
+    activo = -1;
+    if (filas.length) marca(0, false);
+  }
+
+  /* ── Ejecutar el resultado elegido ── */
+  function ejecuta(i) {
+    if (i < 0 || i >= filas.length) return;
+    var f = filas[i];
+    if (f.tipo === 'fn') {
+      var d = f.dato;
+      recordar(d.id);
+      if (d.fn) { d.fn(); pinta(); return; }   // ajuste local: el panel se queda abierto
+      cerrar();
+      if (window.VentelLoader) VentelLoader.show();
+      if (window.AppUrl) AppUrl.go(d.page, d.params || {});
+      return;
+    }
+    if (f.tipo === 'cot') { vaAFolio(f.dato.folio); return; }
+    if (f.tipo === 'portal') {
+      var p = f.dato;
+      if (p.href) { window.open(p.href, '_blank', 'noopener'); cerrar(); return; }
+      cerrar();
+      if (window.AppUrl) AppUrl.go('portal');
+    }
+  }
+
+  function vaAFolio(folio) {
+    if (!folio) return;
+    cerrar();
+    try { if (window.AppSession) AppSession.selectedFolio = folio; } catch (e) {}
+    if (window.VentelLoader) VentelLoader.show();
+    if (window.AppUrl) AppUrl.go('consulta_cotizacion', { folio: folio });
+  }
+
+  /* ── Abrir y cerrar ── */
+  function abrir(termino) {
+    construye();
+    if (abierto) { caja.focus(); caja.select(); return; }
+    abierto = true;
+    devuelveFoco = document.activeElement;
+    fondo.classList.add('open');
+    document.documentElement.style.overflow = 'hidden';
+    caja.value = termino || '';
+    pinta();
+    caja.focus();
+    if (termino) { caja.select(); alTeclear(); }
+    if (window.gsap && !reducido()) {
+      gsap.fromTo(fondo.querySelector('.cmdk-panel'),
+        { opacity: 0, y: -14, scale: .985 }, { opacity: 1, y: 0, scale: 1, duration: .2, ease: 'power3.out' });
+    }
+  }
+
+  function cerrar() {
+    if (!abierto) return;
+    abierto = false;
+    clearTimeout(relojTecleo);
+    fondo.classList.remove('open');
+    document.documentElement.style.overflow = '';
+    // Volver el foco a donde estaba: quien abrió con el teclado sigue con el teclado.
+    try { if (devuelveFoco && devuelveFoco.focus) devuelveFoco.focus({ preventScroll: true }); } catch (e) {}
+    devuelveFoco = null;
+  }
+
+  function reducido() {
+    try { return !!(window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches); }
+    catch (e) { return false; }
+  }
+
+  /* ═══════════════════════════════════════════════════════════════════════════
+     ENGANCHE CON LA PANTALLA
+     ═══════════════════════════════════════════════════════════════════════════ */
+
+  /** ¿El foco está en un sitio donde «/» es una barra y no un atajo? */
+  function escribiendo(el) {
+    if (!el) return false;
+    var t = (el.tagName || '').toLowerCase();
+    return t === 'input' || t === 'textarea' || t === 'select' || el.isContentEditable;
+  }
+
+  function botonHTML() {
+    return '<button type="button" class="cmdk-abrir" id="cmdkAbrir" aria-label="Buscar en todo el sistema" ' +
+      'title="Buscar en todo el sistema (Ctrl+K)" onclick="AppComando.abrir()">' +
+      IC.lupa + '<span class="cmdk-abrir-tx">Buscar…</span><kbd>Ctrl K</kbd></button>';
+  }
+
+  /**
+   * Pone el disparador en la barra superior. Se llama solo, pero AppShell dibuja
+   * su barra con JS después de este archivo: por eso se reintenta unas veces en
+   * vez de rendirse en el primer intento.
+   */
+  function ponBoton(intentos) {
+    if (document.getElementById('cmdkAbrir')) return;
+    if (document.getElementById('cmdkFlota')) return;
+    var sesion = document.querySelector('.topbar .shell-session');
+    var barra = document.querySelector('.topbar');
+    if (!sesion && !barra) {
+      // AppShell dibuja su barra por JS —dentro del DOMContentLoaded de la pantalla,
+      // justo después de este archivo—, así que se reintenta un momento antes de dar
+      // por hecho que esta pantalla no tiene barra. Poco tiempo a propósito: en las
+      // que de verdad no la tienen, el botón flotante no debe tardar en salir.
+      if ((intentos || 0) < 10) { setTimeout(function () { ponBoton((intentos || 0) + 1); }, 120); return; }
+      ponFlotante();
+      return;
+    }
+    var envoltura = document.createElement('span');
+    envoltura.innerHTML = botonHTML();
+    var btn = envoltura.firstChild;
+
+    // Dónde cae el botón según cómo esté armada la barra de esa pantalla:
+    // antes del saludo en las pantallas de app, y justo después del hueco
+    // elástico en el Monitor de promociones (si no, quedaba detrás del reloj).
+    if (sesion) { sesion.insertBefore(btn, sesion.firstChild); return; }
+    var hueco = barra.querySelector('.spacer');
+    if (hueco && hueco.nextSibling) barra.insertBefore(btn, hueco.nextSibling);
+    else barra.appendChild(btn);
+  }
+
+  /** Botón flotante para las pantallas sin barra superior. */
+  function ponFlotante() {
+    if (document.getElementById('cmdkFlota') || document.getElementById('cmdkAbrir')) return;
+    if (!document.body) return;
+    var b = document.createElement('button');
+    b.type = 'button';
+    b.className = 'cmdk-flota';
+    b.id = 'cmdkFlota';
+    b.setAttribute('aria-label', 'Buscar en todo el sistema');
+    b.title = 'Buscar en todo el sistema (Ctrl+K)';
+    b.innerHTML = IC.lupa + '<span class="cmdk-flota-tx">Buscar</span>';
+    b.addEventListener('click', function () { abrir(); });
+    document.body.appendChild(b);
+  }
+
+  function atajos(e) {
+    // Ctrl+K / ⌘K abren desde donde sea, incluso escribiendo en un campo.
+    if ((e.ctrlKey || e.metaKey) && !e.altKey && (e.key === 'k' || e.key === 'K')) {
+      e.preventDefault(); abrir(); return;
+    }
+    if (abierto) return;
+    // «/» solo cuando no se está escribiendo: en un formulario es una barra.
+    if (e.key === '/' && !e.ctrlKey && !e.metaKey && !e.altKey && !escribiendo(document.activeElement)) {
+      e.preventDefault(); abrir(); return;
+    }
+  }
+
+  function arranca() {
+    if (!window.AppBuscar || !window.AppUrl) return;   // sin motor o sin rutas, no hay buscador
+    document.addEventListener('keydown', atajos);
+    ponBoton(0);
+  }
+
+  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', arranca);
+  else arranca();
+
+  window.AppComando = {
+    abrir: abrir,
+    cerrar: cerrar,
+    /** Destinos permitidos, para que otras pantallas ofrezcan la misma lista. */
+    destinos: destinos,
+    /** HTML del disparador, por si una pantalla lo quiere en otro sitio. */
+    botonHTML: botonHTML,
+    montarBoton: function () { ponBoton(0); }
+  };
+})();
+</script>
