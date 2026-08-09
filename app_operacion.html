@@ -70,82 +70,94 @@
   --op-brillo: inset 0 1px 0 rgba(255,255,255,.07);
 }
 
-/* ── Pastilla fija ─────────────────────────────────────────────────────────── */
+/* ── Pestaña fija ──────────────────────────────────────────────────────────── */
 /*
- * La pastilla se ve encima de TODAS las pantallas del sistema, incluidas las que ya
- * están llenas (cotización, revisión, consola). Antes ocupaba siempre el ancho de la
- * frase completa —"Sistemas operando"— en una caja blanca con borde: un letrero fijo
- * en la esquina que no decía nada nuevo el 99 % del tiempo.
+ * El indicador se ve encima de TODAS las pantallas del sistema, incluidas las que ya
+ * están llenas (cotización, revisión, consola). Ha pasado por dos formas antes de esta:
+ * primero un letrero blanco siempre desplegado —"Sistemas operando"—, que no decía nada
+ * nuevo el 99 % del tiempo; después un disco de cristal translúcido, que resolvía el
+ * tamaño pero se leía como una burbuja flotando sin sitio: encima de una tabla clara
+ * apenas existía y encima de una imagen se ensuciaba con lo que tenía detrás.
  *
- * Ahora en reposo es un DISCO del tamaño de un punto: solo el color del estado, en un
- * cristal que deja pasar lo que tiene detrás. El texto se despliega cuando alguien la
- * apunta, la enfoca con el teclado o —sin que nadie la toque— cuando algo falla, que
- * es cuando ocupar sitio está justificado. Esa es la jerarquía que este archivo decía
- * tener desde el principio y que el CSS no cumplía.
+ * AHORA ES UNA PESTAÑA ANCLADA AL BORDE. Nace del canto izquierdo de la ventana
+ * (left: 0, esquina izquierda recta y radio solo hacia dentro), es OPACA —sin cristal,
+ * sin desenfoque, sin transparencia— y lleva el color del estado en un LOMO vertical de
+ * 4 px pegado a ese borde. Es la diferencia de fondo con las dos versiones anteriores:
+ * ya no flota, está sujeta a la ventana, así que el ojo la clasifica como parte del
+ * marco de la aplicación y no como un elemento del contenido que hay debajo.
  *
- * ── LA PAREJA DE LA ESQUINA CONTRARIA ────────────────────────────────────────────
+ * En reposo mide lo que mide el lomo más el pulso: unos 44 px de ancho, sin texto. La
+ * frase se despliega al apuntarla, al enfocarla con el teclado o —sin que nadie la
+ * toque— cuando algo falla, que es cuando ocupar sitio está justificado.
  *
- * Este disco y el de "consultando" (AppBusy, en app_core.html) son la misma pieza en
- * dos esquinas y tienen que verse como tal. Comparten diámetro (34 px), radio, filo,
- * cristal —76 % de superficie con blur(14px) saturate(1.7)—, las dos capas de sombra,
- * el filo de luz y el easing. Tocar uno sin tocar el otro los desparejaría.
+ * ── SOBRE EL DISCO DE "CONSULTANDO" (AppBusy, app_core.html) ─────────────────────
  *
- * Se distinguen en lo único que hay que distinguir: aquel es pasajero y lleva el color
- * de la MARCA (el isotipo naranja y morado girando); este es permanente y lleva el
- * color del ESTADO. Uno dice "estoy trabajando", el otro "así está el sistema".
+ * Durante un tiempo estas dos piezas fueron gemelas a propósito: mismo diámetro, mismo
+ * cristal, misma sombra. Ya no, y es deliberado. Son cosas distintas y ahora se ven
+ * distintas:
+ *
+ *   · El disco de arriba a la derecha es PASAJERO. Aparece mientras el servidor
+ *     responde y se va solo. Flota porque dura tres segundos: flotar es lo correcto
+ *     para algo que no va a estar cuando vuelvas a mirar.
+ *   · Esta pestaña es PERMANENTE. Está en todas las pantallas, toda la sesión. Lo
+ *     permanente se ancla; lo que se ancla no compite con el contenido.
+ *
+ * Así que NO hay que volver a emparejarlas: tocar el disco no obliga a tocar esto.
+ * Lo único que siguen compartiendo es la gramática de color y el easing.
  */
 
 .op-pill {
   --op-tono: var(--op-ok);
   /* --op-pill-suelo lo pone la pantalla que tenga algo pegado abajo (la barra de
-     navegación del móvil en Index). Sin él la pastilla se sienta encima de un botón de
+     navegación del móvil en Index). Sin él la pestaña se sienta encima de un botón de
      esa barra y tapa justo lo que hay que tocar. */
-  position: fixed; left: 20px; bottom: calc(20px + var(--op-pill-suelo, 0px)); z-index: 900;
-  display: inline-flex; align-items: center; justify-content: center;
-  /* 12 + punto de 8 + 12 + los dos filos = 34, exactamente el alto: en reposo es un
-     círculo, no una cápsula achatada. Los 34 px no son un número suelto: es el mismo
-     diámetro que el disco de "consultando" de app_core, para que las dos esquinas se
-     lean como la misma interfaz. Si cambia uno, cambia el otro. */
-  height: 34px; padding: 0 12px;
-  border-radius: 999px; border: 1px solid var(--op-line);
+  position: fixed; left: 0; bottom: calc(24px + var(--op-pill-suelo, 0px)); z-index: 900;
+  /* Sin `gap`: el texto se pliega a ancho 0 y un hueco de flex seguiría reservando su
+     espacio a los dos lados. La separación la ponen los márgenes de los hijos, que sí
+     se pueden animar hasta cero. */
+  display: inline-flex; align-items: center;
+  /* 36 px de alto: la altura de una fila de interfaz, no el diámetro de un punto. El
+     ancho en reposo lo fija el contenido (lomo + pulso), porque el texto está plegado. */
+  height: 36px; padding: 0 12px 0 14px;
+  /* Esquina izquierda RECTA: es lo que hace que se lea como pegada al borde de la
+     ventana y no como una cápsula que alguien dejó cerca del borde. */
+  border-radius: 0 10px 10px 0;
+  border: 1px solid var(--op-line); border-left: 0;
   background: var(--op-surface); color: var(--op-ink-soft);
-  font-family: var(--op-f); font-size: 12.5px; font-weight: 600;
+  font-family: var(--op-f); font-size: 12.5px; font-weight: 650;
   letter-spacing: -.005em; line-height: 1;
   box-shadow: var(--op-brillo), var(--op-sh-pastilla);
   cursor: pointer; -webkit-tap-highlight-color: transparent;
   transition: transform .22s cubic-bezier(.2,.8,.2,1), box-shadow .22s ease,
               background .22s ease, border-color .22s ease, color .22s ease,
               opacity .22s ease;
-  max-width: calc(100vw - 40px);
+  max-width: calc(100vw - 16px);
+  overflow: hidden;   /* el lomo se recorta con el radio de la pestaña */
 }
 
-/* Cristal: solo donde el navegador sabe desenfocar el fondo. Si color-mix no existe, la
-   declaración entera se descarta y queda el fondo sólido de arriba. */
-@supports ((-webkit-backdrop-filter: blur(1px)) or (backdrop-filter: blur(1px))) {
-  .op-pill {
-    background: color-mix(in srgb, var(--op-surface) 76%, transparent);
-    -webkit-backdrop-filter: blur(14px) saturate(1.7);
-    backdrop-filter: blur(14px) saturate(1.7);
-  }
+/* EL LOMO. Es la señal de color, y por eso es lo único que no se pliega nunca: mide lo
+   mismo con texto y sin él. Va pegado al canto de la ventana, así que su borde izquierdo
+   es recto y el derecho lo redondea el overflow del padre. */
+.op-pill::before {
+  content: ''; position: absolute; left: 0; top: 0; bottom: 0; width: 4px;
+  background: var(--op-tono);
+  transition: background .22s ease;
 }
 
-.op-pill:hover { transform: translateY(-2px); box-shadow: var(--op-brillo), var(--op-sh-pastilla-alta); }
-.op-pill:active { transform: translateY(0) scale(.97); }
+/* Se aparta del borde al apuntarla, en vez de levantarse: una pieza anclada que "flota"
+   contradice lo que dice su forma. */
+.op-pill:hover { transform: translateX(4px); box-shadow: var(--op-brillo), var(--op-sh-pastilla-alta); }
+.op-pill:active { transform: translateX(1px) scale(.985); }
 .op-pill:focus-visible { outline: 2px solid var(--op-brand); outline-offset: 3px; }
 .op-pill[hidden] { display: none; }
 
-/* El punto lleva un halo del mismo color: a 8 px, un círculo plano sobre cristal se lee
-   como una mota de suciedad; el halo lo convierte en una señal. */
-.op-pill-dot {
-  position: relative; width: 8px; height: 8px; border-radius: 50%; flex: none;
-  background: var(--op-tono);
-  box-shadow: 0 0 0 3px color-mix(in srgb, var(--op-tono) 20%, transparent);
-  transition: background .22s ease, box-shadow .22s ease;
-}
-.op-pill-dot::after {
-  content: ''; position: absolute; inset: -2px; border-radius: 50%;
-  border: 1.5px solid var(--op-tono); opacity: 0;
-}
+/* EL PULSO. Sustituye al punto: un trazo de electrocardiograma en el color del estado.
+   Dice "esto se está midiendo ahora mismo" con una sola forma, que es justo lo que un
+   círculo no podía decir. Y a 22 px de ancho ocupa lo mismo que ocupaba el punto con
+   su halo, así que la pestaña en reposo no crece. */
+.op-pill-sig { display: flex; align-items: center; flex: none; color: var(--op-tono);
+  transition: color .22s ease; }
+.op-pill-sig svg { width: 22px; height: 11px; display: block; }
 
 /* El texto no se oculta con display:none: se pliega. Así la pastilla crece y encoge en
    un solo movimiento en vez de dar un salto. */
@@ -161,20 +173,19 @@
 
 .op-pill-ic { width: 15px; height: 15px; flex: none; }
 
-/* Cuando todo funciona el color lo pone SOLO el punto: la frase en verde sobre cristal
-   se leía como un aviso más, y "todo bien" no es un aviso.
+/* Cuando todo funciona el color lo ponen SOLO el lomo y el pulso: la frase en verde se
+   leía como un aviso más, y "todo bien" no es un aviso.
 
    Y además se retira medio paso. "Todo bien" es la respuesta que ya se da por supuesta:
-   tiene que estar consultable, no presente. En reposo el disco baja a 0,72 de opacidad
-   —se ve si lo buscas, no te interrumpe si no— y recupera el 100 % en cuanto lo apuntas
-   o lo enfocas con el teclado. Los demás tonos NO se atenúan nunca: un aviso a media
+   tiene que estar consultable, no presente. En reposo la pestaña baja a 0,8 de opacidad
+   —se ve si la buscas, no te interrumpe si no— y recupera el 100 % en cuanto la apuntas
+   o la enfocas con el teclado. Los demás tonos NO se atenúan nunca: un aviso a media
    tinta es un aviso a medias.
 
-   0,72 ES EL SUELO, no un gusto. El punto verde sobre blanco a esa opacidad da 3,17:1,
-   y el mínimo AA para un elemento gráfico que porta información es 3:1. Bajarlo a 0,65
-   —que a ojo parece el mismo gris— lo deja en 2,77:1 e incumple. Si hay que hacerlo más
-   discreto, encógelo o quítale peso al halo; no le bajes la opacidad. */
-.op-pill.tono-ok     { --op-tono: var(--op-ok);    color: var(--op-ink-soft); opacity: .72; }
+   0,8 ES EL SUELO, no un gusto. El verde sobre blanco a esa opacidad da 3,66:1, y el
+   mínimo AA para un elemento gráfico que porta información es 3:1. Si hay que hacerla
+   más discreta, estréchala o acorta el lomo; no le bajes la opacidad. */
+.op-pill.tono-ok     { --op-tono: var(--op-ok);    color: var(--op-ink-soft); opacity: .8; }
 .op-pill.tono-ok:hover,
 .op-pill.tono-ok:focus-visible,
 .op-pill.tono-ok.op-desplegada { opacity: 1; }
@@ -190,19 +201,38 @@
   .op-pill.tono-info  { border-color: var(--op-info); }
 }
 
-/* Solo lo que ESPERA algo late. Es la única animación permanente del módulo, y por eso
-   se distingue sin tener que leerla. Late el HALO, no el punto: parpadear el punto lo
-   apagaba media animación y, de reojo, parecía que el indicador se había caído. */
-.op-pill.late .op-pill-dot::after { animation: op-pulso 2.6s cubic-bezier(.22,.8,.3,1) infinite; }
-@keyframes op-pulso {
-  0%   { transform: scale(.7);  opacity: .7; }
-  70%  { transform: scale(2.6); opacity: 0; }
-  100% { transform: scale(2.6); opacity: 0; }
+/* Solo lo que ESPERA algo se mueve. Es la única animación permanente del módulo, y por
+   eso se distingue sin tener que leerla.
+
+   Se mueve el LOMO, con una luz que lo recorre de abajo arriba: no parpadea nada, así
+   que de reojo nunca parece que el indicador se haya caído —que es justo lo que pasaba
+   cuando la señal se apagaba media animación—. Y como el lomo está pegado al canto de
+   la ventana, el movimiento se ve incluso con la pestaña plegada. */
+.op-pill.late::before {
+  background: linear-gradient(to bottom,
+    var(--op-tono) 0%,
+    color-mix(in srgb, var(--op-tono) 35%, #FFFFFF) 50%,
+    var(--op-tono) 100%);
+  background-size: 100% 300%;
+  animation: op-barrido 2.6s cubic-bezier(.4,0,.35,1) infinite;
+}
+@keyframes op-barrido {
+  0%   { background-position: 0 100%; }
+  60%  { background-position: 0 0%; }
+  100% { background-position: 0 0%; }
+}
+@supports not (color: color-mix(in srgb, red 50%, transparent)) {
+  /* Sin color-mix no hay degradado que valga: el lomo se ensancha y se queda quieto,
+     que sigue siendo una señal distinta de la de "todo bien". */
+  .op-pill.late::before { width: 6px; animation: none; }
 }
 
+/* El contador de sistemas afectados. Cuadrado con las esquinas suavizadas, no redondo:
+   es un número, y la pestaña ya no tiene ninguna otra forma circular con la que rimar. */
 .op-cont { display: inline-flex; align-items: center; justify-content: center;
-  min-width: 18px; height: 18px; margin-left: 8px; padding: 0 5px; border-radius: 999px;
-  background: currentColor; font-size: 11px; font-weight: 700; flex: none; }
+  min-width: 19px; height: 19px; margin-left: 8px; padding: 0 5px; border-radius: 6px;
+  background: currentColor; font-size: 11px; font-weight: 800; flex: none;
+  font-variant-numeric: tabular-nums; }
 .op-cont span { color: var(--op-surface); }
 
 /* ── Panel deslizante ──────────────────────────────────────────────────────── */
@@ -481,9 +511,10 @@
     border-left: 0; border-top: 1px solid var(--op-line); transform: translateY(100%); }
   .op-panel.abierto { transform: translateY(0); }
   .op-head, .op-cuerpo, .op-pie { padding-left: var(--op-s4); padding-right: var(--op-s4); }
-  /* En el teléfono no hay hover: la pastilla es un disco hasta que algo falla, y
-     entonces el texto no puede pasar de media pantalla o tapa el contenido. */
-  .op-pill { left: 14px; bottom: calc(14px + var(--op-pill-suelo, 0px)); }
+  /* En el teléfono no hay hover: la pestaña se queda plegada hasta que algo falla, y
+     entonces el texto no puede pasar de media pantalla o tapa el contenido. Sigue
+     pegada al canto izquierdo; lo único que baja es la separación del suelo. */
+  .op-pill { bottom: calc(16px + var(--op-pill-suelo, 0px)); }
   .op-pill:hover .op-pill-tx,
   .op-pill:focus-visible .op-pill-tx,
   .op-pill.op-desplegada .op-pill-tx { max-width: 52vw; }
@@ -497,10 +528,10 @@
 
 @media (prefers-reduced-motion: reduce) {
   .op-pill, .op-pill-tx, .op-panel, .op-scrim, .op-inc, .op-aviso { transition-duration: .01ms !important; }
-  .op-pill.late .op-pill-dot::after, .op-sk::after { animation: none !important; }
-  /* Sin la animación del halo, lo que espera algo necesita otra señal quieta: el filo
-     del punto se queda pintado en vez de latir. */
-  .op-pill.late .op-pill-dot::after { opacity: .55; transform: scale(1.9); }
+  .op-pill.late::before, .op-sk::after { animation: none !important; }
+  /* Sin la luz que recorre el lomo, lo que espera algo necesita otra señal quieta: el
+     lomo se ensancha y se queda así. */
+  .op-pill.late::before { width: 6px; }
 }
 </style>
 
@@ -549,6 +580,10 @@
     mano:   '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v9"/><path d="M8.5 6.5 12 3l3.5 3.5"/><path d="M4 14v3a4 4 0 0 0 4 4h8a4 4 0 0 0 4-4v-3"/></svg>',
     imagen: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4.5" width="18" height="15" rx="2.4"/><circle cx="8.6" cy="9.8" r="1.5"/><path d="m3.4 17 4.8-4.4a1.6 1.6 0 0 1 2.2 0l4 3.7"/><path d="m14.4 15 1.7-1.6a1.6 1.6 0 0 1 2.2 0l2.3 2.1"/></svg>',
     enviar: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M5.5 12 3 4.2 21 12 3 19.8 5.5 12Zm0 0h7"/></svg>',
+    // El pulso de la pestaña. viewBox apaisado (24×12) porque es un trazo, no un icono
+    // cuadrado: si se dibujara en 24×24 quedaría un carril de aire arriba y abajo que
+    // desalinearía la pestaña con su propio texto.
+    pulso:  '<svg viewBox="0 0 24 12" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M1 6.4h3.6L6.8 2l3 8.2 2.2-4.4 1.5 2.6H23"/></svg>',
     ver:    '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M2.5 12S6 5.8 12 5.8 21.5 12 21.5 12 18 18.2 12 18.2 2.5 12 2.5 12Z"/><circle cx="12" cy="12" r="2.7"/></svg>'
   };
 
@@ -628,7 +663,7 @@
     raiz.className = 'op-root';
     raiz.innerHTML =
       '<button type="button" class="op-pill" id="op-pill" hidden aria-haspopup="dialog">' +
-        '<span class="op-pill-dot"></span>' +
+        '<span class="op-pill-sig">' + IC.pulso + '</span>' +
         '<span class="op-pill-tx">Estado de los sistemas</span>' +
       '</button>' +
       '<div class="op-scrim" id="op-scrim"></div>' +
@@ -714,7 +749,7 @@
     pastilla.className = 'op-pill tono-' + tono + (late ? ' late' : '') +
                          (desplegada ? ' op-desplegada' : '');
     pastilla.innerHTML =
-      '<span class="op-pill-dot"></span>' +
+      '<span class="op-pill-sig">' + IC.pulso + '</span>' +
       '<span class="op-pill-tx">' + esc(texto) + '</span>' +
       (afectados.length > 1 ? '<span class="op-cont"><span>' + afectados.length + '</span></span>' : '');
     pastilla.setAttribute('aria-label', 'Estado de los sistemas: ' + texto + '. Abrir el detalle.');
@@ -722,7 +757,9 @@
     var estabaOculta = pastilla.hidden;
     pastilla.hidden = false;
     if (estabaOculta && conGsap()) {
-      gsap.from(pastilla, { y: 22, opacity: 0, duration: .5, ease: 'power3.out', clearProps: 'transform,opacity' });
+      // Entra deslizándose DESDE el canto de la ventana, que es donde vive. Antes subía
+      // desde abajo, que es el gesto de algo que flota; esta pieza no flota.
+      gsap.from(pastilla, { x: -56, opacity: 0, duration: .5, ease: 'power3.out', clearProps: 'transform,opacity' });
     }
   }
 

@@ -21,282 +21,614 @@
    *   · CON sesión → además, los reportes del equipo con sus notas y sus evidencias, y la
    *     bitácora completa de actualizaciones.
    *
-   * "Connect" y "Página/App" van en tarjetas grandes porque son los dos sistemas que
-   * significan algo para alguien que llega de fuera; el resto va en una fila secundaria.
+   * ── LA PREGUNTA QUE CONTESTA LA PANTALLA ─────────────────────────────────────────────
+   *
+   * Quien llega aquí llega con UNA pregunta: "¿está caído o soy yo?". Todo el diseño está
+   * ordenado para contestarla antes de leer nada:
+   *
+   *   1. TITULAR (lo primero y lo más grande) — la respuesta en tres palabras.
+   *   2. ANILLO — cuántos sistemas de cuántos están bien. La proporción se ve, no se cuenta.
+   *   3. TARJETAS — cuál falla, con qué gravedad y desde cuándo.
+   *   4. INCIDENCIAS — el detalle, para quien lo necesite.
+   *
+   * El movimiento sigue ese mismo orden: la entrada no adorna, ENSEÑA A LEER la pantalla.
+   * Se hace con GSAP (timeline + SplitText + ScrollTrigger) y se apaga entero con
+   * prefers-reduced-motion, donde todo aparece ya colocado.
+   *
+   * ── SISTEMA VISUAL ───────────────────────────────────────────────────────────────────
+   *
+   * Una sola familia (Inter, la del sistema), una escala de espacio de 4 px, un radio por
+   * tamaño de pieza y UN mecanismo de separación por capa: el fondo separa con luz, las
+   * tarjetas con borde, y la sombra queda reservada a lo que de verdad flota (barra
+   * superior y hoja lateral). Nada lleva borde + sombra + fondo distinto a la vez.
+   *
+   * El color de estado NUNCA viaja solo: siempre va con icono y con palabra.
    */
 
-  /*
-   * TOKENS LOCALES DE SEÑAL.
-   *
-   * --ok/--warn/--alert/--info están elegidos para fondo CLARO y app_theme no los aclara en
-   * carbón. Las insignias ya se corregían una a una, pero los PUNTOS y las BARRAS de color
-   * seguían usando el token crudo: en oscuro quedaban a ~2,5:1, y en la misma tarjeta
-   * convivían dos señales del mismo estado con dos rojos distintos, que se lee como un error.
-   *
-   * Con estos tokens el ajuste se hace UNA vez y lo heredan punto, barra, insignia y línea
-   * de tiempo. El token GLOBAL no se toca: en otras pantallas se usa como fondo de hovers y
-   * aclararlo allí las rompería.
-   */
-  .est-wrap, .est-hoja, .est-scrim {
+  /* ═══════════════════════════════════════════════════════════════════════════
+     TOKENS LOCALES
+     ═══════════════════════════════════════════════════════════════════════════
+     --e-ok/--e-warn/--e-alert/--e-info: los tokens globales están elegidos para fondo
+     CLARO y app_theme no los aclara en carbón: sobre #0E1014 caen a ~2,5:1. Se corrigen
+     UNA vez aquí y lo heredan punto, barra, insignia, anillo y línea de tiempo. El token
+     global no se toca: en otras pantallas se usa como fondo de hovers.
+
+     El resto son medidas de esta pantalla, declaradas una vez para no repartir números
+     sueltos por el archivo. */
+  body {
     --e-ok: var(--ok); --e-warn: var(--warn); --e-alert: var(--alert); --e-info: var(--info);
+    --e-ok-soft: rgba(14,122,79,.12);
+    --e-warn-soft: rgba(180,83,9,.12);
+    --e-alert-soft: rgba(200,30,60,.12);
+    --e-info-soft: rgba(29,78,216,.12);
+
+    --e-s1: 4px;  --e-s2: 8px;  --e-s3: 12px; --e-s4: 16px;
+    --e-s5: 24px; --e-s6: 32px; --e-s7: 48px; --e-s8: 72px;
+
+    --e-rad-sm: 10px; --e-rad: 16px; --e-rad-lg: 22px; --e-rad-xl: 28px;
+
+    --e-lift: 0 1px 2px rgba(16,24,40,.05), 0 18px 44px -22px rgba(16,24,40,.30);
+    --e-lift-alta: 0 2px 6px rgba(16,24,40,.07), 0 30px 64px -26px rgba(16,24,40,.38);
+    --e-filo: inset 0 1px 0 rgba(255,255,255,.7);
+
+    --e-ease: cubic-bezier(.2,.8,.2,1);
   }
-  [data-theme="carbon"] .est-wrap,
-  [data-theme="carbon"] .est-hoja,
-  [data-theme="carbon"] .est-scrim {
+  [data-theme="carbon"] body {
     --e-ok: #4ADE80; --e-warn: #F2B65A; --e-alert: #FCA5A5; --e-info: #93B4FF;
+    --e-ok-soft: rgba(74,222,128,.14);
+    --e-warn-soft: rgba(242,182,90,.14);
+    --e-alert-soft: rgba(252,165,165,.14);
+    --e-info-soft: rgba(147,180,255,.14);
+
+    --e-lift: 0 1px 2px rgba(0,0,0,.45), 0 20px 48px -24px rgba(0,0,0,.75);
+    --e-lift-alta: 0 2px 6px rgba(0,0,0,.5), 0 34px 70px -28px rgba(0,0,0,.82);
+    --e-filo: inset 0 1px 0 rgba(255,255,255,.07);
   }
 
-  .est-wrap { max-width: 940px; margin: 0 auto; padding: 32px 20px 80px; }
+  /* Cada pieza toma su color del tono con UNA variable, así ninguna regla tiene que
+     repetirse cuatro veces. --e-tono lo pone la clase .tono-* del contenedor. */
+  .tono-ok    { --e-tono: var(--e-ok);    --e-tono-bg: var(--e-ok-soft); }
+  .tono-warn  { --e-tono: var(--e-warn);  --e-tono-bg: var(--e-warn-soft); }
+  .tono-alert { --e-tono: var(--e-alert); --e-tono-bg: var(--e-alert-soft); }
+  .tono-info  { --e-tono: var(--e-info);  --e-tono-bg: var(--e-info-soft); }
+  .tono-neutro{ --e-tono: var(--ink-faint); --e-tono-bg: var(--surface-2); }
 
-  /* ── Cabecera ── */
-  .est-top { display: flex; align-items: center; gap: 14px; margin-bottom: 34px; flex-wrap: wrap; }
+  /* ═══════════════════════════════════════════════════════════════════════════
+     FONDO CINEMATOGRÁFICO
+     ═══════════════════════════════════════════════════════════════════════════
+     Dos halos muy difusos y una retícula casi invisible. El halo grande se tiñe con el
+     TONO GLOBAL: cuando algo falla, la pantalla entera cambia de temperatura antes de
+     que nadie haya leído una palabra. Es la señal más rápida que hay en la página, y por
+     eso es tan tenue: informa de reojo, no compite con el titular.
+     Van en un elemento fijo y detrás de todo; se mueven con parallax por transform, que
+     no repinta el documento. */
+  .est-bg { position: fixed; inset: 0; z-index: -1; pointer-events: none; overflow: hidden; }
+  .est-bg span { position: absolute; display: block; border-radius: 50%; filter: blur(60px); }
+  .est-bg .est-halo-1 {
+    width: 70vw; height: 70vw; max-width: 900px; max-height: 900px;
+    top: -28vw; right: -14vw;
+    background: radial-gradient(circle, var(--e-tono-glow, rgba(225,0,152,.16)), transparent 68%);
+    opacity: .9;
+  }
+  .est-bg .est-halo-2 {
+    width: 52vw; height: 52vw; max-width: 640px; max-height: 640px;
+    bottom: -22vw; left: -16vw;
+    background: radial-gradient(circle, rgba(109,40,217,.10), transparent 70%);
+  }
+  .est-bg .est-malla {
+    inset: 0; width: 100%; height: 100%; border-radius: 0; filter: none;
+    background-image:
+      linear-gradient(to right, currentColor 1px, transparent 1px),
+      linear-gradient(to bottom, currentColor 1px, transparent 1px);
+    background-size: 64px 64px;
+    color: var(--ink);
+    opacity: .028;
+    mask-image: radial-gradient(70% 55% at 50% 0%, #000 0%, transparent 78%);
+    -webkit-mask-image: radial-gradient(70% 55% at 50% 0%, #000 0%, transparent 78%);
+  }
+  body.tono-warn  { --e-tono-glow: rgba(180,83,9,.20); }
+  body.tono-alert { --e-tono-glow: rgba(200,30,60,.22); }
+  [data-theme="carbon"] body.tono-warn  { --e-tono-glow: rgba(242,182,90,.16); }
+  [data-theme="carbon"] body.tono-alert { --e-tono-glow: rgba(252,165,165,.18); }
+
+  /* ═══════════════════════════════════════════════════════════════════════════
+     BARRA SUPERIOR
+     ═══════════════════════════════════════════════════════════════════════════
+     Se queda pegada arriba porque las acciones —ir al portal, reportar— tienen que estar
+     a mano después de haber bajado a leer una incidencia larga. */
+  .est-bar {
+    position: sticky; top: 0; z-index: 60;
+    background: color-mix(in srgb, var(--app-bg) 78%, transparent);
+    -webkit-backdrop-filter: blur(16px) saturate(1.6);
+    backdrop-filter: blur(16px) saturate(1.6);
+    border-bottom: 1px solid transparent;
+    transition: border-color .25s ease, box-shadow .25s ease;
+  }
+  @supports not (background: color-mix(in srgb, red 50%, transparent)) {
+    .est-bar { background: var(--app-bg); }
+  }
+  .est-bar.est-pegada { border-bottom-color: var(--line); box-shadow: 0 10px 30px -24px rgba(16,24,40,.5); }
+  .est-bar-in {
+    max-width: 1080px; margin: 0 auto;
+    padding: var(--e-s3) var(--e-s5);
+    display: flex; align-items: center; gap: var(--e-s3); flex-wrap: wrap;
+  }
   /* El SVG del logo es BLANCO: está hecho para la cabecera oscura del sitio y sobre el
      fondo claro de esta página se veía como una mancha gris. En los temas claros se
      invierte a tinta; en carbón se deja tal cual, que ahí sí es el color correcto. */
-  .est-top img { height: 26px; width: auto; filter: brightness(0) opacity(.82); }
-  [data-theme="carbon"] .est-top img { filter: none; }
-  .est-top .est-div { width: 1px; height: 24px; background: var(--line); }
-  .est-top h1 { margin: 0; font-family: var(--f-display); font-size: 1.15rem; font-weight: 800;
-    letter-spacing: -.01em; color: var(--ink); }
-  .est-top .est-acc { margin-left: auto; display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
-
-  /* ── Banner global ── */
-  .est-banner {
-    display: flex; align-items: center; gap: 18px;
-    padding: 26px 28px; border-radius: 20px; margin-bottom: 34px;
-    border: 1px solid transparent;
+  .est-logo { height: 24px; width: auto; filter: brightness(0) opacity(.82); }
+  [data-theme="carbon"] .est-logo { filter: none; }
+  .est-bar-sep { width: 1px; height: 22px; background: var(--line); }
+  .est-bar-tit {
+    font-family: var(--f-display); font-size: .95rem; font-weight: 700;
+    letter-spacing: -.01em; color: var(--ink); line-height: 1.2;
   }
-  .est-banner-ic { width: 56px; height: 56px; border-radius: 16px; flex: none;
-    display: flex; align-items: center; justify-content: center; background: rgba(255,255,255,.55); }
-  [data-theme="carbon"] .est-banner-ic { background: rgba(0,0,0,.22); }
-  .est-banner-ic svg { width: 28px; height: 28px; }
-  .est-banner-tx { flex: 1; min-width: 0; }
-  .est-banner h2 { margin: 0 0 4px; font-family: var(--f-display); font-size: 1.5rem;
-    font-weight: 800; letter-spacing: -.02em; line-height: 1.2; }
-  .est-banner p { margin: 0; font-size: .95rem; line-height: 1.5; opacity: .92; }
-  .est-banner .est-hora { display: block; margin-top: 8px; font-size: .78rem; font-weight: 650; opacity: .75; }
+  .est-bar-tit em {
+    display: block; font-style: normal; font-size: .68rem; font-weight: 650;
+    letter-spacing: .14em; text-transform: uppercase; color: var(--ink-faint);
+  }
+  .est-bar-acc { margin-left: auto; display: flex; align-items: center; gap: var(--e-s2); flex-wrap: wrap; }
+  .est-bar-acc .v-btn { white-space: nowrap; }
 
-  .est-banner.tono-ok    { background: var(--ok-bg);    border-color: var(--ok);    color: var(--ok); }
-  .est-banner.tono-warn  { background: var(--warn-bg);  border-color: var(--warn);  color: var(--warn); }
-  .est-banner.tono-alert { background: var(--alert-bg); border-color: var(--alert); color: var(--alert); }
+  /* ═══════════════════════════════════════════════════════════════════════════
+     ESTRUCTURA
+     ═══════════════════════════════════════════════════════════════════════════ */
+  .est-wrap { max-width: 1080px; margin: 0 auto; padding: var(--e-s7) var(--e-s5) var(--e-s8); }
+  .est-seccion { margin-top: var(--e-s8); }
 
-  [data-theme="carbon"] .est-banner.tono-ok    { color: #4ADE80; border-color: rgba(74,222,128,.4); }
-  [data-theme="carbon"] .est-banner.tono-warn  { color: #F2B65A; border-color: rgba(242,182,90,.4); }
-  [data-theme="carbon"] .est-banner.tono-alert { color: #FCA5A5; border-color: rgba(252,165,165,.4); }
+  /* Rótulo de sección: la línea llega hasta el borde y el contador va al final, así la
+     vista sabe dónde empieza y dónde acaba cada bloque sin necesidad de más margen. */
+  .est-rot {
+    display: flex; align-items: center; gap: var(--e-s3); margin: 0 0 var(--e-s5);
+    font-family: var(--f-display); font-size: .72rem; font-weight: 800;
+    letter-spacing: .16em; text-transform: uppercase; color: var(--ink-faint);
+  }
+  .est-rot::after { content: ''; flex: 1; height: 1px;
+    background: linear-gradient(to right, var(--line), transparent); }
+  .est-rot b {
+    font-size: .72rem; font-weight: 800; color: var(--ink-soft);
+    background: var(--surface-2); border: 1px solid var(--line);
+    border-radius: 999px; padding: 2px 9px; letter-spacing: .04em;
+  }
 
-  /* ── Rótulos ── */
-  .est-rot { display: flex; align-items: center; gap: 10px; margin: 0 0 14px;
-    font-size: .7rem; font-weight: 800; letter-spacing: .13em; text-transform: uppercase;
-    color: var(--ink-faint); }
-  .est-rot::after { content: ''; flex: 1; height: 1px; background: var(--line); }
+  /* ═══════════════════════════════════════════════════════════════════════════
+     PORTADA · titular + anillo
+     ═══════════════════════════════════════════════════════════════════════════ */
+  .est-hero {
+    position: relative; overflow: hidden;
+    display: grid; grid-template-columns: minmax(0, 1fr) auto;
+    align-items: center; gap: var(--e-s7);
+    padding: var(--e-s7) var(--e-s7) var(--e-s6);
+    border-radius: var(--e-rad-xl);
+    border: 1px solid var(--line);
+    background:
+      linear-gradient(180deg, color-mix(in srgb, var(--e-tono) 6%, var(--surface)), var(--surface) 62%);
+    box-shadow: var(--e-filo), var(--e-lift);
+  }
+  @supports not (background: color-mix(in srgb, red 50%, transparent)) {
+    .est-hero { background: var(--surface); }
+  }
+  /* Filo superior en el color del estado. Es la única pieza de color pleno de la portada:
+     el resto del bloque se mantiene neutro para que el titular no pelee con el fondo. */
+  .est-hero::before {
+    content: ''; position: absolute; left: 0; right: 0; top: 0; height: 3px;
+    background: linear-gradient(90deg, transparent, var(--e-tono), transparent);
+    opacity: .9;
+  }
+  .est-hero-tx { min-width: 0; }
 
-  /* ── Tarjetas grandes ── */
-  .est-destacados { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
-    gap: 14px; margin-bottom: 34px; }
+  .est-eyebrow {
+    display: inline-flex; align-items: center; gap: var(--e-s2);
+    margin-bottom: var(--e-s4);
+    font-size: .7rem; font-weight: 800; letter-spacing: .14em; text-transform: uppercase;
+    color: var(--e-tono);
+  }
+  /* Punto "en vivo": anillo que se expande y se desvanece. Late SOLO este punto en toda
+     la portada; si latieran varias cosas, ninguna significaría nada. */
+  .est-vivo { position: relative; width: 8px; height: 8px; border-radius: 50%;
+    background: var(--e-tono); flex: none; }
+  .est-vivo::after {
+    content: ''; position: absolute; inset: -3px; border-radius: 50%;
+    border: 1.5px solid var(--e-tono);
+    animation: est-pulso 2.6s cubic-bezier(.22,.8,.3,1) infinite;
+  }
+  @keyframes est-pulso {
+    0%   { transform: scale(.7); opacity: .75; }
+    70%  { transform: scale(2.4); opacity: 0; }
+    100% { transform: scale(2.4); opacity: 0; }
+  }
+
+  .est-titulo {
+    margin: 0 0 var(--e-s4);
+    font-family: var(--f-display);
+    font-size: clamp(2.1rem, 5.4vw, 3.4rem);
+    font-weight: 800; letter-spacing: -.035em; line-height: 1.06;
+    color: var(--ink);
+    /* SplitText envuelve cada letra en su propia caja. NO se recorta con overflow:hidden:
+       a esta interlínea, la caja de la letra no incluye el trazo bajo de la "y" de "Hay"
+       y el recorte se la comía. Las letras entran desde abajo con opacidad, que da el
+       mismo efecto de "asomarse" sin arriesgar el texto. */
+  }
+  .est-lead {
+    margin: 0; max-width: 46ch;
+    font-size: 1.02rem; line-height: 1.6; color: var(--ink-soft);
+  }
+
+  .est-meta {
+    display: flex; align-items: center; gap: var(--e-s3); flex-wrap: wrap;
+    margin-top: var(--e-s5); padding-top: var(--e-s4);
+    border-top: 1px solid var(--line-soft);
+    font-size: .78rem; font-weight: 650; color: var(--ink-faint);
+  }
+  .est-meta-sep { width: 3px; height: 3px; border-radius: 50%; background: currentColor; opacity: .5; }
+  .est-meta-i { display: inline-flex; align-items: center; gap: 6px; font-variant-numeric: tabular-nums; }
+  /* Cuenta atrás al siguiente refresco: contesta "¿esto que estoy mirando es de ahora?"
+     sin obligar a nadie a pulsar recargar. */
+  .est-tick { width: 14px; height: 14px; flex: none; transform: rotate(-90deg); }
+  .est-tick circle { fill: none; stroke-width: 2.5; }
+  .est-tick .est-tick-tr { stroke: var(--line); }
+  .est-tick .est-tick-ar { stroke: var(--e-tono); stroke-linecap: round;
+    stroke-dasharray: 34.56; stroke-dashoffset: 0; }
+
+  /* ── Anillo ── */
+  .est-anillo { position: relative; width: 190px; height: 190px; flex: none; }
+  .est-anillo svg { width: 100%; height: 100%; transform: rotate(-90deg); display: block; }
+  .est-anillo circle { fill: none; stroke-width: 9; stroke-linecap: round; }
+  .est-anillo .est-anillo-tr { stroke: var(--line); }
+  .est-anillo .est-anillo-ar { stroke: var(--e-tono); stroke-dasharray: 471.24; stroke-dashoffset: 471.24; }
+  .est-anillo-luz {
+    position: absolute; inset: 14px; border-radius: 50%;
+    background: radial-gradient(circle, var(--e-tono-bg), transparent 66%);
+    opacity: .9; pointer-events: none;
+  }
+  .est-anillo-mid {
+    position: absolute; inset: 0; display: flex; flex-direction: column;
+    align-items: center; justify-content: center; text-align: center; gap: 2px;
+  }
+  .est-anillo-mid b {
+    font-family: var(--f-display); font-size: 2.5rem; font-weight: 800;
+    letter-spacing: -.04em; line-height: 1; color: var(--ink);
+    font-variant-numeric: tabular-nums;
+  }
+  .est-anillo-mid small {
+    font-size: .7rem; font-weight: 700; letter-spacing: .1em; text-transform: uppercase;
+    color: var(--ink-faint); max-width: 11ch; line-height: 1.35;
+  }
+
+  /* ═══════════════════════════════════════════════════════════════════════════
+     TARJETAS DE SISTEMA
+     ═══════════════════════════════════════════════════════════════════════════ */
+  .est-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: var(--e-s4); }
+  .est-grid-min { grid-template-columns: repeat(auto-fit, minmax(210px, 1fr)); gap: var(--e-s3); }
+
   .est-card {
-    padding: 22px 24px; border-radius: 18px; border: 1px solid var(--line);
-    background: var(--surface); position: relative; overflow: hidden;
+    position: relative; overflow: hidden;
+    padding: var(--e-s5); border-radius: var(--e-rad-lg);
+    border: 1px solid var(--line); background: var(--surface);
+    transition: border-color .25s ease, transform .25s var(--e-ease), box-shadow .25s ease;
   }
-  .est-card::before { content: ''; position: absolute; left: 0; top: 0; bottom: 0; width: 4px; background: var(--e-ok); }
-  .est-card.tono-warn::before  { background: var(--e-warn); }
-  .est-card.tono-alert::before { background: var(--e-alert); }
-  .est-card.tono-info::before  { background: var(--e-info); }
-  .est-card-top { display: flex; align-items: center; gap: 10px; margin-bottom: 10px; }
-  .est-card-top h3 { margin: 0; font-size: 1.08rem; font-weight: 700; color: var(--ink); letter-spacing: -.01em; }
-  .est-card-nota { margin: 0; font-size: .87rem; color: var(--ink-soft); line-height: 1.55; }
-  .est-card-meta { display: block; margin-top: 10px; font-size: .76rem; font-weight: 650; color: var(--ink-faint); }
+  /* Foco de luz que sigue al puntero. Es lo único que reacciona al ratón en la rejilla:
+     da la sensación de superficie física sin mover la tarjeta de sitio ni un píxel. */
+  .est-card::after {
+    content: ''; position: absolute; inset: 0; pointer-events: none;
+    background: radial-gradient(220px circle at var(--e-mx, 50%) var(--e-my, 0%),
+                                var(--e-tono-bg), transparent 62%);
+    opacity: 0; transition: opacity .3s ease;
+  }
+  .est-card:hover { border-color: color-mix(in srgb, var(--e-tono) 40%, var(--line)); }
+  .est-card:hover::after { opacity: 1; }
+  @supports not (background: color-mix(in srgb, red 50%, transparent)) {
+    .est-card:hover { border-color: var(--e-tono); }
+  }
 
-  /* ── Fila secundaria ── */
-  .est-otros { display: grid; grid-template-columns: repeat(auto-fit, minmax(190px, 1fr));
-    gap: 10px; margin-bottom: 34px; }
-  .est-mini { display: flex; align-items: center; gap: 10px; padding: 13px 15px;
-    border-radius: 13px; border: 1px solid var(--line); background: var(--surface-2); }
-  .est-mini-tx { min-width: 0; line-height: 1.32; }
-  .est-mini-tx b { display: block; font-size: .88rem; font-weight: 650; color: var(--ink);
+  .est-card-top { display: flex; align-items: center; gap: var(--e-s3); margin-bottom: var(--e-s3); }
+  .est-card-top h3 {
+    margin: 0; font-family: var(--f-display); font-size: 1.05rem; font-weight: 700;
+    letter-spacing: -.015em; color: var(--ink); min-width: 0;
+    white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  }
+  .est-card-nota { margin: 0; font-size: .88rem; line-height: 1.6; color: var(--ink-soft); }
+  .est-card-pie {
+    display: flex; align-items: center; gap: var(--e-s2); margin-top: var(--e-s4);
+    padding-top: var(--e-s3); border-top: 1px solid var(--line-soft);
+    font-size: .75rem; font-weight: 650; color: var(--ink-faint);
+    font-variant-numeric: tabular-nums;
+  }
+  .est-card-pie svg { width: 13px; height: 13px; flex: none; }
+
+  /* Fila secundaria: los sistemas que no son "de cara al cliente". Misma gramática,
+     menos peso: sin nota y sin pie, solo nombre y estado. */
+  .est-mini {
+    display: flex; align-items: center; gap: var(--e-s3);
+    padding: var(--e-s3) var(--e-s4); border-radius: var(--e-rad);
+    border: 1px solid var(--line); background: var(--surface-2);
+    transition: border-color .25s ease, background .25s ease;
+  }
+  .est-mini:hover { border-color: color-mix(in srgb, var(--e-tono) 34%, var(--line)); background: var(--surface); }
+  .est-mini-tx { min-width: 0; line-height: 1.3; }
+  .est-mini-tx b { display: block; font-size: .87rem; font-weight: 650; color: var(--ink);
     white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-  .est-mini-tx small { font-size: .74rem; color: var(--ink-soft); }
-  .est-mini.tono-warn  { border-color: var(--warn);  background: var(--warn-bg); }
-  .est-mini.tono-alert { border-color: var(--alert); background: var(--alert-bg); }
-  .est-mini.tono-info  { border-color: var(--info);  background: var(--info-bg); }
-
-  /* ── Punto de estado (color + forma + palabra, nunca solo color) ── */
-  .est-dot { width: 10px; height: 10px; border-radius: 50%; flex: none; background: var(--e-ok); }
-  .est-dot.tono-warn  { background: var(--e-warn); }
-  .est-dot.tono-alert { background: var(--e-alert); }
-  .est-dot.tono-info  { background: var(--e-info); }
-  .est-dot.late { animation: est-latido 2.2s ease-in-out infinite; }
-  @keyframes est-latido { 0%,100% { opacity: 1; } 50% { opacity: .4; } }
-
-  .est-badge { display: inline-flex; align-items: center; gap: 5px; padding: 3px 10px 3px 8px;
-    border-radius: 999px; font-size: .73rem; font-weight: 700; border: 1px solid transparent; }
-  .est-badge svg { width: 13px; height: 13px; flex: none; }
-  .est-badge.tono-ok    { background: var(--ok-bg);    color: var(--ok);    border-color: var(--ok); }
-  .est-badge.tono-warn  { background: var(--warn-bg);  color: var(--warn);  border-color: var(--warn); }
-  .est-badge.tono-alert { background: var(--alert-bg); color: var(--alert); border-color: var(--alert); }
-  .est-badge.tono-info  { background: var(--info-bg);  color: var(--info);  border-color: var(--info); }
-  [data-theme="carbon"] .est-badge.tono-ok    { color: #4ADE80; border-color: rgba(74,222,128,.4); }
-  [data-theme="carbon"] .est-badge.tono-warn  { color: #F2B65A; border-color: rgba(242,182,90,.4); }
-  [data-theme="carbon"] .est-badge.tono-alert { color: #FCA5A5; border-color: rgba(252,165,165,.4); }
-  [data-theme="carbon"] .est-badge.tono-info  { color: #93B4FF; border-color: rgba(147,180,255,.4); }
-
-  /* ── Incidencias ── */
-  .est-inc {
-    display: block; width: 100%; text-align: left; cursor: pointer;
-    padding: 18px 20px; margin-bottom: 12px; border-radius: 16px;
-    border: 1px solid var(--line); background: var(--surface); color: var(--ink);
-    font-family: var(--f-ui); transition: transform .2s cubic-bezier(.2,.8,.2,1), box-shadow .2s;
+  .est-mini-tx small { font-size: .73rem; color: var(--ink-soft); }
+  .est-mini.tono-warn, .est-mini.tono-alert, .est-mini.tono-info {
+    background: var(--e-tono-bg); border-color: color-mix(in srgb, var(--e-tono) 34%, transparent);
   }
-  .est-inc:hover { transform: translateY(-2px); box-shadow: var(--sh-md, 0 12px 26px -12px rgba(16,24,40,.28)); }
-  .est-inc:focus-visible { outline: 2px solid var(--brand); outline-offset: 2px; }
-  .est-inc.tono-warn  { border-left: 4px solid var(--e-warn); }
-  .est-inc.tono-alert { border-left: 4px solid var(--e-alert); }
-  .est-inc.tono-info  { border-left: 4px solid var(--e-info); }
-  .est-inc-top { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; margin-bottom: 8px; }
-  .est-inc h3 { margin: 0 0 6px; font-size: 1.02rem; font-weight: 700; line-height: 1.35; color: var(--ink); }
-  .est-inc p { margin: 0; font-size: .88rem; color: var(--ink-soft); line-height: 1.55; }
-  .est-inc-pie { display: flex; align-items: center; gap: 8px; margin-top: 12px;
-    font-size: .77rem; color: var(--ink-faint); font-weight: 600; }
-  .est-inc-pie .est-abrir { margin-left: auto; color: var(--brand); display: inline-flex; align-items: center; gap: 4px; }
-  .est-inc-pie .est-abrir svg { width: 14px; height: 14px; }
 
-  /* ── Vacío / carga ── */
-  .est-vacio { text-align: center; padding: 56px 24px; }
-  .est-vacio-ic { width: 64px; height: 64px; margin: 0 auto 18px; border-radius: 50%;
-    display: flex; align-items: center; justify-content: center; background: var(--ok-bg); color: var(--ok); }
-  .est-vacio-ic svg { width: 32px; height: 32px; }
-  .est-vacio b { display: block; font-size: 1.1rem; font-weight: 700; color: var(--ink); margin-bottom: 6px; }
-  .est-vacio p { margin: 0 auto; max-width: 44ch; font-size: .9rem; color: var(--ink-soft); line-height: 1.6; }
+  /* ── Señales: punto e insignia ── */
+  .est-dot {
+    position: relative; width: 9px; height: 9px; border-radius: 50%; flex: none;
+    background: var(--e-tono);
+    box-shadow: 0 0 0 3px color-mix(in srgb, var(--e-tono) 18%, transparent);
+  }
+  @supports not (color: color-mix(in srgb, red 50%, transparent)) {
+    .est-dot { box-shadow: none; }
+  }
+  /* Late el HALO, no el punto: parpadear el punto lo apaga media animación y, de reojo,
+     parece que el indicador se ha caído. */
+  .est-dot.late::after {
+    content: ''; position: absolute; inset: -2px; border-radius: 50%;
+    border: 1.5px solid var(--e-tono);
+    animation: est-pulso 2.6s cubic-bezier(.22,.8,.3,1) infinite;
+  }
 
-  .est-sk { height: 84px; border-radius: 16px; background: var(--surface-2); margin-bottom: 12px;
+  .est-badge {
+    display: inline-flex; align-items: center; gap: 5px; flex: none;
+    padding: 3px 10px 3px 7px; border-radius: 999px;
+    font-size: .72rem; font-weight: 700; letter-spacing: -.005em;
+    color: var(--e-tono); background: var(--e-tono-bg);
+    border: 1px solid color-mix(in srgb, var(--e-tono) 30%, transparent);
+  }
+  .est-badge svg { width: 13px; height: 13px; flex: none; }
+  @supports not (color: color-mix(in srgb, red 50%, transparent)) {
+    .est-badge { border-color: var(--e-tono); }
+  }
+
+  /* ═══════════════════════════════════════════════════════════════════════════
+     INCIDENCIAS
+     ═══════════════════════════════════════════════════════════════════════════ */
+  .est-inc {
+    display: flex; width: 100%; gap: var(--e-s4); text-align: left; cursor: pointer;
+    padding: var(--e-s5); margin-bottom: var(--e-s3);
+    border-radius: var(--e-rad-lg); border: 1px solid var(--line);
+    background: var(--surface); color: var(--ink); font-family: var(--f-ui);
+    transition: transform .25s var(--e-ease), box-shadow .25s ease, border-color .25s ease;
+  }
+  .est-inc:hover { transform: translateY(-3px); box-shadow: var(--e-lift);
+    border-color: color-mix(in srgb, var(--e-tono) 42%, var(--line)); }
+  .est-inc:active { transform: translateY(-1px); }
+  .est-inc:focus-visible { outline: 2px solid var(--brand); outline-offset: 3px; }
+  /* Raíl de color a la izquierda en vez de un borde grueso: separa la gravedad del marco
+     de la tarjeta, así el borde puede seguir reaccionando al hover sin cambiar de tono. */
+  .est-inc-rail { width: 4px; flex: none; border-radius: 999px; background: var(--e-tono); align-self: stretch; }
+  .est-inc-tx { flex: 1; min-width: 0; }
+  .est-inc-top { display: flex; align-items: center; gap: var(--e-s2); flex-wrap: wrap; margin-bottom: var(--e-s3); }
+  .est-inc-sis { font-size: .75rem; font-weight: 700; color: var(--ink-soft);
+    letter-spacing: .02em; }
+  .est-inc-h {
+    display: block; margin: 0 0 6px;
+    font-family: var(--f-display); font-size: 1.06rem; font-weight: 700;
+    letter-spacing: -.015em; line-height: 1.35; color: var(--ink);
+  }
+  .est-inc-p { display: block; margin: 0; font-size: .88rem; line-height: 1.6; color: var(--ink-soft); }
+  .est-inc-pie {
+    display: flex; align-items: center; gap: var(--e-s2); flex-wrap: wrap;
+    margin-top: var(--e-s4); font-size: .76rem; font-weight: 650; color: var(--ink-faint);
+    font-variant-numeric: tabular-nums;
+  }
+  .est-abrir { margin-left: auto; display: inline-flex; align-items: center; gap: 5px;
+    color: var(--brand); font-weight: 700; }
+  .est-abrir svg { width: 14px; height: 14px; transition: transform .25s var(--e-ease); }
+  .est-inc:hover .est-abrir svg { transform: translateX(3px); }
+
+  /* ═══════════════════════════════════════════════════════════════════════════
+     VACÍO Y CARGA
+     ═══════════════════════════════════════════════════════════════════════════ */
+  .est-vacio {
+    text-align: center; padding: var(--e-s7) var(--e-s5);
+    border: 1px dashed var(--line); border-radius: var(--e-rad-lg);
+    background: color-mix(in srgb, var(--surface) 55%, transparent);
+  }
+  @supports not (background: color-mix(in srgb, red 50%, transparent)) {
+    .est-vacio { background: var(--surface); }
+  }
+  .est-vacio-ic {
+    width: 58px; height: 58px; margin: 0 auto var(--e-s4); border-radius: 50%;
+    display: flex; align-items: center; justify-content: center;
+    background: var(--e-ok-soft); color: var(--e-ok);
+  }
+  .est-vacio-ic svg { width: 28px; height: 28px; }
+  .est-vacio b { display: block; font-family: var(--f-display); font-size: 1.08rem;
+    font-weight: 700; color: var(--ink); margin-bottom: 6px; letter-spacing: -.015em; }
+  .est-vacio p { margin: 0 auto; max-width: 46ch; font-size: .9rem; color: var(--ink-soft); line-height: 1.6; }
+
+  .est-sk { height: 88px; border-radius: var(--e-rad-lg); background: var(--surface-2);
+    border: 1px solid var(--line-soft); margin-bottom: var(--e-s3);
     position: relative; overflow: hidden; }
   .est-sk::after { content: ''; position: absolute; inset: 0;
-    background: linear-gradient(90deg, transparent, rgba(255,255,255,.4), transparent);
-    animation: est-brillo 1.4s linear infinite; }
+    background: linear-gradient(90deg, transparent, color-mix(in srgb, var(--ink) 6%, transparent), transparent);
+    animation: est-brillo 1.5s linear infinite; }
+  @supports not (background: color-mix(in srgb, red 50%, transparent)) {
+    .est-sk::after { background: linear-gradient(90deg, transparent, rgba(255,255,255,.35), transparent); }
+  }
   @keyframes est-brillo { from { transform: translateX(-100%); } to { transform: translateX(100%); } }
 
-  /* ── Detalle (hoja lateral) ── */
-  .est-scrim { position: fixed; inset: 0; z-index: 970; background: rgba(16,24,40,.5);
-    backdrop-filter: blur(2px); opacity: 0; pointer-events: none; transition: opacity .25s; }
+  /* ═══════════════════════════════════════════════════════════════════════════
+     HOJA LATERAL (detalle)
+     ═══════════════════════════════════════════════════════════════════════════ */
+  .est-scrim { position: fixed; inset: 0; z-index: 970; background: rgba(10,14,22,.55);
+    -webkit-backdrop-filter: blur(3px); backdrop-filter: blur(3px);
+    opacity: 0; pointer-events: none; transition: opacity .3s ease; }
   .est-scrim.abierto { opacity: 1; pointer-events: auto; }
   .est-hoja {
-    position: fixed; top: 0; right: 0; bottom: 0; z-index: 980; width: 520px; max-width: 100vw;
+    position: fixed; top: 0; right: 0; bottom: 0; z-index: 980; width: 540px; max-width: 100vw;
     background: var(--surface); border-left: 1px solid var(--line);
-    box-shadow: -20px 0 48px -24px rgba(16,24,40,.5);
+    box-shadow: -30px 0 70px -30px rgba(10,14,22,.6);
     display: flex; flex-direction: column;
-    transform: translateX(100%); transition: transform .3s cubic-bezier(.2,.8,.2,1);
+    transform: translateX(100%); transition: transform .38s var(--e-ease);
   }
   .est-hoja.abierto { transform: translateX(0); }
-  .est-hoja-head { padding: 24px 26px 18px; border-bottom: 1px solid var(--line); flex: none;
-    display: flex; align-items: flex-start; gap: 12px; }
-  .est-hoja-head h2 { margin: 0 0 4px; font-size: 1.12rem; font-weight: 700; line-height: 1.3; color: var(--ink); }
-  .est-hoja-head p { margin: 0; font-size: .82rem; color: var(--ink-soft); }
-  .est-hoja-cuerpo { flex: 1; overflow-y: auto; overscroll-behavior: contain; padding: 20px 26px 32px; }
-  .est-x { width: 34px; height: 34px; flex: none; border-radius: 9px; border: 1px solid transparent;
-    background: transparent; color: var(--ink-soft); cursor: pointer;
-    display: flex; align-items: center; justify-content: center; }
+  .est-hoja-head {
+    padding: var(--e-s5) var(--e-s5) var(--e-s4); border-bottom: 1px solid var(--line);
+    flex: none; display: flex; align-items: flex-start; gap: var(--e-s3);
+  }
+  .est-hoja-head h2 { margin: 0 0 4px; font-family: var(--f-display); font-size: 1.15rem;
+    font-weight: 700; letter-spacing: -.02em; line-height: 1.3; color: var(--ink); }
+  .est-hoja-head p { margin: 0; font-size: .8rem; color: var(--ink-soft); }
+  .est-hoja-cuerpo { flex: 1; overflow-y: auto; overscroll-behavior: contain;
+    padding: var(--e-s5) var(--e-s5) var(--e-s7); }
+  .est-x { width: 34px; height: 34px; flex: none; border-radius: var(--e-rad-sm);
+    border: 1px solid transparent; background: transparent; color: var(--ink-soft); cursor: pointer;
+    display: flex; align-items: center; justify-content: center; transition: background .2s, color .2s; }
   .est-x:hover { background: var(--surface-2); color: var(--ink); }
   .est-x:focus-visible { outline: 2px solid var(--brand); outline-offset: 2px; }
   .est-x svg { width: 18px; height: 18px; }
 
+  .est-hoja-tx { margin: 0 0 var(--e-s6); font-size: .92rem; color: var(--ink-soft); line-height: 1.65; }
+  .est-hoja-tx span { display: block; margin-top: 6px; font-size: .78rem; color: var(--ink-faint); }
+  .est-hoja-cab { display: flex; align-items: center; gap: var(--e-s3); flex-wrap: wrap; margin-bottom: var(--e-s5); }
+  .est-hoja-cab small { font-size: .77rem; font-weight: 650; color: var(--ink-faint); }
+
   /* ── Reporte dentro del detalle ── */
-  .est-rep { padding: 14px 16px; border-radius: 13px; border: 1px solid var(--line);
-    background: var(--surface-2); margin-bottom: 10px; }
-  .est-rep-top { display: flex; align-items: baseline; gap: 8px; margin-bottom: 6px; flex-wrap: wrap; }
-  .est-rep-top b { font-size: .88rem; font-weight: 650; color: var(--ink); }
-  .est-rep-top small { font-size: .74rem; color: var(--ink-faint); }
-  .est-rep-top .est-mio { font-size: .68rem; font-weight: 700; color: var(--brand);
+  .est-rep { padding: var(--e-s4); border-radius: var(--e-rad); border: 1px solid var(--line);
+    background: var(--surface-2); margin-bottom: var(--e-s3); }
+  .est-rep-top { display: flex; align-items: baseline; gap: var(--e-s2); margin-bottom: 6px; flex-wrap: wrap; }
+  .est-rep-top b { font-size: .87rem; font-weight: 650; color: var(--ink); }
+  .est-rep-top small { font-size: .73rem; color: var(--ink-faint); }
+  .est-rep-top .est-mio { font-size: .67rem; font-weight: 700; color: var(--brand);
     border: 1px solid var(--brand); border-radius: 999px; padding: 1px 7px; }
-  .est-rep p { margin: 0; font-size: .85rem; color: var(--ink-soft); line-height: 1.55; white-space: pre-wrap; }
-  .est-rep-sub { display: inline-block; font-size: .76rem; font-weight: 650; color: var(--ink-soft);
+  .est-rep p { margin: 0; font-size: .85rem; color: var(--ink-soft); line-height: 1.6; white-space: pre-wrap; }
+  .est-rep-sub { display: inline-block; font-size: .75rem; font-weight: 650; color: var(--ink-soft);
     background: var(--surface); border: 1px solid var(--line); border-radius: 999px;
-    padding: 2px 9px; margin-bottom: 8px; }
-  .est-evis { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 10px; }
-  .est-evi { width: 92px; height: 92px; border-radius: 10px; overflow: hidden;
-    border: 1px solid var(--line); background: var(--surface); cursor: zoom-in; padding: 0; }
+    padding: 2px 9px; margin-bottom: var(--e-s2); }
+  .est-evis { display: flex; flex-wrap: wrap; gap: var(--e-s2); margin-top: var(--e-s3); }
+  .est-evi { width: 92px; height: 92px; border-radius: var(--e-rad-sm); overflow: hidden;
+    border: 1px solid var(--line); background: var(--surface); cursor: zoom-in; padding: 0;
+    transition: transform .22s var(--e-ease), border-color .22s ease; }
+  .est-evi:hover { transform: scale(1.04); border-color: var(--brand-soft); }
   .est-evi img { width: 100%; height: 100%; object-fit: cover; display: block; }
   .est-evi:focus-visible { outline: 2px solid var(--brand); outline-offset: 2px; }
 
   /* ── Línea de tiempo de actualizaciones ── */
-  .est-tl { position: relative; padding-left: 22px; }
-  .est-tl::before { content: ''; position: absolute; left: 5px; top: 6px; bottom: 6px;
-    width: 2px; background: var(--line); }
-  .est-tl-item { position: relative; padding-bottom: 18px; }
-  .est-tl-item::before { content: ''; position: absolute; left: -21px; top: 5px;
-    width: 12px; height: 12px; border-radius: 50%; background: var(--ink-faint);
+  .est-tl { position: relative; padding-left: 24px; margin-bottom: var(--e-s6); }
+  .est-tl::before { content: ''; position: absolute; left: 5px; top: 8px; bottom: 8px;
+    width: 2px; background: linear-gradient(to bottom, var(--line), transparent); }
+  .est-tl-item { position: relative; padding-bottom: var(--e-s5); }
+  .est-tl-item::before { content: ''; position: absolute; left: -23px; top: 5px;
+    width: 12px; height: 12px; border-radius: 50%; background: var(--e-tono, var(--ink-faint));
     border: 2px solid var(--surface); }
-  .est-tl-item.tono-ok::before    { background: var(--e-ok); }
-  .est-tl-item.tono-warn::before  { background: var(--e-warn); }
-  .est-tl-item.tono-alert::before { background: var(--e-alert); }
-  .est-tl-item.tono-info::before  { background: var(--e-info); }
-  .est-tl-top { display: flex; align-items: baseline; gap: 8px; flex-wrap: wrap; margin-bottom: 4px; }
+  .est-tl-top { display: flex; align-items: baseline; gap: var(--e-s2); flex-wrap: wrap; margin-bottom: 4px; }
   .est-tl-top b { font-size: .86rem; font-weight: 650; color: var(--ink); }
   .est-tl-top small { font-size: .73rem; color: var(--ink-faint); }
-  .est-tl-item p { margin: 0; font-size: .85rem; color: var(--ink-soft); line-height: 1.55; white-space: pre-wrap; }
-  .est-tl-aviso { display: inline-flex; align-items: center; gap: 4px; margin-top: 6px;
-    font-size: .7rem; font-weight: 700; color: var(--info); }
+  .est-tl-item p { margin: 0; font-size: .85rem; color: var(--ink-soft); line-height: 1.6; white-space: pre-wrap; }
+  .est-tl-aviso { display: inline-flex; align-items: center; gap: 5px; margin-top: 6px;
+    font-size: .7rem; font-weight: 700; color: var(--e-info); }
   .est-tl-aviso svg { width: 12px; height: 12px; }
 
   /* ── Puerta de sesión ── */
-  .est-puerta { padding: 22px; border-radius: 14px; border: 1px dashed var(--line);
+  .est-puerta { padding: var(--e-s5); border-radius: var(--e-rad); border: 1px dashed var(--line);
     background: var(--surface-2); text-align: center; }
-  .est-puerta b { display: block; font-size: .95rem; font-weight: 700; color: var(--ink); margin-bottom: 6px; }
-  .est-puerta p { margin: 0 auto 14px; max-width: 38ch; font-size: .85rem; color: var(--ink-soft); line-height: 1.55; }
+  .est-puerta b { display: block; font-family: var(--f-display); font-size: .98rem;
+    font-weight: 700; color: var(--ink); margin-bottom: 6px; }
+  .est-puerta p { margin: 0 auto var(--e-s4); max-width: 40ch; font-size: .85rem;
+    color: var(--ink-soft); line-height: 1.6; }
 
   /* ── Visor de imagen ── */
-  .est-visor { position: fixed; inset: 0; z-index: 995; background: rgba(8,12,20,.9);
-    display: none; align-items: center; justify-content: center; padding: 32px; }
+  .est-visor { position: fixed; inset: 0; z-index: 995; background: rgba(6,9,15,.92);
+    display: none; align-items: center; justify-content: center; padding: var(--e-s6); }
   .est-visor.abierto { display: flex; }
-  .est-visor img { max-width: 100%; max-height: 100%; border-radius: 12px; box-shadow: 0 24px 60px -20px rgba(0,0,0,.7); }
+  .est-visor img { max-width: 100%; max-height: 100%; border-radius: var(--e-rad);
+    box-shadow: 0 30px 70px -24px rgba(0,0,0,.75); }
   .est-visor-x { position: absolute; top: 20px; right: 20px; width: 42px; height: 42px;
     border-radius: 50%; border: 0; background: rgba(255,255,255,.16); color: #fff; cursor: pointer;
     display: flex; align-items: center; justify-content: center; }
+  .est-visor-x:hover { background: rgba(255,255,255,.26); }
   .est-visor-x svg { width: 20px; height: 20px; }
 
   /* En su propia pantalla la pastilla flotante sobra: el tablero YA es el estado. */
   .op-pill { display: none !important; }
 
-  .est-pie { margin-top: 48px; padding-top: 22px; border-top: 1px solid var(--line);
-    text-align: center; font-size: .8rem; color: var(--ink-faint); line-height: 1.6; }
+  .est-pie {
+    margin-top: var(--e-s8); padding-top: var(--e-s5); border-top: 1px solid var(--line);
+    display: flex; align-items: center; justify-content: space-between; gap: var(--e-s4);
+    flex-wrap: wrap; font-size: .8rem; color: var(--ink-faint); line-height: 1.6;
+  }
+  .est-pie p { margin: 0; max-width: 52ch; }
 
+  /* ═══════════════════════════════════════════════════════════════════════════
+     RESPONSIVE
+     ═══════════════════════════════════════════════════════════════════════════ */
+  @media (max-width: 900px) {
+    .est-hero { grid-template-columns: 1fr; gap: var(--e-s6); padding: var(--e-s6) var(--e-s5) var(--e-s5); }
+    .est-anillo { width: 160px; height: 160px; margin: 0 auto; }
+  }
   @media (max-width: 720px) {
-    .est-wrap { padding: 22px 16px 64px; }
-    .est-banner { padding: 20px; gap: 14px; flex-direction: column; align-items: flex-start; }
-    .est-banner h2 { font-size: 1.25rem; }
-    .est-hoja { width: 100%; top: auto; height: 90vh; border-radius: 18px 18px 0 0;
-      border-left: 0; transform: translateY(100%); }
+    .est-wrap { padding: var(--e-s6) var(--e-s4) var(--e-s7); }
+    /* En el teléfono la barra deja de ser pegajosa: con el título en una fila y los dos
+       botones en otra se come 100 px de alto, y en una pantalla de 844 px eso es más de
+       la décima parte de todo lo que hay. La página es corta; volver arriba cuesta un
+       gesto. */
+    .est-bar { position: static; }
+    .est-bar-in { padding: var(--e-s3) var(--e-s4); }
+    .est-bar-acc { width: 100%; margin-left: 0; }
+    .est-bar-acc .v-btn { flex: 1; justify-content: center; }
+    .est-seccion { margin-top: var(--e-s7); }
+    .est-inc { padding: var(--e-s4); gap: var(--e-s3); }
+    .est-hoja { width: 100%; top: auto; height: 92vh; border-radius: var(--e-rad-xl) var(--e-rad-xl) 0 0;
+      border-left: 0; border-top: 1px solid var(--line); transform: translateY(100%); }
     .est-hoja.abierto { transform: translateY(0); }
-    .est-hoja-head, .est-hoja-cuerpo { padding-left: 18px; padding-right: 18px; }
-    .est-top h1 { font-size: 1rem; }
+    .est-hoja-head, .est-hoja-cuerpo { padding-left: var(--e-s4); padding-right: var(--e-s4); }
   }
 
+  /* ═══════════════════════════════════════════════════════════════════════════
+     MENOS MOVIMIENTO
+     ═══════════════════════════════════════════════════════════════════════════
+     Se apaga TODO lo permanente y todas las transiciones. Las entradas de GSAP no se
+     lanzan siquiera (gsap.matchMedia en el script), así que aquí no hay que deshacerlas:
+     el contenido nace ya colocado. */
   @media (prefers-reduced-motion: reduce) {
-    .est-inc, .est-hoja, .est-scrim { transition-duration: .01ms !important; }
-    .est-dot.late, .est-sk::after { animation: none !important; }
+    .est-inc, .est-hoja, .est-scrim, .est-card, .est-mini, .est-evi, .est-abrir svg {
+      transition-duration: .01ms !important;
+    }
+    .est-vivo::after, .est-dot.late::after, .est-sk::after { animation: none !important; }
+    /* Sin la animación del halo, lo que espera algo necesita otra señal quieta: el filo
+       del punto se queda pintado en vez de latir. */
+    .est-dot.late::after { opacity: .5; transform: scale(1.9); }
+  }
+
+  @media print {
+    .est-bar, .est-bg, .est-scrim, .est-hoja, .est-visor { display: none !important; }
+    .est-hero, .est-card, .est-inc { box-shadow: none !important; }
   }
   </style>
 </head>
 <body>
-  <div class="app-aurora"></div>
+  <!-- Fondo cinematográfico. Va antes que nada y no recibe eventos. -->
+  <div class="est-bg" id="est-bg" aria-hidden="true">
+    <span class="est-halo-1"></span>
+    <span class="est-halo-2"></span>
+    <span class="est-malla"></span>
+  </div>
 
-  <main id="main-content" class="est-wrap">
-    <header class="est-top">
-      <img src="https://gcp-na-images.contentstack.com/v3/assets/blt339516d00dd80f86/blt8225505fe88f431b/673c926b0345b062aa3856c4/liverpool-logo-header.svg?branch=pro&format=avif&quality=80"
+  <header class="est-bar" id="est-bar">
+    <div class="est-bar-in">
+      <img class="est-logo"
+           src="https://gcp-na-images.contentstack.com/v3/assets/blt339516d00dd80f86/blt8225505fe88f431b/673c926b0345b062aa3856c4/liverpool-logo-header.svg?branch=pro&format=avif&quality=80"
            alt="Liverpool"
            onerror="this.onerror=null;this.outerHTML='<span style=&quot;font-weight:800&quot;>Liverpool</span>'">
-      <span class="est-div"></span>
-      <h1>Estado de operación · VENTEL</h1>
-      <div class="est-acc" id="est-acciones"></div>
-    </header>
+      <span class="est-bar-sep"></span>
+      <span class="est-bar-tit">Estado de operación<em>Ventel</em></span>
+      <div class="est-bar-acc" id="est-acciones"></div>
+    </div>
+  </header>
 
-    <div id="est-banner" aria-live="polite"></div>
-
-    <section id="est-destacados"></section>
-    <section id="est-otros"></section>
+  <main id="main-content" class="est-wrap">
+    <section id="est-portada" aria-live="polite"></section>
+    <section id="est-sistemas"></section>
     <section id="est-incidencias"></section>
 
     <footer class="est-pie">
-      <p>Esta página muestra el estado de los sistemas que usa el equipo VENTEL.<br>
+      <p>Esta página muestra el estado de los sistemas que usa el equipo Ventel.
          Se actualiza sola cada minuto.</p>
+      <span id="est-pie-sello"></span>
     </footer>
   </main>
 
@@ -318,6 +650,11 @@
   </script>
   <?!= include('app_core'); ?>
   <?!= include('app_motion'); ?>
+  <!-- ScrollTrigger y SplitText solo los necesita ESTA pantalla (app_motion carga el
+       núcleo de GSAP para todas). Si el CDN no responde, el script de abajo comprueba
+       cada plugin antes de usarlo y la página se pinta sin animar. -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.13.0/ScrollTrigger.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.13.0/SplitText.min.js"></script>
   <?!= include('app_operacion'); ?>
   <script>
   (function () {
@@ -329,11 +666,15 @@
       reloj:  '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 6.6V12l3.4 2"/></svg>',
       info:   '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 11v5M12 7.8h.01"/></svg>',
       cerrar: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M6 6l12 12M18 6 6 18"/></svg>',
-      ver:    '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M2.5 12S6 5.8 12 5.8 21.5 12 21.5 12 18 18.2 12 18.2 2.5 12 2.5 12Z"/><circle cx="12" cy="12" r="2.7"/></svg>',
+      flecha: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h13M13 6l6 6-6 6"/></svg>',
       mega:   '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M3 11v2a1 1 0 0 0 1 1h2l9 4V6L6 10H4a1 1 0 0 0-1 1Z"/><path d="M15 8a4 4 0 0 1 0 8"/></svg>',
-      mano:   '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v9"/><path d="M8.5 6.5 12 3l3.5 3.5"/><path d="M4 14v3a4 4 0 0 0 4 4h8a4 4 0 0 0 4-4v-3"/></svg>'
+      portal: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M3.5 10.5 12 4l8.5 6.5"/><path d="M5.5 9.6V19a1 1 0 0 0 1 1h11a1 1 0 0 0 1-1V9.6"/><path d="M10 20v-5.5h4V20"/></svg>'
     };
     var ICONO = { ok: IC.ok, warn: IC.reloj, alert: IC.alerta, info: IC.info, neutro: IC.info };
+
+    var REFRESCO_MS = 60000;
+    var PERIMETRO = 471.24;   /* 2π · r=75, el anillo grande */
+    var PERIMETRO_TICK = 34.56; /* 2π · r=5.5, la cuenta atrás */
 
     var datos = null;
     var hoja = document.getElementById('est-hoja');
@@ -344,6 +685,24 @@
     var visorImg = document.getElementById('est-visor-img');
     var disparador = null;
     var incAbierto = '';
+
+    var primerPintado = true;   // la entrada cinematográfica se corre UNA vez
+    var firma = '';             // qué había en pantalla, para no re-animar lo que no cambió
+    var tlTick = null;          // cuenta atrás al siguiente refresco
+    var split = null;           // SplitText del titular
+
+    /* ── Movimiento ─────────────────────────────────────────────────────────── */
+
+    var menosMovimiento = !!(window.matchMedia && matchMedia('(prefers-reduced-motion: reduce)').matches);
+    function conGsap() { return !!window.gsap && !menosMovimiento; }
+    function conScroll() { return conGsap() && !!window.ScrollTrigger; }
+
+    if (window.gsap && window.ScrollTrigger) {
+      try { gsap.registerPlugin(ScrollTrigger); } catch (e) {}
+    }
+    if (window.gsap && window.SplitText) {
+      try { gsap.registerPlugin(SplitText); } catch (e) {}
+    }
 
     function esc(s) {
       return String(s == null ? '' : s)
@@ -373,138 +732,458 @@
       return d.toLocaleString('es-MX', { day: 'numeric', month: 'long', hour: '2-digit', minute: '2-digit' });
     }
 
-    /* ── Pintado del tablero ── */
+    /* ═══════════════════════════════════════════════════════════════════════
+       PINTADO
+       ═══════════════════════════════════════════════════════════════════════ */
 
     function pintar() {
       var e = (datos && datos.estado) ? datos.estado : datos;
-      var banner = document.getElementById('est-banner');
-      var dest = document.getElementById('est-destacados');
-      var otros = document.getElementById('est-otros');
+      var portada = document.getElementById('est-portada');
+      var sistemas = document.getElementById('est-sistemas');
       var incs = document.getElementById('est-incidencias');
 
       if (!e || !e.success) {
-        banner.innerHTML =
-          '<div class="est-banner tono-warn">' +
-            '<span class="est-banner-ic">' + IC.info + '</span>' +
-            '<span class="est-banner-tx"><h2>No pudimos consultar el estado</h2>' +
-            '<p>Revisa tu conexión e inténtalo de nuevo en un momento.</p></span>' +
+        document.body.className = 'tono-warn';
+        portada.innerHTML =
+          '<div class="est-hero tono-warn">' +
+            '<div class="est-hero-tx">' +
+              '<span class="est-eyebrow"><span class="est-vivo"></span>Sin respuesta</span>' +
+              '<h1 class="est-titulo">No pudimos consultar el estado</h1>' +
+              '<p class="est-lead">Revisa tu conexión. La página lo vuelve a intentar sola en un minuto.</p>' +
+            '</div>' +
           '</div>';
-        dest.innerHTML = ''; otros.innerHTML = ''; incs.innerHTML = '';
+        sistemas.innerHTML = ''; incs.innerHTML = '';
+        pintarAcciones();
         return;
       }
 
       var tono = e.global || 'ok';
+      document.body.className = 'tono-' + tono;
+
+      var lista = e.sistemas || [];
+      var bien = lista.filter(function (s) { return s.tono === 'ok'; }).length;
+      var total = lista.length;
+
+      // Firma de lo que se está enseñando. Si no cambió nada, el repintado del minuto no
+      // vuelve a lanzar entradas: un tablero que se re-anima solo cada minuto se lee como
+      // si algo hubiera pasado, y no ha pasado nada.
+      var nuevaFirma = tono + '|' + bien + '/' + total + '|' +
+        lista.map(function (s) { return s.clave + ':' + s.tono; }).join(',') + '|' +
+        (e.incidentes || []).map(function (i) { return i.id + ':' + i.estado; }).join(',');
+      var cambio = nuevaFirma !== firma;
+      firma = nuevaFirma;
+
+      pintarPortada(e, tono, bien, total, cambio);
+      pintarSistemas(lista, cambio);
+      pintarIncidencias(e, cambio);
+      pintarAcciones();
+
+      var sello = document.getElementById('est-pie-sello');
+      if (sello) sello.textContent = 'Última consulta: ' + (fechaLarga(e.consultado) || '—');
+
+      if (primerPintado) {
+        primerPintado = false;
+        entrada();
+      } else if (cambio) {
+        revelar(document.querySelectorAll('.est-card, .est-mini, .est-inc'), true);
+      }
+
+      arrancarTick();
+      if (conScroll()) { try { ScrollTrigger.refresh(); } catch (err) {} }
+    }
+
+    /* ── Portada ── */
+
+    function pintarPortada(e, tono, bien, total, cambio) {
       // Mientras nadie ha confirmado nada, el titular no puede afirmar más que el texto de
       // abajo: "Hay incidencias activas" sobre un aviso automático es prometer una certeza
       // que todavía no existe, y desdecirse mañana cuesta más que haber sido prudente hoy.
       var titular = (tono === 'ok') ? 'Todo funcionando'
-                  : (e.sospecha ? 'Posibles problemas con el servicio' : 'Hay incidencias activas');
-      banner.innerHTML =
-        '<div class="est-banner tono-' + esc(tono) + '">' +
-          '<span class="est-banner-ic">' + (ICONO[tono] || IC.info) + '</span>' +
-          '<span class="est-banner-tx">' +
-            '<h2>' + esc(titular) + '</h2>' +
-            '<p>' + esc(e.resumen || '') + '</p>' +
-            '<span class="est-hora">Consultado ' + esc(desdeHace(e.consultado) || 'ahora') + '</span>' +
-          '</span>' +
-        '</div>';
+                  : (e.sospecha ? 'Posibles problemas' : 'Hay incidencias activas');
+      var rotulo = (tono === 'ok') ? 'Servicio operativo'
+                  : (e.sospecha ? 'Revisando reportes' : 'Incidencia en curso');
 
-      var destacados = (e.sistemas || []).filter(function (s) { return s.destacado; });
-      var resto = (e.sistemas || []).filter(function (s) { return !s.destacado; });
+      var portada = document.getElementById('est-portada');
+      var titulo = portada.querySelector('.est-titulo');
 
-      dest.innerHTML =
-        '<h2 class="est-rot">Sistemas principales</h2>' +
-        '<div class="est-destacados">' +
-        destacados.map(function (s) {
-          var i = (s.incidentes || [])[0];
-          return '<article class="est-card tono-' + esc(s.tono) + '">' +
-            '<div class="est-card-top">' +
-              '<span class="est-dot tono-' + esc(s.tono) + (s.tono !== 'ok' ? ' late' : '') + '"></span>' +
-              '<h3>' + esc(s.nombre) + '</h3>' +
-              '<span class="est-badge tono-' + esc(s.tono) + '" style="margin-left:auto">' +
-                (ICONO[s.tono] || IC.ok) + esc(s.estadoNombre) + '</span>' +
+      // El anillo y el titular se re-crean solo si cambió algo: así el SplitText del titular
+      // sobrevive al repintado del minuto y la aguja del anillo se anima en vez de saltar.
+      if (!cambio && titulo) {
+        var horaEl = portada.querySelector('[data-hora]');
+        if (horaEl) horaEl.textContent = 'Consultado ' + (desdeHace(e.consultado) || 'ahora');
+        return;
+      }
+
+      if (split && split.revert) { try { split.revert(); } catch (err) {} split = null; }
+
+      portada.innerHTML =
+        '<div class="est-hero tono-' + esc(tono) + '">' +
+          '<div class="est-hero-tx">' +
+            '<span class="est-eyebrow"><span class="est-vivo"></span>' + esc(rotulo) + '</span>' +
+            '<h1 class="est-titulo" id="est-titulo">' + esc(titular) + '</h1>' +
+            '<p class="est-lead">' + esc(e.resumen || '') + '</p>' +
+            '<div class="est-meta">' +
+              '<span class="est-meta-i" data-hora>Consultado ' + esc(desdeHace(e.consultado) || 'ahora') + '</span>' +
+              '<span class="est-meta-sep"></span>' +
+              '<span class="est-meta-i">' +
+                '<svg class="est-tick" viewBox="0 0 14 14" aria-hidden="true">' +
+                  '<circle class="est-tick-tr" cx="7" cy="7" r="5.5"/>' +
+                  '<circle class="est-tick-ar" cx="7" cy="7" r="5.5"/>' +
+                '</svg>' +
+                'Se actualiza sola' +
+              '</span>' +
             '</div>' +
-            '<p class="est-card-nota">' + esc(
-              i ? ((i.ultima && i.ultima.nota) || i.detalle || i.titulo)
-                : 'Sin reportes. El servicio opera con normalidad.') + '</p>' +
-            (i && i.desde ? '<span class="est-card-meta">Desde ' + esc(desdeHace(i.desde)) + '</span>' : '') +
-          '</article>';
-        }).join('') +
+          '</div>' +
+          '<div class="est-anillo" role="img" aria-label="' +
+              esc(bien + ' de ' + total + ' sistemas funcionando') + '">' +
+            '<span class="est-anillo-luz"></span>' +
+            '<svg viewBox="0 0 170 170" aria-hidden="true">' +
+              '<circle class="est-anillo-tr" cx="85" cy="85" r="75"/>' +
+              '<circle class="est-anillo-ar" cx="85" cy="85" r="75"/>' +
+            '</svg>' +
+            '<div class="est-anillo-mid">' +
+              '<b id="est-anillo-n">' + (conGsap() ? '0' : String(bien)) + '</b>' +
+              '<small>de ' + esc(String(total)) + ' sistema' + (total === 1 ? '' : 's') + '</small>' +
+            '</div>' +
+          '</div>' +
         '</div>';
 
-      otros.innerHTML = resto.length
-        ? ('<h2 class="est-rot">Otros sistemas</h2><div class="est-otros">' +
-           resto.map(function (s) {
-             return '<div class="est-mini tono-' + esc(s.tono) + '">' +
-               '<span class="est-dot tono-' + esc(s.tono) + '"></span>' +
-               '<span class="est-mini-tx"><b>' + esc(s.nombre) + '</b>' +
-               '<small>' + esc(s.estadoNombre) + '</small></span></div>';
-           }).join('') + '</div>')
-        : '';
+      dibujarAnillo(bien, total, !primerPintado);
+    }
+
+    /**
+     * La aguja del anillo. En el primer pintado la dibuja la timeline de entrada (para que
+     * llegue en su turno); en los repintados se anima aquí, que es cuando de verdad cuenta:
+     * ver la aguja retroceder es enterarse de que un sistema se acaba de caer.
+     */
+    function dibujarAnillo(bien, total, animar) {
+      var arco = document.querySelector('.est-anillo-ar');
+      var num = document.getElementById('est-anillo-n');
+      if (!arco) return;
+      var frac = total ? (bien / total) : 1;
+      var destino = PERIMETRO * (1 - frac);
+
+      if (!conGsap()) {
+        arco.style.strokeDashoffset = String(destino);
+        if (num) num.textContent = String(bien);
+        return;
+      }
+      if (!animar) { gsap.set(arco, { strokeDashoffset: PERIMETRO }); return; }
+
+      gsap.to(arco, { strokeDashoffset: destino, duration: 1.1, ease: 'power2.inOut' });
+      if (num) contar(num, bien);
+    }
+
+    /** Número que sube hasta su valor. Con enteros no hay decimales que bailen. */
+    function contar(el, valor) {
+      if (!conGsap()) { el.textContent = String(valor); return; }
+      var caja = { v: Number(el.textContent) || 0 };
+      gsap.to(caja, {
+        v: valor, duration: .9, ease: 'power2.out',
+        onUpdate: function () { el.textContent = String(Math.round(caja.v)); },
+        onComplete: function () { el.textContent = String(valor); }
+      });
+    }
+
+    /* ── Sistemas ── */
+
+    function pintarSistemas(lista, cambio) {
+      var caja = document.getElementById('est-sistemas');
+      if (!cambio) return;
+
+      var destacados = lista.filter(function (s) { return s.destacado; });
+      var resto = lista.filter(function (s) { return !s.destacado; });
+      var html = '';
+
+      if (destacados.length) {
+        html += '<div class="est-seccion">' +
+          '<h2 class="est-rot">Sistemas principales</h2>' +
+          '<div class="est-grid">' +
+          destacados.map(function (s) {
+            var i = (s.incidentes || [])[0];
+            return '<article class="est-card tono-' + esc(s.tono) + '" data-tarjeta>' +
+              '<div class="est-card-top">' +
+                '<span class="est-dot' + (s.tono !== 'ok' ? ' late' : '') + '"></span>' +
+                '<h3>' + esc(s.nombre) + '</h3>' +
+                '<span class="est-badge" style="margin-left:auto">' +
+                  (ICONO[s.tono] || IC.ok) + esc(s.estadoNombre) + '</span>' +
+              '</div>' +
+              '<p class="est-card-nota">' + esc(
+                i ? ((i.ultima && i.ultima.nota) || i.detalle || i.titulo)
+                  : 'Sin reportes. El servicio opera con normalidad.') + '</p>' +
+              (i && i.desde
+                ? '<div class="est-card-pie">' + IC.reloj + 'Desde ' + esc(desdeHace(i.desde)) + '</div>'
+                : '') +
+            '</article>';
+          }).join('') +
+          '</div></div>';
+      }
+
+      if (resto.length) {
+        html += '<div class="est-seccion">' +
+          '<h2 class="est-rot">Otros sistemas</h2>' +
+          '<div class="est-grid est-grid-min">' +
+          resto.map(function (s) {
+            return '<div class="est-mini tono-' + esc(s.tono) + '">' +
+              '<span class="est-dot' + (s.tono !== 'ok' ? ' late' : '') + '"></span>' +
+              '<span class="est-mini-tx"><b>' + esc(s.nombre) + '</b>' +
+              '<small>' + esc(s.estadoNombre) + '</small></span></div>';
+          }).join('') +
+          '</div></div>';
+      }
+
+      caja.innerHTML = html;
+      cablearFoco(caja);
+    }
+
+    /**
+     * El foco de luz que sigue al puntero. Se escribe una variable CSS y pinta el navegador:
+     * no hay layout de por medio, así que da igual cuántas tarjetas haya en pantalla.
+     */
+    function cablearFoco(raiz) {
+      if (menosMovimiento) return;
+      raiz.querySelectorAll('[data-tarjeta]').forEach(function (card) {
+        card.addEventListener('pointermove', function (ev) {
+          var r = card.getBoundingClientRect();
+          card.style.setProperty('--e-mx', ((ev.clientX - r.left) / r.width * 100) + '%');
+          card.style.setProperty('--e-my', ((ev.clientY - r.top) / r.height * 100) + '%');
+        });
+      });
+    }
+
+    /* ── Incidencias ── */
+
+    function pintarIncidencias(e, cambio) {
+      var incs = document.getElementById('est-incidencias');
+      if (!cambio) return;
 
       var lista = e.incidentes || [];
       if (!lista.length) {
         incs.innerHTML =
-          '<h2 class="est-rot">Incidencias</h2>' +
-          '<div class="est-vacio">' +
-            '<div class="est-vacio-ic">' + IC.ok + '</div>' +
-            '<b>No hay incidencias abiertas</b>' +
-            '<p>Cuando algo falle aparecerá aquí, con lo que se sepa y desde cuándo.</p>' +
+          '<div class="est-seccion">' +
+            '<h2 class="est-rot">Incidencias</h2>' +
+            '<div class="est-vacio">' +
+              '<div class="est-vacio-ic">' + IC.ok + '</div>' +
+              '<b>No hay incidencias abiertas</b>' +
+              '<p>Cuando algo falle aparecerá aquí, con lo que se sepa y desde cuándo.</p>' +
+            '</div>' +
           '</div>';
-      } else {
-        incs.innerHTML =
-          '<h2 class="est-rot">Incidencias abiertas</h2>' +
+        return;
+      }
+
+      incs.innerHTML =
+        '<div class="est-seccion">' +
+          '<h2 class="est-rot">Incidencias abiertas<b>' + lista.length + '</b></h2>' +
           lista.map(function (i) {
             var nota = (i.ultima && i.ultima.nota) || i.detalle || '';
             return '<button type="button" class="est-inc tono-' + esc(i.tono) + '" data-inc="' + esc(i.id) + '">' +
-              '<span class="est-inc-top">' +
-                '<span class="est-badge tono-' + esc(i.tono) + '">' + (ICONO[i.tono] || IC.info) +
-                  esc(i.estadoNombre) + '</span>' +
-                '<span style="font-size:.78rem;font-weight:650;color:var(--ink-soft)">' + esc(i.sistema) + '</span>' +
-              '</span>' +
-              '<h3>' + esc(i.titulo) + '</h3>' +
-              (nota ? '<p>' + esc(nota) + '</p>' : '') +
-              '<span class="est-inc-pie">' +
-                '<span>' + esc(i.desde ? 'Desde ' + fechaLarga(i.desde) + ' · ' + desdeHace(i.desde) : '') + '</span>' +
-                '<span class="est-abrir">' + IC.ver + (haySesion() ? 'Ver reportes y evidencias' : 'Ver detalle') + '</span>' +
+              '<span class="est-inc-rail"></span>' +
+              '<span class="est-inc-tx">' +
+                '<span class="est-inc-top">' +
+                  '<span class="est-badge">' + (ICONO[i.tono] || IC.info) + esc(i.estadoNombre) + '</span>' +
+                  '<span class="est-inc-sis">' + esc(i.sistema) + '</span>' +
+                '</span>' +
+                '<span class="est-inc-h">' + esc(i.titulo) + '</span>' +
+                (nota ? '<span class="est-inc-p">' + esc(nota) + '</span>' : '') +
+                '<span class="est-inc-pie">' +
+                  '<span>' + esc(i.desde ? 'Desde ' + fechaLarga(i.desde) + ' · ' + desdeHace(i.desde) : '') + '</span>' +
+                  '<span class="est-abrir">' +
+                    (haySesion() ? 'Ver reportes y evidencias' : 'Ver detalle') + IC.flecha +
+                  '</span>' +
+                '</span>' +
               '</span>' +
             '</button>';
-          }).join('');
+          }).join('') +
+        '</div>';
 
-        incs.querySelectorAll('[data-inc]').forEach(function (b) {
-          b.addEventListener('click', function () { abrirDetalle(b.getAttribute('data-inc'), b); });
-        });
-
-        if (window.gsap && !(window.matchMedia && matchMedia('(prefers-reduced-motion: reduce)').matches)) {
-          gsap.from(incs.querySelectorAll('.est-inc'),
-            { y: 18, opacity: 0, duration: .5, ease: 'power3.out', stagger: .07, clearProps: 'transform,opacity' });
-        }
-      }
-
-      pintarAcciones();
+      incs.querySelectorAll('[data-inc]').forEach(function (b) {
+        b.addEventListener('click', function () { abrirDetalle(b.getAttribute('data-inc'), b); });
+      });
     }
+
+    /* ── Acciones de la barra ── */
 
     function pintarAcciones() {
       var caja = document.getElementById('est-acciones');
-      if (haySesion()) {
-        caja.innerHTML =
-          '<button type="button" class="v-btn v-btn-primary v-btn-sm" id="est-reportar">Reportar una falla</button>' +
-          '<button type="button" class="v-btn v-btn-ghost v-btn-sm" id="est-volver">Volver al portal</button>';
-        caja.querySelector('#est-reportar').addEventListener('click', function () {
-          if (window.AppOperacion) AppOperacion.reportar('');
-        });
-        caja.querySelector('#est-volver').addEventListener('click', function () {
-          if (window.AppUrl) AppUrl.go('portal');
-        });
-      } else {
-        caja.innerHTML = '<button type="button" class="v-btn v-btn-ghost v-btn-sm" id="est-login">Iniciar sesión</button>';
-        caja.querySelector('#est-login').addEventListener('click', function () {
-          if (window.AppUrl) AppUrl.go('login');
-        });
-      }
+      // "Ir al portal" está SIEMPRE, con sesión y sin ella: el portal es público y quien
+      // llega aquí desde un enlace de aviso no tiene por qué quedarse encerrado en el
+      // tablero buscando la salida.
+      var portal = '<button type="button" class="v-btn v-btn-ghost v-btn-sm" id="est-portal">' +
+                   IC.portal + '<span>Ir al portal</span></button>';
+
+      caja.innerHTML = haySesion()
+        ? (portal + '<button type="button" class="v-btn v-btn-primary v-btn-sm" id="est-reportar">Reportar una falla</button>')
+        : (portal + '<button type="button" class="v-btn v-btn-primary v-btn-sm" id="est-login">Iniciar sesión</button>');
+
+      var bPortal = caja.querySelector('#est-portal');
+      if (bPortal) bPortal.addEventListener('click', function () { if (window.AppUrl) AppUrl.go('portal'); });
+
+      var bRep = caja.querySelector('#est-reportar');
+      if (bRep) bRep.addEventListener('click', function () { if (window.AppOperacion) AppOperacion.reportar(''); });
+
+      var bLogin = caja.querySelector('#est-login');
+      if (bLogin) bLogin.addEventListener('click', function () { if (window.AppUrl) AppUrl.go('login'); });
     }
 
-    /* ── Detalle ── */
+    /* ═══════════════════════════════════════════════════════════════════════
+       CINEMATOGRAFÍA
+       ═══════════════════════════════════════════════════════════════════════
+       Una sola timeline. El orden de la entrada es el orden en que hay que leer la
+       pantalla: barra → rótulo → titular letra a letra → resumen → anillo → tarjetas.
+       Nada dura más de un segundo y todo entra con easing de salida (rápido y frena),
+       que es lo que hace que se lea como un movimiento decidido y no como una
+       animación esperando a terminar. */
+
+    function entrada() {
+      if (!conGsap()) return;
+
+      var mm = gsap.matchMedia();
+      mm.add('(prefers-reduced-motion: no-preference)', function () {
+        var tl = gsap.timeline({ defaults: { ease: 'power3.out' } });
+
+        tl.from('.est-bar', { yPercent: -100, opacity: 0, duration: .7 })
+          .from('.est-hero', { y: 46, opacity: 0, scale: .985, duration: .9 }, '-=.45');
+
+        // Titular letra a letra. SplitText es lo que convierte una entrada correcta en una
+        // entrada memorable; si el plugin no cargó, el titular entra entero y no pasa nada.
+        var titulo = document.getElementById('est-titulo');
+        if (titulo && window.SplitText) {
+          try {
+            // 'words,chars', no solo 'chars': partir únicamente en letras las convierte en
+            // cajas sueltas y el navegador corta el titular a mitad de palabra
+            // ("Hay inciden / cias activas"). Con las palabras envueltas, el salto vuelve
+            // a caer donde tiene que caer.
+            split = SplitText.create(titulo, { type: 'words,chars', autoSplit: true });
+            tl.from(split.chars, {
+              yPercent: 110, opacity: 0, duration: .8, stagger: .022, ease: 'power4.out'
+            }, '-=.55');
+          } catch (err) {
+            tl.from(titulo, { y: 26, opacity: 0, duration: .7 }, '-=.5');
+          }
+        } else if (titulo) {
+          tl.from(titulo, { y: 26, opacity: 0, duration: .7 }, '-=.5');
+        }
+
+        tl.from('.est-eyebrow', { x: -14, opacity: 0, duration: .5 }, '-=.7')
+          .from('.est-lead', { y: 18, opacity: 0, duration: .6 }, '-=.45')
+          .from('.est-meta', { y: 14, opacity: 0, duration: .5 }, '-=.4')
+          .from('.est-anillo', { scale: .82, opacity: 0, duration: .8, ease: 'back.out(1.5)' }, '-=.9')
+          .add(function () { dibujarAnillo(anilloBien(), anilloTotal(), true); }, '-=.5');
+
+        // Halos del fondo: entran con la portada y se quedan respirando muy despacio. Es la
+        // única animación infinita de la pantalla además del punto "en vivo", y a 22
+        // segundos por ciclo no se percibe como movimiento, sino como profundidad.
+        tl.from('.est-bg span', { opacity: 0, duration: 1.4, stagger: .12 }, 0);
+        gsap.to('.est-halo-1', { xPercent: -6, yPercent: 8, scale: 1.08, duration: 22,
+          ease: 'sine.inOut', repeat: -1, yoyo: true });
+        gsap.to('.est-halo-2', { xPercent: 8, yPercent: -6, scale: 1.06, duration: 26,
+          ease: 'sine.inOut', repeat: -1, yoyo: true });
+
+        revelar(document.querySelectorAll('.est-card, .est-mini, .est-inc, .est-vacio'), false);
+        parallax();
+
+        return function () { tl.kill(); };
+      });
+    }
+
+    function anilloBien() {
+      var e = (datos && datos.estado) ? datos.estado : datos;
+      return ((e && e.sistemas) || []).filter(function (s) { return s.tono === 'ok'; }).length;
+    }
+    function anilloTotal() {
+      var e = (datos && datos.estado) ? datos.estado : datos;
+      return ((e && e.sistemas) || []).length;
+    }
+
+    /**
+     * Entrada de las piezas de abajo. Con ScrollTrigger aparecen cuando llegan a pantalla
+     * (que es lo que hace que bajar por el tablero se sienta vivo); sin él, en cascada y
+     * ya está. `ya` = repintado: entonces no se espera al scroll, porque lo que cambió está
+     * donde ya estaba mirando la persona.
+     */
+    var lotes = [];   // ScrollTriggers de las tarjetas, para poder matarlos al repintar
+
+    function matarLotes() {
+      lotes.forEach(function (t) { try { t.kill(); } catch (e) {} });
+      lotes = [];
+    }
+
+    function revelar(nodos, ya) {
+      if (!conGsap() || !nodos.length) return;
+      var lista = Array.prototype.slice.call(nodos);
+      matarLotes();
+
+      if (ya || !conScroll()) {
+        gsap.from(lista, {
+          y: 22, opacity: 0, duration: .6, ease: 'power3.out', stagger: .05,
+          clearProps: 'transform,opacity', overwrite: 'auto'
+        });
+        return;
+      }
+
+      // El estado inicial se pone AQUÍ, no dentro del onEnter: batch no oculta nada por su
+      // cuenta y, sin esto, lo que está por debajo del pliegue se ve un instante colocado
+      // y luego salta hacia atrás para animarse.
+      gsap.set(lista, { opacity: 0, y: 30 });
+      lotes = ScrollTrigger.batch(lista, {
+        start: 'top 92%',
+        once: true,
+        onEnter: function (grupo) {
+          gsap.to(grupo, {
+            opacity: 1, y: 0, duration: .7, ease: 'power3.out', stagger: .07,
+            clearProps: 'transform,opacity', overwrite: 'auto'
+          });
+        }
+      }) || [];
+
+      // RED DE SEGURIDAD. Esta pantalla es la que se abre cuando algo ya va mal: dejar el
+      // estado de un sistema escondido detrás de un scroll que no llegó a dispararse
+      // —una medida mal calculada, un contenedor con scroll propio, el plugin a medias—
+      // sería el peor fallo posible aquí. A los tres segundos, lo que siga invisible se
+      // enseña sin más. Si el reveal funcionó, no queda nada que enseñar y no hace nada.
+      setTimeout(function () {
+        var perdidos = lista.filter(function (el) {
+          return el.isConnected && Number(getComputedStyle(el).opacity) < .05;
+        });
+        if (perdidos.length) {
+          gsap.to(perdidos, { opacity: 1, y: 0, duration: .4, ease: 'power2.out',
+            clearProps: 'transform,opacity', overwrite: 'auto' });
+        }
+      }, 3000);
+    }
+
+    /**
+     * Los halos del fondo se mueven a media velocidad al bajar: profundidad, no adorno.
+     * Va en `y` (px) mientras la respiración infinita va en `yPercent`: GSAP los guarda por
+     * separado dentro del mismo transform, así que las dos animaciones conviven sin pelearse.
+     */
+    function parallax() {
+      if (!conScroll()) return;
+      var recorrido = { trigger: document.body, start: 'top top', end: 'bottom bottom', scrub: 1 };
+      gsap.to('.est-halo-1', { y: 160, ease: 'none', scrollTrigger: recorrido });
+      gsap.to('.est-halo-2', { y: -110, ease: 'none', scrollTrigger: recorrido });
+    }
+
+    /** Cuenta atrás visible hasta el siguiente refresco. Se reinicia con cada consulta. */
+    function arrancarTick() {
+      var arco = document.querySelector('.est-tick-ar');
+      if (!arco) return;
+      if (!conGsap()) { arco.style.strokeDashoffset = '0'; return; }
+      if (tlTick) tlTick.kill();
+      tlTick = gsap.fromTo(arco,
+        { strokeDashoffset: PERIMETRO_TICK },
+        { strokeDashoffset: 0, duration: REFRESCO_MS / 1000, ease: 'none' });
+    }
+
+    /* La barra superior se despega del fondo solo cuando hay contenido debajo de ella. */
+    window.addEventListener('scroll', function () {
+      var bar = document.getElementById('est-bar');
+      if (bar) bar.classList.toggle('est-pegada', window.scrollY > 8);
+    }, { passive: true });
+
+    /* ═══════════════════════════════════════════════════════════════════════
+       DETALLE
+       ═══════════════════════════════════════════════════════════════════════ */
 
     function abrirDetalle(id, quien) {
       incAbierto = id;
@@ -561,10 +1240,13 @@
         '<button type="button" class="est-x" id="est-hoja-x" aria-label="Cerrar">' + IC.cerrar + '</button>';
 
       hojaCuerpo.innerHTML =
+        '<div class="est-hoja-cab tono-' + esc(i.tono) + '">' +
+          '<span class="est-badge">' + (ICONO[i.tono] || IC.info) + esc(i.estadoNombre) + '</span>' +
+          (i.desde ? '<small>Desde ' + esc(fechaLarga(i.desde)) + '</small>' : '') +
+        '</div>' +
         '<h3 class="est-rot">Lo que sabemos</h3>' +
-        '<p style="margin:0 0 24px;font-size:.9rem;color:var(--ink-soft);line-height:1.6">' +
+        '<p class="est-hoja-tx">' +
           esc((i.ultima && i.ultima.nota) || i.detalle || 'Sin más detalle por ahora.') +
-          (i.desde ? '<br><span style="font-size:.78rem;color:var(--ink-faint)">Desde ' + esc(fechaLarga(i.desde)) + '</span>' : '') +
         '</p>' +
         '<div class="est-puerta">' +
           '<b>Los reportes del equipo son internos</b>' +
@@ -575,6 +1257,7 @@
       cablearCierre();
       var b = document.getElementById('est-puerta-login');
       if (b) b.addEventListener('click', function () { if (window.AppUrl) AppUrl.go('login'); });
+      animarHoja();
     }
 
     function pintarDetalle(r) {
@@ -589,18 +1272,15 @@
 
       var html = '';
 
-      html += '<div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:18px">' +
-        '<span class="est-badge tono-' + esc(i.tono) + '">' + (ICONO[i.tono] || IC.info) + esc(i.estadoNombre) + '</span>' +
+      html += '<div class="est-hoja-cab tono-' + esc(i.tono) + '">' +
+        '<span class="est-badge">' + (ICONO[i.tono] || IC.info) + esc(i.estadoNombre) + '</span>' +
         (i.confirmado
-          ? '<span style="font-size:.78rem;color:var(--ink-faint);font-weight:600">Confirmado ' +
-            esc(fechaLarga(i.confirmado)) + (i.confirmadoNombre ? ' por ' + esc(i.confirmadoNombre) : '') + '</span>'
-          : '<span style="font-size:.78rem;color:var(--ink-faint);font-weight:600">Detectado ' + esc(desdeHace(i.creado)) + '</span>') +
+          ? '<small>Confirmado ' + esc(fechaLarga(i.confirmado)) +
+            (i.confirmadoNombre ? ' por ' + esc(i.confirmadoNombre) : '') + '</small>'
+          : '<small>Detectado ' + esc(desdeHace(i.creado)) + '</small>') +
         '</div>';
 
-      if (i.detalle) {
-        html += '<p style="margin:0 0 24px;font-size:.9rem;color:var(--ink-soft);line-height:1.6">' +
-                esc(i.detalle) + '</p>';
-      }
+      if (i.detalle) html += '<p class="est-hoja-tx">' + esc(i.detalle) + '</p>';
 
       if (r.actualizaciones && r.actualizaciones.length) {
         html += '<h3 class="est-rot">Actualizaciones</h3><div class="est-tl">';
@@ -617,7 +1297,7 @@
 
       html += '<h3 class="est-rot">Reportes del equipo</h3>';
       if (!r.reportes.length) {
-        html += '<p style="font-size:.88rem;color:var(--ink-soft)">Todavía no hay reportes vinculados.</p>';
+        html += '<p class="est-hoja-tx">Todavía no hay reportes vinculados.</p>';
       } else {
         html += r.reportes.map(function (rep) {
           return '<div class="est-rep">' +
@@ -646,13 +1326,24 @@
         b.addEventListener('click', function () {
           visorImg.src = b.getAttribute('data-ver');
           visor.classList.add('abierto');
+          if (conGsap()) {
+            gsap.fromTo(visorImg, { scale: .92, opacity: 0 },
+              { scale: 1, opacity: 1, duration: .4, ease: 'power3.out', clearProps: 'transform' });
+          }
         });
       });
 
-      if (window.gsap && !(window.matchMedia && matchMedia('(prefers-reduced-motion: reduce)').matches)) {
-        gsap.from(hojaCuerpo.children,
-          { y: 14, opacity: 0, duration: .4, ease: 'power3.out', stagger: .05, clearProps: 'transform,opacity' });
-      }
+      animarHoja();
+    }
+
+    /* El panel entra con CSS (transform en .abierto); lo que anima GSAP es su CONTENIDO,
+       que llega después del servidor y necesita entrar por su cuenta. */
+    function animarHoja() {
+      if (!conGsap()) return;
+      gsap.from(hojaCuerpo.children, {
+        y: 18, opacity: 0, duration: .45, ease: 'power3.out', stagger: .055,
+        clearProps: 'transform,opacity', overwrite: 'auto'
+      });
     }
 
     function cablearCierre() {
@@ -680,7 +1371,9 @@
       if (hoja.classList.contains('abierto')) cerrarDetalle();
     });
 
-    /* ── Datos ── */
+    /* ═══════════════════════════════════════════════════════════════════════
+       DATOS
+       ═══════════════════════════════════════════════════════════════════════ */
 
     function llamar(fn, args) {
       if (window.AppRun && AppRun.call) return AppRun.call(fn, args || []);
@@ -709,8 +1402,10 @@
     }
 
     document.addEventListener('DOMContentLoaded', function () {
-      document.getElementById('est-banner').innerHTML = '<div class="est-sk" style="height:106px"></div>';
-      document.getElementById('est-incidencias').innerHTML = '<div class="est-sk"></div><div class="est-sk"></div>';
+      document.getElementById('est-portada').innerHTML =
+        '<div class="est-sk" style="height:220px;border-radius:28px"></div>';
+      document.getElementById('est-incidencias').innerHTML =
+        '<div class="est-seccion"><div class="est-sk"></div><div class="est-sk"></div></div>';
 
       cargar().then(function () {
         // Enlace directo desde el aviso de Chat: ?page=estado&inc=<id> abre la incidencia.
@@ -721,7 +1416,7 @@
       // El tablero se mira mientras algo está roto: tiene que refrescarse solo.
       setInterval(function () {
         if (document.visibilityState === 'visible' && !hoja.classList.contains('abierto')) cargar();
-      }, 60000);
+      }, REFRESCO_MS);
       document.addEventListener('visibilitychange', function () {
         if (document.visibilityState === 'visible') cargar();
       });
