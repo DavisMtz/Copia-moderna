@@ -961,6 +961,22 @@
 
       remove: function (name) { borrar(name); },
 
+      /**
+       * Tira TODAS las entradas de una familia ('quotes-', 'pendientes-'…).
+       *
+       * Es la herramienta de la invalidación por escritura entre pantallas: quien
+       * aprueba una cotización no sabe —ni tiene por qué— con qué correo se guardó
+       * la lista que acaba de dejar obsoleta, solo que ninguna copia de esa familia
+       * sirve ya. Sin esto, volver al panel después de decidir enseñaba el folio
+       * todavía en la cola.
+       */
+      removeByPrefix: function (prefijo) {
+        if (!prefijo) return 0;
+        const afectadas = this.keys(prefijo);
+        afectadas.forEach(borrar);
+        return afectadas.length;
+      },
+
       /** Nombres guardados que empiezan con un prefijo. */
       keys: function (prefijo) {
         return names().filter(function (n) { return !prefijo || n.indexOf(prefijo) === 0; });
@@ -1007,6 +1023,186 @@
 
   /**
    * ===========================================================================
+   * INDICADOR DE CONSULTA (esquina superior derecha)
+   * ===========================================================================
+   * La contrapartida de pintar desde la caché: si la pantalla aparece llena al
+   * instante, hay que decir en algún sitio que eso todavía se está comprobando
+   * contra el servidor. Sin esa señal el usuario no distingue "esto ya está" de
+   * "esto es de hace media hora", y acaba recargando la página —justo lo que
+   * queríamos evitar.
+   *
+   * Es lo contrario del overlay de marca (VentelLoader): no tapa, no bloquea y
+   * no impide seguir trabajando mientras se revalida. El overlay sigue siendo el
+   * correcto para las esperas en las que NO hay nada que enseñar todavía o en
+   * las que el usuario no debe tocar nada (envío de correo, generación de PDF).
+   *
+   * Tres detalles que evitan que el indicador moleste más de lo que informa:
+   *
+   *   1. RETRASO. No aparece hasta pasados ~200 ms. Una respuesta rápida o un
+   *      acierto de caché no dispara ningún parpadeo.
+   *   2. MÍNIMO EN PANTALLA. Una vez visible se queda ~500 ms aunque la
+   *      respuesta llegue enseguida: un destello de 40 ms se percibe como un
+   *      fallo de dibujado, no como información.
+   *   3. CONTEO DE REFERENCIAS. Varias llamadas a la vez encienden un solo
+   *      indicador, y se apaga cuando termina la última. Cada pantalla puede
+   *      pedirlo sin saber qué están pidiendo las demás.
+   */
+  const AppBusy = (function () {
+    const RETRASO_MS = 200;
+    const MINIMO_MS = 500;
+    const ETIQUETA_POR_OMISION = 'Consultando';
+
+    const CSS =
+      '.vb-pill{position:fixed;top:1rem;right:1rem;z-index:10001;display:flex;align-items:center;gap:.5rem;' +
+      'padding:.42rem .8rem .42rem .68rem;border-radius:999px;pointer-events:none;' +
+      "font-family:var(--f-body,'Instrument Sans',system-ui,sans-serif);font-size:.78rem;font-weight:600;" +
+      'color:var(--ink,#3d2f38);background:var(--surface,#fff);border:1px solid var(--line,#eadfe6);' +
+      'box-shadow:0 12px 30px -16px rgba(61,47,56,.5);-webkit-backdrop-filter:blur(8px);backdrop-filter:blur(8px);' +
+      'opacity:0;transform:translateY(-8px) scale(.96);transition:opacity .22s ease,transform .22s ease;' +
+      'max-width:min(72vw,18rem)}' +
+      '.vb-pill.vb-on{opacity:1;transform:none}' +
+      '.vb-dots{display:inline-flex;gap:3px;flex:0 0 auto}' +
+      '.vb-dots i{width:5px;height:5px;border-radius:50%;background:#AC4581;animation:vb-bounce 1s ease-in-out infinite}' +
+      '.vb-dots i:nth-child(2){background:#EE7D00;animation-delay:.15s}' +
+      '.vb-dots i:nth-child(3){animation-delay:.3s}' +
+      '@keyframes vb-bounce{0%,100%{opacity:.25;transform:translateY(0)}40%{opacity:1;transform:translateY(-3px)}}' +
+      '.vb-tx{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}' +
+      '@media (prefers-reduced-motion:reduce){.vb-pill{transition:none}.vb-dots i{animation:none;opacity:.75}}' +
+      '@media print{.vb-pill{display:none}}';
+
+    const activos = {};      // token -> etiqueta
+    let cuenta = 0;
+    let secuencia = 0;
+    let pill = null, texto = null;
+    let visible = false, visibleDesde = 0;
+    let tMostrar = null, tOcultar = null;
+    let overlayObservado = false;
+
+    /** El overlay de marca ya está tapando la pantalla: un segundo aviso sobra. */
+    function overlayTapando() {
+      try {
+        const o = document.getElementById('ventelLoader');
+        return !!(o && o.classList.contains('show') && !o.classList.contains('vl-hiding'));
+      } catch (e) { return false; }
+    }
+
+    /** Cuando el overlay se retira, lo que siga en curso debe volverse visible. */
+    function vigilarOverlay() {
+      if (overlayObservado || typeof MutationObserver === 'undefined') return;
+      const o = document.getElementById('ventelLoader');
+      if (!o) return;
+      overlayObservado = true;
+      new MutationObserver(function () { pintar(); }).observe(o, { attributes: true, attributeFilter: ['class'] });
+    }
+
+    function crear() {
+      if (pill || !document.body) return pill;
+      try {
+        const estilo = document.createElement('style');
+        estilo.textContent = CSS;
+        document.head.appendChild(estilo);
+
+        pill = document.createElement('div');
+        pill.className = 'vb-pill';
+        pill.setAttribute('role', 'status');
+        pill.setAttribute('aria-live', 'polite');
+        pill.innerHTML = '<span class="vb-dots" aria-hidden="true"><i></i><i></i><i></i></span><span class="vb-tx"></span>';
+        texto = pill.querySelector('.vb-tx');
+        document.body.appendChild(pill);
+        vigilarOverlay();
+      } catch (e) { pill = null; }
+      return pill;
+    }
+
+    /** Etiqueta a enseñar: la de la última petición que sigue en curso. */
+    function etiquetaActual() {
+      const claves = Object.keys(activos);
+      return claves.length ? activos[claves[claves.length - 1]] : ETIQUETA_POR_OMISION;
+    }
+
+    /** Reserva (o libera) el hueco de la esquina para que los avisos no lo tapen. */
+    function reservarHueco(alto) {
+      try { document.documentElement.style.setProperty('--vb-alto', alto); } catch (e) {}
+    }
+
+    function mostrar() {
+      if (overlayTapando()) { vigilarOverlay(); return; }
+      if (!crear()) return;
+      texto.textContent = etiquetaActual() + '…';
+      if (visible) return;
+      visible = true;
+      visibleDesde = Date.now();
+      // Un reflow entre insertar y animar, o la transición no llega a existir.
+      void pill.offsetWidth;
+      pill.classList.add('vb-on');
+      reservarHueco('2.6rem');
+    }
+
+    function ocultar() {
+      if (!pill || !visible) return;
+      visible = false;
+      pill.classList.remove('vb-on');
+      reservarHueco('0px');
+    }
+
+    /** Único punto que decide si el indicador debe verse ahora mismo. */
+    function pintar() {
+      if (tMostrar) { clearTimeout(tMostrar); tMostrar = null; }
+      if (tOcultar) { clearTimeout(tOcultar); tOcultar = null; }
+
+      if (cuenta > 0) {
+        if (visible || overlayTapando()) { mostrar(); return; }
+        tMostrar = setTimeout(function () { tMostrar = null; mostrar(); }, RETRASO_MS);
+        return;
+      }
+      if (!visible) return;
+      const restante = MINIMO_MS - (Date.now() - visibleDesde);
+      if (restante > 0) tOcultar = setTimeout(function () { tOcultar = null; ocultar(); }, restante);
+      else ocultar();
+    }
+
+    return {
+      /**
+       * Enciende el indicador. Devuelve el token que hay que pasarle a done().
+       * @param {string=} etiqueta  Verbo de lo que ocurre: 'Consultando' (por
+       *   omisión), 'Guardando', 'Buscando'… Se le añade "…" al pintarlo.
+       */
+      start: function (etiqueta) {
+        const token = ++secuencia;
+        activos[token] = etiqueta || ETIQUETA_POR_OMISION;
+        cuenta++;
+        pintar();
+        return token;
+      },
+
+      /** Apaga la referencia. Tolera tokens falsos, repetidos o nulos. */
+      done: function (token) {
+        if (!token || !Object.prototype.hasOwnProperty.call(activos, token)) return;
+        delete activos[token];
+        cuenta = Math.max(0, cuenta - 1);
+        pintar();
+      },
+
+      /** Envuelve una promesa: enciende al empezar y apaga pase lo que pase. */
+      wrap: function (promesa, etiqueta) {
+        const token = this.start(etiqueta);
+        const fin = function () { AppBusy.done(token); };
+        promesa.then(fin, fin);
+        return promesa;
+      },
+
+      /** Enciende mientras dura una llamada de estilo callback. */
+      until: function (etiqueta) {
+        const token = this.start(etiqueta);
+        return function () { AppBusy.done(token); };
+      },
+
+      get activo() { return cuenta > 0; }
+    };
+  })();
+
+  /**
+   * ===========================================================================
    * LLAMADAS AL SERVIDOR
    * ===========================================================================
    * google.script.run como promesa, con DEDUPLICACIÓN: si la misma llamada con
@@ -1014,6 +1210,11 @@
    * disparar una segunda. En Apps Script cada llamada cuesta cientos de ms y
    * consume cuota, y una pantalla puede pedir lo mismo desde dos sitios al
    * pintar. La entrada se borra al resolver Y al fallar: nunca se cachea un error.
+   *
+   * Toda llamada enciende además el indicador de la esquina (AppBusy). Va aquí y
+   * no en cada pantalla a propósito: si cada una tuviera que acordarse, la mitad
+   * se quedaría sin avisar. Con `busy: false` se apaga —para sondeos de fondo que
+   * el usuario no ha pedido— y con `busy: 'Guardando'` se cambia el verbo.
    */
   const AppRun = (function () {
     const enVuelo = {};
@@ -1022,7 +1223,11 @@
       args = args || [];
       opts = opts || {};
       const clave = opts.key || (fnName + ':' + JSON.stringify(args));
+      // Una llamada fusionada con otra en vuelo no enciende un segundo indicador:
+      // ya hay uno encendido por la primera y es la misma espera.
       if (enVuelo[clave]) return enVuelo[clave];
+
+      const token = opts.busy === false ? 0 : AppBusy.start(typeof opts.busy === 'string' ? opts.busy : '');
 
       const p = new Promise(function (resolve, reject) {
         if (!(window.google && google.script && google.script.run)) {
@@ -1038,7 +1243,7 @@
         }
         runner[fnName].apply(runner, args);
       });
-      const limpiar = function () { delete enVuelo[clave]; };
+      const limpiar = function () { delete enVuelo[clave]; AppBusy.done(token); };
       p.then(limpiar, limpiar);
       enVuelo[clave] = p;
       return p;
@@ -1051,25 +1256,51 @@
      *     onData: (datos, deCache) => pintar(datos),
      *     ttl: 5*60000
      *   });
+     *
+     * onData se llama DOS veces cuando había caché: primero con deCache=true y
+     * después con la respuesta del servidor. Eso obliga a que el pintado sea
+     * idempotente —repintar la lista entera, no añadirle filas—; si una pantalla
+     * no puede repintarse dos veces, no debe usar swr sino call().
+     *
+     * `opts.fuerza` salta la caché local (botón "Actualizar"): revalida igual,
+     * pero sin enseñar antes lo guardado.
      */
     function swr(cacheName, fnName, args, opts) {
       opts = opts || {};
       const store = opts.session ? AppCache.session : AppCache;
-      const cached = store.get(cacheName, opts.maxAge);
+      const cached = opts.fuerza ? null : store.get(cacheName, opts.maxAge);
+      let pintado = false;
       if (cached && opts.onData) {
-        try { opts.onData(cached.data, true, cached.at); } catch (e) { console.error(e); }
+        try { opts.onData(cached.data, true, cached.at); pintado = true; } catch (e) { console.error(e); }
       }
-      return call(fnName, args, opts).then(function (respuesta) {
-        const guardar = opts.accept ? opts.accept(respuesta) : true;
-        if (guardar) store.set(cacheName, respuesta, { ttl: opts.ttl });
-        if (opts.onData) {
-          try { opts.onData(respuesta, false, Date.now()); } catch (e) { console.error(e); }
-        }
-        return respuesta;
-      }, function (error) {
-        if (opts.onError) opts.onError(error, cached);
-        else if (!cached) throw error;
-        return null;
+
+      const revalidar = function () {
+        return call(fnName, args, opts).then(function (respuesta) {
+          const guardar = opts.accept ? opts.accept(respuesta) : true;
+          if (guardar) store.set(cacheName, respuesta, { ttl: opts.ttl });
+          if (opts.onData) {
+            try { opts.onData(respuesta, false, Date.now()); } catch (e) { console.error(e); }
+          }
+          return respuesta;
+        }, function (error) {
+          if (opts.onError) opts.onError(error, cached);
+          else if (!cached) throw error;
+          return null;
+        });
+      };
+
+      // Sin caché no hay nada que enseñar: se pide ya, cada ms cuenta.
+      if (!pintado) return revalidar();
+
+      // Con caché ya pintada, la revalidación espera al siguiente fotograma. Montar
+      // la llamada de google.script.run no es gratis (crea su iframe y serializa los
+      // argumentos) y hacerlo en este mismo hilo retrasa el dibujado de lo que
+      // acabamos de escribir en el DOM: el usuario vería la lista aparecer más tarde
+      // de lo necesario, que es justo lo que la caché venía a arreglar.
+      return new Promise(function (resolve, reject) {
+        const arrancar = function () { revalidar().then(resolve, reject); };
+        if (typeof requestAnimationFrame === 'function') requestAnimationFrame(function () { setTimeout(arrancar, 0); });
+        else setTimeout(arrancar, 0);
       });
     }
 
@@ -1243,5 +1474,6 @@
   window.escapeJsString = escapeJsString;
   window.AppCache = AppCache;
   window.AppRun = AppRun;
+  window.AppBusy = AppBusy;
 })();
 </script>

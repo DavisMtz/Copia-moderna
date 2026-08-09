@@ -542,14 +542,43 @@
 
       /* ══ LISTA ════════════════════════════════════════════════════════════ */
 
-      function cargarFilas() {
+      /* ── Caché local de las secciones ──────────────────────────────────────
+         Cada sección es una hoja distinta y releerla entera cuesta lo suyo. Se
+         guarda la última lectura buena para que volver a una sección ya visitada
+         la pinte al instante mientras se comprueba por detrás. La copia se tira
+         en cuanto ESTA pantalla escribe (alta, edición, orden, borrado): lo que
+         se acaba de guardar tiene que verse a la vuelta, no dentro de diez
+         minutos. */
+      var PC_FILAS_TTL = 10 * 60 * 1000;
+
+      function claveFilas(colId) { return 'pc-filas-' + colId + '-' + PC_EMAIL; }
+
+      function olvidarFilas(colId) {
+        if (!window.AppCache) return;
+        try { AppCache.remove(claveFilas(colId || (pcState.actual && pcState.actual.id))); } catch (e) {}
+      }
+
+      function cargarFilas(forzar) {
         var col = pcState.actual;
         if (!col) return;
+        var colId = col.id;
         pcState.ocupado = true;
+        // Recarga forzada = venimos de escribir. La copia local ya no vale ni aunque
+        // la revalidación falle después: borrarla evita que una caída de red deje en
+        // pantalla la lista de antes del cambio.
+        if (forzar) olvidarFilas(colId);
 
-        google.script.run
-          .withSuccessHandler(function (res) {
-            pcState.ocupado = false;
+        // La respuesta puede llegar cuando el usuario ya se ha ido a otra sección:
+        // sin esta comprobación pintaría las filas de una hoja bajo el título de otra.
+        var vigente = function () { return pcState.actual && pcState.actual.id === colId; };
+
+        AppRun.swr(claveFilas(colId), 'portalContenidoListar', [{ email: PC_EMAIL, coleccion: colId }], {
+          ttl: PC_FILAS_TTL,
+          fuerza: forzar === true,
+          accept: function (res) { return !!(res && res.status === 'ok'); },
+          onData: function (res, deCache) {
+            if (!vigente()) return;
+            if (!deCache) pcState.ocupado = false;
             if (!res || res.status !== 'ok') {
               pintarError((res && res.error) || 'No pudimos leer esta sección.');
               return;
@@ -564,16 +593,21 @@
                 'se escriba en ellos no se guardaría en ningún sitio.</span>';
               $('avisoCols').classList.remove('pc-hidden');
             }
-            if (res.truncado) {
+            // El aviso de truncado solo con el dato fresco: repetirlo al pintar la
+            // caché convertiría cada visita en un toast.
+            if (!deCache && res.truncado) {
               toast('Esta sección tiene muchas filas: se muestran las primeras ' + pcState.filas.length + '.', 'warn');
             }
             pintarLista();
-          })
-          .withFailureHandler(function (err) {
+          },
+          onError: function (err, cached) {
+            if (!vigente()) return;
             pcState.ocupado = false;
-            pintarError(err && err.message ? err.message : 'No pudimos conectar con el servidor.');
-          })
-          .portalContenidoListar({ email: PC_EMAIL, coleccion: col.id });
+            // Con copia local en pantalla, un fallo de red no la borra: se avisa y ya.
+            if (cached) toast('No pudimos actualizar esta sección: ves la última copia guardada.', 'warn');
+            else pintarError(err && err.message ? err.message : 'No pudimos conectar con el servidor.');
+          }
+        });
       }
 
       function filasVisibles() {
@@ -688,7 +722,7 @@
           '<h3>No pudimos cargar la sección</h3><p>' + esc(msg) + '</p>' +
           '<button class="v-btn v-btn-ghost" type="button" id="reintentar">Reintentar</button></div>';
         var r = $('reintentar');
-        if (r) r.addEventListener('click', function () { $('lista').innerHTML = esqueleto(); cargarFilas(); });
+        if (r) r.addEventListener('click', function () { $('lista').innerHTML = esqueleto(); cargarFilas(true); });
       }
 
       /** Un solo listener por acción, delegando desde la lista. */
@@ -926,7 +960,7 @@
             toast(res.nueva ? 'Publicado. Ya está en el Portal.' : 'Cambios guardados.', 'ok');
             cerrarDrawer();
             $('lista').innerHTML = esqueleto();
-            cargarFilas();
+            cargarFilas(true);
             refrescarConteo(res.nueva ? 1 : 0);
           })
           .withFailureHandler(function (err) {
@@ -1041,7 +1075,7 @@
             if (!res || res.status !== 'ok') { toast((res && res.error) || 'No pudimos duplicar.', 'error'); return; }
             toast('Copia creada. Edítala antes de que el equipo la vea repetida.', 'ok');
             $('lista').innerHTML = esqueleto();
-            cargarFilas();
+            cargarFilas(true);
             refrescarConteo(1);
           })
           .withFailureHandler(function () {
@@ -1088,14 +1122,14 @@
             if (!res || res.status !== 'ok') {
               toast((res && res.error) || 'No pudimos cambiar el orden.', 'error');
               $('lista').innerHTML = esqueleto();
-              cargarFilas();   // el servidor manda: se recarga el orden real
+              cargarFilas(true);   // el servidor manda: se recarga el orden real
             }
           })
           .withFailureHandler(function () {
             pcState.ocupado = false;
             toast('No pudimos conectar con el servidor.', 'error');
             $('lista').innerHTML = esqueleto();
-            cargarFilas();
+            cargarFilas(true);
           })
           .portalContenidoMover({ email: PC_EMAIL, coleccion: col.id, id: id, dir: dir });
       }
@@ -1123,7 +1157,7 @@
             if (!res || res.status !== 'ok') { toast((res && res.error) || 'No pudimos borrar.', 'error'); return; }
             toast('Entrada borrada.', 'ok');
             $('lista').innerHTML = esqueleto();
-            cargarFilas();
+            cargarFilas(true);
             refrescarConteo(-1);
           })
           .withFailureHandler(function () {
@@ -1522,7 +1556,7 @@
                   s.iguales + ' sin cambios.', 'ok');
             cerrarDrawer();
             $('lista').innerHTML = esqueleto();
-            cargarFilas();
+            cargarFilas(true);
             refrescarConteo(s.nuevas);
           })
           .withFailureHandler(function (err) {
@@ -1665,20 +1699,46 @@
 
       /* ══ ARRANQUE ═════════════════════════════════════════════════════════ */
 
+      /* El catálogo son las secciones del Portal: qué hojas hay, cómo se llaman y
+         qué columnas tienen. Cambia cuando se despliega, no cuando se trabaja, así
+         que se guarda un día entero y se revalida por detrás. Es lo que permite que
+         el conmutador de secciones aparezca dibujado nada más entrar en vez de
+         después del primer viaje al servidor. */
       function cargarCatalogo() {
-        google.script.run
-          .withSuccessHandler(function (res) {
+        var abierta = false;   // la sección solo se abre una vez, con lo primero que llegue
+
+        AppRun.swr('pc-catalogo-' + PC_EMAIL, 'portalContenidoCatalogo', [PC_EMAIL], {
+          ttl: 24 * 60 * 60 * 1000,
+          accept: function (res) { return !!(res && res.status === 'ok' && (res.colecciones || []).length); },
+          onData: function (res, deCache) {
             if (!res || res.status !== 'ok') {
+              if (abierta) return;   // ya hay pantalla pintada desde la caché: no la tiramos
               pintarError((res && res.error) || 'No pudimos leer las secciones del Portal.');
               $('secNombre').textContent = 'Contenido del Portal';
               return;
             }
             pcState.colecciones = res.colecciones || [];
             if (!pcState.colecciones.length) {
-              pintarError('El catálogo llegó vacío. Avisa al equipo de Ventel.');
+              if (!abierta) pintarError('El catálogo llegó vacío. Avisa al equipo de Ventel.');
               return;
             }
+
+            // La sección abierta apuntaba a un objeto del catálogo GUARDADO. Al llegar
+            // el fresco hay que repuntarla al nuevo, o la pantalla seguiría usando el
+            // nombre, la hoja y las columnas de la definición vieja mientras el
+            // conmutador de arriba ya enseña las nuevas.
+            if (pcState.actual) {
+              var mismo = pcState.colecciones.filter(function (c) { return c.id === pcState.actual.id; })[0];
+              if (mismo) pcState.actual = mismo;
+            }
             pintarSecciones();
+
+            // Abrir sección recarga sus filas. Al llegar el catálogo fresco no se
+            // vuelve a abrir: sería un segundo esqueleto y una segunda lectura de la
+            // hoja por algo que casi nunca ha cambiado. Si de verdad cambió, el
+            // conmutador ya se acaba de repintar con las secciones nuevas.
+            if (abierta) return;
+            abierta = true;
 
             // ?sec=plantillas abre esa sección directamente (enlaces compartibles).
             // El valor lo inyecta el servidor: dentro del iframe de Apps Script,
@@ -1686,11 +1746,12 @@
             var pedida = (window.__APP__ && window.__APP__.sec) || '';
             var existe = pcState.colecciones.filter(function (c) { return c.id === pedida; }).length > 0;
             abrirSeccion(existe ? pedida : pcState.colecciones[0].id);
-          })
-          .withFailureHandler(function (err) {
+          },
+          onError: function (err) {
+            if (abierta) return;
             pintarError(err && err.message ? err.message : 'No pudimos conectar con el servidor.');
-          })
-          .portalContenidoCatalogo(PC_EMAIL);
+          }
+        });
       }
 
       function enganchar() {

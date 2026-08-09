@@ -265,6 +265,7 @@
         // Tolerancia a despliegues parciales: si el app_core cargado aún no trae
         // AppCache, la pantalla funciona igual, solo sin caché local.
         const AppCache = window.AppCache || { get: () => null, set: () => {}, remove: () => {}, ageLabel: () => '' };
+        const AppBusy = window.AppBusy || { start: () => 0, done: () => {}, until: () => () => {} };
         const QUOTES_CACHE_KEY = 'quotes-' + currentUserEmail;
         const syncStatus = document.getElementById('sync-status');
         const refreshButton = document.getElementById('refreshButton');
@@ -301,8 +302,13 @@
             }
 
             // 2. Revalidación contra el servidor (siempre).
+            // El indicador de la esquina dice que esto sigue en marcha: con la tabla
+            // ya pintada desde la caché, es la única señal de que lo que se está
+            // leyendo todavía se está comprobando.
+            const finBusy = AppBusy.until(searchTerm ? 'Buscando' : 'Consultando');
             google.script.run
                 .withSuccessHandler(response => {
+                    finBusy();
                     if (!response.success && response.message) AppMotion.toast(response.message, 'error');
                     const quotes = response.success ? (response.quotes || []) : [];
                     if (isOwnList) {
@@ -319,6 +325,7 @@
                     displayQuotes(quotes);
                 })
                 .withFailureHandler(error => {
+                    finBusy();
                     console.error("Fallo en la llamada a getQuotesForUser:", error);
                     if (cached) {
                         setSyncStatus('Sin conexión · mostrando datos guardados ' + AppCache.ageLabel(cached.at));

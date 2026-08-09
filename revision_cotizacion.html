@@ -2316,6 +2316,21 @@
                     // La decisión ya está en la hoja: el borrador local pierde sentido y
                     // se borra (lleva observaciones sobre el trabajo de otra persona).
                     olvidarBorrador();
+
+                    // Y con él, toda copia local de una lista que acaba de quedar
+                    // desfasada. El botón "Volver" lleva al panel avanzado, así que sin
+                    // esto el folio recién resuelto seguiría apareciendo en la cola: el
+                    // caso exacto en el que una caché deja de ser una optimización y pasa
+                    // a ser un dato falso. Se borra por familia porque la lista del asesor
+                    // va con SU correo, no con el de quien acaba de decidir.
+                    if (window.AppCache && AppCache.removeByPrefix) {
+                        try {
+                            AppCache.removeByPrefix('pendientes-');
+                            AppCache.removeByPrefix('sup-quotes-');
+                            AppCache.removeByPrefix('quotes-');
+                        } catch (e) {}
+                    }
+
                     estado.cerrada = true;
                     AppMotion.toast(res.message, decision === 'aprobada' ? 'ok' : 'warn');
                     if (res.avisoCorreo) AppMotion.toast(res.avisoCorreo, 'warn');
