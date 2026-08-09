@@ -1199,6 +1199,9 @@ table.ds-matrix{width:100%;border-collapse:separate;border-spacing:0;min-width:5
 ════════════════════════════════════════════════════════════ */
 .bottom-nav{display:none}
 @media(max-width:720px){
+  /* La barra de abajo ocupa los 66 px inferiores: la pastilla de estado (app_operacion)
+     lee esta medida para no sentarse encima de sus botones. */
+  :root{--op-pill-suelo:66px}
   body{padding-bottom:66px}
   .bottom-nav{position:fixed;bottom:0;left:0;right:0;z-index:100;display:flex;
     background:var(--top-bg);backdrop-filter:blur(16px);-webkit-backdrop-filter:blur(16px);
