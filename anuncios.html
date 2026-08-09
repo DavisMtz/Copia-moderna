@@ -494,6 +494,7 @@
         window.__APP__ = { baseUrl: <?!= JSON.stringify(baseUrl) ?> };
     </script>
     <?!= include('app_core'); ?>
+    <?!= include('app_guardado'); ?>
     <?!= include('app_buscar'); ?>
     <?!= include('app_icons'); ?>
     <?!= include('app_motion'); ?>
@@ -831,27 +832,29 @@
           datos: buildDatos(),
           asesor: ADV_EMAIL
         };
-        var btn = $('btnPublicar'), etiqueta = btn.textContent;
-        btn.disabled = true;
-        btn.innerHTML = '<span class="v-spinner"></span> Publicando…';
-
-        google.script.run
-          .withSuccessHandler(function(res){
-            btn.disabled = false; btn.textContent = etiqueta;
-            if (res && res.status === 'ok'){
-              if (window.AppMotion) AppMotion.toast(editando ? 'Cambios guardados.' : 'Anuncio publicado.', 'ok');
-              resetForm();
-              cargarLista(res.id, true);
-            } else {
-              if (window.AppMotion) AppMotion.toast('No se pudo publicar. ' + ((res && res.error) || 'Inténtalo de nuevo.'), 'error');
-            }
-          })
-          .withFailureHandler(function(e){
-            btn.disabled = false; btn.textContent = etiqueta;
-            console.error('publicarAnuncio:', e);
-            if (window.AppMotion) AppMotion.toast('No se pudo publicar. Revisa tu conexión e inténtalo de nuevo.', 'error');
-          })
-          .publicarAnuncio(payload);
+        /**
+         * El formulario se vacía en cuanto se pulsa y la publicación sube por detrás.
+         *
+         * Vaciarlo es seguro porque el payload es exactamente la forma que sabe leer
+         * cargarEnForm: si el servidor rechaza, el anuncio vuelve al formulario tal
+         * como estaba —texto, imagen, vigencia, formato— y no se pierde el rato que
+         * costó redactarlo. Sin esa vuelta atrás, vaciar sería tirar el trabajo a la
+         * primera de cambio, y entonces no habría que vaciar nada.
+         */
+        AppGuardado.guardar({
+          clave: 'anuncio:' + (payload.id || 'nuevo'),
+          etiqueta: editando ? 'Guardando la publicación' : 'Publicando el anuncio',
+          hecho: editando ? 'Cambios guardados.' : 'Anuncio publicado.',
+          fn: 'publicarAnuncio',
+          args: [payload],
+          // Sin id, el servidor CREA. Reintentar sería publicar el mismo anuncio dos
+          // veces en el Portal; con id, es una actualización y sí se puede repetir.
+          reintentos: payload.id ? 2 : 0,
+          valida: function(res){ return !!(res && res.status === 'ok'); },
+          optimista: function(){ resetForm(); },
+          revertir: function(){ cargarEnForm(payload); state.dirty = true; },
+          alLograr: function(res){ cargarLista(res.id, true); }
+        });
       }
 
       /* ── Formulario ───────────────────────────────────────────────────────── */
@@ -1116,31 +1119,38 @@
         Array.prototype.forEach.call(box.querySelectorAll('.anc-item'), function(el){
           previos[el.dataset.id] = el.getBoundingClientRect().top;
         });
-        var finBusy = AppBusy.until('Guardando');
-        google.script.run
-          .withSuccessHandler(function(){
+        // Una sola cola para el orden de la lista: los movimientos se escriben en el
+        // mismo orden en que se pulsaron. En paralelo, dos clics rápidos sobre la
+        // misma tarjeta se pisan y el orden guardado no es el que quedó en pantalla.
+        AppGuardado.guardar({
+          clave: 'anuncios-orden',
+          etiqueta: 'Reordenando las publicaciones',
+          hecho: 'Orden guardado',
+          silencioso: true,        // reordenar son muchos clics; basta el aviso final
+          fn: 'moverAnuncio',
+          args: [id, dir, ADV_EMAIL],
+          alLograr: function(){
             // Relectura propia (no cargarLista) porque la animación FLIP necesita
             // repintar sin el esqueleto de por medio: mide, repinta y anima el salto.
-            google.script.run.withSuccessHandler(function(res){
-              finBusy();
-              // El orden acaba de cambiar: la copia local se queda con el nuevo, o la
-              // próxima visita pintaría la lista tal como estaba antes de moverla.
-              ancGuardarLista(res);
-              renderLista(res, null, true);
-              if (!motionOK()) return;
-              Array.prototype.forEach.call(box.querySelectorAll('.anc-item'), function(el){
-                var antes = previos[el.dataset.id];
-                if (antes == null) return;
-                var delta = antes - el.getBoundingClientRect().top;
-                if (Math.abs(delta) < 2) return;
-                gsap.fromTo(el, { y: delta },
-                  { y: 0, duration:.42, ease:'power3.out', clearProps:'transform' });
-              });
-            }).withFailureHandler(function(){ finBusy(); cargarLista(null, true); })
-              .getAnunciosAdmin(ADV_EMAIL);
-          })
-          .withFailureHandler(function(){ finBusy(); cargarLista(null, true); })
-          .moverAnuncio(id, dir, ADV_EMAIL);
+            AppRun.call('getAnunciosAdmin', [ADV_EMAIL], { key: 'anc-flip:' + Date.now(), busy: false })
+              .then(function(res){
+                // El orden acaba de cambiar: la copia local se queda con el nuevo, o la
+                // próxima visita pintaría la lista tal como estaba antes de moverla.
+                ancGuardarLista(res);
+                renderLista(res, null, true);
+                if (!motionOK()) return;
+                Array.prototype.forEach.call(box.querySelectorAll('.anc-item'), function(el){
+                  var antes = previos[el.dataset.id];
+                  if (antes == null) return;
+                  var delta = antes - el.getBoundingClientRect().top;
+                  if (Math.abs(delta) < 2) return;
+                  gsap.fromTo(el, { y: delta },
+                    { y: 0, duration:.42, ease:'power3.out', clearProps:'transform' });
+                });
+              }, function(){ cargarLista(null, true); });
+          },
+          revertir: function(){ cargarLista(null, true); }
+        });
       }
 
       /* ── Modal de confirmación (sustituye a confirm()) ────────────────────── */
@@ -1345,10 +1355,28 @@
           } else if (act === 'up' || act === 'down'){
             mover(id, act);
           } else if (act === 'toggle'){
-            google.script.run
-              .withSuccessHandler(function(){ cargarLista(id, true); })
-              .withFailureHandler(function(){ cargarLista(null, true); })
-              .toggleAnuncio(id, b.dataset.on !== '1', ADV_EMAIL);
+            // El interruptor cambia en la misma pulsación. Encender y apagar anuncios
+            // es lo que más se toca en esta pantalla y lo que menos merece una espera:
+            // es un sí/no que el servidor va a aceptar prácticamente siempre.
+            var encender = b.dataset.on !== '1';
+            var an = anuncios[id];
+            AppGuardado.guardar({
+              clave: 'anuncio:' + id,
+              etiqueta: (encender ? 'Encendiendo «' : 'Apagando «') + (an ? tituloDe(an) : id) + '»',
+              hecho: 'Publicación ' + (encender ? 'encendida' : 'apagada'),
+              fn: 'toggleAnuncio',
+              args: [id, encender, ADV_EMAIL],
+              optimista: function(){
+                if (an) an.activo = encender;
+                b.dataset.on = encender ? '1' : '0';
+                pintarLista(id, true);
+              },
+              revertir: function(){
+                if (an) an.activo = !encender;
+                cargarLista(null, true);
+              },
+              alLograr: function(){ cargarLista(id, true); }
+            });
           } else if (act === 'del'){
             var t = anuncios[id] ? tituloDe(anuncios[id]) : '';
             abrirConfirm({
@@ -1356,14 +1384,28 @@
               texto: 'Se elimina de la hoja Anuncios y desaparece del portal. Esta acción no se puede deshacer.',
               ok: 'Sí, borrar'
             }, function(){
-              google.script.run
-                .withSuccessHandler(function(){
+              var copia = anuncios[id];
+              var pos = listaActual.indexOf(copia);
+              AppGuardado.guardar({
+                clave: 'anuncio:' + id,
+                etiqueta: 'Borrando «' + t + '»',
+                hecho: 'Publicación borrada.',
+                fn: 'eliminarAnuncio',
+                args: [id, ADV_EMAIL],
+                // Repetir un borrado contestaría "no existe": un error de algo que salió bien.
+                reintentos: 0,
+                optimista: function(){
+                  if (pos > -1) listaActual.splice(pos, 1);
+                  delete anuncios[id];
                   if (state.editando === id) resetForm();
-                  cargarLista(null, true);
-                  if (window.AppMotion) AppMotion.toast('Publicación borrada.', 'ok');
-                })
-                .withFailureHandler(function(){ cargarLista(null, true); })
-                .eliminarAnuncio(id, ADV_EMAIL);
+                  renderFiltros(); pintarLista(null, true);
+                },
+                revertir: function(){
+                  if (pos > -1 && copia){ listaActual.splice(pos, 0, copia); anuncios[id] = copia; }
+                  renderFiltros(); pintarLista(null, true);
+                },
+                alLograr: function(){ cargarLista(null, true); }
+              });
             });
           }
         });

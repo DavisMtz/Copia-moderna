@@ -374,6 +374,7 @@
         window.__APP__ = { baseUrl: <?!= JSON.stringify(baseUrl) ?>, sec: <?!= JSON.stringify(sec) ?> };
     </script>
     <?!= include('app_core'); ?>
+    <?!= include('app_guardado'); ?>
     <?!= include('app_buscar'); ?>
     <?!= include('app_icons'); ?>
     <?!= include('app_motion'); ?>
@@ -526,12 +527,13 @@
         $('conteo').textContent = '';
 
         // Deep link: la sección abierta viaja en la URL para poder compartirla y para
-        // que recargar no devuelva siempre a la primera.
-        try {
-          if (window.google && google.script && google.script.history) {
-            google.script.history.replace(null, { page: 'portal_contenido', sec: col.id });
-          }
-        } catch (e) {}
+        // que recargar no devuelva siempre a la primera. Pasa por AppUrl —que sabe
+        // limpiar los parámetros vacíos y hablar con la ventana de arriba— en vez de
+        // llamar a google.script.history a pelo, para que todas las pantallas escriban
+        // la URL de la misma manera.
+        if (window.AppUrl && AppUrl.actualizar) {
+          AppUrl.actualizar({ page: 'portal_contenido', sec: col.id }, null, true);
+        }
 
         cargarFilas();
       }
@@ -943,9 +945,28 @@
         return ok;
       }
 
+      /**
+       * Vuelve a abrir el editor con lo que la persona había escrito.
+       *
+       * Es la mitad que faltaba del guardado en segundo plano: si el panel se cierra
+       * al instante y el servidor rechaza el contenido después, el trabajo no puede
+       * evaporarse. Se reabre con el mismo texto y con el error señalado en el campo
+       * que lo tiene, que es donde se puede corregir.
+       */
+      function reabrirConDatos(id, datos, errores) {
+        abrirEditor(id || '');
+        Object.keys(datos || {}).forEach(function (k) {
+          var el = $('f-' + k);
+          if (el && !el.disabled) el.value = datos[k];
+        });
+        Object.keys(errores || {}).forEach(function (k) { marcarError(k, errores[k]); });
+        pcState.dirty = true;
+        if (window.AppMotion) AppMotion.shake($('drCampos'));
+      }
+
       function guardar() {
         var col = pcState.actual;
-        if (!col || pcState.ocupado) return;
+        if (!col) return;
         if (!validarLocal()) return;
 
         var datos = {};
@@ -954,39 +975,37 @@
           if (el && !el.disabled) datos[campo.id] = el.value;
         });
 
-        var btn = $('drGuardar');
-        var textoOriginal = btn.textContent;
-        btn.disabled = true; btn.textContent = 'Guardando…';
-        pcState.ocupado = true;
+        var id = pcState.editando || '';
+        var fila = id ? filaPorId(id) : null;
+        var valoresAntes = fila ? JSON.parse(JSON.stringify(fila.valores || {})) : null;
 
-        google.script.run
-          .withSuccessHandler(function (res) {
-            pcState.ocupado = false;
-            btn.disabled = false; btn.textContent = textoOriginal;
+        AppGuardado.guardar({
+          clave: 'pc:' + col.id + ':' + (id || 'nueva'),
+          etiqueta: (id ? 'Guardando «' : 'Publicando «') + tituloDe(col, { valores: datos }) + '»',
+          hecho: id ? 'Cambios guardados.' : 'Publicado. Ya está en el Portal.',
+          fn: 'portalContenidoGuardar',
+          args: [{ email: PC_EMAIL, coleccion: col.id, id: id, datos: datos }],
+          valida: function (res) { return !!(res && res.status === 'ok'); },
 
-            if (!res || res.status !== 'ok') {
-              if (res && res.errores) {
-                Object.keys(res.errores).forEach(function (k) { marcarError(k, res.errores[k]); });
-              }
-              toast((res && res.error) || 'No pudimos guardar.', 'error');
-              return;
-            }
+          // El panel se cierra YA. Es lo único que de verdad estorbaba: escribir cinco
+          // tarjetas seguidas eran cinco esperas de dos segundos mirando un botón gris.
+          // Al editar, además, la fila de la lista ya enseña el texto nuevo.
+          optimista: function () {
             pcState.dirty = false;
-            (res.avisos || []).forEach(function (a) { toast(a, 'warn'); });
-            toast(res.nueva ? 'Publicado. Ya está en el Portal.' : 'Cambios guardados.', 'ok');
+            if (fila) { fila.valores = datos; pintarLista(); }
             cerrarDrawer();
+          },
+          revertir: function (err) {
+            if (fila && valoresAntes) { fila.valores = valoresAntes; pintarLista(); }
+            reabrirConDatos(id, datos, (err && err.errores) || null);
+          },
+          alLograr: function (res) {
+            (res.avisos || []).forEach(function (a) { toast(a, 'warn'); });
             $('lista').innerHTML = esqueleto();
             cargarFilas(true);
             refrescarConteo(res.nueva ? 1 : 0);
-          })
-          .withFailureHandler(function (err) {
-            pcState.ocupado = false;
-            btn.disabled = false; btn.textContent = textoOriginal;
-            toast(err && err.message ? err.message : 'No pudimos conectar con el servidor.', 'error');
-          })
-          .portalContenidoGuardar({
-            email: PC_EMAIL, coleccion: col.id, id: pcState.editando || '', datos: datos
-          });
+          }
+        });
       }
 
       /** Ajusta el contador del conmutador sin volver a pedir el catálogo entero. */
@@ -1080,31 +1099,36 @@
 
       /* ══ ACCIONES DE FILA ═════════════════════════════════════════════════ */
 
+      /**
+       * Duplicar CREA una fila, así que no se reintenta: si la respuesta se perdiera
+       * de vuelta, el segundo intento dejaría dos copias en la hoja y nadie sabría
+       * cuál borrar. Tampoco se pinta antes de tiempo —el identificador lo inventa el
+       * servidor—, pero la pantalla ya no se bloquea mientras tanto.
+       */
       function duplicar(id) {
         var col = pcState.actual;
-        if (!col || pcState.ocupado) return;
-        pcState.ocupado = true;
+        if (!col) return;
+        var fila = filaPorId(id);
 
-        google.script.run
-          .withSuccessHandler(function (res) {
-            pcState.ocupado = false;
-            if (!res || res.status !== 'ok') { toast((res && res.error) || 'No pudimos duplicar.', 'error'); return; }
-            toast('Copia creada. Edítala antes de que el equipo la vea repetida.', 'ok');
+        AppGuardado.guardar({
+          clave: 'pc:' + col.id,
+          etiqueta: 'Duplicando «' + (fila ? tituloDe(col, fila) : 'la entrada') + '»',
+          hecho: 'Copia creada. Edítala antes de que el equipo la vea repetida.',
+          fn: 'portalContenidoDuplicar',
+          args: [{ email: PC_EMAIL, coleccion: col.id, id: id }],
+          reintentos: 0,
+          valida: function (res) { return !!(res && res.status === 'ok'); },
+          alLograr: function () {
             $('lista').innerHTML = esqueleto();
             cargarFilas(true);
             refrescarConteo(1);
-          })
-          .withFailureHandler(function () {
-            pcState.ocupado = false;
-            toast('No pudimos conectar con el servidor.', 'error');
-          })
-          .portalContenidoDuplicar({ email: PC_EMAIL, coleccion: col.id, id: id });
+          }
+        });
       }
 
       function mover(id, dir) {
         var col = pcState.actual;
-        if (!col || pcState.ocupado) return;
-        pcState.ocupado = true;
+        if (!col) return;
 
         // Movimiento optimista: la fila se desplaza en pantalla al instante y el
         // servidor confirma. Esperar la ida y vuelta para cada clic hace que
@@ -1132,22 +1156,25 @@
           }
         }
 
-        google.script.run
-          .withSuccessHandler(function (res) {
-            pcState.ocupado = false;
-            if (!res || res.status !== 'ok') {
-              toast((res && res.error) || 'No pudimos cambiar el orden.', 'error');
-              $('lista').innerHTML = esqueleto();
-              cargarFilas(true);   // el servidor manda: se recarga el orden real
-            }
-          })
-          .withFailureHandler(function () {
-            pcState.ocupado = false;
-            toast('No pudimos conectar con el servidor.', 'error');
+        // Una sola cola por colección: los movimientos suben EN ORDEN. Mandarlos en
+        // paralelo era la forma segura de que "subir dos veces" acabara escrito como
+        // "subir una", porque la segunda escritura salía de la posición que la primera
+        // todavía no había guardado.
+        AppGuardado.guardar({
+          clave: 'pc-orden:' + col.id,
+          etiqueta: 'Reordenando ' + col.nombre,
+          hecho: 'Orden guardado',
+          fn: 'portalContenidoMover',
+          args: [{ email: PC_EMAIL, coleccion: col.id, id: id, dir: dir }],
+          // Reordenar diez tarjetas son diez avisos idénticos: el aviso lo da la
+          // pastilla de "todo guardado" cuando la cola se vacía.
+          silencioso: true,
+          valida: function (res) { return !!(res && res.status === 'ok'); },
+          revertir: function () {
             $('lista').innerHTML = esqueleto();
-            cargarFilas(true);
-          })
-          .portalContenidoMover({ email: PC_EMAIL, coleccion: col.id, id: id, dir: dir });
+            cargarFilas(true);   // el servidor manda: se recarga el orden real
+          }
+        });
       }
 
       function pedirBorrado(id) {
@@ -1164,23 +1191,33 @@
 
       function borrar(id) {
         var col = pcState.actual;
-        if (!col || pcState.ocupado) return;
-        pcState.ocupado = true;
+        if (!col) return;
 
-        google.script.run
-          .withSuccessHandler(function (res) {
-            pcState.ocupado = false;
-            if (!res || res.status !== 'ok') { toast((res && res.error) || 'No pudimos borrar.', 'error'); return; }
-            toast('Entrada borrada.', 'ok');
+        var fila = filaPorId(id);
+        var pos = pcState.filas.indexOf(fila);
+        var titulo = fila ? tituloDe(col, fila) : 'la entrada';
+
+        AppGuardado.guardar({
+          clave: 'pc:' + col.id + ':' + id,
+          etiqueta: 'Borrando «' + titulo + '»',
+          hecho: '«' + titulo + '» se borró.',
+          fn: 'portalContenidoEliminar',
+          args: [{ email: PC_EMAIL, coleccion: col.id, id: id }],
+          // Borrar es idempotente en la hoja, pero un segundo intento contestaría "no
+          // existe" y eso llegaría a pantalla como un error de algo que sí funcionó.
+          reintentos: 0,
+          valida: function (res) { return !!(res && res.status === 'ok'); },
+          optimista: function () {
+            if (pos > -1) { pcState.filas.splice(pos, 1); pintarLista(); refrescarConteo(-1); }
+          },
+          revertir: function () {
+            if (pos > -1 && fila) { pcState.filas.splice(pos, 0, fila); pintarLista(); refrescarConteo(1); }
+          },
+          alLograr: function () {
             $('lista').innerHTML = esqueleto();
             cargarFilas(true);
-            refrescarConteo(-1);
-          })
-          .withFailureHandler(function () {
-            pcState.ocupado = false;
-            toast('No pudimos conectar con el servidor.', 'error');
-          })
-          .portalContenidoEliminar({ email: PC_EMAIL, coleccion: col.id, id: id });
+          }
+        });
       }
 
       /* ══ MODO RÁPIDO ══════════════════════════════════════════════════════
