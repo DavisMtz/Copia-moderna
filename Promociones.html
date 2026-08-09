@@ -15,62 +15,95 @@
 <?!= include('ViewPrefsPartial') ?>
 <style>
 
-/* ════════════════════════════════════════════
-   TOKENS · rosa sólido Liverpool (3 temas)
-════════════════════════════════════════════ */
+/* ════════════════════════════════════════════════════════════════════════════
+   TOKENS · rosa Liverpool (3 temas)
+
+   Criterio del sistema visual (rediseño 2026):
+   · El rosa es ACENTO, no relleno. Aparece en el dato que importa (el descuento,
+     el filtro activo, el foco) y en nada más. Si todo destaca, no destaca nada.
+   · Un solo mecanismo para separar superficies: borde de 1px. Nunca borde grueso
+     + sombra fuerte + fondo distinto a la vez.
+   · Sombras neutras y en dos capas. Ninguna sombra de color: el "neón" abarata.
+   · Escalas cerradas — 4px de espaciado, ~1.22 de tipografía, 4 radios. Ningún
+     valor suelto fuera de estas escalas.
+════════════════════════════════════════════════════════════════════════════ */
 :root{
-  /* Escala de Espaciado UX */
-  --s1: 0.25rem; --s2: 0.5rem; --s3: 0.75rem; --s4: 1rem;
-  --s5: 1.5rem;  --s6: 2rem;   --s7: 3rem;    --s8: 4rem;
-  
+  /* ── Espaciado · escala de 4px ── */
+  --s1:.25rem; --s2:.5rem;  --s3:.75rem; --s4:1rem;
+  --s5:1.5rem; --s6:2rem;   --s7:3rem;   --s8:4rem;
+
+  /* ── Marca ── */
   --brand:#E10098; --brand-deep:#A8006F; --brand-bright:#EE2BAB;
-  --brand-tint:#FDE7F4; --brand-soft:#FBD0E9;
-  --app-bg:#EEF1F5; --content-bg:#F7F9FB; --surface:#FFFFFF; --surface-2:#F4F7FA;
-  --ink:#1B2330; --ink-soft:#5C6B7E; --ink-faint:#94A1B2;
-  --line:#E4E9F0; --line-soft:#EEF2F7;
+  --brand-tint:#FCEBF5; --brand-soft:#F4C4E1;
+
+  /* ── Neutros ── */
+  --app-bg:#EDEFF3; --content-bg:#F8F9FB; --surface:#FFFFFF; --surface-2:#F4F6F9;
+  --ink:#141A22; --ink-soft:#5A6474; --ink-faint:#8B95A5;
+  --line:#E5E8EE; --line-soft:#EFF1F5;
+
+  /* ── Barra lateral · se conserva tal cual estaba ── */
   --side-bg:#E10098;
   --side-ink:#FFFFFF; --side-ink-soft:rgba(255,255,255,.88); --side-faint:rgba(255,255,255,.66);
   --side-active-bg:rgba(255,255,255,.22); --side-active-ink:#FFFFFF; --side-line:rgba(255,255,255,.14);
   --side-logo-filter:brightness(0) invert(1);
-  --top-bg:rgba(255,255,255,.82); --top-border:var(--line);
-  --ok:#0E7A4F; --ok-bg:#E5F5EE; --warn:#B45309; --warn-bg:#FDF1E0;
-  --alert:#C81E3C; --alert-bg:#FDE8EC; --info:#1D4ED8; --info-bg:#EAF0FE;
+  --top-bg:rgba(255,255,255,.78); --top-border:var(--line);
+
+  /* ── Semánticos ── */
+  --ok:#0E7A4F; --ok-bg:#E8F4EE; --warn:#B45309; --warn-bg:#FBF0E2;
+  --alert:#C81E3C; --alert-bg:#FBE9ED; --info:#1D4ED8; --info-bg:#EBF0FD;
+
+  /* Alias históricos: hay reglas y plantillas que aún los nombran. */
   --rosa:var(--brand); --rosa-deep:var(--brand-deep); --rosa-tint:var(--brand-tint); --rosa-soft:var(--brand-soft);
   --paper:var(--content-bg);
-  --rad:12px; --rad-md:10px; --rad-sm:8px; --rad-lg:14px;
-  --sh-xs:0 1px 2px rgba(27,35,48,.06);
-  --sh-sm:0 2px 8px -2px rgba(27,35,48,.08), 0 1px 2px rgba(27,35,48,.05);
-  --sh-md:0 18px 40px -16px rgba(27,35,48,.22);
-  --sh-lg:0 30px 60px -20px rgba(27,35,48,.25);
-  --sh-rosa:0 6px 14px -7px rgba(225,0,152,.5);
-  --sh-rosa-lg:0 12px 24px -8px rgba(225,0,152,.55);
-  --ring:0 0 0 4px var(--brand-tint);
-  --tr:all .15s cubic-bezier(.32,.72,0,1);
+
+  /* ── Radios · cuatro, ni uno más ── */
+  --rad-sm:8px; --rad-md:12px; --rad:14px; --rad-lg:18px; --rad-full:999px;
+
+  /* ── Sombras · neutras, en dos capas, casi imperceptibles ── */
+  --sh-xs:0 1px 2px rgba(20,26,34,.04);
+  --sh-sm:0 1px 2px rgba(20,26,34,.04), 0 2px 6px -2px rgba(20,26,34,.06);
+  --sh-md:0 4px 10px -3px rgba(20,26,34,.07), 0 14px 30px -14px rgba(20,26,34,.16);
+  --sh-lg:0 8px 20px -6px rgba(20,26,34,.09), 0 30px 60px -26px rgba(20,26,34,.22);
+  /* Antes eran resplandores rosas. Ahora son sombras normales: el acento se
+     transmite con color y contraste, no con halo. */
+  --sh-rosa:var(--sh-xs);
+  --sh-rosa-lg:var(--sh-sm);
+  --ring:0 0 0 3px color-mix(in srgb, var(--brand) 20%, transparent);
+
+  /* ── Movimiento · entra rápido y frena ── */
+  --ease:cubic-bezier(.2,.8,.2,1);
+  --dur-1:140ms; --dur-2:240ms; --dur-3:320ms;
+  --tr:all var(--dur-1) var(--ease);
   --app-glow:none;
-  --fs-2xs:.68rem; --fs-xs:.75rem; --fs-sm:.85rem; --fs-md:.92rem;
-  --fs-base:1rem; --fs-lg:1.15rem; --fs-xl:1.45rem; --fs-2xl:1.9rem;
-  --card-pad:1.4rem; --grid-gap:1.3rem;
+
+  /* ── Tipografía · escala ~1.22 ── */
+  --fs-2xs:.6875rem; --fs-xs:.75rem;   --fs-sm:.8125rem; --fs-md:.9375rem;
+  --fs-base:1rem;    --fs-lg:1.1875rem; --fs-xl:1.5rem;  --fs-2xl:2rem; --fs-3xl:2.5rem;
+
+  --card-pad:1.4rem; --grid-gap:1.25rem;
   --f-display:'Archivo',sans-serif; --f-body:'Instrument Sans',system-ui,sans-serif; --f-mono:'JetBrains Mono',monospace;
 }
 [data-theme="slate"]{
-  --app-bg:#EEF1F5; --content-bg:#F7F9FB; --surface:#FFFFFF; --surface-2:#F4F7FA;
-  --ink:#1B2330; --ink-soft:#5C6B7E; --ink-faint:#94A1B2; --line:#E4E9F0; --line-soft:#EEF2F7;
-  --top-bg:rgba(255,255,255,.85);
-  --app-glow:radial-gradient(900px 420px at 90% -10%, rgba(225,0,152,.05), transparent 60%);
-  --sh-md:0 14px 34px -16px rgba(27,35,48,.22); --ring:0 0 0 4px rgba(225,0,152,.16);
+  --app-bg:#ECEFF4; --content-bg:#F7F9FB; --surface:#FFFFFF; --surface-2:#F3F5F9;
+  --ink:#141A22; --ink-soft:#5A6474; --ink-faint:#8B95A5; --line:#E3E7ED; --line-soft:#EEF1F5;
+  --top-bg:rgba(255,255,255,.82);
+  --app-glow:radial-gradient(1100px 480px at 92% -12%, rgba(225,0,152,.045), transparent 62%);
 }
 [data-theme="carbon"]{
-  --app-bg:#0E1014; --content-bg:#15181E; --surface:#1C2027; --surface-2:#22272F;
-  --ink:#F1EDEF; --ink-soft:#A7A2AC; --ink-faint:#6F6A73; --line:#2C313A; --line-soft:#262B33;
-  --brand-tint:rgba(225,0,152,.16); --brand-soft:rgba(225,0,152,.34);
-  --top-bg:rgba(21,24,30,.82);
-  --ok-bg:rgba(14,122,79,.18); --warn-bg:rgba(180,83,9,.18); --alert-bg:rgba(200,30,60,.18); --info-bg:rgba(29,78,216,.20);
+  --app-bg:#0D0F13; --content-bg:#14171C; --surface:#1A1E25; --surface-2:#20252D;
+  --ink:#F2EFF1; --ink-soft:#A8A3AD; --ink-faint:#736E78; --line:#2A2F38; --line-soft:#232830;
+  --brand-tint:rgba(225,0,152,.14); --brand-soft:rgba(225,0,152,.32);
+  --top-bg:rgba(20,23,28,.78);
+  --ok-bg:rgba(14,122,79,.16); --warn-bg:rgba(180,83,9,.16);
+  --alert-bg:rgba(200,30,60,.16); --info-bg:rgba(29,78,216,.18);
   --app-glow:
-    radial-gradient(1000px 460px at 92% -8%, rgba(225,0,152,.14), transparent 60%),
-    radial-gradient(760px 400px at -6% 30%, rgba(109,40,217,.10), transparent 55%);
-  --sh-xs:0 1px 2px rgba(0,0,0,.4); --sh-sm:0 2px 10px -2px rgba(0,0,0,.5);
-  --sh-md:0 16px 40px -18px rgba(0,0,0,.7); --sh-lg:0 30px 60px -24px rgba(0,0,0,.75);
-  --ring:0 0 0 4px rgba(225,0,152,.22);
+    radial-gradient(1000px 460px at 92% -8%, rgba(225,0,152,.11), transparent 60%),
+    radial-gradient(760px 400px at -6% 30%, rgba(109,40,217,.07), transparent 55%);
+  --sh-xs:0 1px 2px rgba(0,0,0,.36);
+  --sh-sm:0 1px 2px rgba(0,0,0,.34), 0 2px 8px -2px rgba(0,0,0,.42);
+  --sh-md:0 4px 12px -4px rgba(0,0,0,.5), 0 16px 36px -18px rgba(0,0,0,.66);
+  --sh-lg:0 10px 24px -8px rgba(0,0,0,.55), 0 32px 64px -28px rgba(0,0,0,.72);
+  --ring:0 0 0 3px rgba(225,0,152,.28);
 }
 
 /* ════════════════════════════════════════════ BASE + APP SHELL ════════════════════════════════════════════ */
@@ -99,8 +132,10 @@ html[data-textscale="md"]{font-size:16px}
 html[data-textscale="lg"]{font-size:17.5px}
 html[data-textscale="xl"]{font-size:19px}
 html[data-density="compact"] .promos-grid,
-html[data-density="compact"] .vig-group-list{gap:.6rem}
-html[data-density="compact"] .promo-card{padding:.85rem .9rem}
+html[data-density="compact"] .vig-group-list{gap:.7rem}
+html[data-density="compact"] .promo-card{--card-pad:1rem}
+html[data-density="compact"] .ag-tabla th,
+html[data-density="compact"] .ag-tabla td{padding-block:.55rem}
 html[data-contrast="high"]{--line:#0c1420;--line-soft:#22303f;--ink-soft:#2b3645;--ink-faint:#475160}
 html[data-contrast="high"][data-theme="carbon"]{--line:#7b8696;--line-soft:#5c6677;--ink-soft:#d6d2da;--ink-faint:#b4afbb}
 html[data-contrast="high"] .promo-card{border-width:2px}
@@ -196,21 +231,73 @@ html[data-contrast="high"] :focus-visible{outline:3px solid var(--brand);outline
 .theme-btn:hover{color:var(--side-ink);background:rgba(255,255,255,.07)}
 .theme-btn.active{background:rgba(255,255,255,.16);color:#fff}
 .theme-btn.active .sw{border-color:#fff;box-shadow:0 0 0 2px rgba(255,255,255,.25)}
+/* ════════════════════════════════════════════════════════════════════════════
+   ESTRUCTURA DEL CONTENIDO
+
+   Una sola medida para todo lo que no es la barra lateral: aviso, encabezado,
+   pestañas y vistas comparten ancho y sangrado, así que la página entera cae
+   sobre las mismas dos líneas verticales en vez de sobre cinco distintas.
+════════════════════════════════════════════════════════════════════════════ */
 .app-main{flex:1;min-width:0;display:flex;flex-direction:column;background:var(--content-bg)}
-.topbar{position:sticky;top:0;z-index:40;display:flex;align-items:center;gap:1rem;padding:.85rem 1.6rem;background:var(--top-bg);backdrop-filter:blur(16px);-webkit-backdrop-filter:blur(16px);border-bottom:1px solid var(--top-border)}
-.menu-btn{display:none;width:42px;height:42px;border-radius:11px;border:1px solid var(--line);background:var(--surface);cursor:pointer;align-items:center;justify-content:center;color:var(--ink);flex-shrink:0}
-.menu-btn .ic{width:20px;height:20px}
-.top-title{display:flex;flex-direction:column;line-height:1.1;min-width:0}
-.top-title .tt-eyebrow{font-size:.6rem;font-weight:800;letter-spacing:.18em;text-transform:uppercase;color:var(--ink-faint)}
-.top-title .tt-name{font-family:var(--f-display);font-weight:800;font-stretch:112%;font-size:1.05rem;color:var(--ink)}
-.topbar .spacer{flex:1}
-.back-link{display:inline-flex;align-items:center;gap:.4rem;flex-shrink:0;color:var(--ink-soft);font-size:var(--fs-xs);font-weight:700;border:1.5px solid var(--line);background:var(--surface);border-radius:999px;padding:.5rem 1rem;transition:var(--tr);box-shadow:var(--sh-xs)}
-.back-link:hover{border-color:var(--brand-soft);color:var(--brand);background:var(--brand-tint)}
-.clock{display:flex;align-items:center;gap:.55rem;background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:.42rem .85rem;flex-shrink:0;box-shadow:var(--sh-xs)}
-.clock .c-time{font-family:var(--f-mono);font-weight:700;font-size:.92rem;letter-spacing:.02em;color:var(--ink);font-variant-numeric:tabular-nums}
-.clock .c-date{font-size:.7rem;font-weight:600;color:var(--ink-soft);white-space:nowrap}
-@keyframes beat{0%,100%{opacity:1;transform:scale(1)}50%{opacity:.4;transform:scale(.7)}}
 main{flex:1}
+
+.preview-banner,.date-hero,.tabs-wrap,.view-section{
+  width:100%;max-width:1180px;margin-inline:auto;
+  padding-inline:clamp(1.1rem,3.6vw,2rem);
+}
+
+/* ── Barra superior ──────────────────────────────────────────────────────── */
+.topbar{
+  position:sticky;top:0;z-index:40;
+  display:flex;align-items:center;gap:var(--s4);
+  padding:.7rem clamp(1.1rem,3.6vw,2rem);
+  background:var(--top-bg);
+  backdrop-filter:blur(14px) saturate(1.6);-webkit-backdrop-filter:blur(14px) saturate(1.6);
+  border-bottom:1px solid var(--top-border);
+}
+.menu-btn{
+  display:none;width:40px;height:40px;flex-shrink:0;
+  border:1px solid var(--line);border-radius:var(--rad-sm);
+  background:var(--surface);color:var(--ink);cursor:pointer;
+  align-items:center;justify-content:center;transition:var(--tr);
+}
+.menu-btn:hover{background:var(--surface-2);border-color:var(--ink-faint)}
+.menu-btn .ic{width:19px;height:19px}
+.top-title{display:flex;flex-direction:column;gap:.12rem;line-height:1.1;min-width:0}
+.top-title .tt-eyebrow{
+  font-size:var(--fs-2xs);font-weight:700;letter-spacing:.16em;
+  text-transform:uppercase;color:var(--ink-faint);
+}
+.top-title .tt-name{
+  font-family:var(--f-display);font-weight:700;font-stretch:105%;
+  font-size:var(--fs-base);letter-spacing:-.015em;color:var(--ink);
+}
+.topbar .spacer{flex:1}
+.back-link{
+  display:inline-flex;align-items:center;gap:.45rem;flex-shrink:0;
+  padding:.45rem .9rem;border:1px solid var(--line);border-radius:var(--rad-full);
+  background:var(--surface);color:var(--ink-soft);
+  font-size:var(--fs-sm);font-weight:600;transition:var(--tr);
+}
+.back-link .ic{width:15px;height:15px;transition:transform var(--dur-2) var(--ease)}
+.back-link:hover{border-color:var(--brand-soft);background:var(--brand-tint);color:var(--brand-deep)}
+.back-link:hover .ic{transform:translateX(-2px)}
+.clock{
+  display:flex;align-items:baseline;gap:.5rem;flex-shrink:0;
+  padding-left:var(--s4);border-left:1px solid var(--line);
+}
+.clock .c-time{
+  font-family:var(--f-mono);font-weight:500;font-size:var(--fs-md);
+  color:var(--ink);font-variant-numeric:tabular-nums;letter-spacing:-.02em;
+}
+.clock .c-date{font-size:var(--fs-xs);font-weight:500;color:var(--ink-faint);white-space:nowrap}
+
+@keyframes beat{0%,100%{opacity:1;transform:scale(1)}50%{opacity:.35;transform:scale(.7)}}
+@keyframes spin{to{transform:rotate(360deg)}}
+
+/* ── Barra lateral en pantalla estrecha ───────────────────────────────────
+   El deslizamiento del menú izquierdo se conserva EXACTAMENTE como estaba:
+   mismo ancho, misma transición y mismo velo. No se toca. */
 .scrim{display:none}
 @media(max-width:1024px){
   .sidebar{position:fixed;top:0;left:0;bottom:0;width:270px;height:100vh;overflow-y:auto;transform:translateX(-100%);transition:transform .3s ease;z-index:120}
@@ -219,341 +306,590 @@ main{flex:1}
   .scrim{display:block;position:fixed;inset:0;background:rgba(36,28,34,.5);backdrop-filter:blur(2px);z-index:110;opacity:0;pointer-events:none;transition:opacity .3s}
   .scrim.show{opacity:1;pointer-events:auto}
 }
-@media(max-width:640px){ .top-title{display:none} .topbar{padding:.7rem 1rem;gap:.6rem} }
 
+/* ── Aviso de vista de ejemplo ───────────────────────────────────────────── */
+.preview-banner{display:none;padding-top:var(--s4)}
+.preview-banner span{
+  display:inline-flex;align-items:center;gap:.5rem;
+  padding:.45rem .8rem;border-radius:var(--rad-sm);
+  background:var(--warn-bg);color:var(--warn);
+  border:1px solid color-mix(in srgb,var(--warn) 22%,transparent);
+  font-size:var(--fs-sm);font-weight:600;
+}
+.preview-banner .ic{width:15px;height:15px;flex:none}
 
-/* ════════════════════════════════════════════
-   HERO
-════════════════════════════════════════════ */
+/* ════════════════════════════════════════════════════════════════════════════
+   ENCABEZADO DE PÁGINA
+
+   Antes era un hero editorial: fecha enorme y tres tarjetas con barra rosa
+   arriba compitiendo con ella. Ahora la fecha manda y las tres cifras viven en
+   un solo panel dividido por filetes, así que se leen como un grupo de datos
+   —que es lo que son— y no como tres botones.
+════════════════════════════════════════════════════════════════════════════ */
 .date-hero{
-  max-width:1200px;margin:0 auto;
-  padding:2.6rem 1.4rem 2.2rem;
-  display:grid;grid-template-columns:1.25fr 1fr;gap:2rem;align-items:end;
+  display:grid;grid-template-columns:minmax(0,1fr) auto;
+  gap:var(--s6) var(--s7);align-items:end;
+  padding-top:clamp(2rem,4.6vw,3.25rem);
+  padding-bottom:clamp(1.6rem,3.2vw,2.25rem);
 }
 .hero-eyebrow{
-  display:inline-flex;align-items:center;gap:.5rem;
-  font-size:var(--fs-xs);font-weight:700;letter-spacing:.2em;text-transform:uppercase;
-  color:var(--rosa-deep);margin-bottom:.65rem;
+  display:inline-flex;align-items:center;gap:.5rem;margin-bottom:.7rem;
+  font-size:var(--fs-2xs);font-weight:700;letter-spacing:.16em;
+  text-transform:uppercase;color:var(--ink-faint);
 }
-.hero-eyebrow .dot{width:7px;height:7px;border-radius:50%;background:var(--rosa)}
+.hero-eyebrow .dot{width:6px;height:6px;border-radius:50%;background:var(--brand);flex:none}
 .date-hero h1{
-  font-family:var(--f-display);font-weight:900;font-stretch:104%;
-  font-size:clamp(2.6rem,6vw,4.4rem);line-height:.98;letter-spacing:-.02em;
-  text-transform:capitalize;
+  font-family:var(--f-display);font-weight:800;font-stretch:100%;
+  font-size:clamp(2.25rem,4.8vw,3.4rem);line-height:1.02;
+  letter-spacing:-.035em;color:var(--ink);
 }
-.date-hero h1 .day-num{color:var(--rosa)}
-.hero-sub{font-size:var(--fs-lg);color:var(--ink-soft);font-weight:500;margin-top:.45rem}
-.hero-sync{display:inline-flex;align-items:center;gap:.55rem;margin-top:1rem;padding:.34rem .42rem .34rem .8rem;background:var(--surface);border:1px solid var(--line);border-radius:999px;box-shadow:var(--sh-xs)}
-.hero-sync .hs-dot{width:7px;height:7px;border-radius:50%;background:var(--ok);flex-shrink:0}
+.date-hero h1 .day-num{color:var(--brand)}
+.hero-sub{font-size:var(--fs-lg);color:var(--ink-soft);font-weight:400;margin-top:.35rem}
+.hero-sync{
+  display:inline-flex;align-items:center;gap:.5rem;margin-top:var(--s5);
+  padding:.3rem .35rem .3rem .75rem;
+  background:var(--surface);border:1px solid var(--line);
+  border-radius:var(--rad-full);box-shadow:var(--sh-xs);
+}
+.hero-sync .hs-dot{width:6px;height:6px;border-radius:50%;background:var(--ok);flex:none}
 .hero-sync.is-stale .hs-dot{background:var(--warn)}
 .hero-sync.is-loading .hs-dot{background:var(--brand);animation:beat 1.1s ease-in-out infinite}
-.hero-sync .hs-text{font-size:var(--fs-xs);font-weight:600;color:var(--ink-soft);white-space:nowrap;font-variant-numeric:tabular-nums}
-.hero-sync .hs-refresh{display:inline-flex;align-items:center;justify-content:center;width:27px;height:27px;border:none;border-radius:50%;background:var(--brand-tint);color:var(--brand);cursor:pointer;flex-shrink:0;transition:var(--tr)}
-.hero-sync .hs-refresh:hover{background:var(--brand-soft)}
+.hero-sync .hs-text{
+  font-size:var(--fs-xs);font-weight:500;color:var(--ink-soft);
+  white-space:nowrap;font-variant-numeric:tabular-nums;
+}
+.hero-sync .hs-refresh{
+  display:inline-flex;align-items:center;justify-content:center;
+  width:26px;height:26px;flex:none;border:none;border-radius:50%;
+  background:transparent;color:var(--ink-faint);cursor:pointer;transition:var(--tr);
+}
+.hero-sync .hs-refresh:hover{background:var(--brand-tint);color:var(--brand)}
 .hero-sync .hs-refresh:active{transform:scale(.9)}
-.hero-sync .hs-refresh .ic{width:15px;height:15px}
-.hero-sync.is-loading .hs-refresh{pointer-events:none;opacity:.85}
+.hero-sync .hs-refresh .ic{width:14px;height:14px}
+.hero-sync.is-loading .hs-refresh{pointer-events:none;opacity:.8}
 .hero-sync.is-loading .hs-refresh .ic{animation:spin .9s linear infinite}
-@keyframes spin{to{transform:rotate(360deg)}}
 
-.hero-stats{display:grid;grid-template-columns:repeat(3,1fr);gap:.8rem}
-.stat-tile{
-  background:var(--surface);border:1px solid var(--line);border-radius:var(--rad-sm);
-  padding:.95rem 1.1rem;box-shadow:var(--sh-sm);position:relative;overflow:hidden;
-  transition:transform .24s cubic-bezier(.22,1,.36,1), box-shadow .24s cubic-bezier(.22,1,.36,1), border-color .24s ease;
-}
-.stat-tile::before{
-  content:'';position:absolute;top:0;left:0;right:0;height:3px;
-  background:linear-gradient(90deg,var(--brand),var(--brand-bright));opacity:.8;
-}
-.stat-tile:hover{transform:translateY(-3px);box-shadow:var(--sh-md);border-color:var(--brand-soft)}
-.stat-num{font-family:var(--f-display);font-weight:900;font-stretch:104%;font-size:var(--fs-2xl);line-height:1;color:var(--ink);font-variant-numeric:tabular-nums}
-.stat-num.pink{color:var(--rosa)}
-.stat-num.amber{color:var(--warn)}
-.stat-lbl{font-size:var(--fs-xs);font-weight:800;letter-spacing:.06em;text-transform:uppercase;color:var(--ink-soft);margin-top:.4rem}
-
-/* ════════════════════════════════════════════
-   TABS
-════════════════════════════════════════════ */
-.tabs-wrap{max-width:1200px;margin:0 auto;padding:0 1.4rem 1.4rem}
-.tabs{
-  display:flex;gap:.4rem;max-width:520px;
+.hero-stats{
+  display:grid;grid-template-columns:repeat(3,minmax(0,1fr));
   background:var(--surface);border:1px solid var(--line);
-  padding:.4rem;border-radius:999px;box-shadow:var(--sh-sm);
+  border-radius:var(--rad);box-shadow:var(--sh-sm);overflow:hidden;
 }
-.tab-btn{
-  flex:1;padding:.7rem 1.2rem;border:none;background:transparent;
-  color:var(--ink-soft);font-size:var(--fs-md);font-weight:700;border-radius:999px;
-  cursor:pointer;transition:var(--tr);display:flex;align-items:center;justify-content:center;gap:.45rem;
+.stat-tile{display:flex;flex-direction:column;gap:.4rem;padding:var(--s4) var(--s5);min-width:0}
+.stat-tile + .stat-tile{border-left:1px solid var(--line-soft)}
+.stat-num{
+  font-family:var(--f-display);font-weight:800;font-stretch:100%;
+  font-size:var(--fs-2xl);line-height:1;letter-spacing:-.03em;
+  color:var(--ink);font-variant-numeric:tabular-nums;
 }
-.tab-btn .tab-count{
-  font-family:var(--f-mono);font-size:var(--fs-xs);font-weight:700;
-  background:var(--paper);border:1px solid var(--line);color:var(--ink-soft);
-  border-radius:999px;padding:.05rem .5rem;
+.stat-num.pink{color:var(--brand)}
+.stat-num.amber{color:var(--warn)}
+.stat-lbl{
+  font-size:var(--fs-2xs);font-weight:700;letter-spacing:.1em;
+  text-transform:uppercase;color:var(--ink-faint);line-height:1.35;
 }
-.tab-btn.active{background:var(--rosa);color:#fff;box-shadow:var(--sh-rosa)}
-.tab-btn.active .tab-count{background:rgba(255,255,255,.2);border-color:transparent;color:#fff}
-.tab-btn:hover:not(.active){color:var(--rosa)}
 
-/* ════════════════════════════════════════════
-   VISTAS
-════════════════════════════════════════════ */
-.view-section{display:none;padding:0 1.4rem 4rem;max-width:1200px;margin:0 auto;min-height:50vh}
+/* ════════════════════════════════════════════════════════════════════════════
+   PESTAÑAS · subrayado en vez de píldora rosa
+   Tres píldoras rellenas de color competían con el encabezado y con el botón
+   de cada tarjeta. Un subrayado dice lo mismo sin gritar.
+════════════════════════════════════════════════════════════════════════════ */
+.tabs-wrap{padding-bottom:var(--s5)}
+.tabs{
+  display:flex;align-items:stretch;gap:var(--s5);
+  border-bottom:1px solid var(--line);
+  overflow-x:auto;scrollbar-width:none;
+}
+.tabs::-webkit-scrollbar{display:none}
+.tab-btn{
+  position:relative;flex:0 0 auto;
+  display:inline-flex;align-items:center;gap:.5rem;
+  padding:.65rem .1rem 1rem;border:none;background:transparent;cursor:pointer;
+  font-family:var(--f-body);font-size:var(--fs-md);font-weight:600;
+  color:var(--ink-faint);white-space:nowrap;
+  transition:color var(--dur-1) var(--ease);
+}
+.tab-btn .ic{width:16px;height:16px}
+.tab-btn::after{
+  content:'';position:absolute;left:0;right:0;bottom:-1px;height:2px;border-radius:2px;
+  background:var(--brand);transform:scaleX(0);transform-origin:left;
+  transition:transform var(--dur-2) var(--ease);
+}
+.tab-btn:hover{color:var(--ink-soft)}
+.tab-btn.active{color:var(--ink);font-weight:700}
+.tab-btn.active::after{transform:scaleX(1)}
+.tab-btn .tab-count{
+  font-family:var(--f-mono);font-size:var(--fs-2xs);font-weight:500;
+  color:var(--ink-faint);background:var(--surface-2);
+  border-radius:var(--rad-full);padding:.1rem .45rem;
+  font-variant-numeric:tabular-nums;transition:var(--tr);
+}
+.tab-btn.active .tab-count{background:var(--brand-tint);color:var(--brand-deep)}
+
+/* ── Vistas ──────────────────────────────────────────────────────────────── */
+.view-section{display:none;padding-bottom:var(--s8);min-height:50vh}
 .view-section.active{display:block}
 
-/* ════════════════════════════════════════════
-   BUSCADOR + FILTROS
-════════════════════════════════════════════ */
-.controls-panel{
-  background:var(--surface);border:1px solid var(--line);border-radius:var(--rad);
-  box-shadow:var(--sh-sm);padding:1.2rem 1.2rem 1rem;margin-bottom:1.4rem;
-}
-.controls-row{display:grid;grid-template-columns:1fr 220px;gap:.8rem;align-items:center}
-.search-wrapper{position:relative}
+/* ════════════════════════════════════════════════════════════════════════════
+   BUSCADOR Y FILTROS
+   El panel dejó de ser una caja dentro de la caja: los controles se apoyan
+   directamente sobre la página y sólo un filete los separa de los resultados.
+════════════════════════════════════════════════════════════════════════════ */
+.controls-panel{margin-bottom:var(--s5)}
+.controls-row{display:grid;grid-template-columns:minmax(0,1fr) 210px;gap:var(--s3)}
+.search-wrapper{position:relative;min-width:0}
 .search-wrapper input{
-  width:100%;padding:1rem 2.8rem 1rem 3rem;
-  border:2px solid var(--line);border-radius:var(--rad-md);
-  font-size:var(--fs-base);font-family:var(--f-body);font-weight:500;
-  transition:var(--tr);outline:none;background:var(--paper);color:var(--ink);
+  width:100%;height:46px;padding:0 2.75rem;
+  border:1px solid var(--line);border-radius:var(--rad-md);
+  font-family:var(--f-body);font-size:var(--fs-md);font-weight:400;
+  background:var(--surface);color:var(--ink);outline:none;
+  transition:border-color var(--dur-1) var(--ease),box-shadow var(--dur-1) var(--ease);
 }
-.search-wrapper input::placeholder{color:#A99CA4}
-.search-wrapper input:focus{border-color:var(--rosa);background:#fff;box-shadow:0 0 0 4px var(--rosa-tint)}
+.search-wrapper input::placeholder{color:var(--ink-faint)}
+.search-wrapper input:hover{border-color:var(--ink-faint)}
+.search-wrapper input:focus{border-color:var(--brand);box-shadow:var(--ring)}
 .search-wrapper .icon-search{
-  position:absolute;left:1rem;top:50%;transform:translateY(-50%);
-  color:var(--ink-soft);width:20px;height:20px;pointer-events:none;
+  position:absolute;left:.95rem;top:50%;transform:translateY(-50%);
+  width:18px;height:18px;color:var(--ink-faint);pointer-events:none;
 }
 .search-clear{
-  position:absolute;right:.7rem;top:50%;transform:translateY(-50%);
+  position:absolute;right:.6rem;top:50%;transform:translateY(-50%);
   width:28px;height:28px;border-radius:50%;border:none;cursor:pointer;
-  background:var(--line);color:var(--ink-soft);font-size:var(--fs-sm);font-weight:700;
+  background:transparent;color:var(--ink-faint);
   display:none;align-items:center;justify-content:center;transition:var(--tr);
 }
-.search-clear:hover{background:var(--rosa-soft);color:var(--rosa-deep)}
+.search-clear .ic{width:14px;height:14px}
+.search-clear:hover{background:var(--surface-2);color:var(--ink)}
 
 select.filter-select{
-  width:100%;padding:1rem 2.6rem 1rem 1rem;
-  border:2px solid var(--line);border-radius:var(--rad-md);font-size:var(--fs-md);font-weight:600;
-  color:var(--ink);background-color:var(--paper);cursor:pointer;outline:none;appearance:none;
-  font-family:var(--f-body);transition:var(--tr);
-  background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 24 24' stroke='%237A6E76'%3E%3Cpath stroke-linecap='round' stroke-linejoin='round' stroke-width='2' d='M19 9l-7 7-7-7'%3E%3C/path%3E%3C/svg%3E");
-  background-repeat:no-repeat;background-position:right 1rem center;background-size:1.1rem;
+  width:100%;height:46px;padding:0 2.5rem 0 .95rem;
+  border:1px solid var(--line);border-radius:var(--rad-md);
+  font-family:var(--f-body);font-size:var(--fs-md);font-weight:500;
+  color:var(--ink);background-color:var(--surface);cursor:pointer;outline:none;appearance:none;
+  transition:border-color var(--dur-1) var(--ease),box-shadow var(--dur-1) var(--ease);
+  background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 24 24' stroke='%238B95A5'%3E%3Cpath stroke-linecap='round' stroke-linejoin='round' stroke-width='2' d='M19 9l-7 7-7-7'%3E%3C/path%3E%3C/svg%3E");
+  background-repeat:no-repeat;background-position:right .9rem center;background-size:1.05rem;
 }
-select.filter-select:focus{border-color:var(--rosa);background-color:#fff}
+select.filter-select:hover{border-color:var(--ink-faint)}
+select.filter-select:focus{border-color:var(--brand);box-shadow:var(--ring)}
 
 .chips-row{
-  display:flex;gap:.5rem;margin-top:.9rem;overflow-x:auto;padding-bottom:.3rem;
-  scrollbar-width:thin;
+  display:flex;gap:.45rem;margin-top:var(--s3);
+  overflow-x:auto;padding-bottom:.35rem;scrollbar-width:thin;
 }
 .chip{
   flex:0 0 auto;display:inline-flex;align-items:center;gap:.45rem;
-  padding:.5rem 1rem;border-radius:999px;border:1.5px solid var(--line);
-  background:var(--surface);color:var(--ink-soft);font-size:var(--fs-sm);font-weight:700;
-  cursor:pointer;transition:var(--tr);white-space:nowrap;
+  height:32px;padding:0 .85rem;border-radius:var(--rad-full);
+  border:1px solid var(--line);background:var(--surface);color:var(--ink-soft);
+  font-family:var(--f-body);font-size:var(--fs-sm);font-weight:600;
+  cursor:pointer;white-space:nowrap;transition:var(--tr);
 }
-.chip .chip-dot{width:8px;height:8px;border-radius:50%;background:currentColor;opacity:.8}
-.chip:hover{border-color:var(--rosa-soft);color:var(--rosa-deep)}
-.chip.active{background:var(--ink);border-color:var(--ink);color:#fff}
-.chip.active .chip-dot{opacity:1}
+.chip .chip-dot{width:7px;height:7px;border-radius:50%;background:currentColor;flex:none}
+.chip .chip-n{font-family:var(--f-mono);font-size:var(--fs-2xs);font-weight:500;opacity:.6;font-variant-numeric:tabular-nums}
+.chip:hover{border-color:var(--ink-faint);color:var(--ink)}
+.chip.active{background:var(--ink);border-color:var(--ink);color:var(--surface)}
 
 .results-bar{
-  display:flex;justify-content:space-between;align-items:center;gap:1rem;
-  margin:.2rem .2rem 1.1rem;flex-wrap:wrap;
+  display:flex;justify-content:space-between;align-items:center;gap:var(--s4);flex-wrap:wrap;
+  padding-bottom:var(--s4);margin-bottom:var(--s5);border-bottom:1px solid var(--line);
 }
-.results-count{font-size:var(--fs-md);color:var(--ink-soft);font-weight:600}
-.results-count strong{color:var(--rosa-deep);font-family:var(--f-mono);font-size:var(--fs-base)}
-.results-hint{font-size:var(--fs-xs);color:var(--ink-soft)}
+.results-count{font-size:var(--fs-sm);color:var(--ink-soft);font-weight:500}
+.results-count strong{color:var(--ink);font-weight:700;font-variant-numeric:tabular-nums}
+.results-hint{font-size:var(--fs-xs);color:var(--ink-faint)}
 
-/* ════════════════════════════════════════════
-   TARJETAS DE PROMOCIÓN
-════════════════════════════════════════════ */
-.promos-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(310px,1fr));gap:var(--grid-gap)}
+/* ════════════════════════════════════════════════════════════════════════════
+   TARJETA DE PROMOCIÓN
 
+   Orden de lectura, de arriba abajo: de quién es → qué es y cuánto rebaja →
+   en qué consiste → hasta cuándo → dónde verla. El descuento sube a la primera
+   línea junto al título porque es el dato por el que se abre esta pantalla; el
+   resto baja un escalón de peso y de color para no disputárselo.
+════════════════════════════════════════════════════════════════════════════ */
+/* Sin `align-items`, para que las tarjetas de una misma fila midan lo mismo: con
+   `margin-top:auto` en el pie, las fechas y los botones «Ver en Liverpool» caen
+   todos sobre la misma línea en vez de escalonarse según lo largo que sea el
+   texto de cada promoción. */
+.promos-grid{
+  display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));
+  gap:var(--grid-gap);
+}
 .card{
-  background:var(--surface);border-radius:12px;padding:var(--card-pad);
-  box-shadow:var(--sh-sm);border:1px solid var(--line);
-  display:flex;flex-direction:column;position:relative;overflow:hidden;
-  transition:transform .22s cubic-bezier(.22,1,.36,1),box-shadow .22s cubic-bezier(.22,1,.36,1),border-color .22s ease;will-change:transform;--spot-x:50%;--spot-y:50%;
+  position:relative;display:flex;flex-direction:column;
+  padding:var(--card-pad);
+  background:var(--surface);border:1px solid var(--line);border-radius:var(--rad);
+  box-shadow:var(--sh-xs);
+  transition:border-color var(--dur-2) var(--ease),box-shadow var(--dur-2) var(--ease);
 }
-.card>*{position:relative;z-index:1}
-.card::before{content:'';position:absolute;top:0;left:0;width:5px;height:100%;z-index:2;background:linear-gradient(180deg,var(--dept-color,var(--rosa)),color-mix(in srgb,var(--dept-color,var(--rosa)) 30%,transparent));transform:scaleY(.34);transform-origin:top;transition:transform .32s cubic-bezier(.22,1,.36,1)}
-.card:hover::before{transform:scaleY(1)}
-.card::after{content:'';position:absolute;inset:0;border-radius:inherit;pointer-events:none;z-index:0;background:radial-gradient(360px circle at var(--spot-x) var(--spot-y),color-mix(in srgb,var(--dept-color,var(--rosa)) 14%,transparent),transparent 60%);opacity:0;transition:opacity .45s ease}
-.card:hover::after{opacity:1}
 /* UX: el hover sólo resalta (borde/sombra), nunca desplaza la tarjeta. */
-.card:hover{box-shadow:0 10px 24px -14px rgba(27,35,48,.20),var(--sh-sm);border-color:color-mix(in srgb,var(--dept-color,var(--rosa)) 36%,var(--line))}
-.promo-card.kb-focus{outline:3px solid var(--rosa);outline-offset:3px;box-shadow:var(--sh-md)}
-.kb-open-hint{
-  margin-top:.75rem;display:flex;align-items:center;gap:.5rem;
-  font-size:var(--fs-xs);font-weight:700;color:var(--rosa-deep);
-  background:var(--rosa-tint);border:1px solid var(--rosa-soft);
-  border-radius:var(--rad-sm);padding:.5rem .7rem;line-height:1.3;
-  animation:hintIn .25s cubic-bezier(.4,0,.2,1);
+.card:hover{
+  border-color:color-mix(in srgb,var(--dept-color,var(--brand)) 34%,var(--line));
+  box-shadow:var(--sh-md);
 }
-.kb-open-hint.nolink{color:var(--ink-soft);background:var(--paper);border-color:var(--line)}
+.promo-card.kb-focus{border-color:var(--brand);box-shadow:var(--ring),var(--sh-md)}
+
+.kb-open-hint{
+  display:flex;align-items:center;gap:.5rem;margin-top:var(--s3);
+  padding:.5rem .65rem;border-radius:var(--rad-sm);
+  background:var(--brand-tint);border:1px solid var(--brand-soft);
+  font-size:var(--fs-xs);font-weight:600;color:var(--brand-deep);line-height:1.35;
+  animation:hintIn var(--dur-2) var(--ease);
+}
+.kb-open-hint.nolink{color:var(--ink-soft);background:var(--surface-2);border-color:var(--line)}
 .kb-open-hint kbd{
-  font-family:var(--f-mono);font-size:.92em;font-weight:700;
-  background:var(--surface);border:1px solid var(--rosa-soft);
-  border-bottom-width:2px;border-radius:6px;padding:.08rem .42rem;
-  color:var(--rosa-deep);line-height:1.3;flex-shrink:0;
+  flex:none;font-family:var(--f-mono);font-size:.92em;font-weight:500;line-height:1.3;
+  background:var(--surface);border:1px solid var(--brand-soft);border-bottom-width:2px;
+  border-radius:6px;padding:.08rem .4rem;color:var(--brand-deep);
 }
 .kb-open-hint.nolink kbd{border-color:var(--line);color:var(--ink-soft)}
-@keyframes hintIn{from{opacity:0;transform:translateY(-5px)}to{opacity:1;transform:none}}
+@keyframes hintIn{from{opacity:0;transform:translateY(-4px)}to{opacity:1;transform:none}}
 
-.card-header{display:flex;justify-content:space-between;align-items:center;gap:.5rem;margin-bottom:.85rem}
+/* Fila 1 · de quién es la promoción y de qué catálogo viene */
+.card-header{display:flex;align-items:center;justify-content:space-between;gap:var(--s2);margin-bottom:var(--s3)}
 .dept-tag{
-  display:inline-flex;align-items:center;gap:.42rem;
-  background:var(--paper);border:1px solid var(--line);
-  padding:.32rem .8rem;border-radius:999px;font-size:var(--fs-xs);font-weight:800;
-  color:var(--ink-soft);text-transform:uppercase;letter-spacing:.06em;min-width:0;
+  display:inline-flex;align-items:center;gap:.45rem;min-width:0;
+  font-size:var(--fs-2xs);font-weight:700;letter-spacing:.1em;text-transform:uppercase;
+  color:var(--ink-faint);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;
 }
-.dept-tag .dot{width:8px;height:8px;border-radius:50%;background:var(--dept-color,var(--rosa));flex:0 0 auto}
+.dept-tag .dot{width:6px;height:6px;border-radius:50%;background:var(--dept-color,var(--brand));flex:none}
 .origin-tag{
-  flex:0 0 auto;font-size:var(--fs-2xs);font-weight:800;letter-spacing:.05em;
-  padding:.28rem .65rem;border-radius:7px;
-  background:var(--rosa-tint);color:var(--rosa-deep);text-transform:uppercase;
+  flex:none;padding:.15rem .5rem;border-radius:var(--rad-full);
+  border:1px solid var(--line);background:transparent;color:var(--ink-faint);
+  font-size:var(--fs-2xs);font-weight:700;letter-spacing:.06em;text-transform:uppercase;
 }
-.origin-tag.mkp{background:#FEF3C7;color:#854D0E}
-
-.card-title{font-family:var(--f-display);font-weight:800;font-stretch:108%;font-size:var(--fs-lg);line-height:1.22;margin-bottom:.55rem;transition:color .35s ease}
-.card:hover .card-title{color:var(--dept-color,var(--rosa))}
-.card .disc-badge{transition:transform .28s cubic-bezier(.34,1.15,.5,1)}
-
-.promo-row{display:flex;align-items:center;gap:.8rem;margin-bottom:.7rem;flex-wrap:wrap}
-.disc-badge{
-  display:flex;align-items:baseline;gap:.25rem;
-  background:var(--rosa-tint);border:1px solid var(--rosa-soft);
-  border-radius:var(--rad-sm);padding:.35rem .8rem;
+.origin-tag.mkp{
+  color:var(--warn);background:var(--warn-bg);
+  border-color:color-mix(in srgb,var(--warn) 24%,transparent);
 }
-.disc-badge .pct{font-family:var(--f-display);font-weight:900;font-stretch:104%;font-size:1.7rem;line-height:1;color:var(--rosa)}
-.disc-badge .upto{font-size:var(--fs-2xs);font-weight:800;text-transform:uppercase;letter-spacing:.06em;color:var(--rosa-deep)}
+
+/* Fila 2 · el titular y el descuento, en la misma línea de lectura */
+.card-lead{display:flex;align-items:flex-start;justify-content:space-between;gap:var(--s4);margin-bottom:var(--s3)}
+.card-title{
+  min-width:0;font-family:var(--f-display);font-weight:700;font-stretch:104%;
+  font-size:var(--fs-lg);line-height:1.22;letter-spacing:-.015em;color:var(--ink);
+}
+.disc-badge{display:flex;flex-direction:column;align-items:flex-end;flex:none;line-height:1}
+.disc-badge .upto{
+  font-size:var(--fs-2xs);font-weight:700;letter-spacing:.1em;
+  text-transform:uppercase;color:var(--ink-faint);margin-bottom:.2rem;
+}
+.disc-badge .pct{
+  font-family:var(--f-display);font-weight:800;font-stretch:100%;
+  font-size:1.75rem;line-height:.9;letter-spacing:-.04em;
+  color:var(--dept-color,var(--brand));font-variant-numeric:tabular-nums;
+}
+.disc-badge .pct i{font-style:normal;font-size:.6em;font-weight:700;margin-left:.04em}
+
+.card-promo{font-size:var(--fs-md);font-weight:400;color:var(--ink);line-height:1.55;margin-bottom:var(--s3)}
+.promo-row{display:flex;flex-wrap:wrap;gap:.4rem;margin-bottom:var(--s3)}
 .mini-badge{
-  font-size:var(--fs-xs);font-weight:800;padding:.3rem .65rem;border-radius:7px;letter-spacing:.03em;
+  padding:.24rem .55rem;border-radius:var(--rad-sm);border:1px solid transparent;
+  font-size:var(--fs-2xs);font-weight:700;letter-spacing:.03em;
 }
-.mini-badge.msi{background:var(--info-bg);color:var(--info)}
-.mini-badge.sep{background:var(--ok-bg);color:var(--ok)}
+.mini-badge.msi{background:var(--info-bg);color:var(--info);border-color:color-mix(in srgb,var(--info) 18%,transparent)}
+.mini-badge.sep{background:var(--ok-bg);color:var(--ok);border-color:color-mix(in srgb,var(--ok) 20%,transparent)}
+.card-brand{
+  display:flex;align-items:center;gap:.4rem;margin-bottom:var(--s4);
+  font-size:var(--fs-sm);font-weight:500;color:var(--ink-faint);
+}
+.card-brand .ic{width:14px;height:14px;flex:none}
 
-.card-promo{font-size:var(--fs-base);color:var(--ink);font-weight:600;margin-bottom:.7rem;line-height:1.45}
-.card-brand{font-size:var(--fs-sm);color:var(--ink-soft);display:flex;align-items:center;gap:6px;margin-bottom:.9rem;font-weight:600}
-
-.card-vig{margin-top:auto;border-top:1px solid var(--line);padding-top:.9rem;margin-bottom:1.05rem}
-.vig-top{display:flex;justify-content:space-between;align-items:center;gap:.6rem;margin-bottom:.5rem}
-.vig-range{font-size:var(--fs-sm);color:var(--ink-soft);font-weight:600;display:flex;align-items:center;gap:5px}
-.vig-range strong{color:var(--ink)}
+/* Fila final · hasta cuándo, con la barra de avance en el color de la dirección */
+.card-vig{margin-top:auto;padding-top:var(--s3);border-top:1px solid var(--line-soft)}
+.vig-top{display:flex;align-items:center;justify-content:space-between;gap:var(--s2);margin-bottom:.6rem}
+.vig-range{
+  display:inline-flex;align-items:center;gap:.4rem;min-width:0;
+  font-size:var(--fs-sm);font-weight:500;color:var(--ink-faint);font-variant-numeric:tabular-nums;
+}
+.vig-range .ic{width:14px;height:14px;flex:none}
+.vig-range strong{color:var(--ink);font-weight:600}
 .vig-pill{
-  font-size:var(--fs-xs);font-weight:800;padding:.26rem .6rem;border-radius:999px;white-space:nowrap;
-  font-variant-numeric:tabular-nums;
+  flex:none;padding:.2rem .55rem;border-radius:var(--rad-full);white-space:nowrap;
+  font-size:var(--fs-2xs);font-weight:700;letter-spacing:.02em;font-variant-numeric:tabular-nums;
 }
 .vig-pill.ok{background:var(--ok-bg);color:var(--ok)}
 .vig-pill.warn{background:var(--warn-bg);color:var(--warn)}
 .vig-pill.alert{background:var(--alert-bg);color:var(--alert)}
-.vig-pill.muted{background:var(--paper);color:var(--ink-soft);border:1px solid var(--line)}
-.vig-track{height:6px;border-radius:99px;background:var(--paper);border:1px solid var(--line);overflow:hidden}
-.vig-fill{height:100%;border-radius:99px;background:var(--rosa);transform-origin:left;width:0%}
+.vig-pill.muted{background:var(--surface-2);color:var(--ink-faint);border:1px solid var(--line)}
+.vig-track{height:3px;border-radius:var(--rad-full);background:var(--line-soft);overflow:hidden}
+.vig-fill{height:100%;border-radius:inherit;background:var(--dept-color,var(--brand));width:0}
 
+/* Acción · un botón fantasma de 1px. El rosa aparece sólo al apuntarlo, así una
+   rejilla de veinte tarjetas no se convierte en veinte marcos de color. */
 .card-btn{
-  text-align:center;display:block;width:100%;padding:.85rem;
-  background:transparent;color:var(--rosa);text-decoration:none;
-  border:2px solid var(--rosa);border-radius:var(--rad-sm);font-weight:800;font-size:var(--fs-md);
+  display:flex;align-items:center;justify-content:center;gap:.45rem;
+  width:100%;margin-top:var(--s4);padding:.7rem 1rem;
+  border:1px solid var(--line);border-radius:var(--rad-sm);
+  background:var(--surface);color:var(--ink);
+  font-family:var(--f-body);font-size:var(--fs-md);font-weight:600;text-align:center;
   transition:var(--tr);
 }
-.card-btn:hover{background:var(--rosa);color:#fff;box-shadow:var(--sh-rosa-lg)}
-.card-btn.disabled{background:var(--paper);border:1.5px dashed var(--line);color:var(--ink-soft);cursor:not-allowed;pointer-events:none}
+.card-btn .ic{width:14px;height:14px;color:var(--ink-faint);transition:transform var(--dur-2) var(--ease),color var(--dur-1) var(--ease)}
+.card-btn:hover{border-color:var(--brand);background:var(--brand-tint);color:var(--brand-deep)}
+.card-btn:hover .ic{color:var(--brand);transform:translate(2px,-2px)}
+.card-btn.disabled{
+  background:transparent;border-style:dashed;color:var(--ink-faint);
+  font-weight:500;cursor:not-allowed;pointer-events:none;
+}
 
-/* ════════════════════════════════════════════
+/* ════════════════════════════════════════════════════════════════════════════
    CALENDARIO
-════════════════════════════════════════════ */
-.calendar-controls{display:flex;justify-content:center;gap:.6rem;margin-bottom:2rem;flex-wrap:wrap}
-.cal-filter-btn{
-  padding:.65rem 1.4rem;border:1.5px solid var(--line);background:var(--surface);
-  color:var(--ink-soft);border-radius:999px;cursor:pointer;font-weight:700;font-size:var(--fs-md);
-  transition:var(--tr);
-}
-.cal-filter-btn.active{background:var(--rosa);color:#fff;border-color:var(--rosa);box-shadow:var(--sh-rosa)}
-.cal-filter-btn:hover:not(.active){color:var(--rosa);border-color:var(--rosa-soft)}
-
+════════════════════════════════════════════════════════════════════════════ */
+.cal-section{margin-bottom:var(--s7)}
+.cal-section:last-child{margin-bottom:0}
 .cal-section-title{
-  font-family:var(--f-display);font-weight:800;font-stretch:104%;font-size:var(--fs-lg);
-  display:flex;align-items:center;gap:.6rem;margin:0 0 1rem;
+  display:flex;align-items:center;gap:.6rem;margin:0 0 var(--s4);
+  font-family:var(--f-display);font-weight:700;font-stretch:100%;
+  font-size:var(--fs-lg);letter-spacing:-.02em;color:var(--ink);
 }
+.cal-section-title .ic{width:18px;height:18px;color:var(--ink-faint);flex:none}
 .cal-section-title .badge-n{
-  font-family:var(--f-mono);font-size:var(--fs-xs);font-weight:700;color:var(--rosa-deep);
-  background:var(--rosa-tint);border-radius:999px;padding:.1rem .6rem;
+  font-family:var(--f-mono);font-size:var(--fs-2xs);font-weight:500;
+  color:var(--ink-soft);background:var(--surface-2);border:1px solid var(--line);
+  border-radius:var(--rad-full);padding:.1rem .5rem;font-variant-numeric:tabular-nums;
 }
-.cal-section{margin-bottom:2.6rem}
 
-/* ═══ AGENDA · tabla de vigentes, próximas y terminadas ══════════════════════
-   La página solo enseñaba lo activo HOY: lo que ya terminó desaparecía de la
+/* Filtros del calendario y de la agenda comparten aspecto, no clase: cada uno
+   conserva la suya porque filterCalendar() apaga todos los .cal-filter-btn. */
+.calendar-controls{display:flex;gap:.5rem;flex-wrap:wrap;margin-bottom:var(--s5)}
+.ag-controls{display:flex;gap:var(--s4);flex-wrap:wrap;align-items:center;justify-content:space-between;margin-bottom:var(--s5)}
+.ag-toolbar{display:flex;gap:.5rem;flex-wrap:wrap;align-items:center}
+.cal-filter-btn,.ag-filter-btn{
+  display:inline-flex;align-items:center;gap:.45rem;
+  height:34px;padding:0 .9rem;border-radius:var(--rad-full);
+  border:1px solid var(--line);background:var(--surface);color:var(--ink-soft);
+  font-family:var(--f-body);font-size:var(--fs-sm);font-weight:600;
+  cursor:pointer;white-space:nowrap;transition:var(--tr);
+}
+.cal-filter-btn .dot,.ag-filter-btn .dot{
+  width:7px;height:7px;border-radius:50%;background:currentColor;flex:none;opacity:.7;
+}
+.ag-filter-btn .dot.ok{background:var(--ok);opacity:1}
+.ag-filter-btn .dot.warn{background:var(--warn);opacity:1}
+.ag-filter-btn .dot.done{background:var(--ink-faint);opacity:1}
+.ag-filter-btn .dot.alert{background:var(--alert);opacity:1}
+.cal-filter-btn:hover:not(.active),.ag-filter-btn:hover:not(.active){border-color:var(--ink-faint);color:var(--ink)}
+.cal-filter-btn.active,.ag-filter-btn.active{background:var(--ink);border-color:var(--ink);color:var(--surface)}
+.cal-filter-btn:focus-visible,.ag-filter-btn:focus-visible{outline:none;box-shadow:var(--ring)}
+.ag-filter-btn .n{
+  font-family:var(--f-mono);font-size:var(--fs-2xs);font-weight:500;
+  background:var(--surface-2);border:1px solid var(--line);border-radius:var(--rad-full);
+  padding:.02rem .4rem;font-variant-numeric:tabular-nums;
+}
+.ag-filter-btn.active .n{background:color-mix(in srgb,var(--ink-faint) 45%,transparent);border-color:transparent;color:inherit}
+
+.month-nav{display:flex;align-items:center;gap:var(--s3);margin-bottom:var(--s5);flex-wrap:wrap}
+.month-nav .m-arrow{
+  display:flex;align-items:center;justify-content:center;flex:none;
+  width:36px;height:36px;border-radius:50%;
+  border:1px solid var(--line);background:var(--surface);color:var(--ink-soft);
+  cursor:pointer;transition:var(--tr);
+}
+.month-nav .m-arrow .ic{width:16px;height:16px}
+.month-nav .m-arrow:hover:not(:disabled){border-color:var(--ink-faint);color:var(--ink)}
+.month-nav .m-arrow:disabled{opacity:.35;cursor:not-allowed}
+.month-label{
+  font-family:var(--f-display);font-weight:700;font-stretch:100%;
+  font-size:var(--fs-xl);letter-spacing:-.025em;text-transform:capitalize;
+  color:var(--ink);min-width:11ch;
+}
+.month-nav .m-today{
+  margin-left:auto;height:34px;padding:0 .9rem;border-radius:var(--rad-full);
+  border:1px solid var(--line);background:var(--surface);color:var(--ink-soft);
+  font-family:var(--f-body);font-size:var(--fs-sm);font-weight:600;
+  cursor:pointer;transition:var(--tr);
+}
+.month-nav .m-today:hover{border-color:var(--brand-soft);background:var(--brand-tint);color:var(--brand-deep)}
+
+.gantt-card{
+  background:var(--surface);border:1px solid var(--line);border-radius:var(--rad);
+  box-shadow:var(--sh-sm);padding:var(--s5) var(--s5) var(--s4);overflow:hidden;
+}
+.gantt-axis{
+  position:relative;height:16px;margin-bottom:.6rem;padding-bottom:.6rem;
+  border-bottom:1px solid var(--line);
+  font-family:var(--f-mono);font-size:var(--fs-2xs);font-weight:500;color:var(--ink-faint);
+}
+.gantt-axis span{position:absolute;top:0;transform:translateX(-50%);white-space:nowrap}
+.gantt-axis span:first-child{transform:none}
+.gantt-axis span:last-child{transform:translateX(-100%)}
+.gantt-body{position:relative;padding-top:2px}
+.gantt-grid{position:absolute;inset:0;display:flex;z-index:0;pointer-events:none;border-radius:var(--rad-sm);overflow:hidden}
+.g-cell{flex:1 1 0;min-width:0;border-right:1px solid color-mix(in srgb,var(--line) 45%,transparent)}
+.g-cell:last-child{border-right:none}
+.g-cell.mon{border-right-color:var(--line)}
+.g-cell.wknd{background:color-mix(in srgb,var(--ink) 3%,transparent)}
+.g-cell.today-col{background:color-mix(in srgb,var(--brand) 6%,transparent)}
+.gantt-today{
+  position:absolute;top:-24px;bottom:0;width:1.5px;z-index:5;pointer-events:none;
+  background:linear-gradient(180deg,var(--ink),color-mix(in srgb,var(--ink) 25%,transparent));
+}
+.gantt-today::before{
+  content:'HOY';position:absolute;top:0;left:50%;transform:translateX(-50%);
+  background:var(--ink);color:var(--surface);font-family:var(--f-mono);
+  font-size:.5625rem;font-weight:500;letter-spacing:.1em;
+  padding:.14rem .4rem;border-radius:5px;
+}
+.g-row{
+  position:relative;z-index:1;padding:.6rem .3rem .7rem;cursor:pointer;
+  border-radius:var(--rad-sm);transition:background var(--dur-2) var(--ease);
+}
+.g-row:hover{background:color-mix(in srgb,var(--bar-color,var(--brand)) 5%,transparent)}
+.g-row + .g-row{border-top:1px solid var(--line-soft)}
+.g-head{display:flex;justify-content:space-between;align-items:center;gap:.7rem;margin-bottom:.45rem}
+.g-title{
+  min-width:0;font-size:var(--fs-sm);font-weight:600;line-height:1.35;color:var(--ink);
+  display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;
+}
+.g-meta{flex:none;display:flex;align-items:center;gap:.45rem}
+.g-chevron{width:14px;height:14px;color:var(--ink-faint);transition:transform var(--dur-2) var(--ease)}
+.g-row.open .g-chevron{transform:rotate(180deg)}
+.g-track{position:relative;height:18px}
+.g-bar{
+  position:absolute;top:2px;height:14px;min-width:10px;border-radius:var(--rad-full);
+  background:var(--bar-color,var(--brand));display:flex;align-items:center;
+  transition:filter var(--dur-2) var(--ease);
+}
+.g-row:hover .g-bar{filter:brightness(1.06)}
+.g-bar.done{filter:saturate(.3);opacity:.35}
+.g-bar.future-bar{
+  background:transparent;border:1.5px dashed var(--bar-color,var(--brand));
+}
+.g-bar .g-clip{font-size:var(--fs-2xs);color:#fff;font-weight:700;padding:0 .3rem;line-height:1}
+.g-bar.future-bar .g-clip{color:var(--bar-color,var(--brand))}
+.g-bar .g-days{
+  font-family:var(--f-mono);font-size:var(--fs-2xs);font-weight:500;color:#fff;
+  padding:0 .5rem;white-space:nowrap;overflow:hidden;
+}
+.g-bar.future-bar .g-days{color:var(--bar-color,var(--brand))}
+.g-details{
+  display:none;position:relative;z-index:6;margin-top:.7rem;
+  padding:var(--s4);border:1px solid var(--line);border-radius:var(--rad-sm);
+  background:var(--surface-2);
+}
+.g-row.open .g-details{display:block}
+.gd-line{
+  display:flex;align-items:center;gap:.5rem;flex-wrap:wrap;margin-bottom:.5rem;
+  font-size:var(--fs-sm);font-weight:500;color:var(--ink-soft);
+}
+.gd-line .ic{width:14px;height:14px;flex:none}
+.gd-line .gd-sep{width:1px;height:12px;background:var(--line);flex:none}
+.event-duration,.event-countdown{
+  padding:.18rem .55rem;border-radius:var(--rad-full);
+  font-size:var(--fs-2xs);font-weight:700;font-variant-numeric:tabular-nums;
+}
+.event-duration{background:var(--info-bg);color:var(--info)}
+.event-countdown{background:var(--warn-bg);color:var(--warn)}
+.event-location{
+  display:flex;align-items:center;gap:.4rem;margin-bottom:.5rem;
+  font-size:var(--fs-sm);color:var(--ink-soft);
+}
+.event-location .ic{width:14px;height:14px;flex:none}
+.gd-desc{
+  font-size:var(--fs-sm);color:var(--ink);line-height:1.6;word-break:break-word;
+  border-top:1px solid var(--line);padding-top:.6rem;margin-top:.2rem;
+}
+.gd-desc em{color:var(--ink-faint)}
+.gantt-legend{
+  display:flex;gap:var(--s4);flex-wrap:wrap;align-items:center;
+  margin-top:var(--s4);padding-top:var(--s3);border-top:1px solid var(--line);
+  font-size:var(--fs-xs);font-weight:500;color:var(--ink-faint);
+}
+.gantt-legend .lg{display:inline-flex;align-items:center;gap:.4rem}
+.lg-swatch{width:20px;height:8px;border-radius:var(--rad-full);background:var(--brand);flex:none}
+.lg-swatch.dash{background:transparent;border:1.5px dashed var(--brand)}
+.lg-swatch.dim{background:var(--brand);opacity:.28}
+
+/* ── Vigencias agrupadas ─────────────────────────────────────────────────── */
+.vig-group-list{display:flex;flex-direction:column;gap:var(--s3)}
+.vig-group{
+  background:var(--surface);border:1px solid var(--line);border-radius:var(--rad);
+  padding:var(--s5);box-shadow:var(--sh-xs);
+}
+.vg-top{display:flex;justify-content:space-between;align-items:center;gap:var(--s3);flex-wrap:wrap;margin-bottom:.5rem}
+.vg-range{
+  font-family:var(--f-display);font-weight:700;font-stretch:104%;
+  font-size:var(--fs-lg);letter-spacing:-.015em;color:var(--ink);font-variant-numeric:tabular-nums;
+}
+.vg-meta{display:flex;align-items:center;gap:.6rem;flex-wrap:wrap}
+.vg-count{font-size:var(--fs-xs);font-weight:500;color:var(--ink-faint);font-variant-numeric:tabular-nums}
+.vg-cats{font-size:var(--fs-sm);color:var(--ink-faint);line-height:1.55;margin-bottom:var(--s5)}
+.vg-cats b{color:var(--ink-soft);font-weight:600}
+.tl-wrap{position:relative;padding-top:1rem}
+.tl-track{height:4px;border-radius:var(--rad-full);background:var(--line-soft);position:relative;overflow:hidden}
+.tl-fill{position:absolute;top:0;left:0;height:100%;width:0;border-radius:inherit;background:var(--brand)}
+.tl-fill.future{
+  background:repeating-linear-gradient(90deg,var(--brand-soft) 0 4px,transparent 4px 8px);
+}
+.tl-today{position:absolute;top:.5rem;width:2px;height:12px;border-radius:2px;background:var(--ink);z-index:2}
+.tl-today::after{
+  content:'HOY';position:absolute;top:-1rem;left:50%;transform:translateX(-50%);
+  font-family:var(--f-mono);font-size:.5625rem;font-weight:500;letter-spacing:.1em;color:var(--ink-faint);
+}
+.tl-labels{
+  display:flex;justify-content:space-between;margin-top:.5rem;
+  font-family:var(--f-mono);font-size:var(--fs-2xs);font-weight:500;color:var(--ink-faint);
+}
+
+/* ════════════════════════════════════════════════════════════════════════════
+   AGENDA · vigentes, próximas y terminadas
+
+   La página sólo enseñaba lo activo HOY: lo que ya terminó desaparecía de la
    vista sin dejar rastro, y no había forma de consultar qué se promocionó la
    semana pasada ni qué viene la que entra. Esta tabla es esa vista.
-
-   Filtros con clase PROPIA (.ag-filter-btn) a propósito: filterCalendar() apaga
-   todos los .cal-filter-btn de la página, así que compartir clase haría que
-   cambiar de filtro aquí desactivara los del calendario y al revés. */
-.ag-toolbar{display:flex;gap:.7rem;flex-wrap:wrap;align-items:center;margin-bottom:1.1rem}
-.ag-filter-btn{
-  display:inline-flex;align-items:center;gap:.45rem;
-  padding:.5rem 1rem;border:1.5px solid var(--line);background:var(--surface);
-  color:var(--ink-soft);border-radius:999px;cursor:pointer;font-weight:700;font-size:var(--fs-sm);
-  transition:var(--tr);
-}
-.ag-filter-btn .n{
-  font-variant-numeric:tabular-nums;font-size:var(--fs-xs);font-weight:800;
-  background:var(--paper);border:1px solid var(--line);border-radius:999px;padding:.02rem .45rem;
-}
-.ag-filter-btn.active{background:var(--rosa);color:#fff;border-color:var(--rosa);box-shadow:var(--sh-rosa)}
-.ag-filter-btn.active .n{background:rgba(255,255,255,.2);border-color:transparent;color:#fff}
-.ag-filter-btn:hover:not(.active){color:var(--rosa);border-color:var(--rosa-soft)}
-.ag-filter-btn:focus-visible{outline:none;box-shadow:var(--ring)}
-.ag-search{position:relative;flex:1 1 240px;min-width:0;max-width:420px}
+════════════════════════════════════════════════════════════════════════════ */
+.ag-search{position:relative;flex:1 1 240px;min-width:0;max-width:380px}
 .ag-search input{
-  width:100%;padding:.55rem .8rem;border:1.5px solid var(--line);border-radius:var(--rad-sm);
-  background:var(--surface);color:var(--ink);font:inherit;font-size:var(--fs-sm);
+  width:100%;height:38px;padding:0 .85rem;
+  border:1px solid var(--line);border-radius:var(--rad-sm);
+  background:var(--surface);color:var(--ink);
+  font-family:var(--f-body);font-size:var(--fs-sm);font-weight:400;outline:none;
+  transition:border-color var(--dur-1) var(--ease),box-shadow var(--dur-1) var(--ease);
 }
-.ag-search input:focus{outline:none;border-color:var(--rosa);box-shadow:var(--ring)}
+.ag-search input::placeholder{color:var(--ink-faint)}
+.ag-search input:hover{border-color:var(--ink-faint)}
+.ag-search input:focus{border-color:var(--brand);box-shadow:var(--ring)}
 
 /* El scroll horizontal vive DENTRO de esta caja, nunca en la página: una tabla
    ancha no puede arrastrar consigo a toda la pantalla. */
 .ag-caja{
-  overflow-x:auto;background:var(--surface);border:1px solid var(--line);
-  border-radius:var(--rad);box-shadow:var(--sh-sm);max-width:100%;
+  overflow-x:auto;max-width:100%;
+  background:var(--surface);border:1px solid var(--line);
+  border-radius:var(--rad);box-shadow:var(--sh-xs);
 }
-.ag-tabla{width:100%;border-collapse:collapse;font-size:var(--fs-sm);min-width:640px}
-.ag-tabla th,.ag-tabla td{padding:.75rem .95rem;text-align:left;border-bottom:1px solid var(--line-soft);vertical-align:middle}
+.ag-tabla{width:100%;border-collapse:collapse;font-size:var(--fs-sm);min-width:660px}
+.ag-tabla th,.ag-tabla td{padding:.8rem 1rem;text-align:left;vertical-align:middle;border-bottom:1px solid var(--line-soft)}
 .ag-tabla tbody tr:last-child td{border-bottom:0}
-.ag-tabla tbody tr{transition:background .2s ease;position:relative}
+.ag-tabla tbody tr{transition:background var(--dur-1) var(--ease)}
 .ag-tabla tbody tr:hover{background:var(--surface-2)}
 .ag-tabla thead th{
-  position:sticky;top:0;z-index:2;background:var(--surface-2);
-  font-size:var(--fs-xs);font-weight:800;letter-spacing:.05em;text-transform:uppercase;
-  color:var(--ink-soft);white-space:nowrap;border-bottom:1px solid var(--line);
+  position:sticky;top:0;z-index:2;background:var(--surface);
+  border-bottom:1px solid var(--line);white-space:nowrap;
+  font-size:var(--fs-2xs);font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:var(--ink-faint);
 }
-.ag-tabla th.orden{cursor:pointer;user-select:none}
-.ag-tabla th.orden:hover{color:var(--rosa)}
-.ag-tabla th .flecha{opacity:.35;margin-left:.25rem}
-.ag-tabla th[aria-sort] .flecha{opacity:1;color:var(--rosa)}
+.ag-tabla th.orden{cursor:pointer;user-select:none;transition:color var(--dur-1) var(--ease)}
+.ag-tabla th.orden:hover{color:var(--ink)}
+.ag-tabla th .flecha{opacity:.4;margin-left:.25rem}
+.ag-tabla th[aria-sort] .flecha{opacity:1;color:var(--brand)}
+.ag-tabla th[aria-sort]{color:var(--ink)}
 .ag-tabla th.orden:focus-visible{outline:none;box-shadow:var(--ring)}
-.ag-per{white-space:nowrap;font-variant-numeric:tabular-nums;font-weight:700;color:var(--ink)}
-.ag-dias{display:block;font-size:var(--fs-xs);color:var(--ink-soft);font-weight:600;margin-top:.15rem}
-.ag-promo{min-width:180px;max-width:320px;color:var(--ink);line-height:1.45;font-weight:500}
-.ag-dir{font-weight:700}
-.ag-cat{font-weight:700;color:var(--ink)}
+.ag-per{white-space:nowrap;font-variant-numeric:tabular-nums;font-weight:600;color:var(--ink)}
+.ag-dias{display:block;margin-top:.15rem;font-size:var(--fs-2xs);font-weight:500;color:var(--ink-faint)}
+.ag-promo{min-width:180px;max-width:340px;color:var(--ink-soft);line-height:1.5;font-weight:400}
+.ag-cat strong{font-weight:600;color:var(--ink)}
 .ag-dept-pill{
-  display:inline-flex;align-items:center;gap:.4rem;
-  font-size:var(--fs-2xs);font-weight:800;letter-spacing:.04em;text-transform:uppercase;
-  padding:.25rem .7rem;border-radius:999px;background:var(--paper);border:1px solid var(--line);
-  color:var(--ink);white-space:nowrap;
+  display:inline-flex;align-items:center;gap:.4rem;white-space:nowrap;
+  font-size:var(--fs-2xs);font-weight:700;letter-spacing:.08em;text-transform:uppercase;
+  color:var(--ink-soft);
 }
-.ag-dept-pill .dot{width:7px;height:7px;border-radius:50%;background:var(--d-col,var(--brand));flex:none}
+.ag-dept-pill .dot{width:6px;height:6px;border-radius:50%;background:var(--d-col,var(--brand));flex:none}
 .ag-link-btn{
-  display:inline-flex;align-items:center;gap:.3rem;padding:.35rem .75rem;
-  border-radius:8px;background:var(--brand-tint);color:var(--brand-deep);
-  font-size:var(--fs-xs);font-weight:800;transition:var(--tr);white-space:nowrap;
-  border:1px solid var(--brand-soft);text-decoration:none;
+  display:inline-flex;align-items:center;gap:.3rem;white-space:nowrap;
+  padding:.3rem .65rem;border-radius:var(--rad-sm);
+  border:1px solid var(--line);background:var(--surface);color:var(--ink-soft);
+  font-size:var(--fs-2xs);font-weight:700;text-decoration:none;transition:var(--tr);
 }
-.ag-link-btn:hover{background:var(--brand);color:#fff;border-color:var(--brand);box-shadow:var(--sh-rosa)}
-.ag-link{color:var(--rosa);text-decoration:none;font-weight:700;white-space:nowrap}
-.ag-link:hover{text-decoration:underline}
-.ag-tabla td.ag-vacia{color:var(--ink-faint)}
+.ag-link-btn .ic{width:12px;height:12px}
+.ag-link-btn:hover{border-color:var(--brand);background:var(--brand-tint);color:var(--brand-deep)}
+.ag-tabla td.ag-vacia,.ag-vacia{color:var(--ink-faint)}
 
 /* En pantalla estrecha se esconden las columnas accesorias en vez de obligar a
    arrastrar la tabla de lado. Lo que identifica la promoción se queda. */
@@ -570,230 +906,128 @@ select.filter-select:focus{border-color:var(--rosa);background-color:#fff}
   .ag-tabla thead{display:none}
   .ag-tabla tbody{display:block}
   .ag-tabla tr{
-    display:grid;grid-template-columns:auto minmax(0,1fr);gap:.18rem .7rem;align-items:baseline;
-    padding:.85rem .95rem;border-bottom:1px solid var(--line);
+    display:grid;grid-template-columns:auto minmax(0,1fr);gap:.2rem .7rem;align-items:baseline;
+    padding:.9rem 1rem;border-bottom:1px solid var(--line);
   }
   .ag-tabla td{display:block;border:0;padding:0;max-width:none}
   .ag-tabla td:nth-child(1){grid-column:1;grid-row:1}
   .ag-tabla td:nth-child(2){grid-column:2;grid-row:1;text-align:right}
   .ag-tabla td:nth-child(3){grid-column:1;grid-row:2}
   .ag-tabla td:nth-child(4){grid-column:2;grid-row:2}
-  .ag-tabla td:nth-child(5){grid-column:1/-1;grid-row:3;margin-top:.3rem}
-  .ag-tabla td:nth-child(8){grid-column:1/-1;grid-row:4;margin-top:.35rem}
+  .ag-tabla td:nth-child(5){grid-column:1/-1;grid-row:3;margin-top:.35rem}
+  .ag-tabla td:nth-child(8){grid-column:1/-1;grid-row:4;margin-top:.4rem}
   .ag-tabla td.ag-vacia{grid-column:1/-1}
   .ag-dias{display:inline;margin-left:.4rem}
 }
 
-.ag-nota{
-  font-size:var(--fs-xs);color:var(--ink-faint);margin-top:.7rem;line-height:1.5;
-}
-/* Etiqueta solo para lectores de pantalla: el campo se entiende por su
-   marcador de posición, pero sin <label> asociado no tiene nombre accesible. */
-.sr-only-ag{
+.ag-nota{font-size:var(--fs-xs);color:var(--ink-faint);line-height:1.55;margin-top:var(--s3)}
+.ag-nota b{color:var(--ink-soft);font-weight:600}
+
+/* Etiqueta sólo para lectores de pantalla: un campo se entiende por su marcador
+   de posición, pero sin <label> asociado no tiene nombre accesible. */
+.sr-only,.sr-only-ag{
   position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;
   clip:rect(0 0 0 0);white-space:nowrap;border:0;
 }
 
-.vig-group-list{display:flex;flex-direction:column;gap:1rem}
-.vig-group{
-  background:var(--surface);border:1px solid var(--line);border-radius:var(--rad);
-  padding:1.25rem 1.4rem;box-shadow:var(--sh-sm);
+/* ════════════════════════════════════════════════════════════════════════════
+   ESTADOS · cargando, vacío y sin resultados
+════════════════════════════════════════════════════════════════════════════ */
+.loader{
+  display:flex;flex-direction:column;align-items:center;justify-content:center;
+  padding:var(--s8) var(--s4);color:var(--ink-faint);font-size:var(--fs-sm);
 }
-.vg-top{display:flex;justify-content:space-between;align-items:center;gap:.8rem;flex-wrap:wrap;margin-bottom:.7rem}
-.vg-range{font-family:var(--f-display);font-weight:800;font-stretch:110%;font-size:var(--fs-lg)}
-.vg-meta{display:flex;align-items:center;gap:.6rem;flex-wrap:wrap}
-.vg-count{font-size:var(--fs-xs);font-weight:700;color:var(--ink-soft)}
-.vg-cats{font-size:var(--fs-sm);color:var(--ink-soft);margin-bottom:.9rem;line-height:1.5}
-.vg-cats b{color:var(--ink)}
-.tl-wrap{position:relative;padding-top:.2rem}
-.tl-track{height:10px;border-radius:99px;background:var(--paper);border:1px solid var(--line);position:relative;overflow:hidden}
-.tl-fill{position:absolute;top:0;left:0;height:100%;background:var(--rosa);border-radius:99px;width:0%}
-.tl-fill.future{background:repeating-linear-gradient(45deg,var(--rosa-soft),var(--rosa-soft) 6px,var(--rosa-tint) 6px,var(--rosa-tint) 12px)}
-.tl-today{
-  position:absolute;top:-5px;width:2.5px;height:20px;background:var(--ink);border-radius:2px;z-index:2;
-}
-.tl-today::after{
-  content:'HOY';position:absolute;top:-16px;left:50%;transform:translateX(-50%);
-  font-family:var(--f-mono);font-size:.58rem;font-weight:700;letter-spacing:.08em;color:var(--ink);
-}
-.tl-labels{display:flex;justify-content:space-between;margin-top:.45rem;font-family:var(--f-mono);font-size:var(--fs-xs);font-weight:500;color:var(--ink-soft)}
-
-.month-nav{
-  display:flex;align-items:center;justify-content:center;gap:.7rem;
-  margin-bottom:1.6rem;flex-wrap:wrap;
-}
-.month-nav .m-arrow{
-  width:42px;height:42px;border-radius:50%;border:1.5px solid var(--line);
-  background:var(--surface);color:var(--ink);font-size:1.1rem;font-weight:800;
-  cursor:pointer;transition:var(--tr);display:flex;align-items:center;justify-content:center;
-}
-.month-nav .m-arrow:hover:not(:disabled){border-color:var(--rosa);color:var(--rosa)}
-.month-nav .m-arrow:disabled{opacity:.3;cursor:not-allowed}
-.month-label{
-  font-family:var(--f-display);font-weight:900;font-stretch:104%;
-  font-size:var(--fs-xl);min-width:210px;text-align:center;text-transform:capitalize;
-}
-.month-nav .m-today{
-  padding:.5rem 1.1rem;border-radius:999px;border:1.5px solid var(--rosa-soft);
-  background:var(--rosa-tint);color:var(--rosa-deep);font-weight:800;font-size:var(--fs-sm);
-  cursor:pointer;transition:var(--tr);
-}
-.month-nav .m-today:hover{background:var(--rosa);border-color:var(--rosa);color:#fff}
-
-.gantt-card{
-  background:var(--surface);border:1px solid var(--line);border-radius:12px;
-  box-shadow:var(--sh-sm);padding:1.4rem 1.5rem 1.6rem;overflow:hidden;
-}
-.gantt-axis{
-  position:relative;height:22px;margin:0 0 .55rem;padding-bottom:.5rem;border-bottom:1px solid var(--line);
-  font-family:var(--f-mono);font-size:var(--fs-2xs);font-weight:700;color:var(--ink-soft);
-}
-.gantt-axis span{position:absolute;top:0;transform:translateX(-50%)}
-.gantt-axis span:first-child{transform:none}
-.gantt-axis span:last-child{transform:translateX(-100%)}
-.gantt-body{position:relative;padding-top:2px}
-.gantt-grid{position:absolute;inset:0;display:flex;z-index:0;pointer-events:none;border-radius:8px;overflow:hidden}
-.g-cell{flex:1 1 0;min-width:0;border-right:1px solid color-mix(in srgb,var(--line) 50%,transparent)}
-.g-cell:last-child{border-right:none}
-.g-cell.mon{border-right-color:var(--line)}
-.g-cell.wknd{background:color-mix(in srgb,var(--rosa) 4%,transparent)}
-.g-cell.today-col{background:color-mix(in srgb,var(--rosa) 9%,transparent)}
-.gantt-today{
-  position:absolute;top:-26px;bottom:0;width:2px;background:linear-gradient(180deg,var(--ink),color-mix(in srgb,var(--ink) 55%,transparent));
-  border-radius:2px;z-index:5;pointer-events:none;
-}
-.gantt-today::after{content:'';position:absolute;bottom:-3px;left:50%;transform:translateX(-50%);width:7px;height:7px;border-radius:50%;background:var(--ink);box-shadow:0 0 0 4px color-mix(in srgb,var(--ink) 16%,transparent)}
-.gantt-today::before{
-  content:'HOY';position:absolute;top:0;left:50%;transform:translateX(-50%);
-  background:var(--ink);color:#fff;font-family:var(--f-mono);
-  font-size:.58rem;font-weight:700;letter-spacing:.08em;
-  padding:.14rem .42rem;border-radius:5px;
-}
-.g-row{position:relative;z-index:1;padding:.6rem .25rem .7rem;cursor:pointer;border-radius:10px;transition:background .25s ease}
-.g-row::before{content:'';position:absolute;left:-4px;top:9px;bottom:9px;width:3px;border-radius:99px;background:var(--bar-color,var(--rosa));opacity:0;transition:opacity .25s ease}
-.g-row:hover::before{opacity:.7}
-.g-row:hover{background:color-mix(in srgb,var(--bar-color,var(--rosa)) 6%,transparent)}
-.g-row + .g-row{border-top:1px dashed var(--line)}
-.g-head{display:flex;justify-content:space-between;align-items:center;gap:.7rem;margin-bottom:.4rem}
-.g-title{
-  font-size:var(--fs-sm);font-weight:700;line-height:1.3;min-width:0;
-  display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;
-}
-.g-meta{flex:0 0 auto;display:flex;align-items:center;gap:.45rem}
-.g-chevron{font-size:var(--fs-2xs);color:var(--ink-soft);transition:transform .25s ease}
-.g-row.open .g-chevron{transform:rotate(180deg)}
-.g-track{position:relative;height:20px}
-.g-bar{
-  position:absolute;top:1px;height:18px;border-radius:99px;min-width:10px;
-  background:var(--bar-color,var(--rosa));
-  display:flex;align-items:center;box-shadow:0 2px 6px -3px color-mix(in srgb,var(--bar-color,var(--rosa)) 55%,transparent);
-  transition:filter .3s ease,box-shadow .3s ease;
-}
-.g-row:hover .g-bar{filter:brightness(1.04);box-shadow:0 4px 10px -4px color-mix(in srgb,var(--bar-color,var(--rosa)) 60%,transparent)}
-.g-bar.done{filter:saturate(.45);opacity:.4}
-.g-bar.future-bar{
-  background:repeating-linear-gradient(45deg,color-mix(in srgb,var(--bar-color,var(--rosa)) 16%,transparent),color-mix(in srgb,var(--bar-color,var(--rosa)) 16%,transparent) 5px,transparent 5px,transparent 10px);border:2px dashed var(--bar-color,var(--rosa));
-  box-shadow:none;
-}
-.g-bar .g-clip{font-size:var(--fs-2xs);color:#fff;font-weight:800;padding:0 .35rem;line-height:1;}
-.g-bar.future-bar .g-clip{color:var(--bar-color,var(--rosa))}
-.g-bar .g-days{
-  font-family:var(--f-mono);font-size:var(--fs-2xs);font-weight:700;color:#fff;
-  padding:0 .55rem;white-space:nowrap;overflow:hidden;
-}
-.g-bar.future-bar .g-days{color:var(--bar-color,var(--rosa))}
-.g-details{display:none;margin-top:.7rem;background:var(--paper);border:1px solid var(--line);border-radius:var(--rad-sm);padding:.95rem 1.05rem;position:relative;z-index:6}
-.g-row.open .g-details{display:block}
-.gd-line{display:flex;align-items:center;gap:8px;font-weight:600;font-size:var(--fs-md);margin-bottom:.45rem;flex-wrap:wrap}
-.event-duration{font-size:var(--fs-xs);font-weight:800;background:var(--info-bg);color:var(--info);padding:.2rem .6rem;border-radius:999px;}
-.event-countdown{font-size:var(--fs-xs);font-weight:800;background:var(--warn-bg);color:var(--warn);padding:.2rem .6rem;border-radius:999px;}
-.event-location{display:flex;align-items:center;gap:5px;color:var(--ink-soft);font-size:var(--fs-sm);margin-bottom:.45rem}
-.gd-desc{font-size:var(--fs-sm);color:var(--ink);line-height:1.55;border-top:1px dashed var(--line);padding-top:.6rem;margin-top:.2rem;word-break:break-word}
-.gd-desc em{color:var(--ink-soft)}
-.gantt-legend{
-  display:flex;gap:1.1rem;flex-wrap:wrap;margin-top:1rem;padding-top:.9rem;border-top:1px solid var(--line);
-  font-size:var(--fs-xs);font-weight:600;color:var(--ink-soft);
-}
-.gantt-legend .lg{display:inline-flex;align-items:center;gap:.4rem}
-.lg-swatch{width:22px;height:9px;border-radius:99px;background:var(--rosa)}
-.lg-swatch.dash{background:transparent;border:2px dashed var(--rosa)}
-.lg-swatch.dim{background:var(--rosa);opacity:.3}
-
-/* ════════════════════════════════════════════
-   ESTADOS
-════════════════════════════════════════════ */
-.loader{text-align:center;padding:4rem;color:var(--ink-soft)}
 .spinner{
-  border:4px solid rgba(225,0,152,.2);width:48px;height:48px;border-radius:50%;
-  border-left-color:var(--rosa);animation:spin 1s cubic-bezier(.6,.2,.4,.8) infinite;margin:0 auto 1.4rem;
+  width:36px;height:36px;margin-bottom:var(--s4);border-radius:50%;
+  border:2px solid var(--line);border-top-color:var(--brand);
+  animation:spin .8s linear infinite;
 }
-@keyframes spin{to{transform:rotate(360deg)}}
 .empty-state{
-  text-align:center;padding:3.6rem 2rem;color:var(--ink-soft);background:var(--surface);
-  border-radius:var(--rad);border:2px dashed var(--line);grid-column:1 / -1;
+  display:flex;flex-direction:column;align-items:center;justify-content:center;
+  grid-column:1/-1;text-align:center;
+  padding:var(--s8) var(--s5);margin:var(--s5) 0;
+  background:var(--surface);border:1px solid var(--line);border-radius:var(--rad);
+  color:var(--ink-soft);
 }
-.empty-state h3{color:var(--ink);font-family:var(--f-display);font-weight:800;margin-bottom:.4rem}
-.preview-banner{max-width:1200px;margin:0 auto;padding:.5rem 1.4rem;display:none;}
-.preview-banner span{
-  display:inline-block;background:var(--warn-bg);color:var(--warn);
-  font-size:var(--fs-xs);font-weight:700;border-radius:8px;padding:.35rem .8rem;
+/* `hidden` debe seguir ocultando: `display:flex` de una clase gana a la hoja del
+   navegador, y sin esto el estado vacío se enseñaba junto a los resultados. */
+.empty-state[hidden]{display:none}
+/* Cuando el fallo de red sustituye al cargador, el aviso ocupa su hueco entero
+   en vez de encogerse al centro de un contenedor flexible. */
+.loader .empty-state{width:100%;margin:0}
+.empty-state .es-icon,.empty-state > svg{
+  width:32px;height:32px;margin-bottom:var(--s3);color:var(--ink-faint);opacity:.7;
 }
+.empty-state h3,.es-title{
+  font-family:var(--f-display);font-weight:700;font-size:var(--fs-lg);
+  letter-spacing:-.015em;color:var(--ink);margin-bottom:var(--s2);
+}
+.empty-state p,.es-desc{font-size:var(--fs-md);color:var(--ink-soft);max-width:46ch;line-height:1.6}
+.es-desc{margin-bottom:var(--s5)}
+.es-btn{
+  height:38px;padding:0 1.1rem;border-radius:var(--rad-full);
+  border:1px solid var(--line);background:var(--surface);color:var(--ink);
+  font-family:var(--f-body);font-size:var(--fs-sm);font-weight:600;cursor:pointer;transition:var(--tr);
+}
+.es-btn:hover{border-color:var(--brand);background:var(--brand-tint);color:var(--brand-deep)}
 
 #backTop{
-  position:fixed;right:2rem;bottom:2rem;
-  width:48px;height:48px;border-radius:50%;border:none;cursor:pointer;
-  background:var(--rosa);color:#fff;font-size:1.15rem;font-weight:800;
+  position:fixed;right:1.75rem;bottom:1.75rem;z-index:800;
   display:flex;align-items:center;justify-content:center;
-  box-shadow:var(--sh-rosa-lg);z-index:800;
-  opacity:0;transform:translateY(10px);pointer-events:none;transition:var(--tr);
+  width:44px;height:44px;border-radius:50%;cursor:pointer;
+  border:1px solid var(--line);background:var(--surface);color:var(--ink);
+  box-shadow:var(--sh-md);
+  opacity:0;transform:translateY(8px);pointer-events:none;transition:var(--tr);
 }
+#backTop .ic{width:18px;height:18px}
 #backTop.show{opacity:1;transform:none;pointer-events:auto}
-#backTop:hover{background:var(--rosa-deep)}
+#backTop:hover{border-color:var(--brand);background:var(--brand-tint);color:var(--brand-deep)}
 
 ::-webkit-scrollbar{width:10px;height:8px}
-::-webkit-scrollbar-track{background:var(--paper)}
-::-webkit-scrollbar-thumb{background:var(--line);border-radius:10px}
-::-webkit-scrollbar-thumb:hover{background:var(--rosa-soft)}
+::-webkit-scrollbar-track{background:transparent}
+::-webkit-scrollbar-thumb{background:var(--line);border-radius:var(--rad-full);border:2px solid var(--content-bg)}
+::-webkit-scrollbar-thumb:hover{background:var(--ink-faint)}
 
 @media (prefers-reduced-motion:reduce){
   *,*::before,*::after{animation-duration:.01ms !important;transition-duration:.01ms !important}
 }
 
-@media (max-width:980px){.date-hero{grid-template-columns:1fr;gap:1.4rem;align-items:start}}
-@media (max-width:760px){
-  .controls-row{grid-template-columns:1fr}
-  .c-date{display:none}
-  .logo-sub{display:none}
-  .logo-divider{display:none}
+/* ════════════════════════════════════════════════════════════════════════════
+   ADAPTACIÓN A PANTALLAS ESTRECHAS
+════════════════════════════════════════════════════════════════════════════ */
+@media(max-width:1080px){
+  .date-hero{grid-template-columns:1fr;gap:var(--s5);align-items:start}
+  .hero-stats{width:100%}
 }
-@media (max-width:600px){
-  .date-hero{padding:1.8rem 1.1rem 1.4rem}
-  .hero-stats{grid-template-columns:repeat(3,1fr);gap:.5rem}
-  .stat-tile{padding:.7rem .7rem}
-  .stat-num{font-size:1.45rem}
-  .view-section,.tabs-wrap{padding-left:1.1rem;padding-right:1.1rem}
-  .month-label{font-size:1.2rem;min-width:150px}
-  .gantt-card{padding:1rem .9rem 1.2rem}
-  .g-bar .g-days{display:none}
-  .tabs{max-width:100%}
+@media(max-width:860px){
+  .controls-row{grid-template-columns:1fr}
+  .results-hint{display:none}
+}
+@media(max-width:760px){
+  .clock .c-date{display:none}
   .back-link span{display:none}
+  .back-link{padding:.45rem .6rem}
+}
+@media(max-width:640px){
+  /* En el teléfono se cae el antetítulo, no el título: saber en qué pantalla se
+     está sigue haciendo falta, y era lo primero que desaparecía. */
+  .top-title .tt-eyebrow{display:none}
+  .topbar{padding:.65rem 1rem;gap:.6rem}
+  .date-hero{padding-top:var(--s6);padding-bottom:var(--s5)}
+  .hero-sync{margin-top:var(--s4)}
+  .stat-tile{padding:.8rem .9rem}
+  .stat-num{font-size:var(--fs-xl)}
+  .tabs{gap:var(--s4)}
+  .gantt-card{padding:var(--s4) var(--s3) var(--s3)}
+  .g-bar .g-days{display:none}
+  .month-label{font-size:var(--fs-lg);min-width:0}
+  .month-nav .m-today{margin-left:0}
   #backTop{right:1rem;bottom:1rem}
 }
-
-/* ════════════════════════════════════════════
-   ESTADOS VACÍOS (UX)
-════════════════════════════════════════════ */
-.empty-state {
-  display: flex; flex-direction: column; align-items: center; justify-content: center;
-  padding: var(--s8) var(--s4); text-align: center;
-  background: var(--surface); border: 1px dashed var(--line); border-radius: var(--rad-lg);
-  margin: var(--s5) 0;
+@media(max-width:420px){
+  .hero-stats{grid-template-columns:1fr}
+  .stat-tile + .stat-tile{border-left:0;border-top:1px solid var(--line-soft)}
 }
-.es-icon { font-size: var(--fs-3xl); margin-bottom: var(--s3); opacity: 0.5; filter: grayscale(1); }
-.es-title { font-family: var(--f-display); font-size: var(--fs-xl); color: var(--ink); margin-bottom: var(--s2); }
-.es-desc { color: var(--ink-soft); font-size: var(--fs-md); max-width: 45ch; margin-bottom: var(--s5); }
-.es-btn { background: var(--brand-tint); color: var(--brand-deep); border: none; padding: var(--s3) var(--s5); border-radius: 99px; font-weight: 700; cursor: pointer; transition: var(--tr); }
-.es-btn:hover { background: var(--brand); color: white; }
 </style>
 </head>
 <body>
@@ -909,28 +1143,39 @@ select.filter-select:focus{border-color:var(--rosa);background-color:#fff}
 <!-- ══ MAIN ══ -->
 <div class="app-main">
   <header class="topbar">
-    <button class="menu-btn" onclick="toggleSidebar()" aria-label="Menú"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M4 7h16M4 12h16M4 17h16"/></svg></button>
+    <button class="menu-btn" onclick="toggleSidebar()" aria-label="Abrir el menú"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round"><path d="M4 7h16M4 12h16M4 17h16"/></svg></button>
     <div class="top-title"><span class="tt-eyebrow">Monitor</span><span class="tt-name">Promociones</span></div>
     <span class="spacer"></span>
-    <a class="back-link" id="portalNavLink" data-sec="inicio" href="<?= APP_URL ?>" target="_top" onclick="handleSideNav(event,this)">← <span>Portal principal</span></a>
+    <a class="back-link" id="portalNavLink" data-sec="inicio" href="<?= APP_URL ?>" target="_top" onclick="handleSideNav(event,this)">
+      <svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M19 12H5m0 0 6-6m-6 6 6 6"/></svg>
+      <span>Portal principal</span>
+    </a>
     <div class="clock">
       <span class="c-time" id="clockTime">--:--:--</span>
       <span class="c-date" id="clockDate"></span>
     </div>
   </header>
 
-  <div class="preview-banner" id="previewBanner"><span>⚠ Vista de ejemplo — no estás conectado al sistema</span></div>
+  <div class="preview-banner" id="previewBanner">
+    <span>
+      <svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M10.3 3.9 1.8 18a2 2 0 0 0 1.7 3h17a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0Z"/><path d="M12 9v4"/><path d="M12 17h.01"/></svg>
+      Vista de ejemplo — no estás conectado al sistema
+    </span>
+  </div>
 
+<!-- ══ ENCABEZADO DE PÁGINA ══════════════════════════════════════════════════
+     La fecha es el ancla: todo lo que hay debajo se lee «vigente HOY». A su
+     derecha, las tres cifras que resumen el día en un solo panel. -->
 <section class="date-hero">
   <div class="hero-left">
-    <span class="hero-eyebrow">Hoy · actualizado en vivo</span>
+    <span class="hero-eyebrow"><span class="dot"></span>Hoy · actualizado en vivo</span>
     <h1 id="hero-day">—</h1>
     <p class="hero-sub" id="hero-date-full">Poniendo la fecha en hora…</p>
     <div class="hero-sync" id="heroSync" title="Última actualización de las promociones">
       <span class="hs-dot"></span>
       <span class="hs-text" id="syncText">Cargando datos…</span>
       <button class="hs-refresh" id="syncBtn" type="button" onclick="refreshData(this)" title="Actualizar datos" aria-label="Actualizar datos">
-        <svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12a9 9 0 1 1-2.64-6.36"/><path d="M21 3v6h-6"/></svg>
+        <svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12a9 9 0 1 1-2.64-6.36"/><path d="M21 3v6h-6"/></svg>
       </button>
     </div>
   </div>
@@ -951,15 +1196,18 @@ select.filter-select:focus{border-color:var(--rosa);background-color:#fff}
 </section>
 
 <div class="tabs-wrap">
-  <nav class="tabs">
+  <nav class="tabs" aria-label="Vistas del monitor">
     <button class="tab-btn active" id="tab-promos" onclick="switchTab('promos', this)">
-      ✨ Promociones <span class="tab-count" id="tabCountPromos">…</span>
+      <svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M20.6 13.4 13.4 20.6a2 2 0 0 1-2.8 0l-7.2-7.2A2 2 0 0 1 3 12V5a2 2 0 0 1 2-2h7a2 2 0 0 1 1.4.6l7.2 7.2a2 2 0 0 1 0 2.6Z"/><path d="M7.5 7.5h.01"/></svg>
+      Promociones <span class="tab-count" id="tabCountPromos">…</span>
     </button>
     <button class="tab-btn" id="tab-calendar" onclick="switchTab('calendar', this)">
-      📅 Calendario <span class="tab-count" id="tabCountCal">…</span>
+      <svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4.5" width="18" height="16" rx="2.5"/><path d="M3 9.5h18M8 2.5v4M16 2.5v4"/></svg>
+      Calendario <span class="tab-count" id="tabCountCal">…</span>
     </button>
     <button class="tab-btn" id="tab-agenda" onclick="switchTab('agenda', this)">
-      🗂️ Agenda <span class="tab-count" id="tabCountAgenda">…</span>
+      <svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M9 6h11M9 12h11M9 18h11"/><path d="M4.5 6h.01M4.5 12h.01M4.5 18h.01"/></svg>
+      Agenda <span class="tab-count" id="tabCountAgenda">…</span>
     </button>
   </nav>
 </div>
@@ -969,15 +1217,21 @@ select.filter-select:focus{border-color:var(--rosa);background-color:#fff}
     <div class="controls-panel" id="controls-panel" style="display:none;">
       <div class="controls-row">
         <div class="search-wrapper">
-          <svg class="icon-search" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path></svg>
+          <label class="sr-only" for="searchInput">Buscar entre las promociones de hoy</label>
+          <svg class="icon-search" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="7"/><path d="m21 21-4.3-4.3"/></svg>
           <input type="text" id="searchInput" placeholder="Busca: categoría, marca o promoción (ej. pantallas, Nike, 50%)…" autocomplete="off">
-          <button class="search-clear" id="searchClear" onclick="clearSearch()" title="Limpiar búsqueda (Esc)" aria-label="Limpiar búsqueda">✕</button>
+          <button class="search-clear" id="searchClear" onclick="clearSearch()" title="Limpiar búsqueda (Esc)" aria-label="Limpiar búsqueda">
+            <svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M18 6 6 18M6 6l12 12"/></svg>
+          </button>
         </div>
-        <select id="filterOrigen" class="filter-select">
-          <option value="all">Cualquier origen</option>
-          <option value="Promociones">Catálogo general</option>
-          <option value="Marketplace">Marketplace (MKP)</option>
-        </select>
+        <div>
+          <label class="sr-only" for="filterOrigen">Filtrar por origen</label>
+          <select id="filterOrigen" class="filter-select">
+            <option value="all">Cualquier origen</option>
+            <option value="Promociones">Catálogo general</option>
+            <option value="Marketplace">Marketplace (MKP)</option>
+          </select>
+        </div>
       </div>
       <div class="chips-row" id="chipsRow"></div>
     </div>
@@ -995,7 +1249,7 @@ select.filter-select:focus{border-color:var(--rosa);background-color:#fff}
     <div id="promos-container" class="promos-grid"></div>
 
     <div id="promos-empty-state" class="empty-state" aria-live="polite" hidden>
-      <div class="es-icon">🔍</div>
+      <svg class="es-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="7"/><path d="m21 21-4.3-4.3"/></svg>
       <h3 class="es-title">No encontramos promociones</h3>
       <p class="es-desc">Prueba ajustando los filtros de búsqueda o seleccionando otra categoría.</p>
       <button class="es-btn" onclick="document.querySelector('.search-clear') ? document.querySelector('.search-clear').click() : null">Limpiar filtros</button>
@@ -1009,13 +1263,16 @@ select.filter-select:focus{border-color:var(--rosa);background-color:#fff}
     </div>
 
     <div class="cal-section" id="ganttSection" style="display:none;">
+      <h2 class="cal-section-title">
+        <svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4.5" width="18" height="16" rx="2.5"/><path d="M3 9.5h18M8 2.5v4M16 2.5v4"/><path d="M7 13.5h6M7 17h9"/></svg>
+        Promociones del mes <span class="badge-n" id="ganttCount">0</span>
+      </h2>
       <div class="month-nav">
-        <button class="m-arrow" id="monthPrev" onclick="changeMonth(-1)" aria-label="Mes anterior">‹</button>
+        <button class="m-arrow" id="monthPrev" onclick="changeMonth(-1)" aria-label="Mes anterior"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m15 6-6 6 6 6"/></svg></button>
+        <button class="m-arrow" id="monthNext" onclick="changeMonth(1)" aria-label="Mes siguiente"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m9 6 6 6-6 6"/></svg></button>
         <span class="month-label" id="monthLabel">—</span>
-        <button class="m-arrow" id="monthNext" onclick="changeMonth(1)" aria-label="Mes siguiente">›</button>
-        <button class="m-today" onclick="goToCurrentMonth()">Hoy</button>
+        <button class="m-today" onclick="goToCurrentMonth()">Ir a hoy</button>
       </div>
-      <h2 class="cal-section-title">📆 Promociones del mes <span class="badge-n" id="ganttCount">0</span></h2>
       <div class="gantt-card">
         <div class="gantt-axis" id="ganttAxis"></div>
         <div class="gantt-body" id="ganttBody"></div>
@@ -1029,10 +1286,13 @@ select.filter-select:focus{border-color:var(--rosa);background-color:#fff}
     </div>
 
     <div class="cal-section" id="vigSection" style="display:none;">
-      <h2 class="cal-section-title">⏳ Vigencias de la hoja de promociones <span class="badge-n" id="vigCount">0</span></h2>
-      <div class="calendar-controls" style="justify-content:flex-start;margin-bottom:1.2rem;">
-        <button id="btn-cal-activos" class="cal-filter-btn active" onclick="filterCalendar('activos')">● En curso hoy</button>
-        <button id="btn-cal-proximos" class="cal-filter-btn" onclick="filterCalendar('proximos')">→ Próximas (60 días)</button>
+      <h2 class="cal-section-title">
+        <svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 7.2V12l3.2 2"/></svg>
+        Vigencias de la hoja de promociones <span class="badge-n" id="vigCount">0</span>
+      </h2>
+      <div class="calendar-controls">
+        <button id="btn-cal-activos" class="cal-filter-btn active" onclick="filterCalendar('activos')"><span class="dot"></span>En curso hoy</button>
+        <button id="btn-cal-proximos" class="cal-filter-btn" onclick="filterCalendar('proximos')">Próximas (60 días)</button>
       </div>
       <div class="vig-group-list" id="vigGroupList"></div>
     </div>
@@ -1044,20 +1304,25 @@ select.filter-select:focus{border-color:var(--rosa);background-color:#fff}
        historial y comprobar qué se promocionó en una fecha concreta. -->
   <section id="agenda-view" class="view-section">
     <div class="cal-section">
-      <h2 class="cal-section-title">🗂️ Agenda de promociones <span class="badge-n" id="agTotal">0</span></h2>
-      <p class="ag-nota" style="margin:-.6rem 0 1.1rem">
+      <h2 class="cal-section-title">
+        <svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M9 6h11M9 12h11M9 18h11"/><path d="M4.5 6h.01M4.5 12h.01M4.5 18h.01"/></svg>
+        Agenda de promociones <span class="badge-n" id="agTotal">0</span>
+      </h2>
+      <p class="ag-nota" style="margin:-.6rem 0 1.2rem">
         Aquí está <b>todo lo que hay en la hoja</b>: lo que corre hoy, lo que empieza más adelante
         y lo que ya terminó. Las fechas se deducen del texto de la columna «Vigencia».
       </p>
 
-      <div class="ag-toolbar" id="agFiltros" role="group" aria-label="Filtrar por estado"></div>
-
-      <div class="ag-search">
-        <label class="sr-only-ag" for="agBuscar">Buscar en la agenda</label>
-        <input type="text" id="agBuscar" placeholder="Busca por categoría, dirección, marca o promoción…" autocomplete="off">
+      <!-- Filtrar y buscar son la misma tarea: van en la misma banda, no en dos. -->
+      <div class="ag-controls">
+        <div class="ag-toolbar" id="agFiltros" role="group" aria-label="Filtrar por estado"></div>
+        <div class="ag-search">
+          <label class="sr-only" for="agBuscar">Buscar en la agenda</label>
+          <input type="text" id="agBuscar" placeholder="Busca por categoría, dirección, marca o promoción…" autocomplete="off">
+        </div>
       </div>
 
-      <div class="ag-caja" id="agCaja" style="margin-top:1.1rem">
+      <div class="ag-caja" id="agCaja">
         <table class="ag-tabla" id="agTabla">
           <thead>
             <tr>
@@ -1081,7 +1346,7 @@ select.filter-select:focus{border-color:var(--rosa);background-color:#fff}
 </div><!-- /app-main -->
 </div><!-- /app -->
 
-<button id="backTop" aria-label="Volver arriba">↑</button>
+<button id="backTop" aria-label="Volver arriba"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 19V5m0 0-6 6m6-6 6 6"/></svg></button>
 
 <script>
 /* ===== gsap-fx · animaciones integradas (inline para Google Apps Script) ===== */
@@ -1115,7 +1380,10 @@ select.filter-select:focus{border-color:var(--rosa);background-color:#fff}
   }
 
   // ---- Spotlight estilo gsap.com: glow que sigue el cursor en las tarjetas ----
-  var SPOT_SEL = '.tool-card, .pres-card, .pago-card, .fmt-card, .promo-card';
+  // Las tarjetas de promoción salen de la lista: el rediseño las resalta con
+  // borde y sombra, así que el resplandor radial ya no pintaba nada y sólo
+  // costaba un pointermove por tarjeta.
+  var SPOT_SEL = '.tool-card, .pres-card, .pago-card, .fmt-card';
   function makeSpotlight(el) {
     if (!el || el.__spot || REDUCE) return;
     el.__spot = true;
@@ -1168,9 +1436,9 @@ select.filter-select:focus{border-color:var(--rosa);background-color:#fff}
     document.body.appendChild(bar);
     var styleEl = document.createElement('style');
     styleEl.textContent =
-      '.gsap-progress{position:fixed;top:0;left:0;height:3px;width:100%;' +
+      '.gsap-progress{position:fixed;top:0;left:0;height:2px;width:100%;' +
       'background:var(--brand,#E10098);transform:scaleX(0);transform-origin:0 50%;' +
-      'z-index:9999;pointer-events:none;box-shadow:0 1px 8px -2px rgba(225,0,152,.55)}';
+      'z-index:9999;pointer-events:none}';
     document.head.appendChild(styleEl);
 
     if (window.ScrollTrigger && !REDUCE) {
@@ -1266,6 +1534,37 @@ const MESES = ['Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agosto'
 const MESES_ABR = ['Ene','Feb','Mar','Abr','May','Jun','Jul','Ago','Sep','Oct','Nov','Dic'];
 const DEPT_PALETTE = ['#E10098','#5B21B6','#1D4ED8','#0E7A4F','#B45309','#0E7490','#BE185D','#4338CA','#15803D','#9F1239'];
 let deptColorMap = {};
+
+/* ═══ ICONOGRAFÍA ═══════════════════════════════════════════════════════════
+   Un único juego de trazos (1.75) para todo lo que pinta el JavaScript, igual
+   que el de los SVG escritos a mano en el HTML. Antes aquí había emojis: se
+   veían de otra época y, peor, cada sistema operativo los dibuja distinto, así
+   que la misma pantalla no era la misma en dos equipos. */
+const SVG_ABRE = '<svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round">';
+const IC = {
+  cal:   SVG_ABRE + '<rect x="3" y="4.5" width="18" height="16" rx="2.5"/><path d="M3 9.5h18M8 2.5v4M16 2.5v4"/></svg>',
+  clock: SVG_ABRE + '<circle cx="12" cy="12" r="9"/><path d="M12 7.2V12l3.2 2"/></svg>',
+  pin:   SVG_ABRE + '<path d="M20 10.4c0 5.4-8 11.6-8 11.6s-8-6.2-8-11.6a8 8 0 0 1 16 0Z"/><circle cx="12" cy="10.2" r="2.6"/></svg>',
+  tag:   SVG_ABRE + '<path d="M20.6 13.4 13.4 20.6a2 2 0 0 1-2.8 0l-7.2-7.2A2 2 0 0 1 3 12V5a2 2 0 0 1 2-2h7a2 2 0 0 1 1.4.6l7.2 7.2a2 2 0 0 1 0 2.6Z"/><path d="M7.5 7.5h.01"/></svg>',
+  ext:   '<svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M7 17 17 7M8 7h9v9"/></svg>',
+  chev:  '<svg class="ic g-chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="m6 9 6 6 6-6"/></svg>',
+  lupa:  '<svg class="es-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="7"/><path d="m21 21-4.3-4.3"/></svg>',
+  offline:'<svg class="es-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M2 8.8a17 17 0 0 1 6.5-3.7"/><path d="M14.5 5.4A17 17 0 0 1 22 8.8"/><path d="M5 12.6a12 12 0 0 1 3.3-2"/><path d="M15.5 10.4a12 12 0 0 1 3.5 2.2"/><path d="M8.5 16.4a7 7 0 0 1 7 0"/><path d="M12 20h.01"/><path d="m2 2 20 20"/></svg>'
+};
+
+/* Estado vacío estándar: mismo icono, mismo título, misma explicación. */
+function estadoVacio(icono, titulo, texto){
+  return `<div class="empty-state">${icono}<h3>${titulo}</h3><p>${texto}</p></div>`;
+}
+
+/* La hoja llama "Promociones" al catálogo general. Repetir esa palabra en cada
+   tarjeta del Monitor de Promociones no informa de nada; se usa el mismo rótulo
+   que ya ofrece el desplegable de origen ("Catálogo general"). */
+function origenCorto(origen){
+  if (origen === 'Marketplace') return 'MKP';
+  if (!origen || origen === 'Promociones') return 'Catálogo';
+  return origen;
+}
 
 document.addEventListener('DOMContentLoaded', () => {
   startClock();
@@ -1415,8 +1714,10 @@ function handleDataError(error){
   if (window.VentelLoader) VentelLoader.hide();
   if (globalData) return; // el caché local ya pintó contenido; no lo tapamos con el error
   console.error('Promociones:', error);
-  document.getElementById('promos-loader').innerHTML = `<div class="empty-state"><h3>Sin conexión</h3><p>No pudimos cargar las promociones. Revisa tu internet y recarga la página.</p></div>`;
-  document.getElementById('calendar-loader').innerHTML = `<div class="empty-state"><h3>Sin conexión</h3><p>No pudimos cargar el calendario. Revisa tu internet y recarga la página.</p></div>`;
+  document.getElementById('promos-loader').innerHTML = estadoVacio(IC.offline, 'Sin conexión',
+    'No pudimos cargar las promociones. Revisa tu internet y recarga la página.');
+  document.getElementById('calendar-loader').innerHTML = estadoVacio(IC.offline, 'Sin conexión',
+    'No pudimos cargar el calendario. Revisa tu internet y recarga la página.');
 }
 
 function renderHeroStats(){
@@ -1453,7 +1754,10 @@ function populateChips(){
 function makeChip(value, label, color, n){
   const b = document.createElement('button');
   b.className = 'chip'; b.dataset.value = value;
-  b.innerHTML = (color ? `<span class="chip-dot" style="color:${color}"></span>` : '🏷️ ') + `${label} <span style="opacity:.65;font-weight:600;">${n}</span>`;
+  // "Todas" también lleva punto, en gris: así todas las píldoras miden lo mismo
+  // y la fila no se desalinea al cambiar de filtro.
+  b.innerHTML = `<span class="chip-dot"${color ? ` style="color:${color}"` : ' style="color:var(--ink-faint)"'}></span>` +
+                `${label} <span class="chip-n">${n}</span>`;
   b.onclick = () => { currentDir = (currentDir === value) ? 'all' : value; syncChipState(); applyFilters(); };
   return b;
 }
@@ -1544,22 +1848,34 @@ function maxDiscount(t){ const nums=(String(t).match(/(\d{1,3})\s*%/g)||[]).map(
 function msiCount(t){ const m=String(t).match(/(\d{1,2})\s*msi/i); if(m)return parseInt(m[1]); return /\bmsi\b/i.test(String(t))?1:0; }
 function pagaSep(t){ return /pag(a|ue)\s*(en|hasta)?\s*sep/i.test(String(t)); }
 
+/* ═══ TARJETA DE PROMOCIÓN ══════════════════════════════════════════════════
+   Orden de lectura: de quién es → qué es y cuánto rebaja → en qué consiste →
+   hasta cuándo → dónde verla.
+
+   El descuento sube a la primera línea, junto al título, porque es el dato por
+   el que se abre esta pantalla; antes iba en una caja rosa a media tarjeta,
+   compitiendo con el título en vez de acompañarlo. Los meses sin intereses y
+   el «paga en septiembre» bajan a su propia fila: son condiciones de pago, no
+   el titular. */
 function renderCards(promosArray){
   const container = document.getElementById('promos-container');
   if (promosArray.length === 0) {
-    container.innerHTML = `<div class="empty-state"><svg width="60" height="60" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" style="margin:0 auto 1rem;color:var(--line);"><path stroke-linecap="round" stroke-linejoin="round" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" /></svg><h3>Sin resultados</h3><p>Prueba con otra palabra, quita el filtro de dirección o cambia el origen.</p></div>`;
+    container.innerHTML = estadoVacio(IC.lupa, 'Sin resultados',
+      'Prueba con otra palabra, quita el filtro de dirección o cambia el origen.');
     return;
   }
   container.innerHTML = '';
   promosArray.forEach(promo => {
     const isMkp = promo.origen === 'Marketplace';
-    const color = deptColorMap[promo.direccion] || 'var(--rosa)';
-    const marcaHtml = (promo.marca && !isMkp) ? `<div class="card-brand"><svg width="15" height="15" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 7h.01M7 3h5c.512 0 1.024.195 1.414.586l7 7a2 2 0 010 2.828l-7 7a2 2 0 01-2.828 0l-7-7A1.994 1.994 0 013 12V7a4 4 0 014-4z"></path></svg> ${promo.marca}</div>` : '';
+    const color = deptColorMap[promo.direccion] || 'var(--brand)';
+    const marcaHtml = (promo.marca && !isMkp) ? `<div class="card-brand">${IC.tag}${promo.marca}</div>` : '';
     let urlLiga = promo.liga;
     if (urlLiga && !urlLiga.startsWith('http') && urlLiga !== '#') urlLiga = 'https://' + urlLiga;
-    const btnHtml = (urlLiga && urlLiga !== '#' && urlLiga.trim() !== '') ? `<a href="${urlLiga}" target="_blank" rel="noopener" class="card-btn">Ver en Liverpool ↗</a>` : `<span class="card-btn disabled">Enlace no disponible</span>`;
+    const btnHtml = (urlLiga && urlLiga !== '#' && urlLiga.trim() !== '')
+      ? `<a href="${urlLiga}" target="_blank" rel="noopener" class="card-btn">Ver en Liverpool ${IC.ext}</a>`
+      : `<span class="card-btn disabled">Enlace no disponible</span>`;
     const pct=maxDiscount(promo.promocion),msi=msiCount(promo.promocion),sep=pagaSep(promo.promocion);
-    const discHtml=pct>0?`<div class="disc-badge"><span class="upto">hasta</span><span class="pct">${pct}%</span></div>`:'';
+    const discHtml=pct>0?`<div class="disc-badge"><span class="upto">hasta</span><span class="pct">${pct}<i>%</i></span></div>`:'';
     const msiHtml=msi>0?`<span class="mini-badge msi">${msi>1?msi+' MSI':'MSI'}</span>`:'';
     const sepHtml=sep?`<span class="mini-badge sep">Paga en Sep</span>`:'';
     let vigHtml='';
@@ -1569,11 +1885,21 @@ function renderCards(promosArray){
       if(dl<=1){pillCls='alert';pillTxt='¡Termina hoy!';}
       else if(dl===2){pillCls='alert';pillTxt='Termina mañana';}
       else if(dl<=4){pillCls='warn';pillTxt=`Quedan ${dl} días`;}
-      vigHtml=`<div class="card-vig"><div class="vig-top"><span class="vig-range">📅 <strong>${fmtShort(promo._start)} – ${fmtShort(promo._end)}</strong></span><span class="vig-pill ${pillCls}">${pillTxt}</span></div><div class="vig-track"><div class="vig-fill" data-progress="${progress.toFixed(1)}"></div></div></div>`;
+      vigHtml=`<div class="card-vig"><div class="vig-top"><span class="vig-range">${IC.cal}<strong>${fmtShort(promo._start)} – ${fmtShort(promo._end)}</strong></span><span class="vig-pill ${pillCls}">${pillTxt}</span></div><div class="vig-track"><div class="vig-fill" data-progress="${progress.toFixed(1)}"></div></div></div>`;
     } else {
-      vigHtml=`<div class="card-vig"><div class="vig-top"><span class="vig-range">📅 Vigencia: <strong>${promo.vigencia||'no especificada'}</strong></span><span class="vig-pill muted">Sin fecha</span></div></div>`;
+      vigHtml=`<div class="card-vig"><div class="vig-top"><span class="vig-range">${IC.cal}<strong>${promo.vigencia||'Vigencia no especificada'}</strong></span><span class="vig-pill muted">Sin fecha</span></div></div>`;
     }
-    container.insertAdjacentHTML('beforeend',`<div class="card promo-card" style="--dept-color:${color}"><div class="card-header"><span class="dept-tag"><span class="dot"></span>${promo.direccion}</span><span class="origin-tag ${isMkp?'mkp':''}">${isMkp?'MKP':promo.origen}</span></div><h3 class="card-title">${promo.categoria}</h3>${(discHtml||msiHtml||sepHtml)?`<div class="promo-row">${discHtml}${msiHtml}${sepHtml}</div>`:''}<div class="card-promo">${promo.promocion}</div>${marcaHtml}${vigHtml}${btnHtml}</div>`);
+    container.insertAdjacentHTML('beforeend',
+      `<article class="card promo-card" style="--dept-color:${color}">` +
+        `<div class="card-header">` +
+          `<span class="dept-tag"><span class="dot"></span>${promo.direccion}</span>` +
+          `<span class="origin-tag ${isMkp?'mkp':''}">${origenCorto(promo.origen)}</span>` +
+        `</div>` +
+        `<div class="card-lead"><h3 class="card-title">${promo.categoria}</h3>${discHtml}</div>` +
+        `<p class="card-promo">${promo.promocion}</p>` +
+        `${(msiHtml||sepHtml)?`<div class="promo-row">${msiHtml}${sepHtml}</div>`:''}` +
+        `${marcaHtml}${vigHtml}${btnHtml}` +
+      `</article>`);
   });
   if (window.gsap && !RM) {
     if (window.fxRevealCards) { window.fxRevealCards(); } else { gsap.fromTo('.promo-card',{opacity:0,scale:.98,y:10},{opacity:1,scale:1,y:0,duration:.28,stagger:.03,ease:'power3.out',clearProps:'transform'}); }
@@ -1625,7 +1951,7 @@ function renderGantt(){
   const eventos=(globalData.eventos||[]).filter(ev=>ev.inicio<mEnd.getTime()&&ev.fin>mStart.getTime()).sort((a,c)=>a.inicio-c.inicio||a.fin-c.fin);
   document.getElementById('ganttCount').textContent=eventos.length;
   body.style.setProperty('--cols',cols);
-  if(eventos.length===0){body.innerHTML=`<div class="empty-state" style="border:none;"><h3>Mes sin promociones registradas</h3><p>No hay promociones en el calendario para este mes.</p></div>`;return;}
+  if(eventos.length===0){body.innerHTML=estadoVacio(IC.cal,'Mes sin promociones registradas','No hay promociones en el calendario para este mes.');return;}
   const ahora=currentNow.getTime();
   let gridHtml='<div class="gantt-grid">';
   for(let gd=0;gd<cols;gd++){const cd=new Date(mStart.getFullYear(),mStart.getMonth(),1+gd);const dow=cd.getDay();let gc='g-cell';if(dow===0||dow===6)gc+=' wknd';if(dow===1)gc+=' mon';if(cd.toDateString()===currentNow.toDateString())gc+=' today-col';gridHtml+=`<div class="${gc}"></div>`;}
@@ -1638,11 +1964,11 @@ function renderGantt(){
     const left=((visStart-mStart.getTime())/span)*100,width=Math.max(1.5,((visEnd-visStart)/span)*100);
     const clipL=ev.inicio<mStart.getTime(),clipR=ev.fin>mEnd.getTime();
     let pill='',barCls='',countdownHtml='';
-    if(ahora<ev.inicio){const du=daysUntil(fInicio);pill=`<span class="vig-pill warn">Inicia en ${du} ${du===1?'día':'días'}</span>`;countdownHtml=`<span class="event-countdown">⏳ Inicia en ${du} ${du===1?'día':'días'}</span>`;barCls='future-bar';}
+    if(ahora<ev.inicio){const du=daysUntil(fInicio);pill=`<span class="vig-pill warn">Inicia en ${du} ${du===1?'día':'días'}</span>`;countdownHtml=`<span class="event-countdown">Inicia en ${du} ${du===1?'día':'días'}</span>`;barCls='future-bar';}
     else if(ahora>ev.fin){pill=`<span class="vig-pill muted">Finalizó</span>`;barCls='done';}
     else{const dl=daysLeft(fFin),cls=dl<=2?'alert':(dl<=4?'warn':'ok');pill=`<span class="vig-pill ${cls}">${dl<=1?'¡Termina hoy!':'Quedan '+dl+' días'}</span>`;}
-    const ubicacionHtml=ev.ubicacion?`<div class="event-location"><svg width="15" height="15" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z"></path><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 11a3 3 0 11-6 0 3 3 0 016 0z"></path></svg> ${ev.ubicacion}</div>`:'';
-    html+=`<div class="g-row" style="--bar-color:${color}" onclick="toggleGanttRow(this)"><div class="g-head"><span class="g-title">${ev.titulo}</span><span class="g-meta">${pill}<span class="g-chevron">▼</span></span></div><div class="g-track"><div class="g-bar ${barCls}" style="left:${left.toFixed(2)}%;width:${width.toFixed(2)}%">${clipL?'<span class="g-clip">◂</span>':''}<span class="g-days">${desc.durStr}</span>${clipR?'<span class="g-clip" style="margin-left:auto;">▸</span>':''}</div></div><div class="g-details"><div class="gd-line">📅 ${desc.rangoStr} &nbsp;·&nbsp; 🕒 ${desc.horarioStr}<span class="event-duration">Dura ${desc.durStr}</span>${countdownHtml}</div>${ubicacionHtml}<div class="gd-desc">${ev.descripcion?ev.descripcion:'<em>Sin descripción detallada</em>'}</div></div></div>`;
+    const ubicacionHtml=ev.ubicacion?`<div class="event-location">${IC.pin}${ev.ubicacion}</div>`:'';
+    html+=`<div class="g-row" style="--bar-color:${color}" onclick="toggleGanttRow(this)"><div class="g-head"><span class="g-title">${ev.titulo}</span><span class="g-meta">${pill}${IC.chev}</span></div><div class="g-track"><div class="g-bar ${barCls}" style="left:${left.toFixed(2)}%;width:${width.toFixed(2)}%">${clipL?'<span class="g-clip">‹</span>':''}<span class="g-days">${desc.durStr}</span>${clipR?'<span class="g-clip" style="margin-left:auto;">›</span>':''}</div></div><div class="g-details"><div class="gd-line">${IC.cal}${desc.rangoStr}<span class="gd-sep"></span>${IC.clock}${desc.horarioStr}<span class="event-duration">Dura ${desc.durStr}</span>${countdownHtml}</div>${ubicacionHtml}<div class="gd-desc">${ev.descripcion?ev.descripcion:'<em>Sin descripción detallada</em>'}</div></div></div>`;
   });
   body.innerHTML=html;
   if(ahora>=mStart.getTime()&&ahora<mEnd.getTime()){const todayPct=((ahora-mStart.getTime())/span)*100;body.insertAdjacentHTML('beforeend',`<div class="gantt-today" style="left:${todayPct.toFixed(2)}%"></div>`);}
@@ -1681,7 +2007,7 @@ function renderVigGroups(){
   const sorted=Object.values(groups).sort((a,b)=>currentCalendarFilter==='activos'?(a.end-b.end):(a.start-b.start));
   document.getElementById('vigCount').textContent=sorted.length;
   section.style.display='block';
-  if(sorted.length===0){list.innerHTML=`<div class="empty-state"><h3>Sin vigencias ${currentCalendarFilter==='activos'?'en curso':'próximas'}</h3></div>`;return;}
+  if(sorted.length===0){list.innerHTML=estadoVacio(IC.clock,`Sin vigencias ${currentCalendarFilter==='activos'?'en curso':'próximas'}`,currentCalendarFilter==='activos'?'Ninguna promoción de la hoja está corriendo hoy.':'No hay promociones que arranquen en los próximos 60 días.');return;}
   list.innerHTML='';
   sorted.forEach(g=>{
     const totalDays=Math.max(1,Math.round((g.end-g.start)/86400000));
@@ -1780,14 +2106,20 @@ function renderAgenda(){
   todas.forEach(p => { cuenta[p._estado]++; });
 
   const orden = ['todas','vigente','proxima','terminada','sinfecha'];
-  const rotulo = { todas: 'Todas', vigente: '● En curso', proxima: '→ Próximas',
-                   terminada: '✓ Terminadas', sinfecha: '⚠ Sin fecha' };
+  const rotulo = { todas: 'Todas', vigente: 'En curso', proxima: 'Próximas',
+                   terminada: 'Terminadas', sinfecha: 'Sin fecha' };
+  // El estado no lo lleva sólo el color: el punto acompaña a una etiqueta que
+  // ya dice lo mismo con palabras, para quien no distingue verde de ámbar.
+  const punto = { todas: '', vigente: '<span class="dot ok"></span>',
+                  proxima: '<span class="dot warn"></span>',
+                  terminada: '<span class="dot done"></span>',
+                  sinfecha: '<span class="dot alert"></span>' };
   document.getElementById('agFiltros').innerHTML = orden
     // "Sin fecha" solo aparece si de verdad hay alguna: un filtro que siempre da
     // cero es ruido. Cuando aparece, es que hay vigencias mal escritas que revisar.
     .filter(k => k !== 'sinfecha' || cuenta.sinfecha > 0)
     .map(k => `<button class="ag-filter-btn${agEstado===k?' active':''}" type="button" data-est="${k}"` +
-              ` aria-pressed="${agEstado===k}">${rotulo[k]} <span class="n">${cuenta[k]}</span></button>`)
+              ` aria-pressed="${agEstado===k}">${punto[k]}${rotulo[k]} <span class="n">${cuenta[k]}</span></button>`)
     .join('');
   document.querySelectorAll('#agFiltros [data-est]').forEach(b => {
     b.onclick = () => { agEstado = b.dataset.est; agReset(); renderAgenda(); };
@@ -1831,12 +2163,12 @@ function renderAgenda(){
     } else { extra = 'Revisa el texto de vigencia'; }
 
     const liga = (p.liga && p.liga !== '#' && /^https?:\/\//i.test(p.liga))
-      ? `<a class="ag-link-btn" href="${escAg(p.liga)}" target="_blank" rel="noopener noreferrer">Ver ↗</a>` : '';
+      ? `<a class="ag-link-btn" href="${escAg(p.liga)}" target="_blank" rel="noopener noreferrer">Ver ${IC.ext}</a>` : '';
 
     const dColor = deptColorMap[p.direccion] || 'var(--brand)';
     const dirHtml = p.direccion ? `<span class="ag-dept-pill" style="--d-col:${dColor}"><span class="dot"></span>${escAg(p.direccion)}</span>` : '<span class="ag-vacia">—</span>';
     const isMkp = p.origen === 'Marketplace';
-    const origenHtml = `<span class="origin-tag ${isMkp?'mkp':''}">${isMkp?'MKP':(p.origen||'Catálogo')}</span>`;
+    const origenHtml = `<span class="origin-tag ${isMkp?'mkp':''}">${origenCorto(p.origen)}</span>`;
 
     return `<tr>
       <td><span class="vig-pill ${AG_PILL[p._estado]}">${AG_ETIQUETA[p._estado]}</span></td>
