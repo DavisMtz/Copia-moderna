@@ -1,0 +1,1376 @@
+<style>
+/**
+ * =====================================================================================
+ * ESTADO DE OPERACIÓN · indicador global | Sistema de cotizaciones Ventel
+ * =====================================================================================
+ * Se incluye en TODAS las pantallas (después de app_core). Pinta una pastilla fija con el
+ * estado de los sistemas, abre un panel con el detalle y contiene el formulario de reporte.
+ *
+ * ES AUTOSUFICIENTE A PROPÓSITO. El Portal (Index/Promociones) incluye app_core pero NO
+ * app_theme, app_icons, app_motion ni el preflight de Tailwind. Por eso aquí:
+ *   · se declara el propio box-sizing (sin él los botones miden lo que les da la gana),
+ *   · cada var() lleva su valor de respaldo,
+ *   · los iconos van en línea, sin depender de Icons.render(),
+ *   · las media queries van en PX (las de rem/em no evalúan dentro de este iframe).
+ *
+ * JERARQUÍA: cuando todo funciona la pastilla es pequeña, verde y callada. Cuando algo
+ * falla crece, cambia de color, late y dice QUÉ falla. El indicador tiene que ganarse la
+ * atención solo cuando hay algo que mirar; si grita siempre, deja de significar nada.
+ *
+ * El color NUNCA viaja solo: cada estado lleva punto, icono y palabra.
+ */
+
+.op-root, .op-root *, .op-root *::before, .op-root *::after { box-sizing: border-box; }
+
+.op-root {
+  --op-ok:     #0E7A4F;  --op-ok-bg:     #E5F5EE;
+  --op-warn:   #B45309;  --op-warn-bg:   #FDF1E0;
+  --op-alert:  #C81E3C;  --op-alert-bg:  #FDE8EC;
+  --op-info:   #1D4ED8;  --op-info-bg:   #EAF0FE;
+  --op-neutro: #5C6B7E;  --op-neutro-bg: #F4F7FA;
+
+  --op-surface: var(--surface, #FFFFFF);
+  --op-surface-2: var(--surface-2, #F4F7FA);
+  --op-ink: var(--ink, #1B2330);
+  --op-ink-soft: var(--ink-soft, #5C6B7E);
+  --op-line: var(--line, #E4E9F0);
+  --op-brand: var(--brand, #E10098);
+
+  --op-s1: 4px; --op-s2: 8px; --op-s3: 12px; --op-s4: 16px; --op-s5: 24px; --op-s6: 32px;
+  --op-rad: 12px; --op-rad-sm: 8px; --op-rad-lg: 16px;
+  --op-sh: 0 12px 28px -10px rgba(16,24,40,.22), 0 3px 8px -4px rgba(16,24,40,.12);
+  --op-f: var(--f-ui, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif);
+
+  font-family: var(--op-f);
+}
+
+/* Tema oscuro: los tonos de arriba están elegidos para fondo claro y sobre #1C2027 caen
+   a ~2,5:1. Se aclaran SOLO aquí; el token global se sigue usando como fondo en otras
+   pantallas y aclararlo allí las rompería. */
+[data-theme="carbon"] .op-root {
+  --op-ok: #4ADE80;   --op-ok-bg: rgba(74,222,128,.14);
+  --op-warn: #F2B65A; --op-warn-bg: rgba(242,182,90,.14);
+  --op-alert: #FCA5A5;--op-alert-bg: rgba(252,165,165,.14);
+  --op-info: #93B4FF; --op-info-bg: rgba(147,180,255,.14);
+  --op-neutro: #A7A2AC; --op-neutro-bg: rgba(167,162,172,.12);
+}
+
+/* ── Pastilla fija ─────────────────────────────────────────────────────────── */
+
+.op-pill {
+  position: fixed; left: 16px; bottom: 16px; z-index: 900;
+  display: inline-flex; align-items: center; gap: var(--op-s2);
+  padding: 8px 14px 8px 11px;
+  border-radius: 999px; border: 1px solid var(--op-line);
+  background: var(--op-surface); color: var(--op-ink);
+  font-family: var(--op-f); font-size: 13px; font-weight: 600; line-height: 1.2;
+  box-shadow: var(--op-sh); cursor: pointer;
+  transition: transform .18s cubic-bezier(.2,.8,.2,1), box-shadow .18s, background .18s;
+  max-width: calc(100vw - 32px);
+}
+.op-pill:hover { transform: translateY(-2px); }
+.op-pill:focus-visible { outline: 2px solid var(--op-brand); outline-offset: 3px; }
+.op-pill[hidden] { display: none; }
+
+.op-pill-dot { width: 9px; height: 9px; border-radius: 50%; flex: none; background: var(--op-ok); }
+.op-pill-tx { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.op-pill-ic { width: 15px; height: 15px; flex: none; }
+
+.op-pill.tono-ok     { color: var(--op-ok); }
+.op-pill.tono-warn   { background: var(--op-warn-bg);  border-color: var(--op-warn);  color: var(--op-warn); }
+.op-pill.tono-alert  { background: var(--op-alert-bg); border-color: var(--op-alert); color: var(--op-alert); }
+.op-pill.tono-info   { background: var(--op-info-bg);  border-color: var(--op-info);  color: var(--op-info); }
+.op-pill.tono-warn  .op-pill-dot { background: var(--op-warn); }
+.op-pill.tono-alert .op-pill-dot { background: var(--op-alert); }
+.op-pill.tono-info  .op-pill-dot { background: var(--op-info); }
+
+/* Solo lo que ESPERA algo late. Es la única animación permanente del módulo, y por eso
+   se distingue sin tener que leerla. */
+.op-pill.late .op-pill-dot { animation: op-latido 2.2s ease-in-out infinite; }
+@keyframes op-latido { 0%,100% { opacity: 1; transform: scale(1); } 50% { opacity: .45; transform: scale(.82); } }
+
+.op-cont { display: inline-flex; align-items: center; justify-content: center;
+  min-width: 18px; height: 18px; padding: 0 5px; border-radius: 999px;
+  background: currentColor; font-size: 11px; font-weight: 700; flex: none; }
+.op-cont span { color: var(--op-surface); }
+
+/* ── Panel deslizante ──────────────────────────────────────────────────────── */
+
+.op-scrim {
+  position: fixed; inset: 0; z-index: 950;
+  background: rgba(16,24,40,.45); backdrop-filter: blur(2px);
+  opacity: 0; pointer-events: none; transition: opacity .25s;
+}
+.op-scrim.abierto { opacity: 1; pointer-events: auto; }
+
+.op-panel {
+  position: fixed; top: 0; right: 0; bottom: 0; z-index: 960;
+  width: 420px; max-width: 100vw;
+  background: var(--op-surface); color: var(--op-ink);
+  border-left: 1px solid var(--op-line);
+  box-shadow: -18px 0 44px -22px rgba(16,24,40,.45);
+  display: flex; flex-direction: column;
+  transform: translateX(100%); transition: transform .3s cubic-bezier(.2,.8,.2,1);
+  font-family: var(--op-f);
+}
+.op-panel.abierto { transform: translateX(0); }
+
+.op-head {
+  display: flex; align-items: flex-start; gap: var(--op-s3);
+  padding: var(--op-s5) var(--op-s5) var(--op-s4);
+  border-bottom: 1px solid var(--op-line); flex: none;
+}
+.op-head-ic { width: 40px; height: 40px; border-radius: var(--op-rad); flex: none;
+  display: flex; align-items: center; justify-content: center; }
+.op-head-ic svg { width: 21px; height: 21px; }
+.op-head-ic.tono-ok    { background: var(--op-ok-bg);    color: var(--op-ok); }
+.op-head-ic.tono-warn  { background: var(--op-warn-bg);  color: var(--op-warn); }
+.op-head-ic.tono-alert { background: var(--op-alert-bg); color: var(--op-alert); }
+.op-head-ic.tono-info  { background: var(--op-info-bg);  color: var(--op-info); }
+
+.op-head-tx { flex: 1; min-width: 0; }
+.op-head h2 { margin: 0 0 2px; font-size: 17px; font-weight: 700; letter-spacing: -.01em; line-height: 1.25; }
+.op-head p  { margin: 0; font-size: 13px; color: var(--op-ink-soft); line-height: 1.45; }
+
+.op-cerrar { width: 34px; height: 34px; flex: none; border-radius: var(--op-rad-sm);
+  border: 1px solid transparent; background: transparent; color: var(--op-ink-soft);
+  cursor: pointer; display: flex; align-items: center; justify-content: center; }
+.op-cerrar:hover { background: var(--op-surface-2); color: var(--op-ink); }
+.op-cerrar:focus-visible { outline: 2px solid var(--op-brand); outline-offset: 2px; }
+.op-cerrar svg { width: 18px; height: 18px; }
+
+.op-cuerpo { flex: 1; overflow-y: auto; overscroll-behavior: contain; padding: var(--op-s4) var(--op-s5) var(--op-s5); }
+.op-pie { flex: none; padding: var(--op-s3) var(--op-s5) var(--op-s4); border-top: 1px solid var(--op-line);
+  display: flex; flex-direction: column; gap: var(--op-s2); }
+
+/* ── Rótulos de sección ────────────────────────────────────────────────────── */
+
+.op-rotulo { display: flex; align-items: center; gap: var(--op-s2);
+  font-size: 11px; font-weight: 700; letter-spacing: .09em; text-transform: uppercase;
+  color: var(--op-ink-soft); margin: var(--op-s5) 0 var(--op-s3); }
+.op-rotulo:first-child { margin-top: 0; }
+.op-rotulo::after { content: ''; flex: 1; height: 1px; background: var(--op-line); }
+
+/* ── Rejilla de sistemas ───────────────────────────────────────────────────── */
+
+.op-sistemas { display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: var(--op-s2); }
+.op-sis {
+  display: flex; align-items: center; gap: var(--op-s2);
+  padding: 10px 12px; border-radius: var(--op-rad); border: 1px solid var(--op-line);
+  background: var(--op-surface-2); min-width: 0;
+}
+.op-sis-dot { width: 8px; height: 8px; border-radius: 50%; flex: none; background: var(--op-ok); }
+.op-sis-tx { min-width: 0; display: flex; flex-direction: column; line-height: 1.3; }
+.op-sis-tx b { font-size: 13px; font-weight: 650; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.op-sis-tx small { font-size: 11px; color: var(--op-ink-soft); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.op-sis.tono-warn  { border-color: var(--op-warn);  background: var(--op-warn-bg); }
+.op-sis.tono-alert { border-color: var(--op-alert); background: var(--op-alert-bg); }
+.op-sis.tono-info  { border-color: var(--op-info);  background: var(--op-info-bg); }
+.op-sis.tono-warn  .op-sis-dot { background: var(--op-warn); }
+.op-sis.tono-alert .op-sis-dot { background: var(--op-alert); }
+.op-sis.tono-info  .op-sis-dot { background: var(--op-info); }
+.op-sis.tono-warn  .op-sis-tx small,
+.op-sis.tono-alert .op-sis-tx small,
+.op-sis.tono-info  .op-sis-tx small { color: inherit; opacity: .85; font-weight: 600; }
+.op-sis.tono-warn  { color: var(--op-warn); }
+.op-sis.tono-alert { color: var(--op-alert); }
+.op-sis.tono-info  { color: var(--op-info); }
+.op-sis.tono-warn .op-sis-tx b, .op-sis.tono-alert .op-sis-tx b, .op-sis.tono-info .op-sis-tx b { color: inherit; }
+
+/* ── Tarjeta de incidencia ─────────────────────────────────────────────────── */
+
+.op-inc {
+  display: block; width: 100%; text-align: left;
+  padding: var(--op-s3) var(--op-s4); margin-bottom: var(--op-s2);
+  border-radius: var(--op-rad); border: 1px solid var(--op-line);
+  background: var(--op-surface); color: var(--op-ink);
+  cursor: pointer; font-family: var(--op-f);
+  transition: transform .18s cubic-bezier(.2,.8,.2,1), border-color .18s, box-shadow .18s;
+}
+.op-inc:hover { transform: translateY(-1px); box-shadow: var(--op-sh); }
+.op-inc:focus-visible { outline: 2px solid var(--op-brand); outline-offset: 2px; }
+.op-inc.tono-warn  { border-left: 3px solid var(--op-warn); }
+.op-inc.tono-alert { border-left: 3px solid var(--op-alert); }
+.op-inc.tono-info  { border-left: 3px solid var(--op-info); }
+.op-inc.tono-ok    { border-left: 3px solid var(--op-ok); }
+
+.op-inc-top { display: flex; align-items: center; gap: var(--op-s2); margin-bottom: 5px; flex-wrap: wrap; }
+.op-inc-tit { margin: 0 0 4px; font-size: 14px; font-weight: 650; line-height: 1.35; }
+.op-inc-nota { margin: 0; font-size: 12.5px; color: var(--op-ink-soft); line-height: 1.5;
+  display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+.op-inc-pie { display: flex; align-items: center; gap: var(--op-s2); margin-top: 8px;
+  font-size: 11.5px; color: var(--op-ink-soft); }
+.op-inc-pie .op-ver { margin-left: auto; color: var(--op-brand); font-weight: 650; display: inline-flex; align-items: center; gap: 3px; }
+.op-inc-pie .op-ver svg { width: 13px; height: 13px; }
+
+.op-chip { display: inline-flex; align-items: center; gap: 4px;
+  padding: 2px 9px 2px 7px; border-radius: 999px;
+  font-size: 11px; font-weight: 700; line-height: 1.5; border: 1px solid transparent; }
+.op-chip svg { width: 12px; height: 12px; flex: none; }
+.op-chip.tono-ok     { background: var(--op-ok-bg);     color: var(--op-ok);     border-color: var(--op-ok); }
+.op-chip.tono-warn   { background: var(--op-warn-bg);   color: var(--op-warn);   border-color: var(--op-warn); }
+.op-chip.tono-alert  { background: var(--op-alert-bg);  color: var(--op-alert);  border-color: var(--op-alert); }
+.op-chip.tono-info   { background: var(--op-info-bg);   color: var(--op-info);   border-color: var(--op-info); }
+.op-chip.tono-neutro { background: var(--op-neutro-bg); color: var(--op-neutro); border-color: var(--op-line); }
+
+/* ── Estado vacío / carga / error ──────────────────────────────────────────── */
+
+.op-vacio { text-align: center; padding: var(--op-s6) var(--op-s4); color: var(--op-ink-soft); }
+.op-vacio-ic { width: 46px; height: 46px; margin: 0 auto var(--op-s3); border-radius: 50%;
+  display: flex; align-items: center; justify-content: center;
+  background: var(--op-ok-bg); color: var(--op-ok); }
+.op-vacio-ic svg { width: 24px; height: 24px; }
+.op-vacio b { display: block; font-size: 14.5px; color: var(--op-ink); margin-bottom: 4px; font-weight: 650; }
+.op-vacio p { margin: 0; font-size: 13px; line-height: 1.5; max-width: 34ch; margin-inline: auto; }
+
+.op-sk { height: 56px; border-radius: var(--op-rad); background: var(--op-surface-2);
+  margin-bottom: var(--op-s2); position: relative; overflow: hidden; }
+.op-sk::after { content: ''; position: absolute; inset: 0;
+  background: linear-gradient(90deg, transparent, rgba(255,255,255,.45), transparent);
+  animation: op-brillo 1.4s linear infinite; }
+@keyframes op-brillo { from { transform: translateX(-100%); } to { transform: translateX(100%); } }
+
+/* ── Botones ───────────────────────────────────────────────────────────────── */
+
+.op-btn {
+  display: inline-flex; align-items: center; justify-content: center; gap: var(--op-s2);
+  min-height: 40px; padding: 0 18px; border-radius: var(--op-rad-sm);
+  border: 1px solid transparent; cursor: pointer;
+  font-family: var(--op-f); font-size: 13.5px; font-weight: 650; line-height: 1;
+  transition: background .18s, border-color .18s, transform .12s;
+}
+.op-btn svg { width: 16px; height: 16px; flex: none; }
+.op-btn:active { transform: translateY(1px); }
+.op-btn:focus-visible { outline: 2px solid var(--op-brand); outline-offset: 2px; }
+.op-btn:disabled { opacity: .55; cursor: not-allowed; }
+.op-btn-primario { background: var(--op-brand); color: #fff; }
+.op-btn-primario:hover:not(:disabled) { background: var(--brand-deep, #A8006F); }
+.op-btn-plano { background: transparent; color: var(--op-ink-soft); border-color: var(--op-line); }
+.op-btn-plano:hover:not(:disabled) { background: var(--op-surface-2); color: var(--op-ink); }
+.op-btn-bloque { width: 100%; }
+
+/* ── Formulario de reporte ─────────────────────────────────────────────────── */
+
+.op-campo { margin-bottom: var(--op-s4); }
+.op-lbl { display: block; font-size: 12.5px; font-weight: 650; color: var(--op-ink); margin-bottom: 6px; }
+.op-lbl .op-opc { font-weight: 500; color: var(--op-ink-soft); }
+.op-ayuda { font-size: 11.5px; color: var(--op-ink-soft); line-height: 1.45; margin: 6px 0 0; }
+
+.op-opciones { display: flex; flex-wrap: wrap; gap: 6px; }
+.op-op {
+  padding: 8px 13px; border-radius: 999px; border: 1px solid var(--op-line);
+  background: var(--op-surface); color: var(--op-ink);
+  font-family: var(--op-f); font-size: 13px; font-weight: 600; cursor: pointer;
+  transition: background .16s, border-color .16s, color .16s;
+}
+.op-op:hover { background: var(--op-surface-2); }
+.op-op:focus-visible { outline: 2px solid var(--op-brand); outline-offset: 2px; }
+.op-op[aria-pressed="true"] { background: var(--op-brand); border-color: var(--op-brand); color: #fff; }
+.op-op.op-op-nuevo { border-style: dashed; color: var(--op-ink-soft); }
+.op-op.op-op-nuevo[aria-pressed="true"] { border-style: solid; color: #fff; }
+
+.op-input, .op-area {
+  width: 100%; padding: 10px 12px; border-radius: var(--op-rad-sm);
+  border: 1px solid var(--op-line); background: var(--op-surface); color: var(--op-ink);
+  font-family: var(--op-f); font-size: 13.5px; line-height: 1.5;
+}
+.op-input:focus, .op-area:focus { outline: 2px solid var(--op-brand); outline-offset: -1px; border-color: var(--op-brand); }
+.op-area { min-height: 82px; resize: vertical; }
+.op-input[aria-invalid="true"], .op-area[aria-invalid="true"] { border-color: var(--op-alert); }
+
+.op-err { display: flex; align-items: flex-start; gap: 5px; margin: 6px 0 0;
+  font-size: 12px; font-weight: 600; color: var(--op-alert); line-height: 1.45; }
+.op-err svg { width: 14px; height: 14px; flex: none; margin-top: 1px; }
+.op-err[hidden] { display: none; }
+
+/* Sugerencia de duplicado: no bloquea, propone. Bloquear aquí obligaría a la persona a
+   adivinar la redacción exacta que ya existe. */
+.op-sug { display: flex; align-items: flex-start; gap: var(--op-s2); margin-top: 8px;
+  padding: 9px 11px; border-radius: var(--op-rad-sm);
+  background: var(--op-info-bg); color: var(--op-info); font-size: 12.5px; line-height: 1.45; }
+.op-sug svg { width: 15px; height: 15px; flex: none; margin-top: 1px; }
+.op-sug button { background: none; border: 0; padding: 0; cursor: pointer;
+  color: inherit; font: inherit; font-weight: 700; text-decoration: underline; }
+.op-sug[hidden] { display: none; }
+
+/* Guía del primer paso: ocupa el hueco del formulario aún vacío con lo único útil que
+   se puede decir ahí — qué va a pasar y cuánto va a costar. */
+.op-guia { margin-top: var(--op-s5); padding: var(--op-s4);
+  border-radius: var(--op-rad); background: var(--op-surface-2); border: 1px solid var(--op-line); }
+.op-guia b { display: block; font-size: 12.5px; font-weight: 700; color: var(--op-ink); margin-bottom: var(--op-s2); }
+.op-guia ol { margin: 0 0 var(--op-s3); padding-left: 1.15rem; }
+.op-guia li { font-size: 12.5px; color: var(--op-ink-soft); line-height: 1.6; margin-bottom: 3px; }
+.op-guia p { margin: 0; font-size: 12px; color: var(--op-ink-soft); line-height: 1.5;
+  padding-top: var(--op-s2); border-top: 1px solid var(--op-line); }
+
+/* ── Evidencias ────────────────────────────────────────────────────────────── */
+
+.op-pegar {
+  border: 1.5px dashed var(--op-line); border-radius: var(--op-rad);
+  background: var(--op-surface-2); padding: var(--op-s4);
+  text-align: center; color: var(--op-ink-soft); cursor: pointer;
+  transition: border-color .18s, background .18s; width: 100%;
+  font-family: var(--op-f); font-size: 12.5px; line-height: 1.5;
+}
+.op-pegar:hover, .op-pegar.op-activa { border-color: var(--op-brand); background: var(--op-surface); color: var(--op-ink); }
+.op-pegar:focus-visible { outline: 2px solid var(--op-brand); outline-offset: 2px; }
+.op-pegar svg { width: 22px; height: 22px; display: block; margin: 0 auto 7px; }
+.op-pegar b { display: block; font-size: 13px; font-weight: 650; color: var(--op-ink); margin-bottom: 2px; }
+
+.op-minis { display: flex; flex-wrap: wrap; gap: var(--op-s2); margin-top: var(--op-s2); }
+.op-mini { position: relative; width: 76px; height: 76px; border-radius: var(--op-rad-sm);
+  overflow: hidden; border: 1px solid var(--op-line); background: var(--op-surface-2); flex: none; }
+.op-mini img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.op-mini-x { position: absolute; top: 3px; right: 3px; width: 20px; height: 20px;
+  border-radius: 50%; border: 0; cursor: pointer;
+  background: rgba(16,24,40,.72); color: #fff;
+  display: flex; align-items: center; justify-content: center; padding: 0; }
+.op-mini-x svg { width: 11px; height: 11px; }
+.op-mini-x:focus-visible { outline: 2px solid #fff; outline-offset: 1px; }
+.op-mini.subiendo { display: flex; align-items: center; justify-content: center; }
+.op-mini-spin { width: 20px; height: 20px; border-radius: 50%;
+  border: 2px solid var(--op-line); border-top-color: var(--op-brand);
+  animation: op-giro .8s linear infinite; }
+@keyframes op-giro { to { transform: rotate(360deg); } }
+
+/* ── Avisos incrustados en la pantalla de inicio ───────────────────────────── */
+
+.op-avisos { display: flex; flex-direction: column; gap: 10px; margin-bottom: 18px; }
+.op-avisos:empty { display: none; }
+.op-aviso {
+  display: flex; align-items: flex-start; gap: var(--op-s3);
+  width: 100%; text-align: left; cursor: pointer;
+  padding: 14px 16px; border-radius: var(--op-rad-lg);
+  border: 1px solid transparent; font-family: var(--op-f);
+  transition: transform .18s cubic-bezier(.2,.8,.2,1), box-shadow .18s;
+}
+.op-aviso:hover { transform: translateY(-1px); box-shadow: var(--op-sh); }
+.op-aviso:focus-visible { outline: 2px solid var(--op-brand); outline-offset: 2px; }
+.op-aviso.tono-warn  { background: var(--op-warn-bg);  border-color: var(--op-warn);  color: var(--op-warn); }
+.op-aviso.tono-alert { background: var(--op-alert-bg); border-color: var(--op-alert); color: var(--op-alert); }
+.op-aviso.tono-info  { background: var(--op-info-bg);  border-color: var(--op-info);  color: var(--op-info); }
+.op-aviso.tono-ok    { background: var(--op-ok-bg);    border-color: var(--op-ok);    color: var(--op-ok); }
+.op-aviso-ic { width: 34px; height: 34px; border-radius: 10px; flex: none;
+  display: flex; align-items: center; justify-content: center;
+  background: rgba(255,255,255,.55); }
+[data-theme="carbon"] .op-aviso-ic { background: rgba(0,0,0,.22); }
+.op-aviso-ic svg { width: 18px; height: 18px; }
+.op-aviso-tx { flex: 1; min-width: 0; }
+.op-aviso-tx b { display: block; font-size: 14.5px; font-weight: 700; line-height: 1.35; margin-bottom: 3px; }
+.op-aviso-tx p { margin: 0; font-size: 13px; line-height: 1.5; opacity: .92; }
+.op-aviso-tx .op-aviso-meta { display: block; margin-top: 6px; font-size: 11.5px; font-weight: 650; opacity: .8; }
+.op-aviso-fl { flex: none; align-self: center; }
+.op-aviso-fl svg { width: 17px; height: 17px; }
+
+/* ── Móvil ─────────────────────────────────────────────────────────────────── */
+
+@media (max-width: 720px) {
+  .op-panel { width: 100%; top: auto; height: 88vh; border-radius: 18px 18px 0 0;
+    border-left: 0; border-top: 1px solid var(--op-line); transform: translateY(100%); }
+  .op-panel.abierto { transform: translateY(0); }
+  .op-head, .op-cuerpo, .op-pie { padding-left: var(--op-s4); padding-right: var(--op-s4); }
+  .op-pill { left: 12px; bottom: 12px; }
+  .op-pill .op-pill-tx { max-width: 46vw; }
+}
+
+/* Ni el indicador ni el panel salen en un PDF de cotización. `.no-print` solo existe en
+   cotizacion.html, así que el módulo trae su propia regla. */
+@media print {
+  .op-pill, .op-panel, .op-scrim, .op-avisos { display: none !important; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .op-pill, .op-panel, .op-scrim, .op-inc, .op-aviso { transition-duration: .01ms !important; }
+  .op-pill.late .op-pill-dot, .op-sk::after { animation: none !important; }
+}
+</style>
+
+<script>
+/**
+ * =====================================================================================
+ * AppOperacion — estado de operación en todas las pantallas
+ * =====================================================================================
+ * API:
+ *   AppOperacion.abrir()            panel de estado
+ *   AppOperacion.reportar(sistema)  panel abierto directo en el formulario
+ *   AppOperacion.refrescar(forzar)  vuelve a pedir el estado al servidor
+ *   AppOperacion.estado()           último estado conocido (o null)
+ *
+ * Puntos de montaje opcionales en la página:
+ *   <div id="operacion-avisos"></div>   las incidencias vivas, en grande
+ *   [data-operacion-abrir]              cualquier elemento que abra el panel
+ *   [data-operacion-reportar]           cualquier elemento que abra el formulario
+ */
+(function () {
+  'use strict';
+
+  var TTL_MS = 60000;           // el estado se repinta de caché hasta un minuto
+  var REVALIDA_MS = 120000;     // y se revalida solo cada dos minutos si la pestaña se ve
+  var CLAVE_CACHE = 'operacion-estado';
+
+  var estado = null;            // última respuesta del servidor
+  var raiz = null, pastilla = null, panel = null, scrim = null, cuerpo = null, pie = null;
+  var abierto = false, vista = 'estado', disparador = null;
+  var cargando = false, ultimaCarga = 0;
+  var memoria = null;           // respaldo si AppCache no existe
+
+  /* ── Iconos en línea (no dependemos de app_icons: el Portal no lo incluye) ── */
+  var IC = {
+    ok:     '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M9 12.5 11.2 14.7 15.5 9.8"/><circle cx="12" cy="12" r="9"/></svg>',
+    alerta: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3.6 2.6 20h18.8L12 3.6Z"/><path d="M12 10v4.2M12 17.4h.01"/></svg>',
+    reloj:  '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 6.6V12l3.4 2"/></svg>',
+    info:   '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 11v5M12 7.8h.01"/></svg>',
+    llave:  '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M14.7 6.3a3.6 3.6 0 0 1 5 5l-1.6 1.6-5-5 1.6-1.6Z"/><path d="m13.1 7.9-9 9V21h4.1l9-9"/></svg>',
+    cerrar: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M6 6l12 12M18 6 6 18"/></svg>',
+    flecha: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 6l6 6-6 6"/></svg>',
+    atras:  '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 6l-6 6 6 6"/></svg>',
+    mano:   '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v9"/><path d="M8.5 6.5 12 3l3.5 3.5"/><path d="M4 14v3a4 4 0 0 0 4 4h8a4 4 0 0 0 4-4v-3"/></svg>',
+    imagen: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4.5" width="18" height="15" rx="2.4"/><circle cx="8.6" cy="9.8" r="1.5"/><path d="m3.4 17 4.8-4.4a1.6 1.6 0 0 1 2.2 0l4 3.7"/><path d="m14.4 15 1.7-1.6a1.6 1.6 0 0 1 2.2 0l2.3 2.1"/></svg>',
+    enviar: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M5.5 12 3 4.2 21 12 3 19.8 5.5 12Zm0 0h7"/></svg>',
+    ver:    '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M2.5 12S6 5.8 12 5.8 21.5 12 21.5 12 18 18.2 12 18.2 2.5 12 2.5 12Z"/><circle cx="12" cy="12" r="2.7"/></svg>'
+  };
+
+  var ICONO_TONO = { ok: IC.ok, warn: IC.reloj, alert: IC.alerta, info: IC.info, neutro: IC.info };
+
+  /* ── Utilidades ─────────────────────────────────────────────────────────── */
+
+  function esc(s) {
+    return String(s == null ? '' : s)
+      .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+  }
+
+  function conGsap() {
+    return typeof window.gsap !== 'undefined' &&
+           !(window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches);
+  }
+
+  function haySesion() {
+    return !!(window.AppSession && AppSession.isLoggedIn && AppSession.isLoggedIn());
+  }
+
+  function correo() {
+    return (window.AppSession && AppSession.userEmail) || '';
+  }
+
+  /** google.script.run como promesa, reusando AppRun si la pantalla lo trae. */
+  function llamar(fn, args) {
+    if (window.AppRun && AppRun.call) return AppRun.call(fn, args || []);
+    return new Promise(function (resolve, reject) {
+      if (!(window.google && google.script && google.script.run)) {
+        reject(new Error('sin backend'));
+        return;
+      }
+      var r = google.script.run.withSuccessHandler(resolve).withFailureHandler(reject);
+      r[fn].apply(r, args || []);
+    });
+  }
+
+  /** "hace 12 min" — la antigüedad es lo primero que se mira en una incidencia. */
+  function desdeHace(iso) {
+    if (!iso) return '';
+    var t = new Date(iso).getTime();
+    if (isNaN(t)) return '';
+    var min = Math.floor((Date.now() - t) / 60000);
+    if (min < 1) return 'hace un momento';
+    if (min < 60) return 'hace ' + min + ' min';
+    var h = Math.floor(min / 60);
+    if (h < 24) return 'hace ' + h + (h === 1 ? ' hora' : ' horas');
+    var d = Math.floor(h / 24);
+    return 'hace ' + d + (d === 1 ? ' día' : ' días');
+  }
+
+  /* ── Caché local ────────────────────────────────────────────────────────── */
+
+  function leerCache() {
+    if (window.AppCache && AppCache.get) {
+      var e = AppCache.get(CLAVE_CACHE, TTL_MS);
+      return e ? e.data : null;
+    }
+    if (memoria && Date.now() - memoria.at < TTL_MS) return memoria.data;
+    return null;
+  }
+
+  function guardarCache(datos) {
+    if (window.AppCache && AppCache.set) {
+      try { AppCache.set(CLAVE_CACHE, datos, { ttl: TTL_MS }); return; } catch (e) {}
+    }
+    memoria = { at: Date.now(), data: datos };
+  }
+
+  /* ── Montaje ────────────────────────────────────────────────────────────── */
+
+  function montar() {
+    if (raiz) return;
+    raiz = document.createElement('div');
+    raiz.className = 'op-root';
+    raiz.innerHTML =
+      '<button type="button" class="op-pill" id="op-pill" hidden aria-haspopup="dialog">' +
+        '<span class="op-pill-dot"></span>' +
+        '<span class="op-pill-tx">Estado de los sistemas</span>' +
+      '</button>' +
+      '<div class="op-scrim" id="op-scrim"></div>' +
+      '<aside class="op-panel" id="op-panel" role="dialog" aria-modal="true" ' +
+             'aria-labelledby="op-titulo" aria-hidden="true">' +
+        '<header class="op-head" id="op-head"></header>' +
+        '<div class="op-cuerpo" id="op-cuerpo"></div>' +
+        '<div class="op-pie" id="op-pie"></div>' +
+      '</aside>';
+    document.body.appendChild(raiz);
+
+    pastilla = raiz.querySelector('#op-pill');
+    panel = raiz.querySelector('#op-panel');
+    scrim = raiz.querySelector('#op-scrim');
+    cuerpo = raiz.querySelector('#op-cuerpo');
+    pie = raiz.querySelector('#op-pie');
+
+    pastilla.addEventListener('click', function () { abrir(this); });
+    scrim.addEventListener('click', function () { cerrar(); });
+
+    document.addEventListener('keydown', function (e) {
+      if (e.key === 'Escape' && abierto) { e.stopPropagation(); cerrar(); }
+      if (e.key === 'Tab' && abierto) atraparFoco(e);
+    });
+
+    document.querySelectorAll('[data-operacion-abrir]').forEach(function (el) {
+      el.addEventListener('click', function (ev) { ev.preventDefault(); abrir(el); });
+    });
+    document.querySelectorAll('[data-operacion-reportar]').forEach(function (el) {
+      el.addEventListener('click', function (ev) {
+        ev.preventDefault();
+        abrir(el, 'reporte', el.getAttribute('data-operacion-reportar') || '');
+      });
+    });
+  }
+
+  /** El foco no se escapa del panel mientras está abierto. */
+  function atraparFoco(e) {
+    var focos = panel.querySelectorAll(
+      'button:not([disabled]), [href], input:not([disabled]), select, textarea, [tabindex]:not([tabindex="-1"])');
+    if (!focos.length) return;
+    var primero = focos[0], ultimo = focos[focos.length - 1];
+    if (e.shiftKey && document.activeElement === primero) { e.preventDefault(); ultimo.focus(); }
+    else if (!e.shiftKey && document.activeElement === ultimo) { e.preventDefault(); primero.focus(); }
+  }
+
+  /* ── Pastilla ───────────────────────────────────────────────────────────── */
+
+  function pintarPastilla() {
+    if (!pastilla) return;
+    var e = estado && estado.estado ? estado.estado : estado;
+    if (!e || !e.success) { pastilla.hidden = true; return; }
+
+    var afectados = (e.sistemas || []).filter(function (s) { return s.tono !== 'ok'; });
+    var tono = e.global || 'ok';
+    var texto, late = false;
+
+    if (!afectados.length) {
+      texto = 'Sistemas operando';
+    } else if (afectados.length === 1) {
+      texto = afectados[0].nombre + ': ' + afectados[0].estadoNombre.toLowerCase();
+      late = afectados[0].tono !== 'ok';
+    } else {
+      texto = afectados.length + ' sistemas con incidencias';
+      late = true;
+    }
+
+    pastilla.className = 'op-pill tono-' + tono + (late ? ' late' : '');
+    pastilla.innerHTML =
+      '<span class="op-pill-dot"></span>' +
+      '<span class="op-pill-tx">' + esc(texto) + '</span>' +
+      (afectados.length > 1 ? '<span class="op-cont"><span>' + afectados.length + '</span></span>' : '');
+    pastilla.setAttribute('aria-label', 'Estado de los sistemas: ' + texto + '. Abrir el detalle.');
+
+    var estabaOculta = pastilla.hidden;
+    pastilla.hidden = false;
+    if (estabaOculta && conGsap()) {
+      gsap.from(pastilla, { y: 22, opacity: 0, duration: .5, ease: 'power3.out', clearProps: 'transform' });
+    }
+  }
+
+  /* ── Avisos incrustados en la pantalla de inicio ────────────────────────── */
+
+  function pintarAvisos() {
+    var slot = document.getElementById('operacion-avisos');
+    if (!slot) return;
+    if (!slot.classList.contains('op-root')) slot.classList.add('op-root');
+    slot.classList.add('op-avisos');
+
+    var e = estado && estado.estado ? estado.estado : estado;
+    var incidentes = (e && e.success && e.incidentes) ? e.incidentes : [];
+    if (!incidentes.length) { slot.innerHTML = ''; return; }
+
+    slot.innerHTML = incidentes.map(function (i) {
+      var nota = (i.ultima && i.ultima.nota) ? i.ultima.nota : (i.detalle || '');
+      return '<button type="button" class="op-aviso tono-' + esc(i.tono) + '" ' +
+                'data-op-inc="' + esc(i.id) + '">' +
+        '<span class="op-aviso-ic">' + (ICONO_TONO[i.tono] || IC.info) + '</span>' +
+        '<span class="op-aviso-tx">' +
+          '<b>' + esc(i.titulo) + '</b>' +
+          '<p>' + esc(nota || i.estadoNombre) + '</p>' +
+          '<span class="op-aviso-meta">' + esc(i.estadoNombre) +
+            (i.desde ? ' · ' + esc(desdeHace(i.desde)) : '') +
+            ' · Toca para ver los reportes</span>' +
+        '</span>' +
+        '<span class="op-aviso-fl">' + IC.flecha + '</span>' +
+      '</button>';
+    }).join('');
+
+    slot.querySelectorAll('[data-op-inc]').forEach(function (b) {
+      b.addEventListener('click', function () { irADetalle(b.getAttribute('data-op-inc')); });
+    });
+
+    if (conGsap()) {
+      gsap.from(slot.children, { y: 14, opacity: 0, duration: .5, ease: 'power3.out', stagger: .07, clearProps: 'transform' });
+    }
+  }
+
+  /** Lleva a la vista de estado con el incidente abierto. */
+  function irADetalle(id) {
+    if (window.AppUrl && AppUrl.go) { AppUrl.go('estado', { inc: id }); return; }
+    var base = (window.__APP__ && window.__APP__.baseUrl) || '';
+    if (base) window.top.location.href = base + '?page=estado&inc=' + encodeURIComponent(id);
+  }
+
+  /* ── Panel ──────────────────────────────────────────────────────────────── */
+
+  function abrir(quien, modo, sistema) {
+    montar();
+    disparador = quien || null;
+    vista = modo === 'reporte' ? 'reporte' : 'estado';
+    if (vista === 'reporte') prepararFormulario(sistema);
+    pintarPanel();
+
+    abierto = true;
+    panel.setAttribute('aria-hidden', 'false');
+    scrim.classList.add('abierto');
+    panel.classList.add('abierto');
+    document.body.style.overflow = 'hidden';
+
+    if (conGsap()) {
+      gsap.fromTo(scrim, { opacity: 0 }, { opacity: 1, duration: .25, ease: 'power1.out' });
+      var hijos = cuerpo.children;
+      if (hijos.length) {
+        gsap.from(hijos, { y: 16, opacity: 0, duration: .45, ease: 'power3.out', stagger: .05, delay: .1, clearProps: 'transform,opacity' });
+      }
+    }
+
+    setTimeout(function () {
+      var f = panel.querySelector('.op-cerrar');
+      if (f) f.focus();
+    }, 60);
+
+    if (Date.now() - ultimaCarga > 20000) cargar(false);
+  }
+
+  function cerrar() {
+    if (!abierto) return;
+    abierto = false;
+    panel.classList.remove('abierto');
+    scrim.classList.remove('abierto');
+    panel.setAttribute('aria-hidden', 'true');
+    document.body.style.overflow = '';
+    if (disparador && disparador.focus) { try { disparador.focus(); } catch (e) {} }
+    disparador = null;
+    vista = 'estado';
+  }
+
+  function pintarPanel() {
+    if (!panel) return;
+    if (vista === 'reporte') { pintarFormulario(); return; }
+    pintarEstado();
+  }
+
+  function pintarEstado() {
+    var head = panel.querySelector('#op-head');
+    var e = estado && estado.estado ? estado.estado : estado;
+
+    if (cargando && !e) {
+      head.innerHTML = cabecera('info', 'Estado de operación', 'Consultando cómo van los sistemas…');
+      cuerpo.innerHTML = '<div class="op-sk"></div><div class="op-sk"></div><div class="op-sk"></div>';
+      pie.innerHTML = '';
+      return;
+    }
+
+    if (!e || !e.success) {
+      head.innerHTML = cabecera('neutro', 'Estado de operación', 'No pudimos consultarlo ahora mismo.');
+      cuerpo.innerHTML =
+        '<div class="op-vacio">' +
+          '<div class="op-vacio-ic" style="background:var(--op-neutro-bg);color:var(--op-neutro)">' + IC.info + '</div>' +
+          '<b>No hay conexión con el sistema</b>' +
+          '<p>Revisa tu internet e inténtalo de nuevo en un momento.</p>' +
+        '</div>';
+      pie.innerHTML = '<button type="button" class="op-btn op-btn-plano op-btn-bloque" id="op-reintentar">Reintentar</button>';
+      var r = pie.querySelector('#op-reintentar');
+      if (r) r.addEventListener('click', function () { cargar(true); });
+      return;
+    }
+
+    var tono = e.global || 'ok';
+    head.innerHTML = cabecera(tono, 'Estado de operación', e.resumen);
+
+    var html = '';
+
+    var incidentes = e.incidentes || [];
+    if (incidentes.length) {
+      html += '<div class="op-rotulo">Lo que está pasando</div>';
+      html += incidentes.map(function (i) {
+        var nota = (i.ultima && i.ultima.nota) ? i.ultima.nota : (i.detalle || '');
+        return '<button type="button" class="op-inc tono-' + esc(i.tono) + '" data-op-inc="' + esc(i.id) + '">' +
+          '<span class="op-inc-top">' +
+            '<span class="op-chip tono-' + esc(i.tono) + '">' + (ICONO_TONO[i.tono] || IC.info) +
+              esc(i.estadoNombre) + '</span>' +
+            '<span style="font-size:11.5px;color:var(--op-ink-soft);font-weight:600">' + esc(i.sistema) + '</span>' +
+          '</span>' +
+          '<p class="op-inc-tit">' + esc(i.titulo) + '</p>' +
+          (nota ? '<p class="op-inc-nota">' + esc(nota) + '</p>' : '') +
+          '<span class="op-inc-pie">' +
+            '<span>' + esc(i.desde ? 'Desde ' + desdeHace(i.desde) : '') + '</span>' +
+            '<span class="op-ver">' + IC.ver + 'Ver reportes</span>' +
+          '</span>' +
+        '</button>';
+      }).join('');
+    } else {
+      html += '<div class="op-vacio">' +
+                '<div class="op-vacio-ic">' + IC.ok + '</div>' +
+                '<b>Todo funcionando</b>' +
+                '<p>No hay incidencias abiertas. Si algo no te funciona, repórtalo y lo revisamos.</p>' +
+              '</div>';
+    }
+
+    html += '<div class="op-rotulo">Sistemas</div><div class="op-sistemas">';
+    html += (e.sistemas || []).map(function (s) {
+      return '<div class="op-sis tono-' + esc(s.tono) + '">' +
+        '<span class="op-sis-dot"></span>' +
+        '<span class="op-sis-tx"><b>' + esc(s.nombre) + '</b><small>' + esc(s.estadoNombre) + '</small></span>' +
+      '</div>';
+    }).join('');
+    html += '</div>';
+
+    cuerpo.innerHTML = html;
+    cuerpo.querySelectorAll('[data-op-inc]').forEach(function (b) {
+      b.addEventListener('click', function () { irADetalle(b.getAttribute('data-op-inc')); });
+    });
+
+    // Una sola acción primaria por vista: reportar. Ver el tablero completo es secundaria.
+    pie.innerHTML =
+      (haySesion()
+        ? '<button type="button" class="op-btn op-btn-primario op-btn-bloque" id="op-ir-reportar">' +
+            IC.mano + 'Reportar una falla</button>'
+        : '') +
+      '<button type="button" class="op-btn op-btn-plano op-btn-bloque" id="op-ir-estado">' +
+        IC.ver + 'Ver el tablero completo</button>';
+
+    var br = pie.querySelector('#op-ir-reportar');
+    if (br) br.addEventListener('click', function () { vista = 'reporte'; prepararFormulario(''); pintarPanel(); });
+    var be = pie.querySelector('#op-ir-estado');
+    if (be) be.addEventListener('click', function () {
+      if (window.AppUrl && AppUrl.go) AppUrl.go('estado');
+      else {
+        var base = (window.__APP__ && window.__APP__.baseUrl) || '';
+        if (base) window.top.location.href = base + '?page=estado';
+      }
+    });
+  }
+
+  function cabecera(tono, titulo, sub) {
+    return '<span class="op-head-ic tono-' + esc(tono === 'neutro' ? 'info' : tono) + '">' +
+             (ICONO_TONO[tono] || IC.info) + '</span>' +
+           '<span class="op-head-tx">' +
+             '<h2 id="op-titulo">' + esc(titulo) + '</h2>' +
+             '<p>' + esc(sub || '') + '</p>' +
+           '</span>' +
+           '<button type="button" class="op-cerrar" id="op-x" aria-label="Cerrar">' + IC.cerrar + '</button>';
+  }
+
+  /* ── Formulario de reporte ──────────────────────────────────────────────── */
+
+  var form = null;
+
+  function prepararFormulario(sistemaPre) {
+    form = {
+      sistema: sistemaPre || '',
+      sistemaNuevo: '',
+      submotivo: '',
+      submotivoNuevo: '',
+      notas: '',
+      evidencias: [],
+      enviando: false,
+      error: '',
+      sugerencia: null,
+      hecho: null
+    };
+  }
+
+  function catalogo() {
+    return (estado && estado.catalogo) ? estado.catalogo : { sistemas: [], submotivos: {}, estados: [] };
+  }
+
+  function pintarFormulario() {
+    var head = panel.querySelector('#op-head');
+
+    if (form && form.hecho) { pintarGracias(); return; }
+
+    head.innerHTML =
+      '<button type="button" class="op-cerrar" id="op-atras" aria-label="Volver al estado">' + IC.atras + '</button>' +
+      '<span class="op-head-tx">' +
+        '<h2 id="op-titulo">Reportar una falla</h2>' +
+        '<p>Dinos qué no te funciona. Si varias personas reportan lo mismo, avisamos al equipo.</p>' +
+      '</span>' +
+      '<button type="button" class="op-cerrar" id="op-x" aria-label="Cerrar">' + IC.cerrar + '</button>';
+
+    var cat = catalogo();
+    var sistemas = cat.sistemas || [];
+    var subs = (cat.submotivos && cat.submotivos[form.sistema]) || [];
+
+    var html = '';
+
+    /* 1 · Sistema */
+    html += '<div class="op-campo">' +
+      '<label class="op-lbl" id="op-lbl-sis">¿Qué está fallando?</label>' +
+      '<div class="op-opciones" role="group" aria-labelledby="op-lbl-sis">' +
+      sistemas.map(function (s) {
+        var sel = form.sistema === s.clave && !form.sistemaOtro;
+        return '<button type="button" class="op-op" data-op-sis="' + esc(s.clave) + '" ' +
+               'aria-pressed="' + (sel ? 'true' : 'false') + '">' + esc(s.nombre) + '</button>';
+      }).join('') +
+      '<button type="button" class="op-op op-op-nuevo" data-op-sis="__otro" ' +
+        'aria-pressed="' + (form.sistemaOtro ? 'true' : 'false') + '">+ Otro</button>' +
+      '</div>' +
+      (form.sistemaOtro
+        ? '<input type="text" class="op-input" id="op-sis-nuevo" style="margin-top:8px" ' +
+          'placeholder="¿Cómo se llama?" maxlength="60" value="' + esc(form.sistemaNuevo) + '">' +
+          '<p class="op-ayuda">Lo que escribas quedará disponible para el resto del equipo.</p>'
+        : '') +
+      '</div>';
+
+    /* 2 · Submotivo (solo cuando ya hay sistema) */
+    if (form.sistema || form.sistemaOtro) {
+      html += '<div class="op-campo">' +
+        '<label class="op-lbl" id="op-lbl-sub">¿Qué le pasa exactamente?</label>';
+
+      if (subs.length && !form.sistemaOtro) {
+        html += '<div class="op-opciones" role="group" aria-labelledby="op-lbl-sub">' +
+          subs.map(function (s) {
+            var sel = !form.submotivoOtro && form.submotivo === s.valor;
+            return '<button type="button" class="op-op" data-op-sub="' + esc(s.valor) + '" ' +
+                   'aria-pressed="' + (sel ? 'true' : 'false') + '">' + esc(s.valor) + '</button>';
+          }).join('') +
+          '<button type="button" class="op-op op-op-nuevo" data-op-sub="__nuevo" ' +
+            'aria-pressed="' + (form.submotivoOtro ? 'true' : 'false') + '">+ Nuevo</button>' +
+          '</div>';
+      }
+
+      if (form.submotivoOtro || !subs.length || form.sistemaOtro) {
+        html += '<input type="text" class="op-input" id="op-sub-nuevo" ' +
+          (subs.length && !form.sistemaOtro ? 'style="margin-top:8px" ' : '') +
+          'placeholder="Descríbelo en pocas palabras" maxlength="60" value="' + esc(form.submotivoNuevo) + '">' +
+          '<div class="op-sug" id="op-sug" hidden></div>' +
+          '<p class="op-ayuda">Escríbelo como se lo dirías a un compañero. Aparecerá como opción para los demás.</p>';
+      }
+      html += '</div>';
+    }
+
+    /* 3 · Notas y evidencias */
+    if (form.sistema || form.sistemaOtro) {
+      html += '<div class="op-campo">' +
+        '<label class="op-lbl" for="op-notas">Notas <span class="op-opc">· opcional</span></label>' +
+        '<textarea class="op-area" id="op-notas" maxlength="1200" ' +
+          'placeholder="¿Desde cuándo? ¿Le pasa a alguien más cerca de ti? ¿Sale algún mensaje?">' +
+          esc(form.notas) + '</textarea>' +
+        '</div>';
+
+      html += '<div class="op-campo">' +
+        '<label class="op-lbl">Evidencia <span class="op-opc">· opcional</span></label>' +
+        '<button type="button" class="op-pegar" id="op-pegar">' +
+          IC.imagen +
+          '<b>Pega tu captura aquí</b>' +
+          'Copia la pantalla y pulsa Ctrl + V, o haz clic para elegir la imagen.' +
+        '</button>' +
+        '<input type="file" id="op-archivo" accept="image/*" multiple hidden>' +
+        '<div class="op-minis" id="op-minis"></div>' +
+        '</div>';
+    }
+
+    /* Mientras no hay sistema elegido el formulario está casi vacío. Antes ese hueco se
+       quedaba en blanco con un botón «Enviar» activo debajo, que solo servía para producir
+       un error. Ahora el hueco explica qué va a pasar —incluido lo que más tranquiliza:
+       que basta con un par de toques y que las capturas son opcionales— y el envío no se
+       ofrece hasta que hay algo que enviar. */
+    if (!form.sistema && !form.sistemaOtro) {
+      html += '<div class="op-guia">' +
+        '<b>Cómo funciona</b>' +
+        '<ol>' +
+          '<li>Elige arriba qué sistema te está fallando.</li>' +
+          '<li>Di qué le pasa. Si tu caso no está en la lista, escríbelo tú.</li>' +
+          '<li>Si quieres, añade una nota y pega una captura.</li>' +
+        '</ol>' +
+        '<p>Cuando varias personas reportan lo mismo, el equipo se entera solo.</p>' +
+      '</div>';
+    }
+
+    html += '<div class="op-err" id="op-error" hidden></div>';
+
+    cuerpo.innerHTML = html;
+    pintarMinis();
+
+    var listo = !!(form.sistema || form.sistemaOtro);
+    pie.innerHTML =
+      '<button type="button" class="op-btn op-btn-primario op-btn-bloque" id="op-enviar"' +
+        (form.enviando || !listo ? ' disabled' : '') + '>' +
+        IC.enviar + (form.enviando ? 'Enviando…' : 'Enviar el reporte') + '</button>' +
+      '<button type="button" class="op-btn op-btn-plano op-btn-bloque" id="op-cancelar">Cancelar</button>';
+
+    cablearFormulario();
+    if (form.error) mostrarError(form.error);
+    if (form.sugerencia) mostrarSugerencia(form.sugerencia);
+  }
+
+  function cablearFormulario() {
+    var x = panel.querySelector('#op-x');
+    if (x) x.addEventListener('click', cerrar);
+    var atras = panel.querySelector('#op-atras');
+    if (atras) atras.addEventListener('click', function () { vista = 'estado'; pintarPanel(); });
+
+    cuerpo.querySelectorAll('[data-op-sis]').forEach(function (b) {
+      b.addEventListener('click', function () {
+        var v = b.getAttribute('data-op-sis');
+        if (v === '__otro') { form.sistemaOtro = true; form.sistema = ''; }
+        else { form.sistemaOtro = false; form.sistema = v; form.sistemaNuevo = ''; }
+        // Cambiar de sistema invalida el submotivo: "No entran llamadas" no significa
+        // nada en la página de Liverpool.
+        form.submotivo = ''; form.submotivoNuevo = ''; form.submotivoOtro = false;
+        form.error = ''; form.sugerencia = null;
+        pintarFormulario();
+      });
+    });
+
+    cuerpo.querySelectorAll('[data-op-sub]').forEach(function (b) {
+      b.addEventListener('click', function () {
+        var v = b.getAttribute('data-op-sub');
+        if (v === '__nuevo') { form.submotivoOtro = true; form.submotivo = ''; }
+        else { form.submotivoOtro = false; form.submotivo = v; form.submotivoNuevo = ''; }
+        form.error = ''; form.sugerencia = null;
+        pintarFormulario();
+      });
+    });
+
+    var sisNuevo = cuerpo.querySelector('#op-sis-nuevo');
+    if (sisNuevo) {
+      sisNuevo.addEventListener('input', function () { form.sistemaNuevo = sisNuevo.value; });
+      if (form.sistemaOtro && !form.sistemaNuevo) setTimeout(function () { sisNuevo.focus(); }, 30);
+    }
+
+    var subNuevo = cuerpo.querySelector('#op-sub-nuevo');
+    if (subNuevo) {
+      subNuevo.addEventListener('input', function () {
+        form.submotivoNuevo = subNuevo.value;
+        revisarDuplicado(subNuevo.value);
+      });
+      if (form.submotivoOtro && !form.submotivoNuevo) setTimeout(function () { subNuevo.focus(); }, 30);
+    }
+
+    var notas = cuerpo.querySelector('#op-notas');
+    if (notas) notas.addEventListener('input', function () { form.notas = notas.value; });
+
+    var pegar = cuerpo.querySelector('#op-pegar');
+    var archivo = cuerpo.querySelector('#op-archivo');
+    if (pegar && archivo) {
+      pegar.addEventListener('click', function () { archivo.click(); });
+      archivo.addEventListener('change', function () {
+        Array.prototype.slice.call(archivo.files || []).forEach(leerArchivo);
+        archivo.value = '';
+      });
+    }
+
+    var enviar = pie.querySelector('#op-enviar');
+    if (enviar) enviar.addEventListener('click', enviarReporte);
+    var cancelar = pie.querySelector('#op-cancelar');
+    if (cancelar) cancelar.addEventListener('click', cerrar);
+  }
+
+  /**
+   * Aviso de duplicado EN EL CLIENTE, mientras se escribe.
+   *
+   * El servidor vuelve a decidir (y ahí manda), pero avisar aquí evita el caso incómodo de
+   * escribir un submotivo entero y que el sistema lo cambie por otro sin explicar por qué.
+   *
+   * POR ESO LOS DOS CRITERIOS TIENEN QUE SER EL MISMO. Al principio aquí solo se medían
+   * bigramas y el servidor medía además distancia de edición: un error de dedo sencillo
+   * ("no cagra") pasaba el aviso sin decir nada y luego el servidor lo sustituía por su
+   * cuenta. Un aviso que se calla justo cuando va a haber sustitución es peor que no tenerlo.
+   * Cualquier cambio aquí hay que replicarlo en opSugerirExistente_ (Operacion.gs).
+   */
+  function revisarDuplicado(texto) {
+    var t = normalizar(texto);
+    if (t.length < 4) { form.sugerencia = null; mostrarSugerencia(null); return; }
+    var subs = (catalogo().submotivos && catalogo().submotivos[form.sistema]) || [];
+    var mejor = null;
+
+    subs.forEach(function (s) {
+      var otro = normalizar(s.valor);
+      if (!otro) return;
+      // Si las cifras no coinciden no son la misma queja: "Error 404" y "Error 403"
+      // comparten casi todas sus letras y son cosas distintas.
+      if (cifras(t) !== cifras(otro)) return;
+
+      var d = dice(t, otro);
+      var dist = distancia(t, otro);
+      var largoParecido = Math.abs(t.length - otro.length) <= Math.max(2, Math.round(t.length * 0.34));
+      var tolerancia = t.length <= 6 ? 1 : (t.length <= 12 ? 2 : 3);
+      if (!(largoParecido && dist <= tolerancia) && d < 0.78) return;
+
+      var p = Math.max(d, 1 - (dist / Math.max(t.length, otro.length)));
+      if (!mejor || p > mejor.p) mejor = { valor: s.valor, p: p };
+    });
+
+    form.sugerencia = mejor ? mejor.valor : null;
+    mostrarSugerencia(form.sugerencia);
+  }
+
+  /** Damerau-Levenshtein: "carga" ↔ "cagra" es UN error de dedo, no dos. */
+  function distancia(a, b) {
+    a = String(a || ''); b = String(b || '');
+    if (a === b) return 0;
+    if (!a.length) return b.length;
+    if (!b.length) return a.length;
+
+    var fila = [], anterior = [], i, j;
+    for (j = 0; j <= b.length; j++) fila[j] = j;
+    for (i = 1; i <= a.length; i++) {
+      var previa = fila.slice();
+      fila[0] = i;
+      for (j = 1; j <= b.length; j++) {
+        var costo = a.charAt(i - 1) === b.charAt(j - 1) ? 0 : 1;
+        fila[j] = Math.min(fila[j - 1] + 1, previa[j] + 1, previa[j - 1] + costo);
+        if (i > 1 && j > 1 && a.charAt(i - 1) === b.charAt(j - 2) && a.charAt(i - 2) === b.charAt(j - 1)) {
+          fila[j] = Math.min(fila[j], anterior[j - 2] + costo);
+        }
+      }
+      anterior = previa;
+    }
+    return fila[b.length];
+  }
+
+  function normalizar(s) {
+    return String(s || '')
+      .normalize('NFD').replace(new RegExp('[\\u0300-\\u036f]', 'g'), '')
+      .toLowerCase().replace(/[^a-z0-9ñ ]+/g, ' ').replace(/\s+/g, ' ').trim();
+  }
+
+  function cifras(s) {
+    var m = String(s || '').match(/\d+/g);
+    return m ? m.join('|') : '';
+  }
+
+  function dice(a, b) {
+    a = a.replace(/ /g, ''); b = b.replace(/ /g, '');
+    if (!a || !b) return 0;
+    if (a === b) return 1;
+    if (a.length < 2 || b.length < 2) return 0;
+    var bolsa = {}, i, par, comunes = 0;
+    for (i = 0; i < a.length - 1; i++) { par = a.substr(i, 2); bolsa[par] = (bolsa[par] || 0) + 1; }
+    for (i = 0; i < b.length - 1; i++) { par = b.substr(i, 2); if (bolsa[par] > 0) { bolsa[par]--; comunes++; } }
+    return (2 * comunes) / ((a.length - 1) + (b.length - 1));
+  }
+
+  function mostrarSugerencia(valor) {
+    var caja = cuerpo.querySelector('#op-sug');
+    if (!caja) return;
+    if (!valor) { caja.hidden = true; caja.innerHTML = ''; return; }
+    caja.hidden = false;
+    caja.innerHTML = IC.info +
+      '<span>Ya existe algo muy parecido: <button type="button" id="op-usar-sug">«' + esc(valor) + '»</button>. ' +
+      'Úsalo y tu reporte se sumará al de los demás.</span>';
+    var b = caja.querySelector('#op-usar-sug');
+    if (b) b.addEventListener('click', function () {
+      form.submotivoOtro = false; form.submotivo = valor; form.submotivoNuevo = ''; form.sugerencia = null;
+      pintarFormulario();
+    });
+  }
+
+  function mostrarError(msg) {
+    var caja = cuerpo.querySelector('#op-error');
+    if (!caja) return;
+    if (!msg) { caja.hidden = true; caja.innerHTML = ''; return; }
+    caja.hidden = false;
+    caja.innerHTML = IC.alerta + '<span>' + esc(msg) + '</span>';
+    if (window.AppMotion && AppMotion.shake) AppMotion.shake(caja);
+  }
+
+  /* ── Evidencias ─────────────────────────────────────────────────────────── */
+
+  function leerArchivo(file) {
+    if (!file || file.type.indexOf('image/') !== 0) return;
+    if (form.evidencias.length >= 4) {
+      mostrarError('Puedes adjuntar hasta 4 capturas.');
+      return;
+    }
+    if (file.size > 5 * 1024 * 1024) {
+      mostrarError('Esa captura pesa más de 5 MB. Recórtala e inténtalo de nuevo.');
+      return;
+    }
+    var lector = new FileReader();
+    lector.onload = function () { subirEvidencia(lector.result, file.name || 'captura'); };
+    lector.readAsDataURL(file);
+  }
+
+  function subirEvidencia(dataUrl, nombre) {
+    var item = { estado: 'subiendo', vista: dataUrl, nombre: nombre };
+    form.evidencias.push(item);
+    pintarMinis();
+    mostrarError('');
+
+    llamar('opSubirEvidencia', [{ email: correo(), dataUrl: dataUrl, nombre: nombre }])
+      .then(function (r) {
+        if (r && r.success) {
+          item.estado = 'ok'; item.url = r.url; item.id = r.id;
+        } else {
+          form.evidencias.splice(form.evidencias.indexOf(item), 1);
+          mostrarError((r && r.message) || 'No pudimos guardar la captura.');
+        }
+        pintarMinis();
+      }, function () {
+        form.evidencias.splice(form.evidencias.indexOf(item), 1);
+        mostrarError('No pudimos guardar la captura. Revisa tu internet.');
+        pintarMinis();
+      });
+  }
+
+  function pintarMinis() {
+    var caja = cuerpo.querySelector('#op-minis');
+    if (!caja) return;
+    caja.innerHTML = form.evidencias.map(function (e, i) {
+      if (e.estado === 'subiendo') {
+        return '<div class="op-mini subiendo"><span class="op-mini-spin"></span></div>';
+      }
+      return '<div class="op-mini">' +
+        '<img src="' + esc(e.vista || e.url) + '" alt="' + esc(e.nombre || 'Captura') + '">' +
+        '<button type="button" class="op-mini-x" data-op-quitar="' + i + '" aria-label="Quitar esta captura">' +
+          IC.cerrar + '</button>' +
+      '</div>';
+    }).join('');
+    caja.querySelectorAll('[data-op-quitar]').forEach(function (b) {
+      b.addEventListener('click', function () {
+        form.evidencias.splice(Number(b.getAttribute('data-op-quitar')), 1);
+        pintarMinis();
+      });
+    });
+  }
+
+  /** Pegar con Ctrl+V mientras el formulario está abierto. */
+  document.addEventListener('paste', function (e) {
+    if (!abierto || vista !== 'reporte' || !form || form.hecho) return;
+    var items = (e.clipboardData && e.clipboardData.items) || [];
+    var encontrada = false;
+    for (var i = 0; i < items.length; i++) {
+      if (items[i].type && items[i].type.indexOf('image/') === 0) {
+        var f = items[i].getAsFile();
+        if (f) { leerArchivo(f); encontrada = true; }
+      }
+    }
+    if (encontrada) e.preventDefault();
+  });
+
+  /* ── Envío ──────────────────────────────────────────────────────────────── */
+
+  function enviarReporte() {
+    if (form.enviando) return;
+
+    var sistema = form.sistemaOtro ? '' : form.sistema;
+    var sistemaNuevo = form.sistemaOtro ? String(form.sistemaNuevo || '').trim() : '';
+    if (!sistema && !sistemaNuevo) { mostrarError('Elige qué sistema está fallando.'); return; }
+
+    var submotivo = form.submotivoOtro ? '' : form.submotivo;
+    var submotivoNuevo = (form.submotivoOtro || !submotivo) ? String(form.submotivoNuevo || '').trim() : '';
+    if (!submotivo && !submotivoNuevo) { mostrarError('Dinos qué es lo que le pasa.'); return; }
+    if (submotivoNuevo && submotivoNuevo.length < 4) {
+      mostrarError('Descríbelo con un poco más de detalle (al menos 4 letras).'); return;
+    }
+    if (form.evidencias.some(function (e) { return e.estado === 'subiendo'; })) {
+      mostrarError('Espera a que terminen de subir las capturas.'); return;
+    }
+
+    form.enviando = true;
+    form.error = '';
+    pintarFormulario();
+
+    llamar('opReportar', [{
+      email: correo(),
+      sistema: sistema,
+      sistemaNuevo: sistemaNuevo,
+      submotivo: submotivo,
+      submotivoNuevo: submotivoNuevo,
+      notas: form.notas,
+      evidencias: form.evidencias.filter(function (e) { return e.estado === 'ok'; })
+                                 .map(function (e) { return { url: e.url, id: e.id, nombre: e.nombre }; })
+    }]).then(function (r) {
+      form.enviando = false;
+      if (r && r.success) {
+        form.hecho = r;
+        pintarFormulario();
+        cargar(true);
+      } else {
+        form.error = (r && r.message) || 'No pudimos guardar tu reporte. Inténtalo de nuevo.';
+        pintarFormulario();
+      }
+    }, function () {
+      form.enviando = false;
+      form.error = 'No hay conexión con el sistema. Revisa tu internet e inténtalo de nuevo.';
+      pintarFormulario();
+    });
+  }
+
+  /**
+   * Acuse de recibo.
+   *
+   * Importa MUCHO decir si el reporte se sumó a algo que ya existía: si no, la persona
+   * cree que nadie más lo ha visto y va a escribir por otro canal "a mí también me pasa",
+   * que es justo lo que este módulo viene a evitar.
+   */
+  function pintarGracias() {
+    var head = panel.querySelector('#op-head');
+    var r = form.hecho;
+    var tono = r.elevado ? 'warn' : 'ok';
+
+    head.innerHTML = cabecera(tono, 'Reporte enviado', r.message || 'Gracias por avisar.');
+
+    var html = '<div class="op-vacio">' +
+      '<div class="op-vacio-ic"' + (r.elevado ? ' style="background:var(--op-warn-bg);color:var(--op-warn)"' : '') + '>' +
+        (r.elevado ? IC.alerta : IC.ok) + '</div>' +
+      '<b>' + esc(r.sistema + (r.submotivo ? ' · ' + r.submotivo : '')) + '</b>' +
+      '<p>' + esc(r.elevado
+        ? 'Ya avisamos al equipo. Supervisión va a confirmarlo o descartarlo.'
+        : (r.incidente
+            ? 'Tu reporte se sumó a una incidencia que ya estaba abierta.'
+            : 'Queda registrado. Si más gente reporta lo mismo, avisamos al equipo automáticamente.')) +
+      '</p></div>';
+
+    if (r.incidente) {
+      html += '<button type="button" class="op-inc tono-' + esc(r.incidente.tono || 'warn') + '" ' +
+        'data-op-inc="' + esc(r.incidente.id) + '">' +
+        '<span class="op-inc-top"><span class="op-chip tono-' + esc(r.incidente.tono || 'warn') + '">' +
+          (ICONO_TONO[r.incidente.tono] || IC.info) + esc(r.incidente.estadoNombre || '') + '</span></span>' +
+        '<p class="op-inc-tit">' + esc(r.incidente.titulo || '') + '</p>' +
+        '<span class="op-inc-pie"><span></span>' +
+          '<span class="op-ver">' + IC.ver + 'Ver los reportes del equipo</span></span>' +
+      '</button>';
+    }
+
+    cuerpo.innerHTML = html;
+    cuerpo.querySelectorAll('[data-op-inc]').forEach(function (b) {
+      b.addEventListener('click', function () { irADetalle(b.getAttribute('data-op-inc')); });
+    });
+
+    pie.innerHTML =
+      '<button type="button" class="op-btn op-btn-primario op-btn-bloque" id="op-listo">Listo</button>' +
+      '<button type="button" class="op-btn op-btn-plano op-btn-bloque" id="op-otro">Reportar otra cosa</button>';
+    var l = pie.querySelector('#op-listo');
+    if (l) { l.addEventListener('click', cerrar); setTimeout(function () { l.focus(); }, 40); }
+    var o = pie.querySelector('#op-otro');
+    if (o) o.addEventListener('click', function () { prepararFormulario(''); pintarFormulario(); });
+
+    var x = panel.querySelector('#op-x');
+    if (x) x.addEventListener('click', cerrar);
+
+    if (conGsap()) {
+      gsap.from(cuerpo.children, { y: 16, opacity: 0, duration: .45, ease: 'power3.out', stagger: .06, clearProps: 'transform,opacity' });
+    }
+  }
+
+  /* ── Carga de datos ─────────────────────────────────────────────────────── */
+
+  function cargar(forzar) {
+    if (cargando) return;
+
+    if (!forzar) {
+      var cache = leerCache();
+      if (cache) {
+        estado = cache;
+        pintarPastilla();
+        pintarAvisos();
+        if (abierto && vista === 'estado') pintarEstado();
+      }
+    }
+
+    cargando = true;
+    var fn = haySesion() ? 'opEstadoSesion' : 'opEstadoPublico';
+    var args = haySesion() ? [correo()] : [];
+
+    llamar(fn, args).then(function (r) {
+      cargando = false;
+      ultimaCarga = Date.now();
+      if (!r || r.success === false) { if (!estado) pintarPastilla(); return; }
+      estado = r;
+      guardarCache(r);
+      pintarPastilla();
+      pintarAvisos();
+      if (abierto && vista === 'estado') pintarEstado();
+    }, function () {
+      cargando = false;
+      ultimaCarga = Date.now();
+      if (abierto && vista === 'estado' && !estado) pintarEstado();
+    });
+  }
+
+  /* Revalidación discreta: solo con la pestaña a la vista. Un equipo que deja diez
+     pestañas abiertas no debe generar diez consultas por minuto contra Apps Script. */
+  function programarRevalidacion() {
+    setInterval(function () {
+      if (document.visibilityState !== 'visible') return;
+      if (Date.now() - ultimaCarga < REVALIDA_MS) return;
+      cargar(true);
+    }, 30000);
+
+    document.addEventListener('visibilitychange', function () {
+      if (document.visibilityState === 'visible' && Date.now() - ultimaCarga > REVALIDA_MS) cargar(true);
+    });
+  }
+
+  /* ── Arranque ───────────────────────────────────────────────────────────── */
+
+  window.AppOperacion = {
+    abrir: function () { abrir(null); },
+    reportar: function (sistema) { abrir(null, 'reporte', sistema || ''); },
+    cerrar: cerrar,
+    refrescar: function (forzar) { cargar(forzar !== false); },
+    estado: function () { return estado; },
+
+    /**
+     * Una pantalla que YA pidió el estado por su cuenta se lo entrega aquí.
+     *
+     * Lo usa el tablero (`?page=estado`), que necesita los mismos datos para pintarse. Sin
+     * esto, cada carga de la pantalla más visitada del módulo costaba DOS consultas
+     * idénticas al servidor: la suya y la de este indicador. Marca la hora de carga, así
+     * que además silencia la petición de arranque.
+     */
+    usarEstado: function (datos) {
+      if (!datos || datos.success === false) return;
+      estado = datos;
+      ultimaCarga = Date.now();
+      guardarCache(datos);
+      montar();
+      pintarPastilla();
+      pintarAvisos();
+      if (abierto && vista === 'estado') pintarEstado();
+    }
+  };
+
+  document.addEventListener('DOMContentLoaded', function () {
+    montar();
+    // El estado no compite con el primer pintado de la pantalla: llega un poco después.
+    // Si la pantalla ya nos lo entregó con usarEstado(), no se vuelve a pedir.
+    setTimeout(function () {
+      if (estado) return;
+      cargar(false);
+    }, 900);
+    programarRevalidacion();
+  });
+
+  /* El botón de cerrar se vuelve a cablear en cada repintado de la cabecera. */
+  document.addEventListener('click', function (e) {
+    var x = e.target && e.target.closest ? e.target.closest('#op-x') : null;
+    if (x && abierto) cerrar();
+  });
+})();
+</script>

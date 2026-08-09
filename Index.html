@@ -1294,6 +1294,7 @@ table.ds-matrix{width:100%;border-collapse:separate;border-spacing:0;min-width:5
 <script>window.__APP__ = { baseUrl: '<?= APP_URL ?>' };</script>
 <?!= include('app_core') ?>
 <?!= include('app_onboarding') ?>
+<?!= include('app_operacion') ?>
 <template id="__bundler_thumbnail" data-bg-color="#E10098">
   <svg viewBox="0 0 1200 800" xmlns="http://www.w3.org/2000/svg">
     <rect width="1200" height="800" fill="#E10098"/>
@@ -1436,6 +1437,11 @@ table.ds-matrix{width:100%;border-collapse:separate;border-spacing:0;min-width:5
   <!-- ══ INICIO / DASHBOARD ══ -->
   <section id="sec-inicio" class="view-section active">
     <div class="avisos-wrap" id="avisosWrap"></div>
+    <!-- Estado de operación: las incidencias vivas se pintan aquí, ARRIBA de todo lo demás.
+         Un sistema caído es la única noticia que puede cambiar lo que alguien va a hacer en
+         los siguientes cinco minutos, así que va antes que los anuncios y que las promos.
+         Lo rellena AppOperacion (app_operacion.html); vacío, no ocupa espacio. -->
+    <div id="operacion-avisos"></div>
     <div class="hero">
       <div class="hero-l">
         <div class="hero-greet"><span id="heroGreet">Buen día</span> · Equipo VENTEL</div>

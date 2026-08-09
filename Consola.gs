@@ -59,9 +59,20 @@ const CONSOLA_AJUSTES = [
     tipo: 'secreto', secreto: true, soloLectura: true
   },
   {
-    clave: 'WEBHOOK_URL', nombre: 'Webhook de Google Chat', grupo: 'Avisos',
+    clave: 'WEBHOOK_URL', nombre: 'Webhook de cotizaciones', grupo: 'Avisos',
     detalle: 'A dónde se avisa cuando se crea una cotización. Vacío = no se manda nada.',
-    tipo: 'secreto', secreto: true, marcador: 'https://chat.googleapis.com/v1/spaces/…'
+    tipo: 'secreto', secreto: true, webhook: true, marcador: 'https://chat.googleapis.com/v1/spaces/…'
+  },
+  {
+    clave: 'OPERACION_WEBHOOK_ESTADO', nombre: 'Webhook del estado de operación', grupo: 'Avisos',
+    detalle: 'A dónde se comunica al equipo que un sistema se cayó, se restableció o entra en mantenimiento. Vacío = no se manda nada.',
+    tipo: 'secreto', secreto: true, webhook: true, marcador: 'https://chat.googleapis.com/v1/spaces/…'
+  },
+  {
+    clave: 'OPERACION_WEBHOOK_REPORTES', nombre: 'Webhook de reportes sueltos', grupo: 'Avisos',
+    detalle: 'Copia de CADA reporte que manda un asesor, uno por uno. Conviene que sea un espacio distinto ' +
+             'al de los comunicados: si se mezclan, el aviso que importa se pierde entre los reportes. Vacío = apagado.',
+    tipo: 'secreto', secreto: true, webhook: true, marcador: 'https://chat.googleapis.com/v1/spaces/…'
   },
   {
     clave: 'PORTAL_SHEET_ID', nombre: 'Hoja del Portal', grupo: 'Fuentes de datos',
@@ -737,6 +748,10 @@ function consolaRespaldoEnCodigo_(clave) {
   switch (clave) {
     case 'HASH_SALT':               return typeof HASH_SALT === 'string' ? HASH_SALT : '';
     case 'WEBHOOK_URL':             return typeof WEBHOOK_URL === 'string' ? WEBHOOK_URL : '';
+    case 'OPERACION_WEBHOOK_ESTADO':
+      return typeof OPERACION_WEBHOOK_ESTADO === 'string' ? OPERACION_WEBHOOK_ESTADO : '';
+    case 'OPERACION_WEBHOOK_REPORTES':
+      return typeof OPERACION_WEBHOOK_REPORTES === 'string' ? OPERACION_WEBHOOK_REPORTES : '';
     case 'PORTAL_SHEET_ID':         return typeof PORTAL_SHEET_ID === 'string' ? PORTAL_SHEET_ID : '';
     case 'CCL_TEMPLATE_SHEET_ID':   return typeof CCL_TEMPLATE_SHEET_ID === 'string' ? CCL_TEMPLATE_SHEET_ID : '';
     case 'PORTAL_CALENDAR_ID':      return typeof PORTAL_CALENDAR_ID === 'string' ? PORTAL_CALENDAR_ID : '';
@@ -855,8 +870,17 @@ function consolaValidarAjuste_(def, valor) {
     return bien(valor.toLowerCase());
   }
 
-  if (def.clave === 'WEBHOOK_URL') {
-    if (!valor) return bien('', 'Sin webhook: dejarán de llegar los avisos de cotización nueva.');
+  // Vale para CUALQUIER webhook, no solo el de cotizaciones: cada uno nuevo que se añada
+  // al catálogo con `webhook: true` hereda la misma validación de host sin tocar nada aquí.
+  // Antes esto miraba la clave exacta, y el segundo webhook habría entrado sin comprobar.
+  if (def.webhook) {
+    if (!valor) {
+      return bien('', {
+        'WEBHOOK_URL': 'Sin webhook: dejarán de llegar los avisos de cotización nueva.',
+        'OPERACION_WEBHOOK_ESTADO': 'Sin webhook: el equipo dejará de recibir los avisos de caídas y restablecimientos.',
+        'OPERACION_WEBHOOK_REPORTES': 'Apagado: los reportes se seguirán guardando, pero no se anunciará ninguno.'
+      }[def.clave] || 'Sin webhook: no se mandará nada.');
+    }
     const host = consolaHostDeUrl_(valor);
     if (!host) {
       return mal('Eso no es una URL completa. Pega la que te da Google Chat, empezando por https://');

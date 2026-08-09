@@ -1,0 +1,803 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Estado de operación - Sistema Ventel</title>
+  <?!= include('app_theme'); ?>
+  <style>
+  /**
+   * =====================================================================================
+   * PANEL DE OPERACIÓN (supervisión) · bloque 'operacion'
+   * =====================================================================================
+   * Aquí se decide qué ve el resto del equipo. La pantalla está ordenada por lo que hay
+   * que HACER, no por lo que hay que leer:
+   *
+   *   1. Lo que espera una decisión (incidencias automáticas sin confirmar).
+   *   2. Lo que ya está reconocido y sigue vivo.
+   *   3. Reportes sueltos que no llegaron al umbral.
+   *   4. Lo cerrado esta semana.
+   *
+   * El aviso al equipo es SIEMPRE una casilla explícita: publicar un cambio y anunciarlo
+   * son dos decisiones distintas, y fundirlas obligaría a elegir entre no corregir una
+   * errata o mandar un mensaje que nadie necesita.
+   */
+
+  /* Tokens de señal locales: --warn/--alert/--ok están hechos para fondo claro y en carbón
+     caen a ~2,5:1. Se ajustan aquí una sola vez y lo heredan bordes, filos y KPIs; el token
+     global no se toca porque en otras pantallas se usa como fondo. */
+  .opp, .opp-modal-ov {
+    --o-ok: var(--ok); --o-warn: var(--warn); --o-alert: var(--alert); --o-info: var(--info);
+  }
+  [data-theme="carbon"] .opp, [data-theme="carbon"] .opp-modal-ov {
+    --o-ok: #4ADE80; --o-warn: #F2B65A; --o-alert: #FCA5A5; --o-info: #93B4FF;
+  }
+
+  /* `width:100%` NO sobra. AppShell mete este <main> dentro de un contenedor flex en
+     columna; un ítem flex con margen horizontal automático deja de estirarse y toma su
+     ancho de CONTENIDO, así que el panel salía encogido a media pantalla con dos franjas
+     vacías a los lados. Con el ancho declarado, el max-width vuelve a mandar. */
+  .opp { width: 100%; max-width: 1080px; margin: 0 auto; padding: 28px 20px 80px; }
+
+  .opp-head { margin-bottom: 26px; }
+  .opp-head h1 { margin: 0 0 6px; font-family: var(--f-display); font-size: 1.6rem;
+    font-weight: 800; letter-spacing: -.02em; color: var(--ink); }
+  .opp-head p { margin: 0; font-size: .92rem; color: var(--ink-soft); line-height: 1.55; max-width: 62ch; }
+
+  .opp-barra { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; margin-bottom: 26px; }
+  .opp-barra .opp-sep { flex: 1; }
+
+  .opp-kpis { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+    gap: 12px; margin-bottom: 30px; }
+  .opp-kpi { padding: 16px 18px; border-radius: 14px; border: 1px solid var(--line); background: var(--surface); }
+  .opp-kpi b { display: block; font-size: 1.7rem; font-weight: 800; line-height: 1.1;
+    color: var(--ink); font-variant-numeric: tabular-nums; letter-spacing: -.02em; }
+  .opp-kpi small { display: block; margin-top: 3px; font-size: .76rem; font-weight: 650;
+    color: var(--ink-soft); }
+  .opp-kpi.urge { border-color: var(--o-warn); background: var(--warn-bg); }
+  .opp-kpi.urge b, .opp-kpi.urge small { color: var(--o-warn); }
+
+  .opp-rot { display: flex; align-items: center; gap: 10px; margin: 34px 0 14px;
+    font-size: .7rem; font-weight: 800; letter-spacing: .13em; text-transform: uppercase;
+    color: var(--ink-faint); }
+  .opp-rot:first-of-type { margin-top: 0; }
+  .opp-rot::after { content: ''; flex: 1; height: 1px; background: var(--line); }
+  .opp-rot .opp-n { background: var(--surface-2); border: 1px solid var(--line);
+    border-radius: 999px; padding: 1px 8px; font-size: .68rem; color: var(--ink-soft); }
+
+  /* ── Tarjeta de incidencia ── */
+  .opp-card { border: 1px solid var(--line); border-radius: 16px; background: var(--surface);
+    padding: 18px 20px; margin-bottom: 12px; }
+  .opp-card.urge { border-left: 4px solid var(--o-warn); }
+  .opp-card.viva { border-left: 4px solid var(--o-alert); }
+  .opp-card.cerrada { opacity: .75; }
+  .opp-card-top { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; margin-bottom: 8px; }
+  .opp-card h3 { margin: 0 0 6px; font-size: 1.02rem; font-weight: 700; color: var(--ink); line-height: 1.35; }
+  .opp-card .opp-det { margin: 0; font-size: .87rem; color: var(--ink-soft); line-height: 1.55; }
+  .opp-meta { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; margin-top: 12px;
+    font-size: .77rem; color: var(--ink-faint); font-weight: 600; }
+  .opp-meta .opp-pin { display: inline-flex; align-items: center; gap: 4px; }
+  .opp-meta svg { width: 13px; height: 13px; }
+  .opp-acc { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 14px;
+    padding-top: 14px; border-top: 1px solid var(--line-soft, var(--line)); }
+
+  .opp-badge { display: inline-flex; align-items: center; gap: 5px; padding: 3px 10px 3px 8px;
+    border-radius: 999px; font-size: .73rem; font-weight: 700; border: 1px solid transparent; }
+  .opp-badge svg { width: 13px; height: 13px; flex: none; }
+  .opp-badge.tono-ok     { background: var(--ok-bg);     color: var(--ok);     border-color: var(--ok); }
+  .opp-badge.tono-warn   { background: var(--warn-bg);   color: var(--warn);   border-color: var(--warn); }
+  .opp-badge.tono-alert  { background: var(--alert-bg);  color: var(--alert);  border-color: var(--alert); }
+  .opp-badge.tono-info   { background: var(--info-bg);   color: var(--info);   border-color: var(--info); }
+  .opp-badge.tono-neutro { background: var(--surface-2); color: var(--ink-soft); border-color: var(--line); }
+  [data-theme="carbon"] .opp-badge.tono-ok    { color: #4ADE80; border-color: rgba(74,222,128,.4); }
+  [data-theme="carbon"] .opp-badge.tono-warn  { color: #F2B65A; border-color: rgba(242,182,90,.4); }
+  [data-theme="carbon"] .opp-badge.tono-alert { color: #FCA5A5; border-color: rgba(252,165,165,.4); }
+  [data-theme="carbon"] .opp-badge.tono-info  { color: #93B4FF; border-color: rgba(147,180,255,.4); }
+
+  .opp-origen { font-size: .68rem; font-weight: 700; letter-spacing: .05em; text-transform: uppercase;
+    color: var(--ink-faint); border: 1px solid var(--line); border-radius: 999px; padding: 2px 8px; }
+
+  /* ── Reporte suelto ── */
+  .opp-rep { border: 1px solid var(--line); border-radius: 14px; background: var(--surface-2);
+    padding: 15px 17px; margin-bottom: 10px; }
+  .opp-rep-top { display: flex; align-items: baseline; gap: 8px; flex-wrap: wrap; margin-bottom: 6px; }
+  .opp-rep-top b { font-size: .9rem; font-weight: 650; color: var(--ink); }
+  .opp-rep-top small { font-size: .75rem; color: var(--ink-faint); }
+  .opp-rep .opp-sub { display: inline-block; font-size: .76rem; font-weight: 650; color: var(--ink-soft);
+    background: var(--surface); border: 1px solid var(--line); border-radius: 999px;
+    padding: 2px 9px; margin-bottom: 8px; }
+  .opp-rep p { margin: 0; font-size: .85rem; color: var(--ink-soft); line-height: 1.55; white-space: pre-wrap; }
+  .opp-evis { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 10px; }
+  .opp-evi { width: 84px; height: 84px; border-radius: 10px; overflow: hidden; padding: 0;
+    border: 1px solid var(--line); background: var(--surface); cursor: zoom-in; }
+  .opp-evi img { width: 100%; height: 100%; object-fit: cover; display: block; }
+
+  /* ── Vacío ── */
+  .opp-vacio { text-align: center; padding: 40px 24px; border: 1px dashed var(--line);
+    border-radius: 16px; color: var(--ink-soft); }
+  .opp-vacio b { display: block; font-size: 1rem; color: var(--ink); margin-bottom: 5px; font-weight: 650; }
+  .opp-vacio p { margin: 0 auto; max-width: 46ch; font-size: .87rem; line-height: 1.6; }
+
+  .opp-sk { height: 96px; border-radius: 16px; background: var(--surface-2); margin-bottom: 12px; }
+
+  /* ── Modal ── */
+  .opp-modal-ov { position: fixed; inset: 0; z-index: 980; background: rgba(16,24,40,.5);
+    backdrop-filter: blur(2px); display: none; align-items: center; justify-content: center; padding: 20px; }
+  .opp-modal-ov.abierto { display: flex; }
+  .opp-modal { width: 100%; max-width: 520px; max-height: 88vh; overflow-y: auto;
+    background: var(--surface); border: 1px solid var(--line); border-radius: 18px;
+    padding: 24px 26px; box-shadow: 0 26px 60px -24px rgba(16,24,40,.5); }
+  .opp-modal h2 { margin: 0 0 4px; font-size: 1.15rem; font-weight: 700; color: var(--ink); }
+  .opp-modal .opp-modal-sub { margin: 0 0 20px; font-size: .85rem; color: var(--ink-soft); line-height: 1.5; }
+
+  .opp-campo { margin-bottom: 18px; }
+  .opp-lbl { display: block; font-size: .8rem; font-weight: 650; color: var(--ink); margin-bottom: 7px; }
+  .opp-lbl .opp-opc { font-weight: 500; color: var(--ink-soft); }
+  .opp-ops { display: flex; flex-wrap: wrap; gap: 6px; }
+  .opp-op { padding: 8px 13px; border-radius: 999px; border: 1px solid var(--line);
+    background: var(--surface); color: var(--ink); cursor: pointer;
+    font-family: var(--f-ui); font-size: .84rem; font-weight: 600; }
+  .opp-op:hover { background: var(--surface-2); }
+  .opp-op:focus-visible { outline: 2px solid var(--brand); outline-offset: 2px; }
+  .opp-op[aria-pressed="true"] { background: var(--brand); border-color: var(--brand); color: #fff; }
+  .opp-op.nuevo { border-style: dashed; color: var(--ink-soft); }
+
+  .opp-check { display: flex; align-items: flex-start; gap: 10px; padding: 13px 15px;
+    border-radius: 12px; border: 1px solid var(--line); background: var(--surface-2); cursor: pointer; }
+  .opp-check input { margin-top: 2px; width: 17px; height: 17px; accent-color: var(--brand); flex: none; }
+  .opp-check-tx b { display: block; font-size: .86rem; font-weight: 650; color: var(--ink); margin-bottom: 2px; }
+  .opp-check-tx small { font-size: .78rem; color: var(--ink-soft); line-height: 1.45; }
+
+  .opp-err { display: flex; align-items: flex-start; gap: 6px; margin-top: 12px;
+    font-size: .82rem; font-weight: 600; color: var(--o-alert); line-height: 1.45; }
+  .opp-err svg { width: 15px; height: 15px; flex: none; margin-top: 1px; }
+  .opp-err[hidden] { display: none; }
+
+  .opp-modal-acc { display: flex; gap: 9px; justify-content: flex-end; flex-wrap: wrap; margin-top: 22px; }
+
+  /* ── Visor ── */
+  .opp-visor { position: fixed; inset: 0; z-index: 995; background: rgba(8,12,20,.9);
+    display: none; align-items: center; justify-content: center; padding: 32px; }
+  .opp-visor.abierto { display: flex; }
+  .opp-visor img { max-width: 100%; max-height: 100%; border-radius: 12px; }
+  .opp-visor-x { position: absolute; top: 20px; right: 20px; width: 42px; height: 42px;
+    border-radius: 50%; border: 0; background: rgba(255,255,255,.16); color: #fff; cursor: pointer;
+    display: flex; align-items: center; justify-content: center; }
+  .opp-visor-x svg { width: 20px; height: 20px; }
+
+  @media (max-width: 720px) {
+    .opp { padding: 20px 14px 64px; }
+    .opp-head h1 { font-size: 1.3rem; }
+    .opp-modal { padding: 20px 18px; }
+  }
+  @media (prefers-reduced-motion: reduce) { * { transition-duration: .01ms !important; } }
+  </style>
+  <?!= include('app_tailwind'); ?>
+</head>
+<body>
+  <div class="app-aurora"></div>
+
+  <main id="main-content" class="opp">
+    <header class="opp-head">
+      <h1>Estado de operación</h1>
+      <p>Aquí se confirma o se descarta lo que reporta el equipo. Lo que publiques aquí lo ven
+         todos los asesores en cada pantalla y también quien abra el tablero sin sesión.</p>
+    </header>
+
+    <div class="opp-barra">
+      <button type="button" class="v-btn v-btn-primary v-btn-sm" id="opp-nueva">Publicar una incidencia</button>
+      <button type="button" class="v-btn v-btn-ghost v-btn-sm" id="opp-tablero">Ver el tablero público</button>
+      <span class="opp-sep"></span>
+      <span id="opp-webhook-aviso" style="font-size:.78rem;color:var(--ink-faint);font-weight:600"></span>
+      <button type="button" class="v-btn v-btn-ghost v-btn-sm" id="opp-refrescar">Actualizar</button>
+    </div>
+
+    <div class="opp-kpis" id="opp-kpis"></div>
+    <div id="opp-contenido"></div>
+  </main>
+
+  <div class="opp-modal-ov" id="opp-modal-ov">
+    <div class="opp-modal" role="dialog" aria-modal="true" aria-labelledby="opp-modal-titulo" id="opp-modal"></div>
+  </div>
+
+  <div class="opp-visor" id="opp-visor">
+    <button type="button" class="opp-visor-x" id="opp-visor-x" aria-label="Cerrar la imagen">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M6 6l12 12M18 6 6 18"/></svg>
+    </button>
+    <img id="opp-visor-img" alt="Evidencia ampliada">
+  </div>
+
+  <script>
+    window.__APP__ = { baseUrl: <?!= JSON.stringify(baseUrl) ?> };
+  </script>
+  <?!= include('app_core'); ?>
+  <?!= include('app_icons'); ?>
+  <?!= include('app_motion'); ?>
+  <?!= include('app_shell'); ?>
+  <?!= include('app_operacion'); ?>
+  <?!= include('LoaderPartial'); ?>
+  <script>
+  document.addEventListener('DOMContentLoaded', function () {
+    'use strict';
+
+    // El candado real está en el servidor (opGate_); esto solo evita que alguien llegue por
+    // un enlace y se quede mirando errores sin entender por qué.
+    if (!requireBlock('operacion', 'operacion')) return;
+
+    AppShell.mount({ active: 'operacion', title: 'Estado de operación' });
+    if (window.VentelLoader) VentelLoader.hide();
+
+    var IC = {
+      ok:     '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M9 12.5 11.2 14.7 15.5 9.8"/><circle cx="12" cy="12" r="9"/></svg>',
+      alerta: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3.6 2.6 20h18.8L12 3.6Z"/><path d="M12 10v4.2M12 17.4h.01"/></svg>',
+      reloj:  '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 6.6V12l3.4 2"/></svg>',
+      info:   '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 11v5M12 7.8h.01"/></svg>',
+      gente:  '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><circle cx="9" cy="8" r="3.2"/><path d="M2.8 19.5a6.2 6.2 0 0 1 12.4 0"/><path d="M16.5 5.2a3.2 3.2 0 0 1 0 6M18 13.4a6.2 6.2 0 0 1 3.2 6.1"/></svg>',
+      robot:  '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="8" width="16" height="11" rx="3"/><path d="M12 4.5V8"/><circle cx="9" cy="13.5" r="1.1"/><circle cx="15" cy="13.5" r="1.1"/></svg>'
+    };
+    var ICONO = { ok: IC.ok, warn: IC.reloj, alert: IC.alerta, info: IC.info, neutro: IC.info };
+
+    var datos = null;
+    var modalOv = document.getElementById('opp-modal-ov');
+    var modal = document.getElementById('opp-modal');
+    var visor = document.getElementById('opp-visor');
+    var visorImg = document.getElementById('opp-visor-img');
+    var disparador = null;
+
+    function esc(s) { return window.escapeHtml(s); }
+    function correo() { return AppSession.userEmail; }
+
+    function desdeHace(iso) {
+      if (!iso) return '';
+      var t = new Date(iso).getTime();
+      if (isNaN(t)) return '';
+      var min = Math.floor((Date.now() - t) / 60000);
+      if (min < 1) return 'hace un momento';
+      if (min < 60) return 'hace ' + min + ' min';
+      var h = Math.floor(min / 60);
+      if (h < 24) return 'hace ' + h + (h === 1 ? ' hora' : ' horas');
+      var d = Math.floor(h / 24);
+      return 'hace ' + d + (d === 1 ? ' día' : ' días');
+    }
+
+    function fechaLarga(iso) {
+      if (!iso) return '';
+      var d = new Date(iso);
+      return isNaN(d.getTime()) ? '' : d.toLocaleString('es-MX',
+        { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' });
+    }
+
+    /* ── Carga ── */
+
+    function cargar(forzar) {
+      var cont = document.getElementById('opp-contenido');
+      if (!datos) cont.innerHTML = '<div class="opp-sk"></div><div class="opp-sk"></div><div class="opp-sk"></div>';
+
+      AppRun.swr('operacion-panel', 'opPanel', [correo()], {
+        ttl: 45000,
+        maxAge: forzar ? 0 : 45000,
+        accept: function (r) { return !!(r && r.success); },
+        onData: function (r) {
+          if (!r || !r.success) {
+            if (!datos) {
+              cont.innerHTML = '<div class="opp-vacio"><b>No pudimos cargar el panel</b><p>' +
+                esc((r && r.message) || 'Inténtalo de nuevo en un momento.') + '</p></div>';
+            }
+            return;
+          }
+          datos = r;
+          pintar();
+        },
+        onError: function () {
+          if (!datos) {
+            cont.innerHTML = '<div class="opp-vacio"><b>No hay conexión con el sistema</b>' +
+              '<p>Revisa tu internet e inténtalo de nuevo.</p></div>';
+          }
+        }
+      });
+    }
+
+    /* ── Pintado ── */
+
+    function pintar() {
+      var incs = datos.incidentes || [];
+      var sueltos = datos.sueltos || [];
+      var esperan = incs.filter(function (i) { return i.estado === 'posible' && !i.cierra; });
+      var vivas = incs.filter(function (i) { return !i.cierra && i.estado !== 'posible'; });
+      var cerradas = incs.filter(function (i) { return i.cierra; });
+
+      document.getElementById('opp-kpis').innerHTML =
+        kpi(esperan.length, esperan.length === 1 ? 'espera decisión' : 'esperan decisión', esperan.length > 0) +
+        kpi(vivas.length, vivas.length === 1 ? 'incidencia activa' : 'incidencias activas', false) +
+        kpi(sueltos.length, 'reportes sin agrupar', false) +
+        kpi(cerradas.length, 'cerradas esta semana', false);
+
+      var aviso = document.getElementById('opp-webhook-aviso');
+      aviso.textContent = datos.webhookEstado
+        ? ''
+        : 'Sin webhook configurado: los avisos al equipo no saldrán.';
+      aviso.style.color = datos.webhookEstado ? '' : 'var(--warn)';
+
+      var html = '';
+
+      html += rotulo('Esperan tu decisión', esperan.length);
+      html += esperan.length
+        ? esperan.map(function (i) { return tarjeta(i, 'urge'); }).join('')
+        : '<div class="opp-vacio"><b>Nada pendiente</b><p>Cuando ' + datos.umbral.personas +
+          ' personas reporten lo mismo en menos de ' + datos.umbral.minutos +
+          ' minutos, la incidencia aparecerá aquí para que la confirmes o la descartes.</p></div>';
+
+      html += rotulo('Incidencias activas', vivas.length);
+      html += vivas.length
+        ? vivas.map(function (i) { return tarjeta(i, 'viva'); }).join('')
+        : '<div class="opp-vacio"><b>Ningún sistema marcado como caído</b>' +
+          '<p>Todo lo que el equipo ve ahora mismo es «funcionando».</p></div>';
+
+      html += rotulo('Reportes sin agrupar', sueltos.length);
+      html += sueltos.length
+        ? sueltos.map(reporteSuelto).join('')
+        : '<div class="opp-vacio"><b>Sin reportes sueltos</b>' +
+          '<p>Aquí caen los reportes de las últimas 24 horas que todavía no llegaron al umbral.</p></div>';
+
+      if (cerradas.length) {
+        html += rotulo('Cerradas esta semana', cerradas.length);
+        html += cerradas.map(function (i) { return tarjeta(i, 'cerrada'); }).join('');
+      }
+
+      document.getElementById('opp-contenido').innerHTML = html;
+      cablear();
+    }
+
+    function kpi(n, texto, urge) {
+      return '<div class="opp-kpi' + (urge ? ' urge' : '') + '"><b>' + n + '</b><small>' + esc(texto) + '</small></div>';
+    }
+
+    function rotulo(texto, n) {
+      return '<h2 class="opp-rot">' + esc(texto) + '<span class="opp-n">' + n + '</span></h2>';
+    }
+
+    function tarjeta(i, clase) {
+      var acciones = '';
+      if (!i.cierra) {
+        if (i.estado === 'posible') {
+          acciones =
+            btn('confirmar', i.id, 'v-btn-primary', 'Confirmar la falla') +
+            btn('intermitencia', i.id, 'v-btn-ghost', 'Es intermitencia') +
+            btn('descartar', i.id, 'v-btn-ghost', 'Descartar');
+        } else {
+          acciones =
+            btn('actualizar', i.id, 'v-btn-primary', 'Actualizar') +
+            btn('resolver', i.id, 'v-btn-ghost', 'Marcar resuelto');
+        }
+      } else {
+        acciones = btn('reabrir', i.id, 'v-btn-ghost', 'Reabrir');
+      }
+      acciones += btn('ver', i.id, 'v-btn-ghost', 'Ver reportes');
+
+      return '<article class="opp-card ' + clase + '">' +
+        '<div class="opp-card-top">' +
+          '<span class="opp-badge tono-' + esc(i.tono) + '">' + (ICONO[i.tono] || IC.info) +
+            esc(i.estadoNombre) + '</span>' +
+          '<span style="font-size:.8rem;font-weight:650;color:var(--ink-soft)">' + esc(i.sistema) + '</span>' +
+          '<span class="opp-origen" style="margin-left:auto">' +
+            (i.origen === 'automatico' ? 'Automática' : 'Publicada') + '</span>' +
+        '</div>' +
+        '<h3>' + esc(i.titulo) + '</h3>' +
+        (i.detalle ? '<p class="opp-det">' + esc(i.detalle) + '</p>' : '') +
+        '<div class="opp-meta">' +
+          '<span class="opp-pin">' + IC.gente + esc(i.personas) +
+            (i.personas === 1 ? ' persona' : ' personas') + ' · ' + esc(i.reportes) +
+            (i.reportes === 1 ? ' reporte' : ' reportes') + '</span>' +
+          '<span class="opp-pin">' + IC.reloj + esc(
+            i.confirmado ? 'Confirmada ' + desdeHace(i.confirmado) : 'Detectada ' + desdeHace(i.creado)) + '</span>' +
+          (i.confirmadoNombre ? '<span class="opp-pin">Por ' + esc(i.confirmadoNombre) + '</span>' : '') +
+          (i.cerrado ? '<span class="opp-pin">Cerrada ' + esc(fechaLarga(i.cerrado)) + '</span>' : '') +
+        '</div>' +
+        '<div class="opp-acc">' + acciones + '</div>' +
+      '</article>';
+    }
+
+    function btn(accion, id, clase, texto) {
+      return '<button type="button" class="v-btn ' + clase + ' v-btn-sm" ' +
+        'data-acc="' + accion + '" data-id="' + esc(id) + '">' + esc(texto) + '</button>';
+    }
+
+    function reporteSuelto(r) {
+      return '<div class="opp-rep">' +
+        '<div class="opp-rep-top">' +
+          '<b>' + esc(r.nombre || r.correo) + '</b>' +
+          '<small>' + esc(fechaLarga(r.fecha)) + ' · ' + esc(r.sistema) + '</small>' +
+        '</div>' +
+        (r.submotivo ? '<span class="opp-sub">' + esc(r.submotivo) + '</span>' : '') +
+        (r.notas ? '<p>' + esc(r.notas) + '</p>' : '') +
+        (r.evidencias && r.evidencias.length
+          ? '<div class="opp-evis">' + r.evidencias.map(function (e) {
+              return '<button type="button" class="opp-evi" data-ver="' + esc(e.url) + '">' +
+                '<img src="' + esc(e.url) + '" alt="' + esc(e.nombre || 'Captura') + '" loading="lazy"></button>';
+            }).join('') + '</div>'
+          : '') +
+        '<div class="opp-acc">' +
+          '<button type="button" class="v-btn v-btn-primary v-btn-sm" data-acc="elevar" data-rep="' + esc(r.id) + '">' +
+            'Convertir en incidencia</button>' +
+          '<button type="button" class="v-btn v-btn-ghost v-btn-sm" data-acc="descartar-rep" data-rep="' + esc(r.id) + '">' +
+            'Descartar</button>' +
+        '</div>' +
+      '</div>';
+    }
+
+    function cablear() {
+      var cont = document.getElementById('opp-contenido');
+
+      cont.querySelectorAll('[data-acc]').forEach(function (b) {
+        b.addEventListener('click', function () {
+          var acc = b.getAttribute('data-acc');
+          var id = b.getAttribute('data-id');
+          var rep = b.getAttribute('data-rep');
+          disparador = b;
+
+          if (acc === 'ver') { AppUrl.go('estado', { inc: id }); return; }
+          if (acc === 'elevar') { abrirModalElevar(rep); return; }
+          if (acc === 'descartar-rep') { descartarReporte(rep, b); return; }
+
+          var inc = (datos.incidentes || []).filter(function (x) { return x.id === id; })[0];
+          if (!inc) return;
+
+          var preset = { confirmar: 'confirmado', intermitencia: 'intermitencia',
+                         descartar: 'descartado', resolver: 'resuelto' }[acc] || '';
+          abrirModalActualizar(inc, preset);
+        });
+      });
+
+      cont.querySelectorAll('[data-ver]').forEach(function (b) {
+        b.addEventListener('click', function () {
+          visorImg.src = b.getAttribute('data-ver');
+          visor.classList.add('abierto');
+        });
+      });
+    }
+
+    /* ── Modal: actualizar una incidencia ── */
+
+    var estadoModal = null;
+
+    function abrirModalActualizar(inc, preset) {
+      estadoModal = {
+        tipo: 'actualizar', id: inc.id, inc: inc,
+        estado: preset || inc.estado,
+        nota: '', avisar: !!preset && preset !== 'descartado',
+        nuevoEstado: false, nombreEstado: '', tonoEstado: 'warn',
+        error: '', guardando: false
+      };
+      pintarModal();
+    }
+
+    function abrirModalElevar(repId) {
+      var rep = (datos.sueltos || []).filter(function (r) { return r.id === repId; })[0];
+      if (!rep) return;
+      estadoModal = {
+        tipo: 'elevar', repId: repId, rep: rep,
+        estado: 'confirmado', nota: '', avisar: true,
+        nuevoEstado: false, nombreEstado: '', tonoEstado: 'warn',
+        error: '', guardando: false
+      };
+      pintarModal();
+    }
+
+    function abrirModalNueva() {
+      estadoModal = {
+        tipo: 'nueva', sistema: '', sistemaNuevo: '', sistemaOtro: false,
+        submotivo: '', titulo: '', detalle: '',
+        estado: 'mantenimiento', nota: '', avisar: true,
+        nuevoEstado: false, nombreEstado: '', tonoEstado: 'warn',
+        error: '', guardando: false
+      };
+      pintarModal();
+    }
+
+    function estadosDisponibles() {
+      return (datos && datos.catalogo && datos.catalogo.estados) || [];
+    }
+
+    function pintarModal() {
+      var m = estadoModal;
+      if (!m) return;
+
+      var titulo, sub;
+      if (m.tipo === 'actualizar') {
+        titulo = 'Actualizar la incidencia';
+        sub = m.inc.titulo;
+      } else if (m.tipo === 'elevar') {
+        titulo = 'Convertir en incidencia';
+        sub = m.rep.sistema + ' · ' + m.rep.submotivo;
+      } else {
+        titulo = 'Publicar una incidencia';
+        sub = 'Para lo que ya sabes de antemano: un mantenimiento programado, un aviso del proveedor.';
+      }
+
+      var html =
+        '<h2 id="opp-modal-titulo">' + esc(titulo) + '</h2>' +
+        '<p class="opp-modal-sub">' + esc(sub) + '</p>';
+
+      if (m.tipo === 'nueva') {
+        var sistemas = (datos.catalogo && datos.catalogo.sistemas) || [];
+        html += '<div class="opp-campo">' +
+          '<label class="opp-lbl" id="opp-l-sis">¿A qué sistema afecta?</label>' +
+          '<div class="opp-ops" role="group" aria-labelledby="opp-l-sis">' +
+          sistemas.map(function (s) {
+            return '<button type="button" class="opp-op" data-sis="' + esc(s.clave) + '" aria-pressed="' +
+              (!m.sistemaOtro && m.sistema === s.clave ? 'true' : 'false') + '">' + esc(s.nombre) + '</button>';
+          }).join('') +
+          '<button type="button" class="opp-op nuevo" data-sis="__otro" aria-pressed="' +
+            (m.sistemaOtro ? 'true' : 'false') + '">+ Otro</button>' +
+          '</div>' +
+          (m.sistemaOtro
+            ? '<input type="text" class="v-input" id="opp-sis-nuevo" style="margin-top:8px" maxlength="60" ' +
+              'placeholder="Nombre del sistema" value="' + esc(m.sistemaNuevo) + '">'
+            : '') +
+          '</div>';
+
+        html += '<div class="opp-campo">' +
+          '<label class="opp-lbl" for="opp-submotivo">¿Qué está pasando?</label>' +
+          '<input type="text" class="v-input" id="opp-submotivo" maxlength="60" ' +
+            'placeholder="Ventana de mantenimiento" value="' + esc(m.submotivo) + '">' +
+          '</div>';
+      }
+
+      html += '<div class="opp-campo">' +
+        '<label class="opp-lbl" id="opp-l-est">Estado</label>' +
+        '<div class="opp-ops" role="group" aria-labelledby="opp-l-est">' +
+        estadosDisponibles().map(function (e) {
+          return '<button type="button" class="opp-op" data-est="' + esc(e.clave) + '" aria-pressed="' +
+            (!m.nuevoEstado && m.estado === e.clave ? 'true' : 'false') + '">' + esc(e.nombre) + '</button>';
+        }).join('') +
+        '<button type="button" class="opp-op nuevo" data-est="__nuevo" aria-pressed="' +
+          (m.nuevoEstado ? 'true' : 'false') + '">+ Estado nuevo</button>' +
+        '</div>';
+
+      if (m.nuevoEstado) {
+        html += '<input type="text" class="v-input" id="opp-est-nombre" style="margin-top:8px" maxlength="40" ' +
+          'placeholder="Cómo se va a llamar" value="' + esc(m.nombreEstado) + '">' +
+          '<label class="opp-lbl" style="margin-top:12px">Gravedad</label>' +
+          '<div class="opp-ops">' +
+          [['alert', 'Grave (rojo)'], ['warn', 'Con problemas (ámbar)'],
+           ['info', 'Informativo (azul)'], ['ok', 'Todo bien (verde)']].map(function (t) {
+            return '<button type="button" class="opp-op" data-tono="' + t[0] + '" aria-pressed="' +
+              (m.tonoEstado === t[0] ? 'true' : 'false') + '">' + t[1] + '</button>';
+          }).join('') +
+          '</div>' +
+          '<p style="margin:8px 0 0;font-size:.78rem;color:var(--ink-soft);line-height:1.45">' +
+          'La gravedad decide de qué color se pinta el sistema para todo el equipo.</p>';
+      }
+      html += '</div>';
+
+      var pideNota = m.estado === 'descartado';
+      html += '<div class="opp-campo">' +
+        '<label class="opp-lbl" for="opp-nota">Nota' +
+          (pideNota ? '' : ' <span class="opp-opc">· opcional</span>') + '</label>' +
+        '<textarea class="v-textarea" id="opp-nota" rows="3" maxlength="800" placeholder="' +
+          esc(pideNota
+            ? 'Explica por qué lo descartas'
+            : 'Qué está pasando, si ya se está trabajando en ello, cuándo esperas noticias…') +
+          '">' + esc(m.nota) + '</textarea>' +
+        '<p style="margin:7px 0 0;font-size:.78rem;color:var(--ink-soft);line-height:1.45">' +
+          'Si marcas el aviso, esta nota va tal cual en el mensaje al equipo.</p>' +
+        '</div>';
+
+      html += '<div class="opp-campo">' +
+        '<label class="opp-check">' +
+          '<input type="checkbox" id="opp-avisar"' + (m.avisar ? ' checked' : '') + '>' +
+          '<span class="opp-check-tx">' +
+            '<b>Avisar al equipo</b>' +
+            '<small>Manda el mensaje al espacio de Chat con el enlace a los reportes y las evidencias. ' +
+            'Déjalo sin marcar para corregir algo sin molestar a nadie.</small>' +
+          '</span>' +
+        '</label></div>';
+
+      html += '<div class="opp-err" id="opp-modal-err" hidden></div>';
+
+      html += '<div class="opp-modal-acc">' +
+        '<button type="button" class="v-btn v-btn-ghost v-btn-sm" id="opp-modal-cancelar">Cancelar</button>' +
+        '<button type="button" class="v-btn v-btn-primary v-btn-sm" id="opp-modal-guardar"' +
+          (m.guardando ? ' disabled' : '') + '>' +
+          (m.guardando ? 'Guardando…' : (m.tipo === 'nueva' ? 'Publicar' : 'Guardar')) + '</button>' +
+        '</div>';
+
+      modal.innerHTML = html;
+      modalOv.classList.add('abierto');
+      document.body.style.overflow = 'hidden';
+      cablearModal();
+      if (m.error) errorModal(m.error);
+
+      setTimeout(function () {
+        var f = modal.querySelector('input, textarea, button');
+        if (f) f.focus();
+      }, 40);
+    }
+
+    function cablearModal() {
+      var m = estadoModal;
+
+      modal.querySelectorAll('[data-sis]').forEach(function (b) {
+        b.addEventListener('click', function () {
+          var v = b.getAttribute('data-sis');
+          if (v === '__otro') { m.sistemaOtro = true; m.sistema = ''; }
+          else { m.sistemaOtro = false; m.sistema = v; m.sistemaNuevo = ''; }
+          m.error = ''; pintarModal();
+        });
+      });
+
+      modal.querySelectorAll('[data-est]').forEach(function (b) {
+        b.addEventListener('click', function () {
+          var v = b.getAttribute('data-est');
+          if (v === '__nuevo') { m.nuevoEstado = true; }
+          else { m.nuevoEstado = false; m.estado = v; }
+          m.error = ''; pintarModal();
+        });
+      });
+
+      modal.querySelectorAll('[data-tono]').forEach(function (b) {
+        b.addEventListener('click', function () { m.tonoEstado = b.getAttribute('data-tono'); pintarModal(); });
+      });
+
+      var campos = {
+        'opp-sis-nuevo': 'sistemaNuevo', 'opp-submotivo': 'submotivo',
+        'opp-nota': 'nota', 'opp-est-nombre': 'nombreEstado'
+      };
+      Object.keys(campos).forEach(function (id) {
+        var el = modal.querySelector('#' + id);
+        if (el) el.addEventListener('input', function () { m[campos[id]] = el.value; });
+      });
+
+      var av = modal.querySelector('#opp-avisar');
+      if (av) av.addEventListener('change', function () { m.avisar = av.checked; });
+
+      modal.querySelector('#opp-modal-cancelar').addEventListener('click', cerrarModal);
+      modal.querySelector('#opp-modal-guardar').addEventListener('click', guardarModal);
+    }
+
+    function errorModal(msg) {
+      var caja = modal.querySelector('#opp-modal-err');
+      if (!caja) return;
+      if (!msg) { caja.hidden = true; return; }
+      caja.hidden = false;
+      caja.innerHTML = IC.alerta + '<span>' + esc(msg) + '</span>';
+      if (window.AppMotion) AppMotion.shake(caja);
+    }
+
+    function cerrarModal() {
+      modalOv.classList.remove('abierto');
+      document.body.style.overflow = '';
+      estadoModal = null;
+      if (disparador && disparador.focus) { try { disparador.focus(); } catch (e) {} }
+      disparador = null;
+    }
+
+    modalOv.addEventListener('click', function (e) { if (e.target === modalOv) cerrarModal(); });
+    document.addEventListener('keydown', function (e) {
+      if (e.key !== 'Escape') return;
+      if (visor.classList.contains('abierto')) { visor.classList.remove('abierto'); return; }
+      if (modalOv.classList.contains('abierto')) cerrarModal();
+    });
+
+    /**
+     * Un estado nuevo se crea ANTES de usarlo, en su propia llamada. Si se creara junto con
+     * la actualización y la actualización fallara, quedaría un estado huérfano en el
+     * catálogo que todo el equipo vería en la lista sin que nadie lo hubiera usado nunca.
+     */
+    function guardarModal() {
+      var m = estadoModal;
+      if (m.guardando) return;
+
+      if (m.nuevoEstado) {
+        var nombre = String(m.nombreEstado || '').trim();
+        if (nombre.length < 3) { errorModal('Escribe cómo se va a llamar el estado.'); return; }
+        m.guardando = true; pintarModal();
+        AppRun.call('opCrearEstado', [{ email: correo(), nombre: nombre, tono: m.tonoEstado }])
+          .then(function (r) {
+            m.guardando = false;
+            if (r && r.success) {
+              // El catálogo local se actualiza para que el chip nuevo salga ya seleccionado.
+              datos.catalogo.estados.push({
+                clave: r.clave, nombre: r.valor, tono: r.tono,
+                afecta: r.tono !== 'ok' && r.tono !== 'neutro',
+                cierra: r.tono === 'ok' || r.tono === 'neutro', base: false
+              });
+              m.nuevoEstado = false; m.estado = r.clave; m.error = '';
+              pintarModal();
+            } else {
+              if (r && r.yaExiste) {
+                var ya = estadosDisponibles().filter(function (e) {
+                  return e.nombre.toLowerCase() === String(r.valor).toLowerCase();
+                })[0];
+                if (ya) { m.nuevoEstado = false; m.estado = ya.clave; }
+              }
+              m.error = (r && r.message) || 'No pudimos crear el estado.';
+              pintarModal();
+            }
+          }, function () {
+            m.guardando = false; m.error = 'No hay conexión con el sistema.'; pintarModal();
+          });
+        return;
+      }
+
+      var payload = { email: correo(), estado: m.estado, nota: m.nota, avisar: !!m.avisar };
+      var fn;
+
+      if (m.tipo === 'actualizar') {
+        fn = 'opActualizarIncidente';
+        payload.id = m.id;
+      } else if (m.tipo === 'elevar') {
+        fn = 'opElevarReporte';
+        payload.reporteId = m.repId;
+      } else {
+        fn = 'opCrearIncidente';
+        payload.sistema = m.sistemaOtro ? '' : m.sistema;
+        payload.sistemaNuevo = m.sistemaOtro ? String(m.sistemaNuevo || '').trim() : '';
+        payload.submotivo = String(m.submotivo || '').trim();
+        payload.titulo = String(m.titulo || '').trim();
+        payload.detalle = String(m.detalle || '').trim();
+        if (!payload.sistema && !payload.sistemaNuevo) { errorModal('Elige el sistema al que afecta.'); return; }
+        if (!payload.submotivo) { errorModal('Dinos qué es lo que está pasando.'); return; }
+      }
+
+      m.guardando = true; pintarModal();
+      AppRun.call(fn, [payload]).then(function (r) {
+        m.guardando = false;
+        if (r && r.success) {
+          cerrarModal();
+          AppCache.remove('operacion-panel');
+          AppCache.remove('operacion-estado');
+          AppMotion.toast(r.message || 'Guardado.', 'ok');
+          datos = null;
+          cargar(true);
+          if (window.AppOperacion) AppOperacion.refrescar(true);
+        } else {
+          m.error = (r && r.message) || 'No pudimos guardar el cambio.';
+          pintarModal();
+        }
+      }, function () {
+        m.guardando = false;
+        m.error = 'No hay conexión con el sistema. Revisa tu internet.';
+        pintarModal();
+      });
+    }
+
+    function descartarReporte(repId, boton) {
+      boton.disabled = true;
+      AppRun.call('opDescartarReporte', [{ email: correo(), reporteId: repId }])
+        .then(function (r) {
+          if (r && r.success) {
+            AppCache.remove('operacion-panel');
+            AppMotion.toast('Reporte descartado.', 'ok');
+            datos = null;
+            cargar(true);
+          } else {
+            boton.disabled = false;
+            AppMotion.toast((r && r.message) || 'No pudimos descartarlo.', 'error');
+          }
+        }, function () {
+          boton.disabled = false;
+          AppMotion.toast('No hay conexión con el sistema.', 'error');
+        });
+    }
+
+    /* ── Barra superior ── */
+
+    document.getElementById('opp-nueva').addEventListener('click', function () {
+      disparador = this; abrirModalNueva();
+    });
+    document.getElementById('opp-tablero').addEventListener('click', function () { AppUrl.go('estado'); });
+    document.getElementById('opp-refrescar').addEventListener('click', function () {
+      AppCache.remove('operacion-panel');
+      datos = null;
+      cargar(true);
+    });
+
+    document.getElementById('opp-visor-x').addEventListener('click', function () { visor.classList.remove('abierto'); });
+    visor.addEventListener('click', function (e) { if (e.target === visor) visor.classList.remove('abierto'); });
+
+    cargar(false);
+  });
+  </script>
+</body>
+</html>

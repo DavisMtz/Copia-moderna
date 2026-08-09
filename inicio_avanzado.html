@@ -233,6 +233,10 @@
     <div class="app-aurora"></div>
 
     <main id="main-content" class="max-w-7xl mx-auto p-4 sm:p-6 lg:p-8">
+        <!-- Estado de operación: lo que el equipo está reportando, antes que las métricas.
+             Lo rellena AppOperacion; si no hay incidencias, no ocupa espacio. -->
+        <div id="operacion-avisos"></div>
+
         <header class="mb-8 flex flex-col md:flex-row md:justify-between md:items-center gap-4">
             <div>
                 <h1 class="text-3xl font-bold text-slate-900 tracking-tight" data-animate>Panel de Supervisión Ventel</h1>
@@ -505,6 +509,7 @@
     <?!= include('app_shell'); ?>
     <?!= include('app_onboarding'); ?>
     <?!= include('LoaderPartial'); ?>
+    <?!= include('app_operacion'); ?>
     <script>
         // --- Navegación (modelo compartido de URLs) ---
         window.navigateToQuoteView = function (folio) {

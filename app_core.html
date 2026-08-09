@@ -227,6 +227,8 @@
     'consola':             'la consola maestra',
     'anuncios':            'el constructor de anuncios',
     'portal_contenido':    'el contenido del Portal',
+    'operacion':           'el estado de operación',
+    'estado':              'el tablero de estado',
     'login':               'el inicio de sesión',
     'registro':            'la creación de cuenta',
     'recuperar':           'la recuperación de contraseña',
@@ -724,7 +726,7 @@
     PAGINAS_TRAS_LOGIN: [
       'cotizacion', 'cotizado_preview', 'consulta_cotizacion', 'revision_cotizacion',
       'correoventel', 'correo_cliente', 'anuncios', 'portal_contenido', 'dashboard',
-      'inicio_avanzado', 'consola'
+      'inicio_avanzado', 'consola', 'operacion', 'estado'
     ],
 
     /**
@@ -1153,6 +1155,7 @@
       { bloque: 'politica_revision', page: 'inicio_avanzado', nombre: 'Política de revisión', corto: 'reglas de revisión', sub: 'Reglas de revisión' },
       { bloque: 'anuncios',          page: 'anuncios',        nombre: 'Anuncios del Portal',  corto: 'anuncios',           sub: 'Anuncios del Portal' },
       { bloque: 'portal_contenido',  page: 'portal_contenido', nombre: 'Contenido del Portal', corto: 'contenido del Portal', sub: 'Herramientas, plantillas y promos' },
+      { bloque: 'operacion',         page: 'operacion',       nombre: 'Estado de operación',  corto: 'estado de operación', sub: 'Fallas reportadas por el equipo' },
       { bloque: 'adm_miembros',      page: 'consola',         nombre: 'Consola maestra',      corto: 'ajustes',            sub: 'Miembros y ajustes', soloMaestro: true }
     ];
 

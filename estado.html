@@ -1,0 +1,727 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Estado de operación · VENTEL</title>
+  <?!= include('ViewPrefsPartial'); ?>
+  <?!= include('app_theme'); ?>
+  <style>
+  /**
+   * =====================================================================================
+   * ESTADO DE OPERACIÓN · tablero público
+   * =====================================================================================
+   * Es la ÚNICA pantalla del sistema que se puede abrir sin sesión, y por eso lo que enseña
+   * está partido en dos:
+   *
+   *   · SIN sesión → qué sistema falla, con qué gravedad, desde cuándo y el último
+   *     comunicado que supervisión decidió publicar. Ni un nombre, ni un correo, ni una
+   *     captura. Eso lo garantiza el servidor (opEstadoPublico), no un filtro de aquí.
+   *
+   *   · CON sesión → además, los reportes del equipo con sus notas y sus evidencias, y la
+   *     bitácora completa de actualizaciones.
+   *
+   * "Connect" y "Página/App" van en tarjetas grandes porque son los dos sistemas que
+   * significan algo para alguien que llega de fuera; el resto va en una fila secundaria.
+   */
+
+  /*
+   * TOKENS LOCALES DE SEÑAL.
+   *
+   * --ok/--warn/--alert/--info están elegidos para fondo CLARO y app_theme no los aclara en
+   * carbón. Las insignias ya se corregían una a una, pero los PUNTOS y las BARRAS de color
+   * seguían usando el token crudo: en oscuro quedaban a ~2,5:1, y en la misma tarjeta
+   * convivían dos señales del mismo estado con dos rojos distintos, que se lee como un error.
+   *
+   * Con estos tokens el ajuste se hace UNA vez y lo heredan punto, barra, insignia y línea
+   * de tiempo. El token GLOBAL no se toca: en otras pantallas se usa como fondo de hovers y
+   * aclararlo allí las rompería.
+   */
+  .est-wrap, .est-hoja, .est-scrim {
+    --e-ok: var(--ok); --e-warn: var(--warn); --e-alert: var(--alert); --e-info: var(--info);
+  }
+  [data-theme="carbon"] .est-wrap,
+  [data-theme="carbon"] .est-hoja,
+  [data-theme="carbon"] .est-scrim {
+    --e-ok: #4ADE80; --e-warn: #F2B65A; --e-alert: #FCA5A5; --e-info: #93B4FF;
+  }
+
+  .est-wrap { max-width: 940px; margin: 0 auto; padding: 32px 20px 80px; }
+
+  /* ── Cabecera ── */
+  .est-top { display: flex; align-items: center; gap: 14px; margin-bottom: 34px; flex-wrap: wrap; }
+  /* El SVG del logo es BLANCO: está hecho para la cabecera oscura del sitio y sobre el
+     fondo claro de esta página se veía como una mancha gris. En los temas claros se
+     invierte a tinta; en carbón se deja tal cual, que ahí sí es el color correcto. */
+  .est-top img { height: 26px; width: auto; filter: brightness(0) opacity(.82); }
+  [data-theme="carbon"] .est-top img { filter: none; }
+  .est-top .est-div { width: 1px; height: 24px; background: var(--line); }
+  .est-top h1 { margin: 0; font-family: var(--f-display); font-size: 1.15rem; font-weight: 800;
+    letter-spacing: -.01em; color: var(--ink); }
+  .est-top .est-acc { margin-left: auto; display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+
+  /* ── Banner global ── */
+  .est-banner {
+    display: flex; align-items: center; gap: 18px;
+    padding: 26px 28px; border-radius: 20px; margin-bottom: 34px;
+    border: 1px solid transparent;
+  }
+  .est-banner-ic { width: 56px; height: 56px; border-radius: 16px; flex: none;
+    display: flex; align-items: center; justify-content: center; background: rgba(255,255,255,.55); }
+  [data-theme="carbon"] .est-banner-ic { background: rgba(0,0,0,.22); }
+  .est-banner-ic svg { width: 28px; height: 28px; }
+  .est-banner-tx { flex: 1; min-width: 0; }
+  .est-banner h2 { margin: 0 0 4px; font-family: var(--f-display); font-size: 1.5rem;
+    font-weight: 800; letter-spacing: -.02em; line-height: 1.2; }
+  .est-banner p { margin: 0; font-size: .95rem; line-height: 1.5; opacity: .92; }
+  .est-banner .est-hora { display: block; margin-top: 8px; font-size: .78rem; font-weight: 650; opacity: .75; }
+
+  .est-banner.tono-ok    { background: var(--ok-bg);    border-color: var(--ok);    color: var(--ok); }
+  .est-banner.tono-warn  { background: var(--warn-bg);  border-color: var(--warn);  color: var(--warn); }
+  .est-banner.tono-alert { background: var(--alert-bg); border-color: var(--alert); color: var(--alert); }
+
+  [data-theme="carbon"] .est-banner.tono-ok    { color: #4ADE80; border-color: rgba(74,222,128,.4); }
+  [data-theme="carbon"] .est-banner.tono-warn  { color: #F2B65A; border-color: rgba(242,182,90,.4); }
+  [data-theme="carbon"] .est-banner.tono-alert { color: #FCA5A5; border-color: rgba(252,165,165,.4); }
+
+  /* ── Rótulos ── */
+  .est-rot { display: flex; align-items: center; gap: 10px; margin: 0 0 14px;
+    font-size: .7rem; font-weight: 800; letter-spacing: .13em; text-transform: uppercase;
+    color: var(--ink-faint); }
+  .est-rot::after { content: ''; flex: 1; height: 1px; background: var(--line); }
+
+  /* ── Tarjetas grandes ── */
+  .est-destacados { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+    gap: 14px; margin-bottom: 34px; }
+  .est-card {
+    padding: 22px 24px; border-radius: 18px; border: 1px solid var(--line);
+    background: var(--surface); position: relative; overflow: hidden;
+  }
+  .est-card::before { content: ''; position: absolute; left: 0; top: 0; bottom: 0; width: 4px; background: var(--e-ok); }
+  .est-card.tono-warn::before  { background: var(--e-warn); }
+  .est-card.tono-alert::before { background: var(--e-alert); }
+  .est-card.tono-info::before  { background: var(--e-info); }
+  .est-card-top { display: flex; align-items: center; gap: 10px; margin-bottom: 10px; }
+  .est-card-top h3 { margin: 0; font-size: 1.08rem; font-weight: 700; color: var(--ink); letter-spacing: -.01em; }
+  .est-card-nota { margin: 0; font-size: .87rem; color: var(--ink-soft); line-height: 1.55; }
+  .est-card-meta { display: block; margin-top: 10px; font-size: .76rem; font-weight: 650; color: var(--ink-faint); }
+
+  /* ── Fila secundaria ── */
+  .est-otros { display: grid; grid-template-columns: repeat(auto-fit, minmax(190px, 1fr));
+    gap: 10px; margin-bottom: 34px; }
+  .est-mini { display: flex; align-items: center; gap: 10px; padding: 13px 15px;
+    border-radius: 13px; border: 1px solid var(--line); background: var(--surface-2); }
+  .est-mini-tx { min-width: 0; line-height: 1.32; }
+  .est-mini-tx b { display: block; font-size: .88rem; font-weight: 650; color: var(--ink);
+    white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .est-mini-tx small { font-size: .74rem; color: var(--ink-soft); }
+  .est-mini.tono-warn  { border-color: var(--warn);  background: var(--warn-bg); }
+  .est-mini.tono-alert { border-color: var(--alert); background: var(--alert-bg); }
+  .est-mini.tono-info  { border-color: var(--info);  background: var(--info-bg); }
+
+  /* ── Punto de estado (color + forma + palabra, nunca solo color) ── */
+  .est-dot { width: 10px; height: 10px; border-radius: 50%; flex: none; background: var(--e-ok); }
+  .est-dot.tono-warn  { background: var(--e-warn); }
+  .est-dot.tono-alert { background: var(--e-alert); }
+  .est-dot.tono-info  { background: var(--e-info); }
+  .est-dot.late { animation: est-latido 2.2s ease-in-out infinite; }
+  @keyframes est-latido { 0%,100% { opacity: 1; } 50% { opacity: .4; } }
+
+  .est-badge { display: inline-flex; align-items: center; gap: 5px; padding: 3px 10px 3px 8px;
+    border-radius: 999px; font-size: .73rem; font-weight: 700; border: 1px solid transparent; }
+  .est-badge svg { width: 13px; height: 13px; flex: none; }
+  .est-badge.tono-ok    { background: var(--ok-bg);    color: var(--ok);    border-color: var(--ok); }
+  .est-badge.tono-warn  { background: var(--warn-bg);  color: var(--warn);  border-color: var(--warn); }
+  .est-badge.tono-alert { background: var(--alert-bg); color: var(--alert); border-color: var(--alert); }
+  .est-badge.tono-info  { background: var(--info-bg);  color: var(--info);  border-color: var(--info); }
+  [data-theme="carbon"] .est-badge.tono-ok    { color: #4ADE80; border-color: rgba(74,222,128,.4); }
+  [data-theme="carbon"] .est-badge.tono-warn  { color: #F2B65A; border-color: rgba(242,182,90,.4); }
+  [data-theme="carbon"] .est-badge.tono-alert { color: #FCA5A5; border-color: rgba(252,165,165,.4); }
+  [data-theme="carbon"] .est-badge.tono-info  { color: #93B4FF; border-color: rgba(147,180,255,.4); }
+
+  /* ── Incidencias ── */
+  .est-inc {
+    display: block; width: 100%; text-align: left; cursor: pointer;
+    padding: 18px 20px; margin-bottom: 12px; border-radius: 16px;
+    border: 1px solid var(--line); background: var(--surface); color: var(--ink);
+    font-family: var(--f-ui); transition: transform .2s cubic-bezier(.2,.8,.2,1), box-shadow .2s;
+  }
+  .est-inc:hover { transform: translateY(-2px); box-shadow: var(--sh-md, 0 12px 26px -12px rgba(16,24,40,.28)); }
+  .est-inc:focus-visible { outline: 2px solid var(--brand); outline-offset: 2px; }
+  .est-inc.tono-warn  { border-left: 4px solid var(--e-warn); }
+  .est-inc.tono-alert { border-left: 4px solid var(--e-alert); }
+  .est-inc.tono-info  { border-left: 4px solid var(--e-info); }
+  .est-inc-top { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; margin-bottom: 8px; }
+  .est-inc h3 { margin: 0 0 6px; font-size: 1.02rem; font-weight: 700; line-height: 1.35; color: var(--ink); }
+  .est-inc p { margin: 0; font-size: .88rem; color: var(--ink-soft); line-height: 1.55; }
+  .est-inc-pie { display: flex; align-items: center; gap: 8px; margin-top: 12px;
+    font-size: .77rem; color: var(--ink-faint); font-weight: 600; }
+  .est-inc-pie .est-abrir { margin-left: auto; color: var(--brand); display: inline-flex; align-items: center; gap: 4px; }
+  .est-inc-pie .est-abrir svg { width: 14px; height: 14px; }
+
+  /* ── Vacío / carga ── */
+  .est-vacio { text-align: center; padding: 56px 24px; }
+  .est-vacio-ic { width: 64px; height: 64px; margin: 0 auto 18px; border-radius: 50%;
+    display: flex; align-items: center; justify-content: center; background: var(--ok-bg); color: var(--ok); }
+  .est-vacio-ic svg { width: 32px; height: 32px; }
+  .est-vacio b { display: block; font-size: 1.1rem; font-weight: 700; color: var(--ink); margin-bottom: 6px; }
+  .est-vacio p { margin: 0 auto; max-width: 44ch; font-size: .9rem; color: var(--ink-soft); line-height: 1.6; }
+
+  .est-sk { height: 84px; border-radius: 16px; background: var(--surface-2); margin-bottom: 12px;
+    position: relative; overflow: hidden; }
+  .est-sk::after { content: ''; position: absolute; inset: 0;
+    background: linear-gradient(90deg, transparent, rgba(255,255,255,.4), transparent);
+    animation: est-brillo 1.4s linear infinite; }
+  @keyframes est-brillo { from { transform: translateX(-100%); } to { transform: translateX(100%); } }
+
+  /* ── Detalle (hoja lateral) ── */
+  .est-scrim { position: fixed; inset: 0; z-index: 970; background: rgba(16,24,40,.5);
+    backdrop-filter: blur(2px); opacity: 0; pointer-events: none; transition: opacity .25s; }
+  .est-scrim.abierto { opacity: 1; pointer-events: auto; }
+  .est-hoja {
+    position: fixed; top: 0; right: 0; bottom: 0; z-index: 980; width: 520px; max-width: 100vw;
+    background: var(--surface); border-left: 1px solid var(--line);
+    box-shadow: -20px 0 48px -24px rgba(16,24,40,.5);
+    display: flex; flex-direction: column;
+    transform: translateX(100%); transition: transform .3s cubic-bezier(.2,.8,.2,1);
+  }
+  .est-hoja.abierto { transform: translateX(0); }
+  .est-hoja-head { padding: 24px 26px 18px; border-bottom: 1px solid var(--line); flex: none;
+    display: flex; align-items: flex-start; gap: 12px; }
+  .est-hoja-head h2 { margin: 0 0 4px; font-size: 1.12rem; font-weight: 700; line-height: 1.3; color: var(--ink); }
+  .est-hoja-head p { margin: 0; font-size: .82rem; color: var(--ink-soft); }
+  .est-hoja-cuerpo { flex: 1; overflow-y: auto; overscroll-behavior: contain; padding: 20px 26px 32px; }
+  .est-x { width: 34px; height: 34px; flex: none; border-radius: 9px; border: 1px solid transparent;
+    background: transparent; color: var(--ink-soft); cursor: pointer;
+    display: flex; align-items: center; justify-content: center; }
+  .est-x:hover { background: var(--surface-2); color: var(--ink); }
+  .est-x:focus-visible { outline: 2px solid var(--brand); outline-offset: 2px; }
+  .est-x svg { width: 18px; height: 18px; }
+
+  /* ── Reporte dentro del detalle ── */
+  .est-rep { padding: 14px 16px; border-radius: 13px; border: 1px solid var(--line);
+    background: var(--surface-2); margin-bottom: 10px; }
+  .est-rep-top { display: flex; align-items: baseline; gap: 8px; margin-bottom: 6px; flex-wrap: wrap; }
+  .est-rep-top b { font-size: .88rem; font-weight: 650; color: var(--ink); }
+  .est-rep-top small { font-size: .74rem; color: var(--ink-faint); }
+  .est-rep-top .est-mio { font-size: .68rem; font-weight: 700; color: var(--brand);
+    border: 1px solid var(--brand); border-radius: 999px; padding: 1px 7px; }
+  .est-rep p { margin: 0; font-size: .85rem; color: var(--ink-soft); line-height: 1.55; white-space: pre-wrap; }
+  .est-rep-sub { display: inline-block; font-size: .76rem; font-weight: 650; color: var(--ink-soft);
+    background: var(--surface); border: 1px solid var(--line); border-radius: 999px;
+    padding: 2px 9px; margin-bottom: 8px; }
+  .est-evis { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 10px; }
+  .est-evi { width: 92px; height: 92px; border-radius: 10px; overflow: hidden;
+    border: 1px solid var(--line); background: var(--surface); cursor: zoom-in; padding: 0; }
+  .est-evi img { width: 100%; height: 100%; object-fit: cover; display: block; }
+  .est-evi:focus-visible { outline: 2px solid var(--brand); outline-offset: 2px; }
+
+  /* ── Línea de tiempo de actualizaciones ── */
+  .est-tl { position: relative; padding-left: 22px; }
+  .est-tl::before { content: ''; position: absolute; left: 5px; top: 6px; bottom: 6px;
+    width: 2px; background: var(--line); }
+  .est-tl-item { position: relative; padding-bottom: 18px; }
+  .est-tl-item::before { content: ''; position: absolute; left: -21px; top: 5px;
+    width: 12px; height: 12px; border-radius: 50%; background: var(--ink-faint);
+    border: 2px solid var(--surface); }
+  .est-tl-item.tono-ok::before    { background: var(--e-ok); }
+  .est-tl-item.tono-warn::before  { background: var(--e-warn); }
+  .est-tl-item.tono-alert::before { background: var(--e-alert); }
+  .est-tl-item.tono-info::before  { background: var(--e-info); }
+  .est-tl-top { display: flex; align-items: baseline; gap: 8px; flex-wrap: wrap; margin-bottom: 4px; }
+  .est-tl-top b { font-size: .86rem; font-weight: 650; color: var(--ink); }
+  .est-tl-top small { font-size: .73rem; color: var(--ink-faint); }
+  .est-tl-item p { margin: 0; font-size: .85rem; color: var(--ink-soft); line-height: 1.55; white-space: pre-wrap; }
+  .est-tl-aviso { display: inline-flex; align-items: center; gap: 4px; margin-top: 6px;
+    font-size: .7rem; font-weight: 700; color: var(--info); }
+  .est-tl-aviso svg { width: 12px; height: 12px; }
+
+  /* ── Puerta de sesión ── */
+  .est-puerta { padding: 22px; border-radius: 14px; border: 1px dashed var(--line);
+    background: var(--surface-2); text-align: center; }
+  .est-puerta b { display: block; font-size: .95rem; font-weight: 700; color: var(--ink); margin-bottom: 6px; }
+  .est-puerta p { margin: 0 auto 14px; max-width: 38ch; font-size: .85rem; color: var(--ink-soft); line-height: 1.55; }
+
+  /* ── Visor de imagen ── */
+  .est-visor { position: fixed; inset: 0; z-index: 995; background: rgba(8,12,20,.9);
+    display: none; align-items: center; justify-content: center; padding: 32px; }
+  .est-visor.abierto { display: flex; }
+  .est-visor img { max-width: 100%; max-height: 100%; border-radius: 12px; box-shadow: 0 24px 60px -20px rgba(0,0,0,.7); }
+  .est-visor-x { position: absolute; top: 20px; right: 20px; width: 42px; height: 42px;
+    border-radius: 50%; border: 0; background: rgba(255,255,255,.16); color: #fff; cursor: pointer;
+    display: flex; align-items: center; justify-content: center; }
+  .est-visor-x svg { width: 20px; height: 20px; }
+
+  /* En su propia pantalla la pastilla flotante sobra: el tablero YA es el estado. */
+  .op-pill { display: none !important; }
+
+  .est-pie { margin-top: 48px; padding-top: 22px; border-top: 1px solid var(--line);
+    text-align: center; font-size: .8rem; color: var(--ink-faint); line-height: 1.6; }
+
+  @media (max-width: 720px) {
+    .est-wrap { padding: 22px 16px 64px; }
+    .est-banner { padding: 20px; gap: 14px; flex-direction: column; align-items: flex-start; }
+    .est-banner h2 { font-size: 1.25rem; }
+    .est-hoja { width: 100%; top: auto; height: 90vh; border-radius: 18px 18px 0 0;
+      border-left: 0; transform: translateY(100%); }
+    .est-hoja.abierto { transform: translateY(0); }
+    .est-hoja-head, .est-hoja-cuerpo { padding-left: 18px; padding-right: 18px; }
+    .est-top h1 { font-size: 1rem; }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .est-inc, .est-hoja, .est-scrim { transition-duration: .01ms !important; }
+    .est-dot.late, .est-sk::after { animation: none !important; }
+  }
+  </style>
+</head>
+<body>
+  <div class="app-aurora"></div>
+
+  <main id="main-content" class="est-wrap">
+    <header class="est-top">
+      <img src="https://gcp-na-images.contentstack.com/v3/assets/blt339516d00dd80f86/blt8225505fe88f431b/673c926b0345b062aa3856c4/liverpool-logo-header.svg?branch=pro&format=avif&quality=80"
+           alt="Liverpool"
+           onerror="this.onerror=null;this.outerHTML='<span style=&quot;font-weight:800&quot;>Liverpool</span>'">
+      <span class="est-div"></span>
+      <h1>Estado de operación · VENTEL</h1>
+      <div class="est-acc" id="est-acciones"></div>
+    </header>
+
+    <div id="est-banner" aria-live="polite"></div>
+
+    <section id="est-destacados"></section>
+    <section id="est-otros"></section>
+    <section id="est-incidencias"></section>
+
+    <footer class="est-pie">
+      <p>Esta página muestra el estado de los sistemas que usa el equipo VENTEL.<br>
+         Se actualiza sola cada minuto.</p>
+    </footer>
+  </main>
+
+  <div class="est-scrim" id="est-scrim"></div>
+  <aside class="est-hoja" id="est-hoja" role="dialog" aria-modal="true" aria-labelledby="est-hoja-titulo" aria-hidden="true">
+    <header class="est-hoja-head" id="est-hoja-head"></header>
+    <div class="est-hoja-cuerpo" id="est-hoja-cuerpo"></div>
+  </aside>
+
+  <div class="est-visor" id="est-visor">
+    <button type="button" class="est-visor-x" id="est-visor-x" aria-label="Cerrar la imagen">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M6 6l12 12M18 6 6 18"/></svg>
+    </button>
+    <img id="est-visor-img" alt="Evidencia ampliada">
+  </div>
+
+  <script>
+    window.__APP__ = { baseUrl: <?!= JSON.stringify(APP_URL) ?>, inc: <?!= JSON.stringify(inc) ?> };
+  </script>
+  <?!= include('app_core'); ?>
+  <?!= include('app_motion'); ?>
+  <?!= include('app_operacion'); ?>
+  <script>
+  (function () {
+    'use strict';
+
+    var IC = {
+      ok:     '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M9 12.5 11.2 14.7 15.5 9.8"/><circle cx="12" cy="12" r="9"/></svg>',
+      alerta: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3.6 2.6 20h18.8L12 3.6Z"/><path d="M12 10v4.2M12 17.4h.01"/></svg>',
+      reloj:  '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 6.6V12l3.4 2"/></svg>',
+      info:   '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 11v5M12 7.8h.01"/></svg>',
+      cerrar: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M6 6l12 12M18 6 6 18"/></svg>',
+      ver:    '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M2.5 12S6 5.8 12 5.8 21.5 12 21.5 12 18 18.2 12 18.2 2.5 12 2.5 12Z"/><circle cx="12" cy="12" r="2.7"/></svg>',
+      mega:   '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M3 11v2a1 1 0 0 0 1 1h2l9 4V6L6 10H4a1 1 0 0 0-1 1Z"/><path d="M15 8a4 4 0 0 1 0 8"/></svg>',
+      mano:   '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v9"/><path d="M8.5 6.5 12 3l3.5 3.5"/><path d="M4 14v3a4 4 0 0 0 4 4h8a4 4 0 0 0 4-4v-3"/></svg>'
+    };
+    var ICONO = { ok: IC.ok, warn: IC.reloj, alert: IC.alerta, info: IC.info, neutro: IC.info };
+
+    var datos = null;
+    var hoja = document.getElementById('est-hoja');
+    var scrim = document.getElementById('est-scrim');
+    var hojaHead = document.getElementById('est-hoja-head');
+    var hojaCuerpo = document.getElementById('est-hoja-cuerpo');
+    var visor = document.getElementById('est-visor');
+    var visorImg = document.getElementById('est-visor-img');
+    var disparador = null;
+    var incAbierto = '';
+
+    function esc(s) {
+      return String(s == null ? '' : s)
+        .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+    }
+
+    function haySesion() { return !!(window.AppSession && AppSession.isLoggedIn()); }
+
+    function desdeHace(iso) {
+      if (!iso) return '';
+      var t = new Date(iso).getTime();
+      if (isNaN(t)) return '';
+      var min = Math.floor((Date.now() - t) / 60000);
+      if (min < 1) return 'hace un momento';
+      if (min < 60) return 'hace ' + min + ' min';
+      var h = Math.floor(min / 60);
+      if (h < 24) return 'hace ' + h + (h === 1 ? ' hora' : ' horas');
+      var d = Math.floor(h / 24);
+      return 'hace ' + d + (d === 1 ? ' día' : ' días');
+    }
+
+    function fechaLarga(iso) {
+      if (!iso) return '';
+      var d = new Date(iso);
+      if (isNaN(d.getTime())) return '';
+      return d.toLocaleString('es-MX', { day: 'numeric', month: 'long', hour: '2-digit', minute: '2-digit' });
+    }
+
+    /* ── Pintado del tablero ── */
+
+    function pintar() {
+      var e = (datos && datos.estado) ? datos.estado : datos;
+      var banner = document.getElementById('est-banner');
+      var dest = document.getElementById('est-destacados');
+      var otros = document.getElementById('est-otros');
+      var incs = document.getElementById('est-incidencias');
+
+      if (!e || !e.success) {
+        banner.innerHTML =
+          '<div class="est-banner tono-warn">' +
+            '<span class="est-banner-ic">' + IC.info + '</span>' +
+            '<span class="est-banner-tx"><h2>No pudimos consultar el estado</h2>' +
+            '<p>Revisa tu conexión e inténtalo de nuevo en un momento.</p></span>' +
+          '</div>';
+        dest.innerHTML = ''; otros.innerHTML = ''; incs.innerHTML = '';
+        return;
+      }
+
+      var tono = e.global || 'ok';
+      banner.innerHTML =
+        '<div class="est-banner tono-' + esc(tono) + '">' +
+          '<span class="est-banner-ic">' + (ICONO[tono] || IC.info) + '</span>' +
+          '<span class="est-banner-tx">' +
+            '<h2>' + esc(tono === 'ok' ? 'Todo funcionando' : 'Hay incidencias activas') + '</h2>' +
+            '<p>' + esc(e.resumen || '') + '</p>' +
+            '<span class="est-hora">Consultado ' + esc(desdeHace(e.consultado) || 'ahora') + '</span>' +
+          '</span>' +
+        '</div>';
+
+      var destacados = (e.sistemas || []).filter(function (s) { return s.destacado; });
+      var resto = (e.sistemas || []).filter(function (s) { return !s.destacado; });
+
+      dest.innerHTML =
+        '<h2 class="est-rot">Sistemas principales</h2>' +
+        '<div class="est-destacados">' +
+        destacados.map(function (s) {
+          var i = (s.incidentes || [])[0];
+          return '<article class="est-card tono-' + esc(s.tono) + '">' +
+            '<div class="est-card-top">' +
+              '<span class="est-dot tono-' + esc(s.tono) + (s.tono !== 'ok' ? ' late' : '') + '"></span>' +
+              '<h3>' + esc(s.nombre) + '</h3>' +
+              '<span class="est-badge tono-' + esc(s.tono) + '" style="margin-left:auto">' +
+                (ICONO[s.tono] || IC.ok) + esc(s.estadoNombre) + '</span>' +
+            '</div>' +
+            '<p class="est-card-nota">' + esc(
+              i ? ((i.ultima && i.ultima.nota) || i.detalle || i.titulo)
+                : 'Sin reportes. El servicio opera con normalidad.') + '</p>' +
+            (i && i.desde ? '<span class="est-card-meta">Desde ' + esc(desdeHace(i.desde)) + '</span>' : '') +
+          '</article>';
+        }).join('') +
+        '</div>';
+
+      otros.innerHTML = resto.length
+        ? ('<h2 class="est-rot">Otros sistemas</h2><div class="est-otros">' +
+           resto.map(function (s) {
+             return '<div class="est-mini tono-' + esc(s.tono) + '">' +
+               '<span class="est-dot tono-' + esc(s.tono) + '"></span>' +
+               '<span class="est-mini-tx"><b>' + esc(s.nombre) + '</b>' +
+               '<small>' + esc(s.estadoNombre) + '</small></span></div>';
+           }).join('') + '</div>')
+        : '';
+
+      var lista = e.incidentes || [];
+      if (!lista.length) {
+        incs.innerHTML =
+          '<h2 class="est-rot">Incidencias</h2>' +
+          '<div class="est-vacio">' +
+            '<div class="est-vacio-ic">' + IC.ok + '</div>' +
+            '<b>No hay incidencias abiertas</b>' +
+            '<p>Cuando algo falle aparecerá aquí, con lo que se sepa y desde cuándo.</p>' +
+          '</div>';
+      } else {
+        incs.innerHTML =
+          '<h2 class="est-rot">Incidencias abiertas</h2>' +
+          lista.map(function (i) {
+            var nota = (i.ultima && i.ultima.nota) || i.detalle || '';
+            return '<button type="button" class="est-inc tono-' + esc(i.tono) + '" data-inc="' + esc(i.id) + '">' +
+              '<span class="est-inc-top">' +
+                '<span class="est-badge tono-' + esc(i.tono) + '">' + (ICONO[i.tono] || IC.info) +
+                  esc(i.estadoNombre) + '</span>' +
+                '<span style="font-size:.78rem;font-weight:650;color:var(--ink-soft)">' + esc(i.sistema) + '</span>' +
+              '</span>' +
+              '<h3>' + esc(i.titulo) + '</h3>' +
+              (nota ? '<p>' + esc(nota) + '</p>' : '') +
+              '<span class="est-inc-pie">' +
+                '<span>' + esc(i.desde ? 'Desde ' + fechaLarga(i.desde) + ' · ' + desdeHace(i.desde) : '') + '</span>' +
+                '<span class="est-abrir">' + IC.ver + (haySesion() ? 'Ver reportes y evidencias' : 'Ver detalle') + '</span>' +
+              '</span>' +
+            '</button>';
+          }).join('');
+
+        incs.querySelectorAll('[data-inc]').forEach(function (b) {
+          b.addEventListener('click', function () { abrirDetalle(b.getAttribute('data-inc'), b); });
+        });
+
+        if (window.gsap && !(window.matchMedia && matchMedia('(prefers-reduced-motion: reduce)').matches)) {
+          gsap.from(incs.querySelectorAll('.est-inc'),
+            { y: 18, opacity: 0, duration: .5, ease: 'power3.out', stagger: .07, clearProps: 'transform,opacity' });
+        }
+      }
+
+      pintarAcciones();
+    }
+
+    function pintarAcciones() {
+      var caja = document.getElementById('est-acciones');
+      if (haySesion()) {
+        caja.innerHTML =
+          '<button type="button" class="v-btn v-btn-primary v-btn-sm" id="est-reportar">Reportar una falla</button>' +
+          '<button type="button" class="v-btn v-btn-ghost v-btn-sm" id="est-volver">Volver al portal</button>';
+        caja.querySelector('#est-reportar').addEventListener('click', function () {
+          if (window.AppOperacion) AppOperacion.reportar('');
+        });
+        caja.querySelector('#est-volver').addEventListener('click', function () {
+          if (window.AppUrl) AppUrl.go('portal');
+        });
+      } else {
+        caja.innerHTML = '<button type="button" class="v-btn v-btn-ghost v-btn-sm" id="est-login">Iniciar sesión</button>';
+        caja.querySelector('#est-login').addEventListener('click', function () {
+          if (window.AppUrl) AppUrl.go('login');
+        });
+      }
+    }
+
+    /* ── Detalle ── */
+
+    function abrirDetalle(id, quien) {
+      incAbierto = id;
+      disparador = quien || null;
+      hoja.classList.add('abierto');
+      scrim.classList.add('abierto');
+      hoja.setAttribute('aria-hidden', 'false');
+      document.body.style.overflow = 'hidden';
+
+      hojaHead.innerHTML =
+        '<span style="flex:1"><h2 id="est-hoja-titulo">Cargando…</h2><p>Buscando los reportes</p></span>' +
+        '<button type="button" class="est-x" id="est-hoja-x" aria-label="Cerrar">' + IC.cerrar + '</button>';
+      hojaCuerpo.innerHTML = '<div class="est-sk"></div><div class="est-sk"></div>';
+      cablearCierre();
+      setTimeout(function () {
+        var x = document.getElementById('est-hoja-x');
+        if (x) x.focus();
+      }, 60);
+
+      if (!haySesion()) { pintarPuerta(id); return; }
+
+      llamar('opIncidenteDetalle', [id, AppSession.userEmail]).then(function (r) {
+        if (incAbierto !== id) return;
+        if (!r || !r.success) {
+          hojaCuerpo.innerHTML = '<div class="est-vacio"><b>No pudimos abrir este reporte</b>' +
+            '<p>' + esc((r && r.message) || 'Inténtalo de nuevo en un momento.') + '</p></div>';
+          return;
+        }
+        pintarDetalle(r);
+      }, function () {
+        if (incAbierto !== id) return;
+        hojaCuerpo.innerHTML = '<div class="est-vacio"><b>No hay conexión con el sistema</b>' +
+          '<p>Revisa tu internet e inténtalo de nuevo.</p></div>';
+      });
+    }
+
+    /**
+     * Sin sesión se enseña lo que ya está en la tarjeta y se explica qué falta y por qué.
+     * Decir solo "no tienes acceso" deja a la persona sin saber si le sirve iniciar sesión.
+     */
+    function pintarPuerta(id) {
+      var e = (datos && datos.estado) ? datos.estado : datos;
+      var i = ((e && e.incidentes) || []).filter(function (x) { return x.id === id; })[0];
+      if (!i) {
+        hojaCuerpo.innerHTML = '<div class="est-vacio"><b>Ese reporte ya no está disponible</b></div>';
+        return;
+      }
+
+      hojaHead.innerHTML =
+        '<span style="flex:1">' +
+          '<h2 id="est-hoja-titulo">' + esc(i.titulo) + '</h2>' +
+          '<p>' + esc(i.sistema) + ' · ' + esc(i.estadoNombre) + '</p>' +
+        '</span>' +
+        '<button type="button" class="est-x" id="est-hoja-x" aria-label="Cerrar">' + IC.cerrar + '</button>';
+
+      hojaCuerpo.innerHTML =
+        '<h3 class="est-rot">Lo que sabemos</h3>' +
+        '<p style="margin:0 0 24px;font-size:.9rem;color:var(--ink-soft);line-height:1.6">' +
+          esc((i.ultima && i.ultima.nota) || i.detalle || 'Sin más detalle por ahora.') +
+          (i.desde ? '<br><span style="font-size:.78rem;color:var(--ink-faint)">Desde ' + esc(fechaLarga(i.desde)) + '</span>' : '') +
+        '</p>' +
+        '<div class="est-puerta">' +
+          '<b>Los reportes del equipo son internos</b>' +
+          '<p>Las notas y las capturas que comparten los asesores solo se ven con una sesión iniciada.</p>' +
+          '<button type="button" class="v-btn v-btn-primary v-btn-sm" id="est-puerta-login">Iniciar sesión</button>' +
+        '</div>';
+
+      cablearCierre();
+      var b = document.getElementById('est-puerta-login');
+      if (b) b.addEventListener('click', function () { if (window.AppUrl) AppUrl.go('login'); });
+    }
+
+    function pintarDetalle(r) {
+      var i = r.incidente;
+      hojaHead.innerHTML =
+        '<span style="flex:1">' +
+          '<h2 id="est-hoja-titulo">' + esc(i.titulo) + '</h2>' +
+          '<p>' + esc(i.sistema) + ' · ' + esc(i.personas) +
+            (i.personas === 1 ? ' persona lo reportó' : ' personas lo reportaron') + '</p>' +
+        '</span>' +
+        '<button type="button" class="est-x" id="est-hoja-x" aria-label="Cerrar">' + IC.cerrar + '</button>';
+
+      var html = '';
+
+      html += '<div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:18px">' +
+        '<span class="est-badge tono-' + esc(i.tono) + '">' + (ICONO[i.tono] || IC.info) + esc(i.estadoNombre) + '</span>' +
+        (i.confirmado
+          ? '<span style="font-size:.78rem;color:var(--ink-faint);font-weight:600">Confirmado ' +
+            esc(fechaLarga(i.confirmado)) + (i.confirmadoNombre ? ' por ' + esc(i.confirmadoNombre) : '') + '</span>'
+          : '<span style="font-size:.78rem;color:var(--ink-faint);font-weight:600">Detectado ' + esc(desdeHace(i.creado)) + '</span>') +
+        '</div>';
+
+      if (i.detalle) {
+        html += '<p style="margin:0 0 24px;font-size:.9rem;color:var(--ink-soft);line-height:1.6">' +
+                esc(i.detalle) + '</p>';
+      }
+
+      if (r.actualizaciones && r.actualizaciones.length) {
+        html += '<h3 class="est-rot">Actualizaciones</h3><div class="est-tl">';
+        html += r.actualizaciones.map(function (a) {
+          return '<div class="est-tl-item tono-' + esc(a.tono) + '">' +
+            '<div class="est-tl-top"><b>' + esc(a.estadoNombre) + '</b>' +
+              '<small>' + esc(fechaLarga(a.fecha)) + ' · ' + esc(a.autorNombre || a.autor) + '</small></div>' +
+            (a.nota ? '<p>' + esc(a.nota) + '</p>' : '') +
+            (a.aviso ? '<span class="est-tl-aviso">' + IC.mega + 'Se avisó al equipo</span>' : '') +
+          '</div>';
+        }).join('');
+        html += '</div>';
+      }
+
+      html += '<h3 class="est-rot">Reportes del equipo</h3>';
+      if (!r.reportes.length) {
+        html += '<p style="font-size:.88rem;color:var(--ink-soft)">Todavía no hay reportes vinculados.</p>';
+      } else {
+        html += r.reportes.map(function (rep) {
+          return '<div class="est-rep">' +
+            '<div class="est-rep-top">' +
+              '<b>' + esc(rep.nombre || rep.correo) + '</b>' +
+              '<small>' + esc(fechaLarga(rep.fecha)) + '</small>' +
+              (rep.mio ? '<span class="est-mio">Tu reporte</span>' : '') +
+            '</div>' +
+            (rep.submotivo ? '<span class="est-rep-sub">' + esc(rep.submotivo) + '</span>' : '') +
+            (rep.notas ? '<p>' + esc(rep.notas) + '</p>' : '') +
+            (rep.evidencias && rep.evidencias.length
+              ? '<div class="est-evis">' + rep.evidencias.map(function (ev) {
+                  return '<button type="button" class="est-evi" data-ver="' + esc(ev.url) + '">' +
+                    '<img src="' + esc(ev.url) + '" alt="' + esc(ev.nombre || 'Captura') + '" loading="lazy">' +
+                  '</button>';
+                }).join('') + '</div>'
+              : '') +
+          '</div>';
+        }).join('');
+      }
+
+      hojaCuerpo.innerHTML = html;
+      cablearCierre();
+
+      hojaCuerpo.querySelectorAll('[data-ver]').forEach(function (b) {
+        b.addEventListener('click', function () {
+          visorImg.src = b.getAttribute('data-ver');
+          visor.classList.add('abierto');
+        });
+      });
+
+      if (window.gsap && !(window.matchMedia && matchMedia('(prefers-reduced-motion: reduce)').matches)) {
+        gsap.from(hojaCuerpo.children,
+          { y: 14, opacity: 0, duration: .4, ease: 'power3.out', stagger: .05, clearProps: 'transform,opacity' });
+      }
+    }
+
+    function cablearCierre() {
+      var x = document.getElementById('est-hoja-x');
+      if (x) x.addEventListener('click', cerrarDetalle);
+    }
+
+    function cerrarDetalle() {
+      incAbierto = '';
+      hoja.classList.remove('abierto');
+      scrim.classList.remove('abierto');
+      hoja.setAttribute('aria-hidden', 'true');
+      document.body.style.overflow = '';
+      if (disparador && disparador.focus) { try { disparador.focus(); } catch (e) {} }
+      disparador = null;
+    }
+
+    scrim.addEventListener('click', cerrarDetalle);
+    document.getElementById('est-visor-x').addEventListener('click', function () { visor.classList.remove('abierto'); });
+    visor.addEventListener('click', function (e) { if (e.target === visor) visor.classList.remove('abierto'); });
+
+    document.addEventListener('keydown', function (e) {
+      if (e.key !== 'Escape') return;
+      if (visor.classList.contains('abierto')) { visor.classList.remove('abierto'); return; }
+      if (hoja.classList.contains('abierto')) cerrarDetalle();
+    });
+
+    /* ── Datos ── */
+
+    function llamar(fn, args) {
+      if (window.AppRun && AppRun.call) return AppRun.call(fn, args || []);
+      return new Promise(function (resolve, reject) {
+        if (!(window.google && google.script && google.script.run)) { reject(new Error('sin backend')); return; }
+        var r = google.script.run.withSuccessHandler(resolve).withFailureHandler(reject);
+        r[fn].apply(r, args || []);
+      });
+    }
+
+    function cargar() {
+      var conSesion = haySesion();
+      var fn = conSesion ? 'opEstadoSesion' : 'opEstadoPublico';
+      var args = conSesion ? [AppSession.userEmail] : [];
+      return llamar(fn, args).then(function (r) {
+        datos = r;
+        pintar();
+        // El indicador global vive también en esta pantalla (para el formulario de reporte)
+        // y pediría lo mismo por su cuenta un segundo después. Se le pasa lo ya recibido:
+        // una consulta en vez de dos en la pantalla más visitada del módulo.
+        if (window.AppOperacion && AppOperacion.usarEstado) AppOperacion.usarEstado(r);
+        return r;
+      }, function () {
+        if (!datos) { datos = { success: false }; pintar(); }
+      });
+    }
+
+    document.addEventListener('DOMContentLoaded', function () {
+      document.getElementById('est-banner').innerHTML = '<div class="est-sk" style="height:106px"></div>';
+      document.getElementById('est-incidencias').innerHTML = '<div class="est-sk"></div><div class="est-sk"></div>';
+
+      cargar().then(function () {
+        // Enlace directo desde el aviso de Chat: ?page=estado&inc=<id> abre la incidencia.
+        var inc = (window.AppUrl && AppUrl.param('inc')) || '';
+        if (inc) abrirDetalle(inc, null);
+      });
+
+      // El tablero se mira mientras algo está roto: tiene que refrescarse solo.
+      setInterval(function () {
+        if (document.visibilityState === 'visible' && !hoja.classList.contains('abierto')) cargar();
+      }, 60000);
+      document.addEventListener('visibilitychange', function () {
+        if (document.visibilityState === 'visible') cargar();
+      });
+    });
+  })();
+  </script>
+</body>
+</html>

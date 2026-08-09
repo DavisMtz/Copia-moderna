@@ -103,6 +103,12 @@ const PERM_BLOQUES = [
   { id: 'portal_contenido',  nombre: 'Contenido del Portal',     grupo: 'Supervisión',
     detalle: 'Editar herramientas, plantillas, formatos y promociones del Portal.',
     pagina: 'portal_contenido',    admin: false, fijo: false },
+  // REPORTAR una falla no necesita bloque: lo puede hacer cualquiera con sesión, y ponerle
+  // permiso sería tanto como pedir autorización para avisar de que algo no funciona. Este
+  // bloque es solo para el otro lado del mostrador: decidir qué se le dice al equipo.
+  { id: 'operacion',         nombre: 'Estado de operación',      grupo: 'Supervisión',
+    detalle: 'Confirmar, descartar y actualizar las fallas que reporta el equipo.',
+    pagina: 'operacion',           admin: false, fijo: false },
 
   // ── Administración (consola maestra) ──────────────────────────────────────
   { id: 'adm_miembros',      nombre: 'Miembros',                 grupo: 'Administración',
@@ -158,10 +164,11 @@ const PERM_ROLES = {
   avanzado: {
     id: 'avanzado',
     nombre: 'Supervisor',
-    detalle: 'Todo lo del asesor, más métricas, revisión de cotizaciones y el contenido del Portal.',
+    detalle: 'Todo lo del asesor, más métricas, revisión de cotizaciones, el contenido del Portal y el estado de operación.',
     orden: 2,
     bloques: ['portal', 'promociones', 'cotizar', 'consultar', 'enviar_cotizacion', 'correos_cliente',
-              'supervision', 'revisar', 'politica_revision', 'trazabilidad', 'anuncios', 'portal_contenido']
+              'supervision', 'revisar', 'politica_revision', 'trazabilidad', 'anuncios', 'portal_contenido',
+              'operacion']
   },
   maestro: {
     id: 'maestro',

@@ -228,7 +228,10 @@
    * el mismo juez para el Portal y el Monitor de promociones. Aquí solo queda el
    * icono de cada uno, que es lo único propio de esta barra.
    */
-  var ICONO_GESTION = { inicio_avanzado: IC_CHART, anuncios: IC_MEGA, portal_contenido: IC_STACK, consola: IC_SHIELD };
+  var IC_PULSO = '<svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12h4l2.5-6 4 12L16 12h5"/></svg>';
+
+  var ICONO_GESTION = { inicio_avanzado: IC_CHART, anuncios: IC_MEGA, portal_contenido: IC_STACK,
+                        operacion: IC_PULSO, consola: IC_SHIELD };
 
   /** Las de gestión que ESTA persona puede abrir. Vacío = no se dibuja el área. */
   function gestionDisponible() {
@@ -243,7 +246,7 @@
   // Conmutador de área compartido: mismo bloque, mismas etiquetas y mismo orden
   // que el del Portal y Promociones, para que se sienta una sola app.
   function appSwitchHTML(active) {
-    var esGestion = ['inicio_avanzado', 'anuncios', 'portal_contenido', 'consola'].indexOf(active) !== -1;
+    var esGestion = ['inicio_avanzado', 'anuncios', 'portal_contenido', 'operacion', 'consola'].indexOf(active) !== -1;
     var area = esGestion ? 'gestion'
              : (active === 'correo_cliente') ? 'correos'
              : (active === 'portal' || active === 'promociones') ? 'portal'

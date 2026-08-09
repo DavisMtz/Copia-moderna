@@ -70,6 +70,9 @@ const PAGES = {
   // Igual que la consola: el cascarón se sirve a quien lo pida y no enseña nada hasta
   // que el servidor confirma el bloque 'portal_contenido' en cada llamada.
   'portal_contenido':    { file: 'portal_contenido',    title: 'Contenido del Portal - Sistema Ventel' },
+  // Panel de operación: confirmar, descartar y actualizar lo que reporta el equipo.
+  // El tablero que ve TODO el mundo es '?page=estado', que es público (ver PORTAL_PAGES).
+  'operacion':           { file: 'operacion',           title: 'Estado de Operación - Sistema Ventel' },
   // Consola de administración (rol maestro). La página se sirve a cualquiera que la
   // pida —igual que las demás—, pero no enseña NADA hasta que el servidor confirma el
   // rol: todo su contenido llega de consolaPanorama, que exige maestro. Servir el
@@ -81,7 +84,11 @@ const PAGES = {
 // defecto; sus plantillas esperan la variable APP_URL (no baseUrl/__APP__).
 const PORTAL_PAGES = {
   'portal':      { file: 'Index',       title: 'Portal VENTEL · Liverpool' },
-  'promociones': { file: 'Promociones', title: 'Monitor de Promociones | Liverpool · VENTEL' }
+  'promociones': { file: 'Promociones', title: 'Monitor de Promociones | Liverpool · VENTEL' },
+  // Tablero de estado de los sistemas. Es PÚBLICO a propósito: la pregunta "¿está caído
+  // Connect o soy yo?" tiene que poder contestarse justo cuando no puedes entrar. Lo que
+  // se sirve sin sesión no lleva ni nombres ni evidencias (ver Operacion.gs).
+  'estado':      { file: 'estado',      title: 'Estado de operación · VENTEL' }
 };
 
 function doGet(e) {
@@ -112,6 +119,10 @@ function servirPagina_(e) {
     const pConfig = PORTAL_PAGES[page] || PORTAL_PAGES['portal'];
     const pTemplate = HtmlService.createTemplateFromFile(pConfig.file);
     pTemplate.APP_URL = getScriptUrl() || '';
+    // Incidencia a abrir en el tablero de estado (?page=estado&inc=inc-xxxx). Es el enlace
+    // que viaja en el aviso de Google Chat. Se define SIEMPRE aunque solo lo lea estado.html:
+    // una plantilla de Apps Script falla si usa una variable que no se le pasó.
+    pTemplate.inc = (e && e.parameter && e.parameter.inc) || '';
     return pTemplate.evaluate()
       .setTitle(pConfig.title)
       .setXFrameOptionsMode(HtmlService.XFrameOptionsMode.ALLOWALL)

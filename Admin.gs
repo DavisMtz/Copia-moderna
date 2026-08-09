@@ -235,6 +235,39 @@ function revisionMaestra() {
       (sheet ? Math.max(0, sheet.getLastRow() - 1) + ' movimientos' : 'se creará al primer cambio');
   });
 
+  // ── 8b. ESTADO DE OPERACIÓN ───────────────────────────────────────────────
+  check('Operación', 'Módulo de estado (Operacion.gs)', function () {
+    if (typeof opEstadoPublico !== 'function') {
+      throw new Error('Operacion.gs no está en el proyecto: el indicador de estado no tendrá datos.');
+    }
+    if (!PORTAL_PAGES['estado']) {
+      throw new Error('La página pública "estado" no está registrada en PORTAL_PAGES (Code.gs).');
+    }
+    if (!PAGES['operacion']) {
+      throw new Error('La página "operacion" no está registrada en PAGES (Code.gs).');
+    }
+    if (PERM_IDS.indexOf('operacion') === -1) {
+      throw new Error('Falta el bloque "operacion" en el catálogo de Permisos.gs: nadie podría confirmar una falla.');
+    }
+    const r = opEstadoPublico();
+    if (!r || !r.success) throw new Error('opEstadoPublico no respondió correctamente.');
+    return r.sistemas.length + ' sistemas · ' + (r.incidentes || []).length + ' incidencia(s) viva(s)';
+  });
+  check('Operación', 'Webhook de comunicados', function () {
+    const url = secConfig_('OPERACION_WEBHOOK_ESTADO', OPERACION_WEBHOOK_ESTADO);
+    if (!url) {
+      throw new Error('sin configurar: confirmar una caída NO avisará al equipo. ' +
+                      'Ponlo en la consola (Ajustes → Avisos).');
+    }
+    return 'configurado · ' + url.substring(0, 46) + '…';
+  });
+  check('Operación', 'Webhook de reportes sueltos', function () {
+    const url = secConfig_('OPERACION_WEBHOOK_REPORTES', OPERACION_WEBHOOK_REPORTES);
+    // Es OPCIONAL a propósito: sin él los reportes se guardan igual y el comunicado sigue
+    // saliendo. Solo se pierde la copia de cada reporte individual.
+    return url ? 'configurado' : 'apagado (opcional) · los reportes se guardan igual';
+  });
+
   // ── 9. INFRAESTRUCTURA ────────────────────────────────────────────────────
   check('Infra', 'CacheService', function () {
     const c = CacheService.getScriptCache();
