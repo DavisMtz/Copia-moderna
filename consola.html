@@ -664,6 +664,7 @@
     window.__APP__ = { baseUrl: <?!= JSON.stringify(baseUrl) ?> };
 </script>
 <?!= include('app_core'); ?>
+<?!= include('app_guardado'); ?>
 <?!= include('app_buscar'); ?>
 <?!= include('app_icons'); ?>
 <?!= include('app_motion'); ?>
@@ -750,6 +751,40 @@
             if (r && r.success && window.AppCache) { try { AppCache.remove(cnsClave()); } catch (e) {} }
         }, function () {});
         return p;
+    }
+
+    /**
+     * Guardado OPTIMISTA: el interruptor se mueve ya y la escritura sube por detrás.
+     *
+     * Por qué aquí sí y en el alta de un miembro no: apagar un módulo o habilitar un
+     * formato es fijar un valor —repetirlo deja lo mismo, y deshacerlo es volver a
+     * fijar el anterior—. Dar de alta a alguien no: si la respuesta se pierde de
+     * vuelta, el reintento crea la segunda fila y manda el segundo correo. Por eso el
+     * alta, el reseteo de contraseña y la baja siguen esperando con `llamar()`, y solo
+     * lo idempotente pasa por aquí.
+     *
+     * La invalidación de la caché vive en el mismo sitio que en `llamar()` y por la
+     * misma razón: ocho puntos de escritura y basta olvidarse de uno.
+     */
+    function guardarEnFondo(nombre, args, op) {
+        op = op || {};
+        return AppGuardado.guardar({
+            clave: op.clave || nombre,
+            etiqueta: op.etiqueta || 'Guardando',
+            hecho: op.hecho || 'Cambio guardado',
+            fn: nombre,
+            args: args || [],
+            reintentos: op.reintentos,
+            silencioso: op.silencioso,
+            optimista: op.optimista,
+            revertir: op.revertir,
+            valida: function (r) { return !!(r && r.success); },
+            alLograr: function (r) {
+                if (window.AppCache) { try { AppCache.remove(cnsClave()); } catch (e) {} }
+                if (op.alLograr) op.alLograr(r);
+            },
+            alFallar: op.alFallar
+        });
     }
 
     function bloquePorId(id) {
@@ -1174,47 +1209,54 @@
         return '<button type="button" class="v-btn v-btn-dark v-btn-sm" data-guardar="' + esc(clave) + '">Guardar</button>';
     }
 
+    /**
+     * Un ajuste NO se confirma de forma optimista, y es la excepción a propósito.
+     *
+     * El servidor no se limita a escribir lo que llega: valida el dominio, comprueba
+     * que el webhook sea alcanzable, revisa que el identificador de hoja exista. Pintar
+     * "Guardado." y retirarlo tres segundos después no es fluidez, es mentir y luego
+     * desdecirse en el sitio donde una equivocación deja al equipo sin entrar.
+     *
+     * Lo que sí se arregla es la parte que estorbaba de verdad: la pantalla ya no se
+     * queda quieta. El campo y el botón siguen vivos, se pueden preparar los siguientes
+     * ajustes mientras este sube, y la guardia de salida se encarga de que nadie se
+     * vaya con la escritura a medias.
+     */
     function guardarAjuste(clave) {
         var campo = $('aj-' + clave);
         var boton = document.querySelector('[data-guardar="' + clave + '"]');
         var nota = document.querySelector('[data-nota="' + clave + '"]');
         if (!campo) return;
 
-        boton.disabled = true;
-        var textoPrevio = boton.textContent;
-        boton.textContent = 'Guardando…';
-        nota.hidden = true;
+        var valor = campo.value;
+        var def0 = (D.ajustes || []).filter(function (a) { return a.clave === clave; })[0];
+        nota.hidden = false;
+        nota.className = 'cns-ajuste-nota';
+        nota.textContent = 'Guardando…';
 
-        llamar('consolaGuardarAjuste', [AppSession.userEmail, clave, campo.value]).then(function (r) {
-            boton.disabled = false;
-            boton.textContent = textoPrevio;
+        guardarEnFondo('consolaGuardarAjuste', [AppSession.userEmail, clave, valor], {
+            clave: 'ajuste:' + clave,
+            etiqueta: 'Guardando ' + ((def0 && def0.nombre) || 'un ajuste'),
+            hecho: ((def0 && def0.nombre) || 'El ajuste') + ' se guardó',
+            alLograr: function (r) {
+                D.ajustes = r.ajustes || D.ajustes;
+                nota.hidden = false;
+                nota.className = 'cns-ajuste-nota ' + (r.aviso ? 'aviso' : 'ok');
+                nota.textContent = r.aviso || 'Guardado.';
+                if (window.AppMotion) AppMotion.pop(boton);
 
-            if (!r || !r.success) {
+                // Un secreto no vuelve del servidor: se limpia el campo para que no quede
+                // en pantalla algo que ya no representa el valor real.
+                var def = (D.ajustes || []).filter(function (a) { return a.clave === clave; })[0];
+                if (def && def.secreto) campo.value = '';
+                pintarResumen();
+            },
+            alFallar: function (e) {
                 nota.hidden = false;
                 nota.className = 'cns-ajuste-nota mal';
-                nota.textContent = (r && r.message) || 'No se pudo guardar.';
+                nota.textContent = (e && e.message) || 'No se pudo guardar.';
                 if (window.AppMotion) AppMotion.shake(campo);
-                return;
             }
-
-            D.ajustes = r.ajustes || D.ajustes;
-            nota.hidden = false;
-            nota.className = 'cns-ajuste-nota ' + (r.aviso ? 'aviso' : 'ok');
-            nota.textContent = r.aviso || 'Guardado.';
-            toast(r.message, 'ok');
-            if (window.AppMotion) AppMotion.pop(boton);
-
-            // Un secreto no vuelve del servidor: se limpia el campo para que no quede
-            // en pantalla algo que ya no representa el valor real.
-            var def = (D.ajustes || []).filter(function (a) { return a.clave === clave; })[0];
-            if (def && def.secreto) campo.value = '';
-            pintarResumen();
-        }).catch(function (e) {
-            boton.disabled = false;
-            boton.textContent = textoPrevio;
-            nota.hidden = false;
-            nota.className = 'cns-ajuste-nota mal';
-            nota.textContent = 'Error de conexión: ' + (e && e.message ? e.message : e);
         });
     }
 
@@ -1503,21 +1545,51 @@
             cambio.menos = menos;
         }
 
-        llamar('consolaGuardarMiembro', [AppSession.userEmail, cambio]).then(function (r) {
-            boton.disabled = false;
-            if (!r || !r.success) {
-                toast((r && r.message) || 'No se pudo guardar.', 'error');
-                if (window.AppMotion) AppMotion.shake($('cns-cajon'));
-                return;
+        // Lo que la tabla va a enseñar mientras sube. Se calcula aquí, con lo que ya
+        // sabemos, en vez de esperar a que el servidor devuelva la lista entera: el
+        // rol nuevo, los bloques que resultan de ese rol con sus excepciones, y el
+        // alta o baja. Es exactamente lo que va a contestar el servidor, y si no lo
+        // fuera, su respuesta manda y repinta encima.
+        var quien = editando.email;
+        var antes = D.miembros.filter(function (m) { return m.email === quien; })[0];
+        var copiaAntes = antes ? JSON.parse(JSON.stringify(antes)) : null;
+        var boton0 = boton;
+
+        guardarEnFondo('consolaGuardarMiembro', [AppSession.userEmail, cambio], {
+            clave: 'miembro:' + quien,
+            etiqueta: 'Guardando a ' + ((antes && antes.nombre) || quien),
+            // El aviso lo da el servidor con sus propias palabras: sabe si de verdad
+            // cambió algo, y "no había nada que cambiar" no es lo mismo que "guardado".
+            silencioso: true,
+            optimista: function () {
+                if (antes) {
+                    var def = rolDef(rolElegido);
+                    antes.rol = rolElegido;
+                    antes.rolNombre = (def && def.nombre) || antes.rolNombre;
+                    antes.heredado = false;
+                    antes.bloques = (D.catalogo.bloques || [])
+                        .filter(function (b) { return !!seleccion[b.id]; })
+                        .map(function (b) { return b.id; });
+                    if (cambio.mas !== undefined) antes.ajustes = { mas: mas, menos: menos };
+                    if (cambio.activo !== undefined) antes.activo = cambio.activo;
+                }
+                pintarMiembros(); pintarExcepciones(); pintarResumen();
+                cerrarFicha();
+                boton0.disabled = false;   // el cajón ya se cerró; el botón vuelve listo
+            },
+            revertir: function () {
+                if (copiaAntes) {
+                    var i = D.miembros.map(function (m) { return m.email; }).indexOf(quien);
+                    if (i !== -1) D.miembros[i] = copiaAntes;
+                }
+                pintarMiembros(); pintarExcepciones(); pintarResumen();
+            },
+            alLograr: function (r) {
+                D.miembros = r.miembros || D.miembros;
+                D.resumen = r.resumen || D.resumen;
+                pintarMiembros(); pintarExcepciones(); pintarResumen();
+                toast(r.sinCambios ? 'No había nada que cambiar.' : r.message, 'ok');
             }
-            D.miembros = r.miembros || D.miembros;
-            D.resumen = r.resumen || D.resumen;
-            toast(r.sinCambios ? 'No había nada que cambiar.' : r.message, 'ok');
-            pintarMiembros(); pintarExcepciones(); pintarResumen();
-            cerrarFicha();
-        }).catch(function (e) {
-            boton.disabled = false;
-            toast('Error: ' + (e && e.message ? e.message : e), 'error');
         });
     }
 
@@ -1689,7 +1761,16 @@
 
     // ── Pestañas ─────────────────────────────────────────────────────────────
 
-    function irAPanel(nombre) {
+    /** Pestañas que existen, para no hacer caso de un ?sec= inventado. */
+    var CNS_PANELES = ['resumen', 'miembros', 'permisos', 'modulos', 'ajustes', 'formatos', 'salud', 'bitacora'];
+
+    /**
+     * @param {string} nombre
+     * @param {boolean=} sinUrl true al abrir por URL (si no, se reescribiría la misma
+     *   dirección de la que acabamos de leerla, y el botón "atrás" se quedaría atascado).
+     */
+    function irAPanel(nombre, sinUrl) {
+        if (CNS_PANELES.indexOf(nombre) === -1) return;
         var tabs = document.querySelectorAll('.cns-tab');
         Array.prototype.forEach.call(tabs, function (t) {
             var activa = t.getAttribute('data-panel') === nombre;
@@ -1704,6 +1785,15 @@
             gsap.fromTo(panel, { opacity: 0, y: 10 },
                 { opacity: 1, y: 0, duration: .3, ease: 'power2.out', clearProps: 'transform' });
         }
+
+        // La pestaña abierta pasa a la URL. Es lo que convierte "estoy en la bitácora"
+        // en algo que se puede pegar en un chat: quien abra ese enlace cae en la
+        // bitácora, no en el resumen teniendo que buscar la pestaña. Y el botón atrás
+        // del navegador vuelve a la pestaña anterior, que es lo que la gente espera de
+        // unas pestañas que se ven como páginas.
+        if (!sinUrl && window.AppUrl && AppUrl.actualizar) {
+            AppUrl.actualizar({ page: 'consola', sec: nombre === 'resumen' ? '' : nombre }, null, true);
+        }
     }
 
     // ── Arranque ─────────────────────────────────────────────────────────────
@@ -1715,6 +1805,32 @@
         if (window.VentelLoader) VentelLoader.hide();
 
         cargar();
+
+        // ?sec=bitacora abre esa pestaña directamente. Es por donde entran los enlaces
+        // del buscador general y los que alguien comparte por chat.
+        var secPedida = (window.AppUrl && AppUrl.param('sec')) || '';
+        if (secPedida) irAPanel(secPedida, true);
+
+        // ?q=alguien@… deja el buscador de miembros ya escrito. Sin esto, un enlace a
+        // una persona concreta dejaba a quien lo abre delante de la lista completa
+        // teniendo que volver a teclear el nombre que acababa de buscar.
+        var qPedida = (window.AppUrl && AppUrl.param('q')) || '';
+        if (qPedida) {
+            var campoBusq = $('cns-buscar-miembro');
+            if (campoBusq) {
+                campoBusq.value = qPedida;
+                // 'input' y no una llamada directa: el filtro se engancha ahí, y así
+                // esto sigue funcionando si mañana cambia cómo filtra.
+                campoBusq.dispatchEvent(new Event('input', { bubbles: true }));
+            }
+        }
+
+        // Atrás/adelante del navegador entre pestañas.
+        if (window.AppUrl && AppUrl.alCambiarUrl) {
+            AppUrl.alCambiarUrl(function (loc) {
+                irAPanel(((loc && loc.parameter && loc.parameter.sec) || 'resumen'), true);
+            });
+        }
 
         // Pestañas: clic y flechas del teclado, como manda el patrón de tablist.
         document.querySelector('.cns-tabs').addEventListener('click', function (e) {
@@ -1804,46 +1920,50 @@
 
     // ── Interruptores que llaman al servidor ─────────────────────────────────
 
+    /**
+     * El interruptor ya se movió —lo movió el dedo del maestro, no nosotros—, así que
+     * lo único que hace falta es dejarlo quieto mientras sube. Antes se deshabilitaba
+     * y se esperaba: apagar cuatro módulos era esperar cuatro veces, y cada espera
+     * dejaba el interruptor gris justo después de tocarlo, que se lee como "no me
+     * hizo caso".
+     */
     function cambiarModulo(input) {
         var id = input.getAttribute('data-modulo');
         var apagar = !input.checked;
-        input.disabled = true;
+        var nombre = nombreBloque(id);
 
-        llamar('consolaGuardarModulo', [AppSession.userEmail, id, apagar]).then(function (r) {
-            input.disabled = false;
-            if (!r || !r.success) {
-                input.checked = !input.checked;   // se deshace lo que el servidor no aceptó
-                return toast((r && r.message) || 'No pudimos guardar el cambio. Inténtalo de nuevo.', 'error');
+        guardarEnFondo('consolaGuardarModulo', [AppSession.userEmail, id, apagar], {
+            clave: 'modulo:' + id,
+            etiqueta: (apagar ? 'Apagando ' : 'Encendiendo ') + nombre,
+            hecho: nombre + (apagar ? ' quedó apagado' : ' quedó encendido'),
+            revertir: function () {
+                input.checked = !input.checked;
+                if (window.AppMotion) AppMotion.shake(input.parentNode || input);
+            },
+            alLograr: function (r) {
+                D.catalogo = r.catalogo || D.catalogo;
+                D.miembros = r.miembros || D.miembros;
+                pintarModulos(); pintarMatriz(); pintarResumen(); pintarMiembros();
             }
-            D.catalogo = r.catalogo || D.catalogo;
-            D.miembros = r.miembros || D.miembros;
-            pintarModulos(); pintarMatriz(); pintarResumen(); pintarMiembros();
-            if (r.message) toast(r.message, apagar ? 'warn' : 'ok');
-        }).catch(function (e) {
-            input.disabled = false;
-            input.checked = !input.checked;
-            toast('Error: ' + (e && e.message ? e.message : e), 'error');
         });
     }
 
     function cambiarFormato(input) {
         var id = input.getAttribute('data-formato');
         var habilitar = input.checked;
-        input.disabled = true;
 
-        llamar('consolaGuardarFormato', [AppSession.userEmail, id, habilitar]).then(function (r) {
-            input.disabled = false;
-            if (!r || !r.success) {
+        guardarEnFondo('consolaGuardarFormato', [AppSession.userEmail, id, habilitar], {
+            clave: 'formato:' + id,
+            etiqueta: (habilitar ? 'Habilitando' : 'Deshabilitando') + ' el formato',
+            hecho: 'Formato ' + (habilitar ? 'habilitado' : 'deshabilitado'),
+            revertir: function () {
                 input.checked = !input.checked;
-                return toast((r && r.message) || 'No se pudo cambiar el formato.', 'error');
+                if (window.AppMotion) AppMotion.shake(input.parentNode || input);
+            },
+            alLograr: function (r) {
+                D.formatos = r.formatos || D.formatos;
+                pintarFormatos();
             }
-            D.formatos = r.formatos || D.formatos;
-            pintarFormatos();
-            toast(r.message, 'ok');
-        }).catch(function (e) {
-            input.disabled = false;
-            input.checked = !input.checked;
-            toast('Error: ' + (e && e.message ? e.message : e), 'error');
         });
     }
 })();

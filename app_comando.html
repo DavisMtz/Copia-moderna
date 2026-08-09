@@ -52,9 +52,13 @@
   overflow: hidden; box-sizing: border-box;
 }
 .cmdk-panel *, .cmdk-panel *::before, .cmdk-panel *::after { box-sizing: border-box; }
-/* El cuerpo lleva ancho fijo mientras dura la transformación: sin esto el texto se
-   reacomoda a cada fotograma mientras el panel crece y la animación se ve "hervida". */
 .cmdk-cuerpo { width: 100%; }
+
+/* Durante la transformación se avisa al compositor de que estas dos capas van a
+   moverse. Solo mientras dura: `will-change` permanente reserva memoria de vídeo por
+   una animación que ocurre una vez cada varios minutos. */
+.cmdk-backdrop.cmdk-anima .cmdk-panel,
+.cmdk-backdrop.cmdk-anima .cmdk-cuerpo { will-change: transform; }
 
 /* ── Caja de texto ── */
 .cmdk-head { display: flex; align-items: center; gap: .75rem; padding: 1rem 1.15rem; border-bottom: 1px solid var(--line, #E4E9F0); }
@@ -336,6 +340,10 @@
     { id:'operacion', nombre:'Estado de operación', sub:'Fallas que reporta el equipo',
       icono:IC.pulso, page:'operacion', bloques:['operacion'], kw:'incidencias caido fallas confirmar sistemas problemas' },
 
+    { id:'equipo', nombre:'Tu equipo', sub:'Roles, accesos y bajas de tus asesores',
+      icono:IC.llave, page:'inicio_avanzado', ancla:'eq-seccion', bloques:['sup_equipo'],
+      kw:'equipo asesores roles permisos alta baja ascender supervisor personal gente' },
+
     { id:'consola', nombre:'Consola maestra', sub:'Miembros, permisos y ajustes del sistema',
       icono:IC.engrane, page:'consola', bloques:['adm_miembros','adm_permisos','adm_ajustes'], maestro:true,
       kw:'administracion usuarios altas bajas roles bitacora salud modulos' },
@@ -389,17 +397,105 @@
       } }
   ];
 
+  /* ═══════════════════════════════════════════════════════════════════════════
+     APARTADOS DENTRO DE UNA PANTALLA
+     ═══════════════════════════════════════════════════════════════════════════
+     El catálogo de arriba lleva a PANTALLAS. Esto lleva a los sitios concretos de
+     dentro, que es como se pide en voz alta: nadie dice "abre el panel avanzado y
+     baja hasta la mitad", dice "los formatos de cotización".
+
+     Antes, buscar "bitácora" no encontraba nada —vive dentro de la consola, y la
+     consola se llama "Consola maestra"—, así que la única forma de llegar era saberse
+     de memoria en qué pantalla estaba. Ahora cada apartado es un resultado con su
+     propio nombre y su enlace directo: la pantalla se abre YA POSICIONADA en él,
+     gracias al parámetro `ancla` (ver AppUrl.irAncla en app_core).
+
+     `sec` en vez de `ancla` cuando la pantalla usa pestañas de verdad y hay que
+     decirle CUÁL abrir, no a dónde bajar. */
+  var SECCIONES = [
+    { id:'sec-pendientes', nombre:'Cotizaciones por revisar', sub:'La cola de lo que espera una decisión',
+      icono:IC.check, page:'inicio_avanzado', ancla:'pend-seccion', bloques:['revisar','supervision'],
+      kw:'cola pendientes autorizar aprobar rechazar revision espera' },
+    { id:'sec-politica', nombre:'Política de revisión', sub:'Reglas que mandan una cotización a revisión',
+      icono:IC.engrane, page:'inicio_avanzado', ancla:'pol-seccion', bloques:['politica_revision'],
+      kw:'reglas umbral descuento monto politica criterio automatico' },
+    { id:'sec-equipo', nombre:'Roles de tu equipo', sub:'Cambiar el rol o dar de baja a un asesor',
+      icono:IC.llave, page:'inicio_avanzado', ancla:'eq-seccion', bloques:['sup_equipo'],
+      kw:'asesores roles baja alta reactivar ascender supervisor equipo gente' },
+    { id:'sec-metricas', nombre:'Métricas del equipo', sub:'Cifras, actividad y ranking de asesores',
+      icono:IC.grafica, page:'inicio_avanzado', ancla:'dashboard-content', bloques:['supervision'],
+      kw:'kpi cifras ranking actividad reportes csv estadisticas graficas' },
+
+    /* La consola no se recorre bajando: son PESTAÑAS, y su panel está oculto hasta que
+       se abre la suya. Por eso aquí va `sec` y no `ancla`: bajar hasta un apartado que
+       el navegador tiene en display:none no lleva a ninguna parte. */
+    { id:'sec-miembros', nombre:'Miembros del sistema', sub:'Altas, bajas y permisos persona por persona',
+      icono:IC.llave, page:'consola', params:{ sec:'miembros' }, bloques:['adm_miembros'], maestro:true,
+      kw:'usuarios personas cuentas alta baja contrasena reset permisos' },
+    { id:'sec-permisos', nombre:'Permisos por bloque', sub:'Quién alcanza qué, en una matriz',
+      icono:IC.llave, page:'consola', params:{ sec:'permisos' }, bloques:['adm_permisos'], maestro:true,
+      kw:'matriz bloques conceder retirar accesos excepciones facultades' },
+    { id:'sec-modulos', nombre:'Módulos y mantenimiento', sub:'Apagar y encender bloques del sistema',
+      icono:IC.engrane, page:'consola', params:{ sec:'modulos' }, bloques:['adm_modulos'], maestro:true,
+      kw:'mantenimiento apagar encender caido desactivar bloque modulo' },
+    { id:'sec-bitacora', nombre:'Bitácora', sub:'Quién cambió qué y cuándo',
+      icono:IC.reloj, page:'consola', params:{ sec:'bitacora' }, bloques:['adm_bitacora'], maestro:true,
+      kw:'auditoria historial registro rastro cambios log quien cuando' },
+    { id:'sec-ajustes', nombre:'Ajustes del sistema', sub:'Autenticación, dominio, webhook y hojas',
+      icono:IC.engrane, page:'consola', params:{ sec:'ajustes' }, bloques:['adm_ajustes'], maestro:true,
+      kw:'configuracion dominio webhook hoja identificador correo autenticacion' },
+    { id:'sec-salud', nombre:'Salud del sistema', sub:'Revisión maestra: qué está roto',
+      icono:IC.pulso, page:'consola', params:{ sec:'salud' }, bloques:['adm_salud'], maestro:true,
+      kw:'diagnostico revision roto errores comprobacion estado sistema' },
+    { id:'sec-formatos', nombre:'Formatos de cotización', sub:'Qué formatos pueden elegir los asesores',
+      icono:IC.doc, page:'consola', params:{ sec:'formatos' }, bloques:['adm_formatos'], maestro:true,
+      kw:'plantilla documento pdf diseno formato habilitar predeterminado' },
+
+    { id:'sec-pc-herramientas', nombre:'Herramientas del Portal', sub:'Editar el catálogo de herramientas',
+      icono:IC.llave, page:'portal_contenido', params:{ sec:'herramientas' }, bloques:['portal_contenido'],
+      kw:'catalogo accesos ligas sistemas claves como acceder' },
+    { id:'sec-pc-plantillas', nombre:'Plantillas del Portal', sub:'Editar las plantillas de correo',
+      icono:IC.correo, page:'portal_contenido', params:{ sec:'plantillas' }, bloques:['portal_contenido'],
+      kw:'correo machote modelo asunto cuerpo redaccion' },
+    { id:'sec-pc-formatos', nombre:'Formatos del Portal', sub:'Editar los formatos descargables',
+      icono:IC.doc, page:'portal_contenido', params:{ sec:'formatos' }, bloques:['portal_contenido'],
+      kw:'descargas documentos archivos pdf excel liga' },
+    { id:'sec-pc-paqueterias', nombre:'Paqueterías', sub:'Editar la lista de paqueterías y su rastreo',
+      icono:IC.caja, page:'portal_contenido', params:{ sec:'paqueterias' }, bloques:['portal_contenido'],
+      kw:'guia rastreo envio mensajeria estafeta dhl fedex tracking' },
+    { id:'sec-pc-promos', nombre:'Promociones del Portal', sub:'Cargar y editar las promociones vigentes',
+      icono:IC.estrella, page:'portal_contenido', params:{ sec:'promociones' }, bloques:['portal_contenido'],
+      kw:'descuentos ofertas msi vigencias importar comercial calendario' }
+  ];
+
+  /** ¿Esta entrada del catálogo la alcanza la sesión actual? */
+  function alcanzable(d, logueado) {
+    if (!logueado) {
+      // Sin sesión solo la landing pública y el tablero de estado, y ni siquiera esos
+      // si el módulo está apagado por mantenimiento (ver AppFunciones en app_core:
+      // la lista de apagados ya se consulta sin sesión).
+      if (d.id !== 'portal' && d.id !== 'estado') return false;
+      if (window.AppFunciones && d.bloques) {
+        return d.bloques.some(function (b) { return !AppFunciones.moduloApagado(b); });
+      }
+      return true;
+    }
+    if (d.maestro && !(window.AppSession && AppSession.isMaster)) return false;
+    if (!d.bloques) return true;
+    for (var i = 0; i < d.bloques.length; i++) if (puede(d.bloques[i])) return true;
+    return false;
+  }
+
   /** Las funciones que ESTA sesión puede abrir de verdad. */
   function destinos() {
     var logueado = conSesion();
-    return CATALOGO.filter(function (d) {
-      // La landing pública y el tablero de estado se ofrecen siempre: no exigen sesión.
-      if (!logueado) return d.id === 'portal' || d.id === 'estado';
-      if (d.maestro && !(window.AppSession && AppSession.isMaster)) return false;
-      if (!d.bloques) return true;
-      for (var i = 0; i < d.bloques.length; i++) if (puede(d.bloques[i])) return true;
-      return false;
-    });
+    return CATALOGO.filter(function (d) { return alcanzable(d, logueado); });
+  }
+
+  /** Los apartados internos que ESTA sesión puede abrir. */
+  function secciones() {
+    if (!conSesion()) return [];
+    return SECCIONES.filter(function (d) { return alcanzable(d, true); });
   }
 
   function acciones() {
@@ -449,6 +545,9 @@
   var Directorio = (function () {
     var cotizaciones = [];
     var portal = [];
+    var gente = [];
+    var operacion = [];
+    var anuncios = [];
 
     function cacheGet(nombre, maxEdad) {
       if (!window.AppCache) return null;
@@ -496,12 +595,87 @@
 
       var pc = cacheGet('cmdk-portal', PORTAL_TTL);
       portal = pc ? indexaPortal(pc) : [];
+
+      gente = indexaGente();
+      operacion = indexaOperacion();
+      anuncios = indexaAnuncios();
+    }
+
+    /* ── GENTE ──
+       "¿Quién es Ana López?" y "¿sigue de alta Pedro?" son preguntas que el sistema ya
+       podía contestar y a las que no había forma de llegar preguntando: había que
+       saberse en qué pantalla vive la lista de miembros y abrirla. Se indexa desde la
+       caché que dejaron el panel de equipo o la consola, así que no cuesta ni una
+       llamada: si esa persona no ha abierto ninguna de las dos, sencillamente no hay
+       nada que buscar todavía, y no se inventa. */
+    function indexaGente() {
+      var eq = cacheGet('equipo-panorama');
+      var cns = cacheGet('consola-panorama-' + correoSesion());
+      var lista = (eq && eq.asesores) || (cns && cns.miembros) || [];
+      if (!lista.length) return [];
+      // El destino depende de por dónde puede entrar QUIEN busca: un maestro va a la
+      // consola, que es donde puede tocarlo todo; una supervisión, a su panel.
+      var maestro = !!(window.AppSession && AppSession.isMaster) && puede('adm_miembros');
+      return lista.map(function (m) {
+        var aQuien = m.email || m.nombre || '';
+        return {
+          nombre: m.nombre || m.email,
+          correo: m.email || '',
+          rol: m.rolNombre || m.rol || '',
+          activo: m.activo !== false,
+          // La consola va por PESTAÑAS y el panel de equipo por ancla: cada destino se
+          // abre como sabe abrirse, y en los dos casos con el buscador de esa pantalla
+          // ya escrito, para caer sobre la persona y no sobre la lista entera.
+          page: maestro ? 'consola' : 'inicio_avanzado',
+          ancla: maestro ? '' : 'eq-seccion',
+          params: maestro ? { sec: 'miembros', q: aQuien } : { q: aQuien }
+        };
+      });
+    }
+
+    /* ── FALLAS ABIERTAS ──
+       Quien escribe "connect" casi nunca quiere una pantalla: quiere saber si está
+       caído. Se responde con la incidencia misma, no con el enlace al tablero. */
+    function indexaOperacion() {
+      var p = cacheGet('operacion-panel') || cacheGet('operacion-estado');
+      var lista = (p && (p.incidentes || p.abiertos || p.activos)) || [];
+      if (!Array.isArray(lista)) return [];
+      return lista.filter(function (i) { return i && (i.id || i.titulo); }).map(function (i) {
+        return {
+          id: i.id || '',
+          titulo: i.titulo || i.sistema || 'Falla reportada',
+          sistema: i.sistema || '',
+          estado: i.estadoNombre || i.estado || '',
+          detalle: i.submotivo || i.detalle || ''
+        };
+      });
+    }
+
+    /* ── ANUNCIOS PUBLICADOS ──
+       Solo para quien puede administrarlos: al resto ya se los enseña el Portal en la
+       portada, y sacarlos aquí sería repetir lo que esa persona no puede cambiar. */
+    function indexaAnuncios() {
+      if (!puede('anuncios')) return [];
+      var a = cacheGet('anuncios-admin-' + correoSesion());
+      var lista = (a && a.anuncios) || [];
+      return lista.map(function (x) {
+        var d = x.datos || {};
+        return {
+          id: x.id,
+          titulo: d.titulo || d.mensaje || '(sin título)',
+          sub: d.cuerpo || d.descripcion || '',
+          estado: x.estado || (x.activo ? 'activo' : 'oculto')
+        };
+      });
     }
 
     return {
       refrescar: refrescar,
       cotizaciones: function () { return cotizaciones; },
       portal: function () { return portal; },
+      gente: function () { return gente; },
+      operacion: function () { return operacion; },
+      anuncios: function () { return anuncios; },
       hayPortal: function () { return portal.length > 0; }
     };
   })();
@@ -566,6 +740,31 @@
     return out;
   }
 
+  /* ── Personas del equipo ──
+     Solo para quien puede gestionarlas. Mismo trato que el contenido del Portal: se
+     pide UNA vez, la primera vez que esa persona escribe algo, y se guarda. Sin esto,
+     buscar a un compañero solo funcionaba si antes se había abierto el panel de equipo
+     —la caché la dejaba esa pantalla—, y "a veces encuentra a Ana y a veces no" es
+     peor que no buscar personas en absoluto: enseña a no fiarse del buscador. */
+  var GENTE_TTL = 5 * 60 * 1000;
+  var gentePidiendo = false;
+
+  function pideGente(alLlegar) {
+    if (gentePidiendo || !conSesion()) return;
+    if (Directorio.gente().length) return;
+    if (!(window.AppRun && window.AppCache)) return;
+    if (!puede('sup_equipo') && !puede('adm_miembros')) return;
+    gentePidiendo = true;
+    AppRun.call('equipoPanorama', [correoSesion()], { key: 'cmdk-equipo', busy: false })
+      .then(function (r) {
+        gentePidiendo = false;
+        if (!r || !r.success) return;
+        AppCache.set('equipo-panorama', r, { ttl: GENTE_TTL });
+        Directorio.refrescar();
+        alLlegar();
+      }, function () { gentePidiendo = false; });
+  }
+
   /* ── Cotizaciones del equipo ──
      El directorio ya resuelve las propias sin red. El servidor se consulta solo por
      lo que le falta —las de otros asesores— y con antirrebote: sin esto, escribir un
@@ -615,21 +814,33 @@
      escrita —así un enlace a una búsqueda es un enlace de verdad. */
   var paginaActual = '';
   function leerUbicacion(alSaber) {
+    // Primero lo que el servidor YA inyectó al renderizar (PARAMS_VISTA en Code.gs).
+    // Es síncrono y llega antes de que se pinte nada, así que un enlace con ?buscar=
+    // abre el panel de inmediato en vez de esperar el viaje de getLocation —que tarda
+    // lo suyo y hacía que el panel se abriera solo cuando ya estabas leyendo la
+    // pantalla, pareciendo un fallo y no una respuesta al enlace—.
+    var inyectado = '';
+    try { inyectado = (window.AppUrl && AppUrl.param('buscar')) || ''; } catch (e) {}
+
     try {
       if (window.google && google.script && google.script.url && google.script.url.getLocation) {
+        // Se sigue preguntando: el nombre de la PÁGINA no viaja inyectado y hace falta
+        // para que "copiar enlace a esta búsqueda" apunte a donde estamos.
         google.script.url.getLocation(function (loc) {
           var p = (loc && loc.parameter) || {};
-          paginaActual = p.page || '';
+          paginaActual = p.page || paginaActual || '';
+          if (inyectado && !p.buscar) p.buscar = inyectado;
           alSaber(p);
         });
+        if (inyectado) alSaber({ buscar: inyectado });   // no se espera para abrir
         return;
       }
     } catch (e) {}
     try {
       var qs = new URLSearchParams(window.location.search);
       paginaActual = qs.get('page') || '';
-      alSaber({ page: paginaActual, buscar: qs.get('buscar') || '' });
-    } catch (e) { alSaber({}); }
+      alSaber({ page: paginaActual, buscar: inyectado || qs.get('buscar') || '' });
+    } catch (e) { alSaber({ buscar: inyectado }); }
   }
 
   /* ═══════════════════════════════════════════════════════════════════════════
@@ -717,6 +928,7 @@
     if (t.length >= 2) {
       relojTecleo = setTimeout(function () {
         pidePortal(pinta);
+        pideGente(pinta);
         pideCots(t, pinta);
       }, 240);
     }
@@ -781,11 +993,26 @@
     /* Con VARIAS palabras se exigen todas: "estado de cuenta" debe traer la plantilla
        de estado de cuenta, no todo lo que tenga la palabra "cuenta". Con una sola se
        es generoso, que es cuando hace falta. */
-    var fn = esCotizacion ? [] : B.filtra(dst, q, function (d) {
+    var variasPalabras = B.consulta(q).palabras.length > 1;
+    var camposCatalogo = function (d) {
       return [{ t: d.nombre, p: 3 }, { t: d.sub, p: 1 }, { t: d.kw, p: 1.4 }];
-    }, { limite: 6, exigirTodas: B.consulta(q).palabras.length > 1, conPuntaje: true });
+    };
+
+    var fn = esCotizacion ? [] : B.filtra(dst, q, camposCatalogo,
+      { limite: 6, exigirTodas: variasPalabras, conPuntaje: true });
     if (fn.length) grupos.push({ tipo: 'fn', titulo: 'Funciones', icono: IC.flecha,
                                  mejor: fn[0].score, filas: fn.map(function (r) { return r.item; }) });
+
+    /* 1b) Apartados DENTRO de una pantalla. Van en su propio grupo y no mezclados con
+       las funciones: "Bitácora" y "Consola maestra" no son la misma respuesta, y
+       ponerlas juntas obligaría a leer el subtítulo para distinguirlas. Se puntúan un
+       punto por debajo (peso .92) para que, cuando el nombre coincide en los dos, gane
+       la pantalla entera —que es el destino más seguro— y el apartado quede justo
+       debajo, a un golpe de flecha. */
+    var sec = esCotizacion ? [] : B.filtra(secciones(), q, camposCatalogo,
+      { limite: 5, exigirTodas: variasPalabras, conPuntaje: true });
+    if (sec.length) grupos.push({ tipo: 'sec', titulo: 'Apartados', icono: IC.capas,
+                                  mejor: sec[0].score * .92, filas: sec.map(function (r) { return r.item; }) });
 
     // 2) Cotizaciones: el directorio local primero (sin red), el equipo después.
     if (conSesion()) {
@@ -823,6 +1050,35 @@
     }, { limite: 6, conPuntaje: true });
     if (pc.length) grupos.push({ tipo: 'portal', titulo: 'Portal Ventel', icono: IC.globo,
                                  mejor: pc[0].score, filas: pc.map(function (r) { return r.item; }) });
+
+    if (conSesion()) {
+      /* 4) GENTE. Un correo escrito entero busca una cotización de ese cliente, no a un
+         compañero, así que ahí no se ofrece: el correo de un asesor se encuentra igual
+         escribiendo su nombre, y quien teclea una dirección completa está buscando un
+         folio nueve de cada diez veces. */
+      var pers = esCotizacion ? [] : B.filtra(Directorio.gente(), q, function (g) {
+        return [{ t: g.nombre, p: 3 }, { t: g.correo, p: 1.8 }, { t: g.rol, p: .8 }];
+      }, { limite: 4, conPuntaje: true });
+      if (pers.length) grupos.push({ tipo: 'gente', titulo: 'Personas', icono: IC.llave,
+                                     mejor: pers[0].score, filas: pers.map(function (r) { return r.item; }) });
+
+      /* 5) FALLAS ABIERTAS. Se empujan por encima de su puntaje bruto (×1.15) porque
+         una caída en curso es lo más urgente que el buscador puede tener que decir:
+         quien escribe "connect" mientras está caído necesita esa línea arriba, no la
+         herramienta del Portal que se llama parecido. */
+      var ops = esCotizacion ? [] : B.filtra(Directorio.operacion(), q, function (o) {
+        return [{ t: o.sistema, p: 3 }, { t: o.titulo, p: 2 }, { t: o.detalle, p: 1 }, { t: o.estado, p: .6 }];
+      }, { limite: 3, conPuntaje: true });
+      if (ops.length) grupos.push({ tipo: 'op', titulo: 'Fallas abiertas', icono: IC.pulso,
+                                    mejor: ops[0].score * 1.15, filas: ops.map(function (r) { return r.item; }) });
+
+      // 6) ANUNCIOS (solo quien los administra).
+      var anun = esCotizacion ? [] : B.filtra(Directorio.anuncios(), q, function (a) {
+        return [{ t: a.titulo, p: 3 }, { t: a.sub, p: 1 }];
+      }, { limite: 3, conPuntaje: true });
+      if (anun.length) grupos.push({ tipo: 'anuncio', titulo: 'Anuncios', icono: IC.megafono,
+                                     mejor: anun[0].score, filas: anun.map(function (r) { return r.item; }) });
+    }
 
     /* El grupo que MEJOR responde va arriba, no el que estaba primero en el código.
        Escribir un nombre de cliente tiene que enseñar su cotización antes que una
@@ -909,6 +1165,40 @@
             '</span>' +
             '<span class="cmdk-enter">↵ Ir</span><span class="cmdk-go">' + IC.flecha + '</span>');
 
+        } else if (g.tipo === 'gente') {
+          // El rol y la baja van en la propia línea: "¿sigue de alta Pedro?" se
+          // contesta leyendo el resultado, sin tener que abrir nada.
+          var etiqueta = r.activo
+            ? (r.rol ? '<span class="cmdk-tag">' + esc(r.rol) + '</span>' : '')
+            : '<span class="cmdk-tag">Dado de baja</span>';
+          html += fila('',
+            '<span class="cmdk-chip">' + IC.llave + '</span>' +
+            '<span class="cmdk-tx">' +
+              '<span class="cmdk-name">' + B.resalta(r.nombre, q) + '</span>' +
+              '<span class="cmdk-sub">' + B.resalta(r.correo, q) + '</span>' +
+            '</span>' + etiqueta +
+            '<span class="cmdk-enter">↵ Ver</span><span class="cmdk-go">' + IC.flecha + '</span>');
+
+        } else if (g.tipo === 'op') {
+          html += fila('',
+            '<span class="cmdk-chip">' + IC.pulso + '</span>' +
+            '<span class="cmdk-tx">' +
+              '<span class="cmdk-name">' + B.resalta(r.sistema || r.titulo, q) + '</span>' +
+              '<span class="cmdk-sub">' + B.resalta(r.titulo !== r.sistema ? r.titulo : (r.detalle || ''), q) + '</span>' +
+            '</span>' +
+            (r.estado ? '<span class="cmdk-tag">' + esc(r.estado) + '</span>' : '') +
+            '<span class="cmdk-enter">↵ Ver</span><span class="cmdk-go">' + IC.flecha + '</span>');
+
+        } else if (g.tipo === 'anuncio') {
+          html += fila('',
+            '<span class="cmdk-chip">' + IC.megafono + '</span>' +
+            '<span class="cmdk-tx">' +
+              '<span class="cmdk-name">' + B.resalta(r.titulo, q) + '</span>' +
+              '<span class="cmdk-sub">' + B.resalta(B.extracto(r.sub, q, 90), q) + '</span>' +
+            '</span>' +
+            (r.estado ? '<span class="cmdk-tag">' + esc(r.estado) + '</span>' : '') +
+            '<span class="cmdk-enter">↵ Editar</span><span class="cmdk-go">' + IC.flecha + '</span>');
+
         } else {
           html += fila('',
             '<span class="cmdk-chip">' + r.icono + '</span>' +
@@ -930,7 +1220,8 @@
         (q ? '<div>Nada coincide con <b>' + esc(q) + '</b>.</div>' +
              '<div style="margin-top:.4rem;font-size:.8rem">Prueba con el folio completo, el correo del cliente o el nombre de la pantalla.</div>'
            : '<div>Escribe para buscar.</div>' +
-             '<div style="margin-top:.4rem;font-size:.8rem">Funciones de la app, folios de cotización y contenido del Portal.</div>') +
+             '<div style="margin-top:.4rem;font-size:.8rem">Pantallas y apartados, folios, clientes, personas del equipo, ' +
+             'contenido del Portal y las fallas abiertas.</div>') +
         (sugerencias.length
           ? '<div class="cmdk-pistas">' + sugerencias.map(function (s) {
               return '<button type="button" class="cmdk-pista" data-q="' + esc(s) + '">' + esc(s) + '</button>';
@@ -957,15 +1248,18 @@
     var q = caja.value.trim();
     recordar(K_BUSQUEDAS, q, 5);
 
-    if (f.tipo === 'fn') {
+    if (f.tipo === 'fn' || f.tipo === 'sec') {
       var d = f.dato;
       recordar(K_RECIENTES, d.id, 6);
       if (d.fn) { d.fn(); pinta(); return; }   // ajuste local: el panel se queda abierto
-      navega(d.page, d.params || {});
+      navega(d.page, d.params || {}, d.ancla);
       return;
     }
     if (f.tipo === 'cot') { vaAFolio(f.dato.folio); return; }
     if (f.tipo === 'todo') { navega(f.dato.page, f.dato.params); return; }
+    if (f.tipo === 'gente') { navega(f.dato.page, f.dato.params || {}, f.dato.ancla); return; }
+    if (f.tipo === 'op')    { navega('estado', { inc: f.dato.id }); return; }
+    if (f.tipo === 'anuncio') { navega('anuncios', { q: f.dato.titulo }); return; }
     if (f.tipo === 'portal') {
       var p = f.dato;
       // La sección del Portal, filtrada por lo que se escribió y con el elemento
@@ -978,10 +1272,10 @@
     }
   }
 
-  function navega(page, params) {
+  function navega(page, params, ancla) {
     cerrar(true);
     if (window.VentelLoader) VentelLoader.show();
-    if (window.AppUrl) AppUrl.go(page, params || {});
+    if (window.AppUrl) AppUrl.go(page, params || {}, ancla);
   }
 
   function abreLiga(href) {
@@ -1009,17 +1303,35 @@
   }
 
   /* ═══════════════════════════════════════════════════════════════════════════
-     APERTURA Y CIERRE — transformación de contenedor
+     APERTURA Y CIERRE — transformación de contenedor (FLIP)
      ═══════════════════════════════════════════════════════════════════════════
      El panel NACE del botón de buscar: crece desde su sitio exacto hasta ocupar su
      forma final, y al cerrarse vuelve a encogerse hacia él. No es decoración —es lo
      que enseña dónde vive el buscador. Quien lo abrió con Ctrl+K ve de dónde salió y
      la próxima vez sabe dónde está el botón.
 
-     Se animan posición y TAMAÑO (no una escala) porque escalar deforma el texto y
-     redondea mal las esquinas: se vería un panel estirado, no un panel que crece. El
-     coste de animar la caja se acota manteniendo el cuerpo a su ancho final mientras
-     dura, así el contenido no se reacomoda en cada fotograma. */
+     POR QUÉ SE REESCRIBIÓ ESTA ANIMACIÓN
+     ------------------------------------
+     Antes se animaban `left`, `top`, `width` y `height`. Eso obliga al navegador a
+     recalcular la disposición de la página en CADA fotograma: el panel lleva dentro
+     una lista de resultados y el reparto de esa lista se rehacía sesenta veces por
+     segundo. En un equipo de mostrador el resultado era exactamente lo que se
+     describía como "pegajoso": no es que fuera lenta, es que se saltaba fotogramas.
+
+     Ahora es un FLIP: el panel se queda SIEMPRE en su sitio y su tamaño finales, y lo
+     único que cambia es `transform`, que el navegador compone en la GPU sin volver a
+     medir nada. Se calcula la transformación que lleva la caja final justo encima del
+     botón, se parte de ahí y se anima hasta la identidad.
+
+     LA CONTRAESCALA, que es lo que hacía falta para poder usar FLIP aquí:
+     escalar el panel escalaría el texto con él —el motivo por el que la versión
+     anterior no lo usaba—. Se corrige aplicando al cuerpo la escala INVERSA: el marco
+     crece y el contenido se queda del tamaño que le toca. Es el mismo truco que usan
+     los paneles de macOS al abrirse desde un icono.
+
+     Lo único que no es transform es el radio de las esquinas, y se conserva a
+     propósito: sin él la pastilla no se convierte en panel, se estira. Un cambio de
+     radio repinta, pero no vuelve a medir la página, que era el problema. */
   function rectDisparador() {
     var b = disparador && disparador.isConnected ? disparador
           : (document.getElementById('cmdkAbrir') || document.getElementById('cmdkFlota'));
@@ -1027,6 +1339,25 @@
     var r = b.getBoundingClientRect();
     if (!r.width || !r.height) return null;
     return { el: b, left: r.left, top: r.top, width: r.width, height: r.height };
+  }
+
+  /**
+   * La transformación que pone la caja `destino` justo encima de `origen`.
+   *
+   * Con transformOrigin en la esquina superior izquierda, el desplazamiento es la
+   * diferencia de esquinas y la escala es la razón de tamaños. Se acota por abajo
+   * porque una escala de 0 es una matriz sin inversa: la contraescala del contenido
+   * saldría infinita y GSAP escribiría `scale(Infinity)`, que el navegador descarta
+   * y deja el panel visible de golpe, sin animación.
+   */
+  function flip(origen, destino) {
+    if (!origen || !destino || !destino.width || !destino.height) return null;
+    return {
+      x: origen.left - destino.left,
+      y: origen.top - destino.top,
+      sx: Math.max(origen.width / destino.width, .02),
+      sy: Math.max(origen.height / destino.height, .02)
+    };
   }
 
   function abrir(termino) {
@@ -1060,26 +1391,32 @@
       onComplete: function () {
         animando = false;
         fondo.classList.remove('cmdk-anima');
-        gsap.set(panel, { clearProps: 'position,left,top,width,height,margin,borderRadius' });
-        gsap.set(cuerpo, { clearProps: 'width,height' });
+        gsap.set([panel, cuerpo], { clearProps: 'transform,transformOrigin,borderRadius' });
         gsap.set([cabeza].concat([].slice.call(resto)), { clearProps: 'opacity,y' });
       }
     });
 
     tl.fromTo(fondo, { opacity: 0 }, { opacity: 1, duration: .18, ease: 'power1.out' }, 0);
 
-    if (origen) {
-      // El cuerpo se congela en su tamaño final para que el texto no se reacomode.
-      // Se mide él mismo y no el panel: el panel lleva borde, y copiarle el ancho
-      // dejaría el contenido dos píxeles más ancho de lo que cabe.
-      var dc = cuerpo.getBoundingClientRect();
-      gsap.set(cuerpo, { width: dc.width, height: dc.height });
-      gsap.set(panel, { position: 'fixed', margin: 0, left: destino.left, top: destino.top,
-                        width: destino.width, height: destino.height });
+    var salto = origen ? flip(origen, destino) : null;
+
+    if (salto) {
+      // El panel ya está donde tiene que estar; solo se le pone encima la
+      // transformación que lo lleva al botón, y desde ahí se anima a la identidad.
+      gsap.set(panel, { transformOrigin: '0 0' });
+      gsap.set(cuerpo, { transformOrigin: '0 0' });
+
       tl.fromTo(panel,
-        { left: origen.left, top: origen.top, width: origen.width, height: origen.height, borderRadius: 12 },
-        { left: destino.left, top: destino.top, width: destino.width, height: destino.height, borderRadius: 18,
-          duration: .42, ease: 'power3.out' }, 0);
+        { x: salto.x, y: salto.y, scaleX: salto.sx, scaleY: salto.sy, borderRadius: 12 },
+        { x: 0, y: 0, scaleX: 1, scaleY: 1, borderRadius: 18,
+          duration: .44, ease: 'power3.out', force3D: true }, 0);
+
+      // Contraescala: deshace en el contenido lo que se le hace al marco, así el texto
+      // nunca aparece achatado ni estirado mientras el panel crece.
+      tl.fromTo(cuerpo,
+        { scaleX: 1 / salto.sx, scaleY: 1 / salto.sy },
+        { scaleX: 1, scaleY: 1, duration: .44, ease: 'power3.out', force3D: true }, 0);
+
       /* La CAJA DE TEXTO entra enseguida y los resultados después. Es lo que hace que
          se lea como una transformación y no como una ventana que aparece encima: el
          botón dice "Buscar" con una lupa y se convierte en un campo con la misma lupa,
@@ -1113,8 +1450,7 @@
       fondo.classList.remove('open', 'cmdk-anima');
       if (window.gsap) {
         gsap.set(fondo, { clearProps: 'opacity' });
-        gsap.set(panel, { clearProps: 'position,left,top,width,height,margin,borderRadius,opacity,transform' });
-        gsap.set(cuerpo, { clearProps: 'width,height' });
+        gsap.set([panel, cuerpo], { clearProps: 'transform,transformOrigin,borderRadius,opacity' });
         gsap.set(fondo.querySelectorAll('.cmdk-head, .cmdk-list, .cmdk-foot'), { clearProps: 'opacity,y' });
       }
       document.documentElement.style.overflow = '';
@@ -1131,24 +1467,30 @@
     }
 
     var origen = rectDisparador();
+    // Se mide el panel SIN su transformación puesta: getBoundingClientRect devuelve la
+    // caja ya transformada, y si quedara algo de la apertura a medias, el salto de
+    // cierre partiría de una posición falsa y el panel daría un tirón al empezar.
+    gsap.set([panel, cuerpo], { clearProps: 'transform' });
     var actualRect = panel.getBoundingClientRect();
-    if (!origen || !actualRect.width) {
+    var salto = flip(origen, actualRect);
+
+    if (!salto) {
       gsap.to(fondo, { opacity: 0, duration: .16, ease: 'power1.in', onComplete: terminar });
       return;
     }
 
     animando = true;
     fondo.classList.add('cmdk-anima');
-    var ac = cuerpo.getBoundingClientRect();
-    gsap.set(cuerpo, { width: ac.width, height: ac.height });
-    gsap.set(panel, { position: 'fixed', margin: 0, left: actualRect.left, top: actualRect.top,
-                      width: actualRect.width, height: actualRect.height });
+    gsap.set(panel, { transformOrigin: '0 0' });
+    gsap.set(cuerpo, { transformOrigin: '0 0' });
 
     var tl = gsap.timeline({ onComplete: terminar });
     tl.to(fondo.querySelectorAll('.cmdk-head, .cmdk-list, .cmdk-foot'),
           { opacity: 0, duration: .12, ease: 'power1.in' }, 0);
-    tl.to(panel, { left: origen.left, top: origen.top, width: origen.width, height: origen.height,
-                   borderRadius: 12, duration: .3, ease: 'power3.inOut' }, .04);
+    tl.to(panel, { x: salto.x, y: salto.y, scaleX: salto.sx, scaleY: salto.sy,
+                   borderRadius: 12, duration: .3, ease: 'power3.inOut', force3D: true }, .04);
+    tl.to(cuerpo, { scaleX: 1 / salto.sx, scaleY: 1 / salto.sy,
+                    duration: .3, ease: 'power3.inOut', force3D: true }, .04);
     tl.to(fondo, { opacity: 0, duration: .18, ease: 'power1.in' }, .14);
     tl.to(origen.el, { opacity: 1, duration: .2, ease: 'power1.out' }, .12);
   }
@@ -1243,8 +1585,16 @@
     ponBoton(0);
     // ?buscar=… abre el panel con la búsqueda ya escrita. Un enlace a una búsqueda
     // vale para pegarlo en un chat: quien lo abre ve exactamente lo mismo.
+    //
+    // leerUbicacion puede contestar DOS veces —el parámetro inyectado llega enseguida y
+    // el nombre de la página tarda lo que tarde getLocation—, así que la apertura se
+    // hace una sola vez: abrir dos veces con la misma búsqueda le robaría el foco a
+    // quien ya hubiera empezado a teclear otra cosa.
+    var yaAbierto = false;
     leerUbicacion(function (p) {
-      if (p && p.buscar) setTimeout(function () { abrir(String(p.buscar)); }, 260);
+      if (!p || !p.buscar || yaAbierto) return;
+      yaAbierto = true;
+      setTimeout(function () { abrir(String(p.buscar)); }, 260);
     });
   }
 
