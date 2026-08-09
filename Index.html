@@ -3100,17 +3100,42 @@ function renderSyncStatus(){
 /* ──────── NAVEGACIÓN CON HISTORIAL (botón atrás + enlaces a secciones) ──────── */
 let suppressHistory = false;
 function initNavigation(){
-  const restore = sec => {
-    if (sec && document.getElementById('sec-' + sec)) { suppressHistory = true; switchSec(sec); suppressHistory = false; }
+  /* `q` acompaña a `sec` para llegar a la sección YA FILTRADA por lo que se buscó.
+     Es lo que convierte un resultado del buscador general —el que ahora vive en todas
+     las pantallas— en un destino de verdad: quien pulsa "Guía de paqueterías" desde la
+     pantalla de cotización aterriza en Paqueterías con "guía" escrito y la lista
+     recortada, en vez de en el Portal entero teniendo que repetir la búsqueda.
+     El filtro se aplica en cuanto hay datos: la sección puede llegar antes que la hoja. */
+  const restore = (sec, q, item) => {
+    if (!sec || !document.getElementById('sec-' + sec)) return;
+    suppressHistory = true; switchSec(sec); suppressHistory = false;
+    if (!q && !item) return;
+    const clave = sec === 'pdepago' ? 'pdePago' : sec;
+    const aplicar = (intentos) => {
+      if (q) applySectionSearch(sec, q);
+      // Se reintenta solo mientras la sección esté VACÍA: el filtro llega antes que la
+      // hoja de cálculo. En cuanto hay filas se para, aunque ninguna coincida —"no hay
+      // resultados" es una respuesta, y volver a filtrar doce veces no la cambia.
+      if (!(store[clave] || []).length && intentos < 12) { setTimeout(() => aplicar(intentos + 1), 250); return; }
+      // `item` es el elemento concreto que se eligió allá afuera: se le lleva el foco
+      // igual que cuando se pulsa un resultado del buscador de esta misma pantalla.
+      if (item) esperarYRevelar(sec, item, null, null);
+    };
+    aplicar(0);
   };
   if (typeof google !== 'undefined' && google.script && google.script.history) {
-    google.script.url.getLocation(loc => restore((loc.parameter && loc.parameter.sec) || loc.hash || ''));
+    google.script.url.getLocation(loc => {
+      const p = (loc && loc.parameter) || {};
+      restore(p.sec || loc.hash || '', p.q || '', p.item || '');
+    });
     google.script.history.setChangeHandler(e => {
-      restore((e.location.parameter && e.location.parameter.sec) || e.location.hash || 'inicio');
+      const p = (e.location && e.location.parameter) || {};
+      restore(p.sec || e.location.hash || 'inicio', p.q || '', p.item || '');
     });
   } else {
-    restore((location.hash || '').replace('#',''));
-    window.addEventListener('hashchange', () => restore((location.hash || '').replace('#','') || 'inicio'));
+    const qs = new URLSearchParams(location.search);
+    restore((location.hash || '').replace('#','') || qs.get('sec') || '', qs.get('q') || '', qs.get('item') || '');
+    window.addEventListener('hashchange', () => restore((location.hash || '').replace('#','') || 'inicio', '', ''));
   }
 }
 function pushNav(id){
@@ -4419,26 +4444,35 @@ function jumpToExact(key, name, targetId){
     applySectionSearch(secId, effQ);
   }
 
-  const want = norm(name);
-  const findEl = () => {
-    const sec = document.getElementById('sec-' + secId);
-    if (!sec) return null;
-    if (targetId){ const t = document.getElementById(targetId); if (t) return t; }
-    const nameEls = sec.querySelectorAll('.tc-name,.fmt-name,.paq-name,.pago-name,.pres-name,.plt-name');
-    let target = null;
-    nameEls.forEach(el => { if (!target && norm(el.textContent) === want) target = el; });
-    if (!target) nameEls.forEach(el => { if (!target && norm(el.textContent).includes(want)) target = el; });
-    return (target ? target.closest('.tool-card,.fmt-card,.pago-card,.pres-card,.plt-card,tr') : null) || target;
-  };
+  esperarYRevelar(secId, name, targetId, () => clearPendingOpen());
+}
 
-  // Espera con reintentos (rAF) a que la sección termine de renderizar antes de saltar —
-  // más robusto que un setTimeout fijo cuando el render o la animación tardan.
+/* Localiza la tarjeta (o la fila) de un elemento dentro de una sección ya pintada.
+   Vive aparte porque hay DOS caminos que necesitan lo mismo: el buscador de esta
+   pantalla y un enlace directo de fuera (?sec=…&item=…), que es como llegan los
+   resultados del buscador general de las demás pantallas. */
+function elementoDeSeccion(secId, name, targetId){
+  const sec = document.getElementById('sec-' + secId);
+  if (!sec) return null;
+  if (targetId){ const t = document.getElementById(targetId); if (t) return t; }
+  const want = norm(name);
+  if (!want) return null;
+  const nameEls = sec.querySelectorAll('.tc-name,.fmt-name,.paq-name,.pago-name,.pres-name,.plt-name');
+  let target = null;
+  nameEls.forEach(el => { if (!target && norm(el.textContent) === want) target = el; });
+  if (!target) nameEls.forEach(el => { if (!target && norm(el.textContent).includes(want)) target = el; });
+  return (target ? target.closest('.tool-card,.fmt-card,.pago-card,.pres-card,.plt-card,tr') : null) || target;
+}
+
+/* Espera con reintentos (rAF) a que la sección termine de renderizar antes de saltar —
+   más robusto que un setTimeout fijo cuando el render o la animación tardan. */
+function esperarYRevelar(secId, name, targetId, alRendirse){
   const started = performance.now();
   (function attempt(){
-    const scrollEl = findEl();
+    const scrollEl = elementoDeSeccion(secId, name, targetId);
     if (!scrollEl){
       if (performance.now() - started < 1200) requestAnimationFrame(attempt);
-      else clearPendingOpen();
+      else if (alRendirse) alRendirse();
       return;
     }
     revealTarget(scrollEl);
