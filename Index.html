@@ -3006,6 +3006,11 @@ document.addEventListener('DOMContentLoaded', () => {
   const trazCache = trazLeerLocal();
   if (trazCache) onTrazData(trazCache, true);
 
+  // …y para el widget de promociones, que era el último hueco que se quedaba en
+  // blanco esperando al servidor.
+  const promoCache = promoLeerLocal();
+  if (promoCache) renderPromoStrip(promoCache);
+
   renderSyncStatus();
   if (syncTimer) clearInterval(syncTimer);
   syncTimer = setInterval(renderSyncStatus, 30000); // mantiene el "hace X" al día
@@ -3014,30 +3019,38 @@ document.addEventListener('DOMContentLoaded', () => {
   requestData(false);
 });
 
-/* ──────── CARGA / ACTUALIZACIÓN DE DATOS ──────── */
+/* ──────── CARGA / ACTUALIZACIÓN DE DATOS ────────
+   Las tres llamadas salen a la vez y cada una pinta su trozo en cuanto llega: el
+   Portal no espera a la más lenta para enseñar lo que ya tiene. El indicador de la
+   esquina se enciende una sola vez (lleva cuenta de las tres) y se apaga con la
+   última, así que dice la verdad sobre si queda algo por comprobar. */
 function requestData(manual){
   const sync = document.getElementById('heroSync');
   if (manual && sync) { sync.classList.add('is-loading'); sync.classList.remove('is-stale'); setSyncText('Actualizando…'); }
+  const busy = window.AppBusy || { until: () => () => {} };
   if (typeof google !== 'undefined' && google.script && google.script.run) {
+    const finTools = busy.until('Consultando');
     google.script.run
-      .withSuccessHandler(d => { onToolsData(d, false); finishRefresh(true, manual); })
-      .withFailureHandler(e => { onToolsError(e); finishRefresh(false, manual); })
+      .withSuccessHandler(d => { finTools(); onToolsData(d, false); finishRefresh(true, manual); })
+      .withFailureHandler(e => { finTools(); onToolsError(e); finishRefresh(false, manual); })
       .fetchToolsData();
+    const finPromos = busy.until('Consultando');
     google.script.run
-      .withSuccessHandler(renderPromoStrip)
-      .withFailureHandler(() => renderPromoStrip(null))
+      .withSuccessHandler(d => { finPromos(); onPromoCounts(d); })
+      .withFailureHandler(() => { finPromos(); onPromoCounts(null); })
       .fetchPromoCounts();
     // Trazabilidad va en su propia llamada: si la hoja de Homologación falla,
     // el resto del Portal (herramientas, formatos, plantillas) no se cae con ella.
+    const finTraz = busy.until('Consultando');
     google.script.run
-      .withSuccessHandler(d => onTrazData(d, false))
-      .withFailureHandler(onTrazError)
+      .withSuccessHandler(d => { finTraz(); onTrazData(d, false); })
+      .withFailureHandler(e => { finTraz(); onTrazError(e); })
       .fetchTrazabilidadData();
   } else {
     setTimeout(() => {
       onToolsData(mockData(), false);
       onTrazData(trazMock(), false);
-      renderPromoStrip({ status:'ok', activas:12, porTerminar:3 });
+      onPromoCounts({ status:'ok', activas:12, porTerminar:3 });
       finishRefresh(true, manual);
     }, manual ? 700 : 380);
   }
@@ -3477,7 +3490,31 @@ function dismissAviso(btn){
   else el.remove();
 }
 
-/* ── Widget "Hoy en promociones" (puente al Monitor) ── */
+/* ── Widget "Hoy en promociones" (puente al Monitor) ──
+   Son dos números que cambian como mucho un par de veces al día, y hasta ahora el
+   hueco se quedaba vacío hasta que respondía el servidor. Se guarda la última
+   cuenta buena (media hora) para que el widget aparezca ya puesto; si al revalidar
+   sale otra, se repinta sola. Un recuento de hace unos minutos en una tarjeta que
+   solo lleva al Monitor no engaña a nadie: el Monitor sí trae el dato exacto. */
+const PROMO_LS_CLAVE = 'ventel-promos-v1';
+const PROMO_LS_TTL   = 30 * 60 * 1000;
+
+function promoLeerLocal(){
+  const c = lsGet(PROMO_LS_CLAVE, null);
+  if (!c || !c.t || !c.data) return null;
+  if (Date.now() - c.t > PROMO_LS_TTL){
+    try { localStorage.removeItem(PROMO_LS_CLAVE); } catch(e){}
+    return null;
+  }
+  return c.data;
+}
+
+/** Punto único de entrada del recuento: pinta y, si es bueno, lo guarda. */
+function onPromoCounts(counts){
+  if (counts && counts.status === 'ok') lsSet(PROMO_LS_CLAVE, { t: Date.now(), data: counts });
+  renderPromoStrip(counts);
+}
+
 function renderPromoStrip(counts){
   const strip = document.getElementById('promoStrip');
   if (!strip) return;

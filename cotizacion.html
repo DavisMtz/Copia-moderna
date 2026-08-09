@@ -1432,6 +1432,18 @@
                             // cotización nueva arrancaría ofreciendo la anterior.
                             Borrador.limpiar(response.folio);
 
+                            // Hay un folio nuevo (o uno que cambió): las listas guardadas
+                            // de "mis cotizaciones" y de la cola de revisión ya no lo
+                            // reflejan. Se tiran para que al volver al inicio se vea lo que
+                            // se acaba de guardar y no la foto de hace un minuto.
+                            if (window.AppCache && AppCache.removeByPrefix) {
+                                try {
+                                    AppCache.removeByPrefix('quotes-');
+                                    AppCache.removeByPrefix('sup-quotes-');
+                                    AppCache.removeByPrefix('pendientes-');
+                                } catch (e) {}
+                            }
+
                             navigateToPage('cotizado_preview', { folio: response.folio });
                         } else {
                             showGeneralMessage(response.message || 'No se pudo guardar la cotización. Inténtalo de nuevo.', true, false);

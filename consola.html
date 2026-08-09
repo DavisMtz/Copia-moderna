@@ -735,8 +735,19 @@
      * no una repetición que convenga fusionar.
      */
     function llamar(nombre, args) {
-        var esLectura = nombre === 'consolaPanorama' || nombre === 'consolaBitacora';
-        return AppRun.call(nombre, args || [], esLectura ? {} : { key: nombre + ':' + Date.now() });
+        var esLectura = nombre === 'consolaPanorama' || nombre === 'consolaBitacora' || nombre === 'consolaSalud';
+        if (esLectura) return AppRun.call(nombre, args || [], {});
+
+        var p = AppRun.call(nombre, args || [], { key: nombre + ':' + Date.now(), busy: 'Guardando' });
+        // INVALIDACIÓN POR ESCRITURA. Aquí y no en cada handler: son ocho sitios que
+        // guardan cosas distintas y basta olvidarse de uno para que la consola pinte,
+        // a la siguiente visita, unos permisos que ya nadie tiene. Se tira la copia en
+        // cuanto el servidor confirma; si la escritura falla, la copia sigue siendo
+        // verdad y no se toca.
+        p.then(function (r) {
+            if (r && r.success && window.AppCache) { try { AppCache.remove(cnsClave()); } catch (e) {} }
+        }, function () {});
+        return p;
     }
 
     function bloquePorId(id) {
@@ -760,15 +771,30 @@
 
     // ── Carga ────────────────────────────────────────────────────────────────
 
-    function cargar() {
-        $('cns-cargando').hidden = false;
-        $('cns-negado').hidden = true;
-        $('cns-app').hidden = true;
+    /**
+     * Panorama de la consola: miembros, catálogo de roles y bloques, ajustes,
+     * formatos y bitácora. Es la lectura más cara de la app —varias hojas en una
+     * sola llamada— y lo que devuelve cambia poco entre visitas, así que se guarda
+     * en local y la pantalla se pinta con ella mientras se comprueba por detrás.
+     *
+     * Lo que NO se cachea es el resultado de escribir. Cada guardado llama a
+     * cargar(true), que tira la copia antes de releer: en una consola de permisos,
+     * enseñar el estado de antes del cambio no es una molestia, es un dato falso
+     * sobre quién puede hacer qué.
+     */
+    var CNS_CACHE_TTL = 15 * 60 * 1000;
+    function cnsClave() { return 'consola-panorama-' + AppSession.userEmail; }
 
-        llamar('consolaPanorama', [AppSession.userEmail]).then(function (r) {
+    function cargar(forzar) {
+        if (forzar && window.AppCache) { try { AppCache.remove(cnsClave()); } catch (e) {} }
+        $('cns-negado').hidden = true;
+
+        var pintadoAlguna = false;
+
+        var aplicar = function (r) {
             // Se exige también `yo` y `catalogo`: una respuesta a medias reventaría al
             // pintar y el asesor vería un error de JavaScript en vez de una explicación.
-            if (!r || !r.success || !r.yo || !r.catalogo) return negar(r && r.message);
+            if (!r || !r.success || !r.yo || !r.catalogo) return false;
 
             D.yo = r.yo; D.catalogo = r.catalogo; D.miembros = r.miembros || [];
             D.ajustes = r.ajustes || []; D.gruposAjustes = r.gruposAjustes || [];
@@ -780,11 +806,42 @@
 
             pintarTodo();
             if (window.Icons) Icons.render(document);
-            if (window.AppMotion) AppMotion.enter($('cns-app'));
+            // La entrada animada solo la primera vez: repetirla al llegar el dato
+            // fresco haría parpadear una pantalla que el usuario ya está leyendo.
+            if (!pintadoAlguna && window.AppMotion) AppMotion.enter($('cns-app'));
+            pintadoAlguna = true;
+            return true;
+        };
+
+        var cached = (!forzar && window.AppCache) ? AppCache.get(cnsClave(), CNS_CACHE_TTL) : null;
+        if (cached && aplicar(cached.data)) {
+            // Ya hay consola en pantalla: el "cargando" sobra y el indicador de la
+            // esquina se encarga de decir que esto se está comprobando.
+            $('cns-cargando').hidden = true;
+        } else {
+            $('cns-cargando').hidden = false;
+            $('cns-app').hidden = true;
+        }
+
+        llamar('consolaPanorama', [AppSession.userEmail]).then(function (r) {
+            if (!aplicar(r)) {
+                // Con la copia local delante, una respuesta mala no borra la pantalla:
+                // el permiso lo vuelve a exigir el servidor en cada acción.
+                if (pintadoAlguna) { avisar((r && r.message) || 'No pudimos actualizar la consola.'); return; }
+                return negar(r && r.message);
+            }
+            if (window.AppCache) AppCache.set(cnsClave(), r, { ttl: CNS_CACHE_TTL });
         }).catch(function (e) {
             console.error('consolaPanorama:', e);
+            if (pintadoAlguna) { avisar('Sin conexión: ves la última copia guardada de la consola.'); return; }
             negar('No hay conexión con el sistema. Revisa tu internet y recarga la página.');
         });
+    }
+
+    /** Aviso que no tapa nada, para cuando ya hay datos buenos en pantalla. */
+    function avisar(mensaje) {
+        if (window.AppMotion) AppMotion.toast(mensaje, 'warn');
+        else console.warn(mensaje);
     }
 
     function negar(mensaje) {
@@ -1660,8 +1717,9 @@
             irAPanel(siguiente.getAttribute('data-panel'));
         });
 
-        $('cns-recargar').addEventListener('click', cargar);
-        $('cns-negado-reintentar').addEventListener('click', cargar);
+        // "Recargar" tiene que significar releer, no repetir lo guardado.
+        $('cns-recargar').addEventListener('click', function () { cargar(true); });
+        $('cns-negado-reintentar').addEventListener('click', function () { cargar(true); });
         $('cns-negado-volver').addEventListener('click', function () { AppUrl.goHome(); });
         $('cns-recargar-bitacora').addEventListener('click', recargarBitacora);
         $('cns-correr-salud').addEventListener('click', correrSalud);

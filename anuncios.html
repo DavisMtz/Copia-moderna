@@ -504,6 +504,10 @@
       // (Portal.gs → portalGateAvanzado_) en cada operación de escritura.
       var ADV_EMAIL = '';
 
+      // Tolerancia a despliegues parciales: si el app_core cargado aún no trae el
+      // indicador, la pantalla funciona igual, solo sin el aviso de la esquina.
+      var AppBusy = window.AppBusy || { start: function(){ return 0; }, done: function(){}, until: function(){ return function(){}; } };
+
       /* ── Iconos ────────────────────────────────────────────────────────────
          Copia EXACTA de los trazos de Index.html (const ICONS): la vista previa
          tiene que dibujar el mismo ícono que el portal, no un emoji parecido.
@@ -835,7 +839,7 @@
             if (res && res.status === 'ok'){
               if (window.AppMotion) AppMotion.toast(editando ? 'Cambios guardados.' : 'Anuncio publicado.', 'ok');
               resetForm();
-              cargarLista(res.id);
+              cargarLista(res.id, true);
             } else {
               if (window.AppMotion) AppMotion.toast('No se pudo publicar. ' + ((res && res.error) || 'Inténtalo de nuevo.'), 'error');
             }
@@ -963,16 +967,44 @@
         return '<div class="anc-sk"><i></i><i></i><i></i></div>'.repeat(3);
       }
 
-      function cargarLista(destacarId){
+      /* La lista de anuncios se guarda en local para que entrar a esta pantalla la
+         enseñe ya hecha y la comprobación contra el servidor ocurra por detrás. Toda
+         escritura (publicar, ocultar, reordenar, borrar) llama a cargarLista(id, true)
+         y eso tira la copia: lo que se acaba de publicar no puede tardar en verse. */
+      var ANC_CACHE_TTL = 10 * 60 * 1000;
+      function ancClaveLista(){ return 'anuncios-admin-' + ADV_EMAIL; }
+
+      /** Deja en la copia local una respuesta buena. Nunca guarda un error. */
+      function ancGuardarLista(res){
+        if (!window.AppCache || !res || res.status !== 'ok') return;
+        try { AppCache.set(ancClaveLista(), res, { ttl: ANC_CACHE_TTL }); } catch (e) {}
+      }
+
+      function cargarLista(destacarId, forzar){
+        if (forzar && window.AppCache) { try { AppCache.remove(ancClaveLista()); } catch (e) {} }
         if (!listaActual.length) $('lista').innerHTML = skeleton();
-        google.script.run
-          .withSuccessHandler(function(res){ renderLista(res, destacarId); })
-          .withFailureHandler(function(){
+
+        AppRun.swr(ancClaveLista(), 'getAnunciosAdmin', [ADV_EMAIL], {
+          ttl: ANC_CACHE_TTL,
+          fuerza: forzar === true,
+          accept: function(res){ return !!(res && res.status === 'ok'); },
+          // renderLista repinta la lista entera, así que llamarlo dos veces —copia
+          // local y luego dato fresco— deja exactamente el mismo resultado.
+          onData: function(res, deCache){
+            // Destacar es una animación de "esto es lo que acabas de tocar": tiene
+            // sentido sobre el dato fresco, no sobre la copia guardada.
+            renderLista(res, deCache ? null : destacarId);
+          },
+          onError: function(err, cached){
+            if (cached){
+              if (window.AppMotion) AppMotion.toast('No pudimos actualizar la lista: ves la última copia guardada.', 'warn');
+              return;
+            }
             $('lista').innerHTML = '<div class="anc-empty">' + ancIcon('warning')
               + '<div class="anc-empty-t">No se pudo cargar la lista</div>'
               + '<div class="anc-empty-s">Revisa tu conexión y vuelve a intentarlo.</div></div>';
-          })
-          .getAnunciosAdmin(ADV_EMAIL);
+          }
+        });
       }
 
       function tituloDe(a){ var d = a.datos || {}; return d.titulo || d.mensaje || '(sin título)'; }
@@ -1082,9 +1114,16 @@
         Array.prototype.forEach.call(box.querySelectorAll('.anc-item'), function(el){
           previos[el.dataset.id] = el.getBoundingClientRect().top;
         });
+        var finBusy = AppBusy.until('Guardando');
         google.script.run
           .withSuccessHandler(function(){
+            // Relectura propia (no cargarLista) porque la animación FLIP necesita
+            // repintar sin el esqueleto de por medio: mide, repinta y anima el salto.
             google.script.run.withSuccessHandler(function(res){
+              finBusy();
+              // El orden acaba de cambiar: la copia local se queda con el nuevo, o la
+              // próxima visita pintaría la lista tal como estaba antes de moverla.
+              ancGuardarLista(res);
               renderLista(res, null, true);
               if (!motionOK()) return;
               Array.prototype.forEach.call(box.querySelectorAll('.anc-item'), function(el){
@@ -1095,9 +1134,10 @@
                 gsap.fromTo(el, { y: delta },
                   { y: 0, duration:.42, ease:'power3.out', clearProps:'transform' });
               });
-            }).getAnunciosAdmin(ADV_EMAIL);
+            }).withFailureHandler(function(){ finBusy(); cargarLista(null, true); })
+              .getAnunciosAdmin(ADV_EMAIL);
           })
-          .withFailureHandler(function(){ cargarLista(); })
+          .withFailureHandler(function(){ finBusy(); cargarLista(null, true); })
           .moverAnuncio(id, dir, ADV_EMAIL);
       }
 
@@ -1304,8 +1344,8 @@
             mover(id, act);
           } else if (act === 'toggle'){
             google.script.run
-              .withSuccessHandler(function(){ cargarLista(id); })
-              .withFailureHandler(function(){ cargarLista(); })
+              .withSuccessHandler(function(){ cargarLista(id, true); })
+              .withFailureHandler(function(){ cargarLista(null, true); })
               .toggleAnuncio(id, b.dataset.on !== '1', ADV_EMAIL);
           } else if (act === 'del'){
             var t = anuncios[id] ? tituloDe(anuncios[id]) : '';
@@ -1317,10 +1357,10 @@
               google.script.run
                 .withSuccessHandler(function(){
                   if (state.editando === id) resetForm();
-                  cargarLista();
+                  cargarLista(null, true);
                   if (window.AppMotion) AppMotion.toast('Publicación borrada.', 'ok');
                 })
-                .withFailureHandler(function(){ cargarLista(); })
+                .withFailureHandler(function(){ cargarLista(null, true); })
                 .eliminarAnuncio(id, ADV_EMAIL);
             });
           }

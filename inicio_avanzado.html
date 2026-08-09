@@ -1028,6 +1028,7 @@
             // Caché local (patrón del resto de la app): la tabla se pinta al instante con
             // los últimos datos conocidos y SIEMPRE se revalida contra el servidor.
             const AppCache = window.AppCache || { get: () => null, set: () => {}, remove: () => {}, ageLabel: () => '' };
+            const AppBusy = window.AppBusy || { start: () => 0, done: () => {}, until: () => () => {} };
             const SUP_CACHE_KEY = 'sup-quotes-' + currentUserEmail;
 
             // ==========================================================
@@ -1663,8 +1664,7 @@
                         AppMotion.toast(res.message || 'Política guardada.', 'ok');
                         if (res.aviso) AppMotion.toast(res.aviso, 'warn');
                         // La política cambió: lo que sigue en la cola pudo quedar liberado.
-                        try { AppCache.remove(SUP_CACHE_KEY); } catch (e) {}
-                        loadSupervisionQuotes();
+                        loadSupervisionQuotes(true);
                     })
                     .withFailureHandler(err => {
                         btn.disabled = false;
@@ -1715,32 +1715,60 @@
              * pendiente. Sin esto el permiso de revisar existía sobre el papel y no
              * había pantalla desde la que ejercerlo.
              */
-            const loadPendientesSolo = () => {
-                document.getElementById('pend-lista').innerHTML =
+            /* La cola se guarda en local (5 min) y se pinta antes de preguntar. Es una
+               lista corta que se mira muchas veces al día —se entra, se aprueba una y
+               se vuelve—, y esperar a la red cada vez para ver las mismas tres filas
+               era el grueso de la espera de esta pantalla. El TTL es corto a propósito:
+               una cola de autorizaciones vieja invita a revisar algo que otro ya atendió,
+               y por eso además se tira entera tras aprobar o rechazar. */
+            const PEND_CACHE_KEY = 'pendientes-' + currentUserEmail;
+            const PEND_TTL_MS = 5 * 60 * 1000;
+
+            const loadPendientesSolo = (forzar) => {
+                if (forzar) { try { AppCache.remove(PEND_CACHE_KEY); } catch (e) {} }
+                const cached = forzar ? null : AppCache.get(PEND_CACHE_KEY, PEND_TTL_MS);
+                if (cached && Array.isArray(cached.data)) renderPendientes(cached.data);
+                else document.getElementById('pend-lista').innerHTML =
                     '<div class="pend-vacio"><div class="v-spinner"></div> Cargando la cola…</div>';
+
+                const finBusy = AppBusy.until('Consultando');
                 google.script.run
                     .withSuccessHandler(r => {
-                        if (r && r.success) renderPendientes(r.quotes || []);
-                        else pendientesEnError((r && r.message) || 'No se pudo leer la cola de revisión.');
+                        finBusy();
+                        if (r && r.success) {
+                            AppCache.set(PEND_CACHE_KEY, r.quotes || [], { ttl: PEND_TTL_MS });
+                            renderPendientes(r.quotes || []);
+                        } else if (!cached) {
+                            pendientesEnError((r && r.message) || 'No se pudo leer la cola de revisión.');
+                        }
                     })
-                    .withFailureHandler(() => pendientesEnError('Sin conexión. Vuelve a intentarlo.'))
+                    .withFailureHandler(() => {
+                        finBusy();
+                        // Con la cola ya en pantalla, un fallo de red no la borra: quien
+                        // revisa sigue viendo qué tiene delante, y el servidor volverá a
+                        // exigir el permiso cuando intente aprobar algo.
+                        if (!cached) pendientesEnError('Sin conexión. Vuelve a intentarlo.');
+                    })
                     .revListaPendientes(currentUserEmail);
             };
 
-            const loadSupervisionQuotes = () => {
+            const loadSupervisionQuotes = (forzar) => {
                 // Sin el bloque de supervisión no se piden las métricas: se pide solo la
                 // cola, que es lo único que esta persona puede (y necesita) ver.
-                if (!AppSession.can('supervision')) { loadPendientesSolo(); return; }
+                if (!AppSession.can('supervision')) { loadPendientesSolo(forzar); return; }
 
-                const cached = AppCache.get(SUP_CACHE_KEY);
+                if (forzar) { try { AppCache.remove(SUP_CACHE_KEY); } catch (e) {} }
+                const cached = forzar ? null : AppCache.get(SUP_CACHE_KEY);
                 if (cached && Array.isArray(cached.data)) {
                     paintSupervision(cached.data);
                 } else {
                     showSupPlaceholder('<div class="flex items-center justify-center gap-3 text-slate-500"><div class="v-spinner"></div> Cargando todas las cotizaciones...</div>');
                 }
 
+                const finBusy = AppBusy.until('Consultando');
                 google.script.run
                     .withSuccessHandler(response => {
+                        finBusy();
                         if (response.success) {
                             AppCache.set(SUP_CACHE_KEY, response.quotes || []);
                             paintSupervision(response.quotes || []);
@@ -1750,6 +1778,7 @@
                         }
                     })
                     .withFailureHandler(error => {
+                        finBusy();
                         if (cached) {
                             AppMotion.toast('No pudimos conectarnos: te mostramos la última información guardada.', 'warn');
                         } else {
@@ -1764,10 +1793,9 @@
             // "Actualizar" de la cola: tira la copia local y vuelve a preguntar. Es el botón
             // que se pulsa después de aprobar un folio en otra pestaña.
             document.getElementById('pend-refrescar').addEventListener('click', (ev) => {
-                try { AppCache.remove(SUP_CACHE_KEY); } catch (e) {}
                 document.getElementById('pend-lista').innerHTML =
                     '<div class="pend-vacio"><div class="v-spinner"></div> Actualizando…</div>';
-                loadSupervisionQuotes();
+                loadSupervisionQuotes(true);
                 AppMotion.pop(ev.currentTarget);
             });
 
