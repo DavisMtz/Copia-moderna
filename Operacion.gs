@@ -58,6 +58,41 @@ const OP_COLS_CATALOGO = ['Tipo', 'SistemaClave', 'Valor', 'Clave', 'Tono', 'Cre
 const OP_UMBRAL_PERSONAS = 3;
 const OP_VENTANA_MIN = 30;
 
+/**
+ * El mismo umbral, pero mirando el SERVICIO COMPLETO en vez de un motivo concreto.
+ *
+ * La regla de arriba exige que las tres personas reporten LO MISMO. Cuando un sistema se
+ * degrada de verdad, casi nunca se rompe de una sola forma: uno dice "no abre", otro "va
+ * lentísimo" y otro "no me deja iniciar sesión". Son tres asesores que no pueden trabajar
+ * con Connect, y con la regla por motivo cada uno se quedaba solo en su cubeta y no saltaba
+ * nada. Este segundo umbral cuenta personas por SISTEMA, sin mirar el motivo.
+ *
+ * Se evalúa DESPUÉS del de motivo: cuando las tres coinciden en la misma queja, lo que se
+ * levanta es el incidente concreto ("Connect · No abre"), que dice mucho más que uno
+ * genérico. Este solo entra cuando el motivo no alcanzó por sí solo.
+ *
+ * Ponerlo en false devuelve el módulo al comportamiento anterior sin tocar nada más.
+ */
+const OP_UMBRAL_SERVICIO_ACTIVO = true;
+
+/**
+ * Lo que lee el PÚBLICO cuando salta un umbral y todavía no ha pasado nadie de supervisión.
+ *
+ * Este texto se publica SOLO. No espera aprobación, y es a propósito: los minutos en los que
+ * la gente sigue peleándose con un sistema caído son justo los que hay que ahorrarles, y para
+ * entonces el supervisor está ocupado con la misma caída. Por eso está redactado como lo que
+ * de verdad se sabe en ese momento —una sospecha con respaldo, no un hecho—: si más tarde
+ * resulta falsa alarma, nadie tiene que desdecirse de nada.
+ *
+ * No lleva el número de personas ni quiénes son: sirve para la nota interna, no para la calle.
+ */
+const OP_AVISO_POSIBLE = 'Es posible que existan problemas con el servicio.';
+
+function opAvisoPosibleDetalle_() {
+  return OP_AVISO_POSIBLE + ' Varias personas reportaron fallas en los últimos ' +
+         OP_VENTANA_MIN + ' minutos y lo estamos revisando.';
+}
+
 /** Tope de reportes por persona y hora. No es castigo: evita que un clic nervioso infle la hoja. */
 const OP_MAX_REPORTES_HORA = 8;
 
@@ -762,15 +797,39 @@ function opCalcularEstadoPublico_() {
   const afectados = sistemas.filter(function (s) { return s.tono !== 'ok'; });
   const hayAlert = afectados.some(function (s) { return s.tono === 'alert'; });
 
+  /*
+   * ¿Todo lo que hay es SOSPECHA? Es decir: saltó un umbral, nadie de supervisión ha pasado
+   * todavía y no hay ninguna falla confirmada ni ningún mantenimiento en curso.
+   *
+   * Importa porque cambia lo que se puede afirmar. "Hay una incidencia en Connect" es una
+   * afirmación, y si media hora después resulta que era la red de una sola sala, el tablero
+   * queda desmentido y la próxima vez nadie lo mira. Mientras solo hay sospecha se dice lo
+   * que de verdad se sabe.
+   */
+  const queAfectan = vivos.filter(function (i) { return i.afecta; });
+  const soloSospecha = !!queAfectan.length && queAfectan.every(function (i) {
+    return i.estado === 'posible' && !i.confirmado;
+  });
+
+  let resumen;
+  if (!afectados.length) {
+    resumen = 'Todos los sistemas funcionan con normalidad.';
+  } else if (soloSospecha) {
+    resumen = OP_AVISO_POSIBLE + (afectados.length === 1
+      ? ' Los reportes apuntan a ' + afectados[0].nombre + '.'
+      : ' Los reportes apuntan a ' + afectados.length + ' sistemas.');
+  } else {
+    resumen = afectados.length === 1
+      ? 'Hay una incidencia en ' + afectados[0].nombre + '.'
+      : 'Hay incidencias en ' + afectados.length + ' sistemas.';
+  }
+
   return {
     success: true,
     consultado: new Date().toISOString(),
     global: !afectados.length ? 'ok' : (hayAlert ? 'alert' : 'warn'),
-    resumen: !afectados.length
-      ? 'Todos los sistemas funcionan con normalidad.'
-      : (afectados.length === 1
-          ? 'Hay una incidencia en ' + afectados[0].nombre + '.'
-          : 'Hay incidencias en ' + afectados.length + ' sistemas.'),
+    sospecha: soloSospecha,
+    resumen: resumen,
     sistemas: sistemas,
     incidentes: vivos.filter(function (i) { return i.afecta; }).map(function (i) {
       return {
@@ -951,7 +1010,10 @@ function opReportar(payload) {
     let creado = null;
     let incidenteFinal = incidente;
     if (!incidente) {
+      // Primero por motivo: "Connect · No abre" dice mucho más que "Problemas con Connect".
+      // Si las tres personas no coincidieron en la queja, se mira el sistema entero.
       creado = opEvaluarUmbral_(catalogo2, sistemaNombre, sistemaClave, submotivo, submotivoClave, id);
+      if (!creado) creado = opEvaluarUmbralServicio_(catalogo2, sistemaNombre, sistemaClave);
       if (creado) incidenteFinal = creado;
     } else {
       opEscribirCeldas_(OP_SHEET_INCIDENTES, OP_COLS_INCIDENTES, incidente._fila, { Actualizado: ahora });
@@ -970,8 +1032,9 @@ function opReportar(payload) {
     // minutos en los que la gente todavía está intentando trabajar contra un sistema caído.
     if (creado) {
       opAvisarEstado_(creado, {
-        nota: 'Detectado automáticamente: ' + OP_UMBRAL_PERSONAS + ' personas reportaron lo mismo en menos de ' +
-              OP_VENTANA_MIN + ' minutos. Falta confirmar.',
+        nota: 'Detectado automáticamente: ' + OP_UMBRAL_PERSONAS + ' personas reportaron ' +
+              (creado.submotivo ? 'lo mismo' : 'fallas en este sistema') + ' en menos de ' +
+              OP_VENTANA_MIN + ' minutos. Ya está publicado como posible problema; falta confirmar.',
         autoDetectado: true
       });
     }
@@ -984,7 +1047,10 @@ function opReportar(payload) {
       sistema: sistemaNombre,
       submotivo: submotivo,
       message: creado
-        ? 'Gracias. Varias personas están reportando lo mismo, así que ya avisamos al equipo.'
+        ? (creado.submotivo
+            ? 'Gracias. Varias personas están reportando lo mismo, así que ya avisamos al equipo y se publicó en el tablero.'
+            : 'Gracias. Varias personas están reportando fallas en ' + sistemaNombre +
+              ', así que ya avisamos al equipo y se publicó en el tablero.')
         : (incidente
             ? 'Gracias. Ya había un reporte abierto por esto y sumamos el tuyo.'
             : 'Gracias. Tu reporte quedó registrado.')
@@ -1062,7 +1128,13 @@ function opIncidenteParaReporte_(catalogo, sistemaClave, submotivo, submotivoCla
   // Un incidente CONFIRMADO del mismo sistema se lleva cualquier reporte de ese sistema:
   // si Connect está caído entero, da igual con qué palabras lo describa cada quien.
   const confirmado = vivos.filter(function (i) { return i.estado === 'confirmado' || i.estado === 'mantenimiento'; })[0];
-  return confirmado || null;
+  if (confirmado) return confirmado;
+
+  // Y uno de SERVICIO —el que nace del umbral por sistema— tampoco apunta a un motivo, así
+  // que recoge igual lo que llegue de ese sistema. Sin esto, los reportes que vienen después
+  // se quedarían sueltos y levantarían un segundo incidente por la misma degradación.
+  const deServicio = vivos.filter(function (i) { return !opClave_(i.submotivo); })[0];
+  return deServicio || null;
 }
 
 /**
@@ -1098,35 +1170,110 @@ function opEvaluarUmbral_(catalogo, sistemaNombre, sistemaClave, submotivo, subm
     ID: incidenteId, Clave: sistemaClave + '|' + submotivoClave,
     Sistema: sistemaNombre, SistemaClave: sistemaClave, Submotivo: submotivo,
     Estado: 'posible', Titulo: titulo,
-    Detalle: cuantas + ' personas reportaron lo mismo en menos de ' + OP_VENTANA_MIN + ' minutos.',
+    Detalle: opAvisoPosibleDetalle_(),
     Creado: ahora, CreadoPor: 'sistema', CreadoNombre: 'Detección automática',
     Actualizado: ahora, Origen: 'automatico'
   });
 
   opVincularReportesSueltos_(sistemaClave, submotivo, submotivoClave, incidenteId, desde);
-
-  opAgregarFila_(OP_SHEET_ACTUALIZACIONES, OP_COLS_ACTUALIZACIONES, {
-    ID: opId_('act'), IncidenteId: incidenteId, Fecha: ahora,
-    Autor: 'sistema', AutorNombre: 'Detección automática', Estado: 'posible',
-    Nota: cuantas + ' personas distintas reportaron «' + submotivo + '» en ' + sistemaNombre +
-          ' en menos de ' + OP_VENTANA_MIN + ' minutos.',
-    Aviso: 'Si'
-  });
+  opAnotarDeteccion_(incidenteId, ahora,
+    cuantas + ' personas distintas reportaron «' + submotivo + '» en ' + sistemaNombre +
+    ' en menos de ' + OP_VENTANA_MIN + ' minutos.');
 
   const catalogo2 = opLeerCatalogo_();
   const creado = opIncidentesVivos_(catalogo2).filter(function (i) { return i.id === incidenteId; })[0];
   return creado || null;
 }
 
-/** Cuelga del incidente recién creado los reportes que lo provocaron. */
+/**
+ * ¿Hay suficientes personas distintas peleándose con el MISMO SISTEMA, aunque cada una lo
+ * describa a su manera? Si sí, se levanta un incidente de servicio.
+ *
+ * Se llama solo cuando el umbral por motivo NO saltó: si tres personas coinciden en la misma
+ * queja, el incidente concreto es más útil que este.
+ *
+ * El incidente que sale de aquí va SIN submotivo, y eso no es un hueco que falte rellenar: es
+ * la información que hay. Decir "Connect · No abre" cuando en realidad a cada quien le falla
+ * de forma distinta sería inventarse una causa común que nadie ha visto.
+ */
+function opEvaluarUmbralServicio_(catalogo, sistemaNombre, sistemaClave) {
+  if (!OP_UMBRAL_SERVICIO_ACTIVO) return null;
+
+  const desde = Date.now() - OP_VENTANA_MIN * 60 * 1000;
+  const personas = {};
+  const motivos = {};
+
+  opLeerHoja_(OP_SHEET_REPORTES, OP_COLS_REPORTES).forEach(function (f) {
+    if (String(f.SistemaClave || '') !== sistemaClave) return;
+    if (String(f.IncidenteId || '')) return;         // ya pertenece a otro incidente
+    if (opMs_(f.Fecha) < desde) return;
+    personas[String(f.Correo || '').toLowerCase()] = true;
+    const m = String(f.Submotivo || '').trim();
+    if (m) motivos[m] = true;
+  });
+
+  const cuantas = Object.keys(personas).length;
+  if (cuantas < OP_UMBRAL_PERSONAS) return null;
+
+  const incidenteId = opId_('inc');
+  const ahora = new Date();
+
+  opAgregarFila_(OP_SHEET_INCIDENTES, OP_COLS_INCIDENTES, {
+    ID: incidenteId, Clave: sistemaClave + '|',
+    Sistema: sistemaNombre, SistemaClave: sistemaClave, Submotivo: '',
+    Estado: 'posible', Titulo: opTitulo_(sistemaNombre, ''),
+    Detalle: opAvisoPosibleDetalle_(),
+    Creado: ahora, CreadoPor: 'sistema', CreadoNombre: 'Detección automática',
+    Actualizado: ahora, Origen: 'automatico-servicio'
+  });
+
+  opVincularReportesSueltos_(sistemaClave, null, '', incidenteId, desde);
+  opAnotarDeteccion_(incidenteId, ahora,
+    cuantas + ' personas distintas reportaron fallas en ' + sistemaNombre + ' en menos de ' +
+    OP_VENTANA_MIN + ' minutos, cada una con un motivo diferente (' +
+    Object.keys(motivos).slice(0, 5).join('; ') + ').');
+
+  const catalogo2 = opLeerCatalogo_();
+  const creado = opIncidentesVivos_(catalogo2).filter(function (i) { return i.id === incidenteId; })[0];
+  return creado || null;
+}
+
+/**
+ * Las dos anotaciones que deja una detección automática.
+ *
+ * Van separadas porque tienen públicos distintos: la primera se publica (Aviso: 'Si') y la
+ * lee cualquiera que abra el tablero sin sesión, así que dice lo que se sabe sin dar cifras;
+ * la segunda es para quien va a decidir qué hacer, y ahí sí importa cuántas personas fueron y
+ * con qué palabras lo contaron.
+ */
+function opAnotarDeteccion_(incidenteId, ahora, notaInterna) {
+  opAgregarFila_(OP_SHEET_ACTUALIZACIONES, OP_COLS_ACTUALIZACIONES, {
+    ID: opId_('act'), IncidenteId: incidenteId, Fecha: ahora,
+    Autor: 'sistema', AutorNombre: 'Detección automática', Estado: 'posible',
+    Nota: opAvisoPosibleDetalle_(), Aviso: 'Si'
+  });
+  opAgregarFila_(OP_SHEET_ACTUALIZACIONES, OP_COLS_ACTUALIZACIONES, {
+    ID: opId_('act'), IncidenteId: incidenteId, Fecha: ahora,
+    Autor: 'sistema', AutorNombre: 'Detección automática', Estado: 'posible',
+    Nota: notaInterna, Aviso: 'No'
+  });
+}
+
+/**
+ * Cuelga del incidente recién creado los reportes que lo provocaron.
+ * @param {string|null} submotivo null = todos los del sistema (incidente de servicio).
+ */
 function opVincularReportesSueltos_(sistemaClave, submotivo, submotivoClave, incidenteId, desde) {
+  const porMotivo = submotivo !== null;
   opLeerHoja_(OP_SHEET_REPORTES, OP_COLS_REPORTES).forEach(function (f) {
     if (String(f.IncidenteId || '')) return;
     if (String(f.SistemaClave || '') !== sistemaClave) return;
     if (opMs_(f.Fecha) < desde) return;
-    const mismo = String(f.SubmotivoClave || '') === submotivoClave ||
-                  opMismoMotivo_(String(f.Submotivo || ''), submotivo);
-    if (!mismo) return;
+    if (porMotivo) {
+      const mismo = String(f.SubmotivoClave || '') === submotivoClave ||
+                    opMismoMotivo_(String(f.Submotivo || ''), submotivo);
+      if (!mismo) return;
+    }
     opEscribirCeldas_(OP_SHEET_REPORTES, OP_COLS_REPORTES, f._fila, {
       IncidenteId: incidenteId, Estado: 'vinculado'
     });
@@ -1784,6 +1931,11 @@ function opDiagnostico() {
 
     const vivos = opIncidentesVivos_(cat);
     anota('Incidencias vivas', true, vivos.length + '');
+
+    anota('Umbral automático', true,
+          OP_UMBRAL_PERSONAS + ' personas / ' + OP_VENTANA_MIN + ' min · por motivo' +
+          (OP_UMBRAL_SERVICIO_ACTIVO ? ' y por sistema' : ' (el de sistema está apagado)') +
+          ' · se publica sin confirmar');
 
     // Los algoritmos, con casos que ya han mordido antes.
     anota('Detecta el mismo texto con otro orden',

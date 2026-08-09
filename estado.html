@@ -394,11 +394,16 @@
       }
 
       var tono = e.global || 'ok';
+      // Mientras nadie ha confirmado nada, el titular no puede afirmar más que el texto de
+      // abajo: "Hay incidencias activas" sobre un aviso automático es prometer una certeza
+      // que todavía no existe, y desdecirse mañana cuesta más que haber sido prudente hoy.
+      var titular = (tono === 'ok') ? 'Todo funcionando'
+                  : (e.sospecha ? 'Posibles problemas con el servicio' : 'Hay incidencias activas');
       banner.innerHTML =
         '<div class="est-banner tono-' + esc(tono) + '">' +
           '<span class="est-banner-ic">' + (ICONO[tono] || IC.info) + '</span>' +
           '<span class="est-banner-tx">' +
-            '<h2>' + esc(tono === 'ok' ? 'Todo funcionando' : 'Hay incidencias activas') + '</h2>' +
+            '<h2>' + esc(titular) + '</h2>' +
             '<p>' + esc(e.resumen || '') + '</p>' +
             '<span class="est-hora">Consultado ' + esc(desdeHace(e.consultado) || 'ahora') + '</span>' +
           '</span>' +
