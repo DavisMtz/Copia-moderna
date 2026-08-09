@@ -1088,9 +1088,13 @@
     const NARANJA = '#EE7D00', MORADO = '#AC4581';   // hex exacto de la marca
 
     const CSS =
-      // El disco. Mismas medidas, filo, cristal y sombra que la pastilla de estado.
+      // El disco de "consultando". Vive arriba a la derecha y dura lo que dura una
+      // llamada al servidor: por eso FLOTA (cristal, sombra difusa, sin anclaje). No
+      // confundir con la pestaña de estado de app_operacion, que va anclada al canto
+      // inferior izquierdo porque es permanente: fueron gemelas un tiempo y ya no lo son,
+      // a propósito. Tocar una no obliga a tocar la otra.
       // box-sizing propio: el Portal no trae preflight de Tailwind ni reset alguno, así
-      // que sin esto el filo suma 2 px y el disco deja de medir lo mismo que su pareja.
+      // que sin esto el filo suma 2 px y el disco deja de medir 34.
       '.vb-pill{box-sizing:border-box;position:fixed;top:1rem;right:1rem;z-index:10001;' +
       'display:grid;place-items:center;width:34px;height:34px;border-radius:999px;' +
       'pointer-events:none;background:var(--surface,#fff);border:1px solid var(--line,#eadfe6);' +
