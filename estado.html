@@ -661,7 +661,14 @@
   </div>
 
   <script>
-    window.__APP__ = { baseUrl: <?!= JSON.stringify(APP_URL) ?>, inc: <?!= JSON.stringify(inc) ?> };
+    window.__APP__ = {
+      baseUrl: <?!= JSON.stringify(APP_URL) ?>,
+      inc: <?!= JSON.stringify(inc) ?>,
+      // Periodo del gráfico ('24h', '7d'…). Va inyectado como los demás parámetros de
+      // vista: dentro del iframe de Apps Script, leer la barra de direcciones da la del
+      // sandbox y no la del enlace que alguien compartió.
+      rango: <?!= JSON.stringify(rango) ?>
+    };
   </script>
   <?!= include('app_core'); ?>
   <?!= include('app_prefs'); ?>
@@ -1441,9 +1448,35 @@
 
       /* El historial se monta DESPUÉS del estado actual y sin esperarlo. Son dos llamadas
          independientes, y encadenarlas retrasaría el titular —lo que la gente viene a
-         leer— hasta que terminara de cargar un gráfico que está más abajo del pliegue. */
+         leer— hasta que terminara de cargar un gráfico que está más abajo del pliegue.
+
+         Arranca por HORAS. Quien abre este tablero acaba de tropezarse con algo, y lo que
+         necesita saber es desde qué hora pasa y si sigue subiendo; eso en una tira de días
+         es una sola barra. Los días siguen a un clic, para la otra pregunta.
+
+         El periodo elegido viaja en la URL (?rango=24h). Es lo que permite pegar en un
+         chat "míralo por horas" en vez de tener que explicar dónde pulsar. */
       if (window.AppEstadoHistorial) {
-        AppEstadoHistorial.montar('est-historial-host', { dias: 14 });
+        var pedido = (window.AppUrl && AppUrl.param('rango')) || '';
+        AppEstadoHistorial.montar('est-historial-host', {
+          rango: pedido,
+          alCambiar: function (id) {
+            if (!window.AppUrl || !AppUrl.actualizar) return;
+            // Se reemplaza la entrada del historial: cambiar de periodo es mirar lo mismo
+            // de otra forma, no ir a otro sitio, y apilarlo obligaría a pulsar atrás una
+            // vez por cada botón que se probara.
+            AppUrl.actualizar({ page: 'estado', inc: AppUrl.param('inc') || '', rango: id }, null, false);
+          }
+        });
+
+        // Atrás/adelante del navegador. `callado` porque lo que llega es lo que el
+        // navegador acaba de poner en la dirección: reescribirla sería contestarle.
+        if (window.AppUrl && AppUrl.alCambiarUrl) {
+          AppUrl.alCambiarUrl(function (loc) {
+            var p = (loc && loc.parameter) || {};
+            if (p.rango) AppEstadoHistorial.irARango(p.rango, true);
+          });
+        }
       }
 
       // El tablero se mira mientras algo está roto: tiene que refrescarse solo.

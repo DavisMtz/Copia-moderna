@@ -2197,8 +2197,12 @@
 
                         /* El historial del servicio, dentro del feed. Es el mismo módulo del
                            tablero público: una sola implementación, dos sitios donde mirarla. */
+                        /* Por horas, igual que el tablero público. En un resumen de
+                           gestión la pregunta útil es "¿qué está pasando hoy y desde qué
+                           hora?"; el mes se mira cuando ya se sabe que hay algo que mirar,
+                           y para eso están los botones de días. */
                         if (window.AppEstadoHistorial) {
-                            AppEstadoHistorial.montar('feed-historial', { dias: 14 });
+                            AppEstadoHistorial.montar('feed-historial', { rango: '24h' });
                         }
 
                         /* Se repinta cuando cambian los fijados desde otra pestaña o desde

@@ -875,12 +875,40 @@ function opCalcularEstadoPublico_() {
 // solo tres personas reportaran una caída no la hace pequeña, normalmente significa que las
 // demás ya habían dejado de intentarlo.
 
-/** Cuántos días de historia se pueden pedir. Más de un trimestre no cabe en una barra legible. */
-const OP_HISTORIAL_MAX_DIAS = 90;
+/**
+ * Cuántos días de historia se pueden pedir.
+ *
+ * Treinta, y no noventa como antes. La pregunta que contesta este gráfico es "¿esto lleva
+ * pasando?", y esa se contesta con el mes en curso: a los noventa días la tira tiene barras
+ * de dos píxeles, ninguna se puede señalar con el ratón y lo único que queda es una mancha
+ * de color. Un trimestre es material para un informe, no para una pantalla de operación —y
+ * para un informe hace falta una tabla, no barras—.
+ */
+const OP_HISTORIAL_MAX_DIAS = 30;
 const OP_HISTORIAL_POR_OMISION = 14;
 
 /** Cuánto se cachea el historial. Es un gráfico por día: no cambia de un segundo a otro. */
 const OP_TTL_HISTORIAL = 600;
+
+/**
+ * EL GRÁFICO POR HORAS · lo primero que se enseña
+ * ------------------------------------------------
+ * El historial por días contesta "¿esto lleva pasando toda la semana?". Es buena pregunta,
+ * pero no es la primera: quien abre el tablero casi siempre acaba de tropezarse con algo y lo
+ * que necesita saber es a qué hora empezó, si sigue subiendo o si ya está bajando. En una
+ * tira de días eso es UNA barra —la de hoy— y no dice nada de eso.
+ *
+ * Por hora sí se ve: el escalón de las 11:20, la meseta de la comida, el pico de la tarde. Es
+ * además la escala en la que se decide algo (avisar al proveedor, mandar a la gente a otro
+ * flujo), mientras que la de días solo sirve para contarlo después.
+ *
+ * TREINTA MINUTOS DE CACHÉ para el día... y dos para las horas: una serie por hora cambia
+ * mientras se mira, y enseñarla con diez minutos de retraso durante una caída en curso es
+ * justo cuando peor sienta.
+ */
+const OP_HISTORIAL_MAX_HORAS = 72;
+const OP_HISTORIAL_HORAS_POR_OMISION = 24;
+const OP_TTL_HISTORIAL_HORAS = 120;
 
 /** Fecha local en formato AAAA-MM-DD, según la zona horaria del script. */
 function opDiaClave_(valor) {
@@ -893,7 +921,29 @@ function opDiaClave_(valor) {
   }
 }
 
-/** Tono de un día a partir de cuánto se reportó y de si hubo algo confirmado. */
+/**
+ * Clave local de una hora, 'AAAA-MM-DD HH'. Misma zona que opDiaClave_: si una usara la del
+ * script y la otra UTC, el gráfico por horas y el de días contarían el mismo reporte en días
+ * distintos y no habría forma de darse cuenta mirándolos.
+ */
+function opHoraClave_(valor) {
+  const ms = opMs_(valor);
+  if (!ms) return '';
+  try {
+    return Utilities.formatDate(new Date(ms), Session.getScriptTimeZone(), 'yyyy-MM-dd HH');
+  } catch (e) {
+    return new Date(ms).toISOString().slice(0, 13).replace('T', ' ');
+  }
+}
+
+/**
+ * Tono de un tramo a partir de cuánta gente reportó y de si hubo algo confirmado.
+ *
+ * Sirve igual para un día que para una hora, y a propósito: el umbral es de PERSONAS
+ * distintas, así que aplicado a una hora es incluso más fiel a lo que mide la alerta
+ * automática —tres personas en media hora—. Dos escalas con dos criterios distintos
+ * pintarían el mismo suceso de dos colores según qué botón estuviera pulsado.
+ */
 function opTonoDelDia_(reportes, confirmados) {
   if (confirmados > 0) return 'alert';
   if (reportes >= OP_UMBRAL_PERSONAS) return 'alert';
@@ -1043,7 +1093,12 @@ function opCalcularHistorial_(dias) {
   return {
     success: true,
     consultado: new Date().toISOString(),
+    // `modo` y `tramos` son los nombres neutros que también usa la serie por horas, para que
+    // el gráfico del cliente no tenga que saber cuál de las dos está pintando salvo para
+    // rotular el eje. `dias` se conserva porque ya había código leyéndolo.
+    modo: 'dias',
     dias: dias,
+    tramos: dias,
     desde: eje[0],
     hasta: eje[eje.length - 1],
     eje: eje,
@@ -1053,8 +1108,165 @@ function opCalcularHistorial_(dias) {
     // El historial de fallas confirmadas, por día. Es lo que se queda publicado para siempre.
     confirmados: confirmadosPorDia,
     resumen: {
+      limpios: dias - diasConAlgo,
+      conIncidencias: diasConAlgo,
       diasLimpios: dias - diasConAlgo,
       diasConIncidencias: diasConAlgo,
+      reportes: totales.reduce(function (a, d) { return a + d.reportes; }, 0),
+      confirmados: totales.reduce(function (a, d) { return a + d.confirmados; }, 0)
+    }
+  };
+}
+
+/**
+ * Serie por HORA, por sistema y en total. La misma forma que el historial por días, para que
+ * el gráfico del cliente sea uno solo y no dos que se parecen.
+ *
+ * Es pública por la misma razón que el resto del tablero: "¿desde qué hora está fallando?" es
+ * la versión útil de "¿está caído?", y hay que poder contestarla justo cuando no puedes
+ * entrar. No viaja ni un correo ni una nota interna, solo cuántos reportes hubo y qué se
+ * confirmó.
+ *
+ * @param {number=} horas Cuántas horas hacia atrás. Por omisión 24.
+ */
+function opHistorialHorasPublico(horas) {
+  try {
+    const n = Math.max(1, Math.min(OP_HISTORIAL_MAX_HORAS,
+                                   Number(horas) || OP_HISTORIAL_HORAS_POR_OMISION));
+    return opCacheado_('historial_h' + n, OP_TTL_HISTORIAL_HORAS, function () {
+      return opCalcularHistorialHoras_(n);
+    });
+  } catch (e) {
+    Logger.log('opHistorialHorasPublico: ' + e + ' · ' + e.stack);
+    return { success: false, message: 'No pudimos consultar el historial por horas en este momento.' };
+  }
+}
+
+function opCalcularHistorialHoras_(horas) {
+  const catalogo = opLeerCatalogo_();
+
+  // El eje se construye hacia atrás desde la hora EN CURSO, igual que el de días se construye
+  // desde hoy: las horas sin ningún reporte tienen que ocupar su hueco. Si el eje saliera de
+  // los datos, una madrugada tranquila desaparecería y el pico de la mañana quedaría pegado
+  // al de la tarde anterior, que es exactamente la lectura contraria a la verdadera.
+  const ahora = new Date();
+  const enPunto = new Date(ahora.getTime());
+  enPunto.setMinutes(0, 0, 0);
+
+  const eje = [];
+  const posicion = {};
+  const inicios = [];
+  for (let h = horas - 1; h >= 0; h--) {
+    const inicio = new Date(enPunto.getTime() - h * 3600000);
+    const clave = opHoraClave_(inicio);
+    posicion[clave] = eje.length;
+    eje.push(clave);
+    inicios.push(inicio.toISOString());
+  }
+  const desdeMs = enPunto.getTime() - (horas - 1) * 3600000;
+
+  const serieVacia = function () {
+    return eje.map(function (clave, i) {
+      return { fecha: clave, inicio: inicios[i], reportes: 0, personas: 0, confirmados: 0, tono: 'ok' };
+    });
+  };
+
+  const porSistema = {};
+  catalogo.sistemas.forEach(function (s) {
+    porSistema[s.clave] = {
+      clave: s.clave, nombre: s.nombre, destacado: !!s.publico,
+      dias: serieVacia(), total: 0, diasMalos: 0,
+      // Las personas distintas se cuentan aparte y el conjunto se tira al final: lo que
+      // viaja al cliente es el número, nunca quién reportó.
+      _personas: eje.map(function () { return {}; })
+    };
+  });
+  const totales = serieVacia();
+  const personasTotales = eje.map(function () { return {}; });
+
+  opLeerHoja_(OP_SHEET_REPORTES, OP_COLS_REPORTES).forEach(function (f) {
+    const ms = opMs_(f.Fecha);
+    if (!ms || ms < desdeMs) return;
+    const i = posicion[opHoraClave_(f.Fecha)];
+    if (i === undefined) return;
+
+    const sis = String(f.SistemaClave || '');
+    const correo = String(f.Correo || '').toLowerCase();
+
+    if (porSistema[sis]) {
+      porSistema[sis].dias[i].reportes++;
+      porSistema[sis].total++;
+      if (correo) porSistema[sis]._personas[i][correo] = true;
+    }
+    totales[i].reportes++;
+    if (correo) personasTotales[i][correo] = true;
+  });
+
+  // Se cuenta por la hora en que se CONFIRMÓ, igual que el historial por días cuenta por el
+  // día de la confirmación: es el momento en que se supo que era real.
+  const confirmadosPorHora = {};
+  opLeerHoja_(OP_SHEET_INCIDENTES, OP_COLS_INCIDENTES).forEach(function (f) {
+    const inc = opIncidenteDeFila_(f, catalogo);
+    if (!inc.id || !inc.confirmado) return;
+    const clave = opHoraClave_(inc.confirmado);
+    const i = posicion[clave];
+    if (i === undefined) return;
+
+    if (porSistema[inc.sistemaClave]) porSistema[inc.sistemaClave].dias[i].confirmados++;
+    totales[i].confirmados++;
+
+    if (!confirmadosPorHora[clave]) confirmadosPorHora[clave] = [];
+    confirmadosPorHora[clave].push({
+      id: inc.id,
+      sistema: inc.sistema,
+      sistemaClave: inc.sistemaClave,
+      titulo: inc.titulo || opTitulo_(inc.sistema, inc.submotivo),
+      estado: inc.estado,
+      estadoNombre: inc.estadoNombre,
+      confirmado: inc.confirmado,
+      cerrado: inc.cerrado,
+      vigente: !inc.cierra
+    });
+  });
+
+  const sistemas = catalogo.sistemas.map(function (s) {
+    const x = porSistema[s.clave];
+    x.dias.forEach(function (d, i) {
+      d.personas = Object.keys(x._personas[i]).length;
+      d.tono = opTonoDelDia_(d.personas, d.confirmados);
+      if (d.tono !== 'ok') x.diasMalos++;
+    });
+    delete x._personas;
+    return x;
+  });
+
+  totales.forEach(function (d, i) {
+    d.personas = Object.keys(personasTotales[i]).length;
+    d.tono = opTonoDelDia_(d.personas, d.confirmados);
+  });
+
+  const conAlgo = totales.filter(function (d) { return d.tono !== 'ok'; }).length;
+
+  return {
+    success: true,
+    consultado: new Date().toISOString(),
+    // `modo` es lo que el cliente mira para saber cómo rotular el eje. Los demás nombres
+    // son los mismos que en la serie por días a propósito: el gráfico es uno solo.
+    modo: 'horas',
+    horas: horas,
+    tramos: horas,
+    desde: eje[0],
+    hasta: eje[eje.length - 1],
+    desdeISO: inicios[0],
+    hastaISO: inicios[inicios.length - 1],
+    eje: eje,
+    umbral: OP_UMBRAL_PERSONAS,
+    sistemas: sistemas,
+    totales: totales,
+    confirmados: confirmadosPorHora,
+    resumen: {
+      limpios: horas - conAlgo,
+      conIncidencias: conAlgo,
       reportes: totales.reduce(function (a, d) { return a + d.reportes; }, 0),
       confirmados: totales.reduce(function (a, d) { return a + d.confirmados; }, 0)
     }
