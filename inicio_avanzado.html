@@ -402,6 +402,17 @@
         <div id="panel-inicio" class="sv-panel active" role="tabpanel">
             <section class="sv-feed-kpis" id="feed-kpis" data-animate></section>
 
+            <section class="v-card p-6 mb-6" data-animate aria-labelledby="feed-hist-tit">
+                <h3 id="feed-hist-tit" class="text-base font-bold text-slate-900 mb-1">
+                    Estado del servicio por fechas
+                </h3>
+                <p class="text-sm text-slate-500 mb-4">
+                    Cuántos reportes llegaron cada día y qué se confirmó. Es el mismo historial
+                    que ve el equipo en el tablero público.
+                </p>
+                <div id="feed-historial"></div>
+            </section>
+
             <section class="v-card p-6 mb-6" data-animate>
                 <div class="flex flex-wrap items-start justify-between gap-3 mb-4">
                     <div style="min-width:0">
@@ -417,17 +428,6 @@
                     </button>
                 </div>
                 <div id="feed-accesos" class="sv-accesos"></div>
-            </section>
-
-            <section class="v-card p-6" data-animate aria-labelledby="feed-hist-tit">
-                <h3 id="feed-hist-tit" class="text-base font-bold text-slate-900 mb-1">
-                    Estado del servicio por fechas
-                </h3>
-                <p class="text-sm text-slate-500 mb-4">
-                    Cuántos reportes llegaron cada día y qué se confirmó. Es el mismo historial
-                    que ve el equipo en el tablero público.
-                </p>
-                <div id="feed-historial"></div>
             </section>
         </div><!-- /panel-inicio -->
 
