@@ -223,8 +223,11 @@
   color: var(--ink-faint, #94A1B2);
 }
 .atn-busca-ic svg { width: 100%; height: 100%; }
+/* El hueco de la derecha es para el aspa de limpiar: sin él, una búsqueda larga se
+   mete por debajo del botón y las últimas letras dejan de leerse justo cuando hace
+   falta comprobar qué se escribió. */
 .atn-busca-in {
-  width: 100%; padding: .5rem .75rem .5rem 2.1rem;
+  width: 100%; padding: .5rem 2.1rem .5rem 2.1rem;
   border: 1px solid var(--line, #E4E9F0); border-radius: 10px;
   background: var(--surface, #fff); color: var(--ink, #1B2330);
   font: inherit; font-size: .86rem; line-height: 1.4;
@@ -311,7 +314,15 @@
 
   var CD_CLAVE = 'atenciones-pospuesto';
   var CD_MS = 2 * 60 * 1000;          // los dos minutos del enfriamiento
-  var TTL_PANORAMA = 60 * 1000;       // la lista se revalida cada minuto
+
+  /* CUÁNTO SE GUARDA Y CUÁNTO SE FÍA SON DOS NÚMEROS DISTINTOS.
+     AppRun.swr revalida SIEMPRE contra el servidor; el ttl solo decide hasta cuándo lo
+     guardado se puede seguir pintando mientras esa respuesta llega. Con un minuto, abrir
+     el panel a los dos minutos de la última consulta encontraba la entrada caducada —y
+     AppCache la borra al leerla—, así que el panel aparecía con una rueda: justo lo que
+     la caché venía a evitar, y justo lo que el rótulo "actualizado hace 5 minutos" da por
+     hecho que no pasa. Diez minutos es lo que usan los demás módulos de la app. */
+  var TTL_PANORAMA = 10 * 60 * 1000;  // cuánto sobrevive lo guardado y se puede pintar
 
   var aviso = null;                   // nodo del aviso flotante
   var avisoTl = null;                 // su animación de entrada
@@ -326,6 +337,8 @@
   var hostPrevio = null;              // dónde estaba montada la gestión antes del panel
   var pantallaPropia = false;         // ¿esto es atenciones.html? entonces no hay panel que abrir
   var provisional = 0;                // contador de ids temporales del guardado optimista
+  var alCambiarEstado = null;         // avisa a la pantalla de qué se está viendo (para la URL)
+  var campoBusqueda = null;           // buscador que monta la pantalla completa, si lo hay
 
   // ── Utilidades ───────────────────────────────────────────────────────────
 
@@ -590,8 +603,11 @@
   function horasSugeridasHTML() {
     var horas = (datos && datos.horasSugeridas) || ['15:00', '17:00', '19:00', '21:00'];
     return horas.map(function (h) {
-      return '<button type="button" class="atn-hora-chip" data-atn-hora="' + esc(h) + '">' +
-        esc(h) + '</button>';
+      // `aria-pressed` nace puesto (en "false") y no aparece con el primer clic: un
+      // botón que solo anuncia que se puede pulsar cuando ya lo pulsaste no le sirve a
+      // quien está oyendo el formulario en vez de mirándolo.
+      return '<button type="button" class="atn-hora-chip" aria-pressed="false" ' +
+        'data-atn-hora="' + esc(h) + '">' + esc(h) + '</button>';
     }).join('');
   }
 
@@ -769,10 +785,14 @@
             pintar();
           },
           alLograr: function (r) {
+            // Sin panorama todavía no hubo tarjeta provisional que sustituir —el
+            // formulario se puede abrir desde el aviso de una falla, en una pantalla
+            // que nunca pidió la lista—. Ahí sí se pide: si no, la atención queda
+            // guardada y sin rastro en pantalla, que se lee como que no se guardó.
+            if (!datos) { cargar(true); return; }
             // La respuesta ya trae la atención creada: se sustituye la provisional por
             // la de verdad en vez de pedir el panorama otra vez, que sería medio
             // segundo regalado para repintar lo que ya sabemos.
-            if (!datos) return;
             datos.mias = (datos.mias || []).map(function (x) {
               return x === temporal ? (r.atencion || x) : x;
             });
@@ -1167,6 +1187,122 @@
     return lista.filter(function (a) { return coincide(a, q); });
   }
 
+  /* ── LO QUE SABE ESTE MÓDULO, PARA EL BUSCADOR GENERAL ───────────────────
+     Un asesor contesta el teléfono, ve un número que no reconoce y lo teclea en el
+     buscador general. Ese número puede estar ya registrado —alguien lo atendió esta
+     mañana y se cortó—, y ESA es la respuesta que hace falta antes de contestar: quién
+     es, qué buscaba y qué se le prometió. Hasta ahora el buscador solo sabía llevarte a
+     la pantalla de atenciones para que buscaras otra vez allí dentro.
+
+     Se responde sin pedir nada al servidor: o los datos ya están en memoria, o están en
+     la caché del panorama. Si no hay ninguna de las dos cosas no se inventa una consulta
+     —el buscador general tiene que contestar mientras se teclea— y el resultado
+     simplemente no sale esta vez. */
+
+  /* El panorama guardado, sin viajes. null si no hay nada que leer.
+
+     Con una memoria de tres segundos porque quien pregunta es el buscador general, que
+     recalcula en CADA tecla: sin ella, escribir un teléfono de diez dígitos serían diez
+     lecturas de localStorage con su JSON.parse de la lista entera, en el hilo que
+     debería estar dibujando los resultados. Tres segundos no envejecen nada —el módulo
+     tira su propia caché en cuanto escribe algo— y bastan para una ráfaga de tecleo. */
+  var localMemo = null, localMemoAt = 0;
+
+  function panoramaLocal() {
+    if (datos) return datos;
+    if (!window.AppCache || !haySesion() || !puede()) return null;
+    if (localMemo && Date.now() - localMemoAt < 3000) return localMemo;
+    var g = AppCache.get(clavePanorama());
+    localMemo = (g && g.data && g.data.success) ? g.data : null;
+    localMemoAt = Date.now();
+    return localMemo;
+  }
+
+  /**
+   * Atenciones que responden a lo que se está buscando.
+   * @param {string} q
+   * @param {number=} limite  por omisión 3: es un grupo dentro de una lista, no la lista.
+   * @returns {Array} [{ id, cliente, telefono, tipo, notas, donde, mia }]
+   */
+  function coincidencias(q, limite) {
+    var t = String(q == null ? '' : q).trim();
+    if (t.length < 2) return [];
+    var d = panoramaLocal();
+    if (!d) return [];
+    var tope = limite || 3;
+    var out = [];
+    var meter = function (lista, donde) {
+      (lista || []).forEach(function (a) {
+        if (out.length >= tope || !coincide(a, t)) return;
+        out.push({
+          id: a.id, cliente: a.cliente, telefono: a.telefono, tipo: a.tipo,
+          notas: a.notas, donde: donde, mia: donde === 'mias',
+          asesorNombre: a.asesorNombre || ''
+        });
+      });
+    };
+    // Las propias primero: son las que ya son responsabilidad de quien busca.
+    meter(d.mias, 'mias');
+    meter(d.publicas, 'publicas');
+    return out;
+  }
+
+  /* ── QUÉ SE ESTÁ VIENDO, Y CÓMO SE CUENTA HACIA FUERA ────────────────────
+     El módulo tiene dos cosas que un enlace debería poder decir: en qué pestaña estás
+     y qué estás buscando. Vivían solo en dos variables de aquí dentro, así que un
+     enlace a "las atenciones liberadas" no existía —se llegaba abriendo la pantalla y
+     cambiando de pestaña a mano— y compartir "mira a este cliente" era imposible.
+
+     El módulo no escribe la URL: no sabe si es la pantalla entera o un panel encima de
+     una cotización a medio escribir, y reescribir la dirección en el segundo caso se
+     llevaría por delante el enlace de la pantalla anfitriona. Solo AVISA, y quien lo
+     montó decide. atenciones.html lo lleva a la barra de direcciones; el inicio del
+     asesor y el panel se lo callan. */
+
+  /** Nombres con los que la gente y los enlaces se refieren a cada pestaña. */
+  function normPestana(v) {
+    var s = String(v == null ? '' : v).trim().toLowerCase();
+    if (s === 'publicas' || s === 'públicas' || s === 'rescatables' || s === 'pool' ||
+        s === 'liberadas' || s === 'libres') return 'publicas';
+    if (s === 'mias' || s === 'mías' || s === 'mis' || s === 'pendientes' ||
+        s === 'propias') return 'mias';
+    return '';
+  }
+
+  function avisarEstado() {
+    if (!alCambiarEstado) return;
+    try { alCambiarEstado({ pestana: pestana, buscar: filtro }); }
+    catch (e) { console.error(e); }
+  }
+
+  /**
+   * Cambia de pestaña.
+   * @param {boolean=} callado true al venir de la URL (atrás/adelante): no se reavisa,
+   *   o se reescribiría la dirección que acabamos de leer.
+   */
+  function irAPestana(nombre, callado) {
+    var p = normPestana(nombre);
+    if (!p || p === pestana) return false;
+    pestana = p;
+    abiertas = {};
+    pintar();
+    if (!callado) avisarEstado();
+    return true;
+  }
+
+  /** Pone el buscador. Filtra en local, sin viajes al servidor. */
+  function buscar(texto, callado) {
+    var t = String(texto == null ? '' : texto);
+    if (t === filtro) return false;
+    filtro = t;
+    sincronizarBuscador();
+    // Sin cascada: la animación de entrada es para cuando la lista APARECE, no para
+    // cada tecla (ver la nota del buscador del panel).
+    pintar(true);
+    if (!callado) avisarEstado();
+    return true;
+  }
+
   /**
    * Repinta la lista entera.
    * @param {boolean=} sinCascada  Repintado continuo (filtrar mientras se teclea): la
@@ -1180,14 +1316,26 @@
     var publicas = filtrar(datos.publicas || []);
     var buscando = !!String(filtro || '').trim();
 
+    /* Pestañas de verdad, no botones que lo parecen: `role="tablist"` con un solo
+       tabulador de entrada (el resto se recorre con las flechas, que es lo que espera
+       quien navega con teclado) y la lista marcada como el panel que gobiernan. Sin
+       `aria-controls` un lector de pantalla anuncia "pestaña seleccionada" y no dice
+       QUÉ acaba de cambiar debajo. */
+    var tab = function (id, icono, rotulo, n) {
+      var sel = pestana === id;
+      return '<button type="button" class="atn-tab" role="tab" id="atn-tab-' + id + '" ' +
+        'data-atn-tab="' + id + '" aria-selected="' + sel + '" aria-controls="atn-lista" ' +
+        'tabindex="' + (sel ? '0' : '-1') + '">' +
+        svg(icono, 'w-4 h-4') + rotulo + ' <span class="atn-tab-num">' + n + '</span></button>';
+    };
+
     var html =
-      '<div class="atn-tabs" role="tablist">' +
-        '<button class="atn-tab" role="tab" data-atn-tab="mias" aria-selected="' + (pestana === 'mias') + '">' +
-          svg(IC.usuario, 'w-4 h-4') + 'Mis pendientes <span class="atn-tab-num">' + mias.length + '</span></button>' +
-        '<button class="atn-tab" role="tab" data-atn-tab="publicas" aria-selected="' + (pestana === 'publicas') + '">' +
-          svg(IC.rescate, 'w-4 h-4') + 'Rescatables <span class="atn-tab-num">' + publicas.length + '</span></button>' +
+      '<div class="atn-tabs" role="tablist" aria-label="Qué atenciones se están viendo">' +
+        tab('mias', IC.usuario, 'Mis pendientes', mias.length) +
+        tab('publicas', IC.rescate, 'Rescatables', publicas.length) +
       '</div>' +
-      '<div class="atn-lista" data-atn-lista>';
+      '<div class="atn-lista" id="atn-lista" role="tabpanel" tabindex="-1" ' +
+           'aria-labelledby="atn-tab-' + pestana + '" data-atn-lista>';
 
     var lista = pestana === 'mias' ? mias : publicas;
     var otra = pestana === 'mias' ? publicas : mias;
@@ -1313,11 +1461,28 @@
 
     host.querySelectorAll('[data-atn-tab]').forEach(function (b) {
       b.addEventListener('click', function () {
-        pestana = b.getAttribute('data-atn-tab');
-        abiertas = {};
-        pintar();
+        irAPestana(b.getAttribute('data-atn-tab'));
       });
     });
+
+    /* Flechas entre pestañas, como manda el patrón de tablist (y como ya hace la
+       consola). Con `tabindex` rotatorio, el tabulador entra una vez y sale: quien
+       navega con teclado no tiene que atravesar todas las pestañas para llegar a la
+       lista. */
+    var tabs = host.querySelector('.atn-tabs');
+    if (tabs) {
+      tabs.addEventListener('keydown', function (e) {
+        if (e.key !== 'ArrowRight' && e.key !== 'ArrowLeft') return;
+        var lista = Array.prototype.slice.call(host.querySelectorAll('.atn-tab'));
+        var i = lista.indexOf(document.activeElement);
+        if (i === -1) return;
+        e.preventDefault();
+        var sig = lista[(i + (e.key === 'ArrowRight' ? 1 : -1) + lista.length) % lista.length];
+        irAPestana(sig.getAttribute('data-atn-tab'));
+        var puesta = host.querySelector('.atn-tab[aria-selected="true"]');
+        if (puesta) { try { puesta.focus(); } catch (err) {} }
+      });
+    }
 
     host.querySelectorAll('[data-atn-ver]').forEach(function (b) {
       b.addEventListener('click', function () { desplegar(b.getAttribute('data-atn-ver')); });
@@ -1631,13 +1796,20 @@
 
   var precargado = false;
 
-  /** Deja el panorama en memoria y en caché, sin pintar nada. Ver `precargar` en la API. */
+  /**
+   * Deja el panorama en memoria y en caché, sin pintar nada. Ver `precargar` en la API.
+   *
+   * Devuelve la PROMESA de la lectura (o false si no había nada que hacer). Quien solo
+   * quiere calentar la caché puede ignorarla —la barra lateral lo hace—, pero quien
+   * enseña una cifra sacada de `resumen()` la necesita: sin ella no tiene forma de
+   * saber cuándo repintar, y el número se queda en el cero de antes de preguntar.
+   */
   function precargar() {
     if (precargado || datos || panel || cargando) return false;
     if (!haySesion() || !puede()) return false;
     precargado = true;
-    cargar(false);      // sin host, `pintar` no hace nada: esto solo llena datos y caché
-    return true;
+    // Sin host, `pintar` no hace nada: esto solo llena datos y caché.
+    return cargar(false);
   }
 
   /** Rótulo del panel: cuántas hay, y de cuándo son los datos que se están viendo. */
@@ -1709,7 +1881,8 @@
 
   /**
    * Abre el panel sobre la pantalla actual.
-   * @param {object=} opts { registrar: true abre además el formulario, buscar: 'texto' }
+   * @param {object=} opts { registrar: true abre además el formulario,
+   *   buscar: 'texto', pestana: 'mias'|'publicas' }
    */
   function abrirPanel(opts) {
     opts = opts || {};
@@ -1718,9 +1891,12 @@
       return false;
     }
 
+    var pPedida = normPestana(opts.pestana);
+
     if (panel) {
       // Ya está abierto: pulsar otra vez en la barra no debe apilar un segundo panel.
-      if (opts.buscar !== undefined) { filtro = String(opts.buscar || ''); sincronizarBuscador(); pintar(); }
+      if (pPedida) irAPestana(pPedida, true);
+      if (opts.buscar !== undefined) buscar(String(opts.buscar || ''), true);
       if (opts.registrar) registrar({});
       var yaB = panel.querySelector('#atn-busca');
       if (yaB) { try { yaB.focus(); yaB.select(); } catch (e) {} }
@@ -1730,6 +1906,7 @@
     try { panelFocoPrevio = document.activeElement; } catch (e) { panelFocoPrevio = null; }
 
     filtro = String(opts.buscar || '');
+    if (pPedida) pestana = pPedida;
     abiertas = {};
 
     panel = document.createElement('div');
@@ -1774,7 +1951,16 @@
     return true;
   }
 
+  /**
+   * Deja los buscadores diciendo lo mismo que el filtro.
+   *
+   * Son dos —el del panel y el que la pantalla completa monta en su barra— y no
+   * conviven nunca, pero los dos pueden quedarse desfasados: el filtro también cambia
+   * desde fuera (un enlace con ?q=, el botón atrás del navegador), y un campo que
+   * enseña una cosa mientras la lista enseña otra hace dudar de la lista.
+   */
   function sincronizarBuscador() {
+    if (campoBusqueda && campoBusqueda.value !== filtro) campoBusqueda.value = filtro;
     if (!panel) return;
     var busca = panel.querySelector('#atn-busca');
     var limpiar = panel.querySelector('#atn-busca-x');
@@ -1797,19 +1983,15 @@
       // Se filtra en local, sobre lo que ya está en memoria: no hay ni un viaje al
       // servidor por tecla. Buscar entre veinte atenciones es trabajo de un `filter`,
       // y hacerlo en el cliente es lo que permite que responda mientras se teclea.
-      busca.addEventListener('input', function () {
-        filtro = busca.value;
-        if (limpiar) limpiar.hidden = !filtro;
-        // Sin la animación de entrada: la cascada de tarjetas es para cuando la lista
-        // APARECE. Repetirla en cada tecla convierte el buscador en un parpadeo.
-        pintar(true);
-      });
+      // Sin la animación de entrada: la cascada de tarjetas es para cuando la lista
+      // APARECE. Repetirla en cada tecla convierte el buscador en un parpadeo. De eso
+      // se encarga `buscar`, que además deja el aspa de limpiar en su sitio.
+      busca.addEventListener('input', function () { buscar(busca.value); });
     }
     if (limpiar) {
       limpiar.addEventListener('click', function () {
-        filtro = ''; if (busca) { busca.value = ''; busca.focus(); }
-        limpiar.hidden = true;
-        pintar(true);
+        buscar('');
+        if (busca) busca.focus();
       });
     }
 
@@ -1820,8 +2002,13 @@
       registrar({});
     });
     panel.querySelector('#atn-panel-todas').addEventListener('click', function () {
+      // La pantalla completa se abre EN LO QUE SE ESTABA VIENDO. Ir al panel, filtrar
+      // por un cliente, pulsar "Abrir la pantalla completa" y aterrizar en la lista sin
+      // filtrar y en la otra pestaña es empezar de cero: la carga de Apps Script ya
+      // cuesta varios segundos como para además tener que reconstruir el estado a mano.
+      var e = { sec: pestana, q: filtro };
       cerrarPanel();
-      if (window.AppUrl) irAPantalla();
+      if (window.AppUrl) irAPantalla({ sec: e.sec === 'mias' ? '' : e.sec, q: e.q || '' });
     });
 
     panelEsc = function (e) {
@@ -1835,9 +2022,7 @@
         // aquí o no se hace en ninguna parte.
         if (filtro && busca && document.activeElement === busca) {
           e.stopPropagation();
-          filtro = ''; busca.value = '';
-          if (limpiar) limpiar.hidden = true;
-          pintar(true);
+          buscar('');
           return;
         }
         e.stopPropagation();
@@ -1913,7 +2098,14 @@
     AppUrl.go = function (page, params) {
       if (page === 'atenciones' && haySesion() && puede()) {
         var p = params || {};
-        abrirPanel({ registrar: p.action === 'nueva', buscar: p.q || p.buscar || '' });
+        // El panel entiende los MISMOS parámetros que la pantalla completa. Si no,
+        // "Atenciones rescatables" del buscador general abriría el panel en la pestaña
+        // de siempre y habría que ir a buscar a mano justo lo que se pidió por nombre.
+        abrirPanel({
+          registrar: p.action === 'nueva',
+          buscar: p.q || p.buscar || '',
+          pestana: p.sec || p.pestana || ''
+        });
         return true;
       }
       return original.apply(null, arguments);
@@ -1926,22 +2118,62 @@
   var AppAtenciones = {
     /**
      * Pinta la gestión completa dentro de un contenedor.
+     *
      * @param {Element|string} donde
+     * @param {object=} opts
+     *   pantallaPropia  true en atenciones.html: no se instala el desvío al panel.
+     *   pestana         'mias' | 'publicas' (o 'rescatables'), normalmente de la URL.
+     *   buscar          texto inicial del buscador, normalmente de ?q=.
+     *   campoBusqueda   input de la pantalla que hace de buscador; el módulo lo cablea.
+     *   alCambiar       fn({ pestana, buscar }) cada vez que cambia lo que se está viendo.
      */
     montar: function (donde, opts) {
+      opts = opts || {};
       // `pantallaPropia` lo pone atenciones.html: allí la gestión ES la pantalla, así
       // que el desvío al panel no se instala (se abriría un panel encima de lo mismo).
-      if (opts && opts.pantallaPropia) pantallaPropia = true;
+      if (opts.pantallaPropia) pantallaPropia = true;
       host = (typeof donde === 'string') ? document.getElementById(donde) : donde;
       if (!host) return false;
       if (!haySesion() || !puede()) {
         host.innerHTML = vacio('No disponible', 'Tu cuenta no tiene acceso a las atenciones pendientes.');
         return false;
       }
+
+      // El estado de entrada se pone ANTES del primer pintado y sin avisar: viene de la
+      // URL, así que reescribirla aquí sería contestarle al navegador lo que él nos
+      // acaba de decir —y de paso apilar una entrada de historial por cada carga—.
+      var pIni = normPestana(opts.pestana);
+      if (pIni) pestana = pIni;
+      if (opts.buscar) filtro = String(opts.buscar);
+
+      if (opts.campoBusqueda) {
+        campoBusqueda = (typeof opts.campoBusqueda === 'string')
+          ? document.getElementById(opts.campoBusqueda) : opts.campoBusqueda;
+        if (campoBusqueda) {
+          campoBusqueda.value = filtro;
+          // Se filtra sobre lo que ya está en memoria: ni un viaje al servidor por tecla.
+          campoBusqueda.addEventListener('input', function () { buscar(campoBusqueda.value); });
+          // Escape borra la búsqueda sin tener que ir al aspa. Es el mismo escalón que
+          // el del panel, y aquí importa igual: se busca a un cliente, se le llama, y lo
+          // siguiente es volver a ver la lista entera.
+          campoBusqueda.addEventListener('keydown', function (e) {
+            if (e.key === 'Escape' && filtro) { e.stopPropagation(); buscar(''); }
+          });
+        }
+      }
+      if (typeof opts.alCambiar === 'function') alCambiarEstado = opts.alCambiar;
+
       host.innerHTML = '<div class="atn-vacio"><div class="v-spinner"></div> Cargando tus atenciones…</div>';
       cargar(false);
       return true;
     },
+
+    /** Cambia de pestaña desde fuera. `callado` = viene de la URL, no la reescribas. */
+    irAPestana: irAPestana,
+    /** Pone el buscador desde fuera (?q=, atrás/adelante). */
+    buscar: buscar,
+    /** Qué se está viendo ahora mismo: { pestana, buscar }. */
+    estado: function () { return { pestana: pestana, buscar: filtro }; },
 
     registrar: registrar,
     sugerir: sugerir,
@@ -1965,6 +2197,9 @@
     panelAbierto: function () { return !!panel; },
     /** ¿Esta pantalla ES la de atenciones? Entonces no hay panel que abrir. */
     esPantallaPropia: function () { return pantallaPropia; },
+
+    /** Atenciones que coinciden con una búsqueda, para el buscador general. */
+    coincidencias: coincidencias,
 
     /** Cifras rápidas para el inicio y el feed de supervisión. */
     resumen: function () {

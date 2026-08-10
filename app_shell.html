@@ -530,6 +530,14 @@
           !AppAtenciones.esPantallaPropia()) {
         if (AppAtenciones.abrirPanel({})) return;
       }
+      /* Ya estamos EN la pantalla de atenciones. Navegar sería recargar la aplicación
+         entera —varios segundos de Apps Script— para acabar exactamente donde estábamos,
+         y de paso perder la búsqueda escrita. Lo que de verdad se quiere al pulsar el
+         mismo botón dos veces es ver si ha entrado algo nuevo: eso es Actualizar. */
+      if (page === 'atenciones' && window.AppAtenciones && AppAtenciones.esPantallaPropia()) {
+        if (AppAtenciones.recargar) AppAtenciones.recargar();
+        return;
+      }
       if (window.AppUrl) AppUrl.go(page);
     },
     logout: function () { if (window.AppSession) AppSession.clear(); if (window.AppUrl) AppUrl.go('login'); },
