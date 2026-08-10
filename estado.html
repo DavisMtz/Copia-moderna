@@ -625,6 +625,15 @@
     <section id="est-sistemas"></section>
     <section id="est-incidencias"></section>
 
+    <!-- Historial por fechas. Va DESPUÉS del estado actual a propósito: quien entra aquí
+         viene a saber si está caído ahora; el historial es la segunda pregunta, no la
+         primera. Lo pinta app_estado_historial, que es el mismo módulo que usa el panel
+         de supervisión. -->
+    <section id="est-historial" class="est-seccion" aria-labelledby="est-historial-tit">
+      <h2 id="est-historial-tit" class="est-rot">Historial por fechas</h2>
+      <div id="est-historial-host"></div>
+    </section>
+
     <footer class="est-pie">
       <p>Esta página muestra el estado de los sistemas que usa el equipo Ventel.
          Se actualiza sola cada minuto.</p>
@@ -660,6 +669,7 @@
   <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.13.0/ScrollTrigger.min.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.13.0/SplitText.min.js"></script>
   <?!= include('app_operacion'); ?>
+  <?!= include('app_estado_historial'); ?>
   <script>
   (function () {
     'use strict';
@@ -1416,6 +1426,13 @@
         var inc = (window.AppUrl && AppUrl.param('inc')) || '';
         if (inc) abrirDetalle(inc, null);
       });
+
+      /* El historial se monta DESPUÉS del estado actual y sin esperarlo. Son dos llamadas
+         independientes, y encadenarlas retrasaría el titular —lo que la gente viene a
+         leer— hasta que terminara de cargar un gráfico que está más abajo del pliegue. */
+      if (window.AppEstadoHistorial) {
+        AppEstadoHistorial.montar('est-historial-host', { dias: 14 });
+      }
 
       // El tablero se mira mientras algo está roto: tiene que refrescarse solo.
       setInterval(function () {

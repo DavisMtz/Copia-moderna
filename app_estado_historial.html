@@ -1,0 +1,468 @@
+<style>
+/* =====================================================================================
+   HISTORIAL DE ESTADO POR FECHAS · estilos
+   =====================================================================================
+   Una tira de barras por día y por sistema, al estilo de las páginas de estado.
+
+   ── SOBRE EL COLOR, QUE ES LO QUE MÁS SE EQUIVOCA AQUÍ ──────────────────────────────
+   Los tres tonos salen de la paleta de ESTADO del tema (--ok / --warn / --alert), que ya
+   es la del sistema de diseño y no se toca. Pasados por el validador de paletas, el par
+   ámbar↔rojo da ΔE 3.7 en deuteranopía y 10.5 en visión normal: por debajo del mínimo
+   para distinguirse SOLO por color. Con ~8 % de los hombres con deficiencia al rojo-verde,
+   en una plantilla de asesores eso no es un caso teórico.
+
+   No se cambia la paleta —es la del tema y significa lo mismo en toda la app—; se le añade
+   codificación secundaria, que es lo que corresponde a los colores de estado:
+
+     · ALTURA. Verde 22 %, ámbar 58 %, rojo 100 %. Las tres alturas se distinguen por
+       geometría, sin color de por medio. Es la señal principal, no un adorno.
+     · TEXTURA. El rojo lleva rayado diagonal. Sobrevive a una impresión en blanco y negro
+       y al modo de contraste forzado, donde el color desaparece del todo.
+     · ETIQUETA. Cada barra lleva su fecha y su estado en el título accesible, y hay una
+       vista de tabla con las mismas cifras en texto.
+
+   ── SOBRE EL MOVIMIENTO ─────────────────────────────────────────────────────────────
+   Las barras crecen con scaleY y transform-origin abajo, NUNCA animando `height`. Con
+   noventa días por cuatro sistemas son 360 barras: animar la altura sería recalcular el
+   layout de la tira entera en cada fotograma. Con scaleY, el compositor escala capas ya
+   pintadas y la entrada va a 60 fps aunque se pidan los noventa días. */
+
+.eh-wrap { display: grid; gap: 1rem; }
+
+.eh-top { display: flex; flex-wrap: wrap; gap: .6rem; align-items: center; justify-content: space-between; }
+.eh-rangos { display: flex; gap: .3rem; flex-wrap: wrap; }
+.eh-rango {
+  border: 1px solid var(--line, #E4E9F0); background: var(--surface, #fff);
+  color: var(--ink-soft, #5C6B7E); border-radius: 999px; cursor: pointer;
+  padding: .32rem .7rem; font-size: .78rem; font-weight: 600; font-family: inherit;
+  transition: color .15s ease, border-color .15s ease, background .15s ease;
+}
+.eh-rango[aria-pressed="true"] { color: var(--brand, #E10098); border-color: var(--brand, #E10098);
+  background: var(--brand-tint, #FDE7F4); }
+
+.eh-fila { display: grid; grid-template-columns: minmax(6.5rem, 9rem) minmax(0, 1fr) auto;
+  gap: .75rem; align-items: center; padding: .5rem 0; }
+.eh-fila + .eh-fila { border-top: 1px solid var(--line, #E4E9F0); }
+.eh-fila.eh-total { border-top: 2px solid var(--line, #E4E9F0); }
+.eh-nombre { font-size: .84rem; font-weight: 600; color: var(--ink, #1B2330);
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.eh-nombre small { display: block; font-weight: 400; font-size: .72rem; color: var(--ink-soft, #5C6B7E); }
+
+/* La tira. `contain: layout paint` acota el trabajo del navegador a esta caja: con cuatro
+   sistemas en pantalla, un hover en una no debe hacer pensar al resto. */
+.eh-tira { display: flex; gap: 2px; align-items: flex-end; height: 2.6rem; contain: layout paint; }
+.eh-bar {
+  flex: 1 1 0; min-width: 3px; position: relative; height: 100%;
+  display: flex; align-items: flex-end; cursor: default; background: none; border: 0; padding: 0;
+}
+/* El carril de fondo dice "este día existe y no pasó nada", que es distinto de un hueco. */
+.eh-bar::before {
+  content: ''; position: absolute; inset: 0; border-radius: 3px;
+  background: var(--surface-2, #F4F7FA);
+}
+.eh-bar i {
+  position: relative; display: block; width: 100%; border-radius: 3px;
+  transform-origin: 50% 100%;   /* crece desde la base: es el eje natural de una barra */
+}
+.eh-bar.t-ok i    { height: 22%;  background: var(--ok, #0E7A4F); }
+.eh-bar.t-warn i  { height: 58%;  background: var(--warn, #B45309); }
+.eh-bar.t-alert i { height: 100%; background: var(--alert, #C81E3C); }
+
+/* Rayado solo en el rojo. Es la señal que sobrevive sin color, y ponerlo en los tres
+   quitaría el contraste de textura que lo hace útil. */
+.eh-bar.t-alert i {
+  background-image: repeating-linear-gradient(45deg,
+    rgba(255,255,255,.30) 0 2px, transparent 2px 5px);
+}
+.eh-bar:hover i, .eh-bar:focus-visible i { filter: brightness(1.12); }
+.eh-bar:focus-visible { outline: 2px solid var(--brand, #E10098); outline-offset: 2px; border-radius: 3px; }
+
+.eh-resumen { font-size: .78rem; color: var(--ink-soft, #5C6B7E); white-space: nowrap; text-align: right; }
+.eh-resumen b { display: block; font-size: .95rem; font-weight: 700; color: var(--ink, #1B2330); }
+
+.eh-ejes { display: flex; justify-content: space-between; font-size: .72rem;
+  color: var(--ink-faint, #94A1B2); padding-left: calc(6.5rem + .75rem); }
+@media (max-width: 640px) { .eh-ejes { padding-left: 0; } .eh-fila { grid-template-columns: 1fr; gap: .3rem; }
+  .eh-resumen { text-align: left; } }
+
+.eh-leyenda { display: flex; gap: 1rem; flex-wrap: wrap; font-size: .76rem; color: var(--ink-soft, #5C6B7E); }
+.eh-leyenda span { display: inline-flex; align-items: center; gap: .35rem; }
+.eh-muestra { width: .8rem; height: .8rem; border-radius: 3px; flex: none; display: inline-block; }
+.eh-muestra.t-ok { background: var(--ok, #0E7A4F); height: .3rem; }
+.eh-muestra.t-warn { background: var(--warn, #B45309); height: .55rem; }
+.eh-muestra.t-alert { background: var(--alert, #C81E3C);
+  background-image: repeating-linear-gradient(45deg, rgba(255,255,255,.3) 0 2px, transparent 2px 5px); }
+
+/* Globo de detalle. `position:fixed` + transform: se mueve sin tocar el layout. */
+.eh-globo {
+  position: fixed; z-index: 60; pointer-events: none; opacity: 0;
+  background: var(--ink, #1B2330); color: #fff; border-radius: 8px;
+  padding: .5rem .65rem; font-size: .76rem; line-height: 1.45; max-width: 15rem;
+  box-shadow: 0 12px 28px -12px rgba(0,0,0,.5);
+}
+.eh-globo b { display: block; font-weight: 700; margin-bottom: .1rem; }
+.eh-globo em { font-style: normal; opacity: .8; }
+
+.eh-tabla { width: 100%; border-collapse: collapse; font-size: .8rem; }
+.eh-tabla th, .eh-tabla td { padding: .35rem .5rem; text-align: left;
+  border-bottom: 1px solid var(--line, #E4E9F0); }
+.eh-tabla th { font-size: .72rem; text-transform: uppercase; letter-spacing: .04em;
+  color: var(--ink-faint, #94A1B2); }
+.eh-tabla td.num { text-align: right; font-variant-numeric: tabular-nums; }
+/* Título de la tabla para lectores de pantalla. Se define aquí y no se hereda del tema
+   porque este partial también se monta en el tablero público, que no carga las utilidades. */
+.eh-wrap .sr-only {
+  position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px;
+  overflow: hidden; clip: rect(0, 0, 0, 0); white-space: nowrap; border: 0;
+}
+
+.eh-conf { display: grid; gap: .4rem; }
+.eh-conf-item { display: flex; gap: .55rem; align-items: flex-start; font-size: .8rem;
+  padding: .5rem .65rem; border-radius: var(--rad, 12px); background: var(--alert-bg, #FDE8EC); }
+.eh-conf-item.cerrado { background: var(--surface-2, #F4F7FA); }
+.eh-conf-item b { color: var(--ink, #1B2330); }
+.eh-conf-item p { margin: .1rem 0 0; color: var(--ink-soft, #5C6B7E); font-size: .76rem; }
+
+/* En contraste forzado el color se pierde entero: la textura y la altura son lo único
+   que queda, y por eso están. Se refuerza además con un borde. */
+@media (forced-colors: active) {
+  .eh-bar i { border: 1px solid CanvasText; }
+  .eh-bar.t-ok i { background: Canvas; }
+}
+@media (prefers-reduced-motion: reduce) { .eh-rango { transition-duration: .01ms; } }
+</style>
+<script>
+/**
+ * =====================================================================================
+ * HISTORIAL DE ESTADO POR FECHAS | Sistema de cotizaciones Ventel
+ * =====================================================================================
+ * Pinta la serie que devuelve opHistorialPublico(). Es un partial compartido a propósito:
+ * el mismo gráfico se ve desde el tablero público (estado.html) y desde el panel de
+ * supervisión (inicio_avanzado.html), y dos copias del mismo gráfico acabarían contando
+ * cosas distintas en cuanto alguien tocara una.
+ *
+ *      AppEstadoHistorial.montar('mi-div', { dias: 14 });
+ *
+ * Es PÚBLICO: no necesita sesión. La pregunta "¿esto lleva pasando toda la semana?" hay
+ * que poder contestarla justo cuando no puedes entrar, igual que la de "¿está caído ahora?".
+ */
+(function () {
+  'use strict';
+
+  var RANGOS = [7, 14, 30, 90];
+  var TTL = 10 * 60 * 1000;
+
+  var host = null;
+  var dias = 14;
+  var datos = null;
+  var globo = null;
+
+  function esc(s) {
+    return String(s == null ? '' : s)
+      .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+  }
+  function reducido() {
+    try { return !!(window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches); }
+    catch (e) { return false; }
+  }
+  function conGsap() { return typeof window.gsap !== 'undefined' && !reducido(); }
+
+  function llamar(fn, args) {
+    if (window.AppRun && AppRun.call) return AppRun.call(fn, args, { key: 'eh-' + fn + '-' + dias });
+    return new Promise(function (res, rej) {
+      google.script.run.withSuccessHandler(res).withFailureHandler(rej)[fn].apply(null, args);
+    });
+  }
+
+  var NOMBRE_TONO = { ok: 'Sin reportes', warn: 'Algunos reportes', alert: 'Incidencia' };
+
+  /** "12 ago" — corto, que es lo que cabe bajo una tira de noventa barras. */
+  function fechaCorta(iso) {
+    if (!iso) return '';
+    var p = iso.split('-');
+    var d = new Date(Number(p[0]), Number(p[1]) - 1, Number(p[2]));
+    if (isNaN(d.getTime())) return iso;
+    return d.toLocaleDateString('es-MX', { day: 'numeric', month: 'short' });
+  }
+  function fechaLarga(iso) {
+    if (!iso) return '';
+    var p = iso.split('-');
+    var d = new Date(Number(p[0]), Number(p[1]) - 1, Number(p[2]));
+    if (isNaN(d.getTime())) return iso;
+    return d.toLocaleDateString('es-MX', { weekday: 'long', day: 'numeric', month: 'long' });
+  }
+
+  // ── Globo de detalle ───────────────────────────────────────────────────────
+
+  function verGlobo(bar, texto) {
+    if (!globo) {
+      globo = document.createElement('div');
+      globo.className = 'eh-globo';
+      globo.setAttribute('role', 'tooltip');
+      document.body.appendChild(globo);
+    }
+    globo.innerHTML = texto;
+    var r = bar.getBoundingClientRect();
+    var g = globo.getBoundingClientRect();
+    // Se centra sobre la barra y se mantiene dentro de la ventana: en la barra del día 90,
+    // pegada al borde derecho, un globo centrado se saldría de la pantalla.
+    var x = Math.min(Math.max(8, r.left + r.width / 2 - g.width / 2), window.innerWidth - g.width - 8);
+    var y = r.top - g.height - 8;
+    if (y < 8) y = r.bottom + 8;
+    // translate3d y no top/left: mover un elemento fijo con transform no cuesta layout.
+    globo.style.transform = 'translate3d(' + Math.round(x) + 'px,' + Math.round(y) + 'px,0)';
+    globo.style.opacity = '1';
+  }
+  function ocultarGlobo() { if (globo) globo.style.opacity = '0'; }
+
+  // ── Pintado ────────────────────────────────────────────────────────────────
+
+  function tira(serie, nombreSistema) {
+    return serie.map(function (d) {
+      var estado = NOMBRE_TONO[d.tono] || '';
+      // Cada barra es un <button>: se alcanza con el tabulador y anuncia su contenido a un
+      // lector de pantalla. Una tira de <div> con color es invisible para quien no ve color.
+      var etiqueta = fechaLarga(d.fecha) + ': ' + estado +
+        (d.reportes ? ' · ' + d.reportes + ' reporte' + (d.reportes === 1 ? '' : 's') : '') +
+        (d.confirmados ? ' · ' + d.confirmados + ' confirmada' + (d.confirmados === 1 ? '' : 's') : '');
+      return '<button type="button" class="eh-bar t-' + d.tono + '" ' +
+        'data-eh-dia="' + esc(d.fecha) + '" data-eh-sis="' + esc(nombreSistema || '') + '" ' +
+        'aria-label="' + esc(etiqueta) + '"><i></i></button>';
+    }).join('');
+  }
+
+  function filaSistema(s) {
+    var malos = s.diasMalos || 0;
+    return '<div class="eh-fila">' +
+      '<div class="eh-nombre">' + esc(s.nombre) +
+        '<small>' + (malos ? malos + (malos === 1 ? ' día con incidencias' : ' días con incidencias')
+                           : 'sin incidencias') + '</small></div>' +
+      '<div class="eh-tira" role="img" aria-label="Historial de ' + esc(s.nombre) +
+        ': ' + malos + ' días con incidencias de ' + datos.dias + '">' +
+        tira(s.dias, s.nombre) + '</div>' +
+      '<div class="eh-resumen"><b>' + (s.total || 0) + '</b>reportes</div>' +
+    '</div>';
+  }
+
+  function pintar() {
+    if (!host || !datos) return;
+
+    var r = datos.resumen || {};
+    var html =
+      '<div class="eh-wrap">' +
+        '<div class="eh-top">' +
+          '<div class="eh-rangos" role="group" aria-label="Periodo del historial">' +
+            RANGOS.map(function (n) {
+              return '<button type="button" class="eh-rango" data-eh-rango="' + n + '" ' +
+                'aria-pressed="' + (n === dias) + '">' + n + ' días</button>';
+            }).join('') +
+          '</div>' +
+          '<button type="button" class="v-btn v-btn-ghost v-btn-sm" data-eh-tabla ' +
+                  'aria-expanded="false">Ver como tabla</button>' +
+        '</div>' +
+
+        /* El titular va en texto y no solo en el gráfico. Es la frase que alguien va a
+           repetir en una reunión, y leerla de una tira de barras obliga a contarlas. */
+        '<p style="margin:0;font-size:.86rem;color:var(--ink-soft,#5C6B7E)">' +
+          '<strong style="color:var(--ink,#1B2330)">' + (r.diasLimpios || 0) + ' de ' + datos.dias +
+          ' días sin incidencias.</strong> ' +
+          (r.confirmados
+            ? r.confirmados + (r.confirmados === 1 ? ' falla confirmada' : ' fallas confirmadas') +
+              ' y ' + (r.reportes || 0) + ' reportes en total.'
+            : 'Ninguna falla confirmada en el periodo.') +
+        '</p>' +
+
+        '<div data-eh-filas>' +
+          (datos.sistemas || []).map(filaSistema).join('') +
+          '<div class="eh-fila eh-total">' +
+            '<div class="eh-nombre">Todos<small>reportes del equipo</small></div>' +
+            '<div class="eh-tira" role="img" aria-label="Historial de todos los sistemas">' +
+              tira(datos.totales, 'Todos') + '</div>' +
+            '<div class="eh-resumen"><b>' + (r.reportes || 0) + '</b>reportes</div>' +
+          '</div>' +
+        '</div>' +
+
+        '<div class="eh-ejes"><span>' + esc(fechaCorta(datos.desde)) + '</span>' +
+          '<span>' + esc(fechaCorta(datos.hasta)) + '</span></div>' +
+
+        /* Leyenda SIEMPRE presente, y con la altura dibujada en la muestra: es la señal que
+           distingue los tres estados sin depender del color. */
+        '<div class="eh-leyenda">' +
+          '<span><i class="eh-muestra t-ok"></i> Sin reportes</span>' +
+          '<span><i class="eh-muestra t-warn"></i> Algunos reportes (1 a ' + (datos.umbral - 1) + ')</span>' +
+          '<span><i class="eh-muestra t-alert"></i> Incidencia · ' + datos.umbral +
+            ' personas o más, o falla confirmada</span>' +
+        '</div>' +
+
+        '<div data-eh-tabla-vista hidden></div>' +
+        '<div data-eh-confirmados></div>' +
+      '</div>';
+
+    host.innerHTML = html;
+    pintarConfirmados();
+    cablear();
+
+    if (conGsap()) {
+      // scaleY desde 0, no height. Con 90 días × 5 filas son 450 barras: animar la altura
+      // recalcularía el layout de cada tira en cada fotograma. Así solo se escalan capas.
+      var barras = host.querySelectorAll('.eh-bar i');
+      if (barras.length) {
+        gsap.fromTo(barras, { scaleY: 0 },
+          { scaleY: 1, duration: .5, ease: 'power3.out', force3D: true,
+            stagger: { amount: Math.min(.5, barras.length * .004) },
+            clearProps: 'transform' });
+      }
+    }
+  }
+
+  /**
+   * Las fallas confirmadas del periodo, en texto y de forma persistente.
+   *
+   * Es lo que pedía el requisito de transparencia: una vez confirmada, la falla se queda
+   * publicada. El tablero de hoy deja de enseñarla cuando se resuelve —ya no afecta—, pero
+   * aquí sigue. Un historial que se limpia solo al arreglar las cosas siempre enseña una
+   * semana perfecta, y eso es peor que no tener historial.
+   */
+  function pintarConfirmados() {
+    var caja = host.querySelector('[data-eh-confirmados]');
+    if (!caja) return;
+    var porDia = datos.confirmados || {};
+    var dias0 = Object.keys(porDia).sort().reverse();
+    if (!dias0.length) { caja.innerHTML = ''; return; }
+
+    var items = [];
+    dias0.forEach(function (f) {
+      porDia[f].forEach(function (i) {
+        items.push(
+          '<div class="eh-conf-item' + (i.vigente ? '' : ' cerrado') + '">' +
+            '<span style="flex:none;margin-top:.15rem">' +
+              (i.vigente ? '⚠️' : '✓') + '</span>' +
+            '<div><b>' + esc(i.titulo) + '</b>' +
+            '<p>' + esc(fechaLarga(f)) + ' · ' + esc(i.estadoNombre) +
+              (i.vigente ? ' · sigue abierta' : '') + '</p></div>' +
+          '</div>');
+      });
+    });
+
+    caja.innerHTML =
+      '<h3 style="font-size:.9rem;font-weight:700;margin:.5rem 0 .5rem;color:var(--ink,#1B2330)">' +
+        'Fallas confirmadas en el periodo</h3>' +
+      '<div class="eh-conf">' + items.join('') + '</div>';
+  }
+
+  /** Vista de tabla: las mismas cifras en texto, para quien no puede leer el gráfico. */
+  function pintarTabla() {
+    var caja = host.querySelector('[data-eh-tabla-vista]');
+    if (!caja) return '';
+    var filas = datos.totales.map(function (d, i) {
+      return '<tr><td>' + esc(fechaCorta(d.fecha)) + '</td>' +
+        '<td>' + esc(NOMBRE_TONO[d.tono] || '') + '</td>' +
+        '<td class="num">' + d.reportes + '</td>' +
+        '<td class="num">' + (d.personas || 0) + '</td>' +
+        '<td class="num">' + d.confirmados + '</td></tr>';
+    }).reverse().join('');
+
+    caja.innerHTML =
+      '<table class="eh-tabla"><caption class="sr-only">Reportes por día</caption><thead><tr>' +
+        '<th scope="col">Día</th><th scope="col">Estado</th>' +
+        '<th scope="col" class="num">Reportes</th><th scope="col" class="num">Personas</th>' +
+        '<th scope="col" class="num">Confirmadas</th>' +
+      '</tr></thead><tbody>' + filas + '</tbody></table>';
+  }
+
+  function cablear() {
+    host.querySelectorAll('[data-eh-rango]').forEach(function (b) {
+      b.addEventListener('click', function () {
+        dias = Number(b.getAttribute('data-eh-rango')) || 14;
+        cargar(false);
+      });
+    });
+
+    var btnTabla = host.querySelector('[data-eh-tabla]');
+    var caja = host.querySelector('[data-eh-tabla-vista]');
+    if (btnTabla && caja) {
+      btnTabla.addEventListener('click', function () {
+        var abrir = caja.hidden;
+        if (abrir) pintarTabla();
+        caja.hidden = !abrir;
+        btnTabla.setAttribute('aria-expanded', abrir ? 'true' : 'false');
+        btnTabla.textContent = abrir ? 'Ocultar la tabla' : 'Ver como tabla';
+      });
+    }
+
+    // Una sola escucha en el contenedor en vez de una por barra: con 450 barras, 450
+    // escuchas es memoria y tiempo de arranque regalados.
+    var filas = host.querySelector('[data-eh-filas]');
+    if (!filas) return;
+
+    var sobre = function (e) {
+      var bar = e.target.closest ? e.target.closest('.eh-bar') : null;
+      if (!bar) { ocultarGlobo(); return; }
+      var dia = bar.getAttribute('data-eh-dia');
+      var sis = bar.getAttribute('data-eh-sis');
+      var serie = sis === 'Todos'
+        ? datos.totales
+        : ((datos.sistemas || []).filter(function (s) { return s.nombre === sis; })[0] || {}).dias || [];
+      var d = serie.filter(function (x) { return x.fecha === dia; })[0];
+      if (!d) return;
+
+      verGlobo(bar,
+        '<b>' + esc(fechaLarga(dia)) + '</b>' +
+        esc(sis) + ' · ' + esc(NOMBRE_TONO[d.tono] || '') + '<br>' +
+        '<em>' + d.reportes + ' reporte' + (d.reportes === 1 ? '' : 's') +
+        (d.personas ? ' de ' + d.personas + ' persona' + (d.personas === 1 ? '' : 's') : '') +
+        (d.confirmados ? ' · ' + d.confirmados + ' confirmada' + (d.confirmados === 1 ? '' : 's') : '') +
+        '</em>');
+    };
+
+    filas.addEventListener('mouseover', sobre);
+    filas.addEventListener('focusin', sobre);
+    filas.addEventListener('mouseleave', ocultarGlobo);
+    filas.addEventListener('focusout', ocultarGlobo);
+  }
+
+  // ── Carga ──────────────────────────────────────────────────────────────────
+
+  function cargar(desdeCache) {
+    if (!host) return;
+    if (!datos) {
+      host.innerHTML = '<div style="padding:2rem;text-align:center;color:var(--ink-soft,#5C6B7E)">' +
+        '<div class="v-spinner"></div> Cargando el historial…</div>';
+    }
+
+    var clave = 'estado-historial-' + dias;
+    if (window.AppRun && AppRun.swr) {
+      return AppRun.swr(clave, 'opHistorialPublico', [dias], {
+        ttl: TTL,
+        fuerza: desdeCache === false ? false : undefined,
+        accept: function (r) { return !!(r && r.success); },
+        onData: function (r) { if (r && r.success) { datos = r; pintar(); } },
+        onError: function () {
+          if (!datos) host.innerHTML = '<div style="padding:2rem;text-align:center;' +
+            'color:var(--ink-soft,#5C6B7E)">No pudimos cargar el historial.</div>';
+        }
+      });
+    }
+    return llamar('opHistorialPublico', [dias]).then(function (r) {
+      if (r && r.success) { datos = r; pintar(); }
+      return r;
+    });
+  }
+
+  window.AppEstadoHistorial = {
+    /**
+     * @param {Element|string} donde
+     * @param {object=} opts { dias: 14 }
+     */
+    montar: function (donde, opts) {
+      host = (typeof donde === 'string') ? document.getElementById(donde) : donde;
+      if (!host) return false;
+      if (opts && opts.dias && RANGOS.indexOf(Number(opts.dias)) !== -1) dias = Number(opts.dias);
+      cargar(true);
+      return true;
+    },
+    recargar: function () { datos = null; return cargar(false); },
+    datos: function () { return datos; }
+  };
+})();
+</script>

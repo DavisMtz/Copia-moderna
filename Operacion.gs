@@ -850,6 +850,217 @@ function opCalcularEstadoPublico_() {
   };
 }
 
+// =================================================================================================
+// HISTORIAL GRÁFICO POR FECHAS
+// =================================================================================================
+//
+// El tablero contesta "¿está caído AHORA?". Esta parte contesta la otra pregunta, que se hace
+// igual de a menudo y hasta ahora no tenía respuesta: "¿esto lleva pasando toda la semana?".
+//
+// Sin historial, cada caída parece la primera. Con él se ve de un vistazo si Connect falla los
+// lunes por la mañana, si una incidencia "resuelta" volvió tres veces, o si el mes ha sido
+// tranquilo — que es justo lo que hay que llevar a una reunión con el proveedor.
+//
+// EL SEMÁFORO DE CADA BARRA
+// -------------------------
+//     0 reportes                          verde   · ese día no pasó nada
+//     de 1 al umbral - 1                  ámbar   · hubo ruido, no llegó a incidencia
+//     umbral o más, O una falla confirmada rojo   · ese día el sistema falló de verdad
+//
+// El umbral es el MISMO que dispara un incidente automático (OP_UMBRAL_PERSONAS). Usar aquí un
+// número distinto haría que el gráfico y las alertas contaran historias diferentes sobre el
+// mismo día, y la primera vez que alguien lo notara dejaría de fiarse de los dos.
+//
+// Una falla CONFIRMADA pinta el día en rojo aunque hubiera pocos reportes. Es deliberado: que
+// solo tres personas reportaran una caída no la hace pequeña, normalmente significa que las
+// demás ya habían dejado de intentarlo.
+
+/** Cuántos días de historia se pueden pedir. Más de un trimestre no cabe en una barra legible. */
+const OP_HISTORIAL_MAX_DIAS = 90;
+const OP_HISTORIAL_POR_OMISION = 14;
+
+/** Cuánto se cachea el historial. Es un gráfico por día: no cambia de un segundo a otro. */
+const OP_TTL_HISTORIAL = 600;
+
+/** Fecha local en formato AAAA-MM-DD, según la zona horaria del script. */
+function opDiaClave_(valor) {
+  const ms = opMs_(valor);
+  if (!ms) return '';
+  try {
+    return Utilities.formatDate(new Date(ms), Session.getScriptTimeZone(), 'yyyy-MM-dd');
+  } catch (e) {
+    return new Date(ms).toISOString().slice(0, 10);
+  }
+}
+
+/** Tono de un día a partir de cuánto se reportó y de si hubo algo confirmado. */
+function opTonoDelDia_(reportes, confirmados) {
+  if (confirmados > 0) return 'alert';
+  if (reportes >= OP_UMBRAL_PERSONAS) return 'alert';
+  if (reportes > 0) return 'warn';
+  return 'ok';
+}
+
+/**
+ * Serie por fecha, por sistema y en total.
+ *
+ * Es PÚBLICA igual que el tablero: la pregunta "¿está caído o soy yo?" tiene que poder
+ * contestarse justo cuando no puedes entrar, y la versión histórica de esa pregunta también.
+ * Aquí no viaja ni un correo ni una nota interna: solo cuántos reportes hubo cada día y qué se
+ * confirmó, que es lo mismo que ya se publica del día de hoy.
+ *
+ * @param {number=} dias  Cuántos días hacia atrás. Por omisión 14.
+ */
+function opHistorialPublico(dias) {
+  try {
+    const n = Math.max(1, Math.min(OP_HISTORIAL_MAX_DIAS, Number(dias) || OP_HISTORIAL_POR_OMISION));
+    return opCacheado_('historial_' + n, OP_TTL_HISTORIAL, function () {
+      return opCalcularHistorial_(n);
+    });
+  } catch (e) {
+    Logger.log('opHistorialPublico: ' + e + ' · ' + e.stack);
+    return { success: false, message: 'No pudimos consultar el historial en este momento.' };
+  }
+}
+
+function opCalcularHistorial_(dias) {
+  const catalogo = opLeerCatalogo_();
+
+  // El eje se construye ANTES de mirar los datos, día por día hacia atrás. Si se armara a
+  // partir de los reportes, los días sin ninguno no existirían y el gráfico se comprimiría
+  // saltándoselos — que es justo al revés de lo que interesa: un día en blanco es un día bueno
+  // y tiene que verse, no desaparecer.
+  const hoy = new Date();
+  const eje = [];
+  const posicion = {};
+  for (let d = dias - 1; d >= 0; d--) {
+    const fecha = new Date(hoy.getTime() - d * 86400000);
+    const clave = opDiaClave_(fecha);
+    posicion[clave] = eje.length;
+    eje.push(clave);
+  }
+  const desdeMs = opMs_(new Date(hoy.getTime() - (dias - 1) * 86400000)) - 86400000;
+
+  /** Contadores vacíos para una serie completa. */
+  const serieVacia = function () {
+    return eje.map(function (f) {
+      return { fecha: f, reportes: 0, personas: 0, confirmados: 0, tono: 'ok' };
+    });
+  };
+
+  const porSistema = {};
+  catalogo.sistemas.forEach(function (s) {
+    porSistema[s.clave] = {
+      clave: s.clave, nombre: s.nombre, destacado: !!s.publico,
+      dias: serieVacia(), total: 0, diasMalos: 0,
+      // Las personas distintas se cuentan por día con un conjunto aparte y se tira al final:
+      // lo que viaja al cliente es el número, no la lista de quién reportó.
+      _personas: eje.map(function () { return {}; })
+    };
+  });
+  const totales = serieVacia();
+  const personasTotales = eje.map(function () { return {}; });
+
+  // ── Reportes ───────────────────────────────────────────────────────────────
+  opLeerHoja_(OP_SHEET_REPORTES, OP_COLS_REPORTES).forEach(function (f) {
+    const ms = opMs_(f.Fecha);
+    if (!ms || ms < desdeMs) return;
+    const clave = opDiaClave_(f.Fecha);
+    const i = posicion[clave];
+    if (i === undefined) return;
+
+    const sis = String(f.SistemaClave || '');
+    const correo = String(f.Correo || '').toLowerCase();
+
+    if (porSistema[sis]) {
+      porSistema[sis].dias[i].reportes++;
+      porSistema[sis].total++;
+      if (correo) porSistema[sis]._personas[i][correo] = true;
+    }
+    totales[i].reportes++;
+    if (correo) personasTotales[i][correo] = true;
+  });
+
+  // ── Incidentes confirmados ─────────────────────────────────────────────────
+  //
+  // Se cuenta por el día en que se CONFIRMÓ, no por el día en que se creó el registro. Un
+  // incidente que se abrió a las 23:50 y se confirmó a las 00:10 pertenece al día en que se
+  // supo que era real, que es el día del que la gente se acuerda.
+  //
+  // Y se cuentan también los CERRADOS: aquí está la persistencia pública que pedía el
+  // requisito. Una falla confirmada no desaparece del historial cuando se resuelve; el
+  // tablero de hoy deja de mostrarla —ya no afecta— pero el gráfico la conserva. Un
+  // historial que se borra solo al arreglar las cosas siempre enseña una semana perfecta.
+  const confirmadosPorDia = {};
+  opLeerHoja_(OP_SHEET_INCIDENTES, OP_COLS_INCIDENTES).forEach(function (f) {
+    const inc = opIncidenteDeFila_(f, catalogo);
+    if (!inc.id || !inc.confirmado) return;
+    const clave = opDiaClave_(inc.confirmado);
+    const i = posicion[clave];
+    if (i === undefined) return;
+
+    if (porSistema[inc.sistemaClave]) porSistema[inc.sistemaClave].dias[i].confirmados++;
+    totales[i].confirmados++;
+
+    if (!confirmadosPorDia[clave]) confirmadosPorDia[clave] = [];
+    confirmadosPorDia[clave].push({
+      id: inc.id,
+      sistema: inc.sistema,
+      sistemaClave: inc.sistemaClave,
+      titulo: inc.titulo || opTitulo_(inc.sistema, inc.submotivo),
+      estado: inc.estado,
+      estadoNombre: inc.estadoNombre,
+      confirmado: inc.confirmado,
+      cerrado: inc.cerrado,
+      // `vigente` distingue "esto sigue pasando" de "esto pasó y se arregló". Las dos cosas
+      // se enseñan, pero no significan lo mismo al mirar el gráfico.
+      vigente: !inc.cierra
+    });
+  });
+
+  // ── Cierre: tonos y limpieza ───────────────────────────────────────────────
+  const sistemas = catalogo.sistemas.map(function (s) {
+    const x = porSistema[s.clave];
+    x.dias.forEach(function (d, i) {
+      d.personas = Object.keys(x._personas[i]).length;
+      // El umbral es de PERSONAS distintas, así que el tono se decide con esa cifra y no con
+      // el total de reportes: cinco reportes de la misma persona son una persona con un
+      // problema, no un sistema caído. Es la misma regla que usa opEvaluarUmbral_.
+      d.tono = opTonoDelDia_(d.personas, d.confirmados);
+      if (d.tono !== 'ok') x.diasMalos++;
+    });
+    delete x._personas;
+    return x;
+  });
+
+  totales.forEach(function (d, i) {
+    d.personas = Object.keys(personasTotales[i]).length;
+    d.tono = opTonoDelDia_(d.personas, d.confirmados);
+  });
+
+  const diasConAlgo = totales.filter(function (d) { return d.tono !== 'ok'; }).length;
+
+  return {
+    success: true,
+    consultado: new Date().toISOString(),
+    dias: dias,
+    desde: eje[0],
+    hasta: eje[eje.length - 1],
+    eje: eje,
+    umbral: OP_UMBRAL_PERSONAS,
+    sistemas: sistemas,
+    totales: totales,
+    // El historial de fallas confirmadas, por día. Es lo que se queda publicado para siempre.
+    confirmados: confirmadosPorDia,
+    resumen: {
+      diasLimpios: dias - diasConAlgo,
+      diasConIncidencias: diasConAlgo,
+      reportes: totales.reduce(function (a, d) { return a + d.reportes; }, 0),
+      confirmados: totales.reduce(function (a, d) { return a + d.confirmados; }, 0)
+    }
+  };
+}
+
 /**
  * Últimas actualizaciones por incidente.
  * @param {boolean} soloAvisadas true = solo las que supervisión decidió anunciar. Una nota

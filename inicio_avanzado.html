@@ -100,6 +100,63 @@
         .pol-head p  { margin: .2rem 0 0; font-size: .82rem; color: var(--ink-soft, #5C6B7E); max-width: 46rem; }
         .pol-body { padding: 1.25rem 1.5rem; display: grid; gap: 1.25rem; }
 
+        /* ── FEED DE SUPERVISIÓN ───────────────────────────────────────────────
+           Rejilla que se acomoda sola. `auto-fit` con un mínimo evita los saltos de
+           una rejilla de columnas fijas: con tres tarjetas o con seis, ninguna queda
+           huérfana en una fila para ella sola. */
+        .sv-feed-kpis {
+            display: grid; gap: 1rem; margin-bottom: 1.5rem;
+            grid-template-columns: repeat(auto-fit, minmax(13rem, 1fr));
+        }
+        .sv-kpi {
+            display: block; width: 100%; text-align: left; font-family: inherit;
+            padding: 1.1rem 1.2rem; border-radius: var(--rad, 12px);
+            border: 1px solid var(--line, #E4E9F0); background: var(--surface, #fff);
+            cursor: pointer;
+            /* Solo transform y sombra en el hover: mover una tarjeta con `top` haría
+               recalcular la rejilla entera en cada pasada del ratón. */
+            transition: transform .18s cubic-bezier(.32,.72,0,1), box-shadow .18s ease,
+                        border-color .18s ease;
+        }
+        .sv-kpi:hover { transform: translateY(-2px); box-shadow: var(--sh-md, 0 12px 24px -14px rgba(27,35,48,.22));
+            border-color: var(--brand-soft, #FBD0E9); }
+        .sv-kpi:focus-visible { outline: none; box-shadow: var(--ring, 0 0 0 4px rgba(225,0,152,.16)); }
+        .sv-kpi-rot { display: flex; align-items: center; gap: .4rem; font-size: .75rem;
+            font-weight: 700; letter-spacing: .02em; color: var(--ink-soft, #5C6B7E);
+            text-transform: uppercase; }
+        .sv-kpi-n { display: block; font-family: var(--f-display); font-size: 1.9rem;
+            font-weight: 800; line-height: 1.1; margin: .35rem 0 .15rem; color: var(--ink, #1B2330); }
+        .sv-kpi-sub { display: block; font-size: .8rem; color: var(--ink-soft, #5C6B7E); line-height: 1.45; }
+        .sv-kpi.tono-alert { border-left: 3px solid var(--alert, #C81E3C); }
+        .sv-kpi.tono-alert .sv-kpi-n { color: var(--alert, #C81E3C); }
+        .sv-kpi.tono-warn  { border-left: 3px solid var(--warn, #B45309); }
+        .sv-kpi.tono-warn .sv-kpi-n { color: var(--warn, #B45309); }
+        .sv-kpi.tono-ok    { border-left: 3px solid var(--ok, #0E7A4F); }
+
+        .sv-accesos { display: flex; flex-wrap: wrap; gap: .5rem; }
+        .sv-acceso {
+            display: inline-flex; align-items: center; gap: .45rem; font-family: inherit;
+            padding: .5rem .8rem; border-radius: 999px; cursor: pointer;
+            border: 1px solid var(--line, #E4E9F0); background: var(--surface, #fff);
+            color: var(--ink, #1B2330); font-size: .84rem; font-weight: 600;
+            transition: transform .15s cubic-bezier(.32,.72,0,1), border-color .15s ease, color .15s ease;
+        }
+        .sv-acceso:hover { transform: translateY(-1px); border-color: var(--brand, #E10098);
+            color: var(--brand, #E10098); }
+        .sv-acceso-x {
+            display: inline-flex; align-items: center; justify-content: center;
+            width: 1.1rem; height: 1.1rem; border-radius: 999px; border: 0; padding: 0;
+            background: var(--surface-2, #F4F7FA); color: var(--ink-faint, #94A1B2);
+            cursor: pointer; font-size: .8rem; line-height: 1; flex: none;
+        }
+        .sv-acceso-x:hover { background: var(--alert-bg, #FDE8EC); color: var(--alert, #C81E3C); }
+        .sv-accesos-vacio { font-size: .84rem; color: var(--ink-soft, #5C6B7E); }
+
+        @media (prefers-reduced-motion: reduce) {
+            .sv-kpi, .sv-acceso { transition-duration: .01ms; }
+            .sv-kpi:hover, .sv-acceso:hover { transform: none; }
+        }
+
 
         /* Aviso permanente cuando la revisión está apagada. */
         .pol-alarma {
@@ -315,7 +372,11 @@
 
         <!-- ── Navegación por pestañas ──────────────────────────────────── -->
         <nav class="sv-tabs" role="tablist" aria-label="Secciones del panel" data-animate>
-            <button class="sv-tab active" role="tab" aria-selected="true" aria-controls="panel-revision" data-tab="revision">
+            <button class="sv-tab active" role="tab" aria-selected="true" aria-controls="panel-inicio" data-tab="inicio">
+                <span class="w-4 h-4 block" data-icon="home"></span>
+                Inicio
+            </button>
+            <button class="sv-tab" role="tab" aria-selected="false" aria-controls="panel-revision" data-tab="revision">
                 <span class="w-4 h-4 block" data-icon="clock"></span>
                 Revisión
                 <span class="sv-tab-badge" id="tab-pend-badge" data-count="0"></span>
@@ -331,7 +392,46 @@
         </nav>
 
         <!-- ══════════ Panel 1: Revisión ══════════ -->
-        <div id="panel-revision" class="sv-panel active" role="tabpanel">
+        <!-- ══════════ Panel 0: Inicio (feed) ══════════
+             El equivalente para supervisión de lo que el asesor tiene en su Panel: un sitio
+             donde caer al entrar y ver de un vistazo qué reclama atención hoy, en vez de
+             aterrizar en la cola de revisión aunque el problema del día sea otro.
+
+             Poca información y muy elegida. Un feed que lo enseña todo obliga a leerlo
+             entero, y entonces deja de ahorrar el paso que venía a ahorrar. -->
+        <div id="panel-inicio" class="sv-panel active" role="tabpanel">
+            <section class="sv-feed-kpis" id="feed-kpis" data-animate></section>
+
+            <section class="v-card p-6 mb-6" data-animate>
+                <div class="flex flex-wrap items-start justify-between gap-3 mb-4">
+                    <div style="min-width:0">
+                        <h3 class="text-base font-bold text-slate-900">Tus accesos directos</h3>
+                        <p class="text-sm text-slate-500 mt-1">
+                            Fija aquí lo que abres todos los días. Se guarda en tu cuenta, así que
+                            te sigue a cualquier equipo.
+                        </p>
+                    </div>
+                    <button type="button" id="feed-fijar" class="v-btn v-btn-ghost v-btn-sm">
+                        <span class="w-4 h-4 block" data-icon="plus"></span>
+                        Añadir acceso
+                    </button>
+                </div>
+                <div id="feed-accesos" class="sv-accesos"></div>
+            </section>
+
+            <section class="v-card p-6" data-animate aria-labelledby="feed-hist-tit">
+                <h3 id="feed-hist-tit" class="text-base font-bold text-slate-900 mb-1">
+                    Estado del servicio por fechas
+                </h3>
+                <p class="text-sm text-slate-500 mb-4">
+                    Cuántos reportes llegaron cada día y qué se confirmó. Es el mismo historial
+                    que ve el equipo en el tablero público.
+                </p>
+                <div id="feed-historial"></div>
+            </section>
+        </div><!-- /panel-inicio -->
+
+        <div id="panel-revision" class="sv-panel" role="tabpanel">
 
         <!--
           COLA DE REVISIÓN — apartado principal del panel.
@@ -626,6 +726,7 @@
     <?!= include('LoaderPartial'); ?>
     <?!= include('app_operacion'); ?>
     <?!= include('app_atenciones'); ?>
+    <?!= include('app_estado_historial'); ?>
     <script>
         // --- Navegación (modelo compartido de URLs) ---
         window.navigateToQuoteView = function (folio) {
@@ -695,10 +796,13 @@
 
             // El título dice a qué vino esta persona. A quien solo puede revisar,
             // "Supervisión" le suena a una pantalla que no le corresponde.
+            // Ya no cae en "Tu equipo": esa pantalla se mudó a la Consola. A quien solo
+            // tiene la gestión de roles, este panel le sirve por su feed —el resumen del
+            // día y sus accesos directos—, así que se rotula por lo que sí va a encontrar.
             const TITULO = PUEDE.metricas ? 'Supervisión'
                          : PUEDE.revisar  ? 'Revisar cotizaciones'
                          : PUEDE.politica ? 'Política de revisión'
-                         : 'Tu equipo';
+                         : 'Gestión';
 
             // Marco lateral compartido con el Portal (envuelve el <main> y aporta sesión/tema).
             AppShell.mount({ active: 'inicio_avanzado', title: TITULO });
@@ -733,6 +837,7 @@
             (function initTabs() {
                 const tabs = document.querySelectorAll('.sv-tab[data-tab]');
                 const panels = {
+                    inicio:      document.getElementById('panel-inicio'),
                     revision:    document.getElementById('panel-revision'),
                     metricas:    document.getElementById('panel-metricas'),
                     supervision: document.getElementById('panel-supervision')
@@ -1225,6 +1330,11 @@
                     tabBadge.textContent = pendientes.length || '';
                     tabBadge.dataset.count = pendientes.length;
                 }
+                // El feed lee esta cifra en vez de volver a pedir la cola. Se publica aquí
+                // —donde ya se sabe— para que el resumen no cueste una llamada más, que es
+                // justo lo que haría lento un panel cuyo trabajo es ahorrar tiempo.
+                window.__pendientesTotal = pendientes.length;
+                if (window.__feedRefrescar) window.__feedRefrescar();
                 seccion.classList.toggle('al-dia', pendientes.length === 0);
                 verTodas.classList.toggle('hidden', pendientes.length === 0);
 
@@ -1882,6 +1992,212 @@
                cambio viene a resolver —dos pantallas que contestaban distinto a la
                misma pregunta—, y una copia que no se usa es una copia que nadie
                actualiza cuando cambian las reglas. Lo único que queda es el botón. */
+            /* ═══════════════════════════════════════════════════════════════════
+               FEED DE INICIO · el resumen de supervisión
+               ═══════════════════════════════════════════════════════════════════
+               Dos piezas: unas cifras clave y unos accesos directos que cada quien fija.
+
+               Las cifras NO se piden aparte. Se leen de lo que las otras pestañas ya han
+               cargado —la cola de revisión, el estado de operación, las atenciones—, así
+               que el feed no añade ni una llamada al arranque. Un resumen que tarda más en
+               salir que la pantalla que resume no ahorra nada.
+
+               Por eso se repinta cuando llegan datos y no solo al montar: cada módulo
+               termina de cargar cuando termina, y la cifra aparece en cuanto se sabe. */
+            const Feed = (function () {
+                const $ = (id) => document.getElementById(id);
+
+                /* Catálogo de accesos fijables. Sale de AppFunciones, que ya sabe qué
+                   puede abrir cada quien: así el selector nunca ofrece una pantalla que
+                   luego va a rechazar el servidor. */
+                function fijables() {
+                    const lista = [];
+                    if (window.AppFunciones) {
+                        (AppFunciones.gestion() || []).forEach(d => {
+                            lista.push({ page: d.page, nombre: d.nombre, sub: d.sub });
+                        });
+                    }
+                    const extra = [
+                        { page: 'dashboard',  bloque: 'cotizar',    nombre: 'Panel de cotizaciones', sub: 'Tus folios' },
+                        { page: 'cotizacion', bloque: 'cotizar',    nombre: 'Nueva cotización',      sub: 'Empezar una' },
+                        { page: 'atenciones', bloque: 'atenciones', nombre: 'Atenciones pendientes', sub: 'Clientes por llamar' },
+                        { page: 'estado',     bloque: '',           nombre: 'Tablero de estado',     sub: 'Cómo va el servicio' },
+                        { page: 'portal',     bloque: 'portal',     nombre: 'Portal Ventel',         sub: 'Herramientas y guías' }
+                    ];
+                    extra.forEach(x => {
+                        if (x.bloque && !AppSession.can(x.bloque)) return;
+                        if (lista.some(y => y.page === x.page)) return;
+                        lista.push({ page: x.page, nombre: x.nombre, sub: x.sub });
+                    });
+                    return lista;
+                }
+
+                function nombreDe(page) {
+                    const d = fijables().filter(x => x.page === page)[0];
+                    return d ? d.nombre : page;
+                }
+
+                /* ── Accesos directos ─────────────────────────────────────────
+                   Viven en AppPrefs('fijados'), que los guarda en el dispositivo al
+                   instante y los sube a la cuenta por detrás. Eso es lo que hace que
+                   "dinámicos" signifique algo: fijar un acceso en el equipo de la
+                   tienda y encontrarlo en el de casa. */
+                function pintarAccesos() {
+                    const caja = $('feed-accesos');
+                    if (!caja) return;
+                    const fijados = (window.AppPrefs ? AppPrefs.get('fijados') : []) || [];
+                    const validos = fijados.filter(p => fijables().some(x => x.page === p));
+
+                    if (!validos.length) {
+                        caja.innerHTML = '<p class="sv-accesos-vacio">Todavía no has fijado ninguno. ' +
+                            'Pulsa «Añadir acceso» y elige lo que abres a diario.</p>';
+                        return;
+                    }
+
+                    caja.innerHTML = validos.map(page =>
+                        '<span class="sv-acceso" role="group">' +
+                            '<button type="button" class="sv-acceso" style="border:0;padding:0;background:none" ' +
+                                    'data-feed-ir="' + page + '">' + escapeHtml(nombreDe(page)) + '</button>' +
+                            '<button type="button" class="sv-acceso-x" data-feed-quitar="' + page + '" ' +
+                                    'aria-label="Quitar ' + escapeHtml(nombreDe(page)) + ' de tus accesos">×</button>' +
+                        '</span>').join('');
+
+                    caja.querySelectorAll('[data-feed-ir]').forEach(b => {
+                        b.addEventListener('click', () => AppUrl.go(b.getAttribute('data-feed-ir')));
+                    });
+                    caja.querySelectorAll('[data-feed-quitar]').forEach(b => {
+                        b.addEventListener('click', () => {
+                            AppPrefs.toggleEnLista('fijados', b.getAttribute('data-feed-quitar'));
+                            pintarAccesos();
+                        });
+                    });
+
+                    if (window.gsap && !window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
+                        gsap.from(caja.querySelectorAll('.sv-acceso[role="group"]'), {
+                            opacity: 0, y: 8, duration: .3, ease: 'power2.out', force3D: true,
+                            stagger: { amount: .12 }, clearProps: 'transform'
+                        });
+                    }
+                }
+
+                function abrirSelector() {
+                    const fijados = (window.AppPrefs ? AppPrefs.get('fijados') : []) || [];
+                    const opciones = fijables().filter(x => fijados.indexOf(x.page) === -1);
+                    if (!opciones.length) {
+                        if (window.AppMotion) AppMotion.toast('Ya tienes fijado todo lo que puedes abrir.', 'ok');
+                        return;
+                    }
+                    /* El selector se construye con el modal de AppAtenciones si está
+                       cargado —es el único modal genérico que tienen todas las pantallas—
+                       y si no, se cae a un prompt nativo. Feo, pero funciona en vez de no
+                       hacer nada. */
+                    const lista = opciones.map((x, i) => (i + 1) + '. ' + x.nombre).join('\n');
+                    const eleccion = window.prompt('¿Cuál quieres fijar?\n\n' + lista + '\n\nEscribe el número:');
+                    const i = Number(eleccion) - 1;
+                    if (!opciones[i]) return;
+                    AppPrefs.toggleEnLista('fijados', opciones[i].page);
+                    pintarAccesos();
+                }
+
+                /* ── Cifras ───────────────────────────────────────────────────
+                   Cada tarjeta lleva su tono y su enlace: son la puerta al módulo, no
+                   un adorno. Un número que no se puede pulsar obliga a buscar a mano
+                   la pantalla donde está lo que acaba de leerse. */
+                function pintarKpis() {
+                    const caja = $('feed-kpis');
+                    if (!caja) return;
+                    const tarjetas = [];
+
+                    if (PUEDE.revisar || PUEDE.metricas) {
+                        const n = (window.__pendientesTotal === undefined) ? null : window.__pendientesTotal;
+                        tarjetas.push({
+                            rot: 'Por revisar', n: n === null ? '—' : n,
+                            sub: n ? 'cotizaciones esperando tu decisión' : 'nada pendiente de revisar',
+                            tono: n ? (n > 5 ? 'alert' : 'warn') : 'ok', tab: 'revision'
+                        });
+                    }
+
+                    const est = (window.AppOperacion && AppOperacion.estado()) || null;
+                    if (est && est.success) {
+                        const malos = (est.sistemas || []).filter(x => x.tono !== 'ok').length;
+                        tarjetas.push({
+                            rot: 'Servicio', n: malos || 'OK',
+                            sub: malos ? (malos === 1 ? 'sistema con incidencia' : 'sistemas con incidencias')
+                                       : 'todo funcionando con normalidad',
+                            tono: malos ? (est.global === 'alert' ? 'alert' : 'warn') : 'ok',
+                            page: 'operacion'
+                        });
+                    }
+
+                    if (AppSession.can('atenciones') && window.AppAtenciones) {
+                        const r = AppAtenciones.resumen();
+                        tarjetas.push({
+                            rot: 'Atenciones', n: r.mias + r.publicas,
+                            sub: r.publicas ? r.publicas + ' liberadas por el equipo' : 'clientes por retomar',
+                            tono: (r.mias + r.publicas) ? 'warn' : 'ok', page: 'atenciones'
+                        });
+                    }
+
+                    if (PUEDE.equipo) {
+                        tarjetas.push({
+                            rot: 'Roles', n: '›',
+                            sub: 'altas, roles y accesos de tu equipo',
+                            tono: '', page: 'consola'
+                        });
+                    }
+
+                    caja.innerHTML = tarjetas.map(t =>
+                        '<button type="button" class="sv-kpi' + (t.tono ? ' tono-' + t.tono : '') + '" ' +
+                                (t.page ? 'data-feed-page="' + t.page + '"' : 'data-feed-tab="' + t.tab + '"') + '>' +
+                            '<span class="sv-kpi-rot">' + escapeHtml(t.rot) + '</span>' +
+                            '<span class="sv-kpi-n">' + escapeHtml(String(t.n)) + '</span>' +
+                            '<span class="sv-kpi-sub">' + escapeHtml(t.sub) + '</span>' +
+                        '</button>').join('');
+
+                    caja.querySelectorAll('[data-feed-page]').forEach(b => {
+                        b.addEventListener('click', () => AppUrl.go(b.getAttribute('data-feed-page')));
+                    });
+                    caja.querySelectorAll('[data-feed-tab]').forEach(b => {
+                        b.addEventListener('click', () => {
+                            if (window._svActivateTab) window._svActivateTab(b.getAttribute('data-feed-tab'));
+                        });
+                    });
+                }
+
+                return {
+                    montar: function () {
+                        pintarKpis();
+                        pintarAccesos();
+                        const btn = $('feed-fijar');
+                        if (btn) btn.addEventListener('click', abrirSelector);
+
+                        /* El historial del servicio, dentro del feed. Es el mismo módulo del
+                           tablero público: una sola implementación, dos sitios donde mirarla. */
+                        if (window.AppEstadoHistorial) {
+                            AppEstadoHistorial.montar('feed-historial', { dias: 14 });
+                        }
+
+                        /* Se repinta cuando cambian los fijados desde otra pestaña o desde
+                           la nube: los accesos son preferencias y viajan como tales. */
+                        if (window.AppPrefs && AppPrefs.alCambiar) {
+                            AppPrefs.alCambiar(function (clave) {
+                                if (clave === 'fijados') pintarAccesos();
+                            });
+                        }
+                    },
+                    refrescar: pintarKpis
+                };
+            })();
+
+            Feed.montar();
+            /* Los módulos que alimentan el feed avisan cuando terminan (la cola de revisión
+               llama a esto en cuanto pinta). Los dos temporizadores son la red de seguridad
+               para los que no avisan —el estado de operación y las atenciones tienen su
+               propio ritmo—, no el mecanismo principal. */
+            window.__feedRefrescar = Feed.refrescar;
+            setTimeout(Feed.refrescar, 1500);
+            setTimeout(Feed.refrescar, 4000);
+
             const irAConsola = document.getElementById('eq-ir-consola');
             if (irAConsola) {
                 irAConsola.addEventListener('click', function () {
