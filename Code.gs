@@ -117,7 +117,7 @@ const PORTAL_PAGES = {
  *           cliente solo acepta las de su lista blanca (AppUrl.PAGINAS_TRAS_LOGIN), de
  *           modo que este parámetro no puede sacar a nadie fuera del sistema.
  */
-const PARAMS_VISTA = ['folio', 'action', 'format', 'q', 'buscar', 'tpl', 'sec', 'ancla', 'inc', 'next'];
+const PARAMS_VISTA = ['folio', 'action', 'format', 'q', 'buscar', 'tpl', 'sec', 'ancla', 'inc', 'next', 'promo'];
 
 function doGet(e) {
   try {
