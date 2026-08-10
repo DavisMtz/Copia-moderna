@@ -209,6 +209,19 @@
   var IC_STACK = '<svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="m12 3 9 4.5-9 4.5-9-4.5L12 3Z"/><path d="m3 12 9 4.5 9-4.5"/><path d="m3 16.5 9 4.5 9-4.5"/></svg>';
   var IC_GEAR  = '<svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3.2"/><path d="M19.4 15a1.6 1.6 0 0 0 .32 1.77l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.6 1.6 0 0 0-1.77-.32 1.6 1.6 0 0 0-1 1.47V21a2 2 0 1 1-4 0v-.1a1.6 1.6 0 0 0-1.05-1.47 1.6 1.6 0 0 0-1.77.32l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.6 1.6 0 0 0 .32-1.77 1.6 1.6 0 0 0-1.47-1H3a2 2 0 1 1 0-4h.1a1.6 1.6 0 0 0 1.47-1.05 1.6 1.6 0 0 0-.32-1.77l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.6 1.6 0 0 0 1.77.32H9a1.6 1.6 0 0 0 1-1.47V3a2 2 0 1 1 4 0v.1a1.6 1.6 0 0 0 1 1.47 1.6 1.6 0 0 0 1.77-.32l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.6 1.6 0 0 0-.32 1.77V9a1.6 1.6 0 0 0 1.47 1H21a2 2 0 1 1 0 4h-.1a1.6 1.6 0 0 0-1.47 1Z"/></svg>';
 
+  /**
+   * Guarda una preferencia de vista por la mejor vía disponible.
+   * @param {string} clavePrefs  nombre en AppPrefs ('tema', 'densidad', …)
+   * @param {string} claveLS     nombre en localStorage, para el camino sin AppPrefs
+   * @param {string} valor
+   */
+  function guardarPref(clavePrefs, claveLS, valor) {
+    if (window.AppPrefs) AppPrefs.set(clavePrefs, valor);
+    else lsSet(claveLS, valor);
+    applyPrefs();
+    syncPrefUI();
+  }
+
   function esc(s) { return String(s == null ? '' : s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;'); }
 
   function puede(bloque) {
@@ -421,6 +434,19 @@
       var un = document.getElementById('user-name');
       if (un && window.AppSession) un.textContent = AppSession.firstName;
       syncPrefUI();
+
+      // Una preferencia puede cambiar sin que se haya tocado NADA de esta barra: llega
+      // de la cuenta al sincronizar, o de otra pestaña abierta. Sin esto, el tema se
+      // aplicaba —eso lo hace VentelPrefs sobre <html>— pero el botón activo del panel
+      // seguía siendo el anterior, y quedaba una barra que se contradecía a sí misma.
+      if (window.AppPrefs && AppPrefs.alCambiar) {
+        AppPrefs.alCambiar(function (clave) {
+          if (clave === 'tema' || clave === 'densidad' || clave === 'textscale' || clave === 'contraste') {
+            applyPrefs();
+            syncPrefUI();
+          }
+        });
+      }
       // La barra se construye por JS, así que el botón de "Ver el tutorial" no existía
       // cuando AppOnboarding repartió sus escuchas: se le avisa en cuanto está puesto.
       if (window.AppOnboarding) AppOnboarding.cablearBotones();
@@ -446,12 +472,22 @@
     logout: function () { if (window.AppSession) AppSession.clear(); if (window.AppUrl) AppUrl.go('login'); },
     toggleDrawer: function () { var s = document.getElementById('appSidebar'); if (s && s.classList.contains('open')) closeDrawer(); else openDrawer(); },
 
-    setTheme: function (name) { lsSet(PREF.theme, name); applyPrefs(); syncPrefUI(); },
-    setDensity: function (mode) { lsSet(PREF.density, mode); applyPrefs(); syncPrefUI(); },
-    setTextScale: function (scale) { lsSet(PREF.textscale, scale); applyPrefs(); syncPrefUI(); },
+    /* ── Preferencias de vista ─────────────────────────────────────────────
+       Pasan por AppPrefs cuando está cargado, que además de escribir en este
+       mismo localStorage se encarga de subirlas a la cuenta. Cuando no está
+       —el Portal público, una pantalla que no lo incluye— se escribe directo,
+       exactamente como antes: la personalización nunca depende de la nube.
+
+       El orden importa. AppPrefs escribe a través de VentelPrefs, que ya deja
+       los data-* puestos, así que applyPrefs() después es redundante pero no
+       sobra: es lo que mantiene idéntico el comportamiento en las pantallas
+       sin AppPrefs, y evita tener dos rutas de código que diverjan. */
+    setTheme: function (name) { guardarPref('tema', PREF.theme, name); },
+    setDensity: function (mode) { guardarPref('densidad', PREF.density, mode); },
+    setTextScale: function (scale) { guardarPref('textscale', PREF.textscale, scale); },
     toggleContrast: function () {
       var on = document.documentElement.getAttribute('data-contrast') === 'high';
-      lsSet(PREF.contrast, on ? '0' : '1'); applyPrefs(); syncPrefUI();
+      guardarPref('contraste', PREF.contrast, on ? '0' : '1');
     },
     toggleViewPrefs: function () {
       var box = document.getElementById('viewPrefs'), tog = document.getElementById('viewPrefsToggle');
