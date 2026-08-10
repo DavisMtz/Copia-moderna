@@ -521,6 +521,82 @@ function getCclFolder_() {
 }
 
 /**
+ * Deja el documento generado visible para cualquiera que tenga el enlace, en SOLO LECTURA.
+ *
+ * POR QUÉ HACE FALTA
+ * ------------------
+ * El archivo lo crea el script, así que su dueño es la cuenta que publicó la webapp y
+ * nadie más lo ve. La vista previa lo incrusta en un iframe dentro del navegador del
+ * asesor, y ese navegador entra con la sesión de Google del asesor, no con la del script:
+ * sin este permiso, todo el mundo vería un "necesitas acceso" dentro del marco.
+ *
+ * QUÉ SE ESTÁ ABRIENDO, Y CONVIENE SABERLO
+ * ----------------------------------------
+ * Estos documentos llevan nombre, correo y teléfono del cliente. Con ANYONE_WITH_LINK
+ * quedan legibles para cualquiera que consiga la URL, dentro o fuera de la organización;
+ * no salen en búsquedas y no se pueden editar, pero la dirección es la única llave. Si
+ * más adelante conviene cerrarlo, la alternativa que no rompe el iframe es
+ * DOMAIN_WITH_LINK (todo el dominio de Liverpool y nadie más): es una sola línea aquí y
+ * no hay que tocar nada del cliente.
+ *
+ * Se marca `false` en la copia para no arrastrar permisos de la plantilla, y los fallos
+ * no tumban la generación: un documento sin compartir sigue siendo un documento válido
+ * —el asesor que lo generó sí lo ve— y es mejor que perder la cotización entera.
+ */
+function cclCompartirPublico_(archivo) {
+  try {
+    archivo.setSharing(DriveApp.Access.ANYONE_WITH_LINK, DriveApp.Permission.VIEW);
+  } catch (e) {
+    Logger.log('cclCompartirPublico_: no se pudo compartir ' + archivo.getId() + ': ' + e);
+    return false;
+  }
+
+  // Impide que quien recibe el enlace lo vuelva a repartir desde la propia interfaz de
+  // Drive. NO es lo mismo que quitar la descarga —eso es lo de abajo— y conviene no
+  // confundirlos: este método solo controla el re-compartido.
+  try { archivo.setShareableByOthers(false); } catch (e) {}
+
+  /*
+   * DESCARGA, IMPRESIÓN Y COPIA.
+   *
+   * DriveApp no sabe apagarlas: la bandera es `copyRequiresWriterPermission` y solo se
+   * alcanza por el servicio avanzado de Drive, que hay que habilitar a mano en el
+   * proyecto (Servicios ▸ Drive API). Se intenta y, si no está, se sigue.
+   *
+   * No pasa nada grave si falta: la vista previa incrusta la URL `/preview`, que ya sale
+   * sin menús ni barra de herramientas, así que desde la pantalla no hay por dónde
+   * descargar. Esta bandera cubre el otro caso —alguien que copia la URL del iframe y la
+   * abre suelta— y por eso se intenta, pero no es lo que sostiene el requisito.
+   *
+   * Si algún día hace falta que sea firme, el paso es habilitar ese servicio avanzado;
+   * este código ya lo aprovecha en cuanto aparece, sin tocar nada más.
+   */
+  try {
+    if (typeof Drive !== 'undefined' && Drive.Files && Drive.Files.update) {
+      Drive.Files.update({ copyRequiresWriterPermission: true }, archivo.getId());
+    }
+  } catch (e) {
+    Logger.log('cclCompartirPublico_: sin servicio avanzado de Drive, la descarga queda ' +
+               'disponible para quien abra el enlace suelto (' + e + ')');
+  }
+
+  return true;
+}
+
+/**
+ * URL para INCRUSTAR el documento en un iframe.
+ *
+ * `/preview` en vez de `/edit`: enseña la hoja sin la barra de menús, sin la cinta de
+ * herramientas y sin el botón de compartir. Es la misma diferencia que hay entre enseñar
+ * un documento y entregarlo.
+ */
+function cclUrlIncrustable_(url) {
+  const id = String(url || '').match(/\/d\/([a-zA-Z0-9-_]+)/);
+  if (!id) return '';
+  return 'https://docs.google.com/spreadsheets/d/' + id[1] + '/preview';
+}
+
+/**
  * Lee el valor de una columna de la hoja 'Cotizaciones' para un folio dado.
  * @param {string} folio
  * @param {string} columnName
@@ -608,10 +684,12 @@ function openQuoteInSheets(folio) {
       }
     }
 
+    let recienCreado = false;
     if (!spreadsheet) {
       const copia = DriveApp.getFileById(cclTemplateId_())
                             .makeCopy(`Cotizacion_${folio}`, getCclFolder_());
       spreadsheet = SpreadsheetApp.openById(copia.getId());
+      recienCreado = true;
     }
 
     const hoja = spreadsheet.getSheetByName(CCL_SHEET_NAME);
@@ -620,14 +698,79 @@ function openQuoteInSheets(folio) {
     fillCclSheet_(hoja, quoteResponse.quote);
     SpreadsheetApp.flush();
 
+    // El permiso se aplica SIEMPRE y no solo al crear. Un documento generado antes de
+    // este cambio ya existe y su enlace está guardado, así que reutilizarlo tal cual
+    // dejaría esas cotizaciones sin poder incrustarse —y el fallo se vería como "la vista
+    // previa funciona en las nuevas y no en las viejas", que es de lo más difícil de
+    // diagnosticar. Reaplicarlo cuesta una llamada a Drive y las nivela a todas.
+    const archivo = DriveApp.getFileById(spreadsheet.getId());
+    const compartido = cclCompartirPublico_(archivo);
+
     const url = spreadsheet.getUrl();
     setQuoteColumnValue_(folio, CCL_LINK_COLUMN, url);
-    Logger.log(`openQuoteInSheets: documento listo para el folio ${folio}: ${url}`);
+    Logger.log(`openQuoteInSheets: documento ${recienCreado ? 'creado' : 'actualizado'} ` +
+               `para el folio ${folio}: ${url}`);
 
-    return { success: true, url: url };
+    return {
+      success: true,
+      url: url,
+      urlIncrustable: cclUrlIncrustable_(url),
+      compartido: compartido,
+      recienCreado: recienCreado
+    };
   } catch (error) {
     Logger.log(`Error en openQuoteInSheets (folio ${folio}): ${error.message}`);
     return { success: false, message: "No pudimos abrir el documento. Inténtalo de nuevo en un momento." };
+  }
+}
+
+/**
+ * Genera (o reutiliza) el documento CCL de un folio y devuelve lo justo para MIRARLO.
+ *
+ * Es la puerta que usa la vista previa. Se separa de openQuoteInSheets porque hacen cosas
+ * distintas aunque compartan el motor:
+ *
+ *   openQuoteInSheets   "dame el documento para abrirlo en Drive". Devuelve la URL de
+ *                       edición, que es lo que hace falta para trabajar sobre él.
+ *   previewSheetCcl     "enséñamelo aquí dentro". Devuelve la URL de incrustar y NO la de
+ *                       edición, para que la pantalla no pueda ofrecer por accidente una
+ *                       salida a Drive que no se pidió.
+ *
+ * Se llama en segundo plano al abrir la vista previa, así que su coste importa: la parte
+ * cara es copiar la plantilla, y solo ocurre la primera vez por folio. A partir de ahí se
+ * reutiliza el archivo y únicamente se vuelven a escribir los datos.
+ *
+ * @param {string} folio
+ * @return {{success:boolean, urlIncrustable:string, generadoEn:string, message:string}}
+ */
+function previewSheetCcl(folio) {
+  try {
+    if (!folio) return { success: false, message: 'Falta el folio.' };
+
+    const r = openQuoteInSheets(folio);
+    if (!r.success) return r;
+
+    if (!r.urlIncrustable) {
+      // El documento existe pero su URL no tiene la forma esperada. Se dice en vez de
+      // devolver un iframe vacío, que en pantalla se ve igual que una pantalla rota.
+      return { success: false, message: 'El documento se generó pero no se pudo preparar para verlo aquí.' };
+    }
+
+    return {
+      success: true,
+      urlIncrustable: r.urlIncrustable,
+      compartido: r.compartido === true,
+      generadoEn: new Date().toISOString(),
+      // Se avisa cuando el documento quedó sin permiso público: el iframe va a pedir
+      // acceso y quien lo vea tiene que saber que es un problema de permisos y no de que
+      // la cotización esté mal.
+      message: r.compartido === false
+        ? 'El documento se generó, pero no pudimos dejarlo visible para todo el equipo.'
+        : ''
+    };
+  } catch (error) {
+    Logger.log(`previewSheetCcl (folio ${folio}): ${error.message}`);
+    return { success: false, message: 'No pudimos generar el documento. Inténtalo de nuevo en un momento.' };
   }
 }
 

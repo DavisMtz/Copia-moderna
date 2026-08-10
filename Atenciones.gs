@@ -77,15 +77,36 @@ const ATEN_TOPE_CERRADAS = 30;
  */
 const ATEN_MAX_ABIERTAS = 50;
 
-/** Opciones de liberación que ofrece la pantalla, en minutos. 0 = nunca (privada siempre). */
+/**
+ * Opciones de liberación que ofrece la pantalla.
+ *
+ * DOS FORMAS DE DECIR CUÁNDO, porque son dos preguntas distintas:
+ *
+ *   RELATIVA ('min')   "dale hora y media y si no, que la tome quien pueda". Se cuenta
+ *                      desde el registro. Es lo que sirve cuando lo que importa es no
+ *                      hacer esperar al cliente más de un rato.
+ *
+ *   FIJA ('hora')      "hasta las 17:00". Es lo que sirve de verdad al final del turno:
+ *                      quien sale a las cinco no quiere decir "en tres horas" —tendría
+ *                      que calcularlo, y el cálculo cambia según a qué hora registre—,
+ *                      quiere decir la hora a la que se va. A partir de ahí, si no le dio
+ *                      tiempo, que el cliente reciba su llamada de otro compañero.
+ *
+ * La hora fija se resuelve contra la zona horaria del SCRIPT y no la del navegador: ver
+ * atenLiberarEnDesde_. Las horas del turno son las de la operación, no las del reloj del
+ * equipo desde el que se registra.
+ */
 const ATEN_LIBERAR_OPCIONES = [
-  { min: 0,   nombre: 'Nunca · solo yo la veo' },
-  { min: 30,  nombre: 'A los 30 minutos' },
-  { min: 60,  nombre: 'En 1 hora' },
-  { min: 120, nombre: 'En 2 horas' },
-  { min: 240, nombre: 'En 4 horas' },
-  { min: 480, nombre: 'Al final del turno (8 h)' }
+  { tipo: 'nunca',    min: 0,   nombre: 'Nunca · solo yo la veo' },
+  { tipo: 'relativa', min: 30,  nombre: 'A los 30 minutos' },
+  { tipo: 'relativa', min: 60,  nombre: 'En 1 hora' },
+  { tipo: 'relativa', min: 120, nombre: 'En 2 horas' },
+  { tipo: 'relativa', min: 240, nombre: 'En 4 horas' },
+  { tipo: 'hora',     hora: '',  nombre: 'A una hora fija del día…' }
 ];
+
+/** Horas sugeridas de fin de turno, para no obligar a teclear la hora a mano. */
+const ATEN_HORAS_SUGERIDAS = ['14:00', '15:00', '16:00', '17:00', '18:00', '19:00', '20:00', '21:00'];
 
 // ── UTILIDADES ───────────────────────────────────────────────────────────────
 
@@ -127,6 +148,82 @@ function atenTelefono_(valor) {
 /** ¿Tiene al menos los dígitos suficientes para ser un teléfono al que llamar? */
 function atenTelefonoUtil_(valor) {
   return String(valor || '').replace(/\D/g, '').length >= 7;
+}
+
+/**
+ * ¿Es una hora del día válida? Devuelve {h, m} o null.
+ * Acepta "17:00", "17", "5:30" y "17.30", porque las cuatro se teclean.
+ */
+function atenParsearHora_(valor) {
+  const s = String(valor == null ? '' : valor).trim();
+  if (!s) return null;
+  const m = s.match(/^(\d{1,2})\s*[:.\s]?\s*(\d{2})?$/);
+  if (!m) return null;
+  const h = Number(m[1]);
+  const min = m[2] === undefined ? 0 : Number(m[2]);
+  if (!(h >= 0 && h <= 23) || !(min >= 0 && min <= 59)) return null;
+  return { h: h, m: min };
+}
+
+/** Formatea {h, m} como "HH:MM", que es como se guarda y se enseña. */
+function atenHoraTexto_(hm) {
+  const dos = function (n) { return (n < 10 ? '0' : '') + n; };
+  return dos(hm.h) + ':' + dos(hm.m);
+}
+
+/**
+ * Calcula CUÁNDO se libera una atención.
+ *
+ * @param {object} d      { liberarMin?, liberarHora? } — lo que mandó el cliente.
+ * @param {Date}   base   Momento del registro (o el original, al editar).
+ * @return {Date|string}  La fecha de liberación, o '' si es privada para siempre.
+ *
+ * La hora fija se resuelve contra la ZONA HORARIA DEL SCRIPT. Es lo que hace que "hasta
+ * las 17:00" signifique las cinco de la operación y no las cinco del reloj del equipo
+ * desde el que se registra: un asesor conectado desde otro huso —o con la zona mal
+ * puesta, que pasa más de lo que parece— liberaría su atención con horas de diferencia
+ * respecto a lo que él creyó elegir, y el resto del equipo no tendría forma de saberlo.
+ *
+ * Si la hora elegida YA PASÓ hoy, se entiende que es la de mañana. Registrar a las 17:30
+ * algo "hasta las 17:00" solo puede querer decir el turno siguiente; interpretarlo como
+ * hoy lo dejaría liberado en el mismo instante de crearlo, que es justo lo contrario de
+ * lo que se pidió.
+ */
+function atenLiberarEnDesde_(d, base) {
+  const hm = atenParsearHora_(d && d.liberarHora);
+  if (hm) {
+    const tz = Session.getScriptTimeZone();
+
+    // Se arma una cadena ISO con el DESFASE HORARIO EXPLÍCITO y se deja que la parsee el
+    // motor. Es la única forma de construir "las 17:00 de la zona X" sin ambigüedad: sin
+    // el desfase, `new Date('2026-08-10 17:00')` se interpreta en la zona del servidor de
+    // Apps Script, que no tiene por qué ser la de la operación, y la atención se liberaba
+    // con horas de diferencia respecto a lo que el asesor creyó elegir.
+    //
+    // El día también sale de `tz` y no de UTC: cerca de medianoche los dos no coinciden y
+    // la liberación caería un día entero fuera.
+    //
+    // El desfase se toma en el instante de `base`, así que respeta el horario de verano
+    // vigente ese día. Queda un hueco de una hora los dos días del año en que el horario
+    // cambia entre el registro y la liberación; no se compensa a propósito, porque
+    // hacerlo bien exige una tabla de transiciones y el error máximo es que una atención
+    // se libere una hora antes o después de lo previsto, una vez al año.
+    const dia = Utilities.formatDate(base, tz, 'yyyy-MM-dd');
+    const desfase = Utilities.formatDate(base, tz, 'Z');            // p. ej. "-0600"
+    const iso = dia + 'T' + atenHoraTexto_(hm) + ':00' +
+                desfase.slice(0, 3) + ':' + desfase.slice(3);       // "-06:00"
+
+    let objetivo = new Date(iso);
+    if (isNaN(objetivo.getTime())) return '';   // no debería pasar; mejor privada que a deshora
+
+    if (objetivo.getTime() <= base.getTime()) {
+      objetivo = new Date(objetivo.getTime() + 86400000);   // ya pasó: es la de mañana
+    }
+    return objetivo;
+  }
+
+  const minutos = Math.max(0, Math.min(1440, Number(d && d.liberarMin) || 0));
+  return minutos > 0 ? new Date(base.getTime() + minutos * 60000) : '';
 }
 
 function atenISO_(valor) {
@@ -365,6 +462,10 @@ function atencionesPanorama(email) {
       cerradas: cerradas.slice(0, ATEN_TOPE_CERRADAS),
       tipos: atenTipos_().map(function (t) { return t.nombre; }),
       opcionesLiberar: ATEN_LIBERAR_OPCIONES.slice(),
+      horasSugeridas: ATEN_HORAS_SUGERIDAS.slice(),
+      // La zona de la operación viaja para poder rotularla en pantalla: sin ella, quien
+      // esté en otro huso no tiene forma de saber que "las 17:00" no son las suyas.
+      zonaHoraria: (function () { try { return Session.getScriptTimeZone(); } catch (e) { return ''; } })(),
       ahora: new Date().toISOString()
     };
   } catch (e) {
@@ -425,9 +526,9 @@ function atencionRegistrar(email, datos) {
       }
 
       var tipo = atenTipoRegistrar_(d.tipo || 'Otro', yo);
-      var minutos = Math.max(0, Math.min(1440, Number(d.liberarMin) || 0));
       var ahora = new Date();
-      var liberarEn = minutos > 0 ? new Date(ahora.getTime() + minutos * 60000) : '';
+      // Admite las dos formas: `liberarMin` (relativa) o `liberarHora` (fija del día).
+      var liberarEn = atenLiberarEnDesde_(d, ahora);
 
       var id = atenId_();
       var registro = {};
@@ -549,16 +650,20 @@ function atencionActualizar(email, id, cambios) {
       // La liberación solo la decide QUIEN LA REGISTRÓ. Quien rescata puede añadir notas —está
       // trabajando la atención— pero no puede volver a soltarla al pool ni retenerla: esa
       // decisión es de quien tiene la relación con el cliente.
-      if (c.liberarMin !== undefined) {
+      if (c.liberarMin !== undefined || c.liberarHora !== undefined) {
         if (hallado.datos.asesor !== yo) {
           return atenError_('Solo quien registró la atención puede cambiar cuándo se libera.');
         }
-        var minutos = Math.max(0, Math.min(1440, Number(c.liberarMin) || 0));
-        // Se cuenta desde el REGISTRO y no desde ahora: "que se libere en 1 hora" significa una
-        // hora desde que el cliente se quedó esperando. Contarlo desde el momento de editar
-        // permitiría, sin querer, aplazar indefinidamente la liberación a base de retoques.
-        var base = atenMs_(hallado.datos.fecha) || Date.now();
-        campos['LiberarEn'] = minutos > 0 ? new Date(base + minutos * 60000) : '';
+        // La RELATIVA se cuenta desde el REGISTRO y no desde ahora: "que se libere en 1
+        // hora" significa una hora desde que el cliente se quedó esperando. Contarlo
+        // desde el momento de editar permitiría aplazar la liberación indefinidamente a
+        // base de retoques, sin querer.
+        //
+        // La FIJA no tiene ese problema —una hora del día es la misma se calcule cuando
+        // se calcule— pero se resuelve contra la misma base para que "las 17:00" de una
+        // atención registrada ayer siga siendo la de ayer y no salte a hoy al editarla.
+        var base = new Date(atenMs_(hallado.datos.fecha) || Date.now());
+        campos['LiberarEn'] = atenLiberarEnDesde_(c, base);
       }
 
       if (!Object.keys(campos).length) {

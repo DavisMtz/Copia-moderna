@@ -106,6 +106,25 @@
 @media (max-width: 520px) { .atn-form .fila2 { grid-template-columns: 1fr; } }
 .atn-form small.ayuda { display: block; font-size: .76rem; color: var(--ink-soft, #5C6B7E); margin-top: .2rem; }
 
+/* Hora fija de liberación. La caja se anima en altura al aparecer, así que lleva la
+   misma contención que el desplegable de las tarjetas: el recálculo se queda dentro. */
+#atn-hora-fija { overflow: hidden; contain: layout paint; }
+.atn-horas { display: flex; flex-wrap: wrap; gap: .35rem; }
+.atn-hora-chip {
+  border: 1px solid var(--line, #E4E9F0); background: var(--surface, #fff);
+  color: var(--ink-soft, #5C6B7E); border-radius: 999px; cursor: pointer;
+  padding: .3rem .7rem; font-size: .8rem; font-weight: 600; font-family: inherit;
+  font-variant-numeric: tabular-nums;
+  transition: color .15s ease, border-color .15s ease, background .15s ease;
+}
+.atn-hora-chip:hover { color: var(--ink, #1B2330); border-color: var(--brand-soft, #FBD0E9); }
+.atn-hora-chip[aria-pressed="true"] { color: var(--brand, #E10098);
+  border-color: var(--brand, #E10098); background: var(--brand-tint, #FDE7F4); }
+.atn-hora-chip:focus-visible { outline: none; box-shadow: var(--ring, 0 0 0 4px rgba(225,0,152,.16)); }
+#atn-liberar-hora { font-variant-numeric: tabular-nums; max-width: 8rem; }
+
+@media (prefers-reduced-motion: reduce) { .atn-hora-chip { transition-duration: .01ms; } }
+
 @media (prefers-reduced-motion: reduce) {
   .atn-aviso { opacity: 1; }
   .atn-tab { transition-duration: .01ms; }
@@ -214,13 +233,23 @@
   /** "en 25 min", "en 2 h", "ya". Lo contrario de desdeHace: mira hacia adelante. */
   function enCuanto(iso) {
     if (!iso) return '';
-    var ms = new Date(iso).getTime() - Date.now();
+    var d = new Date(iso);
+    var ms = d.getTime() - Date.now();
     if (isNaN(ms)) return '';
     if (ms <= 0) return 'ya';
     var min = Math.ceil(ms / 60000);
     if (min < 60) return 'en ' + min + ' min';
-    var h = Math.round(min / 60);
-    return 'en ' + h + ' h';
+
+    // A partir de una hora se dice LA HORA y no "en 3 h". Es lo que se pidió al elegir
+    // una hora fija —"hasta las 17:00"— y también lo más útil en las relativas largas:
+    // quien mira su lista a las 15:40 necesita saber si le da tiempo antes de las cinco,
+    // y "en 3 h" le obliga a hacer la cuenta con el cliente esperando.
+    var hh = d.toLocaleTimeString('es-MX', { hour: '2-digit', minute: '2-digit', hour12: false });
+    var hoy = new Date();
+    var mismoDia = d.getDate() === hoy.getDate() &&
+                   d.getMonth() === hoy.getMonth() &&
+                   d.getFullYear() === hoy.getFullYear();
+    return (mismoDia ? 'a las ' : 'mañana a las ') + hh;
   }
 
   /** Una atención lleva demasiado esperando: se marca para que salte a la vista. */
@@ -318,15 +347,59 @@
 
   // ── Formulario de registro ───────────────────────────────────────────────
 
+  /**
+   * Opciones de "si no lo atiendo yo".
+   *
+   * El valor del <option> lleva el TIPO delante ("rel:60", "hora", "nunca") y no solo el
+   * número de minutos. Con solo el número, "nunca" y "a una hora fija" tendrían que
+   * distinguirse por convenciones tipo 0 y -1, y ese es el tipo de código que se lee mal
+   * seis meses después. El tipo va escrito.
+   */
   function opcionesLiberar() {
     var lista = (datos && datos.opcionesLiberar) || [
-      { min: 0, nombre: 'Nunca · solo yo la veo' },
-      { min: 60, nombre: 'En 1 hora' },
-      { min: 240, nombre: 'En 4 horas' }
+      { tipo: 'nunca',    min: 0,   nombre: 'Nunca · solo yo la veo' },
+      { tipo: 'relativa', min: 60,  nombre: 'En 1 hora' },
+      { tipo: 'relativa', min: 240, nombre: 'En 4 horas' },
+      { tipo: 'hora',     nombre: 'A una hora fija del día…' }
     ];
     return lista.map(function (o) {
-      return '<option value="' + o.min + '">' + esc(o.nombre) + '</option>';
+      var valor = o.tipo === 'hora' ? 'hora'
+                : o.tipo === 'nunca' ? 'nunca'
+                : 'rel:' + o.min;
+      return '<option value="' + esc(valor) + '">' + esc(o.nombre) + '</option>';
     }).join('');
+  }
+
+  /** Horas de fin de turno sugeridas, como botones. Teclear una hora es un paso de más. */
+  function horasSugeridasHTML() {
+    var horas = (datos && datos.horasSugeridas) || ['15:00', '17:00', '19:00', '21:00'];
+    return horas.map(function (h) {
+      return '<button type="button" class="atn-hora-chip" data-atn-hora="' + esc(h) + '">' +
+        esc(h) + '</button>';
+    }).join('');
+  }
+
+  /**
+   * ¿La hora tecleada es válida? Espejo de atenParsearHora_ en el servidor.
+   *
+   * La comprobación está en los dos lados a propósito y las dos tienen que decir lo
+   * mismo: aquí para avisar sin gastar un viaje, y allí porque el cliente se puede
+   * editar. Se aceptan las cuatro formas que la gente teclea de verdad —"17:00", "17",
+   * "5:30", "17.30"— en vez de exigir una: rechazar "17" cuando se entiende
+   * perfectamente es hacer trabajar a quien tiene un cliente esperando.
+   */
+  function horaValida(v) {
+    var m = String(v == null ? '' : v).trim().match(/^(\d{1,2})\s*[:.\s]?\s*(\d{2})?$/);
+    if (!m) return false;
+    var h = Number(m[1]);
+    var min = m[2] === undefined ? 0 : Number(m[2]);
+    return h >= 0 && h <= 23 && min >= 0 && min <= 59;
+  }
+
+  /** Nombre corto de la zona de la operación, para poder rotularla. */
+  function zonaTexto() {
+    var z = (datos && datos.zonaHoraria) || '';
+    return z ? z.split('/').pop().replace(/_/g, ' ') : '';
   }
 
   function opcionesTipo() {
@@ -403,13 +476,30 @@
         var tipoSel = val('atn-tipo');
         var tipo = tipoSel === '__nuevo' ? val('atn-tipo-nuevo') : tipoSel;
 
+        // La liberación se manda como UNA de las dos formas, nunca las dos. El servidor
+        // da prioridad a la hora fija si llegan juntas, y mandar ambas dejaría el
+        // resultado dependiendo de ese desempate en vez de de lo que se eligió aquí.
+        var libSel = val('atn-liberar');
+        var libMin = 0;
+        var libHora = '';
+        if (libSel === 'hora') {
+          libHora = val('atn-liberar-hora');
+          if (!horaValida(libHora)) {
+            return fallo('Escribe la hora en formato de 24 horas, por ejemplo 17:00.');
+          }
+        } else if (libSel.indexOf('rel:') === 0) {
+          libMin = Number(libSel.slice(4)) || 0;
+        }
+        // 'nunca' se queda con los dos vacíos: privada para siempre.
+
         boton.disabled = true;
         boton.textContent = 'Guardando…';
 
         llamar('atencionRegistrar', [correo(), {
           cliente: cliente, telefono: tel, correo: val('atn-correo'),
           tipo: tipo || 'Otro', notas: val('atn-notas'),
-          horaPromesa: val('atn-hora'), liberarMin: Number(val('atn-liberar')) || 0
+          horaPromesa: val('atn-hora'),
+          liberarMin: libMin, liberarHora: libHora
         }]).then(function (r) {
           boton.disabled = false;
           boton.textContent = 'Guardar atención';
@@ -445,8 +535,85 @@
         if (!libre.hidden) libre.focus();
       });
     }
+    /* El campo de la hora fija aparece solo al elegirla. Se anima con altura porque el
+       contenido de abajo tiene que bajar de verdad; es un único elemento y el coste se
+       acota con `contain`, igual que el desplegable de las tarjetas. */
+    var selLib = document.getElementById('atn-liberar');
+    var cajaHora = document.getElementById('atn-hora-fija');
+    var campoHora = document.getElementById('atn-liberar-hora');
+    var notaHora = document.getElementById('atn-hora-nota');
+
+    function pintarNotaHora() {
+      if (!notaHora) return;
+      var h = campoHora ? campoHora.value.trim() : '';
+      var z = zonaTexto();
+      if (!h || !horaValida(h)) {
+        notaHora.textContent = z
+          ? 'Hora de la operación (' + z + ').'
+          : 'Escribe la hora en formato de 24 horas.';
+        return;
+      }
+      // Se dice explícitamente cuándo cae, porque "17:00" registrado a las 17:30 es
+      // mañana y esa es exactamente la clase de sorpresa que hace desconfiar de la
+      // herramienta. Mejor decirlo antes que descubrirlo después.
+      notaHora.textContent = esHoraDeManana(h)
+        ? 'Se liberará mañana a las ' + h + (z ? ' (' + z + ')' : '') + '.'
+        : 'Se liberará hoy a las ' + h + (z ? ' (' + z + ')' : '') + '.';
+    }
+
+    if (selLib && cajaHora) {
+      selLib.addEventListener('change', function () {
+        var mostrar = selLib.value === 'hora';
+        if (mostrar === !cajaHora.hidden) return;
+        if (mostrar) {
+          cajaHora.hidden = false;
+          if (conGsap()) {
+            gsap.set(cajaHora, { height: 'auto' });
+            gsap.from(cajaHora, { height: 0, duration: .3, ease: 'power2.out' });
+            gsap.fromTo(cajaHora.children, { opacity: 0, y: -6 },
+              { opacity: 1, y: 0, duration: .28, ease: 'power2.out', delay: .05,
+                stagger: { amount: .06 }, force3D: true, clearProps: 'transform' });
+          }
+          pintarNotaHora();
+          // Se preselecciona la primera sugerencia: la mayoría de la gente elige una de
+          // ellas, y dejar el campo vacío obliga a teclear en el caso más común.
+          if (campoHora && !campoHora.value) {
+            var chips = cajaHora.querySelectorAll('[data-atn-hora]');
+            if (chips.length) chips[Math.min(3, chips.length - 1)].click();
+          }
+        } else if (conGsap()) {
+          gsap.to(cajaHora, { height: 0, duration: .24, ease: 'power2.inOut',
+            onComplete: function () { cajaHora.hidden = true; gsap.set(cajaHora, { clearProps: 'height' }); } });
+        } else {
+          cajaHora.hidden = true;
+        }
+      });
+
+      cajaHora.querySelectorAll('[data-atn-hora]').forEach(function (b) {
+        b.addEventListener('click', function () {
+          if (campoHora) campoHora.value = b.getAttribute('data-atn-hora');
+          cajaHora.querySelectorAll('[data-atn-hora]').forEach(function (x) {
+            x.setAttribute('aria-pressed', x === b ? 'true' : 'false');
+          });
+          pintarNotaHora();
+        });
+      });
+
+      if (campoHora) campoHora.addEventListener('input', pintarNotaHora);
+    }
+
     var primero = document.getElementById('atn-cliente');
     if (primero) primero.focus();
+  }
+
+  /** ¿Esa hora del día ya pasó hoy? Misma regla que aplica el servidor al resolverla. */
+  function esHoraDeManana(h) {
+    var m = String(h).trim().match(/^(\d{1,2})\s*[:.\s]?\s*(\d{2})?$/);
+    if (!m) return false;
+    var ahora = new Date();
+    var objetivo = new Date();
+    objetivo.setHours(Number(m[1]), m[2] === undefined ? 0 : Number(m[2]), 0, 0);
+    return objetivo.getTime() <= ahora.getTime();
   }
 
   function val(id) {
