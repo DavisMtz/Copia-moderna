@@ -229,3 +229,96 @@ La caja aparece y se va sola según cambia el estado, sin recargar nada: se susc
   `app_atenciones` usa los estilos del shell de Cotizaciones, que el Portal no carga: su
   formulario aparecería sin formato. El destino viaja por la URL, que funciona igual desde
   cualquier parte.
+
+### Operación y estado del servicio — revisado
+
+Tres piezas y un partial: `Operacion.gs` (servidor), `app_operacion.html` (la pastilla de
+la esquina, el panel y el formulario de reporte, en todas las pantallas), `operacion.html`
+(la bandeja de supervisión), `estado.html` (el tablero público) y
+`app_estado_historial.html` (el gráfico, compartido por el tablero y el feed de gestión).
+
+#### Qué se comprobó
+
+| Punto | Estado |
+|---|---|
+| Enlaces al sitio correcto | Bandeja ↔ tablero, avisos del Portal al detalle de la incidencia, y el aviso de Chat con `?inc=` |
+| Accesible e interpretable por URL | `?inc=` ya estaba; se añade `?rango=` para el periodo del gráfico, con atrás/adelante |
+| Las funciones en el buscador general | «Estado de operación», «Tablero de estado» e «Historial»; faltaba «Reportar una falla» |
+| Caché y almacenamiento local | `CacheService` con generación en el servidor y `AppCache` en el cliente; el botón de recargar el gráfico nunca forzaba |
+| Cola y guardado en segundo plano | La bandeja de supervisión sí pasaba por `AppGuardado`; **el reporte de falla, no** |
+| Lenguaje no técnico | Revisado: sin jerga en avisos, acuses ni estados vacíos |
+| Funciones inteligentes | Umbral automático de 3 personas en 30 min, pastilla que se convierte en isla, acuse que dice si tu reporte se sumó a otro, y ahora la escala por horas |
+| Estilo moderno y fluido (GSAP 3.13) | Barras con `scaleY` (nunca `height`), isla con MorphSVG y respaldo si el plugin no carga |
+| Mapeado por rol y permisos | Bloque `operacion` para la bandeja; el tablero y el historial son públicos a propósito |
+
+#### El gráfico ahora carga por horas y llega hasta 30 días
+
+Los periodos son **24 h · 48 h · 7 días · 14 días · 30 días**, y arranca en 24 h.
+
+- **Por qué horas primero.** Quien abre esto acaba de tropezarse con algo, y lo que necesita
+  saber es a qué hora empezó y si sigue subiendo. En una tira de días eso es *una* barra —la
+  de hoy— y no dice nada de eso. Por hora se ve el escalón de las 11:20, la meseta de la
+  comida y el pico de la tarde, que es la escala en la que se decide algo. Los días siguen a
+  un clic, para la otra pregunta: «¿esto lleva pasando toda la semana?».
+- **Por qué se cae el rango de 90 días.** A los noventa las barras miden dos píxeles, ninguna
+  se puede señalar con el ratón y lo único que queda es una mancha de color. Un trimestre es
+  material para una tabla en un informe, no para una pantalla de operación.
+- **Un solo gráfico, no dos.** La serie por horas devuelve exactamente la misma forma que la
+  de días, así que el módulo solo cambia cómo rotula el eje. Dos gráficos parecidos acabarían
+  contando cosas distintas en cuanto alguien tocara uno.
+- **El mismo umbral en las dos escalas.** El color sale de PERSONAS distintas, no de reportes:
+  cinco reportes de la misma persona son una persona con un problema, no un sistema caído. Es
+  la misma regla que dispara la alerta automática, y usar dos criterios pintaría el mismo
+  suceso de dos colores según qué botón estuviera pulsado.
+- **Dos minutos de caché para las horas** frente a diez para los días: una serie por hora
+  cambia mientras se mira, y enseñarla con diez minutos de retraso durante una caída en curso
+  es justo cuando peor sienta.
+- **Las horas se rotulan sin pasar por `new Date`.** La clave viaja como `AAAA-MM-DD HH` en
+  hora de la operación; interpretarla como fecha la movería al huso del navegador y un asesor
+  en otro huso vería el pico de las 11 dibujado a las 9.
+
+#### Qué se corrigió
+
+1. **El reporte de falla no pasaba por la cola de guardado.** Era la única escritura del
+   módulo que se llamaba a pelo, y es la que más se usa: cada asesor que se topa con algo pasa
+   por ahí. Costaba tres cosas que el resto de la aplicación ya tiene resueltas: la pastilla de
+   la esquina —esta misma, la que `app_operacion` le presta a `AppGuardado`— se quedaba muda
+   mientras el reporte subía; cerrar la pestaña a medio envío lo perdía en silencio, sin
+   guardia de salida; y la política de reintentos no estaba escrita en ninguna parte. Ahora va
+   por `AppGuardado` con cero reintentos y dicho por qué: reportar avisa al equipo por Chat, y
+   repetirlo a ciegas mandaría un segundo aviso por la misma caída.
+
+   Lo que **no** cambia es el acuse. El panel se queda puesto hasta que el servidor contesta,
+   porque lo que devuelve es información de verdad —si el reporte disparó una incidencia,
+   cuánta gente lleva reportando lo mismo— y eso no se puede pintar antes de preguntarlo. Aquí
+   lo que se adelanta es el aviso en la pastilla, no el resultado.
+
+2. **El botón de recargar el gráfico no recargaba.** `fuerza` se calculaba con una condición
+   que nunca daba verdadero, así que «recargar» devolvía lo que ya había en caché. Con la caché
+   de horas en dos minutos, ese fallo pasaba de inofensivo a visible.
+
+3. **Faltaba «Reportar una falla» en la paleta de comandos.** Es la acción con más prisa del
+   catálogo —se busca con algo ya roto delante— y ahora se ejecuta **sin cambiar de pantalla**.
+   Para eso la paleta admite entradas que cierran el panel antes de actuar: hasta ahora todas
+   las acciones locales lo dejaban abierto (bien para el tema o el tamaño de letra, que se
+   prueban varias veces), y dejarlo puesto encima del panel de operación se habría leído como
+   que el resultado no hizo nada.
+
+4. **`app_operacion` no tenía forma de avisar de un cambio de estado.** Añadido `alCambiar(cb)`
+   (ver la revisión del Portal, que es su primer cliente).
+
+5. **El reporte funcionaba en dieciocho pantallas y habría fallado en la decimonovena.** El
+   Monitor de promociones carga `app_operacion` pero no `app_guardado`; el envío ahora pasa por
+   una envoltura que usa la cola cuando está y llama directo cuando no, con la misma promesa en
+   los dos casos. Una acción no puede funcionar o no según qué includes tenga cada pantalla.
+
+#### Decisiones que se dejan como están (Operación)
+
+- **El tablero y el historial siguen siendo públicos.** «¿Está caído o soy yo?» hay que poder
+  contestarla justo cuando no puedes entrar, y su versión histórica también. Verificado que no
+  viaja ni un correo ni una nota interna: solo cuántos reportes hubo y qué se confirmó.
+- **La bandeja de supervisión no mapea sus filtros a la URL.** No tiene pestañas ni filtros:
+  es una lista sola, y no hay estado que compartir más allá de la propia pantalla.
+- **Crear un estado nuevo del catálogo sigue bloqueando el diálogo.** Es la excepción correcta
+  al guardado en segundo plano: el chip que se acaba de crear tiene que quedar seleccionado
+  antes de seguir, y eso no se puede adelantar sin saber la clave que asigna el servidor.

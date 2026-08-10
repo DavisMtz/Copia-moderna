@@ -1,8 +1,10 @@
 <style>
 /* =====================================================================================
-   HISTORIAL DE ESTADO POR FECHAS · estilos
+   HISTORIAL DE ESTADO · estilos
    =====================================================================================
-   Una tira de barras por día y por sistema, al estilo de las páginas de estado.
+   Una tira de barras por sistema, al estilo de las páginas de estado. Cada barra es una
+   HORA o un DÍA según el periodo elegido; arranca por horas, que es la escala en la que
+   se decide algo mientras algo está fallando.
 
    ── SOBRE EL COLOR, QUE ES LO QUE MÁS SE EQUIVOCA AQUÍ ──────────────────────────────
    Los tres tonos salen de la paleta de ESTADO del tema (--ok / --warn / --alert), que ya
@@ -18,14 +20,14 @@
        geometría, sin color de por medio. Es la señal principal, no un adorno.
      · TEXTURA. El rojo lleva rayado diagonal. Sobrevive a una impresión en blanco y negro
        y al modo de contraste forzado, donde el color desaparece del todo.
-     · ETIQUETA. Cada barra lleva su fecha y su estado en el título accesible, y hay una
-       vista de tabla con las mismas cifras en texto.
+     · ETIQUETA. Cada barra lleva su hora (o su fecha) y su estado en el título accesible,
+       y hay una vista de tabla con las mismas cifras en texto.
 
    ── SOBRE EL MOVIMIENTO ─────────────────────────────────────────────────────────────
    Las barras crecen con scaleY y transform-origin abajo, NUNCA animando `height`. Con
-   noventa días por cuatro sistemas son 360 barras: animar la altura sería recalcular el
-   layout de la tira entera en cada fotograma. Con scaleY, el compositor escala capas ya
-   pintadas y la entrada va a 60 fps aunque se pidan los noventa días. */
+   cuarenta y ocho horas por cuatro sistemas son casi 250 barras: animar la altura sería
+   recalcular el layout de la tira entera en cada fotograma. Con scaleY, el compositor
+   escala capas ya pintadas y la entrada va a 60 fps en cualquiera de los periodos. */
 
 .eh-wrap { display: grid; gap: 1rem; }
 
@@ -55,7 +57,7 @@
   flex: 1 1 0; min-width: 3px; position: relative; height: 100%;
   display: flex; align-items: flex-end; cursor: default; background: none; border: 0; padding: 0;
 }
-/* El carril de fondo dice "este día existe y no pasó nada", que es distinto de un hueco. */
+/* El carril de fondo dice "este tramo existe y no pasó nada", que es distinto de un hueco. */
 .eh-bar::before {
   content: ''; position: absolute; inset: 0; border-radius: 3px;
   background: var(--surface-2, #F4F7FA);
@@ -136,7 +138,9 @@
  * =====================================================================================
  * HISTORIAL DE ESTADO POR FECHAS | Sistema de cotizaciones Ventel
  * =====================================================================================
- * Pinta la serie que devuelve opHistorialPublico(). Es un partial compartido a propósito:
+ * Pinta la serie que devuelven opHistorialHorasPublico() y opHistorialPublico(): las dos
+ * tienen la misma forma, así que el gráfico es UNO y solo cambia cómo rotula el eje. Es un
+ * partial compartido a propósito:
  * el mismo gráfico se ve desde el tablero público (estado.html) y desde el panel de
  * supervisión (inicio_avanzado.html), y dos copias del mismo gráfico acabarían contando
  * cosas distintas en cuanto alguien tocara una.
@@ -149,13 +153,53 @@
 (function () {
   'use strict';
 
-  var RANGOS = [7, 14, 30, 90];
-  var TTL = 10 * 60 * 1000;
+  /* ── LOS RANGOS, Y POR QUÉ EL PRIMERO ES DE HORAS ─────────────────────────
+     Quien abre esto casi siempre acaba de tropezarse con algo, y lo que necesita saber es
+     a qué hora empezó y si sigue subiendo. En una tira de días eso es UNA barra —la de
+     hoy— y no dice nada de eso. Por eso se arranca en 24 h y los días quedan detrás, para
+     la otra pregunta: "¿esto lleva pasando toda la semana?".
+
+     El tope baja de 90 a 30 días. A los noventa las barras miden dos píxeles, ninguna se
+     puede señalar con el ratón y lo único que queda es una mancha de color: eso es
+     material para una tabla en un informe, no para una pantalla de operación. */
+  var RANGOS = [
+    { id: '24h', modo: 'horas', n: 24, rotulo: '24 h' },
+    { id: '48h', modo: 'horas', n: 48, rotulo: '48 h' },
+    { id: '7d',  modo: 'dias',  n: 7,  rotulo: '7 días' },
+    { id: '14d', modo: 'dias',  n: 14, rotulo: '14 días' },
+    { id: '30d', modo: 'dias',  n: 30, rotulo: '30 días' }
+  ];
+  var POR_OMISION = '24h';
+
+  /* Dos cachés con dos vidas distintas: una serie por hora cambia mientras se mira, y
+     enseñarla con diez minutos de retraso en plena caída es justo cuando peor sienta. */
+  var TTL_DIAS = 10 * 60 * 1000;
+  var TTL_HORAS = 2 * 60 * 1000;
 
   var host = null;
-  var dias = 14;
+  var rango = RANGOS[0];
   var datos = null;
   var globo = null;
+
+  function rangoPorId(id) {
+    var s = String(id == null ? '' : id).trim().toLowerCase();
+    for (var i = 0; i < RANGOS.length; i++) if (RANGOS[i].id === s) return RANGOS[i];
+    return null;
+  }
+  /** Compatibilidad: quien monte con { dias: 14 } sigue pidiendo lo mismo. */
+  function rangoPorDias(n) {
+    for (var i = 0; i < RANGOS.length; i++) {
+      if (RANGOS[i].modo === 'dias' && RANGOS[i].n === Number(n)) return RANGOS[i];
+    }
+    return null;
+  }
+  function rangoPorHoras(n) {
+    for (var i = 0; i < RANGOS.length; i++) {
+      if (RANGOS[i].modo === 'horas' && RANGOS[i].n === Number(n)) return RANGOS[i];
+    }
+    return null;
+  }
+  function porHoras() { return rango.modo === 'horas'; }
 
   function esc(s) {
     return String(s == null ? '' : s)
@@ -168,7 +212,7 @@
   function conGsap() { return typeof window.gsap !== 'undefined' && !reducido(); }
 
   function llamar(fn, args) {
-    if (window.AppRun && AppRun.call) return AppRun.call(fn, args, { key: 'eh-' + fn + '-' + dias });
+    if (window.AppRun && AppRun.call) return AppRun.call(fn, args, { key: 'eh-' + fn + '-' + rango.id });
     return new Promise(function (res, rej) {
       google.script.run.withSuccessHandler(res).withFailureHandler(rej)[fn].apply(null, args);
     });
@@ -176,7 +220,7 @@
 
   var NOMBRE_TONO = { ok: 'Sin reportes', warn: 'Algunos reportes', alert: 'Incidencia' };
 
-  /** "12 ago" — corto, que es lo que cabe bajo una tira de noventa barras. */
+  /** "12 ago" — corto, que es lo que cabe bajo una tira de treinta barras. */
   function fechaCorta(iso) {
     if (!iso) return '';
     var p = iso.split('-');
@@ -192,6 +236,43 @@
     return d.toLocaleDateString('es-MX', { weekday: 'long', day: 'numeric', month: 'long' });
   }
 
+  /* ── Rótulos de una hora ──────────────────────────────────────────────────
+     La clave viaja como 'AAAA-MM-DD HH' en hora de la operación, y se rotula tal cual sin
+     pasar por `new Date`: interpretarla como fecha la movería al huso del navegador, y un
+     asesor en otro huso vería el pico de las 11 dibujado a las 9. Es la misma hora que
+     enseña el resto del módulo. */
+  function partesHora(clave) {
+    var m = String(clave || '').match(/^(\d{4})-(\d{2})-(\d{2})[ T](\d{2})/);
+    return m ? { a: m[1], mes: m[2], d: m[3], h: m[4] } : null;
+  }
+  /** "14:00" — lo que cabe debajo de una barra. */
+  function horaCorta(clave) {
+    var p = partesHora(clave);
+    return p ? p.h + ':00' : String(clave || '');
+  }
+  /** "hoy a las 14:00", "ayer a las 03:00", "8 ago a las 22:00". */
+  function horaLarga(clave) {
+    var p = partesHora(clave);
+    if (!p) return String(clave || '');
+    var hoy = new Date();
+    var pad = function (n) { return (n < 10 ? '0' : '') + n; };
+    var claveHoy = hoy.getFullYear() + '-' + pad(hoy.getMonth() + 1) + '-' + pad(hoy.getDate());
+    var ayerD = new Date(hoy.getTime() - 86400000);
+    var claveAyer = ayerD.getFullYear() + '-' + pad(ayerD.getMonth() + 1) + '-' + pad(ayerD.getDate());
+    var dia = p.a + '-' + p.mes + '-' + p.d;
+    var cuando = dia === claveHoy ? 'hoy' : (dia === claveAyer ? 'ayer' : fechaCorta(dia));
+    return cuando + ' a las ' + p.h + ':00';
+  }
+
+  /** Rótulo corto y largo del tramo, sea hora o día. Un solo sitio donde se decide. */
+  function tramoCorto(clave) { return porHoras() ? horaCorta(clave) : fechaCorta(clave); }
+  function tramoLargo(clave) { return porHoras() ? horaLarga(clave) : fechaLarga(clave); }
+  /** "24 horas" / "14 días", para las frases. */
+  function tramosTexto() {
+    var n = datos && datos.tramos ? datos.tramos : rango.n;
+    return n + (porHoras() ? (n === 1 ? ' hora' : ' horas') : (n === 1 ? ' día' : ' días'));
+  }
+
   // ── Globo de detalle ───────────────────────────────────────────────────────
 
   function verGlobo(bar, texto) {
@@ -204,7 +285,7 @@
     globo.innerHTML = texto;
     var r = bar.getBoundingClientRect();
     var g = globo.getBoundingClientRect();
-    // Se centra sobre la barra y se mantiene dentro de la ventana: en la barra del día 90,
+    // Se centra sobre la barra y se mantiene dentro de la ventana: en la última barra,
     // pegada al borde derecho, un globo centrado se saldría de la pantalla.
     var x = Math.min(Math.max(8, r.left + r.width / 2 - g.width / 2), window.innerWidth - g.width - 8);
     var y = r.top - g.height - 8;
@@ -222,7 +303,7 @@
       var estado = NOMBRE_TONO[d.tono] || '';
       // Cada barra es un <button>: se alcanza con el tabulador y anuncia su contenido a un
       // lector de pantalla. Una tira de <div> con color es invisible para quien no ve color.
-      var etiqueta = fechaLarga(d.fecha) + ': ' + estado +
+      var etiqueta = tramoLargo(d.fecha) + ': ' + estado +
         (d.reportes ? ' · ' + d.reportes + ' reporte' + (d.reportes === 1 ? '' : 's') : '') +
         (d.confirmados ? ' · ' + d.confirmados + ' confirmada' + (d.confirmados === 1 ? '' : 's') : '');
       return '<button type="button" class="eh-bar t-' + d.tono + '" ' +
@@ -231,14 +312,20 @@
     }).join('');
   }
 
+  /** "3 horas con incidencias" / "3 días con incidencias" / "sin incidencias". */
+  function malosTexto(n) {
+    if (!n) return 'sin incidencias';
+    return n + (porHoras() ? (n === 1 ? ' hora con incidencias' : ' horas con incidencias')
+                           : (n === 1 ? ' día con incidencias' : ' días con incidencias'));
+  }
+
   function filaSistema(s) {
     var malos = s.diasMalos || 0;
     return '<div class="eh-fila">' +
       '<div class="eh-nombre">' + esc(s.nombre) +
-        '<small>' + (malos ? malos + (malos === 1 ? ' día con incidencias' : ' días con incidencias')
-                           : 'sin incidencias') + '</small></div>' +
+        '<small>' + malosTexto(malos) + '</small></div>' +
       '<div class="eh-tira" role="img" aria-label="Historial de ' + esc(s.nombre) +
-        ': ' + malos + ' días con incidencias de ' + datos.dias + '">' +
+        ': ' + esc(malosTexto(malos)) + ' de ' + esc(tramosTexto()) + '">' +
         tira(s.dias, s.nombre) + '</div>' +
       '<div class="eh-resumen"><b>' + (s.total || 0) + '</b>reportes</div>' +
     '</div>';
@@ -252,9 +339,9 @@
       '<div class="eh-wrap">' +
         '<div class="eh-top">' +
           '<div class="eh-rangos" role="group" aria-label="Periodo del historial">' +
-            RANGOS.map(function (n) {
-              return '<button type="button" class="eh-rango" data-eh-rango="' + n + '" ' +
-                'aria-pressed="' + (n === dias) + '">' + n + ' días</button>';
+            RANGOS.map(function (x) {
+              return '<button type="button" class="eh-rango" data-eh-rango="' + esc(x.id) + '" ' +
+                'aria-pressed="' + (x.id === rango.id) + '">' + esc(x.rotulo) + '</button>';
             }).join('') +
           '</div>' +
           '<button type="button" class="v-btn v-btn-ghost v-btn-sm" data-eh-tabla ' +
@@ -262,10 +349,13 @@
         '</div>' +
 
         /* El titular va en texto y no solo en el gráfico. Es la frase que alguien va a
-           repetir en una reunión, y leerla de una tira de barras obliga a contarlas. */
+           repetir en una reunión, y leerla de una tira de barras obliga a contarlas.
+           `limpios` es el nombre neutro que sirve para las dos escalas; se cae a
+           `diasLimpios` por si contesta un servidor todavía sin actualizar. */
         '<p style="margin:0;font-size:.86rem;color:var(--ink-soft,#5C6B7E)">' +
-          '<strong style="color:var(--ink,#1B2330)">' + (r.diasLimpios || 0) + ' de ' + datos.dias +
-          ' días sin incidencias.</strong> ' +
+          '<strong style="color:var(--ink,#1B2330)">' +
+            (r.limpios !== undefined ? r.limpios : (r.diasLimpios || 0)) +
+            ' de ' + esc(tramosTexto()) + ' sin incidencias.</strong> ' +
           (r.confirmados
             ? r.confirmados + (r.confirmados === 1 ? ' falla confirmada' : ' fallas confirmadas') +
               ' y ' + (r.reportes || 0) + ' reportes en total.'
@@ -282,8 +372,8 @@
           '</div>' +
         '</div>' +
 
-        '<div class="eh-ejes"><span>' + esc(fechaCorta(datos.desde)) + '</span>' +
-          '<span>' + esc(fechaCorta(datos.hasta)) + '</span></div>' +
+        '<div class="eh-ejes"><span>' + esc(tramoCorto(datos.desde)) + '</span>' +
+          '<span>' + esc(tramoCorto(datos.hasta)) + '</span></div>' +
 
         /* Leyenda SIEMPRE presente, y con la altura dibujada en la muestra: es la señal que
            distingue los tres estados sin depender del color. */
@@ -303,7 +393,7 @@
     cablear();
 
     if (conGsap()) {
-      // scaleY desde 0, no height. Con 90 días × 5 filas son 450 barras: animar la altura
+      // scaleY desde 0, no height. Con 48 horas × 5 filas son 240 barras: animar la altura
       // recalcularía el layout de cada tira en cada fotograma. Así solo se escalan capas.
       var barras = host.querySelectorAll('.eh-bar i');
       if (barras.length) {
@@ -338,7 +428,7 @@
             '<span style="flex:none;margin-top:.15rem">' +
               (i.vigente ? '⚠️' : '✓') + '</span>' +
             '<div><b>' + esc(i.titulo) + '</b>' +
-            '<p>' + esc(fechaLarga(f)) + ' · ' + esc(i.estadoNombre) +
+            '<p>' + esc(tramoLargo(f)) + ' · ' + esc(i.estadoNombre) +
               (i.vigente ? ' · sigue abierta' : '') + '</p></div>' +
           '</div>');
       });
@@ -355,16 +445,18 @@
     var caja = host.querySelector('[data-eh-tabla-vista]');
     if (!caja) return '';
     var filas = datos.totales.map(function (d, i) {
-      return '<tr><td>' + esc(fechaCorta(d.fecha)) + '</td>' +
+      return '<tr><td>' + esc(tramoLargo(d.fecha)) + '</td>' +
         '<td>' + esc(NOMBRE_TONO[d.tono] || '') + '</td>' +
         '<td class="num">' + d.reportes + '</td>' +
         '<td class="num">' + (d.personas || 0) + '</td>' +
         '<td class="num">' + d.confirmados + '</td></tr>';
     }).reverse().join('');
 
+    var rotuloEje = porHoras() ? 'Hora' : 'Día';
     caja.innerHTML =
-      '<table class="eh-tabla"><caption class="sr-only">Reportes por día</caption><thead><tr>' +
-        '<th scope="col">Día</th><th scope="col">Estado</th>' +
+      '<table class="eh-tabla"><caption class="sr-only">Reportes por ' +
+        (porHoras() ? 'hora' : 'día') + '</caption><thead><tr>' +
+        '<th scope="col">' + rotuloEje + '</th><th scope="col">Estado</th>' +
         '<th scope="col" class="num">Reportes</th><th scope="col" class="num">Personas</th>' +
         '<th scope="col" class="num">Confirmadas</th>' +
       '</tr></thead><tbody>' + filas + '</tbody></table>';
@@ -373,8 +465,14 @@
   function cablear() {
     host.querySelectorAll('[data-eh-rango]').forEach(function (b) {
       b.addEventListener('click', function () {
-        dias = Number(b.getAttribute('data-eh-rango')) || 14;
-        cargar(false);
+        var r = rangoPorId(b.getAttribute('data-eh-rango'));
+        if (!r || r.id === rango.id) return;
+        rango = r;
+        // Los datos anteriores son de otra escala: dejarlos puestos pintaría horas con
+        // rótulos de días durante el medio segundo del viaje.
+        datos = null;
+        avisarRango();
+        cargar(true);
       });
     });
 
@@ -407,7 +505,7 @@
       if (!d) return;
 
       verGlobo(bar,
-        '<b>' + esc(fechaLarga(dia)) + '</b>' +
+        '<b>' + esc(tramoLargo(dia)) + '</b>' +
         esc(sis) + ' · ' + esc(NOMBRE_TONO[d.tono] || '') + '<br>' +
         '<em>' + d.reportes + ' reporte' + (d.reportes === 1 ? '' : 's') +
         (d.personas ? ' de ' + d.personas + ' persona' + (d.personas === 1 ? '' : 's') : '') +
@@ -423,18 +521,23 @@
 
   // ── Carga ──────────────────────────────────────────────────────────────────
 
-  function cargar(desdeCache) {
+  function cargar(usarCache) {
     if (!host) return;
     if (!datos) {
       host.innerHTML = '<div style="padding:2rem;text-align:center;color:var(--ink-soft,#5C6B7E)">' +
         '<div class="v-spinner"></div> Cargando el historial…</div>';
     }
 
-    var clave = 'estado-historial-' + dias;
+    var deHoras = porHoras();
+    var fn = deHoras ? 'opHistorialHorasPublico' : 'opHistorialPublico';
+    // La clave lleva el id del rango entero y no solo el número: '24h' y '24d' pedirían
+    // cosas distintas al servidor y compartir caché mezclaría las dos escalas.
+    var clave = 'estado-historial-' + rango.id;
+
     if (window.AppRun && AppRun.swr) {
-      return AppRun.swr(clave, 'opHistorialPublico', [dias], {
-        ttl: TTL,
-        fuerza: desdeCache === false ? false : undefined,
+      return AppRun.swr(clave, fn, [rango.n], {
+        ttl: deHoras ? TTL_HORAS : TTL_DIAS,
+        fuerza: usarCache === false,
         accept: function (r) { return !!(r && r.success); },
         onData: function (r) { if (r && r.success) { datos = r; pintar(); } },
         onError: function () {
@@ -443,24 +546,60 @@
         }
       });
     }
-    return llamar('opHistorialPublico', [dias]).then(function (r) {
+    return llamar(fn, [rango.n]).then(function (r) {
       if (r && r.success) { datos = r; pintar(); }
       return r;
     });
   }
 
+  /* La pantalla que monta el gráfico decide qué hacer con el rango elegido —estado.html lo
+     lleva a la barra de direcciones—. El módulo no escribe la URL él mismo: también vive
+     dentro del feed de supervisión, donde es una tarjeta más y reescribir la dirección de
+     esa pantalla por cambiar de rango sería pasarse. */
+  var alCambiarRango = null;
+  function avisarRango() {
+    if (!alCambiarRango) return;
+    try { alCambiarRango(rango.id); } catch (e) { console.error(e); }
+  }
+
   window.AppEstadoHistorial = {
     /**
      * @param {Element|string} donde
-     * @param {object=} opts { dias: 14 }
+     * @param {object=} opts
+     *   rango      '24h' | '48h' | '7d' | '14d' | '30d' (gana sobre los demás)
+     *   horas      24 | 48
+     *   dias       7 | 14 | 30   (compatibilidad con las llamadas de antes)
+     *   alCambiar  fn(idRango) cada vez que se elige otro periodo
      */
     montar: function (donde, opts) {
       host = (typeof donde === 'string') ? document.getElementById(donde) : donde;
       if (!host) return false;
-      if (opts && opts.dias && RANGOS.indexOf(Number(opts.dias)) !== -1) dias = Number(opts.dias);
+      opts = opts || {};
+      var r = (opts.rango && rangoPorId(opts.rango)) ||
+              (opts.horas && rangoPorHoras(opts.horas)) ||
+              (opts.dias && rangoPorDias(opts.dias)) ||
+              rangoPorId(POR_OMISION);
+      if (r) rango = r;
+      if (typeof opts.alCambiar === 'function') alCambiarRango = opts.alCambiar;
       cargar(true);
       return true;
     },
+
+    /** Cambia el periodo desde fuera (un enlace con ?rango=, atrás/adelante). */
+    irARango: function (id, callado) {
+      var r = rangoPorId(id);
+      if (!r || r.id === rango.id) return false;
+      rango = r;
+      datos = null;
+      if (!callado) avisarRango();
+      cargar(true);
+      return true;
+    },
+    /** El periodo que se está viendo, como id ('24h', '7d'…). */
+    rango: function () { return rango.id; },
+    /** Los periodos que existen, para quien quiera validar un parámetro de la URL. */
+    rangos: function () { return RANGOS.map(function (x) { return x.id; }); },
+
     recargar: function () { datos = null; return cargar(false); },
     datos: function () { return datos; }
   };

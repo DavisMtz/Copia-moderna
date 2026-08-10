@@ -375,6 +375,19 @@
     { id:'estado', nombre:'Tablero de estado', sub:'¿Está caído el sistema o soy yo?',
       icono:IC.pulso, page:'estado', kw:'estatus servicios caido intermitente connect sap salesforce' },
 
+    /* Reportar NO cambia de pantalla: el panel de operación se abre encima de donde estés.
+       Es la acción con más prisa de todo el catálogo —se busca con algo ya roto delante— y
+       cobrarle una carga completa de Apps Script es el motivo por el que la gente acaba
+       avisando por chat en vez de por aquí. */
+    { id:'reportar-falla', nombre:'Reportar una falla', sub:'Avisar al equipo de que algo no está funcionando',
+      icono:IC.pulso, sesion:true, cierra:true,
+      kw:'reportar reporte falla caida avisar problema no funciona error incidencia se cayo ' +
+         'levantar ticket connect sap lento intermitente',
+      fn:function () {
+        if (window.AppOperacion && AppOperacion.reportar) { AppOperacion.reportar(''); return; }
+        if (window.AppUrl) AppUrl.go('estado');
+      } },
+
     /* Plantillas de correo: se abren ya elegidas (?tpl=…). Son el destino real de
        "necesito mandar un estado de cuenta", que es como se pide en voz alta. */
     { id:'tpl-ticket', nombre:'Plantilla · Ticket de compra', sub:'Reenvío del ticket de una compra',
@@ -1370,7 +1383,17 @@
     if (f.tipo === 'fn' || f.tipo === 'sec') {
       var d = f.dato;
       recordar(K_RECIENTES, d.id, 6);
-      if (d.fn) { d.fn(); pinta(); return; }   // ajuste local: el panel se queda abierto
+      if (d.fn) {
+        /* Por omisión el panel SE QUEDA ABIERTO: los ajustes locales (tema, tamaño de
+           letra, densidad) se prueban tres o cuatro veces seguidas y cerrar entre cada
+           uno obligaría a volver a abrirlo y a repetir la búsqueda.
+           Con `cierra:true` se cierra antes de actuar. Es para las acciones que abren
+           algo encima —reportar una falla abre el panel de operación—: dejar la paleta
+           puesta la pondría por delante de lo que se acaba de abrir, y se leería como
+           que el resultado no hizo nada. */
+        if (d.cierra) { cerrar(true); d.fn(); return; }
+        d.fn(); pinta(); return;
+      }
       navega(d.page, d.params || {}, d.ancla);
       return;
     }

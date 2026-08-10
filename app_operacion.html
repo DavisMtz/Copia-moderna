@@ -653,6 +653,28 @@
     });
   }
 
+  /**
+   * Manda una escritura por la cola de AppGuardado, o a pelo si esa cola no está.
+   *
+   * Este módulo se incluye también en el Monitor de promociones, que no carga
+   * app_guardado. Sin esta envoltura, el reporte de una falla funcionaría en dieciocho
+   * pantallas y fallaría en la decimonovena —y el fallo no sería un error visible, sería
+   * un botón que no hace nada—, que es exactamente la clase de diferencia que no puede
+   * depender de qué includes tenga cada pantalla.
+   *
+   * Devuelve siempre una promesa que RESUELVE con la respuesta y RECHAZA si no se pudo,
+   * igual con cola que sin ella, para que quien llama no tenga que preguntar cuál de las
+   * dos rutas se tomó.
+   */
+  function enviarPorLaCola(op) {
+    if (window.AppGuardado && AppGuardado.guardar) return AppGuardado.guardar(op);
+    return llamar(op.fn, op.args || []).then(function (r) {
+      var vale = op.valida ? op.valida(r) : !(r && r.success === false);
+      if (!vale) throw (r || new Error('No se pudo guardar.'));
+      return r;
+    });
+  }
+
   /** "hace 12 min" — la antigüedad es lo primero que se mira en una incidencia. */
   function desdeHace(iso) {
     if (!iso) return '';
@@ -1650,7 +1672,7 @@
     form.error = '';
     pintarFormulario();
 
-    llamar('opReportar', [{
+    var envio = {
       email: correo(),
       sistema: sistema,
       sistemaNuevo: sistemaNuevo,
@@ -1659,7 +1681,38 @@
       notas: form.notas,
       evidencias: form.evidencias.filter(function (e) { return e.estado === 'ok'; })
                                  .map(function (e) { return { url: e.url, id: e.id, nombre: e.nombre }; })
-    }]).then(function (r) {
+    };
+
+    /* ── EL REPORTE VA POR LA COLA DE GUARDADO ────────────────────────────────
+       Era la única escritura del módulo que se llamaba a pelo, y es la que más se usa:
+       cada asesor que se topa con algo pasa por aquí. Eso costaba tres cosas que el
+       resto de la app ya tiene resueltas:
+
+         · La pastilla de abajo a la izquierda —esta misma, la que app_operacion presta a
+           AppGuardado— se quedaba muda mientras el reporte subía. Justo el indicador que
+           existe para decir "hay algo en vuelo" no se enteraba del envío más importante.
+         · No había guardia de salida. Cerrar la pestaña con el reporte a medio subir lo
+           perdía en silencio; ahora AppGuardado avisa y deja esperar.
+         · La política de reintentos no estaba escrita en ninguna parte. Aquí va en cero y
+           dicho: reportar avisa al equipo por Chat, así que repetirlo a ciegas mandaría un
+           segundo aviso por la misma caída.
+
+       Lo que NO cambia es el acuse. El panel se queda puesto hasta que el servidor
+       contesta, porque lo que devuelve es información de verdad —si el reporte disparó una
+       incidencia, cuánta gente lleva reportando lo mismo— y eso no se puede pintar antes de
+       preguntarlo. `optimista` está vacío a propósito: aquí lo que se adelanta es el aviso
+       en la pastilla, no el resultado. */
+    enviarPorLaCola({
+      clave: 'operacion:reporte',
+      etiqueta: 'Enviando tu reporte',
+      // Sin aviso propio: el acuse dentro del panel ya lo dice, y con más detalle.
+      silencioso: true,
+      hecho: 'Reporte enviado',
+      fn: 'opReportar',
+      args: [envio],
+      reintentos: 0,
+      valida: function (r) { return !!(r && r.success); }
+    }).then(function (r) {
       form.enviando = false;
       if (r && r.success) {
         form.hecho = r;
@@ -1685,13 +1738,21 @@
             try { AppAtenciones.sugerir({ sistema: sistemaReportado }); } catch (e) {}
           }, 1200);
         }
-      } else {
-        form.error = (r && r.message) || 'No pudimos guardar tu reporte. Inténtalo de nuevo.';
-        pintarFormulario();
       }
-    }, function () {
+    }, function (motivo) {
+      /* Un solo camino para el "no salió", venga de donde venga.
+         La cola RECHAZA en los dos casos: cuando el servidor contesta que no —y entonces
+         `motivo` es su respuesta, con el porqué escrito— y cuando no hubo forma de
+         llegar, donde lo único cierto es que falló el viaje. Distinguirlos importa: "no
+         elegiste sistema" y "no hay internet" se arreglan de maneras muy distintas, y un
+         mensaje genérico manda a revisar el wifi a quien solo tenía que rellenar un campo.
+
+         Lo escrito NO se pierde: el formulario sigue puesto tal cual, con el motivo
+         encima y el botón listo para volver a intentarlo. */
       form.enviando = false;
-      form.error = 'No hay conexión con el sistema. Revisa tu internet e inténtalo de nuevo.';
+      form.error = (motivo && motivo.message && !(motivo instanceof Error))
+        ? motivo.message
+        : 'No hay conexión con el sistema. Revisa tu internet e inténtalo de nuevo.';
       pintarFormulario();
     });
   }
