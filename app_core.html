@@ -729,8 +729,15 @@
    * `ancla` viaja además como fragmento (#), que es su sitio natural: dice a qué
    * apartado bajar y no es asunto del servidor. Se manda por los dos canales porque
    * dentro del iframe de Apps Script el fragmento se pierde con facilidad.
+   *
+   * `item` es el elemento concreto que se eligió en otra pantalla —una herramienta del
+   * Portal, una paquetería— para que el destino lo abra ya resaltado. Llevaba tiempo
+   * viajando en enlaces construidos a mano (la paleta de comandos manda a
+   * `portal?sec=…&q=…&item=…`) y funcionaba de casualidad: el Portal lee la URL real
+   * con google.script.url, así que no le hacía falta esta lista. Pero AppUrl.params()
+   * sí la usa, y no lo devolvía. Escrito aquí, las dos formas de leer coinciden.
    */
-  const PARAMS_VISTA = ['folio', 'action', 'format', 'q', 'buscar', 'tpl', 'sec', 'ancla', 'inc', 'next', 'promo'];
+  const PARAMS_VISTA = ['folio', 'action', 'format', 'q', 'buscar', 'tpl', 'sec', 'ancla', 'inc', 'next', 'promo', 'item'];
 
   /** Parámetros de campaña que ensucian un enlace compartido y no significan nada aquí. */
   const PARAMS_BASURA = /^(utm_|fbclid$|gclid$|mc_eid$|_ga$)/i;

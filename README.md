@@ -113,7 +113,7 @@ completa `atenciones.html`.
     general. El Inicio sigue cargando el módulo para eso, y calienta la lista un segundo
     después de arrancar para que ese panel aparezca lleno.
 
-#### Decisiones que se dejan como están
+#### Decisiones que se dejan como están (Atenciones)
 
 - **El módulo no escribe la URL; solo avisa.** Cuando vive como panel encima de una
   cotización a medio escribir, reescribir la dirección se llevaría por delante el enlace
@@ -129,3 +129,103 @@ completa `atenciones.html`.
   cero reintentos a propósito: repetir una escritura que crea algo daría de alta al mismo
   cliente dos veces o pisaría una reserva ajena. Solo lo idempotente —fijar unas
   anotaciones— reintenta.
+
+### Portal (`Index.html`) — revisado
+
+La landing pública del equipo: herramientas, paqueterías, formas de pago, formatos,
+plantillas y los seis procesos de trazabilidad. Es el único archivo de la aplicación que
+no usa el shell ni el motor de búsqueda compartidos —tiene los suyos— y sí carga
+`app_core`, `app_prefs`, `app_guardado`, `app_onboarding` y `app_operacion`.
+
+#### Qué se comprobó
+
+| Punto | Estado |
+|---|---|
+| Enlaces al sitio correcto | Menú lateral, conmutador de áreas, tarjetas y buscador. Un fallo grave corregido (ver abajo) |
+| Accesible e interpretable por URL | `?sec=`, `?q=` e `?item=`, con hash, atrás/adelante y ahora también salida a la barra de direcciones |
+| Las funciones en el buscador general | Catálogo de pantallas de la app, secciones, promociones y anuncios. Faltaban dos entradas y el icono de una |
+| Caché y almacenamiento local | Tres copias locales con stale-while-revalidate (Portal, Trazabilidad, promos); a la principal le faltaban versión y caducidad |
+| Lenguaje no técnico | Revisado: avisos, vacíos y errores hablan de conexión y de datos, no de peticiones ni de caché |
+| Funciones inteligentes | Ámbitos de búsqueda, accesos fijados, historial de copiados, colecciones y la recomendación nueva de atenciones |
+| Estilo moderno y fluido (GSAP 3.13) | GSAP 3.13 con ScrollTrigger y MorphSVG, todo detrás de `GS()`, que respeta «reducir movimiento» |
+| Mapeado por rol y permisos | `AppFunciones` decide las áreas y `appActionsPermitidas()` el buscador; la Gestión se pregunta al servidor |
+
+#### Función nueva: «¿Tienes un cliente en la línea?»
+
+Encima del hero, AppOperacion ya pintaba las incidencias vivas. Eso dice **qué pasa**;
+faltaba **qué hacer**. Ahora, cuando hay una falla que corta la atención, aparece debajo
+una recomendación en color de marca —no en rojo: dos alertas seguidas se leen como una— que
+ofrece guardar el nombre y el teléfono del cliente antes de colgar.
+
+Tres condiciones, y las tres importan:
+
+- **Que la falla corte la atención.** Cuentan las incidencias en tono de aviso o de alerta
+  (sospecha, confirmada, intermitencia). El mantenimiento programado no: está anunciado y
+  nadie está atendiendo a ciegas.
+- **Que quien mira tenga sesión y el bloque `atenciones`.** El Portal es la landing
+  pública, y ofrecerle su libreta de clientes a un visitante anónimo solo produce un login
+  que no venía a hacer.
+- **Que no lo haya descartado ya para esa misma falla.** El descarte se guarda con la firma
+  de las incidencias vivas, así que si mañana se cae otra cosa —o esta pasa de sospecha a
+  confirmada— el aviso vuelve. Un descarte eterno convierte la recomendación en algo que se
+  ve una vez en la vida; uno que no se respeta, en la caja que se cierra sin leer.
+
+La caja aparece y se va sola según cambia el estado, sin recargar nada: se suscribe a
+`AppOperacion.alCambiar`, que es nuevo y contesta también con lo que haya en caché.
+
+#### Qué se corrigió
+
+1. **Ningún resultado de «Funciones de la app» llevaba a su pantalla.** `goAppAction`
+   recibe la entrada completa del catálogo y leía `entrada.page`, pero el destino vive un
+   nivel más adentro, en `entrada.act`. Se llamaba siempre a `AppUrl.go(undefined)`, y el
+   servidor resuelve como Portal cualquier página que no reconoce. Nadie lo veía como un
+   fallo: pulsabas «Nueva cotización», la pantalla parpadeaba y seguías en el Portal, que
+   es justo lo que parece cuando un enlace no hace nada.
+
+2. **`AppOperacion` no tenía forma de avisar.** Quien quisiera reaccionar a una incidencia
+   solo podía preguntar `estado()` con temporizadores, es decir, adivinar cuánto tarda el
+   servidor y equivocarse por los dos lados. Ahora hay `alCambiar(cb)`, que llama también
+   con lo que haya en caché y devuelve la función para dejar de escuchar.
+
+3. **La búsqueda de sección entraba por la URL pero no salía.** Se podía llegar a
+   «Paqueterías filtrado por guía» desde el buscador general y no se podía copiar ese mismo
+   enlace desde el Portal. Ahora el filtro se escribe en la dirección según se teclea
+   —reemplazando la entrada, no apilándola: una por tecla dejaría el botón atrás
+   inservible— y cambiar de sección la apila con el filtro que esa sección tenga puesto.
+
+4. **La copia local del Portal no tenía versión ni caducidad**, al contrario que la de
+   Trazabilidad, que está en el mismo archivo. Una copia de hace meses se pintaba igual, y
+   el día que cambiara la forma del dato se habría roto solo para quien ya había entrado
+   antes. Ahora lleva versión y siete días, como su vecina.
+
+5. **`icon('clock')` no existía** y `icon()` se cae a la llave inglesa cuando no encuentra
+   el nombre: las dos entradas de Atenciones del buscador salían con el icono de
+   Herramientas. No parece un fallo —parece una decisión— y manda a buscar al sitio
+   equivocado. Auditado el catálogo entero: era el único nombre usado sin definir.
+
+6. **Faltaban dos funciones muy buscadas en voz alta.** «Tablero de estado» (*¿está caído
+   o soy yo?*) no lo contestaba nadie, solo salía el historial, que es otra cosa. Y
+   «Reportar una falla» no estaba: ahora se ejecuta **sin cambiar de pantalla**, abriendo
+   el panel de AppOperacion sobre el Portal, porque mandar a alguien a otra vista para
+   avisar de una caída le cobra una carga completa de Apps Script justo cuando menos tiempo
+   tiene. Para eso el catálogo admite acciones locales (`act.fn`).
+
+7. **`item` no estaba en `PARAMS_VISTA`.** La paleta de comandos ya construía enlaces
+   `portal?sec=…&q=…&item=…` y funcionaban de casualidad, porque el Portal lee la URL real;
+   pero `AppUrl.params()` no lo devolvía. Añadido a las dos listas espejo.
+
+#### Decisiones que se dejan como están (Portal)
+
+- **El Portal conserva su propio motor de búsqueda.** `AppBuscar` unificó el criterio de
+  coincidencia del resto de la aplicación, y este archivo se quedó fuera. El suyo es bueno
+  —tolera erratas, entiende sinónimos y frases, y admite ámbitos por sección—, pero es una
+  segunda implementación. Migrarlo es una tarea propia, con sus quince índices y su
+  resaltado, y no cabe dentro de una revisión: queda anotado.
+- **Los datos siguen guardándose con `lsGet`/`lsSet` y no con `AppCache`.** Son tres copias
+  con su propia forma (versión, firma y antigüedad visible) y ya funcionan; pasarlas a
+  `AppCache` daría cuota y purga automáticas a cambio de tocar tres módulos que hoy están
+  bien. Anotado, no urgente.
+- **La recomendación de atenciones enlaza en vez de abrir el formulario aquí.** El módulo
+  `app_atenciones` usa los estilos del shell de Cotizaciones, que el Portal no carga: su
+  formulario aparecería sin formato. El destino viaja por la URL, que funciona igual desde
+  cualquier parte.

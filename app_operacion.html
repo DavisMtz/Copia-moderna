@@ -996,9 +996,29 @@
     }
   }
 
+  /* ── QUIÉN MÁS QUIERE SABER QUE ALGO SE CAYÓ ────────────────────────────
+     Una pantalla puede necesitar reaccionar a las incidencias sin ser este módulo: el
+     Portal, por ejemplo, recomienda guardar los datos del cliente cuando hay una falla
+     en curso. Hasta ahora la única forma era preguntar `estado()` con temporizadores a
+     ver si ya había llegado, que es adivinar cuánto tarda el servidor y equivocarse las
+     dos veces —de más, avisando tarde; de menos, avisando en vacío—.
+
+     El estado llega por tres caminos (la caché local, la respuesta del servidor y la
+     entrega directa de una pantalla que ya lo pidió) y los tres pasan por aquí. */
+  var oyentesEstado = [];
+
+  function avisarEstado() {
+    if (!oyentesEstado.length) return;
+    var e = estado && estado.estado ? estado.estado : estado;
+    oyentesEstado.forEach(function (cb) {
+      try { cb(e); } catch (err) { console.error(err); }
+    });
+  }
+
   /* ── Avisos incrustados en la pantalla de inicio ────────────────────────── */
 
   function pintarAvisos() {
+    avisarEstado();
     var slot = document.getElementById('operacion-avisos');
     if (!slot) return;
     if (!slot.classList.contains('op-root')) slot.classList.add('op-root');
@@ -1790,6 +1810,26 @@
     cerrar: cerrar,
     refrescar: function (forzar) { cargar(forzar !== false); },
     estado: function () { return estado; },
+
+    /**
+     * Avisa cada vez que se sabe algo nuevo del estado de los sistemas.
+     *
+     * El callback recibe el estado ya desenvuelto ({ success, incidentes, sistemas… })
+     * y se llama TAMBIÉN con lo que hubiera en la caché, que es lo que permite a quien
+     * escucha pintar en el primer fotograma en vez de esperar al servidor. Devuelve la
+     * función para dejar de escuchar.
+     */
+    alCambiar: function (cb) {
+      if (typeof cb !== 'function') return function () {};
+      oyentesEstado.push(cb);
+      // Si el estado ya está aquí, no se hace esperar al siguiente cambio: quien acaba
+      // de suscribirse quiere saber CÓMO ESTÁ, no solo cuándo cambie.
+      if (estado) { try { cb(estado.estado ? estado.estado : estado); } catch (e) { console.error(e); } }
+      return function () {
+        var i = oyentesEstado.indexOf(cb);
+        if (i !== -1) oyentesEstado.splice(i, 1);
+      };
+    },
 
     /**
      * Una pantalla que YA pidió el estado por su cuenta se lo entrega aquí.

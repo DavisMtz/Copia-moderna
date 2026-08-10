@@ -808,6 +808,23 @@ a:focus-visible,button:focus-visible,input:focus-visible,[tabindex]:focus-visibl
 .anc-d-title{font-family:Archivo,inherit;font-weight:800;font-size:1.02rem;line-height:1.25;margin-bottom:.15rem;color:var(--ink)}
 .anc-d-text{font-size:.9rem;font-weight:500;line-height:1.5;color:var(--ink-soft,#4b5563)}
 
+/* ── Recomendación: guarda la atención mientras algo está fallando ──────────
+   Usa la misma caja que un anuncio destacado a propósito: no es una alerta más
+   —la alerta ya está justo encima, pintada por AppOperacion— sino lo que se puede
+   HACER al respecto, y por eso va en color de marca y no en rojo. Dos avisos rojos
+   seguidos se leen como uno solo y el segundo se pierde. */
+.anc-destacado.marca{background:var(--brand-tint);border-color:var(--brand-soft)}
+.anc-destacado.marca .anc-d-ic{color:var(--brand);background:rgba(255,255,255,.66)}
+[data-theme="carbon"] .anc-destacado.marca .anc-d-ic{background:rgba(0,0,0,.24)}
+#atencionesTip{margin-bottom:1.4rem}
+#atencionesTip:empty{display:none;margin:0}
+/* Nace invisible: la entrada la trae GSAP. Sin esto se ve un fotograma en su sitio
+   final antes de que arranque la animación. Si no hay GSAP, la regla de abajo lo
+   deja visible igual. */
+#atencionesTip > .anc-destacado{opacity:0}
+#atencionesTip > .anc-destacado.puesto{opacity:1}
+@media (prefers-reduced-motion: reduce){ #atencionesTip > .anc-destacado{opacity:1} }
+
 /* ── Botón CTA compartido (destacado / tarjeta / modal) ── */
 .anc-ctas{display:flex;flex-wrap:wrap;gap:.55rem;align-items:center;margin-top:.7rem}
 .anc-cta{display:inline-flex;align-items:center;gap:.4rem;background:var(--brand,#E10098);color:#fff;border-radius:10px;padding:.5rem .95rem;font-size:.85rem;font-weight:700;text-decoration:none;transition:filter .2s,transform .2s}
@@ -1452,6 +1469,10 @@ table.ds-matrix{width:100%;border-collapse:separate;border-spacing:0;min-width:5
          los siguientes cinco minutos, así que va antes que los anuncios y que las promos.
          Lo rellena AppOperacion (app_operacion.html); vacío, no ocupa espacio. -->
     <div id="operacion-avisos"></div>
+    <!-- Y justo debajo, qué hacer al respecto: si algo está fallando y tienes un cliente
+         en la línea, guarda sus datos ahora. Lo pinta el bloque "RECOMENDACIÓN DE
+         ATENCIONES" del final; vacío, no ocupa espacio. -->
+    <div id="atencionesTip"></div>
     <div class="hero">
       <div class="hero-l">
         <div class="hero-greet"><span id="heroGreet">Buen día</span> · Equipo VENTEL</div>
@@ -2635,6 +2656,11 @@ const ICONS = {
   flag:'<path d="M5 21V4a1 1 0 0 1 1-1h11l-2 4 2 4H6"/>',
   megaphone:'<path d="M3 11v3a1 1 0 0 0 1 1h2l4 4V6L6 10H4a1 1 0 0 0-1 1Z"/><path d="M14 7.5a5 5 0 0 1 0 7M17.5 5a9 9 0 0 1 0 12"/>',
   history:'<circle cx="12" cy="12" r="9"/><path d="M12 7v5l3.5 2"/>',
+  /* `clock` faltaba y `icon()` se cae a la llave inglesa cuando no encuentra el nombre:
+     las dos entradas de Atenciones del buscador salían con el icono de Herramientas, que
+     no es un fallo que salte a la vista —parece una decisión— pero manda a buscar en el
+     sitio equivocado. Es el mismo reloj que `history`, con su propio nombre. */
+  clock:'<circle cx="12" cy="12" r="9"/><path d="M12 7v5l3.5 2"/>',
   close:'<path d="M6 6l12 12M18 6 6 18"/>',
   refresh:'<path d="M21 12a9 9 0 1 1-2.64-6.36"/><path d="M21 4v5h-5"/>',
   home:'<path d="M3 10.5 12 3l9 7.5"/><path d="M5 9.4V21h5v-6h4v6h5V9.4"/>',
@@ -3004,7 +3030,7 @@ document.addEventListener('DOMContentLoaded', () => {
   });
 
   // SWR: pinta al instante con el último dato guardado localmente…
-  const cached = lsGet('ventel-data-v1', null);
+  const cached = leerCopiaPortal();
   if (cached && cached.data) { lastUpdated = cached.t || null; onToolsData(cached.data, true); }
 
   // …lo mismo para Trazabilidad: esqueletos, luego la última copia buena de la
@@ -3145,13 +3171,60 @@ function initNavigation(){
     window.addEventListener('hashchange', () => restore((location.hash || '').replace('#','') || 'inicio', '', ''));
   }
 }
+/* Lo que hay escrito en el filtro de una sección. Se lee del DOM y no de una variable
+   porque el filtro lo pueden haber puesto tres sitios distintos —el asesor tecleando, un
+   enlace con ?q= y el buscador global— y el input es el único que se entera de los tres. */
+function filtroDeSeccion(id){
+  const wrap = document.getElementById('sec-' + id);
+  const input = wrap ? wrap.querySelector('.filter-input input, .filter-bar input') : null;
+  return input ? String(input.value || '').trim() : '';
+}
+
 function pushNav(id){
   if (suppressHistory) return;
+  // La sección se apila CON su filtro: si se vuelve a ella con el botón atrás, se vuelve
+  // a lo que se estaba viendo y no a la lista entera. Sin esto la dirección decía
+  // "Paqueterías" mientras la pantalla enseñaba "Paqueterías filtrado por Estafeta", y
+  // el enlace que alguien copiara de ahí llevaba a otro sitio del que él veía.
+  const q = filtroDeSeccion(id);
+  navUrl(id, q, true);
+}
+
+/* ── LA BÚSQUEDA DE SECCIÓN, EN LA BARRA DE DIRECCIONES ──────────────────────
+   `?q=` entraba pero no salía: se podía llegar a "Paqueterías filtrado por guía" desde
+   el buscador general, y no se podía copiar ese mismo enlace desde el Portal para
+   mandárselo a un compañero. Ahora el filtro se escribe en la dirección según se teclea.
+
+   Se REEMPLAZA la entrada de historial, no se apila: una por tecla dejaría el botón
+   atrás inservible —habría que pulsarlo doce veces para deshacer una palabra—. Cambiar
+   de sección sí apila, que es lo que la gente espera de algo que se ve como páginas. */
+function navUrl(id, q, apilar){
+  const params = q ? { sec:id, q:q } : { sec:id };
   if (typeof google !== 'undefined' && google.script && google.script.history) {
-    try { google.script.history.push(null, { sec:id }, id); } catch(e){}
-  } else {
-    try { history.pushState(null, '', '#' + id); } catch(e){ location.hash = id; }
+    const metodo = apilar ? google.script.history.push : google.script.history.replace;
+    try { metodo.call(google.script.history, null, params, id); } catch(e){}
+    return;
   }
+  const busca = '?sec=' + encodeURIComponent(id) + (q ? '&q=' + encodeURIComponent(q) : '');
+  try {
+    if (apilar) history.pushState(null, '', busca + '#' + id);
+    else history.replaceState(null, '', busca + '#' + id);
+  } catch(e){ if (apilar) location.hash = id; }
+}
+
+let urlFiltroTimer = null;
+function reflejarFiltro(sec, term){
+  if (suppressHistory) return;
+  const id = sec === 'pdePago' ? 'pdepago' : sec;
+  // Solo si es la sección que se está VIENDO. `filterSec` también corre al restaurar un
+  // enlace o al preparar una sección que todavía no está abierta, y reescribir la
+  // dirección con el filtro de una sección invisible la haría mentir.
+  const activa = document.querySelector('.view-section.active');
+  if (!activa || activa.id !== 'sec-' + id) return;
+  clearTimeout(urlFiltroTimer);
+  // Un respiro tras la última tecla: escribir la dirección en cada pulsación es trabajo
+  // regalado y, dentro del iframe de Apps Script, un mensaje a la ventana de arriba.
+  urlFiltroTimer = setTimeout(function(){ navUrl(id, String(term || '').trim(), false); }, 350);
 }
 
 /* ──────── INTRO ──────── */
@@ -3270,11 +3343,45 @@ function jumpToFp(blockId){
    uno por sección y todos idénticos) los hace ahora trazJump(), que además
    despliega la tarjeta a la que salta. */
 
+/* ──────── COPIA LOCAL DEL PORTAL ────────────────────────────────────────────
+   Es lo que se pinta en el primer fotograma, antes de que conteste Apps Script: sin
+   ella el Portal abre en blanco y con ella abre lleno. Por eso mismo hay que tratarla
+   como lo que es —una copia de respaldo— y no como una verdad permanente:
+
+     · VERSIÓN. Si mañana cambia la forma del dato, la copia vieja se descarta sola en
+       vez de llegar al render y romperlo. Guardarla sin versión significa que el día
+       que se toque `fetchToolsData` el Portal se rompe SOLO para quien ya lo había
+       abierto antes, que es justo a quien no se le puede pedir que borre su caché.
+     · CADUCIDAD. Siete días, igual que Trazabilidad, que es el módulo de al lado y ya
+       lo hacía así. Una copia de hace tres meses no es un respaldo, es contenido
+       equivocado enseñado con toda confianza mientras llega el bueno.
+
+   La antigüedad SIEMPRE se dice: el rótulo del hero ("Actualizado hace X") se pinta
+   con la fecha de esta copia y se marca en gris pasados quince minutos. */
+const PORTAL_LS_CLAVE = 'ventel-data-v1';
+const PORTAL_LS_VER   = 1;
+const PORTAL_LS_TTL   = 7 * 24 * 3600 * 1000;
+
+function guardarCopiaPortal(data){
+  lsSet(PORTAL_LS_CLAVE, { v: PORTAL_LS_VER, t: Date.now(), data: data });
+}
+function leerCopiaPortal(){
+  const c = lsGet(PORTAL_LS_CLAVE, null);
+  if (!c || !c.data) return null;
+  // Las copias escritas antes de que esto tuviera versión no la traen: se descartan una
+  // sola vez y la siguiente respuesta del servidor deja ya la nueva.
+  if (c.v !== PORTAL_LS_VER || !c.t || (Date.now() - c.t) > PORTAL_LS_TTL){
+    try { localStorage.removeItem(PORTAL_LS_CLAVE); } catch(e){}
+    return null;
+  }
+  return c;
+}
+
 /* ──────── DATOS (Apps Script · stale-while-revalidate) ──────── */
 function onToolsData(data, fromCache){
   if (!data || data.status === 'error') { if (!fromCache) onToolsError(data && data.error); return; }
   if (fromCache && dataIsFresh) return; // ya están pintados los datos frescos
-  if (!fromCache){ dataIsFresh = true; lastUpdated = Date.now(); lsSet('ventel-data-v1', { t: lastUpdated, data: data }); renderSyncStatus(); }
+  if (!fromCache){ dataIsFresh = true; lastUpdated = Date.now(); guardarCopiaPortal(data); renderSyncStatus(); }
   // Compat: cachés viejas solo traen "avisos" (texto). Se mapean a anuncios banner.
   const anuncios = data.anuncios || (data.avisos || []).map((a, i) => ({
     id: 'avi-' + i, formato: 'banner', tono: a.tipo || 'info', mensaje: a.mensaje || ''
@@ -3603,6 +3710,7 @@ function reportBtn(sec, nombre, enlace){
    elementos que coinciden por su nombre se muestren primero (más intuitivo). */
 const NAME_FIELD = { herramientas:'nombre', presentaciones:'nombre', paqueterias:'nombre', formatos:'acceso', pdepago:'nombre', plantillas:'titulo' };
 function filterSec(sec, term){
+  reflejarFiltro(sec, term);
   if (sec === 'plantillas') { applyPltFilters(); return; }
   const t = norm(term);
   const key = sec === 'pdepago' ? 'pdePago' : sec;
@@ -4060,6 +4168,14 @@ const APP_ACTIONS = [
   // Con `sec:'publicas'`: buscar "rescatables" tiene que dejar delante la lista de las
   // liberadas, no la pantalla en la pestaña de siempre para que se busque otra vez.
   { name:'Atenciones rescatables',  sub:'Las que otros asesores liberaron y puedes tomar', icon:'key', kw:'rescatar rescate publicas liberadas pool tomar otro asesor clientes libres atenciones disponibles', bloques:['atenciones'], act:{ page:'atenciones', sec:'publicas' } },
+  /* Las dos puertas del estado del servicio. Faltaban las dos, y son de las que más se
+     buscan en voz alta: "¿está caído o soy yo?" no lo contestaba nadie —solo salía el
+     historial, que es otra cosa— y "se cayó Connect" no ofrecía reportarlo. */
+  { name:'Tablero de estado',       sub:'¿Está caído el sistema o soy yo?', icon:'wifi', kw:'estado estatus tablero servicio caido caida sistemas connect sap salesforce funciona anda lento intermitente esta caido soy yo', act:{ page:'estado' } },
+  /* Reportar NO cambia de pantalla: el panel de AppOperacion se abre aquí mismo. Mandar
+     a alguien a otra vista para decir que algo se cayó es cobrarle una carga completa de
+     Apps Script por avisar, y es exactamente el momento en que tiene menos tiempo. */
+  { name:'Reportar una falla',      sub:'Avisar al equipo de que algo no está funcionando', icon:'flag', kw:'reportar reporte falla caida avisar problema no funciona error incidencia se cayo levantar ticket', sesion:true, act:{ fn:'reportarFalla' } },
   { name:'Historial del servicio',  sub:'Cuántos reportes hubo cada día y qué se confirmó', icon:'bolt', kw:'historial grafico barras fechas dias reportes incidencias confirmadas caidas tendencia semana mes estadistica', act:{ page:'estado' } },
   { name:'Plantilla · Ticket de compra',        sub:'Reenvío del ticket de una compra', icon:'mail', kw:'ticket compra comprobante pedido reenvio plantilla correo', bloques:['correos_cliente'], act:{ page:'correo_cliente', tpl:'ticket' } },
   { name:'Plantilla · Edo. de cuenta PF',       sub:'Solicitud de estado de cuenta', icon:'mail', kw:'estado cuenta pf persona fisica validacion tarjeta plantilla correo', bloques:['correos_cliente'], act:{ page:'correo_cliente', tpl:'edodecuenta' } },
@@ -4072,7 +4188,11 @@ const APP_ACTIONS = [
 /** Las acciones que ESTA sesión puede abrir. Sin sesión, todas (llevan al login). */
 function appActionsPermitidas(){
   const conSesion = !!(window.AppSession && AppSession.isLoggedIn());
-  if (!conSesion) return APP_ACTIONS;
+  // `sesion:true` es para lo que no significa nada sin haber entrado. Los demás
+  // resultados sí se ofrecen a un visitante: llevan al login y de ahí a su destino,
+  // que es una respuesta útil. "Reportar una falla" no: se hace desde aquí mismo y
+  // sin identidad no hay nada que reportar.
+  if (!conSesion) return APP_ACTIONS.filter(a => !a.sesion);
   return APP_ACTIONS.filter(a => {
     if (a.maestro && !AppSession.isMaster) return false;
     if (!a.bloques) return true;
@@ -4080,10 +4200,40 @@ function appActionsPermitidas(){
   });
 }
 
+/* Acciones locales del buscador: no cambian de pantalla, hacen algo aquí mismo.
+   Reportar una falla es el caso: el panel de AppOperacion se abre sobre el Portal, y
+   mandar a alguien a otra vista para decir que algo se cayó le cobra una carga completa
+   de Apps Script justo cuando menos tiempo tiene. */
+const APP_ACTION_FN = {
+  reportarFalla: function () {
+    if (window.AppOperacion && AppOperacion.reportar) { AppOperacion.reportar(''); return true; }
+    return false;
+  }
+};
+
 /* Navega a una acción de la app respetando la sesión: las pantallas de la app
    exigen login, así que sin sesión se va a login (y de ahí a su destino). */
-function goAppAction(act){
-  if (!act) return;
+function goAppAction(entrada){
+  if (!entrada) return;
+
+  /* EL DESTINO VIVE EN `.act`, NO EN LA ENTRADA.
+     Aquí llega la entrada COMPLETA del catálogo —{ name, sub, icon, kw, act } — y esto
+     leía `entrada.page`, que no existe: el destino está un nivel más adentro. El
+     resultado era que TODO el grupo "Funciones de la app" del buscador llamaba a
+     AppUrl.go(undefined), y el servidor resuelve cualquier página que no reconoce como
+     el Portal. Nadie lo veía como un fallo: se pulsaba "Nueva cotización", la pantalla
+     parpadeaba y volvías a estar en el Portal, que es exactamente lo que parece cuando
+     un enlace "no hizo nada". Se acepta también la forma plana por si alguien llama
+     aquí con el objeto de destino ya desenvuelto. */
+  const act = entrada.act || entrada;
+
+  if (act.fn) {
+    const local = APP_ACTION_FN[act.fn];
+    if (typeof closeSidebar === 'function') closeSidebar();
+    if (local && local()) return;
+    return;                                    // acción desconocida: no se finge nada
+  }
+
   if (window.VentelLoader) VentelLoader.show();
   if (typeof closeSidebar === 'function') closeSidebar();
   if (!(window.AppUrl && AppUrl.base)) return; // vista previa fuera de Apps Script
@@ -4097,7 +4247,7 @@ function goAppAction(act){
      consola— sin dar ninguna señal de que el parámetro se había perdido por el
      camino. El fallo se veía como "el buscador te deja en el sitio equivocado", que
      no lleva a nadie hasta esta línea. La lista es la misma de PARAMS_VISTA. */
-  const PASAN = ['tpl', 'sec', 'action', 'folio', 'q', 'buscar', 'ancla', 'inc', 'promo'];
+  const PASAN = ['tpl', 'sec', 'action', 'folio', 'q', 'buscar', 'ancla', 'inc', 'promo', 'item'];
   const params = {};
   PASAN.forEach(function (k) { if (act[k]) params[k] = act[k]; });
   AppUrl.go(act.page, params);
@@ -6518,6 +6668,194 @@ function mockData(){
       aplicarAreas();
       pintarGestion(res && res.permisos);
     }, function () { /* sin red: se queda lo pintado con lo guardado */ });
+  }
+
+  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', arrancar);
+  else arrancar();
+})();
+</script>
+
+<script>
+/**
+ * ═══════════════════════════════════════════════════════════════════════════
+ * RECOMENDACIÓN DE ATENCIONES · qué hacer mientras algo está caído
+ * ═══════════════════════════════════════════════════════════════════════════
+ * Justo encima de esto, AppOperacion pinta las incidencias vivas: "Connect ·
+ * Confirmado". Eso dice QUÉ PASA. Lo que faltaba es qué hacer al respecto, y hay una
+ * respuesta muy concreta que casi nadie se acuerda de dar a tiempo: si tienes a alguien
+ * en la línea, guarda su nombre y su teléfono AHORA.
+ *
+ * El momento es todo. Media hora después del corte ya no se recuerda el teléfono, y la
+ * herramienta de atenciones existe justo para ese hueco —pero solo sirve si se usa
+ * mientras el cliente sigue ahí—. Hasta ahora había que acordarse solo, o llegar por el
+ * aviso flotante que sale al reportar la falla; quien entra al Portal y se encuentra la
+ * caída ya reportada por un compañero no pasaba por ningún sitio que se lo dijera.
+ *
+ * TRES CONDICIONES, Y LAS TRES IMPORTAN:
+ *
+ *   · Hay una falla que corta la atención. Se cuentan las incidencias en tono de aviso
+ *     o de alerta —una sospecha, una confirmada o una intermitencia—, que son las tres
+ *     que dejan a un cliente colgado. El mantenimiento programado no: está anunciado y
+ *     nadie está atendiendo a ciegas.
+ *   · Quien mira tiene sesión y tiene el bloque. El Portal es la landing pública, y
+ *     recomendarle su libreta de clientes a un visitante anónimo solo produce un login
+ *     que no venía a hacer.
+ *   · No lo descartó ya PARA ESTA MISMA FALLA. El descarte se guarda con la firma de
+ *     las incidencias vivas: si mañana se cae otra cosa —o esta cambia de sospecha a
+ *     confirmada—, el aviso vuelve. Un descarte que dura para siempre convierte la
+ *     recomendación en algo que solo se ve una vez en la vida; uno que no se respeta la
+ *     convierte en la caja que se cierra sin leer.
+ */
+(function () {
+  'use strict';
+
+  var CLAVE = 'portal-atenciones-aviso';
+  /* Ocho horas: el descarte cubre un turno. Es el respaldo por si la firma no cambia
+     —una falla larga que sigue igual mañana— y no la regla principal, que es la firma. */
+  var TTL = 8 * 3600 * 1000;
+
+  var puestaFirma = '';
+
+  function host() { return document.getElementById('atencionesTip'); }
+
+  function puede() {
+    return !!(window.AppSession && AppSession.isLoggedIn() && AppSession.can('atenciones'));
+  }
+
+  /** Las incidencias que dejan a un cliente a medias. */
+  function cortantes(e) {
+    if (!e || e.success === false || !Array.isArray(e.incidentes)) return [];
+    return e.incidentes.filter(function (i) { return i.tono === 'warn' || i.tono === 'alert'; });
+  }
+
+  /* La firma incluye el ESTADO y no solo el id: pasar de "posible" a "confirmado" es una
+     noticia distinta, y quien descartó la sospecha merece que se le vuelva a ofrecer
+     cuando ya no hay duda de que está caído. */
+  function firmaDe(lista) {
+    return lista.map(function (i) { return i.id + ':' + i.estado; }).sort().join('|');
+  }
+
+  function descartada(f) {
+    if (!window.AppCache) return false;
+    var g = AppCache.get(CLAVE, TTL);
+    return !!(g && g.data && g.data.firma === f);
+  }
+  function descartar(f) {
+    if (window.AppCache) AppCache.set(CLAVE, { firma: f }, { ttl: TTL });
+  }
+
+  /** { nombres: "Connect y SAP", varios: true }. El plural se decide aquí y no fuera. */
+  function nombraSistemas(lista) {
+    var vistos = [];
+    lista.forEach(function (i) {
+      var n = (i.sistema || '').trim();
+      if (n && vistos.indexOf(n) === -1) vistos.push(n);
+    });
+    var nombres = '';
+    if (vistos.length === 1) nombres = vistos[0];
+    else if (vistos.length === 2) nombres = vistos[0] + ' y ' + vistos[1];
+    else if (vistos.length > 2) nombres = vistos[0] + ' y ' + (vistos.length - 1) + ' sistemas más';
+    return { nombres: nombres, varios: vistos.length > 1 };
+  }
+
+  function limpiar() {
+    var h = host();
+    if (h) h.innerHTML = '';
+    puestaFirma = '';
+  }
+
+  function pintar(lista) {
+    var h = host();
+    if (!h) return;
+    var f = firmaDe(lista);
+    if (f === puestaFirma) return;             // ya está puesta para esta misma falla
+    puestaFirma = f;
+
+    var s = nombraSistemas(lista);
+    var confirmada = lista.some(function (i) { return i.tono === 'alert'; });
+
+    /* La frase se arma con concordancia de número: "Connect está fallando" pero
+       "Connect y SAP están fallando". Una recomendación mal escrita en la portada del
+       Portal la lee todo el equipo, y basta ese "está" en plural para que la caja se
+       lea como un texto automático al que no hay que hacer caso. */
+    var verbo = confirmada
+      ? (s.varios ? ' están fallando.' : ' está fallando.')
+      : (s.varios ? ' estén fallando.' : ' esté fallando.');
+    var cabeza = s.nombres
+      ? (confirmada ? s.nombres + verbo : 'Puede que ' + s.nombres + verbo)
+      : (confirmada ? 'Hay un sistema caído.' : 'Puede que haya un sistema fallando.');
+
+    /* El encabezado pregunta, no informa. "Connect está fallando" ya está dicho en el
+       aviso de arriba y repetirlo hace que este se lea como un duplicado; lo que hace
+       falta es que quien SÍ tiene a alguien en la línea se dé por aludido. */
+    var titulo = '¿Tienes un cliente en la línea?';
+    var texto = cabeza +
+      ' Guarda su nombre y su teléfono antes de colgar y retoma la atención en cuanto ' +
+      'se restablezca. Se tarda menos en apuntarlo que en explicarlo.';
+
+    h.innerHTML =
+      '<div class="anc-destacado marca" role="status">' +
+        '<div class="anc-d-ic">' + icon('clock') + '</div>' +
+        '<div class="anc-d-body">' +
+          '<div class="anc-d-title">' + esc(titulo) + '</div>' +
+          '<p class="anc-d-text">' + esc(texto) + '</p>' +
+          '<div class="anc-ctas">' +
+            '<button type="button" class="anc-cta" data-atn-tip="ir">' +
+              icon('document') + 'Guardar los datos del cliente</button>' +
+            '<button type="button" class="anc-cta secundario" data-atn-tip="no">Ahora no</button>' +
+          '</div>' +
+        '</div>' +
+      '</div>';
+
+    var caja = h.firstElementChild;
+
+    caja.querySelector('[data-atn-tip="ir"]').addEventListener('click', function () {
+      /* Se va a la pantalla de atenciones con el formulario ya abierto (?action=nueva).
+         El Portal no carga el módulo de atenciones —sus diálogos usan los estilos del
+         shell de Cotizaciones, que aquí no existen—, así que el destino viaja por la
+         URL, que es lo que funciona igual desde cualquier parte. */
+      if (window.VentelLoader) VentelLoader.show();
+      if (window.AppUrl && AppUrl.base) AppUrl.go('atenciones', { action: 'nueva' });
+    });
+
+    caja.querySelector('[data-atn-tip="no"]').addEventListener('click', function () {
+      descartar(f);
+      salir(caja);
+    });
+
+    if (window.gsap && !window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
+      caja.classList.add('puesto');
+      gsap.from(caja, { opacity: 0, y: -10, duration: .42, ease: 'power3.out',
+                        force3D: true, clearProps: 'transform' });
+    } else {
+      caja.classList.add('puesto');
+    }
+  }
+
+  /** Sale plegándose: dejar el hueco haría saltar la página al desaparecer después. */
+  function salir(caja) {
+    var quitar = function () { limpiar(); };
+    if (window.gsap && !window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
+      gsap.to(caja, { opacity: 0, y: -8, height: 0, marginBottom: 0, paddingTop: 0,
+                      paddingBottom: 0, duration: .28, ease: 'power2.in', onComplete: quitar });
+    } else { quitar(); }
+  }
+
+  function revisar(e) {
+    if (!puede()) { limpiar(); return; }
+    var lista = cortantes(e);
+    if (!lista.length) { limpiar(); return; }
+    var f = firmaDe(lista);
+    if (descartada(f)) { limpiar(); return; }
+    pintar(lista);
+  }
+
+  function arrancar() {
+    if (!window.AppOperacion || !AppOperacion.alCambiar) return;
+    // alCambiar contesta YA con lo que haya en la caché del estado y vuelve a hacerlo
+    // en cada revalidación: si una falla se confirma —o se resuelve— mientras el Portal
+    // sigue abierto, esta caja aparece o se va sola, sin recargar nada.
+    AppOperacion.alCambiar(revisar);
   }
 
   if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', arrancar);
