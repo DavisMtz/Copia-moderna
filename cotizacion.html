@@ -173,6 +173,87 @@
             .bdr-fila { flex-direction: column; gap: .1rem; }
             .bdr-fila dd { text-align: left; }
         }
+
+        /* ═══════════════════════════════════════════════════════════════════════
+           GALERÍA LATERAL DE ARTÍCULOS
+           ═══════════════════════════════════════════════════════════════════════
+           Un espejo visual de las filas de la tabla. Sirve para lo que una tabla de
+           doce columnas no puede: reconocer de un vistazo que el artículo que se está
+           cotizando es el que el cliente pidió. Un SKU no se reconoce; una foto sí.
+
+           La tabla lleva `overflow-x` propio (tiene doce columnas y se recorre en
+           horizontal). Ese overflow vivía antes en la <section>; ahora vive en la
+           columna de la tabla, porque si se quedara en la sección arrastraría también
+           la galería al desplazarse y las fotos se saldrían de la vista justo cuando se
+           está mirando la columna del precio. */
+        .cot-productos { display: grid; grid-template-columns: minmax(0, 1fr) 15rem; gap: 1.5rem; align-items: start; }
+        .cot-tabla-col { min-width: 0; overflow-x: auto; }
+
+        .cot-galeria {
+            position: sticky; top: 1rem;
+            border: 1px solid var(--line, #e5e7eb); border-radius: 14px;
+            background: var(--surface-2, #f8fafc); padding: .9rem;
+            max-height: calc(100vh - 2rem); overflow-y: auto;
+        }
+        .cot-galeria-tit {
+            font-size: .72rem; font-weight: 800; letter-spacing: .12em; text-transform: uppercase;
+            color: var(--ink-faint, #94a1b2); margin: 0 0 .7rem;
+        }
+        .cot-galeria-lista { display: grid; gap: .6rem; }
+
+        .cot-art {
+            display: grid; grid-template-columns: 3.2rem minmax(0, 1fr); gap: .6rem; align-items: center;
+            padding: .45rem; border-radius: 10px; background: var(--surface, #fff);
+            border: 1px solid var(--line, #e5e7eb);
+            /* Solo transform en el hover. La galería puede tener veinte tarjetas y
+               moverlas con márgenes recalcularía la columna entera. */
+            transition: transform .15s cubic-bezier(.32,.72,0,1), border-color .15s ease;
+        }
+        .cot-art:hover { transform: translateX(-2px); border-color: var(--brand-soft, #FBD0E9); }
+        .cot-art.resaltado { border-color: var(--brand, #E10098); }
+
+        .cot-art-img {
+            width: 3.2rem; height: 3.2rem; border-radius: 8px; overflow: hidden; flex: none;
+            background: var(--surface-2, #f1f5f9);
+            display: flex; align-items: center; justify-content: center;
+        }
+        .cot-art-img img { width: 100%; height: 100%; object-fit: contain; display: block; }
+        .cot-art-tx { min-width: 0; }
+        .cot-art-desc {
+            font-size: .76rem; font-weight: 600; color: var(--ink, #1B2330); line-height: 1.35;
+            /* Dos líneas y elipsis: una descripción de Liverpool puede traer ochenta
+               caracteres y desbordaría la columna. */
+            display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden;
+        }
+        .cot-art-sku { font-size: .68rem; color: var(--ink-soft, #64748b); margin-top: .1rem; }
+
+        /* El SVG de la bolsa, para los artículos capturados a mano. Ocupa el hueco de la
+           foto que no existe, que es el punto: un contenedor vacío se lee como que algo
+           falló al cargar. */
+        .cot-bolsa { width: 2.2rem; height: 2.2rem; color: var(--brand, #E10098); overflow: visible; }
+        .cot-bolsa .b-cuerpo { fill: var(--brand-tint, #FDE7F4); stroke: currentColor; stroke-width: 1.6; }
+        .cot-bolsa .b-asa { fill: none; stroke: currentColor; stroke-width: 1.6; stroke-linecap: round; }
+        .cot-bolsa .b-brillo { fill: currentColor; opacity: .55; }
+
+        .cot-galeria-vacio { font-size: .76rem; color: var(--ink-soft, #64748b); line-height: 1.5; text-align: center; padding: .8rem .2rem; }
+
+        /* Fila resaltada al pasar por su tarjeta. Solo color de fondo: mover o escalar
+           una fila de la tabla recalcularía el ancho de doce columnas en cada pasada
+           del ratón, y la tabla daría tirones justo mientras se cotejan los artículos. */
+        .product-row.fila-resaltada > td { background: var(--brand-tint, #FDE7F4); }
+
+        @media (max-width: 1100px) {
+            /* La galería pasa arriba y en horizontal: en pantalla estrecha, una columna
+               lateral de 15rem deja la tabla sin sitio y obliga a desplazarse por todo. */
+            .cot-productos { grid-template-columns: minmax(0, 1fr); }
+            .cot-galeria { position: static; max-height: none; order: -1; }
+            .cot-galeria-lista { grid-auto-flow: column; grid-auto-columns: 11rem; overflow-x: auto; padding-bottom: .3rem; }
+        }
+        @media print { .cot-galeria { display: none !important; } }
+        @media (prefers-reduced-motion: reduce) {
+            .cot-art { transition-duration: .01ms; }
+            .cot-art:hover { transform: none; }
+        }
     </style>
 <!-- Utilidades Tailwind compiladas: va al final del head, igual que la hoja que el CDN inyectaba. -->
 <?!= include('app_tailwind'); ?>
@@ -245,7 +326,16 @@
                 </div>
             </section>
 
-            <section class="mb-10 overflow-x-auto" data-animate>
+            <!-- DETALLE DE PRODUCTOS + galería lateral.
+                 La tabla y la galería van en la MISMA rejilla, no en dos secciones
+                 apiladas: la galería es un espejo de las filas, y una que estuviera
+                 debajo obligaría a mirar arriba y abajo para cotejar cada artículo.
+
+                 En pantallas estrechas la rejilla colapsa a una columna y la galería
+                 pasa arriba, en una tira horizontal: ahí la tabla se recorre en
+                 horizontal y una columna lateral se quedaría fuera de la vista. -->
+            <section class="cot-productos mb-10" data-animate>
+                <div class="cot-tabla-col">
                 <h2 class="text-2xl font-semibold text-gray-800 mb-6">DETALLE DE PRODUCTOS</h2>
                 <table id="product-table" class="w-full text-base border-collapse">
                     <thead class="bg-gray-100">
@@ -282,6 +372,14 @@
                          que es donde le hace falta, y a quien ya la tiene no le estorba. -->
                     <button type="button" class="xg-abrir self-center" data-xg-abrir>¿Aún no tienes la extensión?</button>
                 </div>
+                </div><!-- /cot-tabla-col -->
+
+                <!-- Galería. La rellena el JS a partir de las filas: no hay markup por
+                     artículo escrito a mano, porque las filas nacen y mueren solas. -->
+                <aside class="cot-galeria no-print" id="cot-galeria" aria-labelledby="cot-galeria-tit">
+                    <h3 class="cot-galeria-tit" id="cot-galeria-tit">Artículos</h3>
+                    <div class="cot-galeria-lista" id="cot-galeria-lista"></div>
+                </aside>
             </section>
 
             <section class="grid grid-cols-1 md:grid-cols-2 gap-10 mb-10 observations-section">
@@ -593,6 +691,13 @@
             // Aquí pasan TODOS los cambios de la tabla, incluidos los que no emiten
             // un evento de formulario: añadir fila, eliminarla e importar desde JSON.
             Borrador.programar();
+
+            // La galería se cuelga del MISMO punto, por la misma razón: es el único sitio
+            // por el que pasan los cambios de la tabla vengan de donde vengan. Cuelga de
+            // aquí y no de cada operación por separado para que añadir mañana una forma
+            // nueva de meter artículos no obligue a acordarse de avisar también a la
+            // galería. Es barata: si nada cambió de identidad, no toca el DOM (ver `firma`).
+            if (typeof Galeria !== 'undefined') Galeria.sincronizar();
         }
 
         function createProductRowHtml() {
@@ -625,6 +730,228 @@
             if (typeof gsap === 'undefined') return;
             gsap.fromTo(row, { opacity: 0, y: 12 }, { opacity: 1, y: 0, duration: .35, ease: 'power2.out', clearProps: 'all' });
         }
+
+        /* ═══════════════════════════════════════════════════════════════════════
+           GALERÍA LATERAL DE ARTÍCULOS
+           ═══════════════════════════════════════════════════════════════════════
+           Un espejo de las filas de la tabla, con dos estados por artículo:
+
+             CON FOTO   Los productos que llegan de la Bolsa ya traen `data-image-url`
+                        en su fila (lo pone importarProductos). No hay que pedir nada:
+                        la imagen ya viaja en el JSON de la extensión.
+
+             SIN FOTO   Un artículo capturado a mano no tiene imagen y nunca la va a
+                        tener. El hueco NO se deja vacío —un cuadro gris se lee como una
+                        foto que falló al cargar, y manda a la gente a recargar— sino que
+                        se pinta una bolsa que dice, con su forma, "esto lo escribiste tú".
+
+           ── SOBRE LA ANIMACIÓN DE LAS BOLSAS ─────────────────────────────────────
+           Una sola línea de tiempo para TODAS las bolsas, no una por bolsa. Con doce
+           artículos manuales serían doce `repeat:-1` independientes, cada uno con su
+           propio ciclo de vida que hay que recordar matar; en cuanto una tarjeta se
+           repinta, el tween anterior sigue vivo animando un nodo desconectado. Con una
+           sola línea de tiempo hay UN objeto que matar y recrear, y el desfase entre
+           bolsas se consigue con `stagger`, que además evita el efecto mecánico de
+           verlas moverse todas a la vez.
+
+           Todo es transform y opacity: `scale` sobre el cuerpo, `rotate` sobre el asa y
+           un brillo que cruza con `x`. Ni una propiedad que provoque reflow, así que las
+           bolsas pueden latir mientras se teclea en la tabla sin robarle fotogramas. */
+        /* `var` y no `const`, a propósito. calculateTotals() está declarada MÁS ARRIBA en
+           este mismo archivo y consulta `typeof Galeria`. Sobre un `const` todavía sin
+           inicializar, `typeof` no devuelve 'undefined': lanza ReferenceError por la zona
+           muerta temporal. Hoy no llega a pasar —calculateTotals solo se llama desde
+           manejadores que corren después— pero es un cerrojo que depende del orden de dos
+           bloques a cuatrocientas líneas de distancia, y basta mover uno para romperlo con
+           un error que además no señala a la causa. Con `var`, la comprobación funciona
+           como se lee. */
+        var Galeria = (function () {
+            const lista = document.getElementById('cot-galeria-lista');
+            let bucle = null;
+            let alVisibilidad = null;
+
+            function reducido() {
+                try { return !!(window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches); }
+                catch (e) { return false; }
+            }
+            function conGsap() { return typeof gsap !== 'undefined' && !reducido(); }
+
+            function esc(t) {
+                return String(t == null ? '' : t)
+                    .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+            }
+
+            /* La bolsa. Los tres grupos que se animan van separados y con su propio
+               transform-box/origin, porque un `scale` sobre un <path> de SVG escala desde
+               el origen del lienzo y no desde el centro de la figura: sin esto la bolsa
+               se va hacia la esquina en vez de respirar donde está. */
+            function svgBolsa() {
+                return '<svg class="cot-bolsa" viewBox="0 0 32 32" role="img" aria-label="Artículo capturado a mano">' +
+                    '<g class="b-asa-g" style="transform-box:fill-box;transform-origin:50% 100%">' +
+                        '<path class="b-asa" d="M11 12V9.5a5 5 0 0 1 10 0V12"/>' +
+                    '</g>' +
+                    '<g class="b-cuerpo-g" style="transform-box:fill-box;transform-origin:50% 100%">' +
+                        '<path class="b-cuerpo" d="M6.5 12h19l-1.6 14.2a2 2 0 0 1-2 1.8H10.1a2 2 0 0 1-2-1.8Z"/>' +
+                    '</g>' +
+                    '<g style="clip-path:inset(0 round 2px)">' +
+                        '<rect class="b-brillo" x="4" y="12" width="3.2" height="17" rx="1.6" opacity="0"/>' +
+                    '</g>' +
+                '</svg>';
+            }
+
+            /* Clave de identidad de una fila. Si cambia, la tarjeta se vuelve a pintar; si
+               no, se deja como está. Importa porque `calculateTotals` corre en CADA tecla:
+               reconstruir la galería entera en cada pulsación descargaría las imágenes otra
+               vez y reiniciaría las animaciones a media pasada. */
+            function firma(row) {
+                return [
+                    row.getAttribute('data-image-url') || '',
+                    (row.querySelector('.sku') || {}).value || '',
+                    (row.querySelector('.description') || {}).value || ''
+                ].join('␟');
+            }
+
+            function tarjeta(row, i) {
+                const img = row.getAttribute('data-image-url') || '';
+                const sku = ((row.querySelector('.sku') || {}).value || '').trim();
+                const desc = ((row.querySelector('.description') || {}).value || '').trim();
+
+                const visual = img
+                    /* `loading="lazy"` y `decoding="async"`: una bolsa de veinte artículos son
+                       veinte peticiones a un CDN externo, y no deben competir con el guardado
+                       de la cotización. Si la imagen no carga —enlace caducado, sin red—, la
+                       tarjeta cae a la bolsa en vez de dejar el icono roto del navegador. */
+                    ? '<img src="' + esc(img) + '" alt="" loading="lazy" decoding="async" ' +
+                      'onerror="this.closest(\'.cot-art-img\').innerHTML = window.__cotBolsaSVG || \'\'">'
+                    : svgBolsa();
+
+                return '<div class="cot-art" data-cot-art="' + i + '">' +
+                    '<div class="cot-art-img">' + visual + '</div>' +
+                    '<div class="cot-art-tx">' +
+                        '<div class="cot-art-desc">' + esc(desc || 'Artículo sin descripción') + '</div>' +
+                        (sku ? '<div class="cot-art-sku">' + esc(sku) + '</div>' : '') +
+                    '</div>' +
+                '</div>';
+            }
+
+            function pintarVacio() {
+                lista.innerHTML = '<p class="cot-galeria-vacio">' +
+                    'Aquí verás los artículos de la cotización. Los que importes de la Bolsa ' +
+                    'llegan con su fotografía.</p>';
+                matarBucle();
+            }
+
+            function matarBucle() {
+                if (bucle) { bucle.kill(); bucle = null; }
+            }
+
+            /* Arranca (o rearranca) el latido de las bolsas visibles. */
+            function animarBolsas() {
+                matarBucle();
+                if (!conGsap()) return;
+                const bolsas = lista.querySelectorAll('.cot-bolsa');
+                if (!bolsas.length) return;
+
+                const cuerpos = lista.querySelectorAll('.cot-bolsa .b-cuerpo-g');
+                const asas = lista.querySelectorAll('.cot-bolsa .b-asa-g');
+                const brillos = lista.querySelectorAll('.cot-bolsa .b-brillo');
+
+                bucle = gsap.timeline({ repeat: -1, repeatDelay: 1.6, defaults: { force3D: true } });
+
+                // El cuerpo respira: se ensancha un poco al comprimirse, como una bolsa de
+                // papel de verdad. Sin la compensación en X parece un globo inflándose.
+                bucle.to(cuerpos, {
+                    scaleY: 1.06, scaleX: .97, duration: .9, ease: 'sine.inOut',
+                    yoyo: true, repeat: 1, stagger: { amount: .5 }
+                }, 0);
+
+                // El asa acompaña con un balanceo mínimo. Tres grados: más y parece que se
+                // cae, menos y no se percibe.
+                bucle.to(asas, {
+                    rotation: 3, duration: .9, ease: 'sine.inOut',
+                    yoyo: true, repeat: 1, stagger: { amount: .5 }
+                }, 0);
+
+                // Un brillo cruza la bolsa. Es lo que la hace ver "viva" sin moverla de
+                // sitio: solo x y opacity, las dos gratis para el compositor.
+                bucle.fromTo(brillos,
+                    { x: -4, opacity: 0 },
+                    { x: 26, opacity: .5, duration: 1.1, ease: 'power1.inOut', stagger: { amount: .5 } }, .35);
+                bucle.to(brillos, { opacity: 0, duration: .3, ease: 'power1.in' }, '-=.35');
+            }
+
+            let firmaAnterior = '';
+
+            function sincronizar() {
+                if (!lista) return;
+                const filas = Array.prototype.slice.call(
+                    productRowsContainer.querySelectorAll('.product-row'));
+
+                // Solo cuentan las filas con algo escrito. Una fila recién añadida y vacía
+                // no es un artículo todavía, y pintarle una tarjeta "sin descripción" en
+                // cuanto se pulsa "Añadir producto" es ruido.
+                const conDatos = filas.filter(function (r) {
+                    return ((r.querySelector('.sku') || {}).value || '').trim() ||
+                           ((r.querySelector('.description') || {}).value || '').trim() ||
+                           r.getAttribute('data-image-url');
+                });
+
+                if (!conDatos.length) {
+                    if (firmaAnterior !== '∅') { firmaAnterior = '∅'; pintarVacio(); }
+                    return;
+                }
+
+                const firmaActual = conDatos.map(firma).join('␞');
+                if (firmaActual === firmaAnterior) return;   // nada cambió: ni se toca el DOM
+                firmaAnterior = firmaActual;
+
+                lista.innerHTML = conDatos.map(tarjeta).join('');
+                animarBolsas();
+
+                // Pasar por una tarjeta resalta su fila, y al revés. Es lo que convierte la
+                // galería en una ayuda para cotejar en vez de un adorno: se ve la foto, se
+                // sabe qué renglón de la tabla es.
+                lista.querySelectorAll('[data-cot-art]').forEach(function (card, i) {
+                    card.addEventListener('mouseenter', function () {
+                        const fila = conDatos[i];
+                        if (fila) fila.classList.add('fila-resaltada');
+                    });
+                    card.addEventListener('mouseleave', function () {
+                        const fila = conDatos[i];
+                        if (fila) fila.classList.remove('fila-resaltada');
+                    });
+                    card.addEventListener('click', function () {
+                        const fila = conDatos[i];
+                        if (!fila) return;
+                        const campo = fila.querySelector('.description') || fila.querySelector('.sku');
+                        if (campo) { campo.focus(); campo.select && campo.select(); }
+                    });
+                });
+
+                if (conGsap()) {
+                    gsap.from(lista.querySelectorAll('.cot-art'), {
+                        opacity: 0, y: 10, duration: .34, ease: 'power2.out', force3D: true,
+                        stagger: { amount: Math.min(.3, conDatos.length * .05) },
+                        clearProps: 'transform'
+                    });
+                }
+            }
+
+            /* El bucle se duerme con la pestaña. Es un repeat:-1 que puede quedarse
+               corriendo toda la tarde sobre una cotización a medias. */
+            alVisibilidad = function () {
+                if (!bucle) return;
+                if (document.visibilityState === 'hidden') bucle.pause();
+                else bucle.resume();
+            };
+            document.addEventListener('visibilitychange', alVisibilidad);
+
+            // El SVG se deja accesible para el `onerror` de las imágenes, que corre fuera
+            // de este ámbito.
+            window.__cotBolsaSVG = svgBolsa();
+
+            return { sincronizar: sincronizar };
+        })();
 
         function addRow(focus = true) {
             const newRow = document.createElement('tr');
