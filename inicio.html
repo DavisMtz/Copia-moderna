@@ -26,6 +26,38 @@
             </p>
         </header>
 
+        <!-- ══ ATENCIONES PENDIENTES ═════════════════════════════════════════
+             Herramienta principal del Inicio, y va ARRIBA de las cotizaciones a
+             propósito: aquí hay personas esperando una llamada que ya se les prometió.
+             Una cotización sin enviar puede esperar a mañana; un cliente al que se le
+             cortó la atención, no.
+
+             La tarjeta entera se esconde cuando no hay nada pendiente ni rescatable. Un
+             apartado vacío permanente enseña a saltárselo con la vista, y el día que
+             aparezca algo tampoco se verá. -->
+        <section id="atn-seccion" class="mb-8 v-card" data-animate hidden>
+            <div class="p-6 pb-0 flex flex-wrap items-start justify-between gap-3">
+                <div style="min-width:0">
+                    <h2 class="text-lg font-bold text-slate-900">Atenciones pendientes</h2>
+                    <p class="text-sm text-slate-500 mt-1" id="atn-seccion-sub">
+                        Clientes que se quedaron esperando cuando algo falló.
+                    </p>
+                </div>
+                <div class="flex gap-2 flex-wrap">
+                    <button type="button" id="atn-inicio-nueva" class="v-btn v-btn-ghost v-btn-sm">
+                        <span class="w-4 h-4 block" data-icon="plus"></span>
+                        Registrar
+                    </button>
+                    <button type="button" id="atn-inicio-todas" class="v-btn v-btn-ghost v-btn-sm">
+                        Ver todas
+                    </button>
+                </div>
+            </div>
+            <div class="p-6 pt-4">
+                <div id="atn-host"></div>
+            </div>
+        </section>
+
         <!-- Acciones -->
         <section class="mb-8 p-6 v-card" data-animate>
             <div class="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
@@ -106,12 +138,59 @@
     <?!= include('app_onboarding'); ?>
     <?!= include('LoaderPartial'); ?>
     <?!= include('app_operacion'); ?>
+    <?!= include('app_atenciones'); ?>
     <script>
     document.addEventListener('DOMContentLoaded', () => {
         if (!requireSession()) return;
 
         // Marco lateral compartido con el Portal (envuelve el <main> y aporta sesión/tema).
         AppShell.mount({ active: 'dashboard', title: 'Panel' });
+
+        /* ── Atenciones pendientes ─────────────────────────────────────────────
+           Se monta y, cuando llegan los datos, la tarjeta se enseña SOLO si hay algo
+           que atender. Se pregunta después de montar y no antes porque AppAtenciones
+           pinta desde su caché local al instante: preguntar antes daría siempre cero en
+           la primera carga y la tarjeta parpadearía al aparecer medio segundo después. */
+        (function atenciones() {
+            var seccion = document.getElementById('atn-seccion');
+            if (!seccion || !window.AppAtenciones) return;
+            if (!AppSession.can('atenciones')) return;
+
+            AppAtenciones.montar('atn-host');
+
+            var revisar = function () {
+                var r = AppAtenciones.resumen();
+                var hay = (r.mias + r.publicas) > 0;
+                if (!hay) { seccion.hidden = true; return; }
+                if (!seccion.hidden) return;               // ya visible: no repetir la entrada
+                seccion.hidden = false;
+
+                var sub = document.getElementById('atn-seccion-sub');
+                if (sub) {
+                    sub.textContent = r.mias
+                        ? (r.mias === 1 ? 'Tienes 1 cliente esperando tu llamada.'
+                                        : 'Tienes ' + r.mias + ' clientes esperando tu llamada.')
+                        : 'Hay ' + r.publicas + ' atenciones liberadas que puedes tomar.';
+                }
+
+                if (window.gsap && !window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
+                    gsap.from(seccion, { opacity: 0, y: 16, duration: .45,
+                                         ease: 'power3.out', force3D: true, clearProps: 'transform' });
+                }
+            };
+
+            // Se revisa varias veces porque los datos llegan en dos tiempos: primero de la
+            // caché local y después del servidor. Un solo vistazo se perdería el segundo.
+            setTimeout(revisar, 120);
+            setTimeout(revisar, 1400);
+
+            document.getElementById('atn-inicio-nueva').addEventListener('click', function () {
+                AppAtenciones.registrar({});
+            });
+            document.getElementById('atn-inicio-todas').addEventListener('click', function () {
+                AppUrl.go('atenciones');
+            });
+        })();
 
         /* Recorrido guiado del Panel. Se registra después de montar la barra para que
            los pasos que apuntan al menú encuentren el menú ya pintado. */

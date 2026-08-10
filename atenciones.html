@@ -1,0 +1,99 @@
+<!DOCTYPE html>
+<html lang="es" class="h-full">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Atenciones pendientes - Sistema Ventel</title>
+    <?!= include('app_theme'); ?>
+<?!= include('app_tailwind'); ?>
+</head>
+<body class="h-full">
+    <div class="app-aurora"></div>
+
+    <main id="main-content" class="max-w-5xl mx-auto p-4 sm:p-6 lg:p-8">
+        <!-- Estado de operación: si algo está caído se dice aquí, antes que nada. En ESTA
+             pantalla es especialmente pertinente, porque la mitad de lo que hay abajo se
+             registró justo por una caída. -->
+        <div id="operacion-avisos"></div>
+
+        <header class="mb-6">
+            <h1 class="text-3xl font-bold text-slate-900 tracking-tight" data-animate>
+                Atenciones pendientes
+            </h1>
+            <p class="text-slate-600 mt-1 max-w-2xl" data-animate>
+                Los clientes que se quedaron a medias cuando algo falló. Aquí tienes su teléfono
+                para retomar la atención en cuanto el sistema se recupere.
+            </p>
+        </header>
+
+        <section class="mb-6 flex flex-wrap gap-3 items-center" data-animate>
+            <button type="button" id="atn-nueva" class="v-btn v-btn-primary">
+                <span class="w-4 h-4 block" data-icon="plus"></span>
+                Registrar atención
+            </button>
+            <button type="button" id="atn-recargar" class="v-btn v-btn-ghost v-btn-sm">
+                <span class="w-4 h-4 block" data-icon="refresh"></span>
+                Actualizar
+            </button>
+        </section>
+
+        <section data-animate>
+            <!-- Todo el módulo lo pinta AppAtenciones dentro de este contenedor. La pantalla
+                 no sabe nada de atenciones: solo le presta un hueco. Es lo que permite que el
+                 mismo módulo viva también en el inicio del asesor y en el feed de supervisión
+                 sin tres copias del mismo HTML. -->
+            <div id="atn-host"></div>
+        </section>
+
+        <footer class="text-center mt-12">
+            <p class="text-sm text-slate-500">
+                ¿Necesitas ayuda?
+                <button type="button" data-support-link class="font-medium text-brand-pink hover:underline">
+                    Contacta al equipo de Ventel
+                </button>
+            </p>
+        </footer>
+    </main>
+
+    <?!= include('app_core'); ?>
+    <?!= include('app_prefs'); ?>
+    <?!= include('app_guardado'); ?>
+    <?!= include('app_buscar'); ?>
+    <?!= include('app_icons'); ?>
+    <?!= include('app_estatus'); ?>
+    <?!= include('app_motion'); ?>
+    <?!= include('app_support'); ?>
+    <?!= include('app_shell'); ?>
+    <?!= include('app_comando'); ?>
+    <?!= include('LoaderPartial'); ?>
+    <?!= include('app_operacion'); ?>
+    <?!= include('app_atenciones'); ?>
+    <script>
+    document.addEventListener('DOMContentLoaded', function () {
+        if (!requireSession('atenciones')) return;
+        if (!requireBlock(['atenciones'], 'atenciones')) return;
+
+        AppShell.mount({ active: 'atenciones', title: 'Atenciones pendientes' });
+        if (window.VentelLoader) VentelLoader.hide();
+
+        AppAtenciones.montar('atn-host');
+
+        document.getElementById('atn-nueva').addEventListener('click', function () {
+            AppAtenciones.registrar({});
+        });
+        document.getElementById('atn-recargar').addEventListener('click', function () {
+            AppAtenciones.recargar();
+        });
+
+        // ?nueva=1 abre el formulario directo. Es por donde entra el buscador general
+        // ("registrar cliente") y el enlace del aviso cuando la pantalla del reporte no
+        // tenía el módulo cargado.
+        if (window.AppUrl && AppUrl.param('action') === 'nueva') {
+            AppAtenciones.registrar({});
+        }
+
+        if (window.Icons) Icons.render(document);
+    });
+    </script>
+</body>
+</html>

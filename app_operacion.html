@@ -1645,6 +1645,26 @@
         form.hecho = r;
         pintarFormulario();
         cargar(true);
+
+        /* RESCATE DE ATENCIONES.
+           Este es el único momento del día en que ofrecer la herramienta tiene sentido:
+           acaba de reportar que algo se cayó, así que si tenía a alguien en la línea, lo
+           tiene AHORA. Media hora después ya no se acuerda del teléfono.
+
+           Se lanza con retraso a propósito. El acuse del reporte —"ya avisamos al
+           equipo"— es lo que la persona vino a leer, y taparlo con otra tarjeta en el
+           mismo fotograma haría que descartara las dos. Los 1.2 s dan tiempo a leer el
+           acuse y llegan mucho antes de que cierre el panel.
+
+           El enfriamiento de dos minutos lo lleva AppAtenciones: aquí se pide siempre y
+           es él quien decide si toca. Duplicar esa condición aquí sería tener dos sitios
+           donde apagar el aviso, y bastaría olvidar uno para que volviera a salir. */
+        if (window.AppAtenciones) {
+          var sistemaReportado = (r.sistema || sistema || sistemaNuevo || '');
+          setTimeout(function () {
+            try { AppAtenciones.sugerir({ sistema: sistemaReportado }); } catch (e) {}
+          }, 1200);
+        }
       } else {
         form.error = (r && r.message) || 'No pudimos guardar tu reporte. Inténtalo de nuevo.';
         pintarFormulario();
