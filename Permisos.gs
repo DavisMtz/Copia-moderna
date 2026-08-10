@@ -58,7 +58,7 @@
 //   detalle   qué deja hacer exactamente, en cristiano.
 //   grupo     encabezado bajo el que se agrupa en la matriz de permisos.
 //   pagina    pantalla que abre (clave de PAGES en Code.gs), '' si no abre ninguna.
-//   admin     true = es parte de la consola maestra; solo el rol maestro lo alcanza.
+//   admin     true = es parte de la Consola; solo el rol maestro los alcanza.
 //   fijo      true = no se puede apagar por mantenimiento (o la app queda sin salida).
 
 const PERM_BLOQUES = [
@@ -83,6 +83,11 @@ const PERM_BLOQUES = [
   { id: 'correos_cliente',   nombre: 'Correos a clientes',       grupo: 'Cotizaciones',
     detalle: 'Usar las plantillas de correo y enviarlas a clientes.',
     pagina: 'correo_cliente',      admin: false, fijo: false },
+  // Rescate de atenciones. Va con el trabajo diario del asesor y no con supervisión:
+  // quien registra al cliente que se quedó esperando es quien lo tenía en la línea.
+  { id: 'atenciones',        nombre: 'Atenciones pendientes',    grupo: 'Cotizaciones',
+    detalle: 'Guardar los datos de un cliente cuando la plataforma falla y retomar la atención después.',
+    pagina: 'atenciones',          admin: false, fijo: false },
 
   // ── Supervisión ───────────────────────────────────────────────────────────
   { id: 'supervision',       nombre: 'Panel de supervisión',     grupo: 'Supervisión',
@@ -109,16 +114,17 @@ const PERM_BLOQUES = [
   { id: 'operacion',         nombre: 'Estado de operación',      grupo: 'Supervisión',
     detalle: 'Confirmar, descartar y actualizar las fallas que reporta el equipo.',
     pagina: 'operacion',           admin: false, fijo: false },
-  // Gestión del equipo SIN ser maestro. Deja cambiar el rol y los accesos de los
-  // ASESORES —solo de ellos— y nunca los propios: ver Equipo.gs, donde están los
-  // candados. Es lo que permite que una coordinación dé de baja a quien se fue el
-  // viernes sin tener que despertar a un maestro, que era el motivo real por el que
-  // circulaban cuentas maestras de más.
-  { id: 'sup_equipo',        nombre: 'Roles del equipo',         grupo: 'Supervisión',
-    detalle: 'Cambiar el rol, los accesos y el alta o baja de los asesores. No alcanza a supervisores ni maestros, ni a la propia cuenta.',
-    pagina: '',                    admin: false, fijo: false },
+  // Gestión de roles SIN ser maestro. Da entrada a la Consola —solo a Roles y
+  // Bitácora— y deja gestionar a quien esté en el MISMO nivel o por debajo: ver
+  // permVetoJerarquia_ más abajo, que es donde vive esa regla para toda la app.
+  // Es lo que permite que una coordinación dé de alta a quien entra el lunes o dé de
+  // baja a quien se fue el viernes sin despertar a un maestro, que era el motivo real
+  // por el que circulaban cuentas maestras de más.
+  { id: 'sup_equipo',        nombre: 'Roles y accesos',          grupo: 'Supervisión',
+    detalle: 'Entrar a la Consola para dar de alta personas y cambiar su rol y sus accesos. Solo alcanza a quien esté en tu mismo nivel o por debajo, nunca a tu propia cuenta.',
+    pagina: 'consola',             admin: false, fijo: false },
 
-  // ── Administración (consola maestra) ──────────────────────────────────────
+  // ── Administración (solo maestros) ───────────────────────────────────────
   { id: 'adm_miembros',      nombre: 'Miembros',                 grupo: 'Administración',
     detalle: 'Dar de alta, dar de baja y cambiar el rol de las personas.',
     pagina: '',                    admin: true,  fijo: true },
@@ -161,28 +167,39 @@ const PERM_IDS_APP = PERM_BLOQUES.filter(function (b) { return !b.admin; })
 // columna "Avanzado" = Sí, ni un bloque más ni uno menos, para que nadie gane ni
 // pierda accesos el día que se sube este archivo.
 
+// NIVEL: es lo mismo que `orden`, con otro nombre porque significa otra cosa. `orden`
+// dice en qué posición se pinta el rol en una lista; `nivel` decide a QUIÉN alcanza
+// cada quien. Se guardan como dos campos —aunque hoy valgan igual— porque el día que
+// se quiera insertar un rol intermedio en la lista sin moverlo de jerarquía, o al
+// revés, tocar un campo no debe cambiar en silencio el otro: uno es presentación y el
+// otro es una regla de seguridad.
 const PERM_ROLES = {
   normal: {
     id: 'normal',
     nombre: 'Asesor',
     detalle: 'Cotiza, consulta y envía. Es el rol de cualquier alta nueva.',
     orden: 1,
-    bloques: ['portal', 'promociones', 'cotizar', 'consultar', 'enviar_cotizacion', 'correos_cliente']
+    nivel: 1,
+    bloques: ['portal', 'promociones', 'cotizar', 'consultar', 'enviar_cotizacion', 'correos_cliente',
+              'atenciones']
   },
   avanzado: {
     id: 'avanzado',
     nombre: 'Supervisor',
-    detalle: 'Todo lo del asesor, más métricas, revisión de cotizaciones, el contenido del Portal, el estado de operación y los roles de su equipo de asesores.',
+    detalle: 'Todo lo del asesor, más métricas, revisión de cotizaciones, el contenido del Portal, el estado de operación y la gestión de roles de su nivel hacia abajo desde la Consola.',
     orden: 2,
+    nivel: 2,
     bloques: ['portal', 'promociones', 'cotizar', 'consultar', 'enviar_cotizacion', 'correos_cliente',
+              'atenciones',
               'supervision', 'revisar', 'politica_revision', 'trazabilidad', 'anuncios', 'portal_contenido',
               'operacion', 'sup_equipo']
   },
   maestro: {
     id: 'maestro',
     nombre: 'Maestro',
-    detalle: 'Control total del sistema: miembros, permisos, ajustes y módulos.',
+    detalle: 'Control total del sistema: personas, permisos, ajustes y módulos.',
     orden: 3,
+    nivel: 3,
     // Se calcula abajo para que nunca se quede corto al añadir un bloque nuevo.
     bloques: PERM_IDS.slice()
   }
@@ -277,6 +294,121 @@ function permSerializarAjustes_(ajustes) {
 function permBloquesDeRol_(rol) {
   const def = PERM_ROLES[permNormalizarRol_(rol) || 'normal'] || PERM_ROLES.normal;
   return def.bloques.slice();
+}
+
+// ── JERARQUÍA ────────────────────────────────────────────────────────────────
+//
+// UNA sola regla, escrita UNA sola vez, para toda la gestión de personas del sistema:
+//
+//        se alcanza a quien está en tu mismo NIVEL o por debajo.
+//
+// Antes esta decisión estaba repartida: Equipo.gs decía "los supervisores no se tocan
+// entre sí", Consola.gs decía "esto es solo de maestros" y la pantalla decidía por su
+// cuenta qué filas pintar en gris. Tres copias que no opinaban lo mismo, y la que de
+// verdad mandaba era la última que se hubiera tocado. Al unificar la gestión de roles
+// en la Consola, las tres se sustituyen por estas funciones.
+//
+// Por qué "igual o inferior" y no "estrictamente inferior": una coordinación con dos
+// supervisores necesita que uno pueda dar de baja al otro cuando se va, y hasta ahora
+// eso obligaba a despertar a un maestro. El riesgo real de que dos iguales se toquen
+// se cubre con los candados de abajo (nadie se edita a sí mismo, nadie se sube de
+// nivel), que son los que evitan la escalada de privilegios.
+
+/** Nivel numérico de un rol. Lo desconocido cae al más bajo, nunca al más alto. */
+function permNivelRol_(rol) {
+  const def = PERM_ROLES[permNormalizarRol_(rol) || 'normal'];
+  return (def && def.nivel) || PERM_ROLES.normal.nivel;
+}
+
+/** Nivel de una persona ya resuelta por permUsuario_. */
+function permNivelUsuario_(usuario) {
+  if (!usuario) return PERM_ROLES.normal.nivel;
+  if (usuario.maestro === true) return PERM_ROLES.maestro.nivel;
+  return permNivelRol_(usuario.rol);
+}
+
+/**
+ * ¿Esta persona gestiona a otras? Se mira el BLOQUE efectivo y no el rol: a alguien se
+ * le puede conceder 'sup_equipo' a mano sin subirlo de rol, y desde ese momento es un
+ * gestor a todos los efectos.
+ */
+function permEsGestor_(usuario) {
+  return !!usuario && (usuario.maestro === true ||
+                       (usuario.bloques || []).indexOf('sup_equipo') !== -1);
+}
+
+/**
+ * Roles que `quien` puede ASIGNAR: los de su nivel hacia abajo.
+ *
+ * Es la mitad que la gente olvida. Sin esto, un supervisor no podría editar a un
+ * maestro (bien) pero sí podría coger a un asesor y nombrarlo maestro, y con eso
+ * fabricarse un cómplice con más poder del que él mismo tiene. Es la vía clásica de
+ * escalada de privilegios y se cierra aquí, no en la pantalla.
+ */
+function permRolesAsignables_(usuario) {
+  const techo = permNivelUsuario_(usuario);
+  return PERM_ROLES_ORDEN.filter(function (id) { return PERM_ROLES[id].nivel <= techo; });
+}
+
+/**
+ * ¿Puede `quien` gestionar a `objetivo`? Devuelve el motivo en cristiano, o '' si sí.
+ *
+ * Se devuelve un texto y no un booleano a propósito: la pantalla tiene que poder
+ * explicar por qué una fila está en gris. "No puedo" y "no existe" son cosas distintas
+ * y confundirlas hace que el sistema parezca averiado.
+ */
+function permVetoJerarquia_(quien, objetivo) {
+  if (!permEsGestor_(quien)) return 'Tu cuenta no gestiona roles.';
+  if (!objetivo || objetivo.encontrado === false) return 'Esa persona no está dada de alta.';
+
+  // Sobre uno mismo, nunca. Quien se equivoca aquí se queda sin la pantalla desde la
+  // que deshacerlo, y hay que abrir el editor de Apps Script para rescatarlo.
+  if (permMismoCorreo_(quien.email, objetivo.email)) {
+    return 'No puedes cambiar tus propios permisos. Pídeselo a otra persona de tu nivel o a un maestro.';
+  }
+
+  const mio = permNivelUsuario_(quien);
+  const suyo = permNivelUsuario_(objetivo);
+  if (suyo > mio) {
+    const r = PERM_ROLES[permNormalizarRol_(objetivo.rol) || 'normal'] || PERM_ROLES.normal;
+    return 'Esta persona tiene un nivel superior al tuyo (' + r.nombre + '). Solo alguien de ese nivel o más puede cambiarla.';
+  }
+  return '';
+}
+
+/** Comparación de correos que no depende de cómo los escribió cada quien. */
+function permMismoCorreo_(a, b) {
+  const norm = function (x) { return String(x == null ? '' : x).trim().toLowerCase(); };
+  return norm(a) !== '' && norm(a) === norm(b);
+}
+
+/**
+ * ¿Puede `quien` dejar a alguien con el rol `rolPedido`?
+ * @return {string} motivo, o '' si el rol está dentro de su alcance.
+ */
+function permVetoRol_(quien, rolPedido) {
+  const rol = permNormalizarRol_(rolPedido);
+  if (!rol) return 'El rol "' + rolPedido + '" no existe.';
+  if (permRolesAsignables_(quien).indexOf(rol) === -1) {
+    return 'No puedes asignar el rol ' + PERM_ROLES[rol].nombre + ': está por encima de tu nivel.';
+  }
+  return '';
+}
+
+/**
+ * Bloques que `quien` puede repartir: los que tiene, menos los de administración.
+ *
+ * Se calcula sobre los bloques EFECTIVOS y no sobre el rol, para que un retiro hecho
+ * por un maestro se respete también aquí: a quien le quitaron 'anuncios' no puede
+ * concedérselo a nadie. Nadie reparte lo que no tiene.
+ *
+ * Los de administración quedan fuera salvo para el maestro, que los tiene todos: son
+ * las llaves de la propia consola y no se delegan por partes.
+ */
+function permBloquesRepartibles_(usuario) {
+  const bloques = (usuario && usuario.bloques) || [];
+  if (usuario && usuario.maestro === true) return bloques.slice();
+  return bloques.filter(function (id) { return PERM_IDS_ADMIN.indexOf(id) === -1; });
 }
 
 /**
@@ -1017,9 +1149,47 @@ function permCatalogo_() {
     }),
     roles: PERM_ROLES_ORDEN.map(function (id) {
       const r = PERM_ROLES[id];
-      return { id: r.id, nombre: r.nombre, detalle: r.detalle, orden: r.orden, bloques: r.bloques.slice() };
+      return { id: r.id, nombre: r.nombre, detalle: r.detalle, orden: r.orden,
+               nivel: r.nivel, bloques: r.bloques.slice() };
     }),
     apagados: apagados
+  };
+}
+
+/**
+ * Catálogo RECORTADO a lo que una persona concreta puede repartir.
+ *
+ * La consola la usan ahora dos perfiles con alcance distinto, y enseñarle a un
+ * supervisor casillas y roles que el servidor le va a rechazar es un formulario que
+ * enseña a desconfiar de sí mismo: se pulsa, falla, y a partir de ahí ya no se sabe
+ * qué botones son de verdad. Lo que no se puede conceder, no se pinta.
+ *
+ * Esto es presentación, no seguridad: cada guardado vuelve a comprobar la jerarquía
+ * en el servidor (ver consolaGuardarMiembro). Recortar aquí es para que la pantalla
+ * no mienta, no para impedir nada.
+ */
+function permCatalogoPara_(usuario) {
+  const base = permCatalogo_();
+  const repartibles = permBloquesRepartibles_(usuario);
+  const asignables = permRolesAsignables_(usuario);
+
+  return {
+    grupos: base.grupos.filter(function (g) {
+      return base.bloques.some(function (b) {
+        return b.grupo === g && repartibles.indexOf(b.id) !== -1;
+      });
+    }),
+    bloques: base.bloques.filter(function (b) { return repartibles.indexOf(b.id) !== -1; }),
+    roles: base.roles.filter(function (r) { return asignables.indexOf(r.id) !== -1; })
+      .map(function (r) {
+        // Los bloques de cada rol también se recortan: si no, la ficha del rol
+        // promete accesos que quien lo asigna no puede dar.
+        return {
+          id: r.id, nombre: r.nombre, detalle: r.detalle, orden: r.orden, nivel: r.nivel,
+          bloques: r.bloques.filter(function (b) { return repartibles.indexOf(b) !== -1; })
+        };
+      }),
+    apagados: base.apagados
   };
 }
 

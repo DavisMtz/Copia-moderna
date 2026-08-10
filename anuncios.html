@@ -494,6 +494,7 @@
         window.__APP__ = { baseUrl: <?!= JSON.stringify(baseUrl) ?> };
     </script>
     <?!= include('app_core'); ?>
+    <?!= include('app_prefs'); ?>
     <?!= include('app_guardado'); ?>
     <?!= include('app_buscar'); ?>
     <?!= include('app_icons'); ?>
@@ -502,6 +503,7 @@
     <?!= include('app_comando'); ?>
     <?!= include('LoaderPartial'); ?>
     <?!= include('app_operacion'); ?>
+    <?!= include('app_atenciones'); ?>
     <script>
       // Correo del asesor avanzado con sesión: lo exige el gate del servidor
       // (Portal.gs → portalGateAvanzado_) en cada operación de escritura.

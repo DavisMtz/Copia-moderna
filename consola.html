@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Consola maestra - Sistema Ventel</title>
+    <title>Consola - Sistema Ventel</title>
     <?!= include('app_theme'); ?>
     <style>
     /**
@@ -304,6 +304,34 @@
 
     /* Zona peligrosa: separada, roja y al final. Nunca junto a "Guardar". */
     .cns-peligro { border: 1px solid var(--alert); border-radius: var(--rad); padding: .95rem 1rem; background: var(--alert-bg); }
+
+    /* Fuera de alcance por jerarquía. Se atenúa la fila pero NO se le baja el
+       contraste del texto por debajo de lo legible: sigue siendo información que se
+       consulta, no un adorno. El aviso del cajón usa el tono informativo y no el de
+       alerta, porque no ha pasado nada malo: simplemente no es tuyo. */
+    .cns-fuera-de-alcance td { opacity: .68; }
+    .cns-fuera-de-alcance:hover td { opacity: 1; }
+    .cns-aviso-lectura { border: 1px solid var(--line); border-left: 3px solid var(--ink-faint);
+        border-radius: var(--rad); padding: .8rem .95rem; background: var(--surface-2); }
+    .cns-aviso-lectura b { display: block; font-size: .82rem; color: var(--ink); margin-bottom: .15rem; }
+    .cns-aviso-lectura p { margin: 0; font-size: .84rem; line-height: 1.5; color: var(--ink-soft); }
+
+    /* Accesos opcionales del alta. Plegado por defecto: el alta corriente son tres
+       campos y no debe parecer un formulario de treinta casillas. */
+    .cns-alta-accesos { margin-top: .9rem; border: 1px solid var(--line); border-radius: var(--rad);
+        background: var(--surface-2); }
+    .cns-alta-accesos > summary { cursor: pointer; padding: .7rem .85rem; font-size: .86rem;
+        font-weight: 600; color: var(--ink); list-style: none; display: flex; gap: .4rem;
+        align-items: baseline; border-radius: var(--rad); }
+    .cns-alta-accesos > summary::-webkit-details-marker { display: none; }
+    .cns-alta-accesos > summary::before { content: '▸'; color: var(--ink-faint); font-size: .8rem;
+        /* Solo transform: girar un carácter no debe costar un reflow del panel. */
+        transition: transform .2s ease; display: inline-block; }
+    .cns-alta-accesos[open] > summary::before { transform: rotate(90deg); }
+    .cns-alta-accesos > summary span { font-weight: 400; color: var(--ink-soft); font-size: .8rem; }
+    .cns-alta-accesos > summary:focus-visible { outline: none; box-shadow: var(--ring); }
+    .cns-alta-accesos .ayuda { margin: 0 .85rem .6rem; font-size: .8rem; color: var(--ink-soft); line-height: 1.5; }
+    .cns-alta-accesos #alta-accesos { padding: 0 .85rem .85rem; max-height: 17rem; overflow-y: auto; }
     .cns-peligro h3 { margin: 0 0 .25rem; font-size: .84rem; font-weight: var(--fw-bold); color: var(--alert); letter-spacing: 0; text-transform: none; }
     .cns-peligro p { margin: 0 0 .7rem; font-size: .8rem; color: var(--ink); line-height: 1.5; }
     .cns-peligro .fila { display: flex; gap: .5rem; flex-wrap: wrap; }
@@ -371,7 +399,7 @@
 
     <header class="cns-head" data-animate>
         <div>
-            <h1>Consola maestra</h1>
+            <h1>Consola</h1>
             <p>Miembros, permisos, ajustes y estado del sistema. Todo lo que se cambia aquí queda apuntado en la bitácora.</p>
         </div>
         <div class="cns-head-acciones">
@@ -404,14 +432,20 @@
     <div id="cns-app" hidden>
 
         <nav class="cns-tabs" role="tablist" aria-label="Secciones de la consola">
-            <button class="cns-tab" role="tab" id="tab-resumen"  aria-controls="panel-resumen"  aria-selected="true"  data-panel="resumen"><span class="ic" data-icon="grid"></span>Resumen</button>
-            <button class="cns-tab" role="tab" id="tab-miembros" aria-controls="panel-miembros" aria-selected="false" data-panel="miembros"><span class="ic" data-icon="user"></span>Miembros <span class="cns-tab-num" id="tab-num-miembros">—</span></button>
-            <button class="cns-tab" role="tab" id="tab-permisos" aria-controls="panel-permisos" aria-selected="false" data-panel="permisos"><span class="ic" data-icon="key"></span>Permisos</button>
-            <button class="cns-tab" role="tab" id="tab-modulos"  aria-controls="panel-modulos"  aria-selected="false" data-panel="modulos"><span class="ic" data-icon="bolt"></span>Módulos <span class="cns-tab-num" id="tab-num-modulos" hidden>0</span></button>
-            <button class="cns-tab" role="tab" id="tab-ajustes"  aria-controls="panel-ajustes"  aria-selected="false" data-panel="ajustes"><span class="ic" data-icon="shield"></span>Ajustes</button>
-            <button class="cns-tab" role="tab" id="tab-formatos" aria-controls="panel-formatos" aria-selected="false" data-panel="formatos"><span class="ic" data-icon="document"></span>Formatos</button>
-            <button class="cns-tab" role="tab" id="tab-salud"    aria-controls="panel-salud"    aria-selected="false" data-panel="salud"><span class="ic" data-icon="sparkle"></span>Salud</button>
-            <button class="cns-tab" role="tab" id="tab-bitacora" aria-controls="panel-bitacora" aria-selected="false" data-panel="bitacora"><span class="ic" data-icon="clock"></span>Bitácora</button>
+            <!-- data-seccion = la sección del SERVIDOR que abre esta pestaña
+                 (CONSOLA_SECCIONES en Consola.gs). Dos pestañas pueden compartir
+                 sección: "Roles" y "Matriz de accesos" son las dos caras de la misma
+                 facultad —una edita persona por persona y la otra enseña el mapa
+                 completo—, y separarlas en dos permisos habría obligado a conceder
+                 dos cosas para poder hacer una. -->
+            <button class="cns-tab" role="tab" id="tab-resumen"  aria-controls="panel-resumen"  aria-selected="true"  data-panel="resumen"  data-seccion="resumen"><span class="ic" data-icon="grid"></span>Resumen</button>
+            <button class="cns-tab" role="tab" id="tab-miembros" aria-controls="panel-miembros" aria-selected="false" data-panel="miembros" data-seccion="roles"><span class="ic" data-icon="user"></span>Roles <span class="cns-tab-num" id="tab-num-miembros">—</span></button>
+            <button class="cns-tab" role="tab" id="tab-permisos" aria-controls="panel-permisos" aria-selected="false" data-panel="permisos" data-seccion="roles"><span class="ic" data-icon="key"></span>Matriz de accesos</button>
+            <button class="cns-tab" role="tab" id="tab-modulos"  aria-controls="panel-modulos"  aria-selected="false" data-panel="modulos"  data-seccion="modulos"><span class="ic" data-icon="bolt"></span>Módulos <span class="cns-tab-num" id="tab-num-modulos" hidden>0</span></button>
+            <button class="cns-tab" role="tab" id="tab-ajustes"  aria-controls="panel-ajustes"  aria-selected="false" data-panel="ajustes"  data-seccion="ajustes"><span class="ic" data-icon="shield"></span>Ajustes</button>
+            <button class="cns-tab" role="tab" id="tab-formatos" aria-controls="panel-formatos" aria-selected="false" data-panel="formatos" data-seccion="formatos"><span class="ic" data-icon="document"></span>Formatos</button>
+            <button class="cns-tab" role="tab" id="tab-salud"    aria-controls="panel-salud"    aria-selected="false" data-panel="salud"    data-seccion="salud"><span class="ic" data-icon="sparkle"></span>Salud</button>
+            <button class="cns-tab" role="tab" id="tab-bitacora" aria-controls="panel-bitacora" aria-selected="false" data-panel="bitacora" data-seccion="bitacora"><span class="ic" data-icon="clock"></span>Bitácora</button>
         </nav>
 
         <!-- ══ RESUMEN ══════════════════════════════════════════════════════ -->
@@ -664,6 +698,7 @@
     window.__APP__ = { baseUrl: <?!= JSON.stringify(baseUrl) ?> };
 </script>
 <?!= include('app_core'); ?>
+<?!= include('app_prefs'); ?>
 <?!= include('app_guardado'); ?>
 <?!= include('app_buscar'); ?>
 <?!= include('app_icons'); ?>
@@ -673,6 +708,7 @@
 <?!= include('app_comando'); ?>
 <?!= include('LoaderPartial'); ?>
 <?!= include('app_operacion'); ?>
+<?!= include('app_atenciones'); ?>
 
 <script>
 /**
@@ -689,8 +725,10 @@
 
     // ── Estado en memoria ────────────────────────────────────────────────────
     var D = {
-        yo: null,           // { email, nombre, rol, bloques }
-        catalogo: null,     // { bloques, grupos, roles, apagados }
+        yo: null,           // { email, nombre, rol, bloques, maestro, nivel }
+        catalogo: null,     // { bloques, grupos, roles, apagados } — ya recortado a su alcance
+        secciones: null,    // pestañas concedidas por el servidor; null = todavía no se sabe
+        panelesVisibles: [],
         miembros: [],
         ajustes: [],
         gruposAjustes: [],
@@ -836,11 +874,18 @@
             D.yo = r.yo; D.catalogo = r.catalogo; D.miembros = r.miembros || [];
             D.ajustes = r.ajustes || []; D.gruposAjustes = r.gruposAjustes || [];
             D.formatos = r.formatos || []; D.resumen = r.resumen; D.bitacora = r.bitacora || [];
+            // Qué pestañas existen para ESTA persona lo dice el servidor, no el rol.
+            // Si la respuesta viene de una versión anterior y no trae `secciones`, se
+            // asume la consola completa: quien llega aquí ya pasó el gate del servidor,
+            // y cada acción se vuelve a comprobar allí de todos modos.
+            D.secciones = (r.secciones && r.secciones.length) ? r.secciones : CNS_PANELES.slice();
 
             $('cns-cargando').hidden = true;
             $('cns-app').hidden = false;
-            $('cns-rol-tx').textContent = (rolDef(D.yo.rol) || {}).nombre || 'Maestro';
+            $('cns-rol-tx').textContent = (rolDef(D.yo.rol) || {}).nombre ||
+                                          (D.yo.maestro ? 'Maestro' : 'Supervisor');
 
+            aplicarSecciones();
             pintarTodo();
             if (window.Icons) Icons.render(document);
             // La entrada animada solo la primera vez: repetirla al llegar el dato
@@ -888,20 +933,64 @@
         var esPermiso = !mensaje || mensaje.indexOf('maestro') !== -1 || mensaje.indexOf('acceso') !== -1;
         $('cns-negado-tit').textContent = esPermiso ? 'No puedes entrar aquí' : 'No se pudo abrir la consola';
         $('cns-negado-tx').textContent = mensaje ||
-            'Esta consola es solo para el rol maestro. Si crees que deberías tener acceso, pídeselo a quien administra el sistema.';
+            'La Consola es para quien gestiona roles y accesos. Si crees que deberías entrar, pídeselo a tu supervisión o a quien administra el sistema.';
         $('cns-negado-reintentar').hidden = esPermiso;
         if (window.Icons) Icons.render($('cns-negado'));
     }
 
+    /** ¿El servidor le abrió esta sección a quien está mirando? */
+    function tieneSeccion(id) {
+        return !D.secciones || D.secciones.indexOf(id) !== -1;
+    }
+
+    /**
+     * Deja a la vista solo las pestañas que esta persona puede usar.
+     *
+     * La consola la comparten ahora un maestro (siete pestañas) y un supervisor (dos),
+     * y la diferencia se resuelve aquí y en un único sitio: cada pestaña declara su
+     * `data-seccion` y el servidor manda la lista de las concedidas.
+     *
+     * Se ESCONDEN en vez de deshabilitarse. Una pestaña gris que al pulsarla dice "no
+     * puedes" es un recordatorio permanente de lo que a uno le falta, y no aporta nada:
+     * quien la ve no puede hacer nada al respecto salvo pedir un permiso que quizá no
+     * necesita. La consola de un supervisor debe parecer una consola de supervisor
+     * completa, no una de maestro con cinco puertas cerradas.
+     */
+    function aplicarSecciones() {
+        var visibles = [];
+        Array.prototype.forEach.call(document.querySelectorAll('.cns-tab'), function (t) {
+            var ok = tieneSeccion(t.getAttribute('data-seccion'));
+            t.hidden = !ok;
+            if (ok) visibles.push(t.getAttribute('data-panel'));
+        });
+        Array.prototype.forEach.call(document.querySelectorAll('.cns-panel'), function (p) {
+            var nombre = p.id.replace(/^panel-/, '');
+            if (visibles.indexOf(nombre) === -1) p.hidden = true;
+        });
+
+        // Si la pestaña abierta ya no existe para esta persona —llegó por un ?sec= de
+        // un enlace compartido por un maestro—, se cae a la primera que sí tenga en vez
+        // de dejar la pantalla sin ningún panel visible.
+        var actual = document.querySelector('.cns-tab[aria-selected="true"]:not([hidden])');
+        if (!actual && visibles.length) irAPanel(visibles[0], true);
+
+        // El buscador general ofrece secciones de la consola; que no ofrezca las que
+        // esta persona no tiene.
+        D.panelesVisibles = visibles;
+    }
+
     function pintarTodo() {
         pintarResumen();
-        pintarMiembros();
-        pintarMatriz();
-        pintarExcepciones();
-        pintarModulos();
-        pintarAjustes();
-        pintarFormatos();
-        pintarBitacora();
+        // Cada apartado se pinta solo si su pestaña existe. Además de no gastar
+        // trabajo en HTML que nadie va a ver, evita el fallo tonto: el servidor manda
+        // [] en los apartados que no corresponden, y pintarAjustes() sobre una lista
+        // vacía dejaba un panel con encabezados y ni una fila, que se lee como
+        // "esto está roto" y no como "esto no es tuyo".
+        if (tieneSeccion('roles'))    { pintarMiembros(); pintarMatriz(); pintarExcepciones(); }
+        if (tieneSeccion('modulos'))  pintarModulos();
+        if (tieneSeccion('ajustes'))  pintarAjustes();
+        if (tieneSeccion('formatos')) pintarFormatos();
+        if (tieneSeccion('bitacora')) pintarBitacora();
     }
 
     // ── Resumen ──────────────────────────────────────────────────────────────
@@ -1027,7 +1116,14 @@
             }).length;
             var extras = (m.ajustes && (m.ajustes.mas.length || m.ajustes.menos.length));
 
-            return '<tr class="' + (m.activo ? '' : 'cns-baja') + '" data-email="' + esc(m.email) + '">' +
+            // `gestionable` llega del servidor con la regla de jerarquía ya aplicada
+            // (permVetoJerarquia_). La fila se pinta igual, en gris y con el motivo en
+            // el título del botón: quien no se puede tocar SÍ se puede consultar, y
+            // esconderlo convertiría "no puedo cambiarlo" en "no está en el sistema".
+            var bloqueada = m.gestionable === false;
+
+            return '<tr class="' + (m.activo ? '' : 'cns-baja') + (bloqueada ? ' cns-fuera-de-alcance' : '') +
+                   '" data-email="' + esc(m.email) + '">' +
                 '<td><div class="cns-persona">' +
                     '<span class="cns-avatar" aria-hidden="true">' + esc(iniciales(m.nombre, m.email)) + '</span>' +
                     '<span class="cns-persona-tx"><b>' + esc(m.nombre || '(sin nombre)') + '</b>' +
@@ -1043,7 +1139,9 @@
                     (extras ? ' <span class="cns-tag cns-tag-aviso" title="Tiene permisos distintos a los de su rol">ajustado</span>' : '') +
                 '</td>' +
                 '<td class="acciones">' +
-                    '<button type="button" class="v-btn v-btn-ghost v-btn-sm" data-abrir="' + esc(m.email) + '">Ver ficha</button>' +
+                    '<button type="button" class="v-btn v-btn-ghost v-btn-sm" data-abrir="' + esc(m.email) + '"' +
+                        (bloqueada ? ' title="' + esc(m.motivo || 'No puedes cambiar a esta persona.') + '"' : '') + '>' +
+                        (bloqueada ? 'Consultar' : 'Ver ficha') + '</button>' +
                 '</td>' +
             '</tr>';
         }).join('');
@@ -1420,7 +1518,20 @@
         var soyYo = m.email === D.yo.email;
         var esMaestroElegido = rolElegido === 'maestro';
 
+        // Fuera de alcance por jerarquía: la ficha se abre para CONSULTAR. Se pinta
+        // entera y en solo lectura en vez de negar la apertura, porque saber qué
+        // accesos tiene alguien es justo lo que se viene a mirar aquí, y es una
+        // pregunta legítima incluso cuando no se puede cambiar nada.
+        var fuera = m.gestionable === false;
+
         var html = '';
+
+        if (fuera) {
+            html += '<div class="cns-seccion"><div class="cns-aviso-lectura" role="note">' +
+                '<b>Solo lectura</b>' +
+                '<p>' + esc(m.motivo || 'No puedes cambiar a esta persona.') + '</p>' +
+                '</div></div>';
+        }
 
         // 1. Rol
         html += '<div class="cns-seccion"><h3>Rol</h3>' +
@@ -1430,7 +1541,7 @@
                 return '<label class="cns-rol-op">' +
                     '<input type="radio" name="cns-rol" value="' + esc(r.id) + '"' +
                     (r.id === rolElegido ? ' checked' : '') +
-                    (soyYo && r.id !== 'maestro' ? ' disabled' : '') + '>' +
+                    (fuera || (soyYo && r.id !== 'maestro') ? ' disabled' : '') + '>' +
                     '<span><b>' + esc(r.nombre) + '</b><small>' + esc(r.detalle) + '</small></span>' +
                 '</label>';
             }).join('') +
@@ -1445,7 +1556,7 @@
                 '<p>Al darla de baja deja de poder entrar, pero se conserva todo lo que ya hizo.</p></div>' +
                 '<label class="cns-sw">' +
                     '<input type="checkbox" id="cns-ficha-activo"' + (m.activo ? ' checked' : '') +
-                    (soyYo ? ' disabled' : '') + ' aria-label="Cuenta activa">' +
+                    (soyYo || fuera ? ' disabled' : '') + ' aria-label="Cuenta activa">' +
                     '<span class="pista"></span><span class="bolita"></span>' +
                 '</label>' +
             '</div></div>';
@@ -1463,7 +1574,7 @@
                 // Los bloques de administración solo existen para un maestro: marcarlos
                 // en otro rol no haría nada, así que se muestran apagados y explicados
                 // en vez de dejar que alguien crea que sirvió de algo.
-                var bloqueado = b.admin && !esMaestroElegido;
+                var bloqueado = fuera || (b.admin && !esMaestroElegido);
                 var marcado = bloqueado ? false : !!seleccion[b.id];
                 var delRol = bloquesDeRol(rolElegido).indexOf(b.id) !== -1;
 
@@ -1485,8 +1596,12 @@
         });
         html += '</div>';
 
-        // 4. Zona peligrosa
-        html += '<div class="cns-seccion"><div class="cns-peligro">' +
+        // 4. Zona peligrosa. Restablecer una contraseña y borrar una fila son las dos
+        //    acciones más fuertes de la consola: si esta persona está fuera de tu
+        //    alcance, ni se ofrecen. El servidor las rechaza igual (ver
+        //    consolaResetPassword y consolaEliminarMiembro), pero un botón que solo
+        //    sirve para recibir un "no puedes" no debería existir.
+        html += fuera ? '' : ('<div class="cns-seccion"><div class="cns-peligro">' +
             '<h3>Acciones delicadas</h3>' +
             '<p>Restablecer la contraseña le manda una temporal por correo. Borrar quita la fila de la hoja y no se puede deshacer; para casi todo, la baja de arriba es mejor.</p>' +
             '<div class="fila">' +
@@ -1494,9 +1609,17 @@
                     '<span class="w-4 h-4 block" data-icon="key"></span>Restablecer contraseña</button>' +
                 (soyYo || m.rol === 'maestro' ? '' :
                 '<button type="button" class="v-btn v-btn-danger v-btn-sm" id="cns-borrar">Borrar del sistema</button>') +
-            '</div></div></div>';
+            '</div></div></div>');
 
         $('cns-cajon-cuerpo').innerHTML = html;
+
+        // El pie del cajón acompaña: sin nada que guardar, "Guardar cambios" sobra y
+        // "Cancelar" pasa a ser "Cerrar", que es lo único que queda por hacer aquí.
+        var btnGuardar = $('cns-cajon-guardar');
+        var btnCancelar = $('cns-cajon-cancelar');
+        if (btnGuardar) btnGuardar.hidden = fuera;
+        if (btnCancelar) btnCancelar.textContent = fuera ? 'Cerrar' : 'Cancelar';
+
         if (window.Icons) Icons.render($('cns-cajon-cuerpo'));
     }
 
@@ -1610,6 +1733,18 @@
         if (window.AppMotion) AppMotion.modalIn(overlay, overlay.querySelector('.v-modal'));
         else overlay.classList.add('active');
 
+        // Al cambiar el rol del alta, las casillas se recalculan solas: es lo que se
+        // espera ver, y sin esto quien elige "Supervisor" después de haber abierto el
+        // apartado seguiría viendo marcadas las de "Asesor" y mandaría como excepción
+        // media docena de accesos que el rol ya trae.
+        var selRol = $('alta-rol');
+        var cajaAccesos = $('alta-accesos');
+        if (selRol && cajaAccesos) {
+            selRol.addEventListener('change', function () {
+                cajaAccesos.innerHTML = altaAccesosHTML(selRol.value);
+            });
+        }
+
         var primero = $('cns-modal-cuerpo').querySelector('input, select, textarea');
         if (primero) primero.focus(); else si.focus();
     }
@@ -1623,10 +1758,40 @@
 
     // ── Alta de miembro ──────────────────────────────────────────────────────
 
+    /**
+     * Casillas de acceso del alta.
+     *
+     * Se pintan a partir de `D.catalogo.bloques`, que el servidor ya recortó a lo que
+     * ESTA persona puede repartir (permBloquesRepartibles_). Un supervisor ve las suyas
+     * y ninguna de administración; un maestro las ve todas. Nadie ve una casilla que su
+     * guardado vaya a rechazar.
+     */
+    function altaAccesosHTML(rol) {
+        var delRol = bloquesDeRol(rol);
+        var html = '';
+        (D.catalogo.grupos || []).forEach(function (grupo) {
+            var delGrupo = (D.catalogo.bloques || []).filter(function (b) { return b.grupo === grupo; });
+            if (!delGrupo.length) return;
+            html += '<div class="cns-bloques-grupo"><span>' + esc(grupo) + '</span>';
+            delGrupo.forEach(function (b) {
+                var marcado = delRol.indexOf(b.id) !== -1;
+                html += '<label class="cns-bq">' +
+                    '<input type="checkbox" data-alta-bloque="' + esc(b.id) + '"' + (marcado ? ' checked' : '') + '>' +
+                    '<span class="cns-bq-tx"><b>' + esc(b.nombre) + '</b>' +
+                    '<small>' + esc(marcado ? 'Viene con el rol elegido.' : b.detalle) + '</small></span>' +
+                '</label>';
+            });
+            html += '</div>';
+        });
+        return html;
+    }
+
     function abrirAlta() {
-        var roles = (D.catalogo.roles || []).map(function (r) {
+        var listaRoles = D.catalogo.roles || [];
+        var roles = listaRoles.map(function (r) {
             return '<option value="' + esc(r.id) + '">' + esc(r.nombre) + '</option>';
         }).join('');
+        var rolInicial = (listaRoles[0] && listaRoles[0].id) || 'normal';
 
         abrirModal('Dar de alta a alguien',
             '<p class="cns-confirm-tx">Se le crea la cuenta y se le manda una contraseña temporal por correo. ' +
@@ -1639,6 +1804,16 @@
                 '<div><label class="v-label" for="alta-rol">Rol inicial</label>' +
                 '<select id="alta-rol" class="v-select">' + roles + '</select></div>' +
             '</div>' +
+            /* Los accesos van PLEGADOS. El alta corriente es "nombre, correo, rol" y
+               tiene que seguir cabiendo en tres campos; quien necesita afinar abre el
+               apartado. Desplegado por defecto, el caso común —que es la inmensa
+               mayoría— se convertía en un formulario de treinta casillas. */
+            '<details class="cns-alta-accesos" id="alta-accesos-det">' +
+                '<summary>Accesos <span>(opcional · por defecto los del rol)</span></summary>' +
+                '<p class="ayuda">Lo que marques de más o de menos queda registrado como excepción sobre su rol. ' +
+                'Puedes cambiarlo después desde su ficha.</p>' +
+                '<div id="alta-accesos">' + altaAccesosHTML(rolInicial) + '</div>' +
+            '</details>' +
             '<p class="cns-ajuste-nota mal" id="alta-error" hidden></p>',
             'Dar de alta', 'v-btn-primary', function () {
                 var nombre = $('alta-nombre').value.trim();
@@ -1652,11 +1827,25 @@
                     return;
                 }
 
+                // Se manda la DIFERENCIA contra el rol, no la lista de marcadas. Es lo
+                // que el servidor guarda (mas/menos) y lo que hace que subir de rol a
+                // esa persona más adelante respete lo que se decidió a mano aquí.
+                var delRol = bloquesDeRol(rol);
+                var mas = [], menos = [];
+                Array.prototype.forEach.call(
+                    document.querySelectorAll('#alta-accesos [data-alta-bloque]'), function (cb) {
+                        var id = cb.getAttribute('data-alta-bloque');
+                        var enRol = delRol.indexOf(id) !== -1;
+                        if (cb.checked && !enRol) mas.push(id);
+                        if (!cb.checked && enRol) menos.push(id);
+                    });
+
                 var si = $('cns-modal-si');
                 si.disabled = true;
                 si.textContent = 'Dando de alta…';
 
-                llamar('consolaAltaMiembro', [AppSession.userEmail, { nombre: nombre, email: correo, rol: rol, avisar: true }])
+                llamar('consolaAltaMiembro', [AppSession.userEmail,
+                        { nombre: nombre, email: correo, rol: rol, mas: mas, menos: menos, avisar: true }])
                     .then(function (r) {
                         si.disabled = false;
                         si.textContent = 'Dar de alta';
@@ -1771,6 +1960,11 @@
      */
     function irAPanel(nombre, sinUrl) {
         if (CNS_PANELES.indexOf(nombre) === -1) return;
+        // Una pestaña escondida no se abre ni por URL. Sin esto, el ?sec=ajustes de un
+        // enlace que compartió un maestro le dejaba a un supervisor un panel vacío en
+        // pantalla —el servidor no le mandó esos datos— con toda la pinta de avería.
+        var pedida = document.querySelector('.cns-tab[data-panel="' + nombre + '"]');
+        if (pedida && pedida.hidden) return;
         var tabs = document.querySelectorAll('.cns-tab');
         Array.prototype.forEach.call(tabs, function (t) {
             var activa = t.getAttribute('data-panel') === nombre;
@@ -1801,7 +1995,7 @@
     document.addEventListener('DOMContentLoaded', function () {
         if (!requireSession('consola')) return;
 
-        AppShell.mount({ active: 'consola', title: 'Consola maestra' });
+        AppShell.mount({ active: 'consola', title: 'Consola' });
         if (window.VentelLoader) VentelLoader.hide();
 
         cargar();

@@ -77,7 +77,11 @@ const PAGES = {
   // pida —igual que las demás—, pero no enseña NADA hasta que el servidor confirma el
   // rol: todo su contenido llega de consolaPanorama, que exige maestro. Servir el
   // cascarón no filtra nada y evita tener dos formas distintas de rutear.
-  'consola':             { file: 'consola',             title: 'Consola Maestra - Sistema Ventel' }
+  'consola':             { file: 'consola',             title: 'Consola - Sistema Ventel' },
+  // Atenciones pospuestas y pendientes. Se sirve a quien la pida —igual que las demás—
+  // y no enseña nada hasta que el servidor confirma el bloque 'atenciones' en cada
+  // llamada: aquí dentro hay teléfonos de clientes y esa puerta la guarda Atenciones.gs.
+  'atenciones':          { file: 'atenciones',          title: 'Atenciones pendientes - Sistema Ventel' }
 };
 
 // Páginas públicas del Portal Ventel (sin sesión). El Portal es la landing por

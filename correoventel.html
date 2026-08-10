@@ -101,6 +101,7 @@
         window.__APP__ = { baseUrl: <?!= JSON.stringify(baseUrl) ?>, folio: <?!= JSON.stringify(folio) ?>, format: <?!= JSON.stringify(format) ?> };
     </script>
     <?!= include('app_core'); ?>
+    <?!= include('app_prefs'); ?>
     <?!= include('app_guardado'); ?>
     <?!= include('app_buscar'); ?>
     <?!= include('app_icons'); ?>
@@ -109,6 +110,7 @@
     <?!= include('app_comando'); ?>
     <?!= include('LoaderPartial'); ?>
     <?!= include('app_operacion'); ?>
+    <?!= include('app_atenciones'); ?>
     <script>
     document.addEventListener('DOMContentLoaded', () => {
         if (!requireBlock('enviar_cotizacion', 'correoventel')) return;

@@ -1,0 +1,473 @@
+<script>
+/**
+ * =====================================================================================
+ * PREFERENCIAS DE USUARIO · LOCAL + NUBE | Sistema de cotizaciones Ventel
+ * =====================================================================================
+ * La mitad cliente de Preferencias.gs. Se incluye DESPUÉS de app_core (necesita AppSession,
+ * AppCache y AppRun) y DESPUÉS de ViewPrefsPartial, que es quien pinta el tema antes del primer
+ * fotograma.
+ *
+ *      <?!= include('app_prefs') ?>
+ *
+ * ── EL REPARTO ──────────────────────────────────────────────────────────────────────────────────
+ *
+ *   ViewPrefsPartial   Vive en el <head> y corre ANTES de pintar. Solo sabe de cuatro claves
+ *                      (tema, densidad, tamaño de texto, contraste) y de ponerlas como data-* en
+ *                      <html>. No sabe que existe una nube, y así debe seguir: si tuviera que
+ *                      esperar a nadie, volvería el parpadeo que vino a quitar.
+ *
+ *   AppPrefs (aquí)    Todo lo demás: el resto de preferencias, la nube, la cola de escritura, la
+ *                      fusión y el aviso a las otras pestañas.
+ *
+ * AppPrefs escribe SIEMPRE a través de VentelPrefs para esas cuatro claves. Si escribiera por su
+ * cuenta en localStorage, la próxima carga leería lo que dejó VentelPrefs —que sería lo viejo— y
+ * el cambio parecería no haberse guardado.
+ *
+ * ── ESCRITURA OPTIMISTA, EN CUATRO TIEMPOS ──────────────────────────────────────────────────────
+ *
+ *   1. AHORA (0 ms)      Se aplica en pantalla y se escribe en localStorage. Síncrono. Desde este
+ *                        instante, un F5 ya trae el cambio: lo local no es un adelanto de lo que
+ *                        se guardará, es una copia completa y suficiente.
+ *   2. LUEGO (~700 ms)   La escritura a la hoja sale AGRUPADA. Ajustar el tamaño de letra son
+ *                        cuatro clics seguidos; con una llamada por clic serían cuatro viajes para
+ *                        dejar un solo valor.
+ *   3. AL VOLVER         Se guarda la versión del servidor y se adopta lo que él devuelve ya
+ *                        fusionado. No se recarga la página: lo local ya es lo nuevo, y recargar
+ *                        se llevaría por delante el formulario a medio llenar.
+ *   4. SI FALLA          Se reintenta con espera creciente. Si al final no hay manera, se revierte
+ *                        y se avisa. Ese es el único momento en que la persona se entera de que
+ *                        hay una nube detrás.
+ *
+ * ── QUÉ PASA SI LA NUBE NO CONTESTA NUNCA ───────────────────────────────────────────────────────
+ *
+ * Que la app funciona igual, con las preferencias locales. Es la prueba de que esto es una caché
+ * bien puesta: se puede vaciar entera —o no llegar jamás— sin que se pierda nada que la persona
+ * no pueda rehacer con dos clics.
+ */
+(function () {
+  'use strict';
+
+  /* Cuánto se espera antes de mandar los cambios agrupados. 700 ms es más largo que la pausa
+     entre dos clics de tanteo (~250 ms) y más corto que el tiempo que alguien tarda en cambiar de
+     pantalla, que es cuando importa que ya haya salido. */
+  var AGRUPAR_MS = 700;
+
+  /* Reintentos de una escritura fallida, con espera creciente. Tres son suficientes: cubren el
+     túnel y el ascensor, y no tanto como para que una caída larga deje la pestaña reintentando
+     media hora contra un servidor que no está. */
+  var REINTENTOS = [2000, 6000, 15000];
+
+  /* Dónde vive la copia local de lo que NO son las cuatro claves de ViewPrefsPartial. */
+  var CLAVE_LOCAL = 'prefs-usuario';
+  var TTL_LOCAL = 180 * 24 * 60 * 60 * 1000;   // medio año: una preferencia no caduca sola
+
+  /* Puente entre el nombre que usa AppPrefs y el que usa VentelPrefs. Las cuatro claves de la
+     apariencia se guardan donde ViewPrefsPartial sabe leerlas, no aquí. */
+  var EN_VIEWPREFS = { tema: 'theme', densidad: 'density', textscale: 'textscale', contraste: 'contrast' };
+
+  /* Valores por omisión. Los manda el servidor en cada lectura; esta copia solo sirve para el
+     primer pintado, antes de que llegue nada. */
+  var POR_OMISION = {
+    tema: 'aurora', densidad: 'cozy', textscale: 'md', contraste: '0',
+    fijados: [], menuPlegado: false, inicio: '', vistos: []
+  };
+
+  var estado = {
+    valores: null,      // juego completo en memoria
+    sellos: {},         // { clave: msDesdeEpoch } — cuándo se tocó cada campo
+    version: 0,         // versión que devolvió el servidor
+    pendientes: {},     // cambios aún no confirmados: { clave: valor }
+    previos: {},        // valor anterior de cada pendiente, para poder revertir
+    temporizador: null,
+    enVuelo: false,
+    intento: 0,
+    listo: false
+  };
+
+  var oyentes = [];
+
+  // ── Utilidades ─────────────────────────────────────────────────────────────
+
+  function hayCache() { return !!window.AppCache; }
+  function conSesion() { return !!(window.AppSession && AppSession.isLoggedIn()); }
+
+  function clona(v) {
+    return Array.isArray(v) ? v.slice() : v;
+  }
+
+  function iguales(a, b) {
+    if (Array.isArray(a) && Array.isArray(b)) {
+      return a.length === b.length && a.every(function (x, i) { return x === b[i]; });
+    }
+    return a === b;
+  }
+
+  function avisar(clave, valor) {
+    oyentes.forEach(function (cb) {
+      try { cb(clave, valor, estado.valores); } catch (e) { console.error('AppPrefs:', e); }
+    });
+  }
+
+  // ── Capa local ─────────────────────────────────────────────────────────────
+
+  /**
+   * Lee lo guardado en este dispositivo. Las cuatro de apariencia salen de VentelPrefs (que ya las
+   * aplicó antes de pintar) y el resto de AppCache.
+   */
+  function leerLocal() {
+    var v = {};
+    Object.keys(POR_OMISION).forEach(function (k) { v[k] = clona(POR_OMISION[k]); });
+
+    if (window.VentelPrefs) {
+      Object.keys(EN_VIEWPREFS).forEach(function (k) {
+        try {
+          var x = VentelPrefs.get(EN_VIEWPREFS[k]);
+          if (x) v[k] = x;
+        } catch (e) {}
+      });
+    }
+
+    if (hayCache()) {
+      var g = AppCache.get(CLAVE_LOCAL, TTL_LOCAL);
+      if (g && g.data) {
+        Object.keys(g.data.valores || {}).forEach(function (k) {
+          if (EN_VIEWPREFS[k]) return;              // esas mandan desde VentelPrefs
+          if (k in POR_OMISION) v[k] = g.data.valores[k];
+        });
+        estado.sellos = g.data.sellos || {};
+        estado.version = g.data.version || 0;
+      }
+    }
+    return v;
+  }
+
+  /** Escribe la copia local. Síncrono a propósito: es lo que hace que un F5 traiga el cambio. */
+  function escribirLocal() {
+    if (!hayCache()) return;
+    var soloNuestras = {};
+    Object.keys(estado.valores).forEach(function (k) {
+      if (!EN_VIEWPREFS[k]) soloNuestras[k] = estado.valores[k];
+    });
+    AppCache.set(CLAVE_LOCAL, {
+      valores: soloNuestras, sellos: estado.sellos, version: estado.version
+    }, { ttl: TTL_LOCAL });
+  }
+
+  /**
+   * Aplica un valor al DOM. Las cuatro de apariencia van por VentelPrefs, que además dispara su
+   * propio evento y mantiene sincronizadas las pestañas para esas claves.
+   */
+  function aplicar(clave, valor) {
+    if (EN_VIEWPREFS[clave] && window.VentelPrefs) {
+      VentelPrefs.set(EN_VIEWPREFS[clave], valor);
+      return;
+    }
+    if (clave === 'menuPlegado') {
+      try { document.documentElement.setAttribute('data-menu', valor ? 'plegado' : 'abierto'); } catch (e) {}
+    }
+  }
+
+  // ── Cola de escritura a la nube ────────────────────────────────────────────
+
+  /**
+   * Programa el envío. Si ya había uno programado, se reinicia la cuenta: mientras la persona
+   * siga tocando, no se manda nada. Es lo que convierte cuatro clics de tanteo en una escritura.
+   */
+  function programarEnvio() {
+    if (!conSesion()) return;                   // sin sesión no hay nube: lo local basta
+    if (estado.temporizador) clearTimeout(estado.temporizador);
+    estado.temporizador = setTimeout(enviar, AGRUPAR_MS);
+  }
+
+  function enviar() {
+    estado.temporizador = null;
+    if (estado.enVuelo) return;                 // al volver, la respuesta reprograma si hace falta
+    if (!conSesion()) return;
+
+    var lote = estado.pendientes;
+    if (!Object.keys(lote).length) return;
+
+    // El lote se cierra AQUÍ. Lo que se toque a partir de este momento entra en el siguiente
+    // envío; si se siguiera acumulando sobre el mismo objeto, al confirmarse se darían por
+    // guardados cambios que nunca viajaron.
+    estado.pendientes = {};
+    var sellosLote = {};
+    Object.keys(lote).forEach(function (k) { sellosLote[k] = estado.sellos[k] || Date.now(); });
+
+    estado.enVuelo = true;
+
+    llamar('prefsGuardar', [AppSession.userEmail, lote, sellosLote]).then(function (r) {
+      estado.enVuelo = false;
+
+      if (!r || !r.success) { fallo(lote, (r && r.message) || ''); return; }
+
+      estado.intento = 0;
+      estado.version = r.version || estado.version;
+
+      // Se adopta lo que devuelve el servidor, YA FUSIONADO con lo que hubiera de otras pestañas.
+      // Es lo que hace que la confirmación del guardado sirva además de sincronización, sin
+      // gastar una segunda llamada en preguntar "¿y qué hay ahora?".
+      adoptar(r.prefs, r.sellos, { salvo: estado.pendientes });
+
+      // Lo confirmado deja de ser reversible: ya está en la hoja.
+      Object.keys(lote).forEach(function (k) { delete estado.previos[k]; });
+
+      escribirLocal();
+      if (Object.keys(estado.pendientes).length) programarEnvio();
+
+    }, function () {
+      estado.enVuelo = false;
+      fallo(lote, '');
+    });
+  }
+
+  /**
+   * Una escritura no salió. Se devuelven los campos a la cola y se reintenta más tarde.
+   *
+   * Se reinsertan sin pisar lo que la persona haya tocado ENTRE MEDIAS: si mientras el reintento
+   * esperaba se volvió a cambiar el tema, el valor bueno es el nuevo, no el que falló.
+   */
+  function fallo(lote, mensaje) {
+    Object.keys(lote).forEach(function (k) {
+      if (!(k in estado.pendientes)) estado.pendientes[k] = lote[k];
+    });
+
+    if (estado.intento < REINTENTOS.length) {
+      var espera = REINTENTOS[estado.intento++];
+      if (estado.temporizador) clearTimeout(estado.temporizador);
+      estado.temporizador = setTimeout(enviar, espera);
+      return;
+    }
+
+    // Se acabaron los reintentos. Ahora sí hay que decirlo y deshacer: dejarlo aplicado en
+    // pantalla sería prometer que se guardó, y en el siguiente equipo esa persona no lo
+    // encontraría sin entender por qué.
+    estado.intento = 0;
+    revertir();
+    if (window.AppMotion) {
+      AppMotion.toast(mensaje || 'No pudimos guardar tus ajustes en tu cuenta. Se quedaron como estaban.', 'error');
+    }
+  }
+
+  /** Devuelve los pendientes a su valor anterior, en pantalla y en local. */
+  function revertir() {
+    Object.keys(estado.pendientes).forEach(function (k) {
+      if (!(k in estado.previos)) return;
+      estado.valores[k] = clona(estado.previos[k]);
+      aplicar(k, estado.valores[k]);
+      avisar(k, estado.valores[k]);
+    });
+    estado.pendientes = {};
+    estado.previos = {};
+    escribirLocal();
+  }
+
+  /**
+   * Adopta un juego de preferencias que viene de fuera (la nube, u otra pestaña).
+   *
+   * La fusión es POR CAMPO y gana el sello más reciente. Es la misma regla que aplica el servidor,
+   * y tiene que estar en los dos lados: aquí evita que una respuesta lenta pise un cambio que la
+   * persona acaba de hacer mientras esa respuesta venía en camino.
+   *
+   * @param {object} prefs
+   * @param {object} sellos
+   * @param {object=} opts  { salvo: {clave:true} } — campos que NO se tocan porque están en vuelo
+   *                        o en cola: lo que la persona acaba de pedir manda sobre lo que llegue.
+   */
+  function adoptar(prefs, sellos, opts) {
+    if (!prefs) return;
+    var salvo = (opts && opts.salvo) || {};
+
+    Object.keys(prefs).forEach(function (k) {
+      if (!(k in POR_OMISION)) return;
+      if (k in salvo) return;
+
+      var suyo = Number(sellos && sellos[k]) || 0;
+      var mio = Number(estado.sellos[k]) || 0;
+      if (suyo < mio) return;                       // lo de aquí es más nuevo: se conserva
+
+      if (iguales(estado.valores[k], prefs[k])) {
+        estado.sellos[k] = suyo || mio;
+        return;                                     // mismo valor: no se repinta por nada
+      }
+      estado.valores[k] = clona(prefs[k]);
+      estado.sellos[k] = suyo;
+      aplicar(k, estado.valores[k]);
+      avisar(k, estado.valores[k]);
+    });
+  }
+
+  /** Envoltorio de llamada: usa AppRun si está, y si no, google.script.run pelado. */
+  function llamar(fn, args) {
+    if (window.AppRun && AppRun.call) {
+      // busy:false — guardar una preferencia no debe encender el indicador de "consultando":
+      // es trabajo de fondo y anunciarlo haría parecer lenta una acción que se sintió instantánea.
+      return AppRun.call(fn, args, { key: 'prefs-' + fn, busy: false });
+    }
+    return new Promise(function (res, rej) {
+      google.script.run.withSuccessHandler(res).withFailureHandler(rej)[fn].apply(null, args);
+    });
+  }
+
+  // ── Arranque ───────────────────────────────────────────────────────────────
+
+  /**
+   * Trae de la nube y reconcilia. Se llama al cargar y al volver a la pestaña tras un rato.
+   * Es stale-while-revalidate: lo local ya está pintado, esto solo corrige si hace falta.
+   */
+  function sincronizar() {
+    if (!conSesion()) return Promise.resolve(false);
+    return llamar('prefsLeer', [AppSession.userEmail]).then(function (r) {
+      if (!r || !r.success) return false;
+      estado.version = r.version || 0;
+      // Se respeta lo que esté en cola: si alguien cambió el tema hace medio segundo y esta
+      // respuesta trae el anterior, manda el clic.
+      adoptar(r.prefs, r.sellos, { salvo: estado.pendientes });
+      escribirLocal();
+      return true;
+    }, function () { return false; });
+  }
+
+  function arrancar() {
+    if (estado.listo) return;
+    estado.valores = leerLocal();
+    estado.listo = true;
+
+    // Lo local ya está aplicado en el DOM por ViewPrefsPartial (las cuatro de apariencia) o se
+    // aplica ahora (el resto). No se espera a la nube para nada de esto.
+    Object.keys(estado.valores).forEach(function (k) {
+      if (!EN_VIEWPREFS[k]) aplicar(k, estado.valores[k]);
+    });
+
+    sincronizar();
+
+    /* Otra pestaña cambió algo. Para las cuatro de apariencia ya lo hace ViewPrefsPartial; esto
+       cubre el resto y mantiene los sellos al día, que es lo que impide que esta pestaña vuelva a
+       subir un valor viejo en su siguiente escritura. */
+    try {
+      window.addEventListener('storage', function (e) {
+        if (!e || !e.key || e.key.indexOf(CLAVE_LOCAL) === -1) return;
+        if (!hayCache()) return;
+        var g = AppCache.get(CLAVE_LOCAL, TTL_LOCAL);
+        if (g && g.data) adoptar(g.data.valores, g.data.sellos, { salvo: estado.pendientes });
+      });
+    } catch (e) {}
+
+    /* Al cerrar la pestaña con algo sin mandar, se intenta una última vez. No siempre llega —el
+       navegador puede cortar la petición— y por eso NO es el mecanismo principal: es una segunda
+       oportunidad, no la primera. Lo local ya está guardado pase lo que pase. */
+    try {
+      window.addEventListener('pagehide', function () {
+        if (Object.keys(estado.pendientes).length && !estado.enVuelo) {
+          if (estado.temporizador) clearTimeout(estado.temporizador);
+          enviar();
+        }
+      });
+    } catch (e) {}
+  }
+
+  // ── API pública ────────────────────────────────────────────────────────────
+
+  var AppPrefs = {
+    /** Valor actual de una preferencia. Nunca devuelve undefined: cae al valor por omisión. */
+    get: function (clave) {
+      if (!estado.listo) arrancar();
+      var v = estado.valores[clave];
+      return v === undefined ? clona(POR_OMISION[clave]) : v;
+    },
+
+    /** Todas, en un objeto nuevo (modificarlo no cambia nada). */
+    all: function () {
+      if (!estado.listo) arrancar();
+      var out = {};
+      Object.keys(estado.valores).forEach(function (k) { out[k] = clona(estado.valores[k]); });
+      return out;
+    },
+
+    /**
+     * Cambia una preferencia. Se ve al instante; la nube se entera después.
+     * @return {boolean} false si el valor era el mismo (no se hace nada).
+     */
+    set: function (clave, valor) {
+      if (!estado.listo) arrancar();
+      if (!(clave in POR_OMISION)) {
+        console.warn('AppPrefs: "' + clave + '" no está en el catálogo de preferencias.');
+        return false;
+      }
+      if (iguales(estado.valores[clave], valor)) return false;
+
+      // El valor anterior se conserva SOLO la primera vez que este campo entra en cola. Si se
+      // guardara en cada cambio, al revertir tras cuatro clics se volvería al tercer valor y no
+      // al que había antes de empezar a tocar.
+      if (!(clave in estado.previos)) estado.previos[clave] = clona(estado.valores[clave]);
+
+      estado.valores[clave] = clona(valor);
+      estado.sellos[clave] = Date.now();
+      estado.pendientes[clave] = clona(valor);
+
+      aplicar(clave, valor);        // 1. pantalla
+      escribirLocal();              // 2. dispositivo
+      avisar(clave, valor);
+      programarEnvio();             // 3. nube, agrupado
+      return true;
+    },
+
+    /** Varias de golpe (una pantalla de ajustes que guarda todo junto). */
+    setMany: function (obj) {
+      var self = this;
+      Object.keys(obj || {}).forEach(function (k) { self.set(k, obj[k]); });
+    },
+
+    /** Añade o quita un elemento de una lista ('fijados', 'vistos'). */
+    toggleEnLista: function (clave, valor) {
+      var lista = this.get(clave);
+      if (!Array.isArray(lista)) return false;
+      var i = lista.indexOf(valor);
+      var nueva = lista.slice();
+      if (i === -1) nueva.push(valor); else nueva.splice(i, 1);
+      this.set(clave, nueva);
+      return i === -1;              // true = quedó añadido
+    },
+
+    enLista: function (clave, valor) {
+      var lista = this.get(clave);
+      return Array.isArray(lista) && lista.indexOf(valor) !== -1;
+    },
+
+    /** Se avisa cuando cambia algo, venga de esta pestaña, de otra o de la nube. */
+    alCambiar: function (cb) { if (typeof cb === 'function') oyentes.push(cb); },
+
+    /** Fuerza una relectura de la nube (botón "actualizar" de una pantalla de ajustes). */
+    sincronizar: sincronizar,
+
+    /** ¿Queda algo por mandar? Lo usa la pantalla de ajustes para decir "guardando…". */
+    pendiente: function () {
+      return estado.enVuelo || Object.keys(estado.pendientes).length > 0;
+    },
+
+    restablecer: function () {
+      if (!conSesion()) return Promise.resolve(false);
+      return llamar('prefsRestablecer', [AppSession.userEmail]).then(function (r) {
+        if (!r || !r.success) return false;
+        estado.pendientes = {}; estado.previos = {}; estado.sellos = {};
+        estado.version = r.version || 0;
+        Object.keys(POR_OMISION).forEach(function (k) {
+          estado.valores[k] = clona(POR_OMISION[k]);
+          aplicar(k, estado.valores[k]);
+          avisar(k, estado.valores[k]);
+        });
+        escribirLocal();
+        return true;
+      });
+    }
+  };
+
+  window.AppPrefs = AppPrefs;
+
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', arrancar);
+  } else {
+    arrancar();
+  }
+})();
+</script>

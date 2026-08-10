@@ -393,6 +393,7 @@
         window.__APP__ = { baseUrl: <?!= JSON.stringify(baseUrl) ?>, folio: <?!= JSON.stringify(folio) ?> };
     </script>
     <?!= include('app_core'); ?>
+    <?!= include('app_prefs'); ?>
     <?!= include('app_guardado'); ?>
     <?!= include('app_buscar'); ?>
     <?!= include('app_icons'); ?>
@@ -400,6 +401,7 @@
     <?!= include('LoaderPartial'); ?>
     <?!= include('app_comando'); ?>
     <?!= include('app_operacion'); ?>
+    <?!= include('app_atenciones'); ?>
     <script>
         let quoteDataForSave = null;
         let currentUserEmailForSave = null;

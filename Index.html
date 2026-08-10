@@ -1296,6 +1296,7 @@ table.ds-matrix{width:100%;border-collapse:separate;border-spacing:0;min-width:5
      el acceso del sidebar y el control del topbar lo llevan directo a su panel. -->
 <script>window.__APP__ = { baseUrl: '<?= APP_URL ?>' };</script>
 <?!= include('app_core') ?>
+<?!= include('app_prefs'); ?>
 <?!= include('app_guardado') ?>
 <?!= include('app_onboarding') ?>
 <?!= include('app_operacion') ?>
@@ -4032,7 +4033,14 @@ const APP_ACTIONS = [
   { name:'Anuncios del Portal',     sub:'Publicar avisos para todo el equipo', icon:'megaphone', kw:'anuncios aviso publicar comunicado banner novedades', bloques:['anuncios'], act:{ page:'anuncios' } },
   { name:'Contenido del Portal',    sub:'Editar herramientas, plantillas y formatos', icon:'layers', kw:'contenido administrar editar catalogo herramientas formatos ligas promos', bloques:['portal_contenido'], act:{ page:'portal_contenido' } },
   { name:'Estado de operación',     sub:'Confirmar y atender las fallas reportadas', icon:'bolt', kw:'operacion incidencias fallas caido confirmar sistemas problemas', bloques:['operacion'], act:{ page:'operacion' } },
-  { name:'Consola maestra',         sub:'Miembros, permisos y ajustes del sistema', icon:'lock', kw:'consola administracion usuarios altas bajas roles permisos bitacora salud', bloques:['adm_miembros','adm_permisos','adm_ajustes'], maestro:true, act:{ page:'consola' } },
+  { name:'Consola',                 sub:'Personas, permisos y ajustes del sistema', icon:'lock', kw:'consola administracion usuarios altas bajas roles permisos bitacora salud', bloques:['adm_miembros','adm_permisos','adm_ajustes'], maestro:true, act:{ page:'consola' } },
+  // Sin `maestro:true`: la gestión de roles se mudó del panel avanzado a la Consola y la
+  // abre también un supervisor. Con la marca de maestro, el buscador del Portal escondía
+  // justo la pantalla a la que ese permiso da acceso.
+  { name:'Roles y accesos de tu equipo', sub:'Altas, roles y bajas, desde la Consola', icon:'lock', kw:'equipo roles accesos asesores alta baja ascender supervisor permisos gente personal consola', bloques:['sup_equipo'], act:{ page:'consola', sec:'miembros' } },
+  { name:'Atenciones pendientes',   sub:'Clientes por retomar cuando algo falló', icon:'clock', kw:'atenciones pendientes pospuestas cliente telefono llamar retomar rescate rescatar callback seguimiento espera guardar datos', bloques:['atenciones'], act:{ page:'atenciones' } },
+  { name:'Registrar un cliente en espera', sub:'Guardar sus datos para retomar la atención', icon:'document', kw:'registrar guardar cliente telefono anotar apuntar atencion pendiente pospuesta se cayo el sistema fallo', bloques:['atenciones'], act:{ page:'atenciones', action:'nueva' } },
+  { name:'Historial del servicio',  sub:'Cuántos reportes hubo cada día y qué se confirmó', icon:'bolt', kw:'historial grafico barras fechas dias reportes incidencias confirmadas caidas tendencia semana mes estadistica', act:{ page:'estado' } },
   { name:'Plantilla · Ticket de compra',        sub:'Reenvío del ticket de una compra', icon:'mail', kw:'ticket compra comprobante pedido reenvio plantilla correo', bloques:['correos_cliente'], act:{ page:'correo_cliente', tpl:'ticket' } },
   { name:'Plantilla · Edo. de cuenta PF',       sub:'Solicitud de estado de cuenta', icon:'mail', kw:'estado cuenta pf persona fisica validacion tarjeta plantilla correo', bloques:['correos_cliente'], act:{ page:'correo_cliente', tpl:'edodecuenta' } },
   { name:'Plantilla · Edo. cuenta extranjera',  sub:'Validación con tarjeta extranjera', icon:'mail', kw:'estado cuenta extranjera tarjeta internacional plantilla correo', bloques:['correos_cliente'], act:{ page:'correo_cliente', tpl:'edodecuentaextranjera' } },
@@ -4062,7 +4070,17 @@ function goAppAction(act){
   const logged = window.AppSession && AppSession.isLoggedIn();
   if (!logged) { AppUrl.go('login'); return; }
   if (act.page === '__home') { AppUrl.go(AppUrl.homePage()); return; }
-  AppUrl.go(act.page, act.tpl ? { tpl: act.tpl } : {});
+
+  /* Se pasan TODOS los parámetros de vista que traiga la acción, no solo `tpl`.
+     Cuando esto solo entendía `tpl`, una entrada nueva del catálogo podía declarar
+     `sec:'miembros'` y el buscador la abría igual —en la primera pestaña de la
+     consola— sin dar ninguna señal de que el parámetro se había perdido por el
+     camino. El fallo se veía como "el buscador te deja en el sitio equivocado", que
+     no lleva a nadie hasta esta línea. La lista es la misma de PARAMS_VISTA. */
+  const PASAN = ['tpl', 'sec', 'action', 'folio', 'q', 'buscar', 'ancla', 'inc', 'promo'];
+  const params = {};
+  PASAN.forEach(function (k) { if (act[k]) params[k] = act[k]; });
+  AppUrl.go(act.page, params);
 }
 
 function doGlobalSearch(){

@@ -340,13 +340,31 @@
     { id:'operacion', nombre:'Estado de operación', sub:'Fallas que reporta el equipo',
       icono:IC.pulso, page:'operacion', bloques:['operacion'], kw:'incidencias caido fallas confirmar sistemas problemas' },
 
-    { id:'equipo', nombre:'Tu equipo', sub:'Roles, accesos y bajas de tus asesores',
-      icono:IC.llave, page:'inicio_avanzado', ancla:'eq-seccion', bloques:['sup_equipo'],
-      kw:'equipo asesores roles permisos alta baja ascender supervisor personal gente' },
+    /* La gestión de roles se mudó del panel avanzado a la Consola. La entrada se queda
+       —con las mismas palabras con las que la gente la busca: "equipo", "asesores",
+       "dar de baja"— pero apuntando al sitio nuevo. Quitarla habría dejado sin resultado
+       justo el término por el que se busca esa pantalla. */
+    { id:'equipo', nombre:'Roles y accesos de tu equipo', sub:'Altas, roles y bajas, desde la Consola',
+      icono:IC.llave, page:'consola', params:{ sec:'miembros' }, bloques:['sup_equipo'],
+      kw:'equipo asesores roles permisos alta baja ascender supervisor personal gente consola' },
 
-    { id:'consola', nombre:'Consola maestra', sub:'Miembros, permisos y ajustes del sistema',
+    { id:'consola', nombre:'Consola', sub:'Personas, permisos y ajustes del sistema',
       icono:IC.engrane, page:'consola', bloques:['adm_miembros','adm_permisos','adm_ajustes'], maestro:true,
       kw:'administracion usuarios altas bajas roles bitacora salud modulos' },
+
+    { id:'atenciones', nombre:'Atenciones pendientes', sub:'Clientes por retomar cuando algo falló',
+      icono:IC.reloj, page:'atenciones', bloques:['atenciones'],
+      kw:'atencion pendiente pospuesta cliente telefono llamar retomar rescate rescatar guardar datos ' +
+         'volver despues callback seguimiento espera' },
+
+    { id:'atenciones-nueva', nombre:'Registrar un cliente en espera', sub:'Guardar sus datos para retomar la atención',
+      icono:IC.doc, page:'atenciones', params:{ action:'nueva' }, bloques:['atenciones'],
+      kw:'registrar guardar cliente telefono anotar apuntar nueva atencion pendiente pospuesta ' +
+         'se cayo el sistema fallo connect' },
+
+    { id:'feed-supervision', nombre:'Inicio de gestión', sub:'Resumen del día y tus accesos directos',
+      icono:IC.casa, page:'inicio_avanzado', bloques:['supervision','revisar','politica_revision','sup_equipo'],
+      kw:'feed inicio resumen accesos directos fijados atajos panel gestion supervision' },
 
     { id:'portal', nombre:'Portal Ventel', sub:'Herramientas, procesos e información del área',
       icono:IC.globo, page:'portal', kw:'inicio informacion guias procesos paqueterias devoluciones trazabilidad' },
@@ -379,6 +397,34 @@
       kw:'texto plano sin plantilla escribir cero' }
   ];
 
+  /** Sube o baja un paso el tamaño del texto, sin salirse de la escala. */
+  function pasoTexto(dir) {
+    var escala = ['sm', 'md', 'lg', 'xl'];
+    var actual = document.documentElement.getAttribute('data-textscale') || 'md';
+    var i = escala.indexOf(actual);
+    if (i === -1) i = 1;
+    var nuevo = escala[Math.max(0, Math.min(escala.length - 1, i + dir))];
+    if (nuevo === actual) {
+      if (window.AppMotion) {
+        AppMotion.toast(dir > 0 ? 'Ya estás en el tamaño más grande.' : 'Ya estás en el tamaño más pequeño.', 'warn');
+      }
+      return;
+    }
+    AppShell.setTextScale(nuevo);
+  }
+
+  /** Fija la pantalla actual en los accesos directos del inicio de gestión. */
+  function fijarActual() {
+    if (!window.AppPrefs || !window.AppUrl) return;
+    var page = AppUrl.param('page') || AppUrl.homePage();
+    var quedo = AppPrefs.toggleEnLista('fijados', page);
+    if (window.AppMotion) {
+      AppMotion.toast(quedo
+        ? 'Fijada. La verás en tus accesos directos, también desde otro equipo.'
+        : 'Quitada de tus accesos directos.', 'ok');
+    }
+  }
+
   /* Ajustes de la propia pantalla. Solo existen donde hay barra (AppShell): en el
      Portal el tema se cambia desde su panel de preferencias. */
   var AJUSTES = [
@@ -390,6 +436,27 @@
       kw:'tema color carbon oscuro noche modo dark apariencia', shell:true, fn:function () { AppShell.setTheme('carbon'); } },
     { id:'contraste', nombre:'Alto contraste', sub:'Activar o desactivar', icono:IC.engrane,
       kw:'contraste accesibilidad ver mejor vista', shell:true, fn:function () { AppShell.toggleContrast(); } },
+
+    /* Tamaño de letra y densidad, desde el buscador. Son los dos ajustes que más se
+       tantean —se prueban tres tamaños hasta dar con el bueno— y tenerlos aquí evita
+       abrir el panel lateral cuatro veces seguidas. Van por AppShell, que a su vez pasa
+       por AppPrefs: el cambio se ve al instante y sube a la cuenta por detrás, así que se
+       encuentra igual mañana en otro equipo. */
+    { id:'texto-mas', nombre:'Letra más grande', sub:'Sube un paso el tamaño del texto', icono:IC.engrane,
+      kw:'letra texto tamano grande aumentar zoom leer vista accesibilidad', shell:true,
+      fn:function () { pasoTexto(1); } },
+    { id:'texto-menos', nombre:'Letra más pequeña', sub:'Baja un paso el tamaño del texto', icono:IC.engrane,
+      kw:'letra texto tamano pequeno reducir disminuir zoom', shell:true,
+      fn:function () { pasoTexto(-1); } },
+    { id:'densidad', nombre:'Vista compacta o cómoda', sub:'Cambia cuánto respira la interfaz', icono:IC.engrane,
+      kw:'densidad compacto comodo espacio apretado holgado filas', shell:true,
+      fn:function () {
+        var actual = document.documentElement.getAttribute('data-density') || 'cozy';
+        AppShell.setDensity(actual === 'compact' ? 'cozy' : 'compact');
+      } },
+    { id:'fijar-pantalla', nombre:'Fijar esta pantalla en mis accesos', sub:'Aparece en tu inicio de gestión', icono:IC.estrella,
+      kw:'fijar anclar acceso directo atajo favorito guardar pantalla marcar',
+      sesion:true, fn:function () { fijarActual(); } },
     { id:'salir', nombre:'Cerrar sesión', sub:'Salir del sistema en este equipo', icono:IC.salir,
       kw:'salir logout cerrar sesion desconectar', sesion:true, fn:function () {
         if (window.AppShell) AppShell.logout();
@@ -405,7 +472,7 @@
      baja hasta la mitad", dice "los formatos de cotización".
 
      Antes, buscar "bitácora" no encontraba nada —vive dentro de la consola, y la
-     consola se llama "Consola maestra"—, así que la única forma de llegar era saberse
+     consola se llama "Consola"—, así que la única forma de llegar era saberse
      de memoria en qué pantalla estaba. Ahora cada apartado es un resultado con su
      propio nombre y su enlace directo: la pantalla se abre YA POSICIONADA en él,
      gracias al parámetro `ancla` (ver AppUrl.irAncla en app_core).
@@ -419,9 +486,13 @@
     { id:'sec-politica', nombre:'Política de revisión', sub:'Reglas que mandan una cotización a revisión',
       icono:IC.engrane, page:'inicio_avanzado', ancla:'pol-seccion', bloques:['politica_revision'],
       kw:'reglas umbral descuento monto politica criterio automatico' },
-    { id:'sec-equipo', nombre:'Roles de tu equipo', sub:'Cambiar el rol o dar de baja a un asesor',
-      icono:IC.llave, page:'inicio_avanzado', ancla:'eq-seccion', bloques:['sup_equipo'],
-      kw:'asesores roles baja alta reactivar ascender supervisor equipo gente' },
+    { id:'sec-historial', nombre:'Historial del servicio por fechas', sub:'Cuántos reportes hubo cada día y qué se confirmó',
+      icono:IC.pulso, page:'inicio_avanzado', bloques:['supervision','revisar','politica_revision','sup_equipo'],
+      kw:'historial grafico barras fechas dias reportes incidencias confirmadas estadistica ' +
+         'caidas connect tendencia semana mes' },
+    { id:'sec-atenciones-pool', nombre:'Atenciones rescatables', sub:'Las que otros asesores liberaron y puedes tomar',
+      icono:IC.llave, page:'atenciones', bloques:['atenciones'],
+      kw:'rescatar rescate publicas liberadas pool tomar otro asesor clientes libres' },
     { id:'sec-metricas', nombre:'Métricas del equipo', sub:'Cifras, actividad y ranking de asesores',
       icono:IC.grafica, page:'inicio_avanzado', ancla:'dashboard-content', bloques:['supervision'],
       kw:'kpi cifras ranking actividad reportes csv estadisticas graficas' },
@@ -429,17 +500,21 @@
     /* La consola no se recorre bajando: son PESTAÑAS, y su panel está oculto hasta que
        se abre la suya. Por eso aquí va `sec` y no `ancla`: bajar hasta un apartado que
        el navegador tiene en display:none no lleva a ninguna parte. */
-    { id:'sec-miembros', nombre:'Miembros del sistema', sub:'Altas, bajas y permisos persona por persona',
-      icono:IC.llave, page:'consola', params:{ sec:'miembros' }, bloques:['adm_miembros'], maestro:true,
-      kw:'usuarios personas cuentas alta baja contrasena reset permisos' },
-    { id:'sec-permisos', nombre:'Permisos por bloque', sub:'Quién alcanza qué, en una matriz',
-      icono:IC.llave, page:'consola', params:{ sec:'permisos' }, bloques:['adm_permisos'], maestro:true,
-      kw:'matriz bloques conceder retirar accesos excepciones facultades' },
+    /* Sin `maestro:true`: la Consola dejó de ser solo del maestro. Un supervisor entra a
+       Roles y a Bitácora, y el filtro por bloques ya lo deja fuera de las demás. Dejar la
+       marca de maestro habría escondido del buscador justo las dos secciones que sí puede
+       abrir, y entonces la única forma de llegar sería sabérselas de memoria. */
+    { id:'sec-miembros', nombre:'Roles y personas', sub:'Altas, bajas y accesos persona por persona',
+      icono:IC.llave, page:'consola', params:{ sec:'miembros' }, bloques:['adm_miembros','sup_equipo'],
+      kw:'usuarios personas cuentas alta baja contrasena reset permisos roles miembros equipo asesores' },
+    { id:'sec-permisos', nombre:'Matriz de accesos', sub:'Quién alcanza qué, de un vistazo',
+      icono:IC.llave, page:'consola', params:{ sec:'permisos' }, bloques:['adm_permisos','sup_equipo'],
+      kw:'matriz bloques conceder retirar accesos excepciones facultades permisos' },
     { id:'sec-modulos', nombre:'Módulos y mantenimiento', sub:'Apagar y encender bloques del sistema',
       icono:IC.engrane, page:'consola', params:{ sec:'modulos' }, bloques:['adm_modulos'], maestro:true,
       kw:'mantenimiento apagar encender caido desactivar bloque modulo' },
     { id:'sec-bitacora', nombre:'Bitácora', sub:'Quién cambió qué y cuándo',
-      icono:IC.reloj, page:'consola', params:{ sec:'bitacora' }, bloques:['adm_bitacora'], maestro:true,
+      icono:IC.reloj, page:'consola', params:{ sec:'bitacora' }, bloques:['adm_bitacora','sup_equipo'],
       kw:'auditoria historial registro rastro cambios log quien cuando' },
     { id:'sec-ajustes', nombre:'Ajustes del sistema', sub:'Autenticación, dominio, webhook y hojas',
       icono:IC.engrane, page:'consola', params:{ sec:'ajustes' }, bloques:['adm_ajustes'], maestro:true,
@@ -1004,7 +1079,7 @@
                                  mejor: fn[0].score, filas: fn.map(function (r) { return r.item; }) });
 
     /* 1b) Apartados DENTRO de una pantalla. Van en su propio grupo y no mezclados con
-       las funciones: "Bitácora" y "Consola maestra" no son la misma respuesta, y
+       las funciones: "Bitácora" y "Consola" no son la misma respuesta, y
        ponerlas juntas obligaría a leer el subtítulo para distinguirlas. Se puntúan un
        punto por debajo (peso .92) para que, cuando el nombre coincide en los dos, gane
        la pantalla entera —que es el destino más seguro— y el apartado quede justo
