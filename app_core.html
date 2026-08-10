@@ -214,7 +214,15 @@
     }
   };
 
-  /** Nombre en cristiano de cada pantalla, para el enlace de respaldo. */
+  /**
+   * Nombre en cristiano de cada pantalla, para el enlace de respaldo.
+   *
+   * Se lee dentro de una frase ("Abre …", "Te llevamos a …"), así que cada entrada
+   * viene con su artículo y en minúscula: es lo que hace que el aviso suene a alguien
+   * hablando y no a una clave interna asomándose por un hueco de la plantilla. Cuando
+   * se añade una pantalla al enrutador se añade aquí también; si falta, el aviso dice
+   * "la siguiente pantalla" y sigue funcionando, solo que más impersonal.
+   */
   const NOMBRES_PAGINA = {
     'cotizado_preview':    'la vista previa',
     'cotizacion':          'la cotización',
@@ -222,13 +230,15 @@
     'revision_cotizacion': 'la revisión de la cotización',
     'correoventel':        'el envío al cliente',
     'correo_cliente':      'los correos a clientes',
-    'dashboard':           'el panel',
-    'inicio_avanzado':     'el panel avanzado',
-    'consola':             'la consola maestra',
+    'dashboard':           'tu inicio',
+    'inicio_avanzado':     'gestión',
+    'consola':             'la consola',
     'anuncios':            'el constructor de anuncios',
     'portal_contenido':    'el contenido del Portal',
     'operacion':           'el estado de operación',
     'estado':              'el tablero de estado',
+    'atenciones':          'tus atenciones pendientes',
+    'promociones':         'el monitor de promociones',
     'login':               'el inicio de sesión',
     'registro':            'la creación de cuenta',
     'recuperar':           'la recuperación de contraseña',
@@ -280,6 +290,9 @@
     let escalaTimer = null;
     let alTeclado = null;
     let estado = null;     // { url, page, variante }
+    let entrada = null;    // línea de tiempo de entrada (se mata al ocultar)
+    let latido = null;     // bucle que empuja la flecha del botón principal
+    let alVisibilidad = null;
 
     function reducido() {
       try { return !!(window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches); }
@@ -371,6 +384,16 @@
         'transition:opacity .28s ease,transform .28s cubic-bezier(.2,.8,.2,1);}' +
         '#' + ID + '.vnf-visible .vnf-card{opacity:1;transform:none;}' +
 
+        /* Cuando anima GSAP, la transición de CSS se APAGA. Las dos estaban tocando
+           opacity y transform a la vez: GSAP escribe el estilo en línea en cada
+           fotograma y la transición intentaba interpolar hacia ese valor recién
+           escrito, así que cada fotograma arrancaba una transición nueva de 280 ms
+           que nunca terminaba. Se veía como un arrastre blando —la tarjeta llegaba
+           tarde a su propia animación— y obligaba al compositor a recalcular estilo
+           60 veces por segundo para nada. Con una sola fuente de verdad, la entrada
+           es transform+opacity puros y se compone en GPU. */
+        '#' + ID + '.vnf-gsap .vnf-card{transition:none;}' +
+
         /* En px, como el resto del proyecto: verificado en navegador, una condición
            en rem/em no llega a evaluarse aquí y el layout angosto nunca entraba. */
         '@media (max-width: 480px){' +
@@ -388,24 +411,42 @@
       document.head.appendChild(s);
     }
 
-    /** Texto según a dónde íbamos y por qué no llegamos. */
+    /**
+     * Texto según a dónde íbamos y por qué no llegamos.
+     *
+     * Tres reglas, porque quien lee esto está a media tarea y con un cliente delante:
+     *
+     *   1. Nada de culpa. El asesor no hizo nada mal y el sistema tampoco se rompió;
+     *      es un límite del navegador. El aviso lo dice sin jerga y sin disculparse.
+     *   2. Primero la tranquilidad, luego el motivo. Antes de explicar nada se aclara
+     *      que no se perdió trabajo: es la única pregunta que importa en ese momento.
+     *   3. Una sola instrucción. "Toca el botón y llegas" — sin alternativas, sin
+     *      "intenta de nuevo", sin pasos numerados. El botón está justo debajo.
+     *
+     * Se evitan a propósito «redirección», «navegador bloqueó», «activación» y
+     * «sandbox»: describen bien el fallo para quien programa y no significan nada
+     * para quien está cotizando.
+     */
     function copia(page, variante) {
       const destino = NOMBRES_PAGINA[page] || 'la siguiente pantalla';
       if (variante === 'sin-url') {
         return {
-          titulo: 'No pudimos ubicar la aplicación',
-          desc: 'El sistema no recibió su propia dirección, así que no puede cambiar de pantalla. ' +
-                'Recarga la página: casi siempre se resuelve con eso.',
-          accion: 'Recargar la página'
+          titulo: 'Vamos a recargar y seguimos',
+          desc: 'La aplicación perdió de vista su propia dirección, y por eso no puede cambiar de ' +
+                'pantalla. Toca el botón: se recarga y todo vuelve a la normalidad.',
+          accion: 'Recargar y continuar'
         };
       }
       return {
         // Solo la vista previa llega aquí SIEMPRE con la cotización ya escrita en
-        // Sheets. En el resto no se puede prometer nada sobre un guardado.
-        titulo: page === 'cotizado_preview' ? 'Tu cotización ya se guardó' : 'Falta un toque para continuar',
-        desc: 'El navegador no cambió de pantalla por su cuenta —pasa cuando la respuesta tarda unos ' +
-              'segundos—. Abre ' + destino + ' desde aquí y sigues donde te quedaste.',
-        accion: 'Abrir ' + destino
+        // Sheets. En el resto no se puede prometer nada sobre un guardado, así que el
+        // título se queda en la parte que sí es cierta en todos los casos.
+        titulo: page === 'cotizado_preview'
+          ? 'Listo, tu cotización ya quedó guardada'
+          : 'Ya casi: solo falta un toque',
+        desc: 'Esta pantalla se quedó quieta en lugar de llevarte a ' + destino + '. No perdiste ' +
+              'nada de lo que hiciste. Toca el botón de abajo y sigues justo donde ibas.',
+        accion: 'Ir a ' + destino
       };
     }
 
@@ -447,6 +488,17 @@
 
       alTeclado = function (e) { if (e.key === 'Escape') ocultar(); };
       document.addEventListener('keydown', alTeclado);
+
+      // El bucle de la flecha se duerme con la pestaña. Nadie lo está viendo y el
+      // navegador ya ralentiza los rAF de fondo, pero un tween activo mantiene el
+      // ticker de GSAP despierto y eso sí se nota en la batería de un portátil con
+      // veinte pestañas abiertas.
+      alVisibilidad = function () {
+        if (!latido) return;
+        if (document.visibilityState === 'hidden') latido.pause();
+        else latido.resume();
+      };
+      document.addEventListener('visibilitychange', alVisibilidad);
     }
 
     function copiar() {
@@ -514,6 +566,30 @@
       if (conGsap()) gsap.fromTo(tarjeta, { x: -6 }, { x: 0, duration: .5, ease: 'elastic.out(1,.3)', clearProps: 'x' });
     }
 
+    /**
+     * Empujón en bucle de la flecha del botón principal.
+     *
+     * El aviso pide UNA cosa —"toca el botón"— y el ojo tiene que encontrarlo sin
+     * leer. Es un movimiento de 3 px sobre un SVG de 20: se percibe como una
+     * dirección, no como algo parpadeando. Anima `x` (transform) sobre un elemento
+     * que ya está compuesto en su propia capa, así que el bucle no cuesta layout ni
+     * pintado: el compositor solo desplaza la capa.
+     *
+     * Se detiene mientras la pestaña no está a la vista. Un `repeat: -1` en una
+     * pestaña de fondo mantiene vivo el ticker de GSAP para siempre, y este aviso
+     * puede quedarse abierto media jornada.
+     */
+    function empujarFlecha() {
+      if (latido) { latido.kill(); latido = null; }
+      if (!anclaje || !conGsap()) return;
+      const flecha = anclaje.querySelector('[data-ir] .vnf-ico');
+      if (!flecha) return;
+      latido = gsap.to(flecha, {
+        x: 3, duration: .78, ease: 'sine.inOut', force3D: true,
+        repeat: -1, yoyo: true, repeatDelay: .55
+      });
+    }
+
     function mostrar(opts) {
       const url = opts.url || '';
       const page = opts.page || '';
@@ -548,17 +624,39 @@
       }
       anclaje.querySelector('[data-copiar]').hidden = (variante === 'sin-url');
 
+      // El botón es la única instrucción del aviso, así que se señala solo. Se
+      // recablea también cuando el aviso YA estaba abierto, porque arriba se acaba de
+      // reescribir el innerHTML del botón: el bucle anterior seguiría animando un
+      // nodo que ya no está en el documento, gastando fotogramas en la nada.
+      empujarFlecha();
+
       if (yaEstaba) return;   // ya visible: solo se actualizó el contenido
 
       if (conGsap()) {
-        anclaje.classList.add('vnf-visible');
+        // Apaga la transición de CSS: a partir de aquí manda GSAP y nadie más toca
+        // opacity ni transform (ver la nota junto a la regla .vnf-gsap).
+        anclaje.classList.add('vnf-gsap', 'vnf-visible');
         gsap.set(tarjeta, { clearProps: 'opacity,transform' });
-        const tl = gsap.timeline({ defaults: { ease: 'power3.out' } });
-        tl.fromTo(tarjeta, { opacity: 0, y: 26, scale: .97 },
-                           { opacity: 1, y: 0, scale: 1, duration: .45, clearProps: 'transform' })
-          .from(chip, { scale: .5, duration: .45, ease: 'back.out(2.2)', clearProps: 'transform' }, '-=.3')
+
+        // Todo el movimiento es transform + opacity: ni una propiedad que provoque
+        // reflow. El escalonado de los botones va con `amount` y no con un escalón
+        // por elemento, por la misma razón que en app_motion: con dos botones o con
+        // cuatro, la entrada termina siempre a la vez.
+        entrada = gsap.timeline({ defaults: { ease: 'power3.out', force3D: true } });
+        entrada
+          .fromTo(tarjeta, { opacity: 0, yPercent: 12, scale: .97 },
+                           { opacity: 1, yPercent: 0, scale: 1, duration: .5 })
+          .from(chip, { scale: .5, duration: .45, ease: 'back.out(2.2)' }, '-=.34')
+          .from(anclaje.querySelectorAll('.vnf-texto > *'),
+                { opacity: 0, y: 6, duration: .32, stagger: { amount: .1 } }, '-=.36')
           .from(anclaje.querySelectorAll('.vnf-acciones .vnf-btn:not([hidden])'),
-                { opacity: 0, y: 8, duration: .3, stagger: .06, clearProps: 'transform' }, '-=.28');
+                { opacity: 0, y: 10, duration: .34, stagger: { amount: .12 } }, '-=.26')
+          // Se limpia AL FINAL y de una sola vez. Hacerlo tween por tween devolvía
+          // cada elemento a su estilo de hoja mientras los demás seguían animando,
+          // que es justo cuando se notaba un salto de un fotograma.
+          .set([tarjeta, chip, anclaje.querySelectorAll('.vnf-texto > *'),
+                anclaje.querySelectorAll('.vnf-acciones .vnf-btn')],
+               { clearProps: 'transform' });
       } else {
         // requestAnimationFrame para que la transición CSS tenga un estado inicial.
         requestAnimationFrame(function () { if (anclaje) anclaje.classList.add('vnf-visible'); });
@@ -576,11 +674,20 @@
       const card = tarjeta;
       if (escalaTimer) { clearTimeout(escalaTimer); escalaTimer = null; }
       if (alTeclado) { document.removeEventListener('keydown', alTeclado); alTeclado = null; }
+      if (alVisibilidad) { document.removeEventListener('visibilitychange', alVisibilidad); alVisibilidad = null; }
+      // Las dos animaciones se matan ANTES de la salida. La de entrada, porque si el
+      // aviso se cierra a media entrada seguiría escribiendo transform encima de la
+      // salida y las dos pelearían por el mismo estilo. El bucle, porque `repeat:-1`
+      // no termina solo: sin este kill, cada aviso cerrado deja un tween eterno
+      // animando un nodo que ya no existe, y el ticker de GSAP nunca vuelve a dormir.
+      if (entrada) { entrada.kill(); entrada = null; }
+      if (latido) { latido.kill(); latido = null; }
       anclaje = null; tarjeta = null; estado = null;
 
       const quitar = function () { if (fuera.parentNode) fuera.parentNode.removeChild(fuera); };
       if (conGsap()) {
-        gsap.to(card, { opacity: 0, y: 14, scale: .98, duration: .22, ease: 'power1.in', onComplete: quitar });
+        gsap.to(card, { opacity: 0, yPercent: 8, scale: .98, duration: .24,
+                        ease: 'power2.in', force3D: true, onComplete: quitar });
       } else {
         fuera.classList.remove('vnf-visible');
         setTimeout(quitar, 300);
@@ -1628,11 +1735,31 @@
       { bloque: 'supervision',       page: 'inicio_avanzado', nombre: 'Panel avanzado',       corto: 'supervisión',        sub: 'Métricas y revisión' },
       { bloque: 'revisar',           page: 'inicio_avanzado', nombre: 'Revisar cotizaciones', corto: 'revisión',           sub: 'Cotizaciones por autorizar' },
       { bloque: 'politica_revision', page: 'inicio_avanzado', nombre: 'Política de revisión', corto: 'reglas de revisión', sub: 'Reglas de revisión' },
-      { bloque: 'sup_equipo',        page: 'inicio_avanzado', nombre: 'Tu equipo',            corto: 'roles del equipo',   sub: 'Roles y accesos de tus asesores' },
       { bloque: 'anuncios',          page: 'anuncios',        nombre: 'Anuncios del Portal',  corto: 'anuncios',           sub: 'Anuncios del Portal' },
       { bloque: 'portal_contenido',  page: 'portal_contenido', nombre: 'Contenido del Portal', corto: 'contenido del Portal', sub: 'Herramientas, plantillas y promos' },
       { bloque: 'operacion',         page: 'operacion',       nombre: 'Estado de operación',  corto: 'estado de operación', sub: 'Fallas reportadas por el equipo' },
-      { bloque: 'adm_miembros',      page: 'consola',         nombre: 'Consola maestra',      corto: 'ajustes',            sub: 'Miembros y ajustes', soloMaestro: true }
+      /* LA CONSOLA ENTRA POR DOS LLAVES, y esa es toda la unificación vista desde el
+         menú. 'adm_miembros' es la del maestro y 'sup_equipo' la de la supervisión;
+         las dos abren la MISMA pantalla, que por dentro ya sabe qué pestañas enseñar
+         a cada quien (ver CONSOLA_SECCIONES en Consola.gs).
+
+         Antes 'sup_equipo' llevaba al panel avanzado, donde vivía una segunda
+         pantalla de roles. Al mudarse esa gestión a la consola, la entrada del menú
+         se muda con ella: si se hubiera dejado apuntando al panel, el supervisor
+         seguiría yendo al sitio donde ya no está lo que busca.
+
+         Ya no llevan `soloMaestro`. Ese campo decía "esta entrada es de maestros" y
+         era otra copia de la regla de acceso viviendo en el cliente; ahora la lista
+         de bloques es la única condición, que es como funcionan las demás entradas.
+         (El filtro sigue existiendo en gestion() para quien lo necesite después.)
+         El ORDEN entre estas dos importa, por la regla de "una pantalla, una entrada"
+         de gestion(): gana la primera, que debe ser la de MAYOR alcance. Un maestro
+         tiene las dos llaves, y a él la consola hay que anunciársela entera —"Consola:
+         personas, permisos y ajustes"— y no como "los roles de tu equipo", que es solo
+         una de sus siete pestañas. Al revés, el supervisor únicamente tiene la
+         segunda, así que lee el rótulo que describe lo que él sí va a encontrar. */
+      { bloque: 'adm_miembros',      page: 'consola',         nombre: 'Consola',              corto: 'consola',            sub: 'Personas, permisos y ajustes' },
+      { bloque: 'sup_equipo',        page: 'consola',         nombre: 'Roles y accesos',      corto: 'roles',              sub: 'Altas, roles y accesos de tu equipo' }
     ];
 
     function porId(id) {

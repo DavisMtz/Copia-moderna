@@ -120,7 +120,7 @@ const OP_MAX_BYTES_EVIDENCIA = 5 * 1024 * 1024;
 /** Carpeta de Drive donde viven las capturas. */
 const OP_CARPETA_EVIDENCIAS = 'Ventel · Evidencias de operación';
 
-/** Webhooks. Ambos se configuran desde la Consola maestra; vacío = no se manda nada. */
+/** Webhooks. Ambos se configuran desde la Consola; vacío = no se manda nada. */
 const OPERACION_WEBHOOK_REPORTES = '';
 const OPERACION_WEBHOOK_ESTADO =
   'https://chat.googleapis.com/v1/spaces/AAQAF6OTWgk/messages?key=AIzaSyDdI0hCZtE6vySjMm-WEfRq3CPzqKqqsHI&token=to2OuM8_AR2Ag-TP1cTShZf4u_JiwQ0oPbHmnD7i2ck';

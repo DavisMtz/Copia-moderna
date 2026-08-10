@@ -344,7 +344,7 @@
       icono:IC.llave, page:'inicio_avanzado', ancla:'eq-seccion', bloques:['sup_equipo'],
       kw:'equipo asesores roles permisos alta baja ascender supervisor personal gente' },
 
-    { id:'consola', nombre:'Consola maestra', sub:'Miembros, permisos y ajustes del sistema',
+    { id:'consola', nombre:'Consola', sub:'Miembros, permisos y ajustes del sistema',
       icono:IC.engrane, page:'consola', bloques:['adm_miembros','adm_permisos','adm_ajustes'], maestro:true,
       kw:'administracion usuarios altas bajas roles bitacora salud modulos' },
 
@@ -405,7 +405,7 @@
      baja hasta la mitad", dice "los formatos de cotización".
 
      Antes, buscar "bitácora" no encontraba nada —vive dentro de la consola, y la
-     consola se llama "Consola maestra"—, así que la única forma de llegar era saberse
+     consola se llama "Consola"—, así que la única forma de llegar era saberse
      de memoria en qué pantalla estaba. Ahora cada apartado es un resultado con su
      propio nombre y su enlace directo: la pantalla se abre YA POSICIONADA en él,
      gracias al parámetro `ancla` (ver AppUrl.irAncla en app_core).
@@ -1004,7 +1004,7 @@
                                  mejor: fn[0].score, filas: fn.map(function (r) { return r.item; }) });
 
     /* 1b) Apartados DENTRO de una pantalla. Van en su propio grupo y no mezclados con
-       las funciones: "Bitácora" y "Consola maestra" no son la misma respuesta, y
+       las funciones: "Bitácora" y "Consola" no son la misma respuesta, y
        ponerlas juntas obligaría a leer el subtítulo para distinguirlas. Se puntúan un
        punto por debajo (peso .92) para que, cuando el nombre coincide en los dos, gane
        la pantalla entera —que es el destino más seguro— y el apartado quede justo

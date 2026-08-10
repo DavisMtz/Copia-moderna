@@ -100,49 +100,6 @@
         .pol-head p  { margin: .2rem 0 0; font-size: .82rem; color: var(--ink-soft, #5C6B7E); max-width: 46rem; }
         .pol-body { padding: 1.25rem 1.5rem; display: grid; gap: 1.25rem; }
 
-        /* ── EQUIPO ────────────────────────────────────────────────────────────
-           Reutiliza la carcasa de la política (.pol-card / .pol-head / .pol-body):
-           las dos son "cosas que esta coordinación administra", y darles dos marcos
-           distintos haría parecer que vienen de sitios distintos del sistema. */
-        .eq-lista { display: grid; gap: .55rem; }
-        .eq-fila {
-            display: grid; grid-template-columns: minmax(0, 1fr) auto auto;
-            gap: .5rem .9rem; align-items: center;
-            padding: .7rem .9rem; border: 1px solid var(--line, #E4E9F0);
-            border-radius: var(--rad, 12px); background: var(--surface, #fff);
-        }
-        /* Fuera de jurisdicción: se ve, no se toca, y se dice por qué. Esconderla
-           dejaría a la coordinación sin saber quién está en la lista. */
-        .eq-fila.eq-bloqueada { background: var(--surface-2, #F4F7FA); opacity: .72; }
-        .eq-fila.eq-baja .eq-nombre { text-decoration: line-through; }
-        .eq-quien { min-width: 0; }
-        .eq-nombre { display: block; font-size: .9rem; font-weight: 600; color: var(--ink, #1B2330);
-                     white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-        .eq-correo { display: block; font-size: .78rem; color: var(--ink-soft, #5C6B7E);
-                     white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-        .eq-motivo { display: block; font-size: .75rem; color: var(--warn, #B45309); margin-top: .15rem; }
-        .eq-acciones { display: flex; align-items: center; gap: .5rem; flex-wrap: wrap; justify-content: flex-end; }
-        .eq-acciones select { min-width: 9.5rem; }
-        .eq-chip {
-            display: inline-flex; align-items: center; gap: .3rem; padding: .2rem .55rem;
-            border-radius: 999px; font-size: .72rem; font-weight: 700; letter-spacing: .01em;
-            background: var(--surface-2, #F4F7FA); color: var(--ink-soft, #5C6B7E);
-        }
-        .eq-chip.eq-baja-chip { background: var(--alert-bg, #FDE8EC); color: var(--alert, #C81E3C); }
-        .eq-vacio { padding: 1.5rem; text-align: center; font-size: .85rem; color: var(--ink-soft, #5C6B7E); }
-        .eq-nota {
-            display: flex; gap: .7rem; align-items: flex-start;
-            padding: .8rem 1rem; border-radius: var(--rad, 12px);
-            background: var(--info-bg, #EAF0FE); border: 1px solid var(--info, #1D4ED8); border-left-width: 4px;
-            font-size: .82rem; line-height: 1.5; color: var(--ink-soft, #5C6B7E);
-        }
-        .eq-nota strong { color: var(--ink, #1B2330); }
-        .eq-buscar { display: flex; gap: .6rem; align-items: center; flex-wrap: wrap; }
-        .eq-buscar input { flex: 1 1 16rem; }
-        @media (max-width: 640px) {
-            .eq-fila { grid-template-columns: minmax(0, 1fr); }
-            .eq-acciones { justify-content: flex-start; }
-        }
 
         /* Aviso permanente cuando la revisión está apagada. */
         .pol-alarma {
@@ -363,10 +320,6 @@
                 Revisión
                 <span class="sv-tab-badge" id="tab-pend-badge" data-count="0"></span>
             </button>
-            <button class="sv-tab" role="tab" aria-selected="false" aria-controls="panel-equipo" data-tab="equipo">
-                <span class="w-4 h-4 block" data-icon="user"></span>
-                Equipo
-            </button>
             <button class="sv-tab" role="tab" aria-selected="false" aria-controls="panel-metricas" data-tab="metricas">
                 <span class="w-4 h-4 block" data-icon="chart"></span>
                 Métricas
@@ -443,50 +396,30 @@
             </div>
         </section>
 
-        <!-- Equipo: roles y accesos de los asesores (bloque 'sup_equipo') -->
-        <section id="eq-seccion" class="pol-card" data-animate aria-labelledby="eq-titulo" style="display:none">
+        <!-- Roles: SE MUDÓ A LA CONSOLA.
+             Aquí vivía una segunda pantalla de gestión de roles, con sus propias
+             reglas (ver la nota histórica en Equipo.gs). Al unificarse toda la
+             gestión en la Consola, lo que queda es una tarjeta que lleva allí.
+
+             No se borró la entrada sin más: quien lleva un año entrando por esta
+             pestaña la va a buscar aquí, y una pantalla en la que algo desaparece sin
+             explicación se lee como una avería o como un permiso retirado. La tarjeta
+             dice qué pasó y abre el sitio nuevo de un clic. -->
+        <section id="eq-mudanza" class="pol-card" data-animate aria-labelledby="eq-mudanza-tit" style="display:none">
             <div class="pol-head">
-                <span class="w-6 h-6 block mt-1" data-icon="user" aria-hidden="true"></span>
+                <span class="w-6 h-6 block mt-1" data-icon="key" aria-hidden="true"></span>
                 <div style="flex:1 1 20rem;min-width:0">
-                    <h3 id="eq-titulo">Tu equipo</h3>
-                    <p id="eq-resumen">Cargando el equipo…</p>
+                    <h3 id="eq-mudanza-tit">Los roles ahora se gestionan en la Consola</h3>
+                    <p>Altas, roles y accesos de tu equipo están todos en un mismo sitio, junto con la bitácora de cambios.</p>
                 </div>
-                <button id="eq-recargar" class="v-btn v-btn-ghost v-btn-sm" title="Volver a leer la lista">
-                    <span class="w-4 h-4 block" data-icon="refresh"></span>
-                    Releer
+                <button id="eq-ir-consola" class="v-btn v-btn-primary v-btn-sm">
+                    <span class="w-4 h-4 block" data-icon="arrow-right"></span>
+                    Abrir la Consola
                 </button>
-            </div>
-
-            <div class="pol-body">
-                <div class="eq-nota">
-                    <span class="w-5 h-5 block" data-icon="shield" aria-hidden="true" style="flex:none"></span>
-                    <span>
-                        Puedes cambiar el rol y el alta o baja de tus <strong>asesores</strong>.
-                        No alcanza a otros supervisores, ni a los maestros, ni a tu propia cuenta:
-                        para eso hace falta un maestro. Todo cambio queda registrado con tu nombre.
-                    </span>
-                </div>
-
-                <div class="eq-buscar">
-                    <input id="eq-filtro" class="v-input" type="search" autocomplete="off"
-                           placeholder="Buscar por nombre o correo…" aria-label="Buscar en el equipo">
-                    <label class="flex items-center gap-2 text-sm" style="color:var(--ink-soft,#5C6B7E)">
-                        <input type="checkbox" id="eq-ver-bajas"> Ver también las bajas
-                    </label>
-                </div>
-
-                <div class="eq-lista" id="eq-lista">
-                    <div class="eq-vacio"><div class="v-spinner"></div> Cargando…</div>
-                </div>
             </div>
         </section>
 
         </div><!-- /panel-revision -->
-
-        <!-- ══════════ Panel 2: Equipo ══════════ -->
-        <div id="panel-equipo" class="sv-panel" role="tabpanel">
-            <!-- El contenido del equipo se mueve aquí automáticamente vía JS (initTabs) -->
-        </div><!-- /panel-equipo -->
 
         <!-- ══════════ Panel 3: Métricas ══════════ -->
         <div id="panel-metricas" class="sv-panel" role="tabpanel">
@@ -782,12 +715,11 @@
                 // saber qué tiene parado al equipo aunque apruebe otra persona.
                 if (!PUEDE.revisar && !PUEDE.metricas) ocultar('pend-seccion');
                 if (!PUEDE.politica) ocultar('pol-seccion');
-                // El apartado de equipo nace oculto en el HTML y solo lo enciende quien
-                // tiene el bloque: es una puerta de administración y el criterio para
-                // esas es esconder de más, no de menos.
+                // La tarjeta que lleva a la Consola solo se le enseña a quien puede
+                // entrar: a los demás sería el anuncio de una puerta cerrada.
                 if (PUEDE.equipo) {
-                    const secEq = document.getElementById('eq-seccion');
-                    if (secEq) secEq.style.display = '';
+                    const puente = document.getElementById('eq-mudanza');
+                    if (puente) puente.style.display = '';
                 }
                 // Las métricas se ocultan vía la pestaña (initTabs).
             })();
@@ -800,7 +732,6 @@
                 const tabs = document.querySelectorAll('.sv-tab[data-tab]');
                 const panels = {
                     revision:    document.getElementById('panel-revision'),
-                    equipo:      document.getElementById('panel-equipo'),
                     metricas:    document.getElementById('panel-metricas'),
                     supervision: document.getElementById('panel-supervision')
                 };
@@ -819,27 +750,26 @@
 
                 tabs.forEach(t => t.addEventListener('click', () => activate(t.dataset.tab)));
 
-                /* Mover la sección de equipo a su panel (nace donde estaba en el HTML
-                   para no romper nada si el JS no llega). */
-                const eqPanel = panels.equipo;
-                const eqSec = document.getElementById('eq-seccion');
-                if (eqPanel && eqSec) eqPanel.appendChild(eqSec);
-
                 /* Ocultar pestañas cuyo contenido no le toca a esta persona. */
                 const tabRevision    = document.querySelector('[data-tab="revision"]');
-                const tabEquipo      = document.querySelector('[data-tab="equipo"]');
                 const tabMetricas    = document.querySelector('[data-tab="metricas"]');
 
                 if (!PUEDE.revisar && !PUEDE.metricas && !PUEDE.politica && tabRevision) tabRevision.style.display = 'none';
-                if (!PUEDE.equipo && tabEquipo) tabEquipo.style.display = 'none';
                 if (!PUEDE.metricas && tabMetricas) tabMetricas.style.display = 'none';
 
                 /* Activar la primera pestaña VISIBLE por defecto. */
                 const firstVisible = Array.from(tabs).find(t => t.style.display !== 'none');
                 if (firstVisible) activate(firstVisible.dataset.tab);
 
-                /* Si se pidió ir al equipo desde un deep-link (?ancla=eq-seccion), activar su pestaña. */
-                if (window.AppUrl && AppUrl.param('ancla') === 'eq-seccion') activate('equipo');
+                /* Los enlaces viejos a la gestión de roles (?ancla=eq-seccion) siguen
+                   llegando: del buscador general, de un chat, de un marcador. Ya no hay
+                   pestaña a la que llevarlos, así que van directos a la Consola, que es
+                   donde está ahora lo que venían a hacer. Redirigir es más honesto que
+                   dejarlos en el panel mirando una pestaña que ya no existe. */
+                if (window.AppUrl && AppUrl.param('ancla') === 'eq-seccion' && PUEDE.equipo) {
+                    AppUrl.go('consola', { sec: 'miembros', q: AppUrl.param('q') || '' });
+                    return;
+                }
             })();
 
             // El loader de marca cubre el arranque; se retira en cuanto la pantalla está lista.
@@ -1938,208 +1868,23 @@
             if (PUEDE.politica) polCargar();
 
             /* ═══════════════════════════════════════════════════════════════════
-               EQUIPO · roles y accesos de los asesores
+               ROLES · se gestionan en la Consola
                ═══════════════════════════════════════════════════════════════════
-               La lista completa la manda el servidor con una marca por persona:
-               `gestionable` y, si no lo es, el `motivo`. Esta pantalla NO decide
-               quién se puede tocar —esa decisión es de Equipo.gs y se vuelve a
-               tomar en cada escritura—; aquí solo se pinta lo que ya se decidió.
-               Duplicar la regla en el cliente sería tener dos respuestas para la
-               misma pregunta, y la del navegador se puede editar a mano. */
-            let eqDatos = null;
-            let eqFiltro = '';
-            let eqVerBajas = false;
+               Aquí había unas 200 líneas: lista de asesores, filtro, selector de rol,
+               alta/baja optimista y su reconciliación. Todo eso existe ahora en la
+               Consola, con las MISMAS operaciones y una sola regla de jerarquía
+               (permVetoJerarquia_ en Permisos.gs).
 
-            const eqEsc = (s) => (window.AppBuscar ? AppBuscar.escapa(s)
-                                                   : String(s == null ? '' : s));
-
-            function eqVisibles() {
-                if (!eqDatos) return [];
-                let lista = eqDatos.asesores.filter(a => eqVerBajas || a.activo);
-                if (!eqFiltro) return lista;
-                // Mismo motor que el resto de la app: "gonzalez" encuentra "González"
-                // y "jse" encuentra "José".
-                return AppBuscar.filtra(lista, eqFiltro,
-                    a => [{ t: a.nombre, p: 3 }, { t: a.email, p: 2 }, { t: a.rolNombre, p: 1 }]);
-            }
-
-            function eqPintar() {
-                const host = document.getElementById('eq-lista');
-                const resumen = document.getElementById('eq-resumen');
-                if (!host) return;
-
-                if (!eqDatos) {
-                    host.innerHTML = '<div class="eq-vacio"><div class="v-spinner"></div> Cargando…</div>';
-                    return;
-                }
-
-                const gestionables = eqDatos.asesores.filter(a => a.gestionable && a.activo).length;
-                const bajas = eqDatos.asesores.filter(a => !a.activo).length;
-                resumen.textContent = gestionables === 0
-                    ? 'Todavía no hay asesores a tu cargo.'
-                    : (gestionables === 1 ? 'Un asesor a tu cargo' : gestionables + ' asesores a tu cargo') +
-                      (bajas ? ' · ' + bajas + (bajas === 1 ? ' baja' : ' bajas') : '');
-
-                const lista = eqVisibles();
-                if (!lista.length) {
-                    host.innerHTML = '<div class="eq-vacio">' +
-                        (eqFiltro ? 'Nadie coincide con «' + eqEsc(eqFiltro) + '».'
-                                  : 'No hay nadie que mostrar aquí.') + '</div>';
-                    return;
-                }
-
-                const roles = eqDatos.catalogo.roles || [];
-                host.innerHTML = lista.map(a => {
-                    const clases = 'eq-fila' + (a.gestionable ? '' : ' eq-bloqueada') + (a.activo ? '' : ' eq-baja');
-                    const quien =
-                        '<span class="eq-quien">' +
-                          '<span class="eq-nombre">' + eqEsc(a.nombre || a.email) + '</span>' +
-                          '<span class="eq-correo">' + eqEsc(a.email) + '</span>' +
-                          (a.motivo ? '<span class="eq-motivo">' + eqEsc(a.motivo) + '</span>' : '') +
-                        '</span>';
-
-                    if (!a.gestionable) {
-                        return '<div class="' + clases + '">' + quien +
-                          '<span class="eq-chip">' + eqEsc(a.rolNombre) + '</span>' +
-                          '<span class="eq-chip">Solo un maestro</span></div>';
-                    }
-
-                    const opciones = roles.map(r =>
-                        '<option value="' + eqEsc(r.id) + '"' + (r.id === a.rol ? ' selected' : '') + '>' +
-                        eqEsc(r.nombre) + '</option>').join('');
-
-                    return '<div class="' + clases + '">' + quien +
-                      '<span class="eq-acciones">' +
-                        (a.activo ? '' : '<span class="eq-chip eq-baja-chip">Dado de baja</span>') +
-                        '<select class="v-select" data-eq-rol="' + eqEsc(a.email) + '" ' +
-                                'aria-label="Rol de ' + eqEsc(a.nombre || a.email) + '"' +
-                                (a.activo ? '' : ' disabled') + '>' + opciones + '</select>' +
-                        '<button type="button" class="v-btn v-btn-sm ' +
-                                (a.activo ? 'v-btn-ghost' : 'v-btn-dark') + '" ' +
-                                'data-eq-activo="' + eqEsc(a.email) + '" ' +
-                                'data-eq-valor="' + (a.activo ? '0' : '1') + '">' +
-                          (a.activo ? 'Dar de baja' : 'Reactivar') +
-                        '</button>' +
-                      '</span></div>';
-                }).join('');
-            }
-
-            function eqCargar(forzar) {
-                AppRun.swr('equipo-panorama', 'equipoPanorama', [AppSession.userEmail], {
-                    ttl: 2 * 60 * 1000,
-                    fuerza: forzar === true,
-                    accept: r => !!(r && r.success),
-                    onData: r => {
-                        if (!r || !r.success) {
-                            if (!eqDatos) {
-                                document.getElementById('eq-lista').innerHTML =
-                                    '<div class="eq-vacio">' + eqEsc((r && r.message) ||
-                                    'No pudimos leer tu equipo.') + '</div>';
-                            }
-                            return;
-                        }
-                        eqDatos = r;
-                        eqPintar();
-                    },
-                    onError: () => {
-                        if (!eqDatos) {
-                            document.getElementById('eq-lista').innerHTML =
-                                '<div class="eq-vacio">No hay conexión con el sistema. Vuelve a intentarlo.</div>';
-                        }
-                    }
+               No se ha movido el código: se ha borrado. Mantener aquí una segunda
+               implementación "por si acaso" es lo que produjo el problema que este
+               cambio viene a resolver —dos pantallas que contestaban distinto a la
+               misma pregunta—, y una copia que no se usa es una copia que nadie
+               actualiza cuando cambian las reglas. Lo único que queda es el botón. */
+            const irAConsola = document.getElementById('eq-ir-consola');
+            if (irAConsola) {
+                irAConsola.addEventListener('click', function () {
+                    AppUrl.go('consola', { sec: 'miembros' });
                 });
-            }
-
-            /**
-             * Un cambio de rol o de alta se pinta YA y sube por detrás.
-             *
-             * Es una escritura de "deja a esta persona así": repetirla deja lo mismo, y
-             * por eso admite reintento. Si el servidor la rechaza —porque esa persona
-             * dejó de estar a su cargo entre que se pintó la lista y se pulsó, que es
-             * justo el caso que un candado del cliente no puede prever— la fila vuelve
-             * a como estaba y el aviso dice por qué.
-             */
-            function eqGuardar(correo, cambio, etiqueta, hecho) {
-                const quien = eqDatos.asesores.filter(a => a.email === correo)[0];
-                if (!quien) return;
-                const copia = JSON.parse(JSON.stringify(quien));
-
-                AppGuardado.guardar({
-                    clave: 'equipo:' + correo,
-                    etiqueta: etiqueta,
-                    hecho: hecho,
-                    fn: 'equipoGuardarMiembro',
-                    args: [AppSession.userEmail, Object.assign({ email: correo }, cambio)],
-                    valida: r => !!(r && r.success),
-                    optimista: () => {
-                        if (cambio.rol) {
-                            quien.rol = cambio.rol;
-                            const def = (eqDatos.catalogo.roles || []).filter(r => r.id === cambio.rol)[0];
-                            quien.rolNombre = (def && def.nombre) || quien.rolNombre;
-                        }
-                        if (cambio.activo !== undefined) quien.activo = cambio.activo;
-                        eqPintar();
-                    },
-                    revertir: () => {
-                        const i = eqDatos.asesores.map(a => a.email).indexOf(correo);
-                        if (i !== -1) eqDatos.asesores[i] = copia;
-                        eqPintar();
-                    },
-                    alLograr: r => {
-                        // El servidor devuelve el panorama entero: puede que ascender a
-                        // alguien lo haya sacado de la jurisdicción, y esa fila tiene que
-                        // dejar de tener controles en el mismo momento.
-                        eqDatos = r;
-                        if (window.AppCache) { try { AppCache.remove('equipo-panorama'); } catch (e) {} }
-                        eqPintar();
-                    }
-                });
-            }
-
-            if (PUEDE.equipo) {
-                document.getElementById('eq-filtro').addEventListener('input', (e) => {
-                    eqFiltro = e.target.value;
-                    eqPintar();
-                });
-                document.getElementById('eq-ver-bajas').addEventListener('change', (e) => {
-                    eqVerBajas = e.target.checked;
-                    eqPintar();
-                });
-                document.getElementById('eq-recargar').addEventListener('click', () => {
-                    eqDatos = null; eqPintar(); eqCargar(true);
-                });
-
-                const host = document.getElementById('eq-lista');
-                host.addEventListener('change', (e) => {
-                    const sel = e.target.closest('[data-eq-rol]');
-                    if (!sel) return;
-                    const correo = sel.getAttribute('data-eq-rol');
-                    const def = (eqDatos.catalogo.roles || []).filter(r => r.id === sel.value)[0];
-                    eqGuardar(correo, { rol: sel.value },
-                        'Cambiando el rol de ' + correo,
-                        'Ahora es ' + ((def && def.nombre) || sel.value) + '.');
-                });
-                host.addEventListener('click', (e) => {
-                    const btn = e.target.closest('[data-eq-activo]');
-                    if (!btn) return;
-                    const correo = btn.getAttribute('data-eq-activo');
-                    const activar = btn.getAttribute('data-eq-valor') === '1';
-                    eqGuardar(correo, { activo: activar },
-                        (activar ? 'Reactivando a ' : 'Dando de baja a ') + correo,
-                        activar ? 'Cuenta reactivada.' : 'Cuenta dada de baja.');
-                });
-
-                // ?q=… deja el filtro escrito: es como llega un enlace del buscador
-                // general apuntando a una persona concreta. Se aplica solo si esta
-                // pantalla se abrió PARA el equipo (?ancla=eq-seccion), porque el mismo
-                // parámetro lo usa la tabla de cotizaciones y no puede secuestrarlo.
-                var qPedida = (AppUrl.param('ancla') === 'eq-seccion') ? AppUrl.param('q') : '';
-                if (qPedida) {
-                    eqFiltro = qPedida;
-                    document.getElementById('eq-filtro').value = qPedida;
-                }
-
-                eqCargar(false);
             }
 
             const paintSupervision = (quotes) => {

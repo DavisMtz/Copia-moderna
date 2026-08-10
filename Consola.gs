@@ -150,17 +150,26 @@ function consolaBitacoraApuntar_(quien, accion, objetivo, detalle) {
 }
 
 /** Últimos movimientos, del más reciente al más viejo. */
-function consolaBitacoraLeer_(limite) {
+function consolaBitacoraLeer_(limite, quien) {
   try {
     const sheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName(CONSOLA_BITACORA_SHEET);
     if (!sheet || sheet.getLastRow() < 2) return [];
 
+    const esMaestro = !!(quien && quien.maestro === true);
+    const pedidos = limite || CONSOLA_BITACORA_LIMITE;
+
+    // Al filtrar se leen MÁS filas de las pedidas, porque muchas se van a descartar.
+    // Sin este margen, un supervisor cuyos últimos apuntes están enterrados bajo
+    // cincuenta cambios de ajustes de un maestro veía una bitácora vacía y concluía,
+    // razonablemente, que sus cambios no se habían guardado. El tope evita que el
+    // margen se convierta en leer la hoja entera.
+    const aLeer = esMaestro ? pedidos : Math.min(pedidos * 6, CONSOLA_BITACORA_LIMITE * 4);
     const total = sheet.getLastRow() - 1;
-    const cuantos = Math.min(total, limite || CONSOLA_BITACORA_LIMITE);
+    const cuantos = Math.min(total, aLeer);
     const desde = sheet.getLastRow() - cuantos + 1;
     const datos = sheet.getRange(desde, 1, cuantos, CONSOLA_BITACORA_COLUMNAS.length).getValues();
 
-    return datos.map(function (f) {
+    const filas = datos.map(function (f) {
       return {
         fecha: f[0] instanceof Date ? f[0].toISOString() : String(f[0] || ''),
         quien: String(f[1] || ''),
@@ -169,6 +178,21 @@ function consolaBitacoraLeer_(limite) {
         detalle: String(f[4] || '')
       };
     }).reverse();
+
+    if (esMaestro) return filas.slice(0, pedidos);
+
+    // Un supervisor ve su propio rastro y el de la gente a la que alcanza. No ve los
+    // cambios de ajustes, módulos ni salud —no son suyos y describen la instalación—,
+    // ni nada que le hayan hecho a alguien por encima de su nivel. La bitácora sigue
+    // siendo completa en la hoja: lo que se recorta es quién la lee.
+    const miNivel = permNivelUsuario_(quien);
+    return filas.filter(function (r) {
+      if (permMismoCorreo_(r.quien, quien.email)) return true;
+      if (!r.objetivo) return false;   // apunte del sistema, no de una persona
+      const u = permUsuario_(r.objetivo);
+      if (!u.encontrado) return false;
+      return permNivelUsuario_(u) <= miNivel;
+    }).slice(0, pedidos);
   } catch (e) {
     Logger.log('consolaBitacoraLeer_ error: ' + e);
     return [];
@@ -194,6 +218,82 @@ function consolaGate_(email, bloqueId) {
   return id;
 }
 
+// ── ACCESO A LA CONSOLA (maestros Y supervisores) ────────────────────────────
+//
+// La consola dejó de ser "la pantalla del maestro" para ser LA pantalla donde se
+// gestionan roles, y por ahí entran ahora dos perfiles muy distintos:
+//
+//   maestro     todas las secciones, alcance sobre todo el sistema.
+//   supervisor  SOLO Roles y Bitácora, y dentro de ellas solo su nivel hacia abajo.
+//
+// Se resuelve con una tabla de secciones en vez de con `if (esMaestro)` repartidos por
+// el archivo. Cuando mañana haya un tercer perfil —o una sección nueva— se toca una
+// fila de esta tabla y no diez condicionales que hay que encontrar primero.
+//
+// Cada sección declara los bloques que la abren, en OR: basta tener uno. Roles y
+// Bitácora aceptan tanto la llave maestra como 'sup_equipo', y ahí es donde los dos
+// perfiles se juntan sin que la pantalla tenga que saber cuál de los dos eres.
+
+const CONSOLA_SECCIONES = [
+  { id: 'resumen',  nombre: 'Resumen',  bloques: [] },   // [] = cualquiera que entre
+  { id: 'roles',    nombre: 'Roles',    bloques: ['adm_miembros', 'adm_permisos', 'sup_equipo'] },
+  { id: 'modulos',  nombre: 'Módulos',  bloques: ['adm_modulos'] },
+  { id: 'ajustes',  nombre: 'Ajustes',  bloques: ['adm_ajustes'] },
+  { id: 'formatos', nombre: 'Formatos', bloques: ['adm_formatos'] },
+  { id: 'salud',    nombre: 'Salud',    bloques: ['adm_salud'] },
+  { id: 'bitacora', nombre: 'Bitácora', bloques: ['adm_bitacora', 'sup_equipo'] }
+];
+
+/** ¿Alguno de los bloques que abren esta sección está entre los de la persona? */
+function consolaSeccionAbierta_(seccion, bloques) {
+  if (!seccion.bloques.length) return true;
+  return seccion.bloques.some(function (b) { return (bloques || []).indexOf(b) !== -1; });
+}
+
+/**
+ * Perfil de acceso de quien está llamando: quién es, qué secciones ve y hasta dónde
+ * alcanza. Es la ÚNICA puerta de la consola; todo lo demás parte de aquí.
+ *
+ * @param {string} email      Correo de la sesión del portal.
+ * @param {string=} seccion   Sección concreta que se va a usar. Si se pasa y no la
+ *                            tiene, se rechaza aquí y no más adentro.
+ */
+function consolaAcceso_(email, seccion) {
+  const id = secIdentidad_(email);
+  if (!id.ok) return { ok: false, error: id.error || 'Tu sesión no es válida.' };
+
+  const yo = permUsuario_(id.email);
+  const secciones = CONSOLA_SECCIONES
+    .filter(function (s) { return consolaSeccionAbierta_(s, yo.bloques); })
+    .map(function (s) { return s.id; });
+
+  // 'resumen' se le abre a cualquiera, así que tenerlo NO prueba nada: quien entra a
+  // la consola tiene que traer al menos una sección con contenido propio.
+  const conFondo = secciones.filter(function (s) { return s !== 'resumen'; });
+  if (!conFondo.length) {
+    return { ok: false, email: yo.email, nombre: yo.nombre,
+             error: 'Tu cuenta no tiene acceso a la Consola.' };
+  }
+
+  if (seccion && secciones.indexOf(seccion) === -1) {
+    const def = CONSOLA_SECCIONES.filter(function (s) { return s.id === seccion; })[0];
+    return { ok: false, email: yo.email, nombre: yo.nombre,
+             error: 'Tu cuenta no tiene acceso a "' + ((def && def.nombre) || seccion) + '" dentro de la Consola.' };
+  }
+
+  return {
+    ok: true,
+    email: yo.email,
+    nombre: yo.nombre,
+    usuario: yo,
+    maestro: yo.maestro === true,
+    nivel: permNivelUsuario_(yo),
+    secciones: secciones,
+    bloques: yo.bloques,
+    error: ''
+  };
+}
+
 /** Respuesta de error uniforme, para que la pantalla no tenga que adivinar la forma. */
 function consolaError_(mensaje) {
   return { success: false, message: mensaje || 'No se pudo completar la operación.' };
@@ -213,22 +313,32 @@ function consolaError_(mensaje) {
  */
 function consolaPanorama(email) {
   try {
-    const gate = consolaGate_(email, '');
-    if (!gate.ok) return consolaError_(gate.error);
+    const acc = consolaAcceso_(email);
+    if (!acc.ok) return consolaError_(acc.error);
 
-    const catalogo = permCatalogo_();
-    const yo = permUsuario_(gate.email);
+    const yo = acc.usuario;
+    const tiene = function (s) { return acc.secciones.indexOf(s) !== -1; };
 
+    // Cada apartado se calcula SOLO si esta persona lo va a ver. No es solo higiene de
+    // datos: leer ajustes, formatos y salud son viajes a PropertiesService y a la hoja,
+    // y a un supervisor que únicamente entra a Roles le costaban casi un segundo de
+    // espera para recibir cosas que su pantalla iba a tirar a la basura.
     return {
       success: true,
-      yo: { email: yo.email, nombre: yo.nombre, rol: yo.rol, rolNombre: yo.rolNombre, bloques: yo.bloques },
-      catalogo: catalogo,
-      miembros: consolaListaMiembros_(),
-      ajustes: consolaLeerAjustes_(),
-      gruposAjustes: CONSOLA_GRUPOS_AJUSTES.slice(),
-      formatos: consolaLeerFormatos_(gate.email),
-      resumen: consolaResumen_(),
-      bitacora: (yo.bloques.indexOf('adm_bitacora') !== -1) ? consolaBitacoraLeer_(50) : []
+      yo: {
+        email: yo.email, nombre: yo.nombre, rol: yo.rol, rolNombre: yo.rolNombre,
+        bloques: yo.bloques, maestro: acc.maestro, nivel: acc.nivel
+      },
+      // Qué pestañas puede pintar la consola. La pantalla ya no adivina por el rol.
+      secciones: acc.secciones,
+      // Recortado a su alcance: ver permCatalogoPara_.
+      catalogo: permCatalogoPara_(yo),
+      miembros:      tiene('roles')    ? consolaListaMiembros_(yo) : [],
+      ajustes:       tiene('ajustes')  ? consolaLeerAjustes_() : [],
+      gruposAjustes: tiene('ajustes')  ? CONSOLA_GRUPOS_AJUSTES.slice() : [],
+      formatos:      tiene('formatos') ? consolaLeerFormatos_(acc.email) : [],
+      resumen:       consolaResumen_(yo),
+      bitacora:      tiene('bitacora') ? consolaBitacoraLeer_(50, yo) : []
     };
   } catch (e) {
     Logger.log('consolaPanorama error: ' + e + ' · ' + e.stack);
@@ -237,10 +347,17 @@ function consolaPanorama(email) {
 }
 
 /** Cifras de una ojeada: cuánta gente hay, de qué rol, y qué tan grande es la base. */
-function consolaResumen_() {
+function consolaResumen_(quien) {
+  const esMaestro = !!(quien && quien.maestro === true);
+  const miNivel = permNivelUsuario_(quien);
+
   const resumen = {
     miembros: 0, activos: 0, bajas: 0,
     porRol: { normal: 0, avanzado: 0, maestro: 0 },
+    // El alcance viaja al cliente para que la pantalla pueda rotular las cifras con
+    // honestidad: "12 personas" a secas es mentira cuando en el sistema hay 40 y esta
+    // persona solo alcanza a 12.
+    alcance: esMaestro ? 'sistema' : 'jerarquia',
     cotizaciones: 0, modulosApagados: permModulosApagados_().length,
     urlApp: '', zonaHoraria: '', cuotaCorreo: -1
   };
@@ -248,10 +365,20 @@ function consolaResumen_() {
   const indice = secIndiceRegistros_();
   Object.keys(indice).forEach(function (correo) {
     const u = permUsuario_(correo);
+    // Se cuenta lo mismo que se lista: si un supervisor ve 12 filas, su resumen no
+    // puede decir 40. Dos cifras que no cuadran en la misma pantalla se leen como
+    // que el sistema está mal, y además delatan cuánta gente hay por encima.
+    if (!esMaestro && permNivelUsuario_(u) > miNivel &&
+        !permMismoCorreo_(correo, quien && quien.email)) return;
     resumen.miembros++;
     if (!u.activo) resumen.bajas++; else resumen.activos++;
     if (resumen.porRol[u.rol] !== undefined) resumen.porRol[u.rol]++;
   });
+
+  // De aquí para abajo son cifras del SISTEMA, no del equipo: cuánto ha crecido la
+  // base, qué URL sirve la app, cuánto correo queda. Son las que se piden cuando algo
+  // va mal a nivel de instalación, y esa conversación es de maestros.
+  if (!esMaestro) return resumen;
 
   try {
     const sheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName(COTIZACIONES_SHEET_NAME);
@@ -274,34 +401,47 @@ function consolaResumen_() {
  * NUNCA incluye el hash de la contraseña: no hay ninguna pantalla que lo necesite
  * y todo lo que viaja al navegador acaba, tarde o temprano, en la consola de alguien.
  */
-function consolaListaMiembros_() {
+function consolaListaMiembros_(quien) {
   const indice = secIndiceRegistros_();
+  const miNivel = permNivelUsuario_(quien);
 
   return Object.keys(indice).map(function (correo) {
     const fila = indice[correo];
     // La identidad sale de "Registros" y los permisos de la hoja oculta; permUsuario_
     // ya sabe juntar las dos cosas, así que la consola no repite esa lógica.
     const u = permUsuario_(correo);
+    const veto = permVetoJerarquia_(quien, u);
     return {
       email: correo,
       nombre: u.nombre || fila.nombre || '',
       rol: u.rol,
       rolNombre: u.rolNombre,
+      nivel: permNivelUsuario_(u),
       activo: u.activo,
       // 'heredado' avisa de que esta persona todavía no tiene rol guardado: el suyo
       // sale de la columna "Avanzado" de siempre.
       heredado: u.heredado === true,
       ajustes: u.ajustes,
       bloques: u.bloques,
+      // Las filas que no se pueden tocar se pintan igual, en gris y con el motivo:
+      // esconderlas convertiría "no puedo" en "no existe", que no es lo mismo.
+      // Las de nivel SUPERIOR sí se ocultan del todo, más abajo.
+      gestionable: veto === '',
+      motivo: veto,
       alta: (fila.alta instanceof Date) ? fila.alta.toISOString() : String(fila.alta || ''),
       fila: fila.fila || 0
     };
+  }).filter(function (m) {
+    // Regla de jerarquía, mitad "ver": por encima de tu nivel no se ve ni existe.
+    // Es distinto de "no se puede editar" a propósito. Que un supervisor sepa
+    // exactamente quiénes son los maestros y qué bloques tiene cada uno es un mapa
+    // del sistema que no necesita para su trabajo, y sí sirve para saber a quién
+    // conviene suplantar. La propia fila siempre se ve: es útil y no revela nada.
+    return m.nivel <= miNivel || permMismoCorreo_(m.email, quien && quien.email);
   }).sort(function (a, b) {
-    // Primero por poder (maestros arriba), luego alfabético: es el orden en que se
-    // busca a alguien cuando se entra a "¿quién tiene qué?".
-    const pa = (PERM_ROLES[a.rol] || PERM_ROLES.normal).orden;
-    const pb = (PERM_ROLES[b.rol] || PERM_ROLES.normal).orden;
-    if (pa !== pb) return pb - pa;
+    // Primero por poder (el nivel más alto arriba), luego alfabético: es el orden en
+    // que se busca a alguien cuando se entra a "¿quién tiene qué?".
+    if (a.nivel !== b.nivel) return b.nivel - a.nivel;
     return (a.nombre || a.email).localeCompare(b.nombre || b.email, 'es');
   });
 }
@@ -309,12 +449,13 @@ function consolaListaMiembros_() {
 /** Lista de miembros para refrescar la tabla sin recargar toda la consola. */
 function consolaMiembros(email) {
   try {
-    const gate = consolaGate_(email, 'adm_miembros');
-    if (!gate.ok) return consolaError_(gate.error);
-    return { success: true, miembros: consolaListaMiembros_(), resumen: consolaResumen_() };
+    const acc = consolaAcceso_(email, 'roles');
+    if (!acc.ok) return consolaError_(acc.error);
+    return { success: true, miembros: consolaListaMiembros_(acc.usuario),
+             resumen: consolaResumen_(acc.usuario) };
   } catch (e) {
     Logger.log('consolaMiembros error: ' + e);
-    return consolaError_('No pudimos leer la lista de miembros. Inténtalo de nuevo en un momento.');
+    return consolaError_('No pudimos leer la lista de personas. Inténtalo de nuevo en un momento.');
   }
 }
 
@@ -323,22 +464,37 @@ function consolaMiembros(email) {
  * @return {string} mensaje de error, o '' si el cambio es seguro.
  */
 function consolaCandados_(quien, objetivo, cambio) {
-  const esYo = secNormalizarCorreo_(quien) === secNormalizarCorreo_(objetivo);
+  const esYo = permMismoCorreo_(quien && quien.email, objetivo);
   const actual = permUsuario_(objetivo);
 
   if (!actual.encontrado) return 'El correo ' + objetivo + ' no está dado de alta.';
 
-  // Sobre uno mismo: ni bajarse el rol ni darse de baja. No es paternalismo, es que
-  // el maestro que se equivoca aquí ya no tiene desde dónde deshacerlo.
-  if (esYo && cambio.rol && cambio.rol !== 'maestro') {
-    return 'No puedes quitarte a ti mismo el rol maestro. Pídeselo a otro maestro.';
+  // 1. JERARQUÍA. Va primero porque es la que decide si esta persona tiene algo que
+  //    hacer aquí. Cubre además el caso de uno mismo, con su propio mensaje.
+  const veto = permVetoJerarquia_(quien, actual);
+  if (veto) return veto;
+
+  // 2. EL ROL QUE SE PIDE. Distinto de lo anterior: una cosa es a quién alcanzas y
+  //    otra hasta dónde puedes subirlo. Sin esto, un supervisor no podría editar a un
+  //    maestro pero sí nombrar maestro a un asesor, y se fabricaría por la puerta de
+  //    atrás el poder que no tiene.
+  if (cambio.rol) {
+    const vetoRol = permVetoRol_(quien, cambio.rol);
+    if (vetoRol) return vetoRol;
+  }
+
+  // 3. Sobre uno mismo: ni bajarse el rol ni darse de baja. No es paternalismo, es que
+  //    quien se equivoca aquí ya no tiene desde dónde deshacerlo. (permVetoJerarquia_
+  //    ya lo corta antes; se deja por si en el futuro se relaja aquella regla.)
+  if (esYo && cambio.rol && cambio.rol !== actual.rol) {
+    return 'No puedes cambiarte el rol a ti mismo. Pídeselo a otra persona.';
   }
   if (esYo && cambio.activo === false) {
     return 'No puedes darte de baja a ti mismo.';
   }
 
-  // Sobre el último maestro: si se va, no queda nadie que pueda volver a nombrar a uno
-  // y hay que abrir el editor de Apps Script para arreglarlo.
+  // 4. Sobre el último maestro: si se va, no queda nadie que pueda volver a nombrar a
+  //    uno y hay que abrir el editor de Apps Script para arreglarlo.
   const dejaDeSerMaestro = actual.maestro &&
     ((cambio.rol && cambio.rol !== 'maestro') || cambio.activo === false);
   if (dejaDeSerMaestro && permListaMaestros_().length <= 1) {
@@ -346,6 +502,35 @@ function consolaCandados_(quien, objetivo, cambio) {
   }
 
   return '';
+}
+
+/**
+ * Los bloques que se piden conceder o retirar, ¿están todos dentro de lo que esta
+ * persona puede repartir?
+ *
+ * Es el tercer flanco de la escalada de privilegios, y el más fácil de olvidar porque
+ * no pasa por el rol: sin esta comprobación un supervisor podría abrirle a un asesor
+ * los bloques de administración uno por uno —'adm_ajustes', 'adm_modulos'— y quedarse
+ * mirando cómo el asesor hace por él lo que a él le está vedado.
+ *
+ * @return {string} motivo, o '' si todo lo pedido está a su alcance.
+ */
+function consolaVetoBloques_(quien, mas, menos) {
+  const repartibles = permBloquesRepartibles_(quien);
+  const fuera = [].concat(mas || [], menos || []).filter(function (id) {
+    return PERM_IDS.indexOf(id) !== -1 && repartibles.indexOf(id) === -1;
+  });
+  if (!fuera.length) return '';
+
+  const nombres = fuera.map(function (id) {
+    const b = permBloque_(id);
+    return (b && b.nombre) || id;
+  });
+  // Se nombran los bloques concretos: "no puedes repartir eso" a secas deja a quien lo
+  // lee probando casilla por casilla hasta dar con la que estorba.
+  return 'No puedes repartir ' + (fuera.length === 1 ? 'el acceso' : 'los accesos') +
+         ' "' + nombres.join('", "') + '": no ' + (fuera.length === 1 ? 'lo tienes' : 'los tienes') +
+         ' tú mismo.';
 }
 
 /**
@@ -358,18 +543,28 @@ function consolaCandados_(quien, objetivo, cambio) {
  */
 function consolaGuardarMiembro(email, cambio) {
   try {
-    const gate = consolaGate_(email, 'adm_miembros');
-    if (!gate.ok) return consolaError_(gate.error);
+    const acc = consolaAcceso_(email, 'roles');
+    if (!acc.ok) return consolaError_(acc.error);
+    const gate = { email: acc.email, nombre: acc.nombre, bloques: acc.bloques };
 
     const c = cambio || {};
     const objetivo = secNormalizarCorreo_(c.email);
-    if (!objetivo) return consolaError_('Falta el correo del miembro que quieres cambiar.');
+    if (!objetivo) return consolaError_('Falta el correo de la persona que quieres cambiar.');
 
-    // Cambiar permisos por bloque es un bloque distinto de cambiar el rol: se puede
-    // tener un maestro que reparte accesos finos pero no reparte roles.
+    // Cambiar permisos por bloque es una facultad distinta de cambiar el rol: se puede
+    // tener un maestro que reparte accesos finos pero no reparte roles. Para el
+    // supervisor, 'sup_equipo' le da las dos cosas dentro de su nivel — el recorte de
+    // lo que puede repartir lo pone consolaVetoBloques_, no un bloque aparte.
     const tocaPermisos = (c.mas !== undefined || c.menos !== undefined);
-    if (tocaPermisos && (gate.bloques || []).indexOf('adm_permisos') === -1) {
+    if (tocaPermisos && !acc.maestro && (acc.bloques || []).indexOf('sup_equipo') === -1) {
+      return consolaError_('Tu cuenta no puede cambiar accesos por bloque.');
+    }
+    if (tocaPermisos && acc.maestro && (acc.bloques || []).indexOf('adm_permisos') === -1) {
       return consolaError_('Tu cuenta maestra no puede cambiar permisos por bloque.');
+    }
+    if (tocaPermisos) {
+      const vetoBloques = consolaVetoBloques_(acc.usuario, c.mas, c.menos);
+      if (vetoBloques) return consolaError_(vetoBloques);
     }
 
     const rolPedido = (c.rol !== undefined && c.rol !== null && c.rol !== '')
@@ -380,7 +575,7 @@ function consolaGuardarMiembro(email, cambio) {
 
     const activoPedido = (c.activo === undefined || c.activo === null) ? undefined : (c.activo === true);
 
-    const veto = consolaCandados_(gate.email, objetivo, { rol: rolPedido, activo: activoPedido });
+    const veto = consolaCandados_(acc.usuario, objetivo, { rol: rolPedido, activo: activoPedido });
     if (veto) return consolaError_(veto);
 
     const antes = permUsuario_(objetivo);
@@ -425,20 +620,24 @@ function consolaGuardarMiembro(email, cambio) {
 
     if (!Object.keys(campos).length) {
       return { success: true, sinCambios: true, message: 'No había nada que cambiar.',
-               miembros: consolaListaMiembros_(), resumen: consolaResumen_() };
+               miembros: consolaListaMiembros_(acc.usuario), resumen: consolaResumen_(acc.usuario) };
     }
 
     if (!permEscribirFila_(objetivo, campos)) {
       return consolaError_('No se encontró la fila de ' + objetivo + ' en "' + REGISTROS_SHEET_NAME + '".');
     }
 
-    consolaBitacoraApuntar_(gate.email, 'Miembro modificado', objetivo, notas.join(' · '));
+    consolaBitacoraApuntar_(gate.email, 'Rol o accesos modificados', objetivo, notas.join(' · '));
 
+    // La lista se relee DESPUÉS de escribir y con el usuario ya actualizado: si alguien
+    // acaba de subir de nivel, su fila tiene que volver con la jerarquía nueva y no con
+    // la que había cuando empezó la llamada.
+    const yoAhora = permUsuario_(acc.email);
     return {
       success: true,
       message: 'Cambios guardados para ' + objetivo + '.',
-      miembros: consolaListaMiembros_(),
-      resumen: consolaResumen_()
+      miembros: consolaListaMiembros_(yoAhora),
+      resumen: consolaResumen_(yoAhora)
     };
   } catch (e) {
     Logger.log('consolaGuardarMiembro error: ' + e + ' · ' + e.stack);
@@ -460,13 +659,25 @@ function consolaGuardarMiembro(email, cambio) {
  */
 function consolaAltaMiembro(email, datos) {
   try {
-    const gate = consolaGate_(email, 'adm_miembros');
-    if (!gate.ok) return consolaError_(gate.error);
+    const acc = consolaAcceso_(email, 'roles');
+    if (!acc.ok) return consolaError_(acc.error);
+    const gate = { email: acc.email, nombre: acc.nombre };
 
     const d = datos || {};
     const nombre = String(d.nombre || '').trim();
     const correo = secNormalizarCorreo_(d.email);
     const rol = permNormalizarRol_(d.rol) || 'normal';
+
+    // Un alta es la vía más limpia para fabricarse privilegios: no hay nadie a quien
+    // "alcanzar", así que la jerarquía por objetivo no aplica y solo queda esta
+    // comprobación. Sin ella, un supervisor daría de alta a un maestro nuevo y a
+    // través de él tendría el sistema entero.
+    const vetoRol = permVetoRol_(acc.usuario, rol);
+    if (vetoRol) return consolaError_(vetoRol);
+
+    // Los accesos extra del alta pasan por el mismo filtro que en una edición.
+    const vetoBloques = consolaVetoBloques_(acc.usuario, d.mas, d.menos);
+    if (vetoBloques) return consolaError_(vetoBloques);
 
     if (!nombre) return consolaError_('Escribe el nombre de la persona.');
     if (!secCorreoValido_(correo)) return consolaError_('El correo "' + d.email + '" no tiene forma de correo.');
@@ -488,10 +699,25 @@ function consolaAltaMiembro(email, datos) {
     // esta persona que elija la suya (ver loginUser y establecerPasswordInicial).
     cuentasMarcarPasswordTemporal_(correo, true);
 
-    if (rol !== 'normal') {
+    // Rol y accesos concretos se escriben en el MISMO paso que el alta.
+    //
+    // Antes esto solo corría para roles distintos de 'normal', y los accesos finos no
+    // existían aquí: había que dar de alta y volver a entrar a editar a la persona
+    // para dejarla como se quería. En la práctica ese segundo paso se olvidaba, y el
+    // alta "con permisos" acababa siendo un alta pelada. Ahora la fila queda completa
+    // desde el principio, que además es lo que la bitácora deja registrado.
+    const ajustesAlta = permLimpiarAjustes_({ mas: d.mas, menos: d.menos });
+    const delRol = permBloquesDeRol_(rol);
+    // Conceder lo que el rol ya trae, o retirar lo que no trae, solo ensucia la celda.
+    ajustesAlta.mas = ajustesAlta.mas.filter(function (id) { return delRol.indexOf(id) === -1; });
+    ajustesAlta.menos = ajustesAlta.menos.filter(function (id) { return delRol.indexOf(id) !== -1; });
+
+    const textoAjustes = permSerializarAjustes_(ajustesAlta);
+    if (rol !== 'normal' || textoAjustes) {
       const campos = {};
       campos[PERM_COL_ROL] = rol;
       campos[PERM_COL_ACTIVO] = 'Si';
+      if (textoAjustes) campos[PERM_COL_PERMISOS] = textoAjustes;
       permEscribirFila_(correo, campos);
     }
 
@@ -507,7 +733,9 @@ function consolaAltaMiembro(email, datos) {
       }
     }
 
-    consolaBitacoraApuntar_(gate.email, 'Miembro dado de alta', correo, 'rol ' + rol +
+    consolaBitacoraApuntar_(gate.email, 'Persona dada de alta', correo, 'rol ' + rol +
+      (ajustesAlta.mas.length ? ' · accesos +[' + ajustesAlta.mas.join(', ') + ']' : '') +
+      (ajustesAlta.menos.length ? ' · accesos −[' + ajustesAlta.menos.join(', ') + ']' : '') +
       (avisoEnviado ? ' · aviso enviado' : ' · SIN aviso'));
 
     return {
@@ -518,8 +746,8 @@ function consolaAltaMiembro(email, datos) {
       // La contraseña temporal solo se devuelve si el correo NO salió: es el único
       // caso en que alguien tiene que dictársela a mano.
       passwordTemporal: avisoEnviado ? '' : temporal,
-      miembros: consolaListaMiembros_(),
-      resumen: consolaResumen_()
+      miembros: consolaListaMiembros_(acc.usuario),
+      resumen: consolaResumen_(acc.usuario)
     };
   } catch (e) {
     Logger.log('consolaAltaMiembro error: ' + e + ' · ' + e.stack);
@@ -534,10 +762,20 @@ function consolaAltaMiembro(email, datos) {
  */
 function consolaResetPassword(email, correoObjetivo) {
   try {
-    const gate = consolaGate_(email, 'adm_miembros');
-    if (!gate.ok) return consolaError_(gate.error);
+    const acc = consolaAcceso_(email, 'roles');
+    if (!acc.ok) return consolaError_(acc.error);
+    const gate = { email: acc.email, nombre: acc.nombre };
 
     const objetivo = secNormalizarCorreo_(correoObjetivo);
+
+    // Restablecer una contraseña es entregarle a alguien la llave de una cuenta ajena,
+    // así que pasa por la misma jerarquía que editarla. Sin esto, un supervisor no
+    // podría cambiarle el rol a un maestro pero sí generarle una contraseña temporal,
+    // y si además llegara a ese buzón, entraría como él. Es la puerta de atrás del
+    // control de accesos y se cierra con la misma llave que la de delante.
+    const vetoReset = permVetoJerarquia_(acc.usuario, permUsuario_(objetivo));
+    if (vetoReset) return consolaError_(vetoReset);
+
     const reg = secBuscarRegistro_(objetivo);
     if (!reg.encontrado) return consolaError_('El correo ' + objetivo + ' no está dado de alta.');
 
@@ -588,8 +826,9 @@ function consolaResetPassword(email, correoObjetivo) {
  */
 function consolaEliminarMiembro(email, correoObjetivo, confirmacion) {
   try {
-    const gate = consolaGate_(email, 'adm_miembros');
-    if (!gate.ok) return consolaError_(gate.error);
+    const acc = consolaAcceso_(email, 'roles');
+    if (!acc.ok) return consolaError_(acc.error);
+    const gate = { email: acc.email, nombre: acc.nombre };
 
     const objetivo = secNormalizarCorreo_(correoObjetivo);
     if (secNormalizarCorreo_(confirmacion) !== objetivo) {
@@ -601,6 +840,10 @@ function consolaEliminarMiembro(email, correoObjetivo, confirmacion) {
 
     const u = permUsuario_(objetivo);
     if (!u.encontrado) return consolaError_('El correo ' + objetivo + ' no está dado de alta.');
+
+    // Borrar alcanza más lejos que editar, así que se exige lo mismo y algo más.
+    const vetoBorrar = permVetoJerarquia_(acc.usuario, u);
+    if (vetoBorrar) return consolaError_(vetoBorrar);
     if (u.maestro) {
       return consolaError_('No se puede borrar a un maestro. Bájale el rol primero, y así queda claro que fue a propósito.');
     }
@@ -625,10 +868,10 @@ function consolaEliminarMiembro(email, correoObjetivo, confirmacion) {
         try { permBorrarPermisos_(objetivo); } catch (e) {
           Logger.log('No se pudo borrar la fila de permisos de ' + objetivo + ': ' + e);
         }
-        consolaBitacoraApuntar_(gate.email, 'Miembro BORRADO', objetivo,
+        consolaBitacoraApuntar_(gate.email, 'Persona BORRADA', objetivo,
           'nombre "' + (u.nombre || '') + '", rol ' + u.rol);
         return { success: true, message: 'Se borró a ' + objetivo + '.',
-                 miembros: consolaListaMiembros_(), resumen: consolaResumen_() };
+                 miembros: consolaListaMiembros_(acc.usuario), resumen: consolaResumen_(acc.usuario) };
       }
       return consolaError_('No se encontró la fila de ' + objetivo + '.');
     } finally {
@@ -969,7 +1212,10 @@ function consolaGuardarModulo(email, bloqueId, apagado) {
       message: '"' + bloque.nombre + '" ' + (quiereApagar ? 'quedó en mantenimiento.' : 'volvió a estar disponible.'),
       apagados: guardados,
       catalogo: permCatalogo_(),
-      miembros: consolaListaMiembros_()
+      // Apagar un módulo cambia los bloques efectivos de todo el mundo, así que la
+      // tabla de personas vuelve recalculada. Solo un maestro llega aquí (adm_modulos
+      // es suyo), de modo que la lista sale sin recorte de jerarquía.
+      miembros: consolaListaMiembros_(permUsuario_(gate.email))
     };
   } catch (e) {
     Logger.log('consolaGuardarModulo error: ' + e);
@@ -1031,9 +1277,10 @@ function consolaSalud(email) {
 
 function consolaBitacora(email, limite) {
   try {
-    const gate = consolaGate_(email, 'adm_bitacora');
-    if (!gate.ok) return consolaError_(gate.error);
-    return { success: true, bitacora: consolaBitacoraLeer_(Number(limite) || CONSOLA_BITACORA_LIMITE) };
+    const acc = consolaAcceso_(email, 'bitacora');
+    if (!acc.ok) return consolaError_(acc.error);
+    return { success: true,
+             bitacora: consolaBitacoraLeer_(Number(limite) || CONSOLA_BITACORA_LIMITE, acc.usuario) };
   } catch (e) {
     return consolaError_('No pudimos leer la bitácora. Inténtalo de nuevo en un momento.');
   }
@@ -1071,6 +1318,12 @@ function consolaDiagnostico() {
 
   const off = permModulosApagados_();
   Logger.log('Módulos apagados: ' + (off.length ? off.join(', ') : 'ninguno'));
-  Logger.log('Miembros: ' + consolaListaMiembros_().length);
+  // Se pasa un maestro sintético a propósito. consolaListaMiembros_ RECORTA por
+  // jerarquía y falla cerrado: sin un `quien`, trataría a quien pregunta como asesor y
+  // el diagnóstico informaría de menos gente de la que hay —justo el tipo de dato
+  // engañoso que se viene a descartar aquí—. Esta función solo corre desde el editor,
+  // que ya exige ser dueño del proyecto.
+  const comoMaestro = { email: '', maestro: true, rol: 'maestro', bloques: PERM_IDS.slice() };
+  Logger.log('Personas: ' + consolaListaMiembros_(comoMaestro).length);
   return { maestros: maestros, apagados: off };
 }

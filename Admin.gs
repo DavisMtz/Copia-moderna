@@ -192,7 +192,7 @@ function revisionMaestra() {
   check('Permisos', 'Modelo de bloques (Permisos.gs)', function () {
     if (typeof PERM_BLOQUES === 'undefined' || typeof permBloquesEfectivos_ !== 'function') {
       throw new Error('Permisos.gs no está en el proyecto: la app funciona con el interruptor ' +
-        '"Avanzado" de siempre, pero no hay permisos por bloque ni consola maestra.');
+        '"Avanzado" de siempre, pero no hay permisos por bloque ni Consola.');
     }
     return PERM_BLOQUES.length + ' bloques en ' + PERM_GRUPOS.length + ' grupos · ' +
       PERM_ROLES_ORDEN.length + ' roles';
@@ -223,7 +223,7 @@ function revisionMaestra() {
       ? off.length + ' apagado(s): ' + off.join(', ') + ' — el equipo NO los ve'
       : 'ninguno: todo en servicio';
   });
-  check('Permisos', 'Consola maestra (Consola.gs)', function () {
+  check('Permisos', 'Consola (Consola.gs)', function () {
     if (typeof consolaPanorama !== 'function') {
       throw new Error('Consola.gs no está en el proyecto: la pantalla ?page=consola no tendrá datos.');
     }

@@ -377,7 +377,7 @@ function pcInvalidarCache_() {
   } catch (e) {}
 }
 
-/** Apunta el cambio en la bitácora de la consola maestra. Nunca tumba la operación. */
+/** Apunta el cambio en la bitácora de la Consola. Nunca tumba la operación. */
 function pcApuntar_(quien, accion, coleccion, detalle) {
   try {
     if (typeof consolaBitacoraApuntar_ === 'function') {
