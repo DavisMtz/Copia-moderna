@@ -97,6 +97,22 @@ completa `atenciones.html`.
     guardaba bien, pero como no había panorama cargado no había nada que repintar y se
     leía como que no se había guardado. Ahora se pide la lista al confirmarse.
 
+11. **El menú lateral no navegaba desde la pantalla completa.** `atenciones.html` era la
+    única pantalla de la aplicación sin `window.__APP__`, así que `AppUrl` arrancaba con
+    la URL base vacía: `build()` devolvía `null` y cada clic del menú acababa en el aviso
+    de "no pudimos abrir la pantalla" en vez de llevar a ninguna parte. El mismo hueco
+    dejaba a `param()` leyendo la barra de direcciones del iframe del sandbox en vez de
+    la del enlace, así que tampoco llegaba `?action=nueva` —ni habrían llegado `?sec=` ni
+    `?q=`—. Se inyectan la base y los parámetros de vista antes de `app_core`, como en el
+    resto de pantallas. Auditado: no queda ninguna otra sin la línea.
+
+12. **El Inicio vuelve a ser solo de cotizaciones.** La tarjeta de atenciones partía en
+    dos la pantalla que contesta una sola pregunta y obligaba a leer dos listas para
+    llegar a la de siempre. Las atenciones siguen a un clic, en el botón de la barra
+    lateral que las abre como panel encima —sin llevarse la pantalla— y en el buscador
+    general. El Inicio sigue cargando el módulo para eso, y calienta la lista un segundo
+    después de arrancar para que ese panel aparezca lleno.
+
 #### Decisiones que se dejan como están
 
 - **El módulo no escribe la URL; solo avisa.** Cuando vive como panel encima de una

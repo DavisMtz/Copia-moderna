@@ -80,6 +80,23 @@
         </footer>
     </main>
 
+    <script>
+        /* LA URL BASE Y LOS PARÁMETROS DE VISTA, INYECTADOS POR EL SERVIDOR.
+           Esta pantalla se quedó sin esta línea y el fallo no se veía como lo que era.
+           Sin `window.__APP__`, AppUrl arranca con la base vacía: `build()` devuelve
+           null y cualquier clic del menú lateral acaba en el aviso de "no pudimos
+           abrir la pantalla" en vez de navegar. Y `param()` se cae a leer la barra de
+           direcciones, que dentro del iframe de Apps Script es la del sandbox y no la
+           del enlace, así que ni ?action=nueva ni ?sec= ni ?q= llegaban nunca.
+           Va ANTES de app_core, que es quien lo lee al cargarse. */
+        window.__APP__ = {
+            baseUrl: <?!= JSON.stringify(baseUrl) ?>,
+            action:  <?!= JSON.stringify(action) ?>,
+            sec:     <?!= JSON.stringify(sec) ?>,
+            q:       <?!= JSON.stringify(q) ?>,
+            buscar:  <?!= JSON.stringify(buscar) ?>
+        };
+    </script>
     <?!= include('app_core'); ?>
     <?!= include('app_prefs'); ?>
     <?!= include('app_guardado'); ?>
