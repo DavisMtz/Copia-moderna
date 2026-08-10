@@ -2134,7 +2134,11 @@
                         tarjetas.push({
                             rot: 'Atenciones', n: r.mias + r.publicas,
                             sub: r.publicas ? r.publicas + ' liberadas por el equipo' : 'clientes por retomar',
-                            tono: (r.mias + r.publicas) ? 'warn' : 'ok', page: 'atenciones'
+                            tono: (r.mias + r.publicas) ? 'warn' : 'ok', page: 'atenciones',
+                            // Si lo que la tarjeta está contando son las liberadas, ahí
+                            // es donde tiene que dejar: pulsar un número y aterrizar en
+                            // otra lista obliga a buscar a mano lo que se acaba de leer.
+                            params: (!r.mias && r.publicas) ? { sec: 'publicas' } : null
                         });
                     }
 
@@ -2148,14 +2152,20 @@
 
                     caja.innerHTML = tarjetas.map(t =>
                         '<button type="button" class="sv-kpi' + (t.tono ? ' tono-' + t.tono : '') + '" ' +
-                                (t.page ? 'data-feed-page="' + t.page + '"' : 'data-feed-tab="' + t.tab + '"') + '>' +
+                                (t.page ? 'data-feed-page="' + t.page + '"' : 'data-feed-tab="' + t.tab + '"') +
+                                (t.params ? ' data-feed-params="' + escapeHtml(JSON.stringify(t.params)) + '"' : '') + '>' +
                             '<span class="sv-kpi-rot">' + escapeHtml(t.rot) + '</span>' +
                             '<span class="sv-kpi-n">' + escapeHtml(String(t.n)) + '</span>' +
                             '<span class="sv-kpi-sub">' + escapeHtml(t.sub) + '</span>' +
                         '</button>').join('');
 
                     caja.querySelectorAll('[data-feed-page]').forEach(b => {
-                        b.addEventListener('click', () => AppUrl.go(b.getAttribute('data-feed-page')));
+                        b.addEventListener('click', () => {
+                            let params = null;
+                            try { params = JSON.parse(b.getAttribute('data-feed-params') || 'null'); }
+                            catch (e) { params = null; }
+                            AppUrl.go(b.getAttribute('data-feed-page'), params || {});
+                        });
                     });
                     caja.querySelectorAll('[data-feed-tab]').forEach(b => {
                         b.addEventListener('click', () => {
@@ -2170,6 +2180,20 @@
                         pintarAccesos();
                         const btn = $('feed-fijar');
                         if (btn) btn.addEventListener('click', abrirSelector);
+
+                        /* Las atenciones hay que PEDIRLAS. La tarjeta las lee de
+                           AppAtenciones.resumen(), que contesta con lo que el módulo
+                           tenga cargado —y en esta pantalla no lo montaba nadie—, así
+                           que la cifra se quedaba en cero aunque hubiera media docena de
+                           clientes esperando una llamada: exactamente el número que un
+                           supervisor no debe ver mal. `precargar` pinta desde la caché al
+                           instante y devuelve la promesa de la comprobación; se repinta
+                           cuando llegue. */
+                        if (window.AppAtenciones && AppAtenciones.precargar &&
+                            AppSession.can('atenciones')) {
+                            const p = AppAtenciones.precargar();
+                            if (p && p.then) p.then(pintarKpis, function () {});
+                        }
 
                         /* El historial del servicio, dentro del feed. Es el mismo módulo del
                            tablero público: una sola implementación, dos sitios donde mirarla. */

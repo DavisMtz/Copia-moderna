@@ -26,7 +26,23 @@
             </p>
         </header>
 
+        <!-- Barra de trabajo. El buscador va PRIMERO y ocupa el ancho que sobra: se llega
+             aquí sabiendo a quién se busca —un nombre, o el teléfono desde el que acaban de
+             llamar— mucho más a menudo que a registrar a alguien nuevo. Es el mismo orden
+             que el del panel, y a propósito: quien aprende a usar uno sabe usar el otro. -->
         <section class="mb-6 flex flex-wrap gap-3 items-center" data-animate>
+            <div class="atn-busca" style="flex:1 1 18rem">
+                <span class="atn-busca-ic" data-icon="search" aria-hidden="true"></span>
+                <input type="search" id="atn-busca-pantalla" class="atn-busca-in" autocomplete="off"
+                       placeholder="Buscar cliente, teléfono, tipo o anotación…"
+                       aria-label="Buscar entre las atenciones">
+                <!-- El aspa la ponemos nosotros: el limpiador nativo de los campos de
+                     búsqueda está oculto por hoja de estilos (no se puede pintar y en
+                     Firefox ni existe), así que sin esto la única salida de una búsqueda
+                     sería borrarla letra a letra. -->
+                <button type="button" class="atn-busca-x" id="atn-busca-pantalla-x" hidden
+                        aria-label="Limpiar la búsqueda">×</button>
+            </div>
             <button type="button" id="atn-nueva" class="v-btn v-btn-primary">
                 <span class="w-4 h-4 block" data-icon="plus"></span>
                 Registrar atención
@@ -34,6 +50,15 @@
             <button type="button" id="atn-recargar" class="v-btn v-btn-ghost v-btn-sm">
                 <span class="w-4 h-4 block" data-icon="refresh"></span>
                 Actualizar
+            </button>
+            <!-- Copiar el enlace de lo que se está viendo. Es la contrapartida de que la
+                 pestaña y la búsqueda vivan en la URL: sin un botón que lo diga, nadie se
+                 entera de que esa dirección se puede pegar en un chat para mandar a un
+                 compañero exactamente a la lista que se está mirando. -->
+            <button type="button" id="atn-compartir" class="v-btn v-btn-ghost v-btn-sm"
+                    title="Copiar el enlace de esta vista">
+                <span class="w-4 h-4 block" data-icon="link"></span>
+                Copiar enlace
             </button>
         </section>
 
@@ -55,6 +80,23 @@
         </footer>
     </main>
 
+    <script>
+        /* LA URL BASE Y LOS PARÁMETROS DE VISTA, INYECTADOS POR EL SERVIDOR.
+           Esta pantalla se quedó sin esta línea y el fallo no se veía como lo que era.
+           Sin `window.__APP__`, AppUrl arranca con la base vacía: `build()` devuelve
+           null y cualquier clic del menú lateral acaba en el aviso de "no pudimos
+           abrir la pantalla" en vez de navegar. Y `param()` se cae a leer la barra de
+           direcciones, que dentro del iframe de Apps Script es la del sandbox y no la
+           del enlace, así que ni ?action=nueva ni ?sec= ni ?q= llegaban nunca.
+           Va ANTES de app_core, que es quien lo lee al cargarse. */
+        window.__APP__ = {
+            baseUrl: <?!= JSON.stringify(baseUrl) ?>,
+            action:  <?!= JSON.stringify(action) ?>,
+            sec:     <?!= JSON.stringify(sec) ?>,
+            q:       <?!= JSON.stringify(q) ?>,
+            buscar:  <?!= JSON.stringify(buscar) ?>
+        };
+    </script>
     <?!= include('app_core'); ?>
     <?!= include('app_prefs'); ?>
     <?!= include('app_guardado'); ?>
@@ -76,9 +118,64 @@
         AppShell.mount({ active: 'atenciones', title: 'Atenciones pendientes' });
         if (window.VentelLoader) VentelLoader.hide();
 
+        var url = window.AppUrl || null;
+        var param = function (n) { return url ? url.param(n) : ''; };
+
+        /* ── LA VISTA VIVE EN LA URL ────────────────────────────────────────────
+           Dos cosas describen lo que se está mirando: la pestaña (mis pendientes o las
+           rescatables) y lo que se está buscando. Antes las dos vivían solo dentro del
+           módulo, así que no había forma de enlazar "las atenciones liberadas" ni de
+           mandarle a un compañero "mira a este cliente": había que decírselo de palabra
+           y que él lo reprodujera a mano.
+
+           Ahora entran por ?sec= y ?q= —que es por donde llegan los enlaces del buscador
+           general y del Portal— y salen a la barra de direcciones en cuanto cambian. La
+           pestaña APILA historial (atrás vuelve a la anterior, que es lo que se espera de
+           algo que se ve como dos páginas); la búsqueda REEMPLAZA, porque una entrada de
+           historial por cada tecla convertiría el botón atrás en inservible. */
+        var sec = param('sec');
+        var q = param('q') || param('buscar');
+
+        // El módulo avisa; la URL la escribe la pantalla. El módulo no puede hacerlo
+        // solo: cuando vive como panel encima de una cotización, reescribir la dirección
+        // se llevaría por delante el enlace de la pantalla anfitriona.
+        var aspa = document.getElementById('atn-busca-pantalla-x');
+        var sincronizarAspa = function () {
+            if (aspa) aspa.hidden = !AppAtenciones.estado().buscar;
+        };
+        var ultimaPestana = null;
+        var alCambiar = function (e) {
+            if (aspa) aspa.hidden = !e.buscar;
+            if (!url || !url.actualizar) return;
+            var apilar = ultimaPestana !== null && e.pestana !== ultimaPestana;
+            ultimaPestana = e.pestana;
+            url.actualizar({
+                page: 'atenciones',
+                sec: e.pestana === 'mias' ? '' : e.pestana,
+                q: e.buscar || ''
+            }, null, apilar);
+        };
+
         // `pantallaPropia` desactiva el desvío al panel: aquí la gestión ES la pantalla,
         // y abrir un panel encima sería enseñar dos veces lo mismo.
-        AppAtenciones.montar('atn-host', { pantallaPropia: true });
+        AppAtenciones.montar('atn-host', {
+            pantallaPropia: true,
+            pestana: sec,
+            buscar: q,
+            campoBusqueda: 'atn-busca-pantalla',
+            alCambiar: alCambiar
+        });
+        ultimaPestana = AppAtenciones.estado().pestana;
+        // `alCambiar` no corre en el montaje, y con ?q= en el enlace el campo nace
+        // relleno: el aspa tiene que nacer visible o no habría cómo vaciarlo.
+        sincronizarAspa();
+        if (aspa) {
+            aspa.addEventListener('click', function () {
+                AppAtenciones.buscar('');
+                var campo = document.getElementById('atn-busca-pantalla');
+                if (campo) campo.focus();
+            });
+        }
 
         document.getElementById('atn-nueva').addEventListener('click', function () {
             AppAtenciones.registrar({});
@@ -87,12 +184,41 @@
             AppAtenciones.recargar();
         });
 
-        // ?nueva=1 abre el formulario directo. Es por donde entra el buscador general
+        document.getElementById('atn-compartir').addEventListener('click', function (ev) {
+            if (!url || !url.copyLink) return;
+            var e = AppAtenciones.estado();
+            var boton = ev.currentTarget;
+            url.copyLink('atenciones', {
+                sec: e.pestana === 'mias' ? '' : e.pestana,
+                q: e.buscar || ''
+            }).then(function (ok) {
+                if (window.AppMotion) {
+                    AppMotion.toast(ok ? 'Enlace copiado. Quien lo abra verá esta misma lista.'
+                                       : 'No pudimos copiar el enlace.', ok ? 'ok' : 'error');
+                    if (ok) AppMotion.pop(boton);
+                }
+            });
+        });
+
+        /* Atrás y adelante del navegador. Se pone `callado` en las dos llamadas: lo que
+           llega es lo que el navegador acaba de poner en la barra de direcciones, y
+           volver a escribirlo apilaría una entrada por cada vez que se pulsa atrás —el
+           botón dejaría de avanzar hacia atrás—. */
+        if (url && url.alCambiarUrl) {
+            url.alCambiarUrl(function (loc) {
+                var p = (loc && loc.parameter) || {};
+                AppAtenciones.irAPestana(p.sec || 'mias', true);
+                AppAtenciones.buscar(p.q || p.buscar || '', true);
+                ultimaPestana = AppAtenciones.estado().pestana;
+                // `callado` significa que no hubo aviso, así que el aspa no se enteró.
+                sincronizarAspa();
+            });
+        }
+
+        // ?action=nueva abre el formulario directo. Es por donde entra el buscador general
         // ("registrar cliente") y el enlace del aviso cuando la pantalla del reporte no
         // tenía el módulo cargado.
-        if (window.AppUrl && AppUrl.param('action') === 'nueva') {
-            AppAtenciones.registrar({});
-        }
+        if (param('action') === 'nueva') AppAtenciones.registrar({});
 
         if (window.Icons) Icons.render(document);
     });

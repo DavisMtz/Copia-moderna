@@ -490,8 +490,11 @@
       icono:IC.pulso, page:'inicio_avanzado', bloques:['supervision','revisar','politica_revision','sup_equipo'],
       kw:'historial grafico barras fechas dias reportes incidencias confirmadas estadistica ' +
          'caidas connect tendencia semana mes' },
+    /* `sec=publicas` y no a secas: sin el parámetro, buscar "rescatables" abría las
+       atenciones en "Mis pendientes" y había que dar con la pestaña a mano. Un resultado
+       que promete una lista concreta tiene que dejar esa lista delante. */
     { id:'sec-atenciones-pool', nombre:'Atenciones rescatables', sub:'Las que otros asesores liberaron y puedes tomar',
-      icono:IC.llave, page:'atenciones', bloques:['atenciones'],
+      icono:IC.llave, page:'atenciones', params:{ sec:'publicas' }, bloques:['atenciones'],
       kw:'rescatar rescate publicas liberadas pool tomar otro asesor clientes libres' },
     { id:'sec-metricas', nombre:'Métricas del equipo', sub:'Cifras, actividad y ranking de asesores',
       icono:IC.grafica, page:'inicio_avanzado', ancla:'dashboard-content', bloques:['supervision'],
@@ -1147,7 +1150,33 @@
       if (ops.length) grupos.push({ tipo: 'op', titulo: 'Fallas abiertas', icono: IC.pulso,
                                     mejor: ops[0].score * 1.15, filas: ops.map(function (r) { return r.item; }) });
 
-      // 6) ANUNCIOS (solo quien los administra).
+      /* 6) CLIENTES QUE ESPERAN UNA LLAMADA. Se pregunta a AppAtenciones, que contesta
+         con lo que ya tiene en memoria o en su caché: ni un viaje al servidor, porque
+         esto se calcula en cada tecla.
+
+         Se empujan por encima de su puntaje bruto —y con un suelo— por dos razones. La
+         primera es la misma que la de las fallas: alguien esperando una llamada que ya
+         se le prometió es lo más urgente que el buscador puede tener que decir. La
+         segunda es de mecánica: el módulo encuentra por teléfono comparando solo dígitos
+         ("5512345678" contra "55 1234 5678"), y esa coincidencia —la más frecuente de
+         todas, porque se teclea el número que aparece en la pantalla del teléfono— no
+         puntúa como texto y quedaría enterrada bajo cualquier pantalla que se llame
+         parecido. */
+      var atn = (esCotizacion || !window.AppAtenciones || !AppAtenciones.coincidencias)
+        ? [] : AppAtenciones.coincidencias(q, 3);
+      if (atn.length) {
+        var Qatn = B.consulta(q);
+        var mejorAtn = 0;
+        atn.forEach(function (a) {
+          var s = B.puntua(Qatn, [{ t: a.cliente, p: 3 }, { t: a.telefono, p: 2 },
+                                  { t: a.tipo, p: 1 }, { t: a.notas, p: .6 }]);
+          if (s > mejorAtn) mejorAtn = s;
+        });
+        grupos.push({ tipo: 'aten', titulo: 'Clientes esperando llamada', icono: IC.reloj,
+                      mejor: Math.max(mejorAtn, 70) * 1.1, filas: atn });
+      }
+
+      // 7) ANUNCIOS (solo quien los administra).
       var anun = esCotizacion ? [] : B.filtra(Directorio.anuncios(), q, function (a) {
         return [{ t: a.titulo, p: 3 }, { t: a.sub, p: 1 }];
       }, { limite: 3, conPuntaje: true });
@@ -1264,6 +1293,21 @@
             (r.estado ? '<span class="cmdk-tag">' + esc(r.estado) + '</span>' : '') +
             '<span class="cmdk-enter">↵ Ver</span><span class="cmdk-go">' + IC.flecha + '</span>');
 
+        } else if (g.tipo === 'aten') {
+          // El teléfono va en la línea, y en grande: la mitad de las veces el resultado
+          // se lee para marcarlo, no para abrir nada.
+          var deQuien = r.mia
+            ? '<span class="cmdk-tag mia">Tuya</span>'
+            : '<span class="cmdk-tag">' + esc(r.asesorNombre || 'Liberada') + '</span>';
+          html += fila('',
+            '<span class="cmdk-chip">' + IC.reloj + '</span>' +
+            '<span class="cmdk-tx">' +
+              '<span class="cmdk-name">' + B.resalta(r.cliente || 'Sin nombre', q) + '</span>' +
+              '<span class="cmdk-sub">' + B.resalta(r.telefono || '', q) +
+                (r.tipo ? ' · ' + esc(r.tipo) : '') + '</span>' +
+            '</span>' + deQuien +
+            '<span class="cmdk-enter">↵ Ver</span><span class="cmdk-go">' + IC.flecha + '</span>');
+
         } else if (g.tipo === 'anuncio') {
           html += fila('',
             '<span class="cmdk-chip">' + IC.megafono + '</span>' +
@@ -1296,7 +1340,7 @@
              '<div style="margin-top:.4rem;font-size:.8rem">Prueba con el folio completo, el correo del cliente o el nombre de la pantalla.</div>'
            : '<div>Escribe para buscar.</div>' +
              '<div style="margin-top:.4rem;font-size:.8rem">Pantallas y apartados, folios, clientes, personas del equipo, ' +
-             'contenido del Portal y las fallas abiertas.</div>') +
+             'contenido del Portal, las fallas abiertas y los clientes que esperan una llamada.</div>') +
         (sugerencias.length
           ? '<div class="cmdk-pistas">' + sugerencias.map(function (s) {
               return '<button type="button" class="cmdk-pista" data-q="' + esc(s) + '">' + esc(s) + '</button>';
@@ -1334,6 +1378,15 @@
     if (f.tipo === 'todo') { navega(f.dato.page, f.dato.params); return; }
     if (f.tipo === 'gente') { navega(f.dato.page, f.dato.params || {}, f.dato.ancla); return; }
     if (f.tipo === 'op')    { navega('estado', { inc: f.dato.id }); return; }
+    if (f.tipo === 'aten') {
+      // Se va a la atención con la pestaña puesta y el buscador ya escrito con el
+      // teléfono: allí queda esa tarjeta sola en pantalla. Donde el módulo esté
+      // cargado, esto abre el panel encima sin perder lo que se estaba haciendo (ver
+      // el desvío en app_atenciones); donde no, abre la pantalla completa igual de
+      // situada. El destino se escribe una vez y funciona en los dos casos.
+      navega('atenciones', { sec: f.dato.donde, q: f.dato.telefono || f.dato.cliente });
+      return;
+    }
     if (f.tipo === 'anuncio') { navega('anuncios', { q: f.dato.titulo }); return; }
     if (f.tipo === 'portal') {
       var p = f.dato;

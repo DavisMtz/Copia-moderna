@@ -675,6 +675,12 @@
   <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.13.0/ScrollTrigger.min.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.13.0/SplitText.min.js"></script>
   <?!= include('app_operacion'); ?>
+  <!-- Atenciones. Esta pantalla es donde se reporta que algo se cayó, así que es
+       exactamente donde alguien puede tener un cliente en la línea: al terminar el
+       reporte, app_operacion ofrece guardar sus datos (AppAtenciones.sugerir). Sin este
+       include la llamada existía pero no encontraba el módulo, y el ofrecimiento —el
+       único momento del día en que sirve— no llegaba a salir. -->
+  <?!= include('app_atenciones'); ?>
   <?!= include('app_estado_historial'); ?>
   <script>
   (function () {
