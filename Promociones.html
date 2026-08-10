@@ -369,13 +369,15 @@ main{flex:1}
 .hero-sync.is-loading .hs-refresh{pointer-events:none;opacity:.8}
 .hero-sync.is-loading .hs-refresh .ic{animation:spin .9s linear infinite}
 
+/* Las separaciones se hacen con `gap` sobre un fondo de línea y no con bordes entre
+   hermanos: así los filetes siguen cayendo donde toca cuando las cuatro cifras se
+   reparten en dos filas o en una columna, que es lo que pasa al estrechar. */
 .hero-stats{
-  display:grid;grid-template-columns:repeat(3,minmax(0,1fr));
-  background:var(--surface);border:1px solid var(--line);
+  display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:1px;
+  background:var(--line-soft);border:1px solid var(--line);
   border-radius:var(--rad);box-shadow:var(--sh-sm);overflow:hidden;
 }
-.stat-tile{display:flex;flex-direction:column;gap:.4rem;padding:var(--s4) var(--s5);min-width:0}
-.stat-tile + .stat-tile{border-left:1px solid var(--line-soft)}
+.stat-tile{display:flex;flex-direction:column;gap:.4rem;padding:var(--s4) var(--s5);min-width:0;background:var(--surface)}
 .stat-num{
   font-family:var(--f-display);font-weight:800;font-stretch:100%;
   font-size:var(--fs-2xl);line-height:1;letter-spacing:-.03em;
@@ -472,6 +474,14 @@ select.filter-select{
 select.filter-select:hover{border-color:var(--ink-faint)}
 select.filter-select:focus{border-color:var(--brand);box-shadow:var(--ring)}
 
+/* ── Banda de ESTADO ────────────────────────────────────────────────────────
+   Va por delante de las direcciones porque decide de qué se está hablando: la
+   lista trae TODA la hoja, y lo primero que hay que poder acotar es si se
+   quiere lo que corre hoy, lo que viene o lo que ya pasó. Reutiliza el mismo
+   botón que la agenda para que el mismo filtro se vea igual en las dos vistas. */
+.estado-row{margin-top:var(--s3)}
+.estado-row .ag-filter-btn{white-space:nowrap}
+
 .chips-row{
   display:flex;gap:.45rem;margin-top:var(--s3);
   overflow-x:auto;padding-bottom:.35rem;scrollbar-width:thin;
@@ -494,7 +504,13 @@ select.filter-select:focus{border-color:var(--brand);box-shadow:var(--ring)}
 }
 .results-count{font-size:var(--fs-sm);color:var(--ink-soft);font-weight:500}
 .results-count strong{color:var(--ink);font-weight:700;font-variant-numeric:tabular-nums}
+/* Las coletillas («· terminadas», «· 76 en la hoja») son contexto, no el dato. */
+.results-count span{color:var(--ink-faint)}
 .results-hint{font-size:var(--fs-xs);color:var(--ink-faint)}
+
+/* «Ver 48 más»: la hoja pasa de 150 filas y crece con cada campaña; volcarlas
+   todas de golpe deja el teléfono pensando antes de pintar la primera. */
+.promos-mas{display:flex;justify-content:center;margin-top:var(--s5)}
 
 /* ════════════════════════════════════════════════════════════════════════════
    TARJETA DE PROMOCIÓN
@@ -525,6 +541,26 @@ select.filter-select:focus{border-color:var(--brand);box-shadow:var(--ring)}
   box-shadow:var(--sh-md);
 }
 .promo-card.kb-focus{border-color:var(--brand);box-shadow:var(--ring),var(--sh-md)}
+
+/* La tarjeta entera abre la ficha. El título es además un botón de verdad para
+   que se llegue con el tabulador: un <article> con onclick no existe para quien
+   navega con teclado. */
+.promo-card{cursor:pointer}
+.card-title-btn{
+  display:block;width:100%;min-width:0;padding:0;margin:0;border:none;background:none;
+  font:inherit;color:inherit;text-align:left;cursor:pointer;border-radius:var(--rad-sm);
+}
+.card-title-btn:hover{color:var(--brand-deep)}
+.card-title-btn:focus-visible{outline:none;box-shadow:var(--ring)}
+
+/* Lo que ya terminó no se esconde —está en la hoja y alguien puede necesitar
+   consultarlo—, pero tampoco compite con lo que está corriendo. */
+.promo-card.is-terminada{opacity:.62}
+.promo-card.is-terminada:hover,.promo-card.is-terminada:focus-within{opacity:1}
+
+/* Al cerrar una ficha abierta por enlace, la tarjeta se señala un momento para
+   que quien llegó al listado sepa CUÁL de las tarjetas venía a ver. */
+.promo-card.is-destacada{border-color:var(--brand);box-shadow:var(--ring),var(--sh-md)}
 
 .kb-open-hint{
   display:flex;align-items:center;gap:.5rem;margin-top:var(--s3);
@@ -609,6 +645,39 @@ select.filter-select:focus{border-color:var(--brand);box-shadow:var(--ring)}
   border-radius: var(--rad-sm);
 }
 .pm-close:hover { color: var(--ink); background: var(--surface-2); }
+.pm-close:focus-visible{outline:none;box-shadow:var(--ring);color:var(--ink)}
+
+/* ── Cuerpo de la ficha ──────────────────────────────────────────────────────
+   Mismo orden de lectura que la tarjeta —de quién es → qué es y cuánto rebaja →
+   en qué consiste → hasta cuándo → dónde verla—, para que abrir el detalle sea
+   ampliar lo que ya se estaba mirando y no una pantalla distinta.
+   Antes esto iba con estilos escritos a mano en cada etiqueta: los tamaños no
+   respondían a los "Ajustes de vista" de la barra lateral y el alto contraste
+   no llegaba aquí. */
+.pm-head{display:flex;align-items:center;gap:.6rem;flex-wrap:wrap;margin-bottom:1.1rem;padding-right:2.5rem}
+.pm-dir{
+  display:inline-flex;align-items:center;gap:.45rem;min-width:0;
+  font-size:var(--fs-2xs);font-weight:700;letter-spacing:.1em;text-transform:uppercase;
+  color:var(--ink-faint);
+}
+.pm-dir .dot{width:6px;height:6px;border-radius:50%;background:var(--dept-color,var(--brand));flex:none}
+.pm-lead{display:flex;align-items:flex-start;justify-content:space-between;gap:var(--s4);margin-bottom:var(--s3)}
+.pm-title{
+  min-width:0;font-family:var(--f-display);font-weight:800;font-stretch:104%;
+  font-size:var(--fs-2xl);line-height:1.14;letter-spacing:-.02em;color:var(--ink);
+}
+.pm-lead .disc-badge .pct{font-size:var(--fs-2xl)}
+.pm-text{font-size:var(--fs-md);line-height:1.55;color:var(--ink-soft)}
+.pm-badges{display:flex;gap:.5rem;flex-wrap:wrap;margin-top:var(--s3)}
+.pm-meta{
+  margin-top:var(--s5);padding-top:var(--s4);border-top:1px solid var(--line);
+  display:flex;flex-direction:column;gap:.6rem;
+}
+.pm-row{display:flex;align-items:center;gap:.55rem;font-size:var(--fs-sm);color:var(--ink-soft);flex-wrap:wrap}
+.pm-row .ic{width:16px;height:16px;flex:none;color:var(--ink-faint)}
+.pm-row strong{color:var(--ink);font-weight:700}
+.pm-row .pm-nota{color:var(--ink-faint);font-size:var(--fs-xs)}
+.pm-cta{display:flex;justify-content:center;width:100%;margin-top:var(--s5);padding:.8rem;font-size:var(--fs-md)}
 .pm-share{
   display:flex;align-items:center;justify-content:center;gap:.5rem;width:100%;
   margin-top:.75rem;padding:.7rem;border-radius:var(--rad-md);
@@ -933,6 +1002,16 @@ select.filter-select:focus{border-color:var(--brand);box-shadow:var(--ring)}
 .ag-dias{display:block;margin-top:.15rem;font-size:var(--fs-2xs);font-weight:500;color:var(--ink-faint)}
 .ag-promo{min-width:180px;max-width:340px;color:var(--ink-soft);line-height:1.5;font-weight:400}
 .ag-cat strong{font-weight:600;color:var(--ink)}
+/* La categoría abre la MISMA ficha que la tarjeta: la agenda deja de ser una
+   tabla que solo se puede leer y pasa a llevar al detalle, como el listado. */
+.ag-ficha{
+  padding:0;border:none;background:none;font:inherit;font-weight:600;color:var(--ink);
+  text-align:left;cursor:pointer;border-radius:var(--rad-sm);
+  text-decoration:underline;text-decoration-color:transparent;text-underline-offset:3px;
+  transition:color var(--dur-1) var(--ease),text-decoration-color var(--dur-1) var(--ease);
+}
+.ag-ficha:hover{color:var(--brand-deep);text-decoration-color:currentColor}
+.ag-ficha:focus-visible{outline:none;box-shadow:var(--ring)}
 .ag-dept-pill{
   display:inline-flex;align-items:center;gap:.4rem;white-space:nowrap;
   font-size:var(--fs-2xs);font-weight:700;letter-spacing:.08em;text-transform:uppercase;
@@ -1055,7 +1134,7 @@ select.filter-select:focus{border-color:var(--brand);box-shadow:var(--ring)}
 ════════════════════════════════════════════════════════════════════════════ */
 @media(max-width:1080px){
   .date-hero{grid-template-columns:1fr;gap:var(--s5);align-items:start}
-  .hero-stats{width:100%}
+  .hero-stats{width:100%;grid-template-columns:repeat(2,minmax(0,1fr))}
 }
 @media(max-width:860px){
   .controls-row{grid-template-columns:1fr}
@@ -1084,7 +1163,6 @@ select.filter-select:focus{border-color:var(--brand);box-shadow:var(--ring)}
 }
 @media(max-width:420px){
   .hero-stats{grid-template-columns:1fr}
-  .stat-tile + .stat-tile{border-left:0;border-top:1px solid var(--line-soft)}
 }
 </style>
 </head>
@@ -1233,8 +1311,10 @@ select.filter-select:focus{border-color:var(--brand);box-shadow:var(--ring)}
   </div>
 
 <!-- ══ ENCABEZADO DE PÁGINA ══════════════════════════════════════════════════
-     La fecha es el ancla: todo lo que hay debajo se lee «vigente HOY». A su
-     derecha, las tres cifras que resumen el día en un solo panel. -->
+     La fecha es el ancla: es contra el día de hoy contra lo que se dice que una
+     promoción está en curso, es próxima o ya terminó. A su derecha, las cuatro
+     cifras que resumen la hoja: lo que corre, lo que se acaba, cuántas
+     direcciones y cuánto hay en total. -->
 <section class="date-hero">
   <div class="hero-left">
     <span class="hero-eyebrow"><span class="dot"></span>Hoy · actualizado en vivo</span>
@@ -1261,6 +1341,12 @@ select.filter-select:focus{border-color:var(--brand);box-shadow:var(--ring)}
       <div class="stat-num" id="statDirs">0</div>
       <div class="stat-lbl">Direcciones</div>
     </div>
+    <!-- El total de la hoja: la pantalla ya no enseña solo lo de hoy, así que
+         tiene que decir cuánto es «todo» para que el listado se entienda. -->
+    <div class="stat-tile">
+      <div class="stat-num" id="statTotal">0</div>
+      <div class="stat-lbl">En la hoja</div>
+    </div>
   </div>
 </section>
 
@@ -1286,7 +1372,7 @@ select.filter-select:focus{border-color:var(--brand);box-shadow:var(--ring)}
     <div class="controls-panel" id="controls-panel" style="display:none;">
       <div class="controls-row">
         <div class="search-wrapper">
-          <label class="sr-only" for="searchInput">Buscar entre las promociones de hoy</label>
+          <label class="sr-only" for="searchInput">Buscar entre todas las promociones de la hoja</label>
           <svg class="icon-search" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="7"/><path d="m21 21-4.3-4.3"/></svg>
           <input type="text" id="searchInput" placeholder="Categoría, marca, promoción o vigencia (ej. pantallas, Nike, 50%, agosto)…" autocomplete="off">
           <button class="search-clear" id="searchClear" onclick="clearSearch()" title="Limpiar búsqueda (Esc)" aria-label="Limpiar búsqueda">
@@ -1302,11 +1388,14 @@ select.filter-select:focus{border-color:var(--brand);box-shadow:var(--ring)}
           </select>
         </div>
       </div>
+      <!-- Estado primero (qué corre, qué viene, qué pasó) y dirección después:
+           el segundo filtro solo tiene sentido dentro del primero. -->
+      <div class="ag-toolbar estado-row" id="estadoRow" role="group" aria-label="Filtrar por estado"></div>
       <div class="chips-row" id="chipsRow"></div>
     </div>
 
     <div class="results-bar" id="resultsBar" style="display:none;">
-      <p class="results-count">Mostrando <strong id="countNum">0</strong> de <span id="countTotal">0</span> promociones activas hoy</p>
+      <p class="results-count" id="resultsCount">Mostrando <strong>0</strong> de 0 promociones</p>
       <span class="results-hint">Enter lleva a la promoción · otro Enter abre el enlace ↵</span>
     </div>
 
@@ -1316,6 +1405,10 @@ select.filter-select:focus{border-color:var(--brand);box-shadow:var(--ring)}
     </div>
 
     <div id="promos-container" class="promos-grid"></div>
+
+    <div class="promos-mas" id="promosMas" hidden>
+      <button type="button" class="ag-filter-btn" id="promosMasBtn"></button>
+    </div>
 
     <div id="promos-empty-state" class="empty-state" aria-live="polite" hidden>
       <svg class="es-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="7"/><path d="m21 21-4.3-4.3"/></svg>
@@ -1368,9 +1461,9 @@ select.filter-select:focus{border-color:var(--brand);box-shadow:var(--ring)}
   </section>
 
   <!-- ══ AGENDA ══════════════════════════════════════════════════════════════
-       Todo lo que hay en la hoja, no solo lo de hoy: lo que está corriendo, lo
-       que viene y lo que ya pasó. Es la única vista donde se puede consultar el
-       historial y comprobar qué se promocionó en una fecha concreta. -->
+       La misma hoja que el listado de tarjetas, en tabla: se ordena por
+       columnas, se compara de un vistazo y se lee el texto completo de cada
+       promoción. Para mirar están las tarjetas; para buscar y comparar, esto. -->
   <section id="agenda-view" class="view-section">
     <div class="cal-section">
       <h2 class="cal-section-title">
@@ -1378,8 +1471,8 @@ select.filter-select:focus{border-color:var(--brand);box-shadow:var(--ring)}
         Agenda de promociones <span class="badge-n" id="agTotal">0</span>
       </h2>
       <p class="ag-nota" style="margin:-.6rem 0 1.2rem">
-        Aquí está <b>todo lo que hay en la hoja</b>: lo que corre hoy, lo que empieza más adelante
-        y lo que ya terminó. Las fechas se deducen del texto de la columna «Vigencia».
+        La hoja completa en forma de tabla: <b>ordénala por cualquier columna</b> y pulsa una
+        <b>categoría</b> para abrir su ficha. Las fechas se deducen del texto de la columna «Vigencia».
       </p>
 
       <!-- Filtrar y buscar son la misma tarea: van en la misma banda, no en dos. -->
@@ -1594,15 +1687,70 @@ let activePromosToday = [];
 let parsedPromos = [];
 let currentCalendarFilter = 'activos';
 let currentDir = 'all';
+let currentEstado = 'todas';   // el listado arranca con TODA la hoja a la vista
 let currentNow = new Date();
 let lastDayKey = '';
 let searchTimeout;
+
+/* Cuántas tarjetas se pintan de golpe. La hoja ya pasa de 150 filas y crece con
+   cada campaña: volcarlas todas deja el teléfono pensando antes de pintar la
+   primera. Se sube de PROMO_PASO en PROMO_PASO con el botón del final. */
+const PROMO_PASO = 48;
+let promoLimite = PROMO_PASO;
 const RM = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
 const DIAS = ['Domingo','Lunes','Martes','Miércoles','Jueves','Viernes','Sábado'];
 const MESES = ['Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre'];
 const MESES_ABR = ['Ene','Feb','Mar','Abr','May','Jun','Jul','Ago','Sep','Oct','Nov','Dic'];
 const DEPT_PALETTE = ['#E10098','#5B21B6','#1D4ED8','#0E7A4F','#B45309','#0E7490','#BE185D','#4338CA','#15803D','#9F1239'];
 let deptColorMap = {};
+
+/* ═══ ESTADO DE UNA PROMOCIÓN ═══════════════════════════════════════════════
+   Un solo vocabulario para las tres vistas. Antes cada una tenía el suyo: el
+   listado ni siquiera nombraba los estados —solo enseñaba lo vigente— y la
+   agenda los llamaba de otra forma, así que la misma fila se leía distinto
+   según la pestaña.
+
+   El orden de PESO es el orden en el que se pinta el listado: lo que corre hoy,
+   lo que está por empezar, lo que no sabemos leer y, al final, lo que ya pasó.
+   «Sin fecha» va ANTES que «terminada» a propósito: una vigencia que el sistema
+   no supo interpretar puede estar corriendo ahora mismo y hay que revisarla, no
+   enterrarla bajo el histórico. */
+const EST_PESO     = { vigente: 0, proxima: 1, sinfecha: 2, terminada: 3 };
+const EST_ETIQUETA = { vigente: 'En curso', proxima: 'Próxima', terminada: 'Terminada', sinfecha: 'Sin fecha' };
+const EST_PILL     = { vigente: 'ok', proxima: 'warn', terminada: 'muted', sinfecha: 'muted' };
+const EST_ORDEN    = ['todas', 'vigente', 'proxima', 'terminada', 'sinfecha'];
+const EST_ROTULO   = { todas: 'Todas', vigente: 'En curso', proxima: 'Próximas',
+                       terminada: 'Terminadas', sinfecha: 'Sin fecha' };
+/* El estado no lo lleva sólo el color: el punto acompaña a una etiqueta que ya
+   dice lo mismo con palabras, para quien no distingue verde de ámbar. */
+const EST_PUNTO    = { todas: '', vigente: '<span class="dot ok"></span>',
+                       proxima: '<span class="dot warn"></span>',
+                       terminada: '<span class="dot done"></span>',
+                       sinfecha: '<span class="dot alert"></span>' };
+
+/** En qué momento de su vida está una promoción, según su vigencia interpretada. */
+function estadoDe(p){
+  if (!p._start) return 'sinfecha';
+  if (currentNow < p._start) return 'proxima';
+  if (currentNow > p._end)   return 'terminada';
+  return 'vigente';
+}
+
+/* Orden del listado: primero el estado y, dentro de cada estado, lo que más
+   urge —lo que se acaba antes, lo que arranca antes, lo que terminó hace menos—. */
+function comparaPromos(a, b){
+  const d = EST_PESO[a._estado] - EST_PESO[b._estado];
+  if (d !== 0) return d;
+  if (a._estado === 'vigente')   return a._end   - b._end;
+  if (a._estado === 'proxima')   return a._start - b._start;
+  if (a._estado === 'terminada') return b._end   - a._end;
+  return String(a.categoria || '').localeCompare(String(b.categoria || ''), 'es');
+}
+
+/** La promoción con ese identificador, o null. Es la puerta de la ficha. */
+function promoPorId(id){
+  return parsedPromos.filter(function (p) { return p._id === id; })[0] || null;
+}
 
 /* ═══ ICONOGRAFÍA ═══════════════════════════════════════════════════════════
    Un único juego de trazos (1.75) para todo lo que pinta el JavaScript, igual
@@ -1640,7 +1788,9 @@ document.addEventListener('DOMContentLoaded', () => {
   startClock();
   document.getElementById('searchInput').addEventListener('input', handleSearchDebounce);
   document.getElementById('searchInput').addEventListener('keydown', e => { if (e.key === 'Escape') clearSearch(); });
-  document.getElementById('filterOrigen').addEventListener('change', applyFilters);
+  document.getElementById('filterOrigen').addEventListener('change', () => { promoLimite = PROMO_PASO; applyFilters(); });
+  document.getElementById('promosMasBtn').addEventListener('click', () => { promoLimite += PROMO_PASO; applyFilters(); });
+  engancharFichas();
   agEnganchar();
 
   const backTop = document.getElementById('backTop');
@@ -1772,39 +1922,80 @@ function handleDataSuccess(data, fromCache){
   abrirPromoDeEnlace();
 }
 
-/* Enlace directo a una promoción (?promo=…).
-   Se abre UNA sola vez: handleDataSuccess corre dos veces —primero con el caché local
-   y después con lo que responde Apps Script—, así que sin este seguro la ficha saltaba
-   encima por segunda vez justo cuando ya la estabas leyendo. El seguro se echa solo al
-   ENCONTRAR la promoción, para que un enlace a algo que el caché aún no tenía siga
-   abriéndose cuando lleguen los datos frescos. */
+/* ═══ ENLACE DIRECTO A UNA PROMOCIÓN (?promo=…) ═════════════════════════════
+   Las dos formas de llegar a esta pantalla se resuelven en el mismo sitio:
+
+     · con ?promo=<id>  → se abre la FICHA de esa promoción, encima del listado
+       completo, que queda detrás para seguir consultándolo al cerrarla.
+     · sin parámetro    → el listado y nada más.
+
+   Y sea cual sea el estado de la promoción compartida: mientras la fila siga en
+   la hoja, el enlace abre. Antes el listado solo contenía lo vigente HOY, así
+   que un enlace repartido el lunes dejaba de abrir el viernes aunque la
+   promoción siguiera perfectamente consultable en la hoja.
+
+   Se abre UNA sola vez: handleDataSuccess corre dos veces —primero con el caché
+   local y después con lo que responde Apps Script—, así que sin este seguro la
+   ficha saltaba encima por segunda vez justo cuando ya la estabas leyendo. El
+   seguro se echa solo al ENCONTRAR la promoción, para que un enlace a algo que
+   el caché aún no tenía siga abriéndose cuando lleguen los datos frescos. */
 let promoEnlaceAbierto = false;
-function abrirPromoDeEnlace(){
-  if (promoEnlaceAbierto) return;
+
+/** El identificador que traía el enlace con el que se abrió la pantalla ('' si no había). */
+function promoDelEnlace(){
   // AppUrl.param mira primero lo que inyectó el servidor y luego la barra de
   // direcciones; el respaldo de abajo es solo por si app_core no cargó.
   let pId = window.AppUrl ? AppUrl.param('promo') : '';
   if (!pId) {
     try { pId = new URLSearchParams(window.location.search).get('promo') || ''; } catch(e) { pId = ''; }
   }
+  return pId;
+}
+
+function abrirPromoDeEnlace(){
+  if (promoEnlaceAbierto) return;
+  const pId = promoDelEnlace();
   if (!pId) return;
 
-  const p = parsedPromos.find(x => x._id === pId);
+  const p = promoPorId(pId);
   if (p) {
     promoEnlaceAbierto = true;
+    // El listado de detrás se deja sin filtros y con la tarjeta ya pintada: al
+    // cerrar la ficha se cae justo encima de ella en vez de en una lista donde
+    // no está, y desde ahí se sigue con el resto de promociones.
+    quitarFiltros();
+    asegurarPintada(pId);
     openPromoModal(p);
     return;
   }
 
   /* El enlace apunta a una promoción que ya no está en la hoja, o cuyo texto se
-     editó después de compartirlo. Sin este aviso la pantalla se abría en el listado
-     completo como si nada y quien recibió el enlace se quedaba buscando a mano una
-     promoción que nadie le dijo que había caducado.
+     editó después de compartirlo (el identificador sale del contenido de la fila).
+     Sin este aviso la pantalla se abría en el listado como si nada y quien recibió
+     el enlace se quedaba buscando a mano una promoción que nadie le dijo que ya no
+     estaba.
      Solo se avisa con los datos FRESCOS: si aún estamos pintando el caché local, la
      promoción puede aparecer en cuanto responda Apps Script. */
   if (!promosFresh) return;
   promoEnlaceAbierto = true;
-  promoAviso('Esa promoción ya no está disponible. Aquí están las vigentes de hoy.', 'error');
+  promoAviso('Esa promoción ya no está en la hoja. Aquí está el resto.', 'error');
+}
+
+/** Deja el listado sin filtros: es el «todo lo disponible» del que habla el aviso. */
+function quitarFiltros(){
+  currentEstado = 'todas';
+  currentDir = 'all';
+  const org = document.getElementById('filterOrigen');
+  if (org) org.value = 'all';
+  const busq = document.getElementById('searchInput');
+  if (busq && busq.value) { busq.value = ''; document.getElementById('searchClear').style.display = 'none'; }
+}
+
+/** Sube el tope de tarjetas lo justo para que ESA promoción esté pintada. */
+function asegurarPintada(id){
+  const i = parsedPromos.findIndex(p => p._id === id);
+  if (i >= promoLimite) promoLimite = Math.ceil((i + 1) / PROMO_PASO) * PROMO_PASO;
+  renderFiltrosEstado(); populateChips(); applyFilters();
 }
 
 /* Identificador estable de una promoción · es lo que viaja en el enlace compartido.
@@ -1834,15 +2025,22 @@ function refreshActiveData(){
     const usados = {};
     parsedPromos = globalData.promociones.map(p => {
       const range = parseVigencia(p.vigencia);
-      return Object.assign({}, p, {
+      const q = Object.assign({}, p, {
         _start: range ? range.start : null,
         _end:   range ? range.end   : null,
+        // El identificador se calcula ANTES de ordenar: sale del contenido de la
+        // fila, así que el orden en el que se pinten no puede moverlo.
         _id:    promoId(p, usados)
       });
+      q._estado = estadoDe(q);
+      return q;
     });
-    activePromosToday = parsedPromos.filter(p => p._start && currentNow >= p._start && currentNow <= p._end);
-    buildDeptColors(); populateChips(); renderHeroStats(); applyFilters(); renderCalendar(); renderAgenda();
-    document.getElementById('tabCountPromos').textContent = activePromosToday.length;
+    parsedPromos.sort(comparaPromos);
+    activePromosToday = parsedPromos.filter(p => p._estado === 'vigente');
+    buildDeptColors(); renderFiltrosEstado(); populateChips(); renderHeroStats();
+    applyFilters(); renderCalendar(); renderAgenda();
+    // La pestaña anuncia lo que hay dentro: TODA la hoja, no solo lo de hoy.
+    document.getElementById('tabCountPromos').textContent = parsedPromos.length;
     return true;
   } catch(e) {
     // Antes esto era un alert(): dentro del iframe de Apps Script bloquea la pantalla
@@ -1875,6 +2073,7 @@ function renderHeroStats(){
   animateNumber('statActivas', activePromosToday.length);
   animateNumber('statTerminan', terminanPronto);
   animateNumber('statDirs', dirs.size);
+  animateNumber('statTotal', parsedPromos.length);
 }
 function animateNumber(id, value){
   const el = document.getElementById(id);
@@ -1884,20 +2083,59 @@ function animateNumber(id, value){
   } else { el.textContent = value; }
 }
 
+/* Los colores se reparten sobre TODAS las direcciones de la hoja y no sobre las
+   de hoy: si dependieran del filtro, la misma dirección cambiaría de color al
+   cambiar de estado y el punto dejaría de servir para reconocerla de un vistazo. */
 function buildDeptColors(){
   deptColorMap = {};
-  const dirs = Array.from(new Set(activePromosToday.map(p => p.direccion).filter(d => d && d.trim() !== ''))).sort();
+  const dirs = Array.from(new Set(parsedPromos.map(p => p.direccion).filter(d => d && d.trim() !== ''))).sort();
   dirs.forEach((d, i) => { deptColorMap[d] = DEPT_PALETTE[i % DEPT_PALETTE.length]; });
 }
+
+/* ── Banda de estado ──────────────────────────────────────────────────────────
+   Los conteos son los de la hoja entera, no los del listado ya filtrado: sirven
+   para decidir a dónde ir, y un botón que dice «Terminadas 0» porque hay una
+   búsqueda escrita no ayuda a nadie. */
+function renderFiltrosEstado(){
+  const row = document.getElementById('estadoRow');
+  if (!row) return;
+  const cuenta = { todas: parsedPromos.length, vigente: 0, proxima: 0, terminada: 0, sinfecha: 0 };
+  parsedPromos.forEach(p => { cuenta[p._estado]++; });
+
+  row.innerHTML = EST_ORDEN
+    // «Sin fecha» solo aparece si de verdad hay alguna: un filtro que siempre da
+    // cero es ruido. Cuando aparece, es que hay vigencias mal escritas que revisar.
+    .filter(k => k !== 'sinfecha' || cuenta.sinfecha > 0)
+    .map(k => `<button class="ag-filter-btn${currentEstado === k ? ' active' : ''}" type="button" data-est="${k}"` +
+              ` aria-pressed="${currentEstado === k}">${EST_PUNTO[k]}${EST_ROTULO[k]} <span class="n">${cuenta[k]}</span></button>`)
+    .join('');
+
+  row.querySelectorAll('[data-est]').forEach(b => {
+    b.onclick = () => {
+      currentEstado = b.dataset.est;
+      currentDir = 'all';      // las direcciones se recalculan dentro del estado nuevo
+      promoLimite = PROMO_PASO;
+      renderFiltrosEstado(); populateChips(); applyFilters();
+    };
+  });
+}
+
+/* Las direcciones que se ofrecen son las que existen DENTRO del estado elegido:
+   una píldora que siempre da cero resultados no es un filtro, es un estorbo. */
 function populateChips(){
   const row = document.getElementById('chipsRow');
+  const base = parsedPromos.filter(p => currentEstado === 'todas' || p._estado === currentEstado);
+  const cuenta = {};
+  base.forEach(p => { const d = p.direccion; if (d && d.trim() !== '') cuenta[d] = (cuenta[d] || 0) + 1; });
+  const dirs = Object.keys(cuenta).sort();
+
+  // Si el filtro de dirección se quedó sin resultados posibles al cambiar de
+  // estado, se suelta: mejor enseñar de más que una lista vacía sin explicación.
+  if (currentDir !== 'all' && dirs.indexOf(currentDir) === -1) currentDir = 'all';
+
   row.innerHTML = '';
-  const allChip = makeChip('all','Todas',null,activePromosToday.length);
-  row.appendChild(allChip);
-  Object.keys(deptColorMap).forEach(dir => {
-    const n = activePromosToday.filter(p => p.direccion === dir).length;
-    row.appendChild(makeChip(dir, capitalize(dir), deptColorMap[dir], n));
-  });
+  row.appendChild(makeChip('all', 'Todas', null, base.length));
+  dirs.forEach(dir => row.appendChild(makeChip(dir, capitalize(dir), deptColorMap[dir], cuenta[dir])));
   syncChipState();
 }
 function makeChip(value, label, color, n){
@@ -1907,7 +2145,11 @@ function makeChip(value, label, color, n){
   // y la fila no se desalinea al cambiar de filtro.
   b.innerHTML = `<span class="chip-dot"${color ? ` style="color:${color}"` : ' style="color:var(--ink-faint)"'}></span>` +
                 `${label} <span class="chip-n">${n}</span>`;
-  b.onclick = () => { currentDir = (currentDir === value) ? 'all' : value; syncChipState(); applyFilters(); };
+  b.onclick = () => {
+    currentDir = (currentDir === value) ? 'all' : value;
+    promoLimite = PROMO_PASO;
+    syncChipState(); applyFilters();
+  };
   return b;
 }
 function syncChipState(){
@@ -1918,11 +2160,14 @@ function capitalize(s){ return s.charAt(0).toUpperCase() + s.slice(1).toLowerCas
 function handleSearchDebounce(){
   document.getElementById('searchClear').style.display = document.getElementById('searchInput').value ? 'flex' : 'none';
   clearTimeout(searchTimeout);
-  searchTimeout = setTimeout(applyFilters, 150);
+  // Cambiar de búsqueda vuelve a empezar por arriba: seguir con el tope subido
+  // de la búsqueda anterior pinta cientos de tarjetas que ya no vienen a cuento.
+  searchTimeout = setTimeout(() => { promoLimite = PROMO_PASO; applyFilters(); }, 150);
 }
 function clearSearch(){
   const inp = document.getElementById('searchInput');
   inp.value = ''; document.getElementById('searchClear').style.display = 'none';
+  promoLimite = PROMO_PASO;
   applyFilters(); inp.focus();
 }
 /* ── Qué se compara al buscar una promoción, y cuánto pesa cada cosa ──────────
@@ -1959,12 +2204,19 @@ if (window.AppBuscar) {
   });
 }
 
+/* ═══ EL LISTADO ════════════════════════════════════════════════════════════
+   Trabaja sobre parsedPromos —la hoja ENTERA— y no sobre lo vigente hoy. Lo de
+   hoy sigue siendo lo primero que se ve porque el orden lo pone delante y
+   porque el filtro «En curso» está a un clic, pero ya no es lo único que
+   existe: lo que empieza la semana que viene se puede consultar antes de que
+   arranque, y lo que terminó no desaparece de la pantalla ni de sus enlaces. */
 function applyFilters(){
   const term = document.getElementById('searchInput').value.trim();
   const orgVal = document.getElementById('filterOrigen').value;
-  // Primero los filtros duros (dirección y origen) y luego la búsqueda: así se
-  // puntúa solo lo que ya está en juego y el orden por relevancia se respeta.
-  const base = activePromosToday.filter(p =>
+  // Primero los filtros duros (estado, dirección y origen) y luego la búsqueda:
+  // así se puntúa solo lo que ya está en juego y el orden por relevancia se respeta.
+  const base = parsedPromos.filter(p =>
+    (currentEstado === 'todas' || p._estado === currentEstado) &&
     (currentDir === 'all' || p.direccion === currentDir) &&
     (orgVal === 'all' || p.origen === orgVal)
   );
@@ -1972,9 +2224,36 @@ function applyFilters(){
     ? AppBuscar.filtra(base, term, camposPromo)
     : (term ? base.filter(p => [p.categoria, p.promocion, p.marca, p.direccion]
         .join(' ').toLowerCase().indexOf(term.toLowerCase()) !== -1) : base);
-  document.getElementById('countNum').textContent = results.length;
-  document.getElementById('countTotal').textContent = activePromosToday.length;
-  renderCards(results);
+
+  const visibles = results.slice(0, promoLimite);
+  renderCards(visibles);
+  renderResultsBar(visibles.length, results.length);
+  renderVerMas(results.length - visibles.length);
+}
+
+/* Qué se está mirando exactamente, en una línea. El "de N" cambia según haya o
+   no filtros puestos: sin ellos el total es la hoja, y decirlo es la forma de
+   que se entienda que la pantalla ya no esconde nada. */
+function renderResultsBar(mostradas, encontradas){
+  const el = document.getElementById('resultsCount');
+  if (!el) return;
+  const hayFiltro = currentEstado !== 'todas' || currentDir !== 'all' ||
+                    document.getElementById('filterOrigen').value !== 'all' ||
+                    document.getElementById('searchInput').value.trim() !== '';
+  let txt = `Mostrando <strong>${mostradas}</strong> de ${encontradas} ` +
+            (encontradas === 1 ? 'promoción' : 'promociones');
+  if (currentEstado !== 'todas') txt += ` <span>· ${EST_ROTULO[currentEstado].toLowerCase()}</span>`;
+  if (hayFiltro) txt += ` <span>· ${parsedPromos.length} en la hoja</span>`;
+  else txt += ' <span>· toda la hoja</span>';
+  el.innerHTML = txt;
+}
+
+function renderVerMas(quedan){
+  const caja = document.getElementById('promosMas');
+  const btn = document.getElementById('promosMasBtn');
+  if (!caja || !btn) return;
+  caja.hidden = quedan <= 0;
+  if (quedan > 0) btn.textContent = `Ver ${Math.min(PROMO_PASO, quedan)} más`;
 }
 
 const MONTH_MAP = {'ene':0,'enero':0,'feb':1,'febrero':1,'mar':2,'marzo':2,'abr':3,'abril':3,'may':4,'mayo':4,'jun':5,'junio':5,'jul':6,'julio':6,'ago':7,'agosto':7,'sep':8,'sept':8,'septiembre':8,'oct':9,'octubre':9,'nov':10,'noviembre':10,'dic':11,'diciembre':11};
@@ -2029,6 +2308,36 @@ function maxDiscount(t){ const nums=(String(t).match(/(\d{1,3})\s*%/g)||[]).map(
 function msiCount(t){ const m=String(t).match(/(\d{1,2})\s*msi/i); if(m)return parseInt(m[1]); return /\bmsi\b/i.test(String(t))?1:0; }
 function pagaSep(t){ return /pag(a|ue)\s*(en|hasta)?\s*sep/i.test(String(t)); }
 
+/* Cómo se resume el momento de una promoción en una píldora. Es lo mismo que
+   dice la ficha, en corto, y sirve para los cuatro estados: antes solo estaba
+   escrito el caso «vigente», porque era el único que llegaba a pintarse. */
+function pildoraEstado(p){
+  if (p._estado === 'vigente') {
+    const dl = daysLeft(p._end);
+    if (dl <= 1) return { cls: 'alert', txt: '¡Termina hoy!' };
+    if (dl === 2) return { cls: 'alert', txt: 'Termina mañana' };
+    if (dl <= 4)  return { cls: 'warn',  txt: `Quedan ${dl} días` };
+    return { cls: 'ok', txt: `Quedan ${dl} días` };
+  }
+  if (p._estado === 'proxima') {
+    const du = daysUntil(p._start);
+    return { cls: 'warn', txt: du <= 1 ? 'Empieza mañana' : `Empieza en ${du} días` };
+  }
+  if (p._estado === 'terminada') {
+    const hace = Math.max(1, Math.round((currentNow - p._end) / 86400000));
+    return { cls: 'muted', txt: hace === 1 ? 'Terminó ayer' : `Terminó hace ${hace} días` };
+  }
+  return { cls: 'muted', txt: 'Sin fecha' };
+}
+
+/** El enlace de la promoción, ya normalizado, o '' si no lo hay. */
+function ligaDe(p){
+  let url = String(p.liga || '').trim();
+  if (!url || url === '#') return '';
+  if (!/^https?:\/\//i.test(url)) url = 'https://' + url;
+  return url;
+}
+
 /* ═══ TARJETA DE PROMOCIÓN ══════════════════════════════════════════════════
    Orden de lectura: de quién es → qué es y cuánto rebaja → en qué consiste →
    hasta cuándo → dónde verla.
@@ -2037,50 +2346,58 @@ function pagaSep(t){ return /pag(a|ue)\s*(en|hasta)?\s*sep/i.test(String(t)); }
    el que se abre esta pantalla; antes iba en una caja rosa a media tarjeta,
    compitiendo con el título en vez de acompañarlo. Los meses sin intereses y
    el «paga en septiembre» bajan a su propia fila: son condiciones de pago, no
-   el titular. */
+   el titular.
+
+   El texto viene de un Sheet que teclea gente, así que se escapa: un «<» suelto
+   en una promoción se comía el resto de la tarjeta. */
 function renderCards(promosArray){
   const container = document.getElementById('promos-container');
   if (promosArray.length === 0) {
     container.innerHTML = estadoVacio(IC.lupa, 'Sin resultados',
-      'Prueba con otra palabra, quita el filtro de dirección o cambia el origen.');
+      'Prueba con otra palabra, cambia el estado o quita el filtro de dirección y origen.');
     return;
   }
   container.innerHTML = '';
   promosArray.forEach(promo => {
     const isMkp = promo.origen === 'Marketplace';
     const color = deptColorMap[promo.direccion] || 'var(--brand)';
-    const marcaHtml = (promo.marca && !isMkp) ? `<div class="card-brand">${IC.tag}${promo.marca}</div>` : '';
-    let urlLiga = promo.liga;
-    if (urlLiga && !urlLiga.startsWith('http') && urlLiga !== '#') urlLiga = 'https://' + urlLiga;
-    const btnHtml = (urlLiga && urlLiga !== '#' && urlLiga.trim() !== '')
-      ? `<a href="${urlLiga}" target="_blank" rel="noopener" class="card-btn">Ver en Liverpool ${IC.ext}</a>`
+    const marcaHtml = (promo.marca && !isMkp) ? `<div class="card-brand">${IC.tag}${escAg(promo.marca)}</div>` : '';
+    const urlLiga = ligaDe(promo);
+    const btnHtml = urlLiga
+      ? `<a href="${escAg(urlLiga)}" target="_blank" rel="noopener" class="card-btn">Ver en Liverpool ${IC.ext}</a>`
       : `<span class="card-btn disabled">Enlace no disponible</span>`;
     const pct=maxDiscount(promo.promocion),msi=msiCount(promo.promocion),sep=pagaSep(promo.promocion);
     const discHtml=pct>0?`<div class="disc-badge"><span class="upto">hasta</span><span class="pct">${pct}<i>%</i></span></div>`:'';
     const msiHtml=msi>0?`<span class="mini-badge msi">${msi>1?msi+' MSI':'MSI'}</span>`:'';
     const sepHtml=sep?`<span class="mini-badge sep">Paga en Sep</span>`:'';
+    const pill = pildoraEstado(promo);
     let vigHtml='';
     if (promo._start && promo._end) {
-      const dl=daysLeft(promo._end),total=Math.max(1,promo._end-promo._start),progress=Math.min(100,Math.max(2,((currentNow-promo._start)/total)*100));
-      let pillCls='ok',pillTxt=`Quedan ${dl} días`;
-      if(dl<=1){pillCls='alert';pillTxt='¡Termina hoy!';}
-      else if(dl===2){pillCls='alert';pillTxt='Termina mañana';}
-      else if(dl<=4){pillCls='warn';pillTxt=`Quedan ${dl} días`;}
-      vigHtml=`<div class="card-vig"><div class="vig-top"><span class="vig-range">${IC.cal}<strong>${fmtShort(promo._start)} – ${fmtShort(promo._end)}</strong></span><span class="vig-pill ${pillCls}">${pillTxt}</span></div><div class="vig-track"><div class="vig-fill" data-progress="${progress.toFixed(1)}"></div></div></div>`;
+      // La barra de avance solo la lleva lo que está corriendo: en algo que aún
+      // no empieza o que ya terminó no mide nada, y llenarla al 0% o al 100%
+      // se leía como si le quedara todo o nada de una promoción viva.
+      const total=Math.max(1,promo._end-promo._start);
+      const progress=Math.min(100,Math.max(2,((currentNow-promo._start)/total)*100));
+      const trackHtml = promo._estado === 'vigente'
+        ? `<div class="vig-track"><div class="vig-fill" data-progress="${progress.toFixed(1)}"></div></div>` : '';
+      vigHtml=`<div class="card-vig"><div class="vig-top"><span class="vig-range">${IC.cal}<strong>${fmtShort(promo._start)} – ${fmtShort(promo._end)}</strong></span><span class="vig-pill ${pill.cls}">${pill.txt}</span></div>${trackHtml}</div>`;
     } else {
-      vigHtml=`<div class="card-vig"><div class="vig-top"><span class="vig-range">${IC.cal}<strong>${promo.vigencia||'Vigencia no especificada'}</strong></span><span class="vig-pill muted">Sin fecha</span></div></div>`;
+      vigHtml=`<div class="card-vig"><div class="vig-top"><span class="vig-range">${IC.cal}<strong>${escAg(promo.vigencia)||'Vigencia no especificada'}</strong></span><span class="vig-pill ${pill.cls}">${pill.txt}</span></div></div>`;
     }
     container.insertAdjacentHTML('beforeend',
-      `<article class="card promo-card" id="${promo._id}" style="--dept-color:${color}">` +
+      `<article class="card promo-card${promo._estado === 'terminada' ? ' is-terminada' : ''}" id="${promo._id}" style="--dept-color:${color}">` +
         `<div class="card-header">` +
-          `<span class="dept-tag"><span class="dot"></span>${promo.direccion}</span>` +
+          `<span class="dept-tag"><span class="dot"></span>${escAg(promo.direccion)}</span>` +
           `<span class="origin-tag ${isMkp?'mkp':''}">${origenCorto(promo.origen)}</span>` +
           `<button type="button" class="share-btn" onclick="sharePromo('${promo._id}', event)" title="Copiar enlace a esta promoción" aria-label="Copiar enlace a esta promoción">` +
              IC.compartir +
           `</button>` +
         `</div>` +
-        `<div class="card-lead"><h3 class="card-title">${promo.categoria}</h3>${discHtml}</div>` +
-        `<p class="card-promo">${promo.promocion}</p>` +
+        `<div class="card-lead">` +
+          `<h3 class="card-title"><button type="button" class="card-title-btn" data-ficha="${promo._id}">${escAg(promo.categoria)}</button></h3>` +
+          `${discHtml}` +
+        `</div>` +
+        `<p class="card-promo">${escAg(promo.promocion)}</p>` +
         `${(msiHtml||sepHtml)?`<div class="promo-row">${msiHtml}${sepHtml}</div>`:''}` +
         `${marcaHtml}${vigHtml}${btnHtml}` +
       `</article>`);
@@ -2093,70 +2410,138 @@ function renderCards(promosArray){
 
 let viewMonth = null;
 
-function openPromoModal(promo) {
+/* ═══ FICHA DE UNA PROMOCIÓN ════════════════════════════════════════════════
+   Una sola ficha para las tres puertas de entrada: pulsar una tarjeta, pulsar
+   una fila de la agenda y llegar con ?promo=<id>. Que sean la misma es el punto:
+   lo que alguien recibe por WhatsApp tiene que ser exactamente lo que ve quien
+   pulsa la tarjeta, o el enlace deja de ser de fiar.
+
+   Mientras está abierta, el identificador viaja en la barra de direcciones: si
+   se recarga se vuelve a abrir la misma ficha, y «copiar enlace» no puede
+   apuntar a otra cosa que a lo que se está mirando. Al cerrarla se quita. */
+let promoFichaId = null;
+
+/** Abre la ficha de una promoción por su identificador. */
+function abrirFicha(id){
+  const p = promoPorId(id);
+  if (p) openPromoModal(p);
+}
+
+/* Un escuchador por contenedor y no un onclick por tarjeta: el listado se
+   repinta entero con cada filtro, cada búsqueda y cada «ver más». */
+function engancharFichas(){
+  const cont = document.getElementById('promos-container');
+  if (cont) cont.addEventListener('click', e => {
+    const ficha = e.target.closest('[data-ficha]');
+    if (ficha) { abrirFicha(ficha.dataset.ficha); return; }
+    // El enlace a Liverpool y el botón de compartir hacen lo suyo; el resto de
+    // la tarjeta abre la ficha.
+    if (e.target.closest('a, button')) return;
+    const card = e.target.closest('.promo-card');
+    if (card && card.id) abrirFicha(card.id);
+  });
+  const cuerpo = document.getElementById('agCuerpo');
+  if (cuerpo) cuerpo.addEventListener('click', e => {
+    const ficha = e.target.closest('[data-ficha]');
+    if (ficha) abrirFicha(ficha.dataset.ficha);
+  });
+}
+
+/** El <dialog>, creado la primera vez que hace falta. */
+function pmDialogo(){
   let modal = document.getElementById('promoModal');
-  if (!modal) {
-    document.body.insertAdjacentHTML('beforeend', `
-      <dialog id="promoModal" class="promo-modal" aria-label="Detalle de la promoción">
-        <!-- autofocus va en el contenedor y no en el botón: showModal() enfoca el primer
-             elemento focusable, y con la "×" al frente lo primero que se veía al abrir
-             una promoción compartida era el anillo de foco sobre "cerrar". -->
-        <div class="pm-content" tabindex="-1" autofocus>
-          <button type="button" class="pm-close" onclick="document.getElementById('promoModal').close()" aria-label="Cerrar">&times;</button>
-          <div id="pm-body"></div>
-        </div>
-      </dialog>
-    `);
-    modal = document.getElementById('promoModal');
-    // Cerrar al hacer click fuera
-    modal.addEventListener('click', (e) => {
-      const rect = modal.getBoundingClientRect();
-      const inDialog = (e.clientX >= rect.left && e.clientX <= rect.right && e.clientY >= rect.top && e.clientY <= rect.bottom);
-      if (!inDialog) modal.close();
-    });
-  }
-  
+  if (modal) return modal;
+  document.body.insertAdjacentHTML('beforeend', `
+    <dialog id="promoModal" class="promo-modal" aria-label="Detalle de la promoción">
+      <!-- autofocus va en el contenedor y no en el botón: showModal() enfoca el primer
+           elemento focusable, y con la "×" al frente lo primero que se veía al abrir
+           una promoción compartida era el anillo de foco sobre "cerrar". -->
+      <div class="pm-content" tabindex="-1" autofocus>
+        <button type="button" class="pm-close" onclick="document.getElementById('promoModal').close()" aria-label="Cerrar">&times;</button>
+        <div id="pm-body"></div>
+      </div>
+    </dialog>
+  `);
+  modal = document.getElementById('promoModal');
+  // Cerrar al hacer click fuera
+  modal.addEventListener('click', (e) => {
+    const rect = modal.getBoundingClientRect();
+    const inDialog = (e.clientX >= rect.left && e.clientX <= rect.right && e.clientY >= rect.top && e.clientY <= rect.bottom);
+    if (!inDialog) modal.close();
+  });
+  // 'close' cubre también el Esc, que no pasa por ningún botón nuestro.
+  modal.addEventListener('close', pmAlCerrar);
+  return modal;
+}
+
+/* Al cerrar: la URL vuelve a ser la del listado y la tarjeta se señala un
+   momento. Quien llegó por un enlace no se queda mirando una lista de 150
+   promociones preguntándose cuál era la suya. */
+function pmAlCerrar(){
+  if (window.AppUrl && AppUrl.actualizar) AppUrl.actualizar({ page: 'promociones' });
+  // El parámetro que inyectó el servidor también deja de contar: si no,
+  // AppUrl.param seguiría devolviendo la promoción del enlace ya cerrada.
+  try { if (window.__APP__) window.__APP__.promo = ''; } catch(e){}
+  const card = promoFichaId && document.getElementById(promoFichaId);
+  promoFichaId = null;
+  if (!card) return;
+  card.classList.add('is-destacada');
+  card.scrollIntoView({ block: 'center', behavior: RM ? 'auto' : 'smooth' });
+  setTimeout(() => card.classList.remove('is-destacada'), 2400);
+}
+
+function openPromoModal(promo) {
+  const modal = pmDialogo();
+
   const isMkp = promo.origen === 'Marketplace';
+  const color = deptColorMap[promo.direccion] || 'var(--brand)';
   const pct = maxDiscount(promo.promocion), msi = msiCount(promo.promocion), sep = pagaSep(promo.promocion);
-  const discHtml = pct > 0 ? `<div class="disc-badge"><span class="upto">hasta</span><span class="pct" style="font-size:2.5rem">${pct}<i>%</i></span></div>` : '';
-  const msiHtml = msi > 0 ? `<span class="mini-badge msi" style="font-size:1rem;padding:.4rem .8rem">${msi > 1 ? msi + ' MSI' : 'MSI'}</span>` : '';
-  const sepHtml = sep ? `<span class="mini-badge sep" style="font-size:1rem;padding:.4rem .8rem">Paga en Sep</span>` : '';
-  
-  let vigHtml = '';
-  if (promo._start && promo._end) {
-    vigHtml = `<div style="margin-top:1.5rem;padding-top:1rem;border-top:1px solid var(--line);font-size:1.1rem;color:var(--ink-faint)">
-      ${IC.cal} <strong>${fmtShort(promo._start)} – ${fmtShort(promo._end)}</strong>
-    </div>`;
-  } else {
-    vigHtml = `<div style="margin-top:1.5rem;padding-top:1rem;border-top:1px solid var(--line);font-size:1.1rem;color:var(--ink-faint)">
-      ${IC.cal} <strong>${promo.vigencia || 'Vigencia no especificada'}</strong>
-    </div>`;
+  const pill = pildoraEstado(promo);
+  const discHtml = pct > 0 ? `<div class="disc-badge"><span class="upto">hasta</span><span class="pct">${pct}<i>%</i></span></div>` : '';
+  const msiHtml = msi > 0 ? `<span class="mini-badge msi">${msi > 1 ? msi + ' MSI' : 'MSI'}</span>` : '';
+  const sepHtml = sep ? `<span class="mini-badge sep">Paga en Sep</span>` : '';
+
+  // Vigencia: las fechas interpretadas y, debajo, el texto tal cual lo escribió
+  // comercial. Se enseñan los dos porque cuando no cuadran, el que manda para
+  // hablar con un cliente es el de la hoja.
+  const filas = [];
+  filas.push(promo._start
+    ? `<div class="pm-row">${IC.cal}<strong>${fmtShort(promo._start)} – ${fmtShort(promo._end)}</strong><span class="pm-nota">${pill.txt}</span></div>`
+    : `<div class="pm-row">${IC.cal}<strong>${escAg(promo.vigencia) || 'Vigencia no especificada'}</strong></div>`);
+  if (promo._start && promo.vigencia) {
+    filas.push(`<div class="pm-row"><span class="pm-nota">En la hoja: «${escAg(promo.vigencia)}»</span></div>`);
   }
-  
-  let urlLiga = promo.liga;
-  if (urlLiga && !urlLiga.startsWith('http') && urlLiga !== '#') urlLiga = 'https://' + urlLiga;
-  const btnHtml = (urlLiga && urlLiga !== '#' && urlLiga.trim() !== '')
-    ? `<a href="${urlLiga}" target="_blank" rel="noopener" class="card-btn" style="display:flex;margin-top:1.5rem;width:100%;justify-content:center;font-size:1.1rem;padding:.8rem">Ver en Liverpool ${IC.ext}</a>`
-    : ``;
-    
+  if (!promo._start) {
+    filas.push(`<div class="pm-row"><span class="pm-nota">No pudimos convertir ese texto en fechas, así que esta promoción no cuenta como vigente en ninguna lista. Conviene revisarla en la hoja.</span></div>`);
+  }
+  if (promo.marca && !isMkp) filas.push(`<div class="pm-row">${IC.tag}${escAg(promo.marca)}</div>`);
+
+  const urlLiga = ligaDe(promo);
+  const btnHtml = urlLiga
+    ? `<a href="${escAg(urlLiga)}" target="_blank" rel="noopener" class="card-btn pm-cta">Ver en Liverpool ${IC.ext}</a>`
+    : `<span class="card-btn disabled pm-cta">Enlace no disponible</span>`;
+
   document.getElementById('pm-body').innerHTML = `
-    <div style="display:flex;align-items:center;gap:1rem;margin-bottom:1.5rem;padding-right:2.5rem">
+    <div class="pm-head" style="--dept-color:${color}">
       <span class="origin-tag ${isMkp ? 'mkp' : ''}">${origenCorto(promo.origen)}</span>
-      <span style="font-weight:600;color:var(--brand)">${promo.direccion}</span>
+      <span class="pm-dir"><span class="dot"></span>${escAg(promo.direccion) || 'Sin dirección'}</span>
+      <span class="vig-pill ${EST_PILL[promo._estado]}">${EST_ETIQUETA[promo._estado]}</span>
     </div>
-    <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:1rem;margin-bottom:1rem">
-      <h2 style="font-family:var(--f-display);font-weight:800;font-size:2rem;line-height:1.1;color:var(--ink);margin:0">${promo.categoria}</h2>
+    <div class="pm-lead">
+      <h2 class="pm-title">${escAg(promo.categoria)}</h2>
       ${discHtml}
     </div>
-    <p style="font-size:1.1rem;line-height:1.5;color:var(--ink-soft);margin-bottom:1.5rem">${promo.promocion}</p>
-    ${(msiHtml || sepHtml) ? `<div style="display:flex;gap:.5rem;flex-wrap:wrap;margin-bottom:1.5rem">${msiHtml}${sepHtml}</div>` : ''}
-    ${vigHtml}
+    <p class="pm-text">${escAg(promo.promocion)}</p>
+    ${(msiHtml || sepHtml) ? `<div class="pm-badges">${msiHtml}${sepHtml}</div>` : ''}
+    <div class="pm-meta">${filas.join('')}</div>
     ${btnHtml}
     <button type="button" class="pm-share" onclick="sharePromo('${promo._id}', event)">
       ${IC.compartir}<span>Copiar enlace a esta promoción</span>
     </button>
   `;
 
+  promoFichaId = promo._id;
+  if (window.AppUrl && AppUrl.actualizar) AppUrl.actualizar({ page: 'promociones', promo: promo._id });
   modal.showModal();
 }
 
@@ -2316,10 +2701,11 @@ function renderVigGroups(){
 }
 
 /* ═══ AGENDA ════════════════════════════════════════════════════════════════
-   El resto de la página trabaja con activePromosToday, que es un subconjunto:
-   lo vigente HOY. Aquí se usa parsedPromos ENTERO —que ya trae _start y _end—
-   y se clasifica cada fila. Así lo que terminó deja de desaparecer y lo que
-   está por empezar se puede consultar antes de que arranque. */
+   La misma hoja que el listado de tarjetas, vista como tabla: ordenable por
+   columnas y con el texto completo de cada promoción a la vista. Una sirve para
+   mirar (tarjetas), la otra para buscar y comparar (tabla), y las dos comparten
+   datos, estados y ficha —desde que el listado dejó de enseñar solo lo de hoy,
+   lo único que las separa es la forma. */
 
 let agEstado = 'todas';
 let agOrden = { campo: 'estado', dir: 1 };
@@ -2330,11 +2716,6 @@ let agTimeout;
 const AG_PASO = 60;
 let agLimite = AG_PASO;
 
-/* Orden de los estados cuando se ordena por «Estado»: primero lo que corre. */
-const AG_PESO = { vigente: 0, proxima: 1, terminada: 2, sinfecha: 3 };
-const AG_ETIQUETA = { vigente: 'En curso', proxima: 'Próxima', terminada: 'Terminada', sinfecha: 'Sin fecha' };
-const AG_PILL = { vigente: 'ok', proxima: 'warn', terminada: 'muted', sinfecha: 'muted' };
-
 /* Esta página interpola datos de la hoja directamente en HTML. Para la tabla se
    escapan: el texto lo teclea gente en un Sheet y un «<» rompería la tabla. */
 function escAg(s){
@@ -2343,16 +2724,9 @@ function escAg(s){
     .replace(/"/g,'&quot;').replace(/'/g,'&#39;');
 }
 
-function agEstadoDe(p){
-  if (!p._start) return 'sinfecha';
-  if (currentNow < p._start) return 'proxima';
-  if (currentNow > p._end) return 'terminada';
-  return 'vigente';
-}
-
-/** Filas de la agenda, ya clasificadas. Se recalcula con cada carga de datos. */
+/** Filas de la agenda: la hoja entera, ya clasificada por refreshActiveData. */
 function agFilas(){
-  return parsedPromos.map(p => Object.assign({}, p, { _estado: agEstadoDe(p) }));
+  return parsedPromos;
 }
 
 /* La agenda usa el MISMO motor y los mismos pesos que las promociones de hoy: son
@@ -2378,7 +2752,7 @@ function agComparar(a, b){
   const d = agOrden.dir;
   switch (agOrden.campo) {
     case 'estado': {
-      const r = AG_PESO[a._estado] - AG_PESO[b._estado];
+      const r = EST_PESO[a._estado] - EST_PESO[b._estado];
       // Dentro del mismo estado manda la fecha: lo más reciente arriba, que es
       // como se lee un historial.
       if (r !== 0) return r * d;
@@ -2406,21 +2780,12 @@ function renderAgenda(){
   const cuenta = { todas: todas.length, vigente: 0, proxima: 0, terminada: 0, sinfecha: 0 };
   todas.forEach(p => { cuenta[p._estado]++; });
 
-  const orden = ['todas','vigente','proxima','terminada','sinfecha'];
-  const rotulo = { todas: 'Todas', vigente: 'En curso', proxima: 'Próximas',
-                   terminada: 'Terminadas', sinfecha: 'Sin fecha' };
-  // El estado no lo lleva sólo el color: el punto acompaña a una etiqueta que
-  // ya dice lo mismo con palabras, para quien no distingue verde de ámbar.
-  const punto = { todas: '', vigente: '<span class="dot ok"></span>',
-                  proxima: '<span class="dot warn"></span>',
-                  terminada: '<span class="dot done"></span>',
-                  sinfecha: '<span class="dot alert"></span>' };
-  document.getElementById('agFiltros').innerHTML = orden
+  document.getElementById('agFiltros').innerHTML = EST_ORDEN
     // "Sin fecha" solo aparece si de verdad hay alguna: un filtro que siempre da
     // cero es ruido. Cuando aparece, es que hay vigencias mal escritas que revisar.
     .filter(k => k !== 'sinfecha' || cuenta.sinfecha > 0)
     .map(k => `<button class="ag-filter-btn${agEstado===k?' active':''}" type="button" data-est="${k}"` +
-              ` aria-pressed="${agEstado===k}">${punto[k]}${rotulo[k]} <span class="n">${cuenta[k]}</span></button>`)
+              ` aria-pressed="${agEstado===k}">${EST_PUNTO[k]}${EST_ROTULO[k]} <span class="n">${cuenta[k]}</span></button>`)
     .join('');
   document.querySelectorAll('#agFiltros [data-est]').forEach(b => {
     b.onclick = () => { agEstado = b.dataset.est; agReset(); renderAgenda(); };
@@ -2472,10 +2837,10 @@ function renderAgenda(){
     const origenHtml = `<span class="origin-tag ${isMkp?'mkp':''}">${origenCorto(p.origen)}</span>`;
 
     return `<tr>
-      <td><span class="vig-pill ${AG_PILL[p._estado]}">${AG_ETIQUETA[p._estado]}</span></td>
+      <td><span class="vig-pill ${EST_PILL[p._estado]}">${EST_ETIQUETA[p._estado]}</span></td>
       <td class="ag-per">${per}<span class="ag-dias">${extra}</span></td>
       <td class="ag-dir">${dirHtml}</td>
-      <td class="ag-cat"><strong>${escAg(p.categoria)}</strong></td>
+      <td class="ag-cat"><button type="button" class="ag-ficha" data-ficha="${p._id}">${escAg(p.categoria)}</button></td>
       <td class="ag-promo">${escAg(p.promocion)}</td>
       <td class="ag-c-marca">${escAg(p.marca) || '<span class="ag-vacia">—</span>'}</td>
       <td class="ag-c-origen">${origenHtml}</td>
@@ -2785,9 +3150,10 @@ document.addEventListener('DOMContentLoaded', function(){
 /**
  * RECORRIDO GUIADO DEL MONITOR DE PROMOCIONES.
  *
- * Cinco paradas. Lo que de verdad se pierde la gente aquí es que hay DOS vistas
- * —tarjetas y calendario—, y que el buscador entiende marca además de categoría.
- * El resto de la pantalla se lee sola.
+ * Seis paradas. Lo que de verdad se pierde la gente aquí es que el listado trae
+ * la hoja ENTERA y no solo lo de hoy, que hay TRES vistas —tarjetas, calendario
+ * y tabla— y que el buscador entiende marca además de categoría. El resto de la
+ * pantalla se lee sola.
  *
  * Los pasos apuntan al panel de filtros y a la barra de pestañas, que aparecen
  * cuando terminan de cargar los datos; por eso el retraso es más largo que en el
@@ -2813,8 +3179,8 @@ document.addEventListener('DOMContentLoaded', function(){
     pasos: [
       {
         titulo: 'Monitor de promociones',
-        texto: 'Todas las promociones vigentes de Liverpool, al día y en un solo sitio, ' +
-               'para responderle al cliente sin abrir cinco pestañas.<br><br>Cinco paradas rápidas.'
+        texto: 'Todas las promociones de Liverpool, al día y en un solo sitio, ' +
+               'para responderle al cliente sin abrir cinco pestañas.<br><br>Seis paradas rápidas.'
       },
       {
         sel: '#searchInput',
@@ -2825,12 +3191,20 @@ document.addEventListener('DOMContentLoaded', function(){
                'con otro <b>Enter</b> abres su enlace.'
       },
       {
+        sel: '#estadoRow',
+        pos: 'abajo',
+        titulo: 'Está toda la hoja, no solo hoy',
+        texto: 'El listado trae <b>todas</b> las promociones: lo que corre hoy sale primero, y con estos ' +
+               'botones te quedas con <b>lo que viene</b> o con <b>lo que ya terminó</b>.<br><br>' +
+               'Pulsa cualquier tarjeta para abrir su ficha y compartirla.'
+      },
+      {
         sel: '.tabs',
         pos: 'abajo',
-        titulo: 'Dos formas de verlo',
-        texto: '<b>Promociones</b> es la lista de lo que está vigente hoy. <b>Calendario</b> es la misma ' +
-               'información en el tiempo: qué empieza, qué termina y cuándo.<br><br>' +
-               'Para prometerle una fecha a un cliente, la vista de calendario es la buena.'
+        titulo: 'Tres formas de verlo',
+        texto: '<b>Promociones</b> son las tarjetas. <b>Calendario</b> es la misma información en el ' +
+               'tiempo: qué empieza, qué termina y cuándo. <b>Agenda</b> es la tabla, ordenable por ' +
+               'columnas.<br><br>Para prometerle una fecha a un cliente, la vista de calendario es la buena.'
       },
       {
         sel: '#heroSync',
