@@ -532,7 +532,11 @@
 
   function tarjeta(a, modo) {
     var mia = modo === 'mias';
-    var esRescatada = mia && a.rescatadaPor && a.rescatadaPor !== (datos && datos.yo.email);
+    var yo = (datos && datos.yo && datos.yo.email) || '';
+    // "Rescatada por ti" solo tiene sentido cuando la registró OTRA persona y la tomaste
+    // tú: es lo que distingue tus clientes de los que recogiste del pool, y cambia lo que
+    // dices al llamar ("le atendió un compañero y se cortó" no es "le atendí yo").
+    var esRescatada = mia && a.rescatadaPor === yo && a.asesor !== yo;
     // El chip de privacidad dice SIEMPRE en qué estado está la atención, porque es la
     // decisión con consecuencias: "Solo tuya" significa que si no la atiendes nadie más
     // lo hará, y "Se libera en 25 min" significa que a partir de esa hora el cliente
