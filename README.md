@@ -322,3 +322,99 @@ Los periodos son **24 h · 48 h · 7 días · 14 días · 30 días**, y arranca 
 - **Crear un estado nuevo del catálogo sigue bloqueando el diálogo.** Es la excepción correcta
   al guardado en segundo plano: el chip que se acaba de crear tiene que quedar seleccionado
   antes de seguir, y eso no se puede adelantar sin saber la clave que asigna el servidor.
+
+### Buscador general (`app_comando.html`) — potenciado
+
+El panel de Ctrl+K (o «/») que vive en todas las pantallas. Ya reunía funciones,
+cotizaciones, contenido del Portal, personas y fallas abiertas; esta pasada le añade lo que
+le faltaba para encontrarlo **todo** y para acertar antes.
+
+#### Qué se comprobó
+
+| Punto | Estado |
+|---|---|
+| Enlaces al sitio correcto | Cada resultado abre su destino ya situado; los nuevos (procesos, seguir buscando) verificados |
+| Accesible e interpretable por URL | `?buscar=` abre el panel escrito y «copiar enlace» lo devuelve; los destinos viajan enteros en la dirección |
+| Las funciones en el buscador | Catálogo, apartados, ajustes y acciones locales; faltaban los procesos del Portal |
+| Caché y almacenamiento local | Directorio armado desde las cachés que ya dejaron otras pantallas; lo del servidor se guarda y se poda |
+| Lenguaje no técnico | Revisado: grupos con nombres de lo que son («Procesos y tiempos», «Clientes esperando llamada») |
+| Funciones inteligentes | Aprendizaje de uso, ámbitos y subbúsquedas al destino (abajo) |
+| Estilo moderno y fluido (GSAP 3.13) | El panel nace del botón y vuelve a él; sin cambios |
+| Mapeado por rol y permisos | Cada entrada declara sus bloques; las salidas nuevas también |
+
+#### Ahora predice: aprende de lo que abres
+
+La lista de recientes solo servía para el panel vacío. En cuanto se escribía una letra el
+buscador se olvidaba de todo y ordenaba por parecido con el texto, así que dos personas con
+trabajos distintos veían exactamente los mismos resultados para «co» aunque una llevara seis
+meses cotizando cada mañana.
+
+Ahora se guardan las **veces** y la **última vez**, y las dos empujan el puntaje:
+
+- **Frecuencia con logaritmo.** La diferencia entre abrir algo una vez y diez es enorme;
+  entre cien y ciento diez, ninguna. Sin el logaritmo, lo de uso diario aplastaría a lo demás
+  para siempre y el buscador no podría volver a enseñar nada nuevo.
+- **Recencia que multiplica, con suelo.** Sumar las dos dejaba mandando a una costumbre
+  abandonada: quien pasó un mes en la cola de revisión y volvió a cotizar seguiría viendo la
+  revisión arriba en marzo, porque las veces acumuladas no bajan nunca. Multiplicando, lo
+  viejo se apaga solo; el suelo evita lo contrario, que dos semanas de vacaciones borren seis
+  meses de costumbre.
+- **El empuje tiene tope (55 %), y esa es la decisión importante.** Sin tope, lo aprendido
+  acabaría ganándole a lo escrito: teclearías «bitácora» y saldría «Nueva cotización» porque
+  es lo que siempre abres. El texto manda; la costumbre desempata.
+- **Reordena, nunca inventa.** Se aplica después de filtrar, así que jamás hace aparecer algo
+  que no coincidía con lo tecleado.
+- **La pantalla en la que ya estás baja al final.** Gastar el primer resultado —el que se abre
+  con Enter sin mirar— en «ir a donde ya estoy» es gastarlo en no hacer nada.
+
+Comprobado con casos: cuenta nueva → decide el texto; tras ocho usos → reordena; tras mes y
+medio sin usarlo → vuelve a decidir el texto; y con una coincidencia de texto mucho más
+fuerte, el texto gana siempre.
+
+#### Ahora encuentra los procesos del Portal
+
+Faltaban enteros los seis apartados de Trazabilidad —Big Ticket, Soft Line, SL Mensajerías,
+MarketPlace, Tienda, Generales y Devoluciones SAP—, que son justo lo que se busca con el
+cliente al teléfono: «¿cuánto tarda una devolución de MarketPlace?». La única forma de llegar
+era saberse en qué pestaña del Portal vivía cada proceso.
+
+Van en su propio grupo («Procesos y tiempos») con el plazo en la propia línea, porque la
+pregunta suele ser *cuánto tarda* y la respuesta cabe entera en el resultado. Al abrirlos, el
+Portal cae en la sección, filtrada, con la tarjeta desplegada.
+
+Eso destapó dos fallos en el enlace profundo del Portal, ya corregidos:
+
+1. **No sabía encontrar una tarjeta de proceso.** El buscador de destino solo miraba los
+   títulos de herramientas, formatos, paqueterías, pagos, presentaciones y plantillas. Un
+   enlace a Trazabilidad abría la sección correcta y se quedaba arriba sin señalar nada, que
+   se lee como que el buscador no encontró lo que dijo haber encontrado. Ahora también mira
+   los títulos de proceso y, antes que eso, el **id** de la tarjeta: el nombre sale de una
+   hoja de cálculo y basta un espacio de más para que la comparación falle.
+2. **Esperaba tres segundos a una lista que nunca se llenaría.** Las secciones de
+   Trazabilidad no viven en `store` ni las filtra `filterSec`: tienen su propio buscador y sus
+   datos llegan por otra llamada. Además intentaba escribir el filtro en un campo que no era
+   el suyo. Ahora se distinguen y se les aplica el suyo.
+
+#### Ahora se puede acotar, y la búsqueda viaja al destino
+
+- **Ámbitos.** `portal: guía`, `cot: LVP-2024`, `procesos: devolución`, `gente: ana`,
+  `fallas: connect`. El buscador del Portal ya tenía esto en su portada y el general no, así
+  que la misma costumbre funcionaba en una pantalla y en las demás no. Se aceptan la forma
+  corta y el nombre entero, porque los dos se teclean. Un texto con dos puntos que no sea un
+  ámbito —«nota: pedir factura»— se busca tal cual. Los prefijos se anuncian en el panel
+  vacío: si no se enseñan, existen para quien lea el código y para nadie más.
+- **Seguir buscando, ahora en varios sitios.** Antes había una sola salida («en todas las
+  cotizaciones»). Ahora hay hasta tres —cotizaciones, Portal, atenciones, personas—, cada una
+  abre su destino **con el término ya puesto** y solo aparece si esa persona puede abrirlo. Se
+  ordenan poniendo primero el sitio del que ya salieron resultados.
+
+#### Decisiones que se dejan como están (buscador)
+
+- **La memoria de uso vive en `localStorage`, no en la cuenta.** Es una preferencia de este
+  equipo y de esta persona, no un dato del negocio, y subirla costaría una escritura por cada
+  resultado abierto para ahorrar medio segundo de tecleo.
+- **Sigue habiendo dos motores de búsqueda.** Este usa `AppBuscar`; el del Portal tiene el
+  suyo. Ya quedó anotado en la revisión del Portal: migrarlo es tarea propia.
+- **No se propone «¿quisiste decir…?».** `AppBuscar` ya tolera erratas por distancia de
+  edición dentro del propio filtro, así que la corrección ocurre sin decirlo. Un cartel de
+  sugerencia encima de resultados que ya son los correctos sobra.

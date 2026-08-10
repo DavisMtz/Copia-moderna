@@ -113,6 +113,15 @@
 .cmdk-item.on .cmdk-enter { display: inline-flex; }
 .cmdk-item.on .cmdk-go { display: none; }
 
+/* El cartel del ámbito ("buscando solo en el Portal") no es un resultado: no se pulsa,
+   no se resalta al pasar por encima y no se lleva la selección. Si se pintara como los
+   demás, la primera pulsación de Enter —la que se hace sin mirar— caería sobre él y no
+   haría nada, que es la forma más rápida de que alguien deje de fiarse del buscador. */
+.cmdk-item.cmdk-pista-fila { cursor: default; opacity: .82; }
+.cmdk-item.cmdk-pista-fila:hover { background: transparent; }
+.cmdk-item.cmdk-pista-fila.on { background: transparent; }
+.cmdk-item.cmdk-pista-fila.on .cmdk-chip { background: var(--surface-2, #F4F7FA); color: var(--ink-soft, #5C6B7E); }
+
 .cmdk-chip {
   width: 34px; height: 34px; border-radius: 10px; flex: none;
   display: inline-flex; align-items: center; justify-content: center;
@@ -619,6 +628,110 @@
   }
 
   /* ═══════════════════════════════════════════════════════════════════════════
+     LO QUE ESTA PERSONA USA DE VERDAD
+     ═══════════════════════════════════════════════════════════════════════════
+     La lista de recientes solo servía para el panel vacío: en cuanto se escribía una
+     letra, el buscador se olvidaba de todo y ordenaba por parecido con el texto. Eso
+     hace que dos personas con trabajos distintos vean exactamente los mismos
+     resultados para "co" —"Correos a clientes" antes que "Nueva cotización"— aunque una
+     lleve seis meses entrando a cotizar cada mañana y la otra no haya abierto Correos
+     en su vida.
+
+     Aquí se guardan las VECES y la ÚLTIMA VEZ, y las dos empujan el puntaje:
+
+       · FRECUENCIA con logaritmo, no lineal. La diferencia entre haber abierto algo una
+         vez y diez es enorme; entre cien y ciento diez, ninguna. Sin el logaritmo, lo
+         que se usa a diario aplastaría para siempre a lo demás y el buscador dejaría de
+         poder enseñar nada nuevo.
+       · RECENCIA con caída a dos semanas. Alguien que estuvo un mes en la cola de
+         revisión y volvió a cotizar no debería seguir viendo la revisión arriba en
+         marzo. Lo de hace un mes cuenta, pero poco.
+
+     EL TOPE DEL EMPUJE ES DEL 55 %, y es la decisión importante de todo esto. Sin tope,
+     lo aprendido acabaría ganándole a lo escrito: teclearías "bitácora" y saldría
+     "Nueva cotización" porque es lo que siempre abres. El texto manda; la costumbre
+     desempata. Por eso un empuje y no un orden propio.
+
+     Vive en localStorage y no en la nube a propósito: es una preferencia de ESTE equipo
+     y de esta persona, no un dato del negocio, y llevarla al servidor costaría una
+     escritura por cada resultado abierto para ahorrar medio segundo de tecleo. */
+  var K_USO = 'ventel-cmdk-uso';
+  var USO_MAX = 60;                       // entradas guardadas: más no cambia el orden
+  var USO_MEDIA_VIDA = 14 * 24 * 3600e3;  // dos semanas
+  var USO_TOPE = 0.55;                    // cuánto puede empujar como mucho
+
+  var usoMem = null;
+
+  function usoLeer() {
+    if (usoMem) return usoMem;
+    try {
+      var raw = JSON.parse(localStorage.getItem(K_USO) || '{}');
+      usoMem = (raw && typeof raw === 'object' && !Array.isArray(raw)) ? raw : {};
+    } catch (e) { usoMem = {}; }
+    return usoMem;
+  }
+
+  function usoAnotar(id) {
+    if (!id) return;
+    var u = usoLeer();
+    var e = u[id] || { n: 0, t: 0 };
+    e.n = (e.n || 0) + 1;
+    e.t = Date.now();
+    u[id] = e;
+
+    // Poda por lo más viejo cuando crece: el almacenamiento es compartido con las
+    // cachés de datos, y esto no puede ser lo que las eche.
+    var claves = Object.keys(u);
+    if (claves.length > USO_MAX) {
+      claves.sort(function (a, b) { return (u[b].t || 0) - (u[a].t || 0); })
+            .slice(USO_MAX).forEach(function (k) { delete u[k]; });
+    }
+    try { localStorage.setItem(K_USO, JSON.stringify(u)); } catch (e2) {}
+  }
+
+  /** Cuánto empuja la costumbre a este id: 0 (nunca usado) a USO_TOPE. */
+  function usoPeso(id) {
+    if (!id) return 0;
+    var e = usoLeer()[id];
+    if (!e || !e.n) return 0;
+    // Frecuencia: 1 vez ≈ .25, 5 ≈ .65, 20 ≈ 1 y ahí se queda.
+    var frec = Math.min(1, Math.log(1 + e.n) / Math.log(16));
+    // Recencia: 1 hoy, .5 a las dos semanas, .1 al mes y medio.
+    var edad = Math.max(0, Date.now() - (e.t || 0));
+    var rec = Math.pow(0.5, edad / USO_MEDIA_VIDA);
+
+    /* Las dos se MULTIPLICAN, no se suman, y la recencia entra con suelo (.4).
+       Sumándolas, una costumbre abandonada seguía mandando: quien pasó un mes en la cola
+       de revisión y volvió a cotizar seguiría viendo la revisión arriba en marzo, porque
+       las veces acumuladas no bajan nunca. Multiplicando, lo viejo se apaga solo.
+       El suelo evita lo contrario —que dos semanas de vacaciones borren seis meses de
+       costumbre—: lo abandonado baja al 40 % de su fuerza, no a cero. */
+    return USO_TOPE * frec * (0.4 + 0.6 * rec);
+  }
+
+  /**
+   * Aplica la costumbre a una lista ya puntuada por parecido de texto.
+   *
+   * Se hace DESPUÉS de filtrar y no antes: lo aprendido reordena entre lo que ya
+   * respondía a lo escrito, nunca hace aparecer algo que no coincidía. Un buscador que
+   * saca resultados que no tienen que ver con lo tecleado —por muy usados que sean— es
+   * un buscador en el que se deja de confiar a la segunda vez.
+   */
+  function conCostumbre(res, dePagina) {
+    if (!res || !res.length) return res;
+    return res.map(function (r) {
+      var d = r.item || r;
+      var peso = usoPeso(d.id);
+      var score = r.score * (1 + peso);
+      /* La pantalla en la que YA ESTÁS baja al final. Ofrecer "ir a donde ya estoy" es
+         gastar el primer resultado —el que se abre con Enter sin mirar— en no hacer
+         nada. No se esconde: alguien puede querer recargarla. */
+      if (dePagina && d.page && d.page === dePagina && !d.fn) score *= 0.35;
+      return { item: d, score: score };
+    }).sort(function (a, b) { return b.score - a.score; });
+  }
+
+  /* ═══════════════════════════════════════════════════════════════════════════
      DIRECTORIO LOCAL
      ═══════════════════════════════════════════════════════════════════════════
      La app ya tiene guardado, en la caché del navegador, casi todo lo que alguien va
@@ -788,6 +901,59 @@
     'Herramientas': 'herramientas', 'Paqueterías': 'paqueterias', 'Formatos': 'formatos',
     'Pago web': 'pdepago', 'Presentaciones': 'presentaciones', 'Plantillas': 'plantillas'
   };
+
+  /* ── Procesos de trazabilidad ──
+     Faltaban enteros, y son la mitad del Portal: seis secciones de "qué hacer cuando un
+     pedido de Big Ticket no llega", "cómo se devuelve por SAP", "a qué plazo responde
+     MarketPlace". Es justo lo que se busca con el cliente al teléfono, y hasta ahora la
+     única forma de llegar era saberse en qué pestaña del Portal vivía cada proceso.
+
+     Se piden en la misma tanda que el resto del contenido y se guardan igual; van a su
+     propio grupo porque no son herramientas ni formatos: son procedimientos, y mezclarlos
+     con enlaces haría que "devolución" devolviera una liga y un proceso sin forma de
+     saber cuál es cuál. */
+  var TRAZ_TTL = 30 * 60 * 1000;
+  var trazPidiendo = false;
+  var trazIndice = [];
+
+  function pideTraz(alLlegar) {
+    if (trazIndice.length || trazPidiendo) return;
+    if (!(window.AppRun && window.AppCache)) return;
+
+    var guardado = AppCache.get('cmdk-traz', TRAZ_TTL);
+    if (guardado && guardado.data) { trazIndice = indexaTraz(guardado.data); if (trazIndice.length) { alLlegar(); return; } }
+
+    trazPidiendo = true;
+    AppRun.call('fetchTrazabilidadData', [], { key: 'cmdk-traz', busy: false }).then(function (d) {
+      trazPidiendo = false;
+      if (!d || d.status === 'error') return;
+      AppCache.set('cmdk-traz', d, { ttl: TRAZ_TTL });
+      trazIndice = indexaTraz(d);
+      alLlegar();
+    }, function () { trazPidiendo = false; });
+  }
+
+  function indexaTraz(d) {
+    var out = [];
+    ((d && d.secciones) || []).forEach(function (s) {
+      (s.procesos || []).forEach(function (p) {
+        if (!p || !p.nombre) return;
+        out.push({
+          // El id de la tarjeta ('bt-3') es lo que el Portal usa para anclar: viaja como
+          // `item` y allí se resuelve sin depender de que el nombre coincida letra a letra.
+          id: p.id,
+          seccion: s.id,
+          seccionNombre: s.label || s.etiqueta || '',
+          nombre: p.nombre,
+          // Lo que de verdad se busca de un proceso: en cuánto responden y en qué
+          // plataformas aplica. Va como subtítulo porque es la respuesta, no el adorno.
+          sub: [p.reporte, p.solucion].filter(Boolean).join(' · '),
+          extra: [p.plataformas, p.observaciones, s.label, s.etiqueta].filter(Boolean).join(' ')
+        });
+      });
+    });
+    return out;
+  }
 
   function pidePortal(alLlegar) {
     if (Directorio.hayPortal() || portalPidiendo) return;
@@ -1019,6 +1185,7 @@
     if (t.length >= 2) {
       relojTecleo = setTimeout(function () {
         pidePortal(pinta);
+        pideTraz(pinta);
         pideGente(pinta);
         pideCots(t, pinta);
       }, 240);
@@ -1057,21 +1224,84 @@
     }
   }
 
+  /* ═══════════════════════════════════════════════════════════════════════════
+     ÁMBITOS · "portal: guía", "cot: LVP-2024", "gente: ana"
+     ═══════════════════════════════════════════════════════════════════════════
+     Escribir dos palabras corrientes trae resultados de seis sitios a la vez, y eso está
+     bien mientras no se sepa qué se busca. Cuando sí se sabe —"quiero la guía de
+     paqueterías, no la pantalla que se llama parecido"— hace falta poder decirlo.
+
+     El Portal ya tenía esto en su buscador de portada; el general no, así que la misma
+     costumbre funcionaba en una pantalla y en las demás no. Ahora es el mismo gesto en
+     todas: prefijo, dos puntos y lo que se busca.
+
+     Los prefijos se aceptan por su forma corta y por su nombre entero, porque los dos se
+     teclean: quien lo usa a diario escribe "cot:" y quien lo acaba de descubrir en la
+     ayuda escribe "cotizaciones:". */
+  var AMBITOS = [
+    { id: 'fn',     rotulo: 'Funciones',     alias: ['fn', 'funcion', 'funciones', 'pantalla', 'pantallas', 'ir'] },
+    { id: 'cot',    rotulo: 'Cotizaciones',  alias: ['cot', 'cots', 'cotizacion', 'cotizaciones', 'folio', 'folios'] },
+    { id: 'portal', rotulo: 'Portal',        alias: ['portal', 'herramienta', 'herramientas', 'formato', 'formatos'] },
+    { id: 'traz',   rotulo: 'Procesos',      alias: ['proceso', 'procesos', 'traz', 'trazabilidad', 'tiempos'] },
+    { id: 'gente',  rotulo: 'Personas',      alias: ['gente', 'persona', 'personas', 'equipo', 'asesor', 'asesores'] },
+    { id: 'op',     rotulo: 'Fallas',        alias: ['falla', 'fallas', 'estado', 'incidencia', 'incidencias'] }
+  ];
+
+  /**
+   * Parte "portal: guía" en { ambito, resto }. Sin prefijo reconocido devuelve null y
+   * todo sigue como siempre: un texto con dos puntos que no sea un ámbito —"nota: pedir
+   * factura"— tiene que buscarse tal cual, no quedarse sin resultados.
+   */
+  function partirAmbito(q) {
+    var m = String(q || '').match(/^\s*([a-záéíóúñ]+)\s*:\s*(.*)$/i);
+    if (!m) return null;
+    var pre = (window.AppBuscar ? AppBuscar.normaliza(m[1]) : m[1].toLowerCase()).trim();
+    for (var i = 0; i < AMBITOS.length; i++) {
+      if (AMBITOS[i].alias.indexOf(pre) !== -1) {
+        return { ambito: AMBITOS[i], resto: m[2].trim() };
+      }
+    }
+    return null;
+  }
+
   /* ── Armado de los resultados ── */
-  function calcula(q) {
+  function calcula(qEntrada) {
     var B = window.AppBuscar;
     var grupos = [];
+
+    /* El ámbito se resuelve ANTES de nada: a partir de aquí `q` es solo lo que se busca,
+       y `soloAmbito` dice qué grupos tienen permiso de aparecer. */
+    var corte = partirAmbito(qEntrada);
+    var q = corte ? corte.resto : qEntrada;
+    var soloAmbito = corte ? corte.ambito.id : '';
+    var deja = function (id) { return !soloAmbito || soloAmbito === id; };
+
+    // "portal:" a secas, sin nada detrás, enseña el ámbito puesto y espera: es el estado
+    // natural de quien acaba de acotar y todavía no ha escrito qué busca.
+    if (corte && !q) {
+      return [{ tipo: 'pista', titulo: 'Buscando solo en ' + corte.ambito.rotulo, icono: IC.lupa,
+                filas: [{ nombre: 'Escribe qué buscas en ' + corte.ambito.rotulo,
+                          sub: 'Borra «' + corte.ambito.alias[0] + ':» para buscar en todo' }] }];
+    }
+
     var vacia = !q;
 
     // 1) Funciones de la app
     var dst = destinos().concat(acciones());
     if (vacia) {
-      var mem = leerLista(K_RECIENTES);
-      var pref = dst.filter(function (d) { return mem.indexOf(d.id) !== -1; })
-                    .sort(function (a, b) { return mem.indexOf(a.id) - mem.indexOf(b.id); });
-      var resto = dst.filter(function (d) { return mem.indexOf(d.id) === -1 && !d.fn; });
-      var fn0 = pref.concat(resto).slice(0, 7);
-      if (fn0.length) grupos.push({ tipo: 'fn', titulo: pref.length ? 'Lo que sueles abrir' : 'Ir a', icono: IC.flecha, filas: fn0 });
+      /* El panel vacío se ordena por costumbre pura: aquí no hay texto con el que
+         competir, así que es el único momento en que lo aprendido puede mandar del todo.
+         Se mezcla con lo demás para que quien acaba de estrenar la cuenta no vea un
+         hueco, y se aparta la pantalla en la que ya está. */
+      var conUso = dst.filter(function (d) { return usoPeso(d.id) > 0; })
+                      .sort(function (a, b) { return usoPeso(b.id) - usoPeso(a.id); });
+      var yaVisto = Object.create(null);
+      conUso.forEach(function (d) { yaVisto[d.id] = true; });
+      var resto = dst.filter(function (d) {
+        return !yaVisto[d.id] && !d.fn && (!paginaActual || d.page !== paginaActual);
+      });
+      var fn0 = conUso.concat(resto).slice(0, 7);
+      if (fn0.length) grupos.push({ tipo: 'fn', titulo: conUso.length ? 'Lo que sueles abrir' : 'Ir a', icono: IC.flecha, filas: fn0 });
       return grupos;
     }
 
@@ -1089,8 +1319,13 @@
       return [{ t: d.nombre, p: 3 }, { t: d.sub, p: 1 }, { t: d.kw, p: 1.4 }];
     };
 
-    var fn = esCotizacion ? [] : B.filtra(dst, q, camposCatalogo,
-      { limite: 6, exigirTodas: variasPalabras, conPuntaje: true });
+    /* El filtro por texto decide QUÉ entra; la costumbre, en qué orden. Se pide un poco
+       más de margen (10) que las 6 que se enseñan, porque reordenar seis ya elegidas por
+       texto no deja subir a la séptima —la que quizá se abre a diario— y entonces lo
+       aprendido solo serviría para barajar lo que ya estaba. */
+    var fn = (esCotizacion || !deja('fn')) ? [] : conCostumbre(
+      B.filtra(dst, q, camposCatalogo, { limite: 10, exigirTodas: variasPalabras, conPuntaje: true }),
+      paginaActual).slice(0, 6);
     if (fn.length) grupos.push({ tipo: 'fn', titulo: 'Funciones', icono: IC.flecha,
                                  mejor: fn[0].score, filas: fn.map(function (r) { return r.item; }) });
 
@@ -1100,13 +1335,14 @@
        punto por debajo (peso .92) para que, cuando el nombre coincide en los dos, gane
        la pantalla entera —que es el destino más seguro— y el apartado quede justo
        debajo, a un golpe de flecha. */
-    var sec = esCotizacion ? [] : B.filtra(secciones(), q, camposCatalogo,
-      { limite: 5, exigirTodas: variasPalabras, conPuntaje: true });
+    var sec = (esCotizacion || !deja('fn')) ? [] : conCostumbre(
+      B.filtra(secciones(), q, camposCatalogo, { limite: 8, exigirTodas: variasPalabras, conPuntaje: true }),
+      '').slice(0, 5);
     if (sec.length) grupos.push({ tipo: 'sec', titulo: 'Apartados', icono: IC.capas,
                                   mejor: sec[0].score * .92, filas: sec.map(function (r) { return r.item; }) });
 
     // 2) Cotizaciones: el directorio local primero (sin red), el equipo después.
-    if (conSesion()) {
+    if (conSesion() && deja('cot')) {
       var yo = correoSesion();
       var locales = B.filtra(Directorio.cotizaciones(), q, function (c) {
         return [{ t: c.folio, p: 3 }, { t: c.cliente, p: 2 }, { t: c.correoCliente, p: 2 },
@@ -1136,18 +1372,28 @@
     }
 
     // 3) Contenido del Portal
-    var pc = esCotizacion ? [] : B.filtra(Directorio.portal(), q, function (p) {
+    var pc = (esCotizacion || !deja('portal')) ? [] : B.filtra(Directorio.portal(), q, function (p) {
       return [{ t: p.nombre, p: 3 }, { t: p.sub, p: 1.2 }, { t: p.extra, p: .7 }];
     }, { limite: 6, conPuntaje: true });
     if (pc.length) grupos.push({ tipo: 'portal', titulo: 'Portal Ventel', icono: IC.globo,
                                  mejor: pc[0].score, filas: pc.map(function (r) { return r.item; }) });
+
+    /* 3b) PROCESOS DE TRAZABILIDAD. Grupo propio: no son enlaces ni formatos, son el
+       procedimiento a seguir. Puntúan alto por el nombre y por las plataformas, que es
+       como se preguntan ("¿cuánto tarda una devolución de MarketPlace?"). */
+    var tz = (esCotizacion || !deja('traz')) ? [] : B.filtra(trazIndice, q, function (p) {
+      return [{ t: p.nombre, p: 3 }, { t: p.seccionNombre, p: 1.4 },
+              { t: p.sub, p: 1 }, { t: p.extra, p: .7 }];
+    }, { limite: 5, conPuntaje: true });
+    if (tz.length) grupos.push({ tipo: 'traz', titulo: 'Procesos y tiempos', icono: IC.caja,
+                                 mejor: tz[0].score, filas: tz.map(function (r) { return r.item; }) });
 
     if (conSesion()) {
       /* 4) GENTE. Un correo escrito entero busca una cotización de ese cliente, no a un
          compañero, así que ahí no se ofrece: el correo de un asesor se encuentra igual
          escribiendo su nombre, y quien teclea una dirección completa está buscando un
          folio nueve de cada diez veces. */
-      var pers = esCotizacion ? [] : B.filtra(Directorio.gente(), q, function (g) {
+      var pers = (esCotizacion || !deja('gente')) ? [] : B.filtra(Directorio.gente(), q, function (g) {
         return [{ t: g.nombre, p: 3 }, { t: g.correo, p: 1.8 }, { t: g.rol, p: .8 }];
       }, { limite: 4, conPuntaje: true });
       if (pers.length) grupos.push({ tipo: 'gente', titulo: 'Personas', icono: IC.llave,
@@ -1157,7 +1403,7 @@
          una caída en curso es lo más urgente que el buscador puede tener que decir:
          quien escribe "connect" mientras está caído necesita esa línea arriba, no la
          herramienta del Portal que se llama parecido. */
-      var ops = esCotizacion ? [] : B.filtra(Directorio.operacion(), q, function (o) {
+      var ops = (esCotizacion || !deja('op')) ? [] : B.filtra(Directorio.operacion(), q, function (o) {
         return [{ t: o.sistema, p: 3 }, { t: o.titulo, p: 2 }, { t: o.detalle, p: 1 }, { t: o.estado, p: .6 }];
       }, { limite: 3, conPuntaje: true });
       if (ops.length) grupos.push({ tipo: 'op', titulo: 'Fallas abiertas', icono: IC.pulso,
@@ -1190,7 +1436,7 @@
       }
 
       // 7) ANUNCIOS (solo quien los administra).
-      var anun = esCotizacion ? [] : B.filtra(Directorio.anuncios(), q, function (a) {
+      var anun = (esCotizacion || soloAmbito) ? [] : B.filtra(Directorio.anuncios(), q, function (a) {
         return [{ t: a.titulo, p: 3 }, { t: a.sub, p: 1 }];
       }, { limite: 3, conPuntaje: true });
       if (anun.length) grupos.push({ tipo: 'anuncio', titulo: 'Anuncios', icono: IC.megafono,
@@ -1202,18 +1448,65 @@
        pantalla que casualmente lleva esa palabra en su descripción. */
     grupos.sort(function (a, b) { return (b.mejor || 0) - (a.mejor || 0); });
 
-    // 4) Salida explícita al buscador completo, siempre al final. Es la que resuelve
-    //    "no está en la lista": lleva al panel que corresponde al rol CON la búsqueda
-    //    ya aplicada, que allí sí tiene filtros, fechas y descarga.
-    if (conSesion() && q.length >= 3) {
-      var haciaPanel = puede('supervision') ? 'inicio_avanzado' : 'dashboard';
-      grupos.push({ tipo: 'todo', titulo: 'Seguir buscando', icono: IC.lupa, mejor: -1, filas: [{
-        nombre: 'Buscar «' + q + '» en todas las cotizaciones',
-        sub: haciaPanel === 'inicio_avanzado'
-          ? 'Abre el panel avanzado con filtros, fechas y descarga'
-          : 'Abre tu panel con la búsqueda aplicada',
-        page: haciaPanel, params: { q: q }
-      }] });
+    /* 4) SEGUIR BUSCANDO, siempre al final.
+       Es lo que resuelve "no está en la lista". El buscador enseña un puñado de
+       resultados por sitio; cuando lo que se busca no cabe ahí, la salida no puede ser
+       dejar a alguien en la portada de otra pantalla teniendo que repetir la búsqueda
+       que acaba de escribir. Cada una de estas filas abre su destino CON EL TÉRMINO YA
+       PUESTO, y solo aparece si esa persona puede abrirlo.
+
+       El orden no es casual: primero el sitio del que ya salieron resultados. Si hubo
+       coincidencias del Portal, "seguir buscando en el Portal" es lo más probable. */
+    if (q.length >= 3) {
+      var salidas = [];
+      var hubo = function (t) {
+        return grupos.some(function (g) { return g.tipo === t && g.filas.length; });
+      };
+
+      if (conSesion() && deja('cot')) {
+        var haciaPanel = puede('supervision') ? 'inicio_avanzado' : 'dashboard';
+        salidas.push({
+          orden: hubo('cot') ? 0 : 2,
+          nombre: 'Buscar «' + q + '» en todas las cotizaciones',
+          sub: haciaPanel === 'inicio_avanzado'
+            ? 'Abre el panel avanzado con filtros, fechas y descarga'
+            : 'Abre tu panel con la búsqueda aplicada',
+          page: haciaPanel, params: { q: q }
+        });
+      }
+      if (deja('portal') || deja('traz')) {
+        salidas.push({
+          orden: (hubo('portal') || hubo('traz')) ? 0 : 3,
+          nombre: 'Buscar «' + q + '» en el Portal',
+          sub: 'Herramientas, paqueterías, formatos, plantillas y procesos',
+          page: 'portal', params: { q: q }
+        });
+      }
+      if (conSesion() && puede('atenciones') && deja('gente')) {
+        salidas.push({
+          orden: 3,
+          nombre: 'Buscar «' + q + '» entre las atenciones',
+          sub: 'Clientes que esperan una llamada, por nombre o teléfono',
+          page: 'atenciones', params: { q: q }
+        });
+      }
+      if (conSesion() && (puede('adm_miembros') || puede('sup_equipo')) && deja('gente')) {
+        var maestro = !!(window.AppSession && AppSession.isMaster) && puede('adm_miembros');
+        salidas.push({
+          orden: hubo('gente') ? 1 : 4,
+          nombre: 'Buscar «' + q + '» entre las personas del equipo',
+          sub: 'Altas, roles y accesos',
+          page: maestro ? 'consola' : 'inicio_avanzado',
+          params: maestro ? { sec: 'miembros', q: q } : { q: q },
+          ancla: maestro ? '' : 'eq-seccion'
+        });
+      }
+
+      salidas.sort(function (a, b) { return a.orden - b.orden; });
+      if (salidas.length) {
+        grupos.push({ tipo: 'todo', titulo: 'Seguir buscando', icono: IC.lupa, mejor: -1,
+                      filas: salidas.slice(0, 3) });
+      }
     }
     return grupos;
   }
@@ -1273,6 +1566,18 @@
             '<span class="cmdk-tag">' + esc(r.grupo) + '</span>' + accion +
             '<span class="cmdk-enter">↵ Ver</span><span class="cmdk-go">' + IC.flecha + '</span>');
 
+        } else if (g.tipo === 'traz') {
+          // El plazo va en la línea, no detrás de un clic: la pregunta suele ser
+          // "¿cuánto tarda?" y la respuesta cabe entera en el resultado.
+          html += fila('',
+            '<span class="cmdk-chip">' + IC.caja + '</span>' +
+            '<span class="cmdk-tx">' +
+              '<span class="cmdk-name">' + B.resalta(r.nombre, q) + '</span>' +
+              '<span class="cmdk-sub">' + B.resalta(B.extracto(r.sub, q, 90) || r.seccionNombre, q) + '</span>' +
+            '</span>' +
+            '<span class="cmdk-tag">' + esc(r.seccionNombre) + '</span>' +
+            '<span class="cmdk-enter">↵ Ver</span><span class="cmdk-go">' + IC.flecha + '</span>');
+
         } else if (g.tipo === 'todo') {
           html += fila('',
             '<span class="cmdk-chip">' + IC.lupa + '</span>' +
@@ -1281,6 +1586,15 @@
               '<span class="cmdk-sub">' + esc(r.sub) + '</span>' +
             '</span>' +
             '<span class="cmdk-enter">↵ Ir</span><span class="cmdk-go">' + IC.flecha + '</span>');
+
+        } else if (g.tipo === 'pista') {
+          // Ni se puede pulsar ni se marca: es un cartel, no un resultado.
+          html += fila('cmdk-pista-fila',
+            '<span class="cmdk-chip">' + IC.lupa + '</span>' +
+            '<span class="cmdk-tx">' +
+              '<span class="cmdk-name">' + esc(r.nombre) + '</span>' +
+              '<span class="cmdk-sub">' + esc(r.sub) + '</span>' +
+            '</span>');
 
         } else if (g.tipo === 'gente') {
           // El rol y la baja van en la propia línea: "¿sigue de alta Pedro?" se
@@ -1350,10 +1664,15 @@
       var sugerencias = q ? [] : leerLista(K_BUSQUEDAS).slice(0, 5);
       html = '<div class="cmdk-vacio">' + IC.lupa +
         (q ? '<div>Nada coincide con <b>' + esc(q) + '</b>.</div>' +
-             '<div style="margin-top:.4rem;font-size:.8rem">Prueba con el folio completo, el correo del cliente o el nombre de la pantalla.</div>'
+             '<div style="margin-top:.4rem;font-size:.8rem">Prueba con el folio completo, el correo del cliente o el nombre de la pantalla. ' +
+             'También puedes acotar escribiendo <b>portal:</b>, <b>cot:</b> o <b>gente:</b> delante.</div>'
            : '<div>Escribe para buscar.</div>' +
              '<div style="margin-top:.4rem;font-size:.8rem">Pantallas y apartados, folios, clientes, personas del equipo, ' +
-             'contenido del Portal, las fallas abiertas y los clientes que esperan una llamada.</div>') +
+             'contenido del Portal, procesos y tiempos, las fallas abiertas y los clientes que esperan una llamada.</div>' +
+             /* Los ámbitos no se adivinan: si no se enseñan aquí, existen para quien lea
+                el código y para nadie más. Se pintan como lo que son, algo que se teclea. */
+             '<div style="margin-top:.55rem;font-size:.78rem;opacity:.85">Para buscar en un solo sitio, ' +
+             'empieza por <b>portal:</b>, <b>cot:</b>, <b>procesos:</b>, <b>gente:</b> o <b>fallas:</b></div>') +
         (sugerencias.length
           ? '<div class="cmdk-pistas">' + sugerencias.map(function (s) {
               return '<button type="button" class="cmdk-pista" data-q="' + esc(s) + '">' + esc(s) + '</button>';
@@ -1383,6 +1702,8 @@
     if (f.tipo === 'fn' || f.tipo === 'sec') {
       var d = f.dato;
       recordar(K_RECIENTES, d.id, 6);
+      // Lo que se abre se apunta: es de donde sale la predicción de la próxima vez.
+      usoAnotar(d.id);
       if (d.fn) {
         /* Por omisión el panel SE QUEDA ABIERTO: los ajustes locales (tema, tamaño de
            letra, densidad) se prueban tres o cuatro veces seguidas y cerrar entre cada
@@ -1398,9 +1719,19 @@
       return;
     }
     if (f.tipo === 'cot') { vaAFolio(f.dato.folio); return; }
-    if (f.tipo === 'todo') { navega(f.dato.page, f.dato.params); return; }
+    if (f.tipo === 'pista') return;   // no es un resultado: es la señal del ámbito puesto
+    if (f.tipo === 'todo') { navega(f.dato.page, f.dato.params, f.dato.ancla); return; }
     if (f.tipo === 'gente') { navega(f.dato.page, f.dato.params || {}, f.dato.ancla); return; }
     if (f.tipo === 'op')    { navega('estado', { inc: f.dato.id }); return; }
+    if (f.tipo === 'traz') {
+      /* Se abre el Portal en la sección del proceso, filtrada por lo que se escribió y
+         con la tarjeta desplegada. `item` lleva el id de la tarjeta ('bt-3') en vez del
+         nombre: el nombre viene de una hoja de cálculo y basta un espacio de más para
+         que la comparación falle, mientras que el id lo pone el propio Portal al
+         pintarla. */
+      navega('portal', { sec: f.dato.seccion, q: q, item: f.dato.id });
+      return;
+    }
     if (f.tipo === 'aten') {
       // Se va a la atención con la pestaña puesta y el buscador ya escrito con el
       // teléfono: allí queda esa tarjeta sola en pantalla. Donde el módulo esté

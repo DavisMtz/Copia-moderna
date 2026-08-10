@@ -3144,12 +3144,26 @@ function initNavigation(){
     suppressHistory = true; switchSec(sec); suppressHistory = false;
     if (!q && !item) return;
     const clave = sec === 'pdepago' ? 'pdePago' : sec;
+
+    /* Las secciones de Trazabilidad no viven en `store` ni las filtra `filterSec`: tienen
+       su propio buscador (`trazFiltrar`) y sus datos llegan por otra llamada. Sin esta
+       distinción, un enlace a un proceso esperaba tres segundos a que se llenara una
+       lista que nunca se iba a llenar, y de paso intentaba escribir en un campo que no
+       era el suyo. Se sabe por el contenedor `#traz-<id>`, que solo existe en ellas. */
+    const esTraz = !!document.getElementById('traz-' + sec);
+
     const aplicar = (intentos) => {
-      if (q) applySectionSearch(sec, q);
+      if (q) {
+        if (esTraz) trazAplicarBusqueda(sec, q);
+        else applySectionSearch(sec, q);
+      }
       // Se reintenta solo mientras la sección esté VACÍA: el filtro llega antes que la
       // hoja de cálculo. En cuanto hay filas se para, aunque ninguna coincida —"no hay
       // resultados" es una respuesta, y volver a filtrar doce veces no la cambia.
-      if (!(store[clave] || []).length && intentos < 12) { setTimeout(() => aplicar(intentos + 1), 250); return; }
+      const llena = esTraz
+        ? !!document.querySelector('#traz-' + sec + ' .traz-card')
+        : (store[clave] || []).length > 0;
+      if (!llena && intentos < 12) { setTimeout(() => aplicar(intentos + 1), 250); return; }
       // `item` es el elemento concreto que se eligió allá afuera: se le lleva el foco
       // igual que cuando se pulsa un resultado del buscador de esta misma pantalla.
       if (item) esperarYRevelar(sec, item, null, null);
@@ -4644,13 +4658,28 @@ function elementoDeSeccion(secId, name, targetId){
   const sec = document.getElementById('sec-' + secId);
   if (!sec) return null;
   if (targetId){ const t = document.getElementById(targetId); if (t) return t; }
+
+  /* Un proceso de Trazabilidad se identifica por el ID de su tarjeta ('bt-3'), no por su
+     nombre. El nombre sale de una hoja de cálculo y basta un espacio de más, un acento
+     distinto o un renglón partido para que la comparación falle; el id lo pone el propio
+     Portal al pintarla, así que siempre coincide. Se prueba antes que el nombre y acotado
+     a la sección, para no traerse un elemento de otra pestaña que se llame igual. */
+  if (name){
+    const porId = sec.querySelector('#' + (window.CSS && CSS.escape ? CSS.escape(String(name)) : String(name).replace(/[^\w-]/g, '')));
+    if (porId) return porId;
+  }
+
   const want = norm(name);
   if (!want) return null;
-  const nameEls = sec.querySelectorAll('.tc-name,.fmt-name,.paq-name,.pago-name,.pres-name,.plt-name');
+  /* `.bt-title` es el título de una tarjeta de proceso. Faltaba, así que un enlace
+     profundo a Trazabilidad abría la sección correcta y se quedaba arriba, sin señalar
+     nada — y eso se lee como que el buscador no encontró lo que dijo que había
+     encontrado. */
+  const nameEls = sec.querySelectorAll('.tc-name,.fmt-name,.paq-name,.pago-name,.pres-name,.plt-name,.bt-title');
   let target = null;
   nameEls.forEach(el => { if (!target && norm(el.textContent) === want) target = el; });
   if (!target) nameEls.forEach(el => { if (!target && norm(el.textContent).includes(want)) target = el; });
-  return (target ? target.closest('.tool-card,.fmt-card,.pago-card,.pres-card,.plt-card,tr') : null) || target;
+  return (target ? target.closest('.tool-card,.fmt-card,.pago-card,.pres-card,.plt-card,.traz-card,tr') : null) || target;
 }
 
 /* Espera con reintentos (rAF) a que la sección termine de renderizar antes de saltar —
@@ -5631,6 +5660,22 @@ function trazJump(id){
   };
   ir();
   setTimeout(ir, 320);   // reajusta cuando termina la animación de apertura
+}
+
+/**
+ * Escribe un término en el buscador de una sección de Trazabilidad y filtra ya.
+ *
+ * Es el equivalente de applySectionSearch para estas seis secciones, y existe por lo
+ * mismo: quien llega desde el buscador general —o desde un enlace compartido— tiene que
+ * aterrizar sobre la lista recortada, no sobre las cuarenta tarjetas teniendo que repetir
+ * la búsqueda que acaba de hacer.
+ */
+function trazAplicarBusqueda(secId, q){
+  const host = document.getElementById('traz-' + secId);
+  if (!host) return;
+  const input = host.querySelector('.traz-find input');
+  if (input) input.value = q;
+  trazFiltrar(secId);
 }
 
 /** Buscador dentro de la sección (con antirrebote: se teclea rápido). */
