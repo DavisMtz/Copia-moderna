@@ -563,15 +563,45 @@ select.filter-select:focus{border-color:var(--brand);box-shadow:var(--ring)}
   background:transparent;border:none;color:var(--ink-faint);padding:.25rem;border-radius:var(--rad-sm);
   cursor:pointer;display:inline-flex;align-items:center;justify-content:center;margin-left:auto;transition:all .2s;
 }
-.share-btn:hover{background:rgba(0,0,0,0.05);color:var(--ink);}
+.share-btn:hover{background:color-mix(in srgb,var(--ink) 8%,transparent);color:var(--ink);}
+.share-btn:focus-visible{outline:none;box-shadow:var(--ring);color:var(--ink);}
+
+/* Aviso breve ("Enlace copiado") · vive aquí y no en app_motion porque esta página
+   NO incluye app_theme —donde está el CSS de .v-toast— y un toast sin estilos se ve
+   como texto suelto encima de la pantalla. */
+.promo-aviso-region{
+  position:fixed;left:50%;bottom:1.5rem;transform:translateX(-50%);
+  z-index:9999;display:flex;flex-direction:column;gap:.5rem;align-items:center;
+  pointer-events:none;
+}
+.promo-aviso{
+  background:var(--ink);color:var(--surface);
+  padding:.7rem 1.1rem;border-radius:var(--rad-full);box-shadow:var(--sh-lg);
+  font-size:.9rem;font-weight:600;letter-spacing:.01em;
+  display:flex;align-items:center;gap:.5rem;max-width:90vw;
+  opacity:0;transform:translateY(8px);transition:opacity .22s ease,transform .22s ease;
+}
+.promo-aviso.is-visible{opacity:1;transform:translateY(0)}
+.promo-aviso.bad{background:var(--warn);color:#fff}
+@media (prefers-reduced-motion: reduce){
+  .promo-aviso{transition:none;opacity:1;transform:none}
+}
 
 .promo-modal {
   border: none; border-radius: var(--rad-lg); padding: 0;
-  box-shadow: var(--sh-xl); max-width: 500px; width: 90%;
+  box-shadow: var(--sh-lg); max-width: 500px; width: 90%;
   background: var(--surface); color: var(--ink);
+  /* `margin:auto` es lo que centra un <dialog> abierto con showModal(). Va explícito
+     porque el reset `*{margin:0}` de arriba se lo quita y la ficha se queda pegada
+     a la esquina superior izquierda. */
+  margin: auto;
+  /* Una promoción con texto largo no puede crecer más que la pantalla: sin esto, en
+     un portátil el botón de "Ver en Liverpool" queda fuera y no hay forma de llegar. */
+  max-height: calc(100vh - 3rem); overflow-y: auto;
 }
 .promo-modal::backdrop { background: rgba(0,0,0,0.5); backdrop-filter: blur(4px); }
 .pm-content { padding: 2rem; position: relative; }
+.pm-content:focus { outline: none; }
 .pm-close {
   position: absolute; top: 1rem; right: 1rem;
   background: transparent; border: none; font-size: 1.5rem;
@@ -579,6 +609,14 @@ select.filter-select:focus{border-color:var(--brand);box-shadow:var(--ring)}
   border-radius: var(--rad-sm);
 }
 .pm-close:hover { color: var(--ink); background: var(--surface-2); }
+.pm-share{
+  display:flex;align-items:center;justify-content:center;gap:.5rem;width:100%;
+  margin-top:.75rem;padding:.7rem;border-radius:var(--rad-md);
+  background:transparent;border:1px solid var(--line);color:var(--ink-soft);
+  font:inherit;font-size:.95rem;font-weight:600;cursor:pointer;transition:all .2s;
+}
+.pm-share:hover{border-color:var(--brand);color:var(--brand)}
+.pm-share:focus-visible{outline:none;box-shadow:var(--ring);border-color:var(--brand)}
 
 /* Fila 2 · el titular y el descuento, en la misma línea de lectura */
 .card-lead{display:flex;align-items:flex-start;justify-content:space-between;gap:var(--s4);margin-bottom:var(--s3)}
@@ -1055,7 +1093,11 @@ select.filter-select:focus{border-color:var(--brand);box-shadow:var(--ring)}
 <!-- Núcleo compartido con el sistema de cotizaciones: AppUrl / AppSession.
      El Monitor es público, pero el conmutador de área debe validar la sesión
      igual que el Portal (con sesión → panel según rol; sin sesión → login). -->
-<script>window.__APP__ = { baseUrl: '<?= APP_URL ?>' };</script>
+<!-- `promo` viaja INYECTADO por el servidor, no leído de la barra de direcciones: dentro
+     del iframe de Apps Script window.location.search es el de userCodeAppPanel y llega
+     vacío, así que un enlace compartido abría el monitor pero nunca la promoción. Mismo
+     patrón que `inc` en estado.html. -->
+<script>window.__APP__ = { baseUrl: <?!= JSON.stringify(APP_URL) ?>, promo: <?!= JSON.stringify(promo) ?> };</script>
 <?!= include('app_core') ?>
 <?!= include('app_guardado') ?>
 <?!= include('app_buscar') ?>
@@ -1532,13 +1574,6 @@ select.filter-select:focus{border-color:var(--brand);box-shadow:var(--ring)}
 </script>
 
 <script>
-window.onerror = function(msg, url, lineNo, columnNo, error) {
-  alert("Error JS: " + msg + "\nLínea: " + lineNo);
-  return false;
-};
-</script>
-
-<script>
 function handlePortalNav(e, link) {
   const href = link.getAttribute('href') || '';
   if (!href.startsWith('http')) {
@@ -1577,6 +1612,7 @@ const IC = {
   pin:   SVG_ABRE + '<path d="M20 10.4c0 5.4-8 11.6-8 11.6s-8-6.2-8-11.6a8 8 0 0 1 16 0Z"/><circle cx="12" cy="10.2" r="2.6"/></svg>',
   tag:   SVG_ABRE + '<path d="M20.6 13.4 13.4 20.6a2 2 0 0 1-2.8 0l-7.2-7.2A2 2 0 0 1 3 12V5a2 2 0 0 1 2-2h7a2 2 0 0 1 1.4.6l7.2 7.2a2 2 0 0 1 0 2.6Z"/><path d="M7.5 7.5h.01"/></svg>',
   ext:   '<svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M7 17 17 7M8 7h9v9"/></svg>',
+  compartir: SVG_ABRE + '<path d="M4 12v7a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-7"/><path d="M12 15V3"/><path d="m8 6.8 4-3.8 4 3.8"/></svg>',
   chev:  '<svg class="ic g-chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="m6 9 6 6 6-6"/></svg>',
   lupa:  '<svg class="es-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="7"/><path d="m21 21-4.3-4.3"/></svg>',
   offline:'<svg class="es-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M2 8.8a17 17 0 0 1 6.5-3.7"/><path d="M14.5 5.4A17 17 0 0 1 22 8.8"/><path d="M5 12.6a12 12 0 0 1 3.3-2"/><path d="M15.5 10.4a12 12 0 0 1 3.5 2.2"/><path d="M8.5 16.4a7 7 0 0 1 7 0"/><path d="M12 20h.01"/><path d="m2 2 20 20"/></svg>'
@@ -1718,7 +1754,7 @@ function handleDataSuccess(data, fromCache){
     renderSyncStatus();
   }
   globalData = data;
-  refreshActiveData();
+  if (!refreshActiveData()) return; // el aviso de fallo ya quedó en pantalla
   document.getElementById('promos-loader').style.display = 'none';
   document.getElementById('controls-panel').style.display = 'block';
   document.getElementById('resultsBar').style.display = 'flex';
@@ -1728,34 +1764,94 @@ function handleDataSuccess(data, fromCache){
     gsap.fromTo('.stat-tile', {opacity:0,y:8}, {opacity:1,y:0,duration:.3,stagger:.04,ease:'power2.out'});
   }
   if (window.VentelLoader) VentelLoader.hide();
-  
-  setTimeout(() => {
-    const params = new URLSearchParams(window.location.search);
-    const pId = params.get('promo') || (window.AppUrl ? AppUrl.param('promo') : null);
-    if (pId && typeof parsedPromos !== 'undefined') {
-      const p = parsedPromos.find(x => x._id === pId);
-      if (p) openPromoModal(p);
-    }
-  }, 400);
+
+  abrirPromoDeEnlace();
 }
 
+/* Enlace directo a una promoción (?promo=…).
+   Se abre UNA sola vez: handleDataSuccess corre dos veces —primero con el caché local
+   y después con lo que responde Apps Script—, así que sin este seguro la ficha saltaba
+   encima por segunda vez justo cuando ya la estabas leyendo. El seguro se echa solo al
+   ENCONTRAR la promoción, para que un enlace a algo que el caché aún no tenía siga
+   abriéndose cuando lleguen los datos frescos. */
+let promoEnlaceAbierto = false;
+function abrirPromoDeEnlace(){
+  if (promoEnlaceAbierto) return;
+  // AppUrl.param mira primero lo que inyectó el servidor y luego la barra de
+  // direcciones; el respaldo de abajo es solo por si app_core no cargó.
+  let pId = window.AppUrl ? AppUrl.param('promo') : '';
+  if (!pId) {
+    try { pId = new URLSearchParams(window.location.search).get('promo') || ''; } catch(e) { pId = ''; }
+  }
+  if (!pId) return;
+
+  const p = parsedPromos.find(x => x._id === pId);
+  if (p) {
+    promoEnlaceAbierto = true;
+    openPromoModal(p);
+    return;
+  }
+
+  /* El enlace apunta a una promoción que ya no está en la hoja, o cuyo texto se
+     editó después de compartirlo. Sin este aviso la pantalla se abría en el listado
+     completo como si nada y quien recibió el enlace se quedaba buscando a mano una
+     promoción que nadie le dijo que había caducado.
+     Solo se avisa con los datos FRESCOS: si aún estamos pintando el caché local, la
+     promoción puede aparecer en cuanto responda Apps Script. */
+  if (!promosFresh) return;
+  promoEnlaceAbierto = true;
+  promoAviso('Esa promoción ya no está disponible. Aquí están las vigentes de hoy.', 'error');
+}
+
+/* Identificador estable de una promoción · es lo que viaja en el enlace compartido.
+   Sale del CONTENIDO de la fila, nunca de su POSICIÓN en la hoja: con el número de
+   fila dentro del identificador, insertar una promoción arriba corría a todas las de
+   abajo y los enlaces ya repartidos por WhatsApp abrían la promoción equivocada —que
+   es peor que no abrir nada, porque nadie se entera—. Solo cuando dos filas dicen
+   exactamente lo mismo se añade un sufijo para poder distinguirlas. */
+function promoId(p, usados){
+  const str = [p.origen, p.direccion, p.categoria, p.promocion, p.vigencia]
+    .map(v => String(v == null ? '' : v)).join('|');
+  let hash = 0;
+  for (let j = 0; j < str.length; j++) {
+    hash = ((hash << 5) - hash) + str.charCodeAt(j);
+    hash |= 0; // lo mantiene en 32 bits con signo
+  }
+  const base = 'pr-' + (hash >>> 0).toString(36);
+  let id = base, n = 2;
+  while (usados[id]) { id = base + '-' + n; n++; }
+  usados[id] = true;
+  return id;
+}
+
+/** Devuelve false si los datos llegaron pero no se pudieron procesar (ya pintó el aviso). */
 function refreshActiveData(){
   try {
-    parsedPromos = globalData.promociones.map((p, i) => {
+    const usados = {};
+    parsedPromos = globalData.promociones.map(p => {
       const range = parseVigencia(p.vigencia);
-      let hash = 0; const str = (p.categoria||'') + (p.promocion||'') + (p.vigencia||'');
-      for (let j = 0; j < str.length; j++) {
-        hash = ((hash << 5) - hash) + str.charCodeAt(j);
-        hash = hash & hash;
-      }
-      const pId = 'pr-' + Math.abs(hash).toString(36) + '-' + i;
-      return Object.assign({}, p, { _start: range ? range.start : null, _end: range ? range.end : null, _id: pId });
+      return Object.assign({}, p, {
+        _start: range ? range.start : null,
+        _end:   range ? range.end   : null,
+        _id:    promoId(p, usados)
+      });
     });
     activePromosToday = parsedPromos.filter(p => p._start && currentNow >= p._start && currentNow <= p._end);
     buildDeptColors(); populateChips(); renderHeroStats(); applyFilters(); renderCalendar(); renderAgenda();
     document.getElementById('tabCountPromos').textContent = activePromosToday.length;
+    return true;
   } catch(e) {
-    alert("Error crítico al procesar promociones: " + e.message + "\nEn la línea: " + (e.lineNumber || "desconocida"));
+    // Antes esto era un alert(): dentro del iframe de Apps Script bloquea la pantalla
+    // entera y al cerrarlo no deja ninguna salida. El detalle va a la consola y el
+    // asesor ve una explicación con la acción que resuelve.
+    console.error('Promociones · no se pudieron procesar las promociones:', e);
+    const cont = document.getElementById('promos-loader');
+    if (cont) {
+      cont.style.display = '';
+      cont.innerHTML = estadoVacio(IC.offline, 'No pudimos mostrar las promociones',
+        'Los datos llegaron pero no se pudieron procesar. Recarga la página; si sigue igual, avisa al equipo del sistema.');
+    }
+    return false;
   }
 }
 
@@ -1975,8 +2071,8 @@ function renderCards(promosArray){
         `<div class="card-header">` +
           `<span class="dept-tag"><span class="dot"></span>${promo.direccion}</span>` +
           `<span class="origin-tag ${isMkp?'mkp':''}">${origenCorto(promo.origen)}</span>` +
-          `<button class="share-btn" onclick="sharePromo('${promo._id}')" title="Copiar enlace a esta promoción">` +
-             `<svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 12v8a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-8"/><polyline points="16 6 12 2 8 6"/><line x1="12" y1="2" x2="12" y2="15"/></svg>` +
+          `<button type="button" class="share-btn" onclick="sharePromo('${promo._id}', event)" title="Copiar enlace a esta promoción" aria-label="Copiar enlace a esta promoción">` +
+             IC.compartir +
           `</button>` +
         `</div>` +
         `<div class="card-lead"><h3 class="card-title">${promo.categoria}</h3>${discHtml}</div>` +
@@ -1997,9 +2093,12 @@ function openPromoModal(promo) {
   let modal = document.getElementById('promoModal');
   if (!modal) {
     document.body.insertAdjacentHTML('beforeend', `
-      <dialog id="promoModal" class="promo-modal">
-        <div class="pm-content">
-          <button class="pm-close" onclick="document.getElementById('promoModal').close()" aria-label="Cerrar">&times;</button>
+      <dialog id="promoModal" class="promo-modal" aria-label="Detalle de la promoción">
+        <!-- autofocus va en el contenedor y no en el botón: showModal() enfoca el primer
+             elemento focusable, y con la "×" al frente lo primero que se veía al abrir
+             una promoción compartida era el anillo de foco sobre "cerrar". -->
+        <div class="pm-content" tabindex="-1" autofocus>
+          <button type="button" class="pm-close" onclick="document.getElementById('promoModal').close()" aria-label="Cerrar">&times;</button>
           <div id="pm-body"></div>
         </div>
       </dialog>
@@ -2037,8 +2136,8 @@ function openPromoModal(promo) {
     : ``;
     
   document.getElementById('pm-body').innerHTML = `
-    <div style="display:flex;align-items:center;gap:1rem;margin-bottom:1.5rem">
-      <span class="origin-tag ${isMkp ? 'mkp' : ''}">${promo.origen}</span>
+    <div style="display:flex;align-items:center;gap:1rem;margin-bottom:1.5rem;padding-right:2.5rem">
+      <span class="origin-tag ${isMkp ? 'mkp' : ''}">${origenCorto(promo.origen)}</span>
       <span style="font-weight:600;color:var(--brand)">${promo.direccion}</span>
     </div>
     <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:1rem;margin-bottom:1rem">
@@ -2049,32 +2148,54 @@ function openPromoModal(promo) {
     ${(msiHtml || sepHtml) ? `<div style="display:flex;gap:.5rem;flex-wrap:wrap;margin-bottom:1.5rem">${msiHtml}${sepHtml}</div>` : ''}
     ${vigHtml}
     ${btnHtml}
+    <button type="button" class="pm-share" onclick="sharePromo('${promo._id}', event)">
+      ${IC.compartir}<span>Copiar enlace a esta promoción</span>
+    </button>
   `;
-  
+
   modal.showModal();
 }
 
-function sharePromo(id) {
-  if (window.AppUrl && typeof AppUrl.copyLink === 'function') {
-    AppUrl.copyLink('promociones', { promo: id }).then(ok => {
-      if (ok) {
-        if (window.AppMotion) AppMotion.toast('Enlace copiado al portapapeles', 'ok');
-        else alert('Enlace de la promoción copiado al portapapeles');
-      } else {
-        if (window.AppMotion) AppMotion.toast('No se pudo copiar el enlace', 'error');
-        else alert('No se pudo copiar el enlace');
-      }
-    });
-  } else {
-    try {
-      const url = new URL(window.location.href);
-      url.searchParams.set('promo', id);
-      navigator.clipboard.writeText(url.toString()).then(() => {
-        if (window.AppMotion) AppMotion.toast('Enlace copiado al portapapeles', 'ok');
-        else alert('Enlace de la promoción copiado al portapapeles');
-      }).catch(e => console.error(e));
-    } catch(e) { console.error(e); }
+/* Aviso breve, abajo y al centro. Nada de alert(): dentro del iframe de Apps Script
+   congela la pantalla y al cerrarlo no deja ninguna salida. */
+function promoAviso(mensaje, tipo){
+  let region = document.getElementById('promoAvisoRegion');
+  if (!region) {
+    region = document.createElement('div');
+    region.id = 'promoAvisoRegion';
+    region.className = 'promo-aviso-region';
+    region.setAttribute('role', 'status');
+    region.setAttribute('aria-live', 'polite');
+    document.body.appendChild(region);
   }
+  const el = document.createElement('div');
+  el.className = 'promo-aviso' + (tipo === 'error' ? ' bad' : '');
+  el.textContent = mensaje;
+  region.appendChild(el);
+  requestAnimationFrame(() => el.classList.add('is-visible'));
+  setTimeout(() => {
+    el.classList.remove('is-visible');
+    setTimeout(() => el.remove(), 260);
+  }, 2600);
+}
+
+/**
+ * Copia el enlace directo a una promoción.
+ *
+ * La URL la construye AppUrl.build a partir de la URL base que inyectó el servidor,
+ * NO de window.location: dentro del iframe de Apps Script location apunta a
+ * userCodeAppPanel, y ese enlace no le sirve a nadie fuera de esta pestaña.
+ */
+function sharePromo(id, ev){
+  if (ev) ev.stopPropagation();
+  if (!window.AppUrl || typeof AppUrl.copyLink !== 'function') {
+    promoAviso('No se pudo preparar el enlace. Recarga la página.', 'error');
+    return;
+  }
+  AppUrl.copyLink('promociones', { promo: id }).then(ok => {
+    if (ok) promoAviso('Enlace de la promoción copiado');
+    else    promoAviso('No se pudo copiar el enlace', 'error');
+  });
 }
 const GANTT_PALETTE = ['#E10098','#5B21B6','#1D4ED8','#0E7A4F','#B45309','#0E7490','#BE185D','#4338CA'];
 
@@ -2670,6 +2791,16 @@ document.addEventListener('DOMContentLoaded', function(){
  */
 (function () {
   if (!window.AppOnboarding) return;
+
+  /* Quien llega por un enlace a UNA promoción viene a ver esa promoción, no a hacer
+     el tutorial: el recorrido se le pondría encima de la ficha que le compartieron.
+     No se anota como visto, así que le saldrá completo la próxima vez que entre
+     al monitor por su cuenta. */
+  const vienePorEnlace = (function () {
+    if (window.AppUrl) return !!AppUrl.param('promo');
+    try { return !!new URLSearchParams(window.location.search).get('promo'); } catch (e) { return false; }
+  })();
+  if (vienePorEnlace) return;
 
   AppOnboarding.auto({
     pantalla: 'promociones',
