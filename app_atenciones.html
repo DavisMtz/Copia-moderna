@@ -130,6 +130,148 @@
   .atn-tab { transition-duration: .01ms; }
 }
 @media print { .atn-aviso { display: none !important; } }
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   PANEL DE ATENCIONES · la pantalla entera, encima de donde ya estás
+   ═══════════════════════════════════════════════════════════════════════════
+   Atenciones dejó de ser un destino. Irse a otra pantalla para mirar quién está
+   esperando cuesta una carga completa de Apps Script —y otra para volver—, y eso
+   convierte una consulta de cinco segundos en medio minuto con el hilo perdido. El
+   panel se abre sobre lo que se esté haciendo, se cierra con Escape y deja la
+   cotización a medias exactamente como estaba.
+
+   Es GRANDE a propósito: aquí no se confirma nada, se trabaja. Hay que poder buscar
+   a un cliente entre veinte, leer sus anotaciones sin que la caja se quede sin sitio
+   y tomar una atención liberada sin cerrar y volver a abrir. Un diálogo de 34 rem
+   —el de registrar— es para una decisión; esto es una mesa de trabajo. */
+.atn-panel-ovl {
+  position: fixed; inset: 0; z-index: 10050;
+  display: flex; align-items: center; justify-content: center;
+  padding: clamp(.5rem, 3vw, 2rem);
+  background: rgba(15, 23, 42, .5);
+  backdrop-filter: blur(5px); -webkit-backdrop-filter: blur(5px);
+  /* Nace invisible: lo trae AppMotion/GSAP. Sin esto se ve un fotograma en su sitio
+     final antes de que arranque la animación. */
+  opacity: 0;
+}
+/* Sin GSAP —o con «reducir movimiento»— AppMotion solo pone la clase y no anima nada,
+   así que la opacidad tiene que subirla el CSS. Sin esta línea el panel se montaba
+   entero pero invisible en cuanto el sistema pedía menos animación. */
+.atn-panel-ovl.active { opacity: 1; }
+.atn-panel-ovl, .atn-panel-ovl *, .atn-panel-ovl *::before, .atn-panel-ovl *::after { box-sizing: border-box; }
+.atn-panel {
+  width: min(68rem, 100%);
+  max-height: min(92vh, 56rem);
+  display: flex; flex-direction: column; min-height: 0;
+  background: var(--surface, #fff); color: var(--ink, #1B2330);
+  border: 1px solid var(--line, #E4E9F0); border-radius: 18px;
+  box-shadow: var(--sh-lg, 0 40px 80px -30px rgba(15, 23, 42, .45));
+  overflow: hidden;
+  font-family: var(--f-ui, system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif);
+}
+
+.atn-panel-head {
+  display: flex; align-items: flex-start; gap: .8rem;
+  padding: 1.1rem 1.25rem .9rem;
+  border-bottom: 1px solid var(--line-soft, #EEF2F7);
+}
+.atn-panel-ic {
+  width: 2.4rem; height: 2.4rem; border-radius: 11px; flex: none;
+  display: inline-flex; align-items: center; justify-content: center;
+  background: var(--brand-tint, #FDE7F4); color: var(--brand, #E10098);
+}
+.atn-panel-ic svg { width: 1.3rem; height: 1.3rem; }
+.atn-panel-tx { min-width: 0; flex: 1; }
+.atn-panel-tx h2 {
+  margin: 0; font-family: var(--f-display, inherit);
+  font-size: 1.15rem; font-weight: 800; letter-spacing: -.01em; line-height: 1.25;
+}
+/* El subtítulo dice DE CUÁNDO son los datos. Es la contrapartida de pintar desde la
+   caché: la lista aparece llena al instante y sin esta línea no habría forma de
+   distinguir "esto es de ahora" de "esto es de hace media hora". */
+.atn-panel-sub {
+  margin: .18rem 0 0; font-size: .8rem; line-height: 1.45; color: var(--ink-soft, #5C6B7E);
+  display: flex; align-items: center; gap: .4rem; flex-wrap: wrap;
+}
+.atn-panel-sub .atn-punto {
+  width: .4rem; height: .4rem; border-radius: 50%; flex: none;
+  background: var(--ok, #0E7A4F);
+}
+.atn-panel-sub.cargando .atn-punto { background: var(--brand, #E10098); animation: atn-late 1.4s ease-in-out infinite; }
+@keyframes atn-late { 0%, 100% { opacity: .35; transform: scale(.8); } 50% { opacity: 1; transform: scale(1); } }
+@media (prefers-reduced-motion: reduce) { .atn-panel-sub.cargando .atn-punto { animation: none; } }
+
+.atn-panel-x {
+  flex: none; width: 2.2rem; height: 2.2rem; border-radius: 10px; cursor: pointer;
+  border: 1px solid var(--line, #E4E9F0); background: transparent; color: var(--ink-soft, #5C6B7E);
+  display: inline-flex; align-items: center; justify-content: center;
+  transition: background .15s ease, color .15s ease;
+}
+.atn-panel-x:hover { background: var(--surface-2, #F4F7FA); color: var(--ink, #1B2330); }
+.atn-panel-x:focus-visible { outline: none; box-shadow: var(--ring, 0 0 0 4px rgba(225,0,152,.16)); }
+.atn-panel-x svg { width: 1.05rem; height: 1.05rem; }
+
+/* ── Barra de herramientas: buscar, actualizar, registrar ── */
+.atn-panel-barra {
+  display: flex; align-items: center; gap: .5rem; flex-wrap: wrap;
+  padding: .8rem 1.25rem; border-bottom: 1px solid var(--line-soft, #EEF2F7);
+  background: var(--surface-2, #F4F7FA);
+}
+.atn-busca { position: relative; flex: 1 1 16rem; min-width: 0; display: flex; align-items: center; }
+.atn-busca-ic {
+  position: absolute; left: .65rem; width: 1rem; height: 1rem; pointer-events: none;
+  color: var(--ink-faint, #94A1B2);
+}
+.atn-busca-ic svg { width: 100%; height: 100%; }
+.atn-busca-in {
+  width: 100%; padding: .5rem .75rem .5rem 2.1rem;
+  border: 1px solid var(--line, #E4E9F0); border-radius: 10px;
+  background: var(--surface, #fff); color: var(--ink, #1B2330);
+  font: inherit; font-size: .86rem; line-height: 1.4;
+}
+.atn-busca-in::-webkit-search-cancel-button { display: none; }
+.atn-busca-in:focus { outline: none; border-color: var(--brand, #E10098); box-shadow: var(--ring, 0 0 0 4px rgba(225,0,152,.16)); }
+.atn-busca-x {
+  position: absolute; right: .4rem; width: 1.5rem; height: 1.5rem; border: 0; cursor: pointer;
+  border-radius: 50%; background: transparent; color: var(--ink-faint, #94A1B2);
+  display: inline-flex; align-items: center; justify-content: center; font-size: 1rem; line-height: 1;
+}
+.atn-busca-x:hover { background: var(--surface-2, #F4F7FA); color: var(--ink, #1B2330); }
+
+/* El botón de actualizar gira mientras se revalida. Es la única señal de que se está
+   preguntando al servidor cuando la lista ya estaba pintada desde la caché. */
+.atn-panel-barra .atn-girando svg { animation: atn-giro .9s linear infinite; }
+@keyframes atn-giro { to { transform: rotate(360deg); } }
+@media (prefers-reduced-motion: reduce) { .atn-panel-barra .atn-girando svg { animation: none; } }
+
+.atn-panel-cuerpo {
+  flex: 1; min-height: 0; overflow-y: auto; overscroll-behavior: contain;
+  padding: 1rem 1.25rem 1.25rem;
+}
+.atn-panel-cuerpo::-webkit-scrollbar { width: 10px; }
+.atn-panel-cuerpo::-webkit-scrollbar-thumb { background: var(--line, #E4E9F0); border-radius: 99px; }
+.atn-panel-cuerpo::-webkit-scrollbar-track { background: transparent; }
+
+.atn-panel-pie {
+  display: flex; align-items: center; gap: .6rem; flex-wrap: wrap;
+  padding: .7rem 1.25rem; border-top: 1px solid var(--line-soft, #EEF2F7);
+  font-size: .78rem; color: var(--ink-soft, #5C6B7E);
+}
+.atn-panel-pie .atn-pie-der { margin-left: auto; display: flex; gap: .4rem; flex-wrap: wrap; }
+
+/* Una tarjeta que todavía se está subiendo se ve distinta: el borde punteado dice
+   "esto ya cuenta, pero aún no está confirmado". Sin la señal, un guardado que
+   fallara desaparecería de una lista que parecía firme. */
+.atn-card.atn-subiendo { border-style: dashed; }
+.atn-chip.subiendo { background: var(--brand-tint, #FDE7F4); color: var(--brand, #E10098); }
+
+@media (max-width: 640px) {
+  .atn-panel { max-height: 100%; height: 100%; border-radius: 14px; }
+  .atn-panel-head, .atn-panel-barra, .atn-panel-cuerpo, .atn-panel-pie { padding-left: .9rem; padding-right: .9rem; }
+  .atn-card-top { grid-template-columns: minmax(0, 1fr); }
+  .atn-acciones { justify-content: flex-start; }
+}
+@media print { .atn-panel-ovl { display: none !important; } }
 </style>
 <script>
 /**
@@ -175,8 +317,15 @@
   var avisoTl = null;                 // su animación de entrada
   var host = null;                    // contenedor de la gestión, si está montada
   var datos = null;                   // último panorama
+  var datosAt = 0;                    // cuándo se leyó lo que hay pintado (caché o servidor)
+  var cargando = false;               // ¿se está revalidando contra el servidor ahora mismo?
   var pestana = 'mias';
   var abiertas = {};                  // { id: true } tarjetas desplegadas
+  var filtro = '';                    // texto del buscador del panel
+  var panel = null;                   // nodo del panel, si está abierto
+  var hostPrevio = null;              // dónde estaba montada la gestión antes del panel
+  var pantallaPropia = false;         // ¿esto es atenciones.html? entonces no hay panel que abrir
+  var provisional = 0;                // contador de ids temporales del guardado optimista
 
   // ── Utilidades ───────────────────────────────────────────────────────────
 
@@ -201,6 +350,59 @@
     });
   }
 
+  /* ── GUARDADO OPTIMISTA ──────────────────────────────────────────────────
+     Todo lo que este módulo ESCRIBE se pinta antes de subirlo.
+
+     El motivo es el de siempre en Apps Script: una escritura son entre medio segundo
+     y varios segundos de viaje, y hasta ahora cada botón de aquí se quedaba
+     deshabilitado durante todo ese rato con un "Guardando…" encima. Con un cliente en
+     la línea, tomar una atención liberada y esperar dos segundos a que el botón
+     reaccione es exactamente el momento en que se abandona la herramienta.
+
+     Ahora el cambio se ve en el mismo fotograma en que se suelta el botón y la subida
+     sigue por detrás, anunciada en la isla de estado de abajo a la izquierda (la
+     pestaña de app_operacion, que app_guardado reclama como indicador). Si el servidor
+     dice que no, se DESHACE lo pintado y se dice por qué: un cambio optimista que
+     sobrevive a su propio fallo es peor que no haberlo pintado nunca.
+
+     El contrato es el de AppGuardado.guardar. Esta envoltura existe porque el módulo
+     también se usa en pantallas que no cargan app_guardado —el aviso flotante sale en
+     cualquier sitio donde se reporte una falla—, y ahí se hace lo mismo a mano: pintar,
+     llamar, deshacer si falla. Lo que no puede pasar es que una acción funcione en una
+     pantalla y no en otra según qué includes tenga. */
+  function guardarFondo(op) {
+    if (window.AppGuardado && AppGuardado.guardar) {
+      var p = AppGuardado.guardar(op);
+      p.catch(function () {});     // nadie está obligado a esperarla; el fallo ya se anunció
+      return p;
+    }
+
+    if (op.optimista) { try { op.optimista(); } catch (e) { console.error(e); } }
+    var valida = op.valida || function (r) { return !(r && r.success === false); };
+    var falla = function (motivo, texto) {
+      if (op.revertir) { try { op.revertir(motivo); } catch (e) { console.error(e); } }
+      toast(texto, 'error');
+      if (op.alFallar) { try { op.alFallar(motivo); } catch (e) { console.error(e); } }
+    };
+    return llamar(op.fn, op.args || []).then(function (r) {
+      if (!valida(r)) {
+        falla(r, (r && r.message) || 'No se pudo guardar. Vuelve a intentarlo.');
+        return null;
+      }
+      if (!op.silencioso && op.hecho) toast(op.hecho, 'ok');
+      if (op.alLograr) { try { op.alLograr(r); } catch (e) { console.error(e); } }
+      return r;
+    }, function (err) {
+      falla(err, 'Sin conexión con el sistema. Inténtalo de nuevo.');
+      return null;
+    });
+  }
+
+  /** El correo de quien mira, tal y como lo devuelve el panorama. */
+  function yoEmail() {
+    return (datos && datos.yo && datos.yo.email) || String(correo() || '').toLowerCase();
+  }
+
   var IC = {
     reloj: '<path d="M12 6v6l4 2"/><circle cx="12" cy="12" r="9"/>',
     tel: '<path d="M22 16.9v3a2 2 0 0 1-2.2 2 19.8 19.8 0 0 1-8.6-3.1 19.5 19.5 0 0 1-6-6A19.8 19.8 0 0 1 2.1 4.2 2 2 0 0 1 4.1 2h3a2 2 0 0 1 2 1.7c.1 1 .3 1.9.6 2.8a2 2 0 0 1-.5 2.1L8.1 9.9a16 16 0 0 0 6 6l1.3-1.1a2 2 0 0 1 2.1-.5c.9.3 1.8.5 2.8.6a2 2 0 0 1 1.7 2Z"/>',
@@ -209,7 +411,11 @@
     chevron: '<path d="m6 9 6 6 6-6"/>',
     usuario: '<path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/>',
     rescate: '<path d="M12 3v6m0 0 3-3m-3 3L9 6"/><path d="M4 13v5a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-5"/><path d="M4 13h5l1.5 2.5h3L15 13h5"/>',
-    aviso: '<path d="M12 9v3.75m0 3.375h.007M10.34 3.94 1.98 18a1.75 1.75 0 0 0 1.51 2.62h17.02A1.75 1.75 0 0 0 22.02 18L13.66 3.94a1.75 1.75 0 0 0-3.02 0Z"/>'
+    aviso: '<path d="M12 9v3.75m0 3.375h.007M10.34 3.94 1.98 18a1.75 1.75 0 0 0 1.51 2.62h17.02A1.75 1.75 0 0 0 22.02 18L13.66 3.94a1.75 1.75 0 0 0-3.02 0Z"/>',
+    lupa: '<circle cx="11" cy="11" r="7"/><path d="m20 20-3.6-3.6"/>',
+    equis: '<path d="M18 6 6 18M6 6l12 12"/>',
+    refrescar: '<path d="M21 12a9 9 0 1 1-2.64-6.36"/><path d="M21 4v5h-5"/>',
+    mas: '<path d="M12 5v14M5 12h14"/>'
   };
   function svg(d, cls) {
     return '<svg class="' + (cls || '') + '" viewBox="0 0 24 24" fill="none" stroke="currentColor" ' +
@@ -465,7 +671,18 @@
         '<div><label class="v-label" for="atn-liberar">Si no la atiendo…</label>' +
         '<select id="atn-liberar" class="v-select">' + opcionesLiberar() + '</select>' +
         '<small class="ayuda">Pasado ese tiempo, cualquier asesor podrá verla y llamar al cliente. ' +
-        'Con «Nunca», la atención es solo tuya para siempre.</small></div>' +
+        'Con «Nunca», la atención es solo tuya para siempre.</small>' +
+        /* La hora fija nace plegada y solo baja al elegirla en el desplegable. Los
+           botones de arriba son las horas de fin de turno: teclear una hora es un paso
+           de más cuando casi siempre se quiere "hasta que acabe mi jornada". El campo
+           sigue estando para el caso que no encaje. */
+        '<div id="atn-hora-fija" hidden>' +
+          '<label class="v-label" for="atn-liberar-hora" style="margin-top:.6rem">¿A qué hora se libera?</label>' +
+          '<div class="atn-horas" style="margin-bottom:.45rem">' + horasSugeridasHTML() + '</div>' +
+          '<input id="atn-liberar-hora" class="v-input" autocomplete="off" maxlength="5" ' +
+                 'inputmode="numeric" placeholder="17:00">' +
+          '<small class="ayuda" id="atn-hora-nota"></small>' +
+        '</div></div>' +
       '</div>' +
       '<p class="cns-ajuste-nota mal" id="atn-error" hidden></p>',
       'Guardar atención',
@@ -502,36 +719,76 @@
         }
         // 'nunca' se queda con los dos vacíos: privada para siempre.
 
-        boton.disabled = true;
-        boton.textContent = 'Guardando…';
-
-        llamar('atencionRegistrar', [correo(), {
+        var envio = {
           cliente: cliente, telefono: tel, correo: val('atn-correo'),
           tipo: tipo || 'Otro', notas: val('atn-notas'),
           horaPromesa: val('atn-hora'),
           liberarMin: libMin, liberarHora: libHora
-        }]).then(function (r) {
-          boton.disabled = false;
-          boton.textContent = 'Guardar atención';
-          if (!r || !r.success) return fallo((r && r.message) || 'No pudimos guardar la atención.');
+        };
+        // Lo que se tecleó, tal cual, por si el guardado no sale. Va aparte de `envio`
+        // porque incluye el estado del formulario (qué opción de liberación se eligió),
+        // que no viaja al servidor pero sí hace falta para volver a dibujarlo igual.
+        var previo = { datos: envio, liberar: libSel, sistema: opts.sistema || '' };
 
-          // La lista local se actualiza sin pedir el panorama otra vez: la respuesta ya
-          // trae la atención creada, y un viaje de vuelta solo para repintar lo que ya
-          // sabemos es medio segundo regalado.
-          if (datos && datos.mias) {
-            datos.mias.push(r.atencion);
+        // El formulario se cierra YA: los campos están validados en este lado y no queda
+        // ninguna decisión pendiente. Quedarse mirando "Guardando…" con el cliente en la
+        // línea es el segundo que este módulo entero existe para no gastar.
+        cerrar();
+
+        // Tarjeta provisional con un id temporal. El de verdad lo asigna el servidor, y
+        // hasta que llegue la tarjeta se enseña sin acciones (ver `tarjeta`): así se ve
+        // que la atención ya cuenta, sin ofrecer botones que apuntarían a un id inexistente.
+        var temporal = {
+          id: '__nueva-' + (++provisional),
+          cliente: cliente, telefono: tel, correo: envio.correo,
+          tipo: envio.tipo, notas: envio.notas, horaPromesa: envio.horaPromesa,
+          fecha: new Date().toISOString(),
+          asesor: yoEmail(), asesorNombre: (datos && datos.yo && datos.yo.nombre) || '',
+          estado: 'pendiente', liberarEn: '', reservaViva: false,
+          _subiendo: true
+        };
+
+        guardarFondo({
+          clave: 'atencion:nueva:' + temporal.id,
+          etiqueta: 'Registrando a ' + cliente,
+          hecho: 'Atención registrada',
+          fn: 'atencionRegistrar',
+          args: [correo(), envio],
+          // Registrar CREA una fila. Un reintento a ciegas daría de alta al mismo
+          // cliente dos veces, y dos asesores llamándole es peor que no llamarle.
+          reintentos: 0,
+          valida: function (r) { return !!(r && r.success); },
+          optimista: function () {
+            if (!datos) return;
+            datos.mias = (datos.mias || []).concat([temporal]);
             datos.mias.sort(function (a, b) {
               return new Date(a.fecha).getTime() - new Date(b.fecha).getTime();
             });
             if (window.AppCache) AppCache.remove(clavePanorama());
+            pestana = 'mias';
             pintar();
+          },
+          alLograr: function (r) {
+            // La respuesta ya trae la atención creada: se sustituye la provisional por
+            // la de verdad en vez de pedir el panorama otra vez, que sería medio
+            // segundo regalado para repintar lo que ya sabemos.
+            if (!datos) return;
+            datos.mias = (datos.mias || []).map(function (x) {
+              return x === temporal ? (r.atencion || x) : x;
+            });
+            pintar();
+          },
+          alFallar: function () {
+            // Deshacer una alta no puede significar perder lo tecleado: se quita la
+            // tarjeta provisional y se devuelve el formulario relleno, listo para
+            // reintentar. Es la diferencia entre "vuelve a preguntárselo al cliente" y
+            // "vuelve a pulsar Guardar".
+            if (datos) {
+              datos.mias = (datos.mias || []).filter(function (x) { return x !== temporal; });
+              pintar();
+            }
+            registrar({ sistema: previo.sistema, previo: previo });
           }
-          cerrar();
-          toast(r.message, 'ok');
-        }, function () {
-          boton.disabled = false;
-          boton.textContent = 'Guardar atención';
-          fallo('No hay conexión con el sistema. Inténtalo de nuevo.');
         });
       });
 
@@ -612,6 +869,36 @@
       if (campoHora) campoHora.addEventListener('input', pintarNotaHora);
     }
 
+    // Reapertura tras un guardado que no salió: se devuelve el formulario tal y como
+    // se dejó. Que un fallo de red cueste volver a preguntarle el teléfono al cliente
+    // sería exactamente el fallo que este módulo viene a evitar.
+    if (opts.previo && opts.previo.datos) {
+      var p = opts.previo.datos;
+      var poner = function (id, v) { var el = document.getElementById(id); if (el && v) el.value = v; };
+      poner('atn-cliente', p.cliente);
+      poner('atn-tel', p.telefono);
+      poner('atn-correo', p.correo);
+      poner('atn-hora', p.horaPromesa);
+      poner('atn-notas', p.notas);
+
+      if (sel && p.tipo) {
+        var conocido = Array.prototype.some.call(sel.options, function (o) { return o.value === p.tipo; });
+        sel.value = conocido ? p.tipo : '__nuevo';
+        if (!conocido && libre) { libre.hidden = false; libre.value = p.tipo; }
+      }
+      if (selLib && opts.previo.liberar) {
+        selLib.value = opts.previo.liberar;
+        // Se dispara el 'change' para que la caja de la hora fija baje si tocaba.
+        try { selLib.dispatchEvent(new Event('change')); } catch (e) {}
+        if (opts.previo.liberar === 'hora') poner('atn-liberar-hora', p.liberarHora);
+      }
+      var errPrevio = document.getElementById('atn-error');
+      if (errPrevio) {
+        errPrevio.hidden = false;
+        errPrevio.textContent = 'No pudimos guardarla. Está todo como lo dejaste: vuelve a pulsar Guardar.';
+      }
+    }
+
     var primero = document.getElementById('atn-cliente');
     if (primero) primero.focus();
   }
@@ -647,6 +934,10 @@
     cerrarModal();
     modalNodo = document.createElement('div');
     modalNodo.className = 'v-modal-overlay';
+    // .v-modal-overlay vive en z-index 9999, por debajo del panel (10050). Un diálogo
+    // que se abre DESDE el panel y aparece detrás de él se lee como que el botón no
+    // hizo nada, así que cuando el panel está puesto el diálogo se sube por encima.
+    if (panel) modalNodo.style.zIndex = '10070';
     modalNodo.innerHTML =
       '<div class="v-modal" role="dialog" aria-modal="true" aria-labelledby="atn-modal-tit" style="max-width:34rem">' +
         '<h3 id="atn-modal-tit" style="font-size:1.1rem;font-weight:700;margin:0 0 .75rem">' + esc(titulo) + '</h3>' +
@@ -686,21 +977,44 @@
 
   function clavePanorama() { return 'atenciones-' + correo(); }
 
+  /**
+   * Trae el panorama. Con caché: pinta lo guardado YA y revalida por detrás.
+   *
+   * `datosAt` es la hora de lo que hay pintado, y viaja hasta el rótulo del panel.
+   * Es la contrapartida obligatoria de pintar desde la caché: si la lista aparece
+   * llena al instante y en ningún sitio dice de cuándo es, no hay forma de
+   * distinguir "esto ya está" de "esto es de hace media hora", y la única salida que
+   * le queda a quien duda es recargar la pantalla entera —justo lo que la caché
+   * venía a evitar—. Por eso el panel dice siempre la antigüedad y tiene un botón de
+   * Actualizar a la vista: la caché es rápida, pero la decisión de fiarse es de quien
+   * está llamando al cliente.
+   *
+   * @param {boolean=} forzar Salta la caché local (botón "Actualizar").
+   */
   function cargar(forzar) {
     if (!haySesion() || !puede()) return Promise.resolve(null);
+
+    cargando = true;
+    pintarCabecera();
+    var fin = function (r) { cargando = false; pintarCabecera(); return r; };
+
     if (window.AppRun && AppRun.swr) {
       return AppRun.swr(clavePanorama(), 'atencionesPanorama', [correo()], {
         ttl: TTL_PANORAMA,
         fuerza: forzar === true,
         accept: function (r) { return !!(r && r.success); },
-        onData: function (r) { if (r && r.success) { datos = r; pintar(); } },
-        onError: function () { if (!datos && host) host.innerHTML = vacio('Sin conexión', 'No pudimos leer tus atenciones. Vuelve a intentarlo.'); }
-      });
+        onData: function (r, deCache, at) {
+          if (r && r.success) { datos = r; datosAt = at || Date.now(); pintar(); }
+        },
+        onError: function () {
+          if (!datos && host) host.innerHTML = vacio('Sin conexión', 'No pudimos leer tus atenciones. Vuelve a intentarlo.');
+        }
+      }).then(fin, fin);
     }
     return llamar('atencionesPanorama', [correo()]).then(function (r) {
-      if (r && r.success) { datos = r; pintar(); }
-      return r;
-    });
+      if (r && r.success) { datos = r; datosAt = Date.now(); pintar(); }
+      return fin(r);
+    }, fin);
   }
 
   function vacio(titulo, texto) {
@@ -737,8 +1051,18 @@
           : 'Tomada · ' + minutosTexto(a.reservaRestanteMs)) + '</span>'
       : '';
 
+    // Mientras la atención está subiendo, la tarjeta se enseña pero sin acciones. No es
+    // prudencia decorativa: su `id` todavía es provisional —el de verdad lo asigna el
+    // servidor— y "Finalizar" sobre un id que no existe daría un error que parecería un
+    // fallo del sistema en vez de lo que es, una carrera de medio segundo.
+    var chipSubiendo = a._subiendo
+      ? '<span class="atn-chip subiendo">' + svg(IC.reloj, 'w-3 h-3') + 'Guardando…</span>'
+      : '';
+
     var acciones = '';
-    if (mia) {
+    if (a._subiendo) {
+      acciones = '<button type="button" class="v-btn v-btn-ghost v-btn-sm" disabled>Guardando…</button>';
+    } else if (mia) {
       // Quien la registró puede soltarla YA, sin esperar a la hora que puso al crearla.
       // Solo se ofrece si todavía no está liberada: sobre una que ya lo está no haría
       // nada, y un botón que no hace nada enseña a desconfiar de los demás.
@@ -766,7 +1090,8 @@
           svg(IC.rescate, 'w-4 h-4') + 'Tomar ' + reservaMin() + ' min</button>';
     }
 
-    return '<article class="atn-card' + (urgente(a) ? ' atn-urgente' : '') + '" data-atn-id="' + esc(a.id) + '">' +
+    return '<article class="atn-card' + (urgente(a) ? ' atn-urgente' : '') +
+      (a._subiendo ? ' atn-subiendo' : '') + '" data-atn-id="' + esc(a.id) + '">' +
       '<div class="atn-card-top">' +
         '<div class="atn-quien">' +
           '<span class="atn-nombre">' + esc(a.cliente) + '</span>' +
@@ -776,7 +1101,7 @@
             '<span' + (urgente(a) ? ' class="atn-chip urge"' : '') + '>' + esc(desdeHace(a.fecha)) + '</span>' +
             (a.horaPromesa ? '<span class="atn-chip">Prometido: ' + esc(a.horaPromesa) + '</span>' : '') +
             (mia ? chipPriv : '<span class="atn-chip">de ' + esc(a.asesorNombre || 'otro asesor') + '</span>') +
-            chipReserva +
+            chipReserva + chipSubiendo +
             (esRescatada && !a.reservaViva ? '<span class="atn-chip libre">la tomaste tú</span>' : '') +
           '</div>' +
         '</div>' +
@@ -791,7 +1116,7 @@
           '<div class="atn-campo"><b>Registrada</b><p>' +
             esc(new Date(a.fecha).toLocaleString('es-MX')) +
             (a.asesorNombre && !mia ? ' · por ' + esc(a.asesorNombre) : '') + '</p></div>' +
-          (mia
+          (mia && !a._subiendo
             ? '<div class="atn-notas-edit">' +
                 '<label class="v-label" for="atn-nota-' + esc(a.id) + '">Añadir o editar anotaciones</label>' +
                 '<textarea id="atn-nota-' + esc(a.id) + '" class="v-input" rows="3" maxlength="600">' +
@@ -807,11 +1132,53 @@
     '</article>';
   }
 
-  function pintar() {
+  /**
+   * Normaliza para buscar: sin acentos, sin mayúsculas y —en los teléfonos— sin nada
+   * que no sea un dígito. Quien busca "5512345678" tiene que encontrar al cliente que
+   * se registró como "55 1234 5678", que es como se dicta un teléfono por la línea.
+   */
+  function plano(s) {
+    var t = String(s == null ? '' : s);
+    try { t = t.normalize('NFD').replace(/[\u0300-\u036f]/g, ''); } catch (e) {}
+    return t.toLowerCase();
+  }
+
+  /**
+   * ¿Esta atención responde a lo que se está buscando?
+   *
+   * Se mira TODO lo que identifica al cliente —nombre, teléfono, correo, tipo, notas y
+   * quién la registró—, no solo el nombre. En la práctica se busca por lo que se tiene a
+   * mano: a veces el nombre, muy a menudo el teléfono desde el que acaban de llamar, y a
+   * veces una palabra suelta de la anotación ("pantalla", "el folio de ayer").
+   */
+  function coincide(a, q) {
+    if (!q) return true;
+    var soloDigitos = q.replace(/\D/g, '');
+    if (soloDigitos.length >= 3 &&
+        String(a.telefono || '').replace(/\D/g, '').indexOf(soloDigitos) !== -1) return true;
+    var heno = plano([a.cliente, a.telefono, a.correo, a.tipo, a.notas,
+                      a.asesorNombre, a.horaPromesa].join(' \n '));
+    return plano(q).split(/\s+/).filter(Boolean).every(function (t) { return heno.indexOf(t) !== -1; });
+  }
+
+  function filtrar(lista) {
+    var q = String(filtro || '').trim();
+    if (!q) return lista;
+    return lista.filter(function (a) { return coincide(a, q); });
+  }
+
+  /**
+   * Repinta la lista entera.
+   * @param {boolean=} sinCascada  Repintado continuo (filtrar mientras se teclea): la
+   *   animación de entrada se salta porque solo tiene sentido cuando la lista APARECE.
+   */
+  function pintar(sinCascada) {
+    pintarCabecera();
     if (!host || !datos) return;
 
-    var mias = datos.mias || [];
-    var publicas = datos.publicas || [];
+    var mias = filtrar(datos.mias || []);
+    var publicas = filtrar(datos.publicas || []);
+    var buscando = !!String(filtro || '').trim();
 
     var html =
       '<div class="atn-tabs" role="tablist">' +
@@ -823,12 +1190,31 @@
       '<div class="atn-lista" data-atn-lista>';
 
     var lista = pestana === 'mias' ? mias : publicas;
+    var otra = pestana === 'mias' ? publicas : mias;
     if (!lista.length) {
-      html += pestana === 'mias'
-        ? vacio('Ninguna atención pendiente', 'Cuando una plataforma falle y tengas un cliente en línea, guarda aquí sus datos.')
-        : vacio('No hay atenciones para tomar',
-                'Aquí aparecen las que otros asesores liberaron. Al tomar una la tienes ' +
-                reservaMin() + ' minutos para llamar; si no la cierras, vuelve a quedar disponible.');
+      if (buscando) {
+        // Buscar en la pestaña equivocada es el caso normal, no el raro: se busca a un
+        // cliente, no se busca "en mis pendientes". Si lo que se busca está en la otra
+        // lista, se dice y se ofrece el salto en vez de dejar un "sin resultados" que
+        // hace pensar que el cliente no está registrado en ninguna parte.
+        html += '<div class="atn-vacio"><b>Nada que coincida con «' + esc(filtro.trim()) + '»</b>' +
+          (otra.length
+            ? (pestana === 'mias'
+                ? 'Pero hay ' + otra.length + (otra.length === 1 ? ' atención liberada' : ' atenciones liberadas') +
+                  ' que sí coinciden y puedes tomar.'
+                : 'Pero ' + (otra.length === 1 ? 'una de tus atenciones coincide' : otra.length + ' de tus atenciones coinciden') + '.') +
+              '<div style="margin-top:.75rem"><button type="button" class="v-btn v-btn-ghost v-btn-sm" ' +
+              'data-atn-tab="' + (pestana === 'mias' ? 'publicas' : 'mias') + '">' +
+              (pestana === 'mias' ? 'Ver las rescatables' : 'Ver mis pendientes') + '</button></div>'
+            : 'Prueba con el teléfono, o pulsa Actualizar por si se registró hace un momento.') +
+          '</div>';
+      } else {
+        html += pestana === 'mias'
+          ? vacio('Ninguna atención pendiente', 'Cuando una plataforma falle y tengas un cliente en línea, guarda aquí sus datos.')
+          : vacio('No hay atenciones para tomar',
+                  'Aquí aparecen las que otros asesores liberaron. Al tomar una la tienes ' +
+                  reservaMin() + ' minutos para llamar; si no la cierras, vuelve a quedar disponible.');
+      }
     } else {
       html += lista.map(function (a) { return tarjeta(a, pestana); }).join('');
     }
@@ -839,7 +1225,7 @@
 
     // Las tarjetas entran en cascada con `amount`: con tres o con treinta, la entrada
     // termina a la vez. Es el mismo criterio de AppMotion.staggerRows.
-    if (conGsap()) {
+    if (conGsap() && !sinCascada) {
       var cards = host.querySelectorAll('.atn-card');
       if (cards.length) {
         gsap.fromTo(cards, { opacity: 0, y: 12 },
@@ -963,22 +1349,47 @@
     });
   }
 
+  /** Acuse en el propio botón: más rápido de leer que un aviso y no tapa nada. */
+  function acuse(btn, texto) {
+    if (!btn) return;
+    var original = btn.getAttribute('data-atn-original') || btn.textContent;
+    btn.setAttribute('data-atn-original', original);
+    btn.textContent = texto;
+    if (window.AppMotion) AppMotion.pop(btn);
+    setTimeout(function () {
+      if (!btn.isConnected) return;
+      btn.textContent = original;
+    }, 1800);
+  }
+
   function guardarNotas(id, texto, btn) {
-    btn.disabled = true;
-    var original = btn.textContent;
-    btn.textContent = 'Guardando…';
-    llamar('atencionActualizar', [correo(), id, { notas: texto }]).then(function (r) {
-      btn.disabled = false;
-      btn.textContent = original;
-      if (!r || !r.success) { toast((r && r.message) || 'No se pudo guardar.', 'error'); return; }
-      // Se actualiza la copia en memoria para que un repintado no devuelva el texto viejo.
-      (datos.mias || []).forEach(function (a) { if (a.id === id) a.notas = texto; });
-      if (window.AppCache) AppCache.remove(clavePanorama());
-      toast('Anotaciones guardadas.', 'ok');
-    }, function () {
-      btn.disabled = false;
-      btn.textContent = original;
-      toast('Sin conexión. Inténtalo de nuevo.', 'error');
+    var a = (datos && datos.mias || []).filter(function (x) { return x.id === id; })[0];
+    var antes = a ? a.notas : '';
+
+    guardarFondo({
+      clave: 'atencion:' + id,
+      etiqueta: 'Guardando las anotaciones',
+      hecho: 'Anotaciones guardadas',
+      // Sin aviso propio: el botón ya dice "Guardado" en el sitio donde se está mirando,
+      // y la isla de estado cierra con "Todo guardado". Un tercer acuse es ruido.
+      silencioso: true,
+      fn: 'atencionActualizar',
+      args: [correo(), id, { notas: texto }],
+      // Fijar un texto en una celda es idempotente: repetirlo deja lo mismo. Si la
+      // respuesta se pierde de vuelta, reintentar es inofensivo.
+      reintentos: 2,
+      valida: function (r) { return !!(r && r.success); },
+      optimista: function () {
+        // Se actualiza la copia en memoria para que un repintado no devuelva el texto
+        // viejo, y la caché se tira para que la siguiente pantalla no lo resucite.
+        if (a) a.notas = texto;
+        if (window.AppCache) AppCache.remove(clavePanorama());
+        acuse(btn, 'Guardado');
+      },
+      revertir: function () {
+        if (a) a.notas = antes;
+        pintar();
+      }
     });
   }
 
@@ -992,23 +1403,38 @@
       '<textarea id="atn-resultado" class="v-input" rows="3" maxlength="400" ' +
                 'placeholder="Se cerró la venta, no contestó, pidió que le llamáramos mañana…"></textarea></div>',
       'Finalizar',
-      function (cerrar, boton) {
-        boton.disabled = true;
-        boton.textContent = 'Finalizando…';
-        llamar('atencionFinalizar', [correo(), id, val('atn-resultado')]).then(function (r) {
-          boton.disabled = false;
-          boton.textContent = 'Finalizar';
-          if (!r || !r.success) { toast((r && r.message) || 'No se pudo finalizar.', 'error'); return; }
-          datos.mias = (datos.mias || []).filter(function (x) { return x.id !== id; });
-          delete abiertas[id];
-          if (window.AppCache) AppCache.remove(clavePanorama());
-          pintar();
-          cerrar();
-          toast('Atención finalizada.', 'ok');
-        }, function () {
-          boton.disabled = false;
-          boton.textContent = 'Finalizar';
-          toast('Sin conexión. Inténtalo de nuevo.', 'error');
+      function (cerrar) {
+        var resultado = val('atn-resultado');
+        var lista = datos.mias || (datos.mias = []);
+        var sitio = lista.indexOf(a);
+
+        // El diálogo se va YA. La decisión está tomada y confirmada; dejarlo puesto con
+        // un "Finalizando…" durante dos segundos es pedirle a quien tiene otro cliente
+        // esperando que mire cómo gira una rueda.
+        cerrar();
+
+        guardarFondo({
+          clave: 'atencion:' + id,
+          etiqueta: 'Finalizando la atención de ' + a.cliente,
+          hecho: 'Atención finalizada',
+          fn: 'atencionFinalizar',
+          args: [correo(), id, resultado],
+          // Cerrar NO se reintenta. Si la respuesta se pierde de vuelta, el segundo
+          // intento cae sobre una atención que ya está cerrada y el servidor contesta
+          // que no —y entonces desharíamos en pantalla algo que sí se guardó—.
+          reintentos: 0,
+          valida: function (r) { return !!(r && r.success); },
+          optimista: function () {
+            datos.mias = lista.filter(function (x) { return x.id !== id; });
+            delete abiertas[id];
+            if (window.AppCache) AppCache.remove(clavePanorama());
+            pintar();
+          },
+          revertir: function () {
+            var actual = datos.mias || (datos.mias = []);
+            if (actual.indexOf(a) === -1) actual.splice(Math.max(0, sitio), 0, a);
+            pintar();
+          }
         });
       });
   }
@@ -1031,49 +1457,93 @@
       '<p class="cns-confirm-tx" style="margin-top:.5rem">Quien la tome la tendrá reservada ' +
       reservaMin() + ' minutos; si no la cierra, vuelve a quedar disponible.</p>',
       'Liberar ahora',
-      function (cerrar, boton) {
-        boton.disabled = true;
-        boton.textContent = 'Liberando…';
-        llamar('atencionLiberarAhora', [correo(), id]).then(function (r) {
-          boton.disabled = false;
-          boton.textContent = 'Liberar ahora';
-          if (!r || !r.success) { toast((r && r.message) || 'No se pudo liberar.', 'error'); return; }
-          // Se actualiza la copia en memoria para que la tarjeta cambie de chip sin
-          // esperar a la siguiente revalidación.
-          if (r.liberarEn) a.liberarEn = r.liberarEn;
-          if (window.AppCache) AppCache.remove(clavePanorama());
-          pintar();
-          cerrar();
-          toast(r.message, 'ok');
-        }, function () {
-          boton.disabled = false;
-          boton.textContent = 'Liberar ahora';
-          toast('Sin conexión. Inténtalo de nuevo.', 'error');
+      function (cerrar) {
+        var antes = a.liberarEn;
+        cerrar();
+
+        guardarFondo({
+          clave: 'atencion:' + id,
+          etiqueta: 'Liberando la atención de ' + a.cliente,
+          hecho: 'Atención liberada al equipo',
+          fn: 'atencionLiberarAhora',
+          args: [correo(), id],
+          reintentos: 0,
+          valida: function (r) { return !!(r && r.success); },
+          optimista: function () {
+            // La hora exacta la fija el servidor; aquí basta con "ya", que es lo que
+            // hace que la tarjeta cambie de chip en el mismo fotograma. Cuando llegue la
+            // respuesta se sustituye por la de verdad.
+            a.liberarEn = new Date().toISOString();
+            if (window.AppCache) AppCache.remove(clavePanorama());
+            pintar();
+          },
+          alLograr: function (r) {
+            if (r && r.liberarEn) { a.liberarEn = r.liberarEn; pintar(); }
+          },
+          revertir: function () {
+            a.liberarEn = antes;
+            pintar();
+          }
         });
       });
   }
 
+  /**
+   * Toma una atención liberada.
+   *
+   * Es la acción con más prisa de todo el módulo: se pulsa con el cliente ya marcado en
+   * el teléfono. Se pinta como tomada al instante y la reserva se confirma por detrás.
+   *
+   * Aquí lo optimista tiene un riesgo real que no tienen las demás: otro asesor puede
+   * haber llegado primero. Por eso, cuando el servidor dice que no, no basta con
+   * deshacer —la lista entera dejó de ser de fiar en ese mismo momento— y se vuelve a
+   * pedir el panorama de verdad.
+   */
   function rescatar(id, btn) {
-    btn.disabled = true;
-    llamar('atencionRescatar', [correo(), id]).then(function (r) {
-      btn.disabled = false;
-      if (!r || !r.success) {
-        toast((r && r.message) || 'No se pudo tomar la atención.', 'error');
+    var a = (datos && datos.publicas || []).filter(function (x) { return x.id === id; })[0];
+    if (!a) return;
+    if (btn) btn.disabled = true;
+
+    // Copia provisional con lo que el servidor va a devolver: sin esto, la tarjeta
+    // saltaría a "Mis pendientes" sin cuenta atrás y parecería que la reserva no se hizo.
+    var mio = {};
+    Object.keys(a).forEach(function (k) { mio[k] = a[k]; });
+    mio.rescatadaPor = yoEmail();
+    mio.rescatadaEn = new Date().toISOString();
+    mio.reservaViva = true;
+    mio.reservaRestanteMs = reservaMin() * 60000;
+
+    guardarFondo({
+      clave: 'atencion:' + id,
+      etiqueta: 'Tomando la atención de ' + a.cliente,
+      hecho: 'La atención es tuya durante ' + reservaMin() + ' minutos',
+      fn: 'atencionRescatar',
+      args: [correo(), id],
+      // Tomar CREA una reserva a nombre de alguien. No se reintenta a ciegas.
+      reintentos: 0,
+      valida: function (r) { return !!(r && r.success); },
+      optimista: function () {
+        datos.publicas = (datos.publicas || []).filter(function (x) { return x.id !== id; });
+        datos.mias = (datos.mias || []).concat([mio]);
+        datos.mias.sort(function (x, y) { return new Date(x.fecha).getTime() - new Date(y.fecha).getTime(); });
+        if (window.AppCache) AppCache.remove(clavePanorama());
+        pestana = 'mias';
+        pintar();
+      },
+      alLograr: function (r) {
+        // La versión del servidor manda: trae la hora exacta de la reserva.
+        if (r && r.atencion) {
+          datos.mias = (datos.mias || []).map(function (x) { return x.id === id ? r.atencion : x; });
+          pintar();
+        }
+      },
+      revertir: function () {
+        datos.mias = (datos.mias || []).filter(function (x) { return x !== mio; });
         // Casi siempre el motivo es que otro asesor llegó primero, y la lista en pantalla
         // ya no dice la verdad: se relee en vez de dejar una tarjeta fantasma.
         cargar(true);
-        return;
-      }
-      datos.publicas = (datos.publicas || []).filter(function (x) { return x.id !== id; });
-      datos.mias = (datos.mias || []).concat([r.atencion]);
-      datos.mias.sort(function (a, b) { return new Date(a.fecha).getTime() - new Date(b.fecha).getTime(); });
-      if (window.AppCache) AppCache.remove(clavePanorama());
-      pestana = 'mias';
-      pintar();
-      toast(r.message, 'ok');
-    }, function () {
-      btn.disabled = false;
-      toast('Sin conexión. Inténtalo de nuevo.', 'error');
+      },
+      alFallar: function () { if (btn && btn.isConnected) btn.disabled = false; }
     });
   }
 
@@ -1141,6 +1611,316 @@
     });
   } catch (e) {}
 
+  /* ═══════════════════════════════════════════════════════════════════════════
+     EL PANEL · atenciones encima de la pantalla en la que ya estás
+     ═══════════════════════════════════════════════════════════════════════════
+     Atenciones era un destino: se pulsaba en la barra, se iba, se miraba y se volvía.
+     En Apps Script cada uno de esos dos saltos es una carga completa de la aplicación
+     —varios segundos, y el trabajo a medias de la pantalla anterior perdido—, así que
+     en la práctica no se consultaba: se consultaba cuando ya no quedaba más remedio.
+
+     El panel invierte eso. Se abre sobre la cotización que se está escribiendo, sobre
+     el correo a medio redactar, sobre la consola. Se cierra con Escape y debajo sigue
+     todo exactamente igual. Y como no hay navegación de por medio, la lista sale
+     PINTADA desde la caché en el mismo fotograma en que se pulsa; la comprobación
+     contra el servidor va por detrás y se anuncia en el rótulo.
+
+     La pantalla completa (atenciones.html) no desaparece: sigue siendo el destino de un
+     enlace compartido y el sitio donde cae quien llega desde el Portal. Lo que cambia es
+     que ya no hace falta ir hasta ella para trabajar. */
+
+  var precargado = false;
+
+  /** Deja el panorama en memoria y en caché, sin pintar nada. Ver `precargar` en la API. */
+  function precargar() {
+    if (precargado || datos || panel || cargando) return false;
+    if (!haySesion() || !puede()) return false;
+    precargado = true;
+    cargar(false);      // sin host, `pintar` no hace nada: esto solo llena datos y caché
+    return true;
+  }
+
+  /** Rótulo del panel: cuántas hay, y de cuándo son los datos que se están viendo. */
+  function pintarCabecera() {
+    if (!panel) return;
+
+    var btn = panel.querySelector('#atn-panel-recargar');
+    if (btn) {
+      if (cargando) btn.classList.add('atn-girando'); else btn.classList.remove('atn-girando');
+    }
+
+    var sub = panel.querySelector('#atn-panel-sub');
+    if (!sub) return;
+
+    var partes = [];
+    if (datos) {
+      var m = (datos.mias || []).length;
+      var p = (datos.publicas || []).length;
+      partes.push(m === 1 ? '1 cliente esperando tu llamada' : m + ' clientes esperando tu llamada');
+      if (p) partes.push(p === 1 ? '1 liberada que puedes tomar' : p + ' liberadas que puedes tomar');
+    }
+
+    var edad = '';
+    if (cargando) edad = 'comprobando con el sistema…';
+    else if (datosAt && window.AppCache) edad = 'actualizado ' + AppCache.ageLabel(datosAt);
+
+    sub.className = 'atn-panel-sub' + (cargando ? ' cargando' : '');
+    sub.innerHTML = '<span class="atn-punto" aria-hidden="true"></span>' +
+      '<span>' + esc(partes.join(' · ') || 'Todavía no hay atenciones registradas') + '</span>' +
+      (edad ? '<span style="opacity:.72">· ' + esc(edad) + '</span>' : '');
+  }
+
+  function panelHTML() {
+    return '' +
+      '<div class="atn-panel" role="dialog" aria-modal="true" aria-labelledby="atn-panel-tit">' +
+        '<header class="atn-panel-head">' +
+          '<span class="atn-panel-ic">' + svg(IC.tel) + '</span>' +
+          '<div class="atn-panel-tx">' +
+            '<h2 id="atn-panel-tit">Atenciones pendientes</h2>' +
+            '<p class="atn-panel-sub" id="atn-panel-sub"></p>' +
+          '</div>' +
+          '<button type="button" class="atn-panel-x" data-atn-panel-cerrar aria-label="Cerrar el panel">' +
+            svg(IC.equis) + '</button>' +
+        '</header>' +
+        '<div class="atn-panel-barra">' +
+          '<div class="atn-busca">' +
+            '<span class="atn-busca-ic">' + svg(IC.lupa) + '</span>' +
+            '<input type="search" id="atn-busca" class="atn-busca-in" autocomplete="off" ' +
+                   'placeholder="Buscar cliente, teléfono, tipo o anotación…" ' +
+                   'aria-label="Buscar entre las atenciones">' +
+            '<button type="button" class="atn-busca-x" id="atn-busca-x" hidden aria-label="Limpiar la búsqueda">×</button>' +
+          '</div>' +
+          '<button type="button" class="v-btn v-btn-ghost v-btn-sm" id="atn-panel-recargar" ' +
+                  'title="Volver a preguntar al sistema">' + svg(IC.refrescar, 'w-4 h-4') + 'Actualizar</button>' +
+          '<button type="button" class="v-btn v-btn-primary v-btn-sm" id="atn-panel-nueva">' +
+            svg(IC.mas, 'w-4 h-4') + 'Registrar atención</button>' +
+        '</div>' +
+        '<div class="atn-panel-cuerpo" id="atn-panel-cuerpo"></div>' +
+        '<footer class="atn-panel-pie">' +
+          '<span>Al tomar una atención liberada la tienes reservada ' + reservaMin() + ' minutos para llamar.</span>' +
+          '<span class="atn-pie-der">' +
+            '<button type="button" class="v-btn v-btn-ghost v-btn-sm" id="atn-panel-todas">Abrir la pantalla completa</button>' +
+          '</span>' +
+        '</footer>' +
+      '</div>';
+  }
+
+  var panelEsc = null, panelScrollPrevio = '', panelFocoPrevio = null;
+
+  /**
+   * Abre el panel sobre la pantalla actual.
+   * @param {object=} opts { registrar: true abre además el formulario, buscar: 'texto' }
+   */
+  function abrirPanel(opts) {
+    opts = opts || {};
+    if (!haySesion() || !puede()) {
+      toast('Tu cuenta no tiene acceso a las atenciones pendientes.', 'warn');
+      return false;
+    }
+
+    if (panel) {
+      // Ya está abierto: pulsar otra vez en la barra no debe apilar un segundo panel.
+      if (opts.buscar !== undefined) { filtro = String(opts.buscar || ''); sincronizarBuscador(); pintar(); }
+      if (opts.registrar) registrar({});
+      var yaB = panel.querySelector('#atn-busca');
+      if (yaB) { try { yaB.focus(); yaB.select(); } catch (e) {} }
+      return true;
+    }
+
+    try { panelFocoPrevio = document.activeElement; } catch (e) { panelFocoPrevio = null; }
+
+    filtro = String(opts.buscar || '');
+    abiertas = {};
+
+    panel = document.createElement('div');
+    panel.className = 'atn-panel-ovl no-print';
+    panel.innerHTML = panelHTML();
+    document.body.appendChild(panel);
+
+    // El fondo no se desplaza mientras el panel está puesto: con el ratón sobre el
+    // borde, la rueda movía la pantalla de debajo y la lista parecía haberse quedado
+    // enganchada. `overscroll-behavior: contain` en el cuerpo remata el efecto dentro.
+    try {
+      panelScrollPrevio = document.body.style.overflow;
+      document.body.style.overflow = 'hidden';
+    } catch (e) {}
+
+    // La gestión se muda al panel. Si la pantalla ya la tenía montada —el inicio del
+    // asesor la enseña en una tarjeta— se guarda dónde estaba y se le devuelve al
+    // cerrar, con los datos ya frescos que trajo el panel.
+    hostPrevio = host;
+    host = panel.querySelector('#atn-panel-cuerpo');
+    host.innerHTML = '<div class="atn-vacio"><div class="v-spinner"></div> Cargando tus atenciones…</div>';
+
+    cablearPanel();
+    pintarCabecera();
+
+    // Lo cacheado se pinta en este mismo fotograma; la revalidación va por detrás.
+    if (datos) pintar();
+    cargar(false);
+
+    if (window.AppMotion) AppMotion.modalIn(panel, panel.querySelector('.atn-panel'));
+    else { panel.style.opacity = '1'; }
+
+    // El foco arranca en el buscador: nueve de cada diez aperturas son "busca a este
+    // cliente", y así se puede teclear sin tocar el ratón.
+    var busca = panel.querySelector('#atn-busca');
+    if (busca) {
+      busca.value = filtro;
+      setTimeout(function () { try { busca.focus(); } catch (e) {} }, 60);
+    }
+
+    if (opts.registrar) registrar({});
+    return true;
+  }
+
+  function sincronizarBuscador() {
+    if (!panel) return;
+    var busca = panel.querySelector('#atn-busca');
+    var limpiar = panel.querySelector('#atn-busca-x');
+    if (busca && busca.value !== filtro) busca.value = filtro;
+    if (limpiar) limpiar.hidden = !filtro;
+  }
+
+  function cablearPanel() {
+    if (!panel) return;
+
+    panel.addEventListener('click', function (e) {
+      // Pulsar fuera de la tarjeta cierra. Dentro, nunca: se está trabajando.
+      if (e.target === panel) cerrarPanel();
+    });
+    panel.querySelector('[data-atn-panel-cerrar]').addEventListener('click', cerrarPanel);
+
+    var busca = panel.querySelector('#atn-busca');
+    var limpiar = panel.querySelector('#atn-busca-x');
+    if (busca) {
+      // Se filtra en local, sobre lo que ya está en memoria: no hay ni un viaje al
+      // servidor por tecla. Buscar entre veinte atenciones es trabajo de un `filter`,
+      // y hacerlo en el cliente es lo que permite que responda mientras se teclea.
+      busca.addEventListener('input', function () {
+        filtro = busca.value;
+        if (limpiar) limpiar.hidden = !filtro;
+        // Sin la animación de entrada: la cascada de tarjetas es para cuando la lista
+        // APARECE. Repetirla en cada tecla convierte el buscador en un parpadeo.
+        pintar(true);
+      });
+    }
+    if (limpiar) {
+      limpiar.addEventListener('click', function () {
+        filtro = ''; if (busca) { busca.value = ''; busca.focus(); }
+        limpiar.hidden = true;
+        pintar(true);
+      });
+    }
+
+    panel.querySelector('#atn-panel-recargar').addEventListener('click', function () {
+      cargar(true);
+    });
+    panel.querySelector('#atn-panel-nueva').addEventListener('click', function () {
+      registrar({});
+    });
+    panel.querySelector('#atn-panel-todas').addEventListener('click', function () {
+      cerrarPanel();
+      if (window.AppUrl) irAPantalla();
+    });
+
+    panelEsc = function (e) {
+      if (!panel) return;
+      if (e.key === 'Escape') {
+        // Con un diálogo encima (registrar, finalizar), Escape cierra ESE, no el panel.
+        if (modalNodo) return;
+        // Escape con una búsqueda escrita la borra primero. La escucha va en captura
+        // —para ganarle a las de las pantallas de debajo— y eso significa que llega
+        // ANTES que cualquier manejador del propio campo: el escalón hay que hacerlo
+        // aquí o no se hace en ninguna parte.
+        if (filtro && busca && document.activeElement === busca) {
+          e.stopPropagation();
+          filtro = ''; busca.value = '';
+          if (limpiar) limpiar.hidden = true;
+          pintar(true);
+          return;
+        }
+        e.stopPropagation();
+        cerrarPanel();
+        return;
+      }
+      if (e.key === 'Tab' && !modalNodo) atraparFocoPanel(e);
+    };
+    document.addEventListener('keydown', panelEsc, true);
+  }
+
+  /** El tabulador no se escapa del panel mientras está abierto. */
+  function atraparFocoPanel(e) {
+    var caja = panel.querySelector('.atn-panel');
+    var focos = caja.querySelectorAll(
+      'button:not([disabled]), [href], input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])');
+    if (!focos.length) return;
+    var primero = focos[0], ultimo = focos[focos.length - 1];
+    if (e.shiftKey && document.activeElement === primero) { e.preventDefault(); ultimo.focus(); }
+    else if (!e.shiftKey && document.activeElement === ultimo) { e.preventDefault(); primero.focus(); }
+  }
+
+  function cerrarPanel() {
+    if (!panel) return;
+    var nodo = panel;
+    panel = null;
+    filtro = '';
+    if (panelEsc) { document.removeEventListener('keydown', panelEsc, true); panelEsc = null; }
+    try { document.body.style.overflow = panelScrollPrevio || ''; } catch (e) {}
+
+    // La gestión vuelve a donde estuviera antes —o a ninguna parte, que es lo normal
+    // en una pantalla que solo abrió el panel—. Se repinta para que la tarjeta del
+    // inicio del asesor refleje lo que se acaba de hacer aquí dentro.
+    host = hostPrevio;
+    hostPrevio = null;
+    abiertas = {};
+    if (host && datos) pintar(); else pararReloj();
+
+    var quitar = function () { if (nodo.parentNode) nodo.parentNode.removeChild(nodo); };
+    if (window.AppMotion) AppMotion.modalOut(nodo, nodo.querySelector('.atn-panel'), quitar);
+    else quitar();
+
+    if (panelFocoPrevio && panelFocoPrevio.focus) {
+      try { panelFocoPrevio.focus({ preventScroll: true }); } catch (e) {}
+    }
+    panelFocoPrevio = null;
+  }
+
+  /** Navega a atenciones.html de verdad, saltándose el desvío al panel. */
+  function irAPantalla(params) {
+    if (!window.AppUrl) return false;
+    var ir = AppUrl.__atencionesGoOriginal || AppUrl.go.bind(AppUrl);
+    return ir('atenciones', params || null);
+  }
+
+  /* ── EL DESVÍO ───────────────────────────────────────────────────────────
+     Todo lo que llevaba a la pantalla de atenciones —la barra lateral, el buscador
+     general, la paleta de comandos, el aviso de una falla— pasa por AppUrl.go. En vez
+     de ir uno por uno cambiando lo que hacen (y olvidarse de alguno, y de los que se
+     añadan mañana), se desvía aquí una sola vez: pedir "atenciones" abre el panel.
+
+     Se envuelve DESPUÉS de app_guardado, que ya envolvió go() con su guardia de
+     salida. El orden es el correcto y no por casualidad: abrir el panel no se lleva la
+     pantalla, así que no tiene por qué preguntar por los cambios en vuelo. Cualquier
+     otro destino sigue cayendo en la guardia intacta.
+
+     En atenciones.html el desvío no se pone: allí el panel sería un duplicado de lo
+     que ya se está viendo. */
+  function desviarNavegacion() {
+    if (!window.AppUrl || AppUrl.__atencionesPanel || pantallaPropia) return;
+    var original = AppUrl.go.bind(AppUrl);
+    AppUrl.__atencionesGoOriginal = original;
+    AppUrl.go = function (page, params) {
+      if (page === 'atenciones' && haySesion() && puede()) {
+        var p = params || {};
+        abrirPanel({ registrar: p.action === 'nueva', buscar: p.q || p.buscar || '' });
+        return true;
+      }
+      return original.apply(null, arguments);
+    };
+    AppUrl.__atencionesPanel = true;
+  }
+
   // ── API pública ──────────────────────────────────────────────────────────
 
   var AppAtenciones = {
@@ -1148,7 +1928,10 @@
      * Pinta la gestión completa dentro de un contenedor.
      * @param {Element|string} donde
      */
-    montar: function (donde) {
+    montar: function (donde, opts) {
+      // `pantallaPropia` lo pone atenciones.html: allí la gestión ES la pantalla, así
+      // que el desvío al panel no se instala (se abriría un panel encima de lo mismo).
+      if (opts && opts.pantallaPropia) pantallaPropia = true;
       host = (typeof donde === 'string') ? document.getElementById(donde) : donde;
       if (!host) return false;
       if (!haySesion() || !puede()) {
@@ -1163,6 +1946,25 @@
     registrar: registrar,
     sugerir: sugerir,
     recargar: function () { return cargar(true); },
+
+    /**
+     * Calienta el panorama sin pintar nada.
+     *
+     * La llama la barra lateral al APUNTAR a "Atenciones", antes de que se pulse. Entre
+     * que el ratón entra en el botón y se suelta el clic pasan de 200 a 600 ms, que es
+     * justo lo que tarda el viaje al servidor: cuando el panel se abre, la lista ya
+     * está. No cuesta nada cuando no se pulsa —una sola lectura por pantalla, y solo si
+     * la persona demostró intención de abrirlo— y es lo que convierte "rápido porque
+     * hay caché" en "rápido también la primera vez".
+     */
+    precargar: precargar,
+
+    /** Abre la gestión como panel encima de la pantalla actual. */
+    abrirPanel: abrirPanel,
+    cerrarPanel: cerrarPanel,
+    panelAbierto: function () { return !!panel; },
+    /** ¿Esta pantalla ES la de atenciones? Entonces no hay panel que abrir. */
+    esPantallaPropia: function () { return pantallaPropia; },
 
     /** Cifras rápidas para el inicio y el feed de supervisión. */
     resumen: function () {
@@ -1180,8 +1982,8 @@
   window.AppAtenciones = AppAtenciones;
 
   /* Cualquier elemento con [data-atenciones-registrar] abre el formulario, y con
-     [data-atenciones-abrir] lleva a la pantalla. Así una pantalla puede ofrecer el
-     registro sin escribir una línea de JavaScript. */
+     [data-atenciones-abrir] abre el panel. Así una pantalla puede ofrecer las
+     atenciones sin escribir una línea de JavaScript. */
   document.addEventListener('DOMContentLoaded', function () {
     document.querySelectorAll('[data-atenciones-registrar]').forEach(function (el) {
       el.addEventListener('click', function (e) { e.preventDefault(); registrar({}); });
@@ -1189,9 +1991,15 @@
     document.querySelectorAll('[data-atenciones-abrir]').forEach(function (el) {
       el.addEventListener('click', function (e) {
         e.preventDefault();
-        if (window.AppUrl) AppUrl.go('atenciones');
+        if (!abrirPanel({}) && window.AppUrl) irAPantalla();
       });
     });
+
+    /* El desvío se instala al final del arranque, cuando ya han corrido los
+       DOMContentLoaded de las pantallas: atenciones.html monta la gestión ahí y es lo
+       que marca `pantallaPropia`. Instalarlo antes desviaría a la propia pantalla de
+       atenciones sobre sí misma. */
+    setTimeout(desviarNavegacion, 0);
   });
 })();
 </script>

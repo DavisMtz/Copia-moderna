@@ -76,7 +76,9 @@
         AppShell.mount({ active: 'atenciones', title: 'Atenciones pendientes' });
         if (window.VentelLoader) VentelLoader.hide();
 
-        AppAtenciones.montar('atn-host');
+        // `pantallaPropia` desactiva el desvío al panel: aquí la gestión ES la pantalla,
+        // y abrir un panel encima sería enseñar dos veces lo mismo.
+        AppAtenciones.montar('atn-host', { pantallaPropia: true });
 
         document.getElementById('atn-nueva').addEventListener('click', function () {
             AppAtenciones.registrar({});

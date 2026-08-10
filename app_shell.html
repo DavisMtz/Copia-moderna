@@ -307,9 +307,10 @@
    * abiertas antes de este cambio), así que nadie pierde su menú al desplegar.
    */
   function sidebarHTML(active) {
-    function link(page, label, icon) {
+    function link(page, label, icon, extra) {
       var cls = 'side-link' + (active === page ? ' active' : '');
-      return '<button class="' + cls + '" onclick="AppShell.nav(\'' + page + '\')">' + icon + ' ' + label + '</button>';
+      return '<button class="' + cls + '"' + (extra || '') +
+             ' onclick="AppShell.nav(\'' + page + '\')">' + icon + ' ' + label + '</button>';
     }
     /** Devuelve el apartado solo si al menos uno de sus enlaces sobrevivió al filtro. */
     function apartado(rotulo, entradas) {
@@ -341,8 +342,14 @@
          orden de la barra es el orden de urgencia. Si estuviera agrupado con "Nueva
          cotización" se leería como una herramienta más del flujo de venta y se buscaría
          solo cuando ya se piensa en cotizar; lo que hace falta es que se vea al entrar.
-         Lleva su propio filtro de bloque porque no está dentro de `apartado`. */
-      (puede('atenciones') ? link('atenciones', 'Atenciones', IC_RELOJ) : '') +
+         Lleva su propio filtro de bloque porque no está dentro de `apartado`.
+
+         A diferencia del resto de la barra, este no lleva a ninguna parte: abre el panel
+         encima de lo que se esté haciendo (ver AppShell.nav). Por eso está en TODAS las
+         pantallas y por eso pulsarlo no cuesta perder el trabajo a medias. */
+      (puede('atenciones')
+        ? link('atenciones', 'Atenciones', IC_RELOJ, ' data-precarga-atenciones aria-haspopup="dialog"')
+        : '') +
       apartado('Cotizaciones', [
         ['cotizar',           'cotizacion',       'Nueva cotización',         IC_DOC],
         ['enviar_cotizacion', 'correoventel',     'Enviar cotización',        IC_MAIL],
@@ -398,6 +405,32 @@
       '</div>';
   }
 
+  /**
+   * Precarga por intención: al APUNTAR a "Atenciones" se pide el panorama, antes de
+   * que se pulse.
+   *
+   * Entre que el ratón entra en el botón y se suelta el clic pasan tranquilamente 300 ms
+   * —y con el foco del teclado, más—, que es justo lo que tarda el viaje al servidor de
+   * Apps Script. Aprovechar ese hueco es la diferencia entre un panel que aparece lleno
+   * y uno que aparece con una rueda girando. Si al final no se pulsa, lo único que ha
+   * pasado es que la caché quedó caliente para la próxima.
+   *
+   * Se cablea aquí y no en el HTML de la barra porque `sidebarHTML` se vuelve a pintar
+   * cuando el rol cambia al refrescar la sesión, y con él se van las escuchas.
+   */
+  function cablearPrecarga(aside) {
+    var btn = aside.querySelector('[data-precarga-atenciones]');
+    if (!btn) return;
+    var pedir = function () {
+      if (window.AppAtenciones && AppAtenciones.precargar) AppAtenciones.precargar();
+    };
+    btn.addEventListener('mouseenter', pedir, { once: true });
+    btn.addEventListener('focus', pedir, { once: true });
+    // En táctil no hay "apuntar": el dedo que toca ya es el clic. `touchstart` llega
+    // unos 100 ms antes que el `click`, y esos 100 ms también cuentan.
+    btn.addEventListener('touchstart', pedir, { once: true, passive: true });
+  }
+
   function openDrawer() { var s = document.getElementById('appSidebar'), c = document.getElementById('appScrim'); if (s) s.classList.add('open'); if (c) c.classList.add('show'); }
   function closeDrawer() { var s = document.getElementById('appSidebar'), c = document.getElementById('appScrim'); if (s) s.classList.remove('open'); if (c) c.classList.remove('show'); }
 
@@ -442,6 +475,7 @@
       var un = document.getElementById('user-name');
       if (un && window.AppSession) un.textContent = AppSession.firstName;
       syncPrefUI();
+      cablearPrecarga(aside);
 
       // Una preferencia puede cambiar sin que se haya tocado NADA de esta barra: llega
       // de la cuenta al sincronizar, o de otra pestaña abierta. Sin esto, el tema se
@@ -468,6 +502,7 @@
           if (!res || !res.cambio) return;
           aside.innerHTML = sidebarHTML(opts.active || '');
           syncPrefUI();
+          cablearPrecarga(aside);
           // Repintar la barra tira el botón de ayuda con sus escuchas: se vuelve a cablear.
           if (window.AppOnboarding) AppOnboarding.cablearBotones();
           var un2 = document.getElementById('user-name');
@@ -476,7 +511,27 @@
       }
     },
 
-    nav: function (page) { closeDrawer(); if (window.AppUrl) AppUrl.go(page); },
+    /**
+     * Va a una pantalla… salvo Atenciones, que ya no es una pantalla a la que ir.
+     *
+     * En Apps Script cambiar de vista es una carga completa de la aplicación: varios
+     * segundos, y la cotización a medio escribir por el camino. Para una consulta de
+     * cinco segundos —"¿quién está esperando mi llamada?"— ese precio hacía que
+     * simplemente no se consultara. Atenciones se abre ahora como panel ENCIMA de la
+     * pantalla en la que se esté, con lo cacheado pintado al instante y la comprobación
+     * contra el servidor por detrás.
+     *
+     * Si el módulo no está cargado en esta pantalla, se navega como siempre: la
+     * pantalla completa sigue existiendo y es el destino de un enlace compartido.
+     */
+    nav: function (page) {
+      closeDrawer();
+      if (page === 'atenciones' && window.AppAtenciones && AppAtenciones.abrirPanel &&
+          !AppAtenciones.esPantallaPropia()) {
+        if (AppAtenciones.abrirPanel({})) return;
+      }
+      if (window.AppUrl) AppUrl.go(page);
+    },
     logout: function () { if (window.AppSession) AppSession.clear(); if (window.AppUrl) AppUrl.go('login'); },
     toggleDrawer: function () { var s = document.getElementById('appSidebar'); if (s && s.classList.contains('open')) closeDrawer(); else openDrawer(); },
 
