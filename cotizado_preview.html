@@ -235,6 +235,43 @@
         }
         /* Los estilos del formato CCL viven en app_ccl.html, junto a su marcado. */
 
+        /* ══ DOCUMENTO CCL GENERADO ══════════════════════════════════════════
+           El panel que enseña la Google Sheet real. Nace oculto y GSAP lo trae cuando
+           el documento está listo. */
+        .doc-ccl {
+            max-width: 1100px; margin: 1.25rem auto 0;
+            border: 1px solid var(--line, #e5e7eb); border-radius: 14px;
+            background: var(--surface, #fff); overflow: hidden;
+        }
+        .doc-ccl-head {
+            display: flex; flex-wrap: wrap; gap: .75rem; align-items: center;
+            justify-content: space-between; padding: .9rem 1.1rem;
+        }
+        .doc-ccl-tx { min-width: 0; }
+        .doc-ccl-tx h2 {
+            display: flex; align-items: center; gap: .45rem; margin: 0;
+            font-size: .98rem; font-weight: 700; color: var(--ink, #1B2330);
+        }
+        .doc-ccl-ok {
+            width: 1.15rem; height: 1.15rem; flex: none;
+            color: var(--ok, #0E7A4F);
+        }
+        .doc-ccl-tx p { margin: .15rem 0 0; font-size: .82rem; color: var(--ink-soft, #64748b); }
+
+        /* El marco del documento.
+           `aspect-ratio` en vez de una altura fija: la hoja CCL es apaisada y con una
+           altura en píxeles se veía con una franja muerta abajo en pantallas anchas y
+           recortada en las estrechas. */
+        .doc-ccl-marco { border-top: 1px solid var(--line, #e5e7eb); background: var(--surface-2, #f8fafc); }
+        .doc-ccl-marco iframe {
+            display: block; width: 100%; aspect-ratio: 16 / 10; min-height: 22rem; border: 0;
+        }
+        @media (max-width: 640px) { .doc-ccl-marco iframe { aspect-ratio: 4 / 5; } }
+
+        /* Ni el panel ni su documento salen impresos: lo que se imprime desde esta
+           pantalla es la vista previa de arriba, no una captura de la interfaz de Sheets. */
+        @media print { .doc-ccl { display: none !important; } }
+
         /* Define el tamaño de página y elimina los márgenes del navegador */
         @page {
             size: letter;
@@ -364,6 +401,38 @@
         Ver app_ccl.html (define #ccl-preview-content y populateCclPreview).
     -->
     <?!= include('app_ccl'); ?>
+
+    <!-- ══ DOCUMENTO CCL GENERADO ═══════════════════════════════════════════
+         Arriba, en #ccl-preview-content, hay una RECREACIÓN en HTML del formato CCL:
+         se dibuja al instante y sirve para revisar los números. Esto de aquí es otra
+         cosa: el DOCUMENTO DE VERDAD, la Google Sheet que sale de la plantilla oficial
+         y que es la que acaba en el PDF que recibe el cliente.
+
+         Las dos conviven a propósito. La recreación es inmediata pero es una imitación;
+         el documento es fiel pero tarda unos segundos en generarse. Enseñar solo la
+         primera deja la duda de "¿saldrá así de verdad?", y esperar por la segunda
+         congelaría la pantalla en cada carga.
+
+         El panel nace oculto y solo aparece cuando el documento está listo. -->
+    <section id="doc-ccl" class="doc-ccl no-print" hidden aria-labelledby="doc-ccl-tit">
+        <div class="doc-ccl-head">
+            <div class="doc-ccl-tx">
+                <h2 id="doc-ccl-tit">
+                    <span class="doc-ccl-ok" data-icon="check" aria-hidden="true"></span>
+                    Documento oficial listo
+                </h2>
+                <p id="doc-ccl-sub">Este es el formato CCL tal como lo recibirá el cliente.</p>
+            </div>
+            <button type="button" id="doc-ccl-toggle" class="v-btn v-btn-ghost v-btn-sm"
+                    aria-expanded="false" aria-controls="doc-ccl-marco">
+                Ver documento
+            </button>
+        </div>
+        <!-- El iframe NO se crea hasta que se pulsa "Ver documento". Cargarlo con la
+             pantalla traería medio megabyte de la interfaz de Sheets a una vista previa
+             que la mayoría de las veces solo se mira por encima antes de enviar. -->
+        <div class="doc-ccl-marco" id="doc-ccl-marco" hidden></div>
+    </section>
 
     <div id="redirect-overlay" class="hidden">
         <div class="modern-spinner"></div>
@@ -552,6 +621,140 @@
         /**
          * Muestra la vista previa que corresponde al formato elegido.
          */
+        /* ═══════════════════════════════════════════════════════════════════════
+           DOCUMENTO CCL · generación en segundo plano
+           ═══════════════════════════════════════════════════════════════════════
+           Al abrir la vista previa se pide al servidor que genere (o reutilice) la Google
+           Sheet oficial del folio, sin que el asesor tenga que pedirlo y sin bloquear
+           nada. Cuando está lista aparece el panel de abajo con el documento incrustado.
+
+           POR QUÉ EN SEGUNDO PLANO Y NO AL PULSAR UN BOTÓN
+           ------------------------------------------------
+           Porque el momento en que hace falta es justo este. El asesor llega aquí a
+           comprobar que la cotización quedó bien antes de enviarla, y "quedó bien" se
+           responde mirando el documento de verdad, no una recreación. Si hubiera que
+           pedirlo, se pediría cuando ya hay una duda —es decir, tarde—; generándolo al
+           entrar, el documento suele estar listo antes de que termine de leerse la tabla.
+
+           EL INDICADOR
+           ------------
+           Se usa AppBusy, el mismo puntito de la esquina superior que enciende cualquier
+           consulta al servidor. No se pone un spinner propio a propósito: esto es trabajo
+           de fondo que no impide hacer nada, y un indicador grande lo anunciaría como si
+           hubiera que esperarlo. */
+        const DocumentoCcl = (function () {
+            let pedido = false;
+            let urlDoc = '';
+            let montado = false;
+
+            const panel  = () => document.getElementById('doc-ccl');
+            const marco  = () => document.getElementById('doc-ccl-marco');
+            const boton  = () => document.getElementById('doc-ccl-toggle');
+            const sub    = () => document.getElementById('doc-ccl-sub');
+
+            function conGsap() {
+                return typeof gsap !== 'undefined' &&
+                       !window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+            }
+
+            /**
+             * Pide el documento. Una sola vez por carga de pantalla: `pedido` lo protege
+             * de que un cambio de formato o una recarga de datos dispare una segunda
+             * generación, que en el servidor significa volver a escribir la hoja entera.
+             */
+            function generar(folio) {
+                if (pedido || !folio) return;
+                if (typeof google === 'undefined' || !google.script || !google.script.run) return;
+                pedido = true;
+
+                const token = window.AppBusy ? AppBusy.start('Generando el documento') : null;
+                const fin = function () { if (token && window.AppBusy) AppBusy.done(token); };
+
+                google.script.run
+                    .withSuccessHandler(function (r) {
+                        fin();
+                        if (!r || !r.success || !r.urlIncrustable) {
+                            // Silencio deliberado. La vista previa de arriba funciona y la
+                            // cotización ya está guardada: que el documento oficial no se
+                            // haya podido generar no es algo que el asesor pueda resolver
+                            // ni que le impida enviar. Se registra para quien mantenga
+                            // esto y no se le grita a quien está trabajando.
+                            console.warn('Documento CCL:', (r && r.message) || 'sin respuesta');
+                            return;
+                        }
+                        urlDoc = r.urlIncrustable;
+                        if (r.message && window.AppMotion) AppMotion.toast(r.message, 'warn');
+                        mostrarPanel();
+                    })
+                    .withFailureHandler(function (e) {
+                        fin();
+                        console.warn('Documento CCL:', e && e.message ? e.message : e);
+                    })
+                    .previewSheetCcl(folio);
+            }
+
+            /** Enseña el panel. Solo aparece cuando hay algo que enseñar. */
+            function mostrarPanel() {
+                const p = panel();
+                if (!p || !p.hidden) return;
+                p.hidden = false;
+
+                if (conGsap()) {
+                    gsap.from(p, {
+                        opacity: 0, y: 16, duration: .45, ease: 'power3.out',
+                        force3D: true, clearProps: 'transform'
+                    });
+                }
+                cablear();
+            }
+
+            function cablear() {
+                if (montado) return;
+                montado = true;
+                const b = boton();
+                if (!b) return;
+
+                b.addEventListener('click', function () {
+                    const m = marco();
+                    if (!m) return;
+                    const abrir = m.hidden;
+
+                    if (abrir) {
+                        // El iframe se crea la PRIMERA vez que se abre y se conserva
+                        // después: recrearlo en cada apertura volvería a descargar la
+                        // interfaz de Sheets y a perder la posición de lectura.
+                        if (!m.firstElementChild) {
+                            const f = document.createElement('iframe');
+                            f.src = urlDoc;
+                            f.title = 'Documento CCL de la cotización';
+                            f.loading = 'lazy';
+                            // Sin permisos de descarga ni de portapapeles: este panel es
+                            // para MIRAR el documento. Lo que hay que llevarse de esta
+                            // pantalla es el PDF, que se genera aparte y con su formato.
+                            f.setAttribute('referrerpolicy', 'no-referrer');
+                            m.appendChild(f);
+                        }
+                        m.hidden = false;
+                        if (conGsap()) {
+                            gsap.from(m, { opacity: 0, duration: .3, ease: 'power2.out' });
+                        }
+                    } else {
+                        m.hidden = true;
+                    }
+
+                    b.setAttribute('aria-expanded', abrir ? 'true' : 'false');
+                    b.textContent = abrir ? 'Ocultar documento' : 'Ver documento';
+                    if (sub()) {
+                        sub().textContent = abrir
+                            ? 'Solo lectura. Para enviarlo al cliente usa "Enviar por Correo".'
+                            : 'Este es el formato CCL tal como lo recibirá el cliente.';
+                    }
+                });
+            }
+
+            return { generar: generar, listo: function () { return !!urlDoc; } };
+        })();
+
         function applyPreviewFormat(formatId) {
             const actual = document.getElementById('pdf-preview-content');
             const ccl = document.getElementById('ccl-preview-content');
@@ -587,6 +790,16 @@
 
             // El selector se llena aparte: si tarda, ya no bloquea el dibujado.
             loadPreviewFormats(data.format);
+
+            /* El documento oficial se pide AQUÍ, que es por donde pasan las tres formas de
+               llegar a esta pantalla (caché de la cotización recién guardada, folio en la
+               URL y recuperación desde el servidor). Colgarlo de cada una obligaría a
+               acordarse de las tres, y la que se olvidara fallaría solo en su camino.
+
+               Solo tiene sentido con un folio: una cotización que todavía no se guardó no
+               tiene documento que generar. Va sin await y sin encadenar: la pantalla sigue
+               pintándose mientras el servidor trabaja. */
+            if (data.folio) DocumentoCcl.generar(data.folio);
             document.getElementById('preview-fechaEmision').textContent = new Date(data.timestamp || Date.now()).toLocaleDateString('es-MX', { day: '2-digit', month: 'long', year: 'numeric' });
             document.getElementById('preview-asesorNombre').textContent = data.advisorName || 'N/A';
             document.getElementById('preview-clienteNombre').textContent = data.clientName || 'N/A';
