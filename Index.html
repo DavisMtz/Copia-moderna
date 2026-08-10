@@ -1340,6 +1340,11 @@ table.ds-matrix{width:100%;border-collapse:separate;border-spacing:0;min-width:5
 
   <span class="side-label">Panel</span>
   <button class="side-link active" data-sec="inicio" onclick="switchSec('inicio',this)"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M3 10.5 12 3l9 7.5"/><path d="M5 9.4V21h5v-6h4v6h5V9.4"/></svg> Inicio</button>
+  <!-- Atenciones pendientes, justo debajo de Inicio. Nace OCULTO: el Portal es la
+       landing pública y aquí entra gente sin sesión, a la que este enlace solo la
+       llevaría a un login que no pidió. Lo enciende aplicarAreas() cuando la sesión
+       trae el bloque, con el mismo mecanismo que los demás enlaces de área. -->
+  <a class="side-link ext" id="atencionesNavLink" hidden href="<?= APP_URL ?>?page=atenciones" target="_top" onclick="handleAtencionesNav(event,this)"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 7.2V12l3.1 1.8"/></svg> Atenciones <span class="ext-arrow"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M7 17 17 7M8 7h9v9"/></svg></span></a>
 
   <span class="side-label">Operación</span>
   <button class="side-link" data-sec="herramientas" onclick="switchSec('herramientas',this)"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M14.5 6.5a3.8 3.8 0 0 0-5 5l-6 6 2.5 2.5 6-6a3.8 3.8 0 0 0 5-5l-2.4 2.4-2-2 1.9-2.9Z"/></svg> Herramientas <span class="side-count" id="n-herramientas">·</span></button>
@@ -3237,6 +3242,18 @@ function handlePromoNav(e, link){
   closeSidebar();
   const href = link.getAttribute('href') || '';
   if (!href.startsWith('http')) { e.preventDefault(); window.location.href = 'Promociones.html'; }
+}
+
+/* Navegación a las atenciones pendientes.
+   Vive aquí, en el ámbito global, y no junto a la lista de ENLACES que la enciende:
+   un onclick escrito en el HTML solo alcanza funciones globales, y dentro de aquel
+   IIFE esto habría sido un ReferenceError en el primer clic. */
+function handleAtencionesNav(e, link){
+  if (window.VentelLoader) VentelLoader.show();
+  closeSidebar();
+  if (!(window.AppUrl && AppUrl.base)) return;   // sin URL base, que el href haga su trabajo
+  e.preventDefault();
+  AppUrl.go('atenciones');
 }
 
 /* Salto a un bloque de Formas de Pago desde el dashboard */
@@ -6435,16 +6452,27 @@ function mockData(){
   var ENLACES = [
     { id: 'cotizacionesNavLink', area: 'cotizaciones' },
     { id: 'correoClienteNavLink', area: 'correos' },
-    { id: 'promoNavLink',        area: 'promociones' }
+    { id: 'promoNavLink',        area: 'promociones' },
+    /* Atenciones se apaga además SIN SESIÓN. Los demás enlaces de esta lista llevan a
+       pantallas que cualquiera puede querer abrir —y el login se encarga de pedir las
+       credenciales—, pero "Atenciones pendientes" no significa nada para quien no ha
+       entrado: es su libreta de clientes, y ofrecérsela a un visitante anónimo solo
+       produce un login que no venía a hacer. */
+    { id: 'atencionesNavLink',   area: 'atenciones', exigeSesion: true }
   ];
 
   function aplicarAreas() {
     if (!window.AppFunciones) return;
+    var conSesion = !!(window.AppSession && AppSession.isLoggedIn());
     ENLACES.forEach(function (e) {
       var el = document.getElementById(e.id);
-      if (el) el.hidden = !AppFunciones.visible(e.area);
+      if (!el) return;
+      var ok = AppFunciones.visible(e.area);
+      if (e.exigeSesion && !conSesion) ok = false;
+      el.hidden = !ok;
     });
   }
+
 
   function pintarGestion(permisos) {
     var enlace = document.getElementById('gestionNavLink');

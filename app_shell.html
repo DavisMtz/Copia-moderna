@@ -207,6 +207,7 @@
   var IC_MEGA  = '<svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M3 11v2a1 1 0 0 0 1 1h2l9 4V6L6 10H4a1 1 0 0 0-1 1Z"/><path d="M15 8a4 4 0 0 1 0 8"/><path d="M7 14v5"/></svg>';
   var IC_SHIELD= '<svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3l7.5 3v5.5c0 4.4-3.1 8.4-7.5 9.5-4.4-1.1-7.5-5.1-7.5-9.5V6Z"/><path d="m9.2 12.2 1.9 1.9 3.7-3.7"/></svg>';
   var IC_STACK = '<svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="m12 3 9 4.5-9 4.5-9-4.5L12 3Z"/><path d="m3 12 9 4.5 9-4.5"/><path d="m3 16.5 9 4.5 9-4.5"/></svg>';
+  var IC_RELOJ = '<svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 7.2V12l3.1 1.8"/></svg>';
   var IC_GEAR  = '<svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3.2"/><path d="M19.4 15a1.6 1.6 0 0 0 .32 1.77l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.6 1.6 0 0 0-1.77-.32 1.6 1.6 0 0 0-1 1.47V21a2 2 0 1 1-4 0v-.1a1.6 1.6 0 0 0-1.05-1.47 1.6 1.6 0 0 0-1.77.32l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.6 1.6 0 0 0 .32-1.77 1.6 1.6 0 0 0-1.47-1H3a2 2 0 1 1 0-4h.1a1.6 1.6 0 0 0 1.47-1.05 1.6 1.6 0 0 0-.32-1.77l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.6 1.6 0 0 0 1.77.32H9a1.6 1.6 0 0 0 1-1.47V3a2 2 0 1 1 4 0v.1a1.6 1.6 0 0 0 1 1.47 1.6 1.6 0 0 0 1.77-.32l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.6 1.6 0 0 0-.32 1.77V9a1.6 1.6 0 0 0 1.47 1H21a2 2 0 1 1 0 4h-.1a1.6 1.6 0 0 0-1.47 1Z"/></svg>';
 
   /**
@@ -335,6 +336,13 @@
       appSwitchHTML(active) +
       '<span class="side-label">Panel</span>' +
       link('dashboard', 'Inicio', IC_HOME) +
+      /* Atenciones va JUSTO debajo de Inicio y fuera del apartado de Cotizaciones, a
+         propósito. No es una cotización: es un cliente esperando una llamada, y el
+         orden de la barra es el orden de urgencia. Si estuviera agrupado con "Nueva
+         cotización" se leería como una herramienta más del flujo de venta y se buscaría
+         solo cuando ya se piensa en cotizar; lo que hace falta es que se vea al entrar.
+         Lleva su propio filtro de bloque porque no está dentro de `apartado`. */
+      (puede('atenciones') ? link('atenciones', 'Atenciones', IC_RELOJ) : '') +
       apartado('Cotizaciones', [
         ['cotizar',           'cotizacion',       'Nueva cotización',         IC_DOC],
         ['enviar_cotizacion', 'correoventel',     'Enviar cotización',        IC_MAIL],
