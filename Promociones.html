@@ -1970,14 +1970,26 @@ function renderCards(promosArray){
 let viewMonth = null;
 
 function sharePromo(id) {
-  try {
-    const url = new URL(window.location.href);
-    url.searchParams.set('promo', id);
-    navigator.clipboard.writeText(url.toString()).then(() => {
-      if (window.AppMotion) AppMotion.toast('Enlace copiado al portapapeles', 'ok');
-      else alert('Enlace de la promoción copiado al portapapeles');
-    }).catch(e => console.error(e));
-  } catch(e) { console.error(e); }
+  if (window.AppUrl && typeof AppUrl.copyLink === 'function') {
+    AppUrl.copyLink('promociones', { promo: id }).then(ok => {
+      if (ok) {
+        if (window.AppMotion) AppMotion.toast('Enlace copiado al portapapeles', 'ok');
+        else alert('Enlace de la promoción copiado al portapapeles');
+      } else {
+        if (window.AppMotion) AppMotion.toast('No se pudo copiar el enlace', 'error');
+        else alert('No se pudo copiar el enlace');
+      }
+    });
+  } else {
+    try {
+      const url = new URL(window.location.href);
+      url.searchParams.set('promo', id);
+      navigator.clipboard.writeText(url.toString()).then(() => {
+        if (window.AppMotion) AppMotion.toast('Enlace copiado al portapapeles', 'ok');
+        else alert('Enlace de la promoción copiado al portapapeles');
+      }).catch(e => console.error(e));
+    } catch(e) { console.error(e); }
+  }
 }
 const GANTT_PALETTE = ['#E10098','#5B21B6','#1D4ED8','#0E7A4F','#B45309','#0E7490','#BE185D','#4338CA'];
 
