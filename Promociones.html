@@ -1532,6 +1532,14 @@ select.filter-select:focus{border-color:var(--brand);box-shadow:var(--ring)}
 </script>
 
 <script>
+window.onerror = function(msg, url, lineNo, columnNo, error) {
+  alert("Error JS: " + msg + "\nLínea: " + lineNo);
+  return false;
+};
+</script>
+
+<script>
+const RM = false;
 function handlePortalNav(e, link) {
   const href = link.getAttribute('href') || '';
   if (!href.startsWith('http')) {
@@ -1733,16 +1741,23 @@ function handleDataSuccess(data, fromCache){
 }
 
 function refreshActiveData(){
-  parsedPromos = globalData.promociones.map((p, i) => {
-    const range = parseVigencia(p.vigencia);
-    let hash = 0; const str = (p.categoria||'') + (p.promocion||'') + (p.vigencia||'');
-    for (let j = 0; j < str.length; j++) hash = Math.imul(31, hash) + str.charCodeAt(j) | 0;
-    const pId = 'pr-' + Math.abs(hash).toString(36) + '-' + i;
-    return Object.assign({}, p, { _start: range ? range.start : null, _end: range ? range.end : null, _id: pId });
-  });
-  activePromosToday = parsedPromos.filter(p => p._start && currentNow >= p._start && currentNow <= p._end);
-  buildDeptColors(); populateChips(); renderHeroStats(); applyFilters(); renderCalendar(); renderAgenda();
-  document.getElementById('tabCountPromos').textContent = activePromosToday.length;
+  try {
+    parsedPromos = globalData.promociones.map((p, i) => {
+      const range = parseVigencia(p.vigencia);
+      let hash = 0; const str = (p.categoria||'') + (p.promocion||'') + (p.vigencia||'');
+      for (let j = 0; j < str.length; j++) {
+        hash = ((hash << 5) - hash) + str.charCodeAt(j);
+        hash = hash & hash;
+      }
+      const pId = 'pr-' + Math.abs(hash).toString(36) + '-' + i;
+      return Object.assign({}, p, { _start: range ? range.start : null, _end: range ? range.end : null, _id: pId });
+    });
+    activePromosToday = parsedPromos.filter(p => p._start && currentNow >= p._start && currentNow <= p._end);
+    buildDeptColors(); populateChips(); renderHeroStats(); applyFilters(); renderCalendar(); renderAgenda();
+    document.getElementById('tabCountPromos').textContent = activePromosToday.length;
+  } catch(e) {
+    alert("Error crítico al procesar promociones: " + e.message + "\nEn la línea: " + (e.lineNumber || "desconocida"));
+  }
 }
 
 function handleDataError(error){
