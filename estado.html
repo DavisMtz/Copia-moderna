@@ -622,17 +622,23 @@
 
   <main id="main-content" class="est-wrap">
     <section id="est-portada" aria-live="polite"></section>
-    <section id="est-sistemas"></section>
-    <section id="est-incidencias"></section>
 
-    <!-- Historial por fechas. Va DESPUÉS del estado actual a propósito: quien entra aquí
-         viene a saber si está caído ahora; el historial es la segunda pregunta, no la
-         primera. Lo pinta app_estado_historial, que es el mismo módulo que usa el panel
-         de supervisión. -->
+    <!-- Historial por fechas, JUSTO debajo del titular de estado.
+         Va aquí y no al final porque las dos cosas responden a la misma pregunta con
+         distinto alcance: el titular dice cómo está el servicio ahora y el historial dice
+         cómo ha estado. Leídos juntos, un "Todo funcionando" sobre catorce días limpios
+         significa algo muy distinto que el mismo "Todo funcionando" sobre una semana con
+         tres caídas —y esa diferencia es justo lo que se viene a averiguar—. Separados por
+         media página, el segundo dato no llegaba a leerse.
+
+         Lo pinta app_estado_historial, el mismo módulo que usa el panel de supervisión. -->
     <section id="est-historial" class="est-seccion" aria-labelledby="est-historial-tit">
       <h2 id="est-historial-tit" class="est-rot">Historial por fechas</h2>
       <div id="est-historial-host"></div>
     </section>
+
+    <section id="est-sistemas"></section>
+    <section id="est-incidencias"></section>
 
     <footer class="est-pie">
       <p>Esta página muestra el estado de los sistemas que usa el equipo Ventel.

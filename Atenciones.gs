@@ -385,6 +385,54 @@ function atenLiberada_(a, ahora) {
   return atenMs_(a.liberarEn) <= (ahora || Date.now());
 }
 
+// ── TOMAR UNA ATENCIÓN: LA RESERVA DE 15 MINUTOS ─────────────────────────────
+//
+// "Tomar" no es quedarse la atención para siempre: es RESERVARLA un rato para llamar sin que otro
+// marque el mismo número al mismo tiempo. Pasado ese rato, si no se cerró, vuelve al pool.
+//
+// Por qué una reserva y no una asignación definitiva:
+//
+//   · Una asignación permanente convierte cualquier despiste en un cliente perdido. Alguien pulsa
+//     "Tomar", le entra otra llamada, se le olvida — y esa atención queda con dueño y sin atender,
+//     invisible para el resto. El pool existe justo para que eso no pase.
+//
+//   · La reserva SÍ hace falta, porque sin ella dos asesores que ven la misma tarjeta llaman al
+//     mismo cliente con un minuto de diferencia, y el cliente se lleva la impresión contraria a la
+//     que se busca: que nadie sabe lo que está haciendo.
+//
+// Quince minutos porque es lo que dura una llamada de rescate con margen: se marca, no contesta,
+// se vuelve a marcar. Más tiempo empieza a parecerse a una asignación permanente; menos deja la
+// tarjeta reapareciendo en el pool mientras alguien está hablando con el cliente.
+//
+// LA CADUCIDAD NO SE ESCRIBE, SE CALCULA. No hay disparador ni tarea que "devuelva" las reservas
+// vencidas: se comparan las fechas al leer. Un disparador más es una cosa más que se puede quedar
+// sin autorizar y fallar en silencio, y aquí no hay nada urgente que hacer mientras nadie mira.
+
+const ATEN_RESERVA_MIN = 15;
+
+/** ¿Hay una reserva VIVA sobre esta atención? */
+function atenReservaViva_(a, ahora) {
+  if (!a || !a.rescatadaPor) return false;
+  if (a.estado !== 'pendiente') return false;
+  var desde = atenMs_(a.rescatadaEn);
+  if (!desde) return false;
+  return (desde + ATEN_RESERVA_MIN * 60000) > (ahora || Date.now());
+}
+
+/** Milisegundos que le quedan a la reserva. 0 si no hay ninguna viva. */
+function atenReservaRestante_(a, ahora) {
+  if (!atenReservaViva_(a, ahora)) return 0;
+  return (atenMs_(a.rescatadaEn) + ATEN_RESERVA_MIN * 60000) - (ahora || Date.now());
+}
+
+/**
+ * ¿Está disponible para que la tome alguien?
+ * Liberada, pendiente y sin reserva viva. Una reserva VENCIDA no estorba: ese es el punto.
+ */
+function atenTomable_(a, ahora) {
+  return atenLiberada_(a, ahora) && !atenReservaViva_(a, ahora);
+}
+
 /**
  * Versión pública de una atención: lo justo para poder llamar.
  *
@@ -406,7 +454,9 @@ function atenVersionPublica_(a) {
     horaPromesa: a.horaPromesa,
     liberarEn: a.liberarEn,
     estado: a.estado,
-    publica: true
+    publica: true,
+    // Cuánto lleva en el pool. Es lo que decide a cuál llamar primero cuando hay varias.
+    reservaViva: false
   };
 }
 
@@ -434,18 +484,30 @@ function atencionesPanorama(email) {
       var a = atenDeFila_(f, i);
       if (!a.id) return;
 
-      var esMia = (a.asesor === yo) || (a.rescatadaPor === yo);
+      // Estado de la reserva, calculado una vez y adjuntado: la pantalla necesita saber
+      // no solo QUIÉN la tomó sino cuánto le queda, para poder enseñar la cuenta atrás.
+      a.reservaViva = atenReservaViva_(a, ahora);
+      a.reservaRestanteMs = atenReservaRestante_(a, ahora);
+      a.liberada = atenLiberada_(a, ahora);
+
+      var esAutor = (a.asesor === yo);
+      var laTengoYo = (a.rescatadaPor === yo) && a.reservaViva;
 
       if (a.estado !== 'pendiente') {
-        // Las cerradas solo las ve quien participó: el que la registró o el que la rescató.
-        if (esMia) cerradas.push(a);
+        // Las cerradas las ve quien participó: quien la registró o quien la cerró. Aquí se
+        // mira `rescatadaPor` sin exigir reserva viva, porque una atención cerrada ya no
+        // tiene reserva que pueda estar viva y quien la atendió merece verla en su historial.
+        if (esAutor || a.rescatadaPor === yo || a.cerradaPor === yo) cerradas.push(a);
         return;
       }
 
-      if (esMia) { mias.push(a); return; }
+      // Propias: las que registré yo, y las que tengo tomadas ahora mismo.
+      if (esAutor || laTengoYo) { mias.push(a); return; }
 
-      // De otra persona: solo aparece si está liberada y nadie la ha rescatado todavía.
-      if (atenLiberada_(a, ahora) && !a.rescatadaPor) publicas.push(atenVersionPublica_(a));
+      // De otra persona: aparece en el pool si está liberada y libre. Una reserva VENCIDA
+      // no la retiene —vuelve a estar disponible— y ese es justo el mecanismo que evita
+      // que un "Tomar" olvidado deje al cliente sin que nadie lo llame.
+      if (atenTomable_(a, ahora)) publicas.push(atenVersionPublica_(a));
     });
 
     // Las propias, la más antigua primero: es a la que más lleva esperando el cliente, y es la
@@ -463,6 +525,9 @@ function atencionesPanorama(email) {
       tipos: atenTipos_().map(function (t) { return t.nombre; }),
       opcionesLiberar: ATEN_LIBERAR_OPCIONES.slice(),
       horasSugeridas: ATEN_HORAS_SUGERIDAS.slice(),
+      // Cuánto dura una reserva. Viaja para que la pantalla pueda decirlo en el botón
+      // ("Tomar 15 min") sin repetir el número: si mañana se ajusta aquí, se ajusta allí.
+      reservaMin: ATEN_RESERVA_MIN,
       // La zona de la operación viaja para poder rotularla en pantalla: sin ella, quien
       // esté en otro huso no tiene forma de saber que "las 17:00" no son las suyas.
       zonaHoraria: (function () { try { return Session.getScriptTimeZone(); } catch (e) { return ''; } })(),
@@ -608,9 +673,21 @@ function atenBuscar_(id) {
 function atenVeto_(a, yo) {
   if (!a) return 'Esa atención ya no existe.';
   var mio = String(yo || '').toLowerCase();
+
+  // Quien la registró manda siempre, tenga reserva quien la tenga.
   if (a.asesor === mio) return '';
-  if (a.rescatadaPor === mio) return '';
-  if (atenLiberada_(a) && !a.rescatadaPor) return '';
+
+  // Quien la tomó, mientras le dure la reserva. Vencida, deja de tener jurisdicción: si
+  // no, una reserva olvidada seguiría dando derecho a cerrar una atención que ya está
+  // otra vez en el pool y que puede estar atendiendo otra persona.
+  if (a.rescatadaPor === mio && atenReservaViva_(a)) return '';
+
+  // Cualquiera, si está libre: es el caso de quien la va a tomar ahora mismo.
+  if (atenTomable_(a)) return '';
+
+  if (a.rescatadaPor && atenReservaViva_(a)) {
+    return 'Otro asesor la tomó hace un momento. Vuelve a intentarlo en unos minutos.';
+  }
   return 'Esta atención es de otro asesor.';
 }
 
@@ -682,9 +759,68 @@ function atencionActualizar(email, id, cambios) {
 }
 
 /**
- * Toma una atención liberada para atenderla uno mismo.
+ * LIBERA YA una atención propia al pool público, sin esperar a la hora configurada.
  *
- * Es una operación de carrera: dos asesores pueden pulsar "Rescatar" a la vez sobre la misma
+ * Existe porque la decisión de "cuándo la suelto" se toma al registrar —con el cliente en la
+ * línea y sin saber todavía cómo va a ir la tarde— y a menudo cambia después: salió una junta,
+ * entró una urgencia, o simplemente se acabó el turno antes de lo previsto. Sin esto, la única
+ * salida era esperar a una hora que ya no tiene sentido, mirando a un cliente que nadie va a
+ * llamar mientras tanto.
+ *
+ * Es el complemento de la liberación por tiempo, no su sustituto: el tiempo cubre el caso de
+ * "me distraje y se me pasó", y este botón el de "sé ahora mismo que no voy a poder".
+ *
+ * Solo la puede liberar quien la registró. Es su cliente y su decisión.
+ */
+function atencionLiberarAhora(email, id) {
+  try {
+    var gate = atenGate_(email);
+    if (!gate.ok) return atenError_(gate.error);
+
+    var yo = String(gate.email || '').toLowerCase();
+    var lock = LockService.getScriptLock();
+    try { lock.waitLock(15000); } catch (e) {
+      return atenError_('El sistema está ocupado. Vuelve a intentarlo.');
+    }
+
+    try {
+      var hallado = atenBuscar_(id);
+      if (!hallado) return atenError_('Esa atención ya no existe.');
+      var a = hallado.datos;
+
+      if (a.asesor !== yo) {
+        return atenError_('Solo quien registró la atención puede liberarla.');
+      }
+      if (a.estado !== 'pendiente') return atenError_('Esa atención ya está finalizada.');
+      if (atenLiberada_(a)) {
+        return { success: true, sinCambios: true, message: 'Esa atención ya estaba liberada.' };
+      }
+
+      var ahora = new Date();
+      atenEscribirCeldas_(hallado.hoja, hallado.indice, hallado.fila, { 'LiberarEn': ahora });
+
+      return {
+        success: true,
+        liberarEn: ahora.toISOString(),
+        message: 'Liberada. Cualquier asesor puede tomarla y llamar a ' + a.cliente + '.'
+      };
+    } finally {
+      try { lock.releaseLock(); } catch (e) {}
+    }
+  } catch (e) {
+    Logger.log('atencionLiberarAhora error: ' + e + ' · ' + e.stack);
+    return atenError_('No pudimos liberar la atención.');
+  }
+}
+
+/**
+ * TOMA una atención liberada: la reserva quince minutos para llamar.
+ *
+ * No es una asignación permanente (ver la nota de ATEN_RESERVA_MIN): pasado ese rato, si no se
+ * cerró, vuelve al pool. Tomar dos veces la misma atención renueva la reserva, que es lo que
+ * hace falta cuando la llamada se alarga.
+ *
+ * Es una operación de carrera: dos asesores pueden pulsar "Tomar" a la vez sobre la misma
  * tarjeta, porque los dos la tienen en pantalla. El bloqueo y la relectura DENTRO del bloqueo son
  * lo que impide que los dos llamen al mismo cliente con un minuto de diferencia.
  */
@@ -703,24 +839,37 @@ function atencionRescatar(email, id) {
       var hallado = atenBuscar_(id);
       if (!hallado) return atenError_('Esa atención ya no existe.');
       var a = hallado.datos;
+      var ahora = new Date();
 
       if (a.asesor === yo) return atenError_('Esta atención ya es tuya.');
       if (a.estado !== 'pendiente') return atenError_('Esa atención ya está finalizada.');
-      if (!atenLiberada_(a)) return atenError_('Esa atención todavía no está liberada.');
-      if (a.rescatadaPor) {
-        return atenError_('Otro asesor la rescató hace un momento. Actualiza la lista.');
+      if (!atenLiberada_(a, ahora.getTime())) {
+        return atenError_('Esa atención todavía no está liberada.');
+      }
+      // Solo estorba una reserva VIVA y de OTRA persona. La propia se renueva, y una
+      // vencida no reserva nada: para eso caduca.
+      if (atenReservaViva_(a, ahora.getTime()) && a.rescatadaPor !== yo) {
+        return atenError_('Otro asesor la tomó hace un momento. Actualiza la lista.');
       }
 
       atenEscribirCeldas_(hallado.hoja, hallado.indice, hallado.fila, {
         'RescatadaPor': yo,
-        'RescatadaEn': new Date()
+        'RescatadaEn': ahora
       });
 
-      // Se devuelve la ficha COMPLETA, ya con el correo del cliente: a partir de ahora esta
-      // atención es suya y necesita todo lo que necesitaría el asesor original.
+      // Se devuelve la ficha COMPLETA, ya con el correo del cliente: mientras dure la
+      // reserva esta persona necesita todo lo que necesitaría el asesor original.
       a.rescatadaPor = yo;
-      a.rescatadaEn = new Date().toISOString();
-      return { success: true, message: 'La atención es tuya. Llama a ' + a.cliente + '.', atencion: a };
+      a.rescatadaEn = ahora.toISOString();
+      a.reservaViva = true;
+      a.reservaRestanteMs = ATEN_RESERVA_MIN * 60000;
+      a.liberada = true;
+      return {
+        success: true,
+        message: 'La tienes ' + ATEN_RESERVA_MIN + ' minutos. Llama a ' + a.cliente + '.',
+        reservaMin: ATEN_RESERVA_MIN,
+        atencion: a
+      };
     } finally {
       try { lock.releaseLock(); } catch (e) {}
     }
@@ -794,11 +943,14 @@ function atencionesResumen(email) {
     lectura.filas.forEach(function (f) {
       var a = atenDeFila_(f, i);
       if (!a.id || a.estado !== 'pendiente') return;
-      if (a.asesor === yo || a.rescatadaPor === yo) {
+      // Mismo criterio que el panorama: una reserva vencida deja de ser "mía" y la
+      // atención vuelve a contar como rescatable. Si el resumen contara de otra forma,
+      // el número del inicio no cuadraría con la lista de la pantalla.
+      if (a.asesor === yo || (a.rescatadaPor === yo && atenReservaViva_(a, ahora))) {
         mias++;
         var ms = atenMs_(a.fecha);
         if (ms && (!masVieja || ms < masVieja)) { masVieja = ms; clienteViejo = a.cliente; }
-      } else if (atenLiberada_(a, ahora) && !a.rescatadaPor) {
+      } else if (atenTomable_(a, ahora)) {
         publicas++;
       }
     });
@@ -832,7 +984,7 @@ function atencionesDiagnostico(correo) {
     total++;
     if (a.estado !== 'pendiente') return;
     abiertas++;
-    if (a.rescatadaPor) rescatadas++;
+    if (atenReservaViva_(a, ahora)) rescatadas++;
     if (!a.liberarEn) privadas++;
     else if (atenLiberada_(a, ahora)) liberadas++;
   });
@@ -840,7 +992,7 @@ function atencionesDiagnostico(correo) {
   Logger.log('Registradas: ' + total + ' · abiertas: ' + abiertas);
   Logger.log('  privadas para siempre: ' + privadas);
   Logger.log('  liberadas al pool y libres: ' + (liberadas - rescatadas));
-  Logger.log('  rescatadas por otro asesor: ' + rescatadas);
+  Logger.log('  tomadas ahora mismo (reserva viva): ' + rescatadas);
   Logger.log('Tipos en uso: ' + atenTipos_().map(function (t) {
     return t.nombre + '(' + t.usos + ')';
   }).join(', '));

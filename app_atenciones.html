@@ -252,6 +252,16 @@
     return (mismoDia ? 'a las ' : 'mañana a las ') + hh;
   }
 
+  /** Cuánto dura una reserva, según lo diga el servidor. */
+  function reservaMin() { return (datos && datos.reservaMin) || 15; }
+
+  /** "12 min", "1 min", "menos de 1 min". Para la cuenta atrás de la reserva. */
+  function minutosTexto(ms) {
+    var min = Math.floor((Number(ms) || 0) / 60000);
+    if (min <= 0) return 'menos de 1 min';
+    return min + ' min';
+  }
+
   /** Una atención lleva demasiado esperando: se marca para que salte a la vista. */
   function urgente(a) {
     var ms = Date.now() - new Date(a.fecha).getTime();
@@ -716,13 +726,35 @@
           : 'Se libera ' + esc(enCuanto(a.liberarEn))) + '</span>'
       : '<span class="atn-chip priv">Solo tuya</span>';
 
+    // Cuenta atrás de la reserva. Es el dato que decide qué hacer ahora mismo: con tres
+    // minutos se llama ya, con doce se puede terminar lo que se estaba haciendo. Un
+    // "tomada" a secas obliga a mirar el reloj y a calcular.
+    var chipReserva = a.reservaViva
+      ? '<span class="atn-chip ' + (a.reservaRestanteMs < 5 * 60000 ? 'urge' : 'libre') + '">' +
+        svg(IC.reloj, 'w-3 h-3') +
+        (a.rescatadaPor === yo
+          ? 'La tienes ' + minutosTexto(a.reservaRestanteMs)
+          : 'Tomada · ' + minutosTexto(a.reservaRestanteMs)) + '</span>'
+      : '';
+
     var acciones = '';
     if (mia) {
+      // Quien la registró puede soltarla YA, sin esperar a la hora que puso al crearla.
+      // Solo se ofrece si todavía no está liberada: sobre una que ya lo está no haría
+      // nada, y un botón que no hace nada enseña a desconfiar de los demás.
+      var yaLibre = !!a.liberarEn && new Date(a.liberarEn).getTime() <= Date.now();
+      var puedeLiberar = a.asesor === yo && !yaLibre;
+
       acciones =
         '<button type="button" class="v-btn v-btn-ghost v-btn-sm" data-atn-ver="' + esc(a.id) + '" ' +
                 'aria-expanded="' + (abiertas[a.id] ? 'true' : 'false') + '">Consultar</button>' +
         '<button type="button" class="v-btn v-btn-ghost v-btn-sm" data-atn-copiar="' + esc(a.telefono) + '" ' +
                 'title="Copiar el teléfono">' + svg(IC.copiar, 'w-4 h-4') + '</button>' +
+        (puedeLiberar
+          ? '<button type="button" class="v-btn v-btn-ghost v-btn-sm" data-atn-liberar="' + esc(a.id) + '" ' +
+                    'title="Que cualquier asesor pueda tomarla y llamar al cliente">' +
+              svg(IC.rescate, 'w-4 h-4') + 'Liberar</button>'
+          : '') +
         '<button type="button" class="v-btn v-btn-dark v-btn-sm" data-atn-fin="' + esc(a.id) + '">Finalizar</button>';
     } else {
       acciones =
@@ -731,7 +763,7 @@
         '<button type="button" class="v-btn v-btn-ghost v-btn-sm" data-atn-copiar="' + esc(a.telefono) + '" ' +
                 'title="Copiar el teléfono">' + svg(IC.copiar, 'w-4 h-4') + '</button>' +
         '<button type="button" class="v-btn v-btn-primary v-btn-sm" data-atn-rescatar="' + esc(a.id) + '">' +
-          svg(IC.rescate, 'w-4 h-4') + 'Rescatar</button>';
+          svg(IC.rescate, 'w-4 h-4') + 'Tomar ' + reservaMin() + ' min</button>';
     }
 
     return '<article class="atn-card' + (urgente(a) ? ' atn-urgente' : '') + '" data-atn-id="' + esc(a.id) + '">' +
@@ -744,7 +776,8 @@
             '<span' + (urgente(a) ? ' class="atn-chip urge"' : '') + '>' + esc(desdeHace(a.fecha)) + '</span>' +
             (a.horaPromesa ? '<span class="atn-chip">Prometido: ' + esc(a.horaPromesa) + '</span>' : '') +
             (mia ? chipPriv : '<span class="atn-chip">de ' + esc(a.asesorNombre || 'otro asesor') + '</span>') +
-            (esRescatada ? '<span class="atn-chip libre">rescatada por ti</span>' : '') +
+            chipReserva +
+            (esRescatada && !a.reservaViva ? '<span class="atn-chip libre">la tomaste tú</span>' : '') +
           '</div>' +
         '</div>' +
         '<div class="atn-acciones">' + acciones + '</div>' +
@@ -793,7 +826,9 @@
     if (!lista.length) {
       html += pestana === 'mias'
         ? vacio('Ninguna atención pendiente', 'Cuando una plataforma falle y tengas un cliente en línea, guarda aquí sus datos.')
-        : vacio('No hay atenciones liberadas', 'Aquí aparecen las atenciones que otros asesores liberaron y que puedes tomar tú.');
+        : vacio('No hay atenciones para tomar',
+                'Aquí aparecen las que otros asesores liberaron. Al tomar una la tienes ' +
+                reservaMin() + ' minutos para llamar; si no la cierras, vuelve a quedar disponible.');
     } else {
       html += lista.map(function (a) { return tarjeta(a, pestana); }).join('');
     }
@@ -818,6 +853,9 @@
     Object.keys(abiertas).forEach(function (id) {
       if (abiertas[id]) desplegar(id, true);
     });
+
+    // El reloj solo existe mientras haya una cuenta atrás que enseñar.
+    if (hayReservas()) arrancarReloj(); else pararReloj();
   }
 
   /**
@@ -919,6 +957,10 @@
     host.querySelectorAll('[data-atn-rescatar]').forEach(function (b) {
       b.addEventListener('click', function () { rescatar(b.getAttribute('data-atn-rescatar'), b); });
     });
+
+    host.querySelectorAll('[data-atn-liberar]').forEach(function (b) {
+      b.addEventListener('click', function () { liberar(b.getAttribute('data-atn-liberar'), b); });
+    });
   }
 
   function guardarNotas(id, texto, btn) {
@@ -971,12 +1013,52 @@
       });
   }
 
+  /**
+   * Suelta una atención propia al pool, ya.
+   *
+   * Se confirma antes. No es destructivo —la atención sigue siendo suya y puede cerrarla
+   * él— pero sí es irreversible en la práctica: una vez que otro asesor la toma y llama al
+   * cliente, no hay forma de deshacer esa llamada. Un clic accidental en un botón pegado a
+   * "Finalizar" no debería poder provocarla.
+   */
+  function liberar(id, btn) {
+    var a = (datos.mias || []).filter(function (x) { return x.id === id; })[0];
+    if (!a) return;
+
+    modal('Liberar la atención de ' + a.cliente,
+      '<p class="cns-confirm-tx">A partir de ahora cualquier asesor podrá verla, tomarla y ' +
+      'llamar al cliente. Sigue siendo tuya y puedes finalizarla tú si la atiendes antes.</p>' +
+      '<p class="cns-confirm-tx" style="margin-top:.5rem">Quien la tome la tendrá reservada ' +
+      reservaMin() + ' minutos; si no la cierra, vuelve a quedar disponible.</p>',
+      'Liberar ahora',
+      function (cerrar, boton) {
+        boton.disabled = true;
+        boton.textContent = 'Liberando…';
+        llamar('atencionLiberarAhora', [correo(), id]).then(function (r) {
+          boton.disabled = false;
+          boton.textContent = 'Liberar ahora';
+          if (!r || !r.success) { toast((r && r.message) || 'No se pudo liberar.', 'error'); return; }
+          // Se actualiza la copia en memoria para que la tarjeta cambie de chip sin
+          // esperar a la siguiente revalidación.
+          if (r.liberarEn) a.liberarEn = r.liberarEn;
+          if (window.AppCache) AppCache.remove(clavePanorama());
+          pintar();
+          cerrar();
+          toast(r.message, 'ok');
+        }, function () {
+          boton.disabled = false;
+          boton.textContent = 'Liberar ahora';
+          toast('Sin conexión. Inténtalo de nuevo.', 'error');
+        });
+      });
+  }
+
   function rescatar(id, btn) {
     btn.disabled = true;
     llamar('atencionRescatar', [correo(), id]).then(function (r) {
       btn.disabled = false;
       if (!r || !r.success) {
-        toast((r && r.message) || 'No se pudo rescatar.', 'error');
+        toast((r && r.message) || 'No se pudo tomar la atención.', 'error');
         // Casi siempre el motivo es que otro asesor llegó primero, y la lista en pantalla
         // ya no dice la verdad: se relee en vez de dejar una tarjeta fantasma.
         cargar(true);
@@ -994,6 +1076,70 @@
       toast('Sin conexión. Inténtalo de nuevo.', 'error');
     });
   }
+
+  /* ── EL RELOJ DE LAS RESERVAS ────────────────────────────────────────────
+     Una reserva caduca sola, y la caducidad la calcula el servidor al leer: no hay nada
+     escrito que cambie a los quince minutos. Eso significa que una pantalla abierta y
+     quieta seguiría enseñando "La tienes 12 min" indefinidamente, y peor: seguiría
+     enseñando en el pool una atención que otro ya tomó, o escondiendo una que volvió a
+     estar libre.
+
+     El reloj corrige las dos cosas con un solo mecanismo:
+
+       · Cada 30 s repinta si hay alguna reserva viva, para que la cuenta atrás baje. Es
+         repintado local, sin tocar el servidor: los milisegundos restantes se recalculan
+         contra la hora de toma, que ya está en los datos.
+       · Cuando una reserva vence, se pide el panorama de verdad. Ahí es donde puede haber
+         cambiado algo que solo el servidor sabe —que otro la tomó, que el dueño la cerró—
+         y es el único momento en que hace falta preguntar.
+
+     Solo corre cuando hay algo que contar, y se detiene con la pestaña oculta: un
+     intervalo eterno en una pantalla que alguien dejó abierta toda la tarde es batería
+     regalada. */
+  var reloj = null;
+
+  function hayReservas() {
+    var todas = (datos ? (datos.mias || []).concat(datos.publicas || []) : []);
+    return todas.some(function (a) { return a.reservaViva; });
+  }
+
+  function recalcularReservas() {
+    if (!datos) return false;
+    var ahora = Date.now();
+    var vencioAlguna = false;
+    (datos.mias || []).concat(datos.publicas || []).forEach(function (a) {
+      if (!a.reservaViva) return;
+      var fin = new Date(a.rescatadaEn).getTime() + reservaMin() * 60000;
+      a.reservaRestanteMs = Math.max(0, fin - ahora);
+      if (a.reservaRestanteMs <= 0) { a.reservaViva = false; vencioAlguna = true; }
+    });
+    return vencioAlguna;
+  }
+
+  function arrancarReloj() {
+    if (reloj || !host) return;
+    reloj = setInterval(function () {
+      if (document.visibilityState === 'hidden') return;
+      if (!hayReservas()) { pararReloj(); return; }
+      // Si alguna acaba de vencer, la lista ya no es de fiar: se pide la de verdad.
+      if (recalcularReservas()) cargar(true);
+      else pintar();
+    }, 30000);
+  }
+
+  function pararReloj() {
+    if (!reloj) return;
+    clearInterval(reloj);
+    reloj = null;
+  }
+
+  try {
+    document.addEventListener('visibilitychange', function () {
+      // Al volver a la pestaña, lo primero es releer: mientras estuvo oculta han podido
+      // vencer varias reservas y la pantalla estaría enseñando el mundo de hace un rato.
+      if (document.visibilityState === 'visible' && host && hayReservas()) cargar(true);
+    });
+  } catch (e) {}
 
   // ── API pública ──────────────────────────────────────────────────────────
 
