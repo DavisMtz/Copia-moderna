@@ -884,6 +884,30 @@ a:focus-visible,button:focus-visible,input:focus-visible,[tabindex]:focus-visibl
 .anc-modal-card.is-expand .anc-modal-body p{white-space:pre-wrap}
 .anc-modal-card.is-expand .anc-ctas{margin-top:1rem}
 
+/* ── Zoom overlay para imágenes de publicaciones ── */
+.anc-zoom-overlay{position:fixed;inset:0;z-index:1500;display:none;align-items:center;justify-content:center;background:rgba(8,10,18,.92);backdrop-filter:blur(6px);-webkit-backdrop-filter:blur(6px);cursor:grab;user-select:none;-webkit-user-select:none;touch-action:none}
+.anc-zoom-overlay.open{display:flex}
+.anc-zoom-overlay.is-dragging{cursor:grabbing}
+.anc-zoom-img{position:absolute;transform-origin:0 0;transition:transform .18s cubic-bezier(.22,.61,.36,1),opacity .2s ease;will-change:transform;pointer-events:none;max-width:none;max-height:none;image-rendering:auto;opacity:0}
+.anc-zoom-img.is-ready{opacity:1}
+.anc-zoom-overlay.is-dragging .anc-zoom-img{transition:none}
+/* Controles de zoom */
+.anc-zoom-controls{position:fixed;bottom:1.6rem;left:50%;transform:translateX(-50%);z-index:1510;display:flex;align-items:center;gap:.5rem;background:rgba(25,28,40,.82);backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);border:1px solid rgba(255,255,255,.1);border-radius:14px;padding:.45rem .7rem;box-shadow:0 8px 32px rgba(0,0,0,.4)}
+.anc-zoom-btn{width:36px;height:36px;border-radius:10px;border:none;cursor:pointer;background:transparent;color:rgba(255,255,255,.85);display:flex;align-items:center;justify-content:center;transition:background .15s,color .15s}
+.anc-zoom-btn:hover{background:rgba(255,255,255,.12);color:#fff}
+.anc-zoom-btn .ic{width:18px;height:18px}
+.anc-zoom-level{min-width:52px;text-align:center;font-size:.82rem;font-weight:700;color:rgba(255,255,255,.7);font-variant-numeric:tabular-nums;letter-spacing:.02em}
+.anc-zoom-sep{width:1px;height:22px;background:rgba(255,255,255,.12);flex-shrink:0}
+/* Botón de cerrar en esquina */
+.anc-zoom-close{position:fixed;top:1rem;right:1rem;z-index:1510;width:42px;height:42px;border-radius:50%;border:none;cursor:pointer;background:rgba(255,255,255,.12);color:#fff;display:flex;align-items:center;justify-content:center;backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px);box-shadow:0 2px 12px rgba(0,0,0,.3);transition:background .15s}
+.anc-zoom-close:hover{background:rgba(255,255,255,.22)}
+.anc-zoom-close .ic{width:18px;height:18px}
+/* Hint de zoom sobre la imagen del modal */
+.anc-modal-imgwrap{cursor:zoom-in}
+.anc-zoom-hint{position:absolute;bottom:.65rem;right:.65rem;z-index:3;display:flex;align-items:center;gap:.35rem;padding:.32rem .65rem;border-radius:8px;background:rgba(0,0,0,.55);backdrop-filter:blur(6px);-webkit-backdrop-filter:blur(6px);color:rgba(255,255,255,.88);font-size:.72rem;font-weight:700;pointer-events:none;opacity:0;transition:opacity .3s ease}
+.anc-zoom-hint .ic{width:14px;height:14px}
+.anc-modal-imgwrap:hover .anc-zoom-hint{opacity:1}
+
 /* ════════════════════════════════════════════════════════════
    WIDGET PROMOS DEL DÍA (dashboard → Monitor de Promociones)
 ════════════════════════════════════════════════════════════ */
@@ -2307,6 +2331,19 @@ table.ds-matrix{width:100%;border-collapse:separate;border-spacing:0;min-width:5
 <!-- ══ MODAL DE ANUNCIO (pop-up de bienvenida) ══ -->
 <div class="anc-modal-overlay" id="anuncioModal"></div>
 
+<!-- ══ ZOOM OVERLAY PARA IMÁGENES DE PUBLICACIONES ══ -->
+<div class="anc-zoom-overlay" id="ancZoomOverlay">
+  <img class="anc-zoom-img" id="ancZoomImg" src="" alt="Zoom">
+  <button class="anc-zoom-close" id="ancZoomClose" aria-label="Cerrar zoom"></button>
+  <div class="anc-zoom-controls" id="ancZoomControls">
+    <button class="anc-zoom-btn" id="ancZoomOut" aria-label="Alejar"></button>
+    <div class="anc-zoom-level" id="ancZoomLevel">100%</div>
+    <button class="anc-zoom-btn" id="ancZoomIn" aria-label="Acercar"></button>
+    <div class="anc-zoom-sep"></div>
+    <button class="anc-zoom-btn" id="ancZoomReset" aria-label="Restablecer"></button>
+  </div>
+</div>
+
 <!-- ══ BOTTOM NAV (solo móvil) ══ -->
 <nav class="bottom-nav" aria-label="Navegación principal móvil">
   <button class="bn-item active" data-bn="inicio" onclick="goSec('inicio')"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M3 10.5 12 3l9 7.5"/><path d="M5 9.4V21h5v-6h4v6h5V9.4"/></svg>Inicio</button>
@@ -2671,6 +2708,7 @@ const ICONS = {
   star:'<path d="M12 3.5l2.6 5.5 6 .8-4.4 4.2 1.1 6L12 17.6 6.7 20l1.1-6L3.4 9.8l6-.8Z"/>',
   starfill:'<path d="M12 3.5l2.6 5.5 6 .8-4.4 4.2 1.1 6L12 17.6 6.7 20l1.1-6L3.4 9.8l6-.8Z" fill="currentColor"/>',
   plus:'<path d="M12 5v14M5 12h14"/>',
+  minus:'<path d="M5 12h14"/>',
   sliders:'<path d="M4 6h10M18 6h2M4 12h2M10 12h10M4 18h7M15 18h5"/><circle cx="16" cy="6" r="2"/><circle cx="8" cy="12" r="2"/><circle cx="13" cy="18" r="2"/>',
   send:'<path d="M22 2 11 13M22 2l-7 20-4-9-9-4Z"/>',
   trash:'<path d="M4 7h16M9 7V4h6v3M6 7l1 13h10l1-13"/>',
@@ -3596,8 +3634,9 @@ function ancImgHTML(img, alt){
   if (!img) return '';
   const sp = (window.VentelLoader && VentelLoader.spinner) ? VentelLoader.spinner() : '';
   const done = "this.closest('.anc-modal-imgwrap').classList.add('is-loaded')";
-  return `<div class="anc-modal-imgwrap">
+  return `<div class="anc-modal-imgwrap" data-zoom-src="${img}" data-zoom-alt="${esc(alt || 'Anuncio')}">
         <img class="anc-modal-photo" src="${img}" alt="${esc(alt || 'Anuncio')}" onload="${done}" onerror="${done}">
+        <div class="anc-zoom-hint">${icon('search')} Clic para ampliar</div>
         ${sp}
       </div>`;
 }
@@ -3645,6 +3684,220 @@ function closeAnuncioModal(id, permanente){
   root.classList.remove('open');
   root.innerHTML = '';
 }
+
+/* ═══════════════════════════════════════════════════════════
+   ZOOM DE IMÁGENES EN PUBLICACIONES
+   ─ Rueda / pinch para hacer zoom
+   ─ Arrastrar / dedo para mover (pan)
+   ─ Doble clic para alternar 100% ↔ ajustado
+   ─ Botones +, −, restablecer, cerrar
+   ─ Esc para cerrar
+═══════════════════════════════════════════════════════════ */
+(function(){
+  const overlay  = document.getElementById('ancZoomOverlay');
+  const zoomImg  = document.getElementById('ancZoomImg');
+  const zoomLvl  = document.getElementById('ancZoomLevel');
+  const btnClose = document.getElementById('ancZoomClose');
+  const btnIn    = document.getElementById('ancZoomIn');
+  const btnOut   = document.getElementById('ancZoomOut');
+  const btnReset = document.getElementById('ancZoomReset');
+  if (!overlay) return;
+
+  // Inyectar iconos en los botones de zoom
+  btnClose.innerHTML = icon('close');
+  btnIn.innerHTML    = icon('plus');
+  btnOut.innerHTML   = icon('minus');
+  btnReset.innerHTML = icon('maximize');
+
+  let scale = 1, tx = 0, ty = 0;
+  let natW = 0, natH = 0;
+  let dragging = false, dragX = 0, dragY = 0;
+  const MIN_SCALE = 0.25, MAX_SCALE = 8;
+
+  function applyTransform(smooth){
+    zoomImg.style.transition = smooth ? 'transform .18s cubic-bezier(.22,.61,.36,1)' : 'none';
+    zoomImg.style.transform = `translate(${tx}px,${ty}px) scale(${scale})`;
+    zoomLvl.textContent = Math.round(scale * 100) + '%';
+  }
+
+  function fitToView(){
+    const vw = window.innerWidth, vh = window.innerHeight;
+    const pad = 60;
+    scale = Math.min((vw - pad) / natW, (vh - pad) / natH, 1);
+    tx = (vw - natW * scale) / 2;
+    ty = (vh - natH * scale) / 2;
+    applyTransform(true);
+  }
+
+  function zoomAt(cx, cy, factor){
+    const prev = scale;
+    scale = Math.min(MAX_SCALE, Math.max(MIN_SCALE, scale * factor));
+    const r = scale / prev;
+    tx = cx - (cx - tx) * r;
+    ty = cy - (cy - ty) * r;
+    applyTransform(true);
+  }
+
+  // Abrir zoom — la imagen se oculta hasta que está centrada para evitar
+  // el parpadeo en la esquina superior-izquierda.
+  window.openImageZoom = function(src, alt){
+    // Resetear estado
+    scale = 1; tx = 0; ty = 0;
+    dragging = false;
+    zoomImg.classList.remove('is-ready');
+    zoomImg.style.transform = 'translate(0px,0px) scale(1)';
+    overlay.classList.remove('is-dragging');
+
+    zoomImg.alt = alt || 'Zoom';
+    overlay.classList.add('open');
+    document.body.style.overflow = 'hidden';
+
+    function centerAndShow(){
+      natW = zoomImg.naturalWidth;
+      natH = zoomImg.naturalHeight;
+      if (!natW || !natH) return; // imagen no lista aún
+      fitToView();
+      // Mostrar la imagen ya centrada en el siguiente frame
+      requestAnimationFrame(function(){ zoomImg.classList.add('is-ready'); });
+    }
+
+    zoomImg.onload = function(){ requestAnimationFrame(centerAndShow); };
+    zoomImg.onerror = function(){ zoomImg.classList.add('is-ready'); };
+    zoomImg.src = src;
+
+    // Si la imagen ya estaba en caché, onload puede no dispararse
+    if (zoomImg.complete && zoomImg.naturalWidth > 0) {
+      requestAnimationFrame(centerAndShow);
+    }
+  };
+
+  function closeZoom(){
+    overlay.classList.remove('open');
+    overlay.classList.remove('is-dragging');
+    zoomImg.classList.remove('is-ready');
+    document.body.style.overflow = '';
+    dragging = false;
+  }
+
+  // Cerrar
+  btnClose.addEventListener('click', closeZoom);
+  overlay.addEventListener('click', function(e){
+    if (e.target === overlay) closeZoom();
+  });
+
+  // Botones +/−/reset
+  btnIn.addEventListener('click', function(e){
+    e.stopPropagation();
+    zoomAt(window.innerWidth / 2, window.innerHeight / 2, 1.35);
+  });
+  btnOut.addEventListener('click', function(e){
+    e.stopPropagation();
+    zoomAt(window.innerWidth / 2, window.innerHeight / 2, 1 / 1.35);
+  });
+  btnReset.addEventListener('click', function(e){
+    e.stopPropagation();
+    fitToView();
+  });
+
+  // Rueda del ratón → zoom
+  overlay.addEventListener('wheel', function(e){
+    e.preventDefault();
+    const factor = e.deltaY < 0 ? 1.15 : 1 / 1.15;
+    zoomAt(e.clientX, e.clientY, factor);
+  }, { passive: false });
+
+  // Doble clic → alternar entre ajustado y 100%
+  overlay.addEventListener('dblclick', function(e){
+    if (e.target.closest('.anc-zoom-controls') || e.target.closest('.anc-zoom-close')) return;
+    e.preventDefault();
+    if (Math.abs(scale - 1) > 0.05) {
+      // Ir a 100% centrado en el punto del clic
+      const prev = scale;
+      scale = 1;
+      const r = scale / prev;
+      tx = e.clientX - (e.clientX - tx) * r;
+      ty = e.clientY - (e.clientY - ty) * r;
+      applyTransform(true);
+    } else {
+      fitToView();
+    }
+  });
+
+  // Arrastrar con ratón
+  overlay.addEventListener('mousedown', function(e){
+    if (e.target.closest('.anc-zoom-controls') || e.target.closest('.anc-zoom-close')) return;
+    if (e.button !== 0) return;
+    e.preventDefault();
+    dragging = true;
+    dragX = e.clientX - tx;
+    dragY = e.clientY - ty;
+    overlay.classList.add('is-dragging');
+  });
+  window.addEventListener('mousemove', function(e){
+    if (!dragging) return;
+    tx = e.clientX - dragX;
+    ty = e.clientY - dragY;
+    applyTransform(false);
+  });
+  window.addEventListener('mouseup', function(){
+    if (!dragging) return;
+    dragging = false;
+    overlay.classList.remove('is-dragging');
+  });
+
+  // Touch: arrastrar con 1 dedo, pinch con 2 dedos
+  let lastTouchDist = 0;
+  overlay.addEventListener('touchstart', function(e){
+    if (e.target.closest('.anc-zoom-controls') || e.target.closest('.anc-zoom-close')) return;
+    if (e.touches.length === 1) {
+      dragging = true;
+      dragX = e.touches[0].clientX - tx;
+      dragY = e.touches[0].clientY - ty;
+      overlay.classList.add('is-dragging');
+    } else if (e.touches.length === 2) {
+      lastTouchDist = Math.hypot(e.touches[1].clientX - e.touches[0].clientX, e.touches[1].clientY - e.touches[0].clientY);
+    }
+  }, { passive: true });
+  overlay.addEventListener('touchmove', function(e){
+    if (e.target.closest('.anc-zoom-controls') || e.target.closest('.anc-zoom-close')) return;
+    e.preventDefault();
+    if (e.touches.length === 1 && dragging) {
+      tx = e.touches[0].clientX - dragX;
+      ty = e.touches[0].clientY - dragY;
+      applyTransform(false);
+    } else if (e.touches.length === 2) {
+      const dist = Math.hypot(e.touches[1].clientX - e.touches[0].clientX, e.touches[1].clientY - e.touches[0].clientY);
+      if (lastTouchDist > 0) {
+        const cx = (e.touches[0].clientX + e.touches[1].clientX) / 2;
+        const cy = (e.touches[0].clientY + e.touches[1].clientY) / 2;
+        zoomAt(cx, cy, dist / lastTouchDist);
+      }
+      lastTouchDist = dist;
+    }
+  }, { passive: false });
+  overlay.addEventListener('touchend', function(){
+    dragging = false;
+    lastTouchDist = 0;
+    overlay.classList.remove('is-dragging');
+  });
+
+  // Esc para cerrar el zoom
+  document.addEventListener('keydown', function(e){
+    if (e.key === 'Escape' && overlay.classList.contains('open')) {
+      e.stopImmediatePropagation();
+      closeZoom();
+    }
+  }, true);
+
+  // Delegación: clic en la imagen del modal → abrir zoom
+  document.addEventListener('click', function(e){
+    const wrap = e.target.closest('.anc-modal-imgwrap[data-zoom-src]');
+    if (wrap) {
+      e.stopPropagation();
+      openImageZoom(wrap.dataset.zoomSrc, wrap.dataset.zoomAlt);
+    }
+  });
+})();
 
 function dismissAviso(btn){
   const id = btn.dataset.aviso;
