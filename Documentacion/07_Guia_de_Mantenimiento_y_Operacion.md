@@ -1,16 +1,46 @@
 # Guía de Mantenimiento y Manual de Operación (Runbook Técnico)
 
-> **DOCUMENTACIÓN TÉCNICA OFICIAL DE ARQUITECTURA Y MANTENIMIENTO**
-> **Sistema Integral Portal Ventel & Extensión Chrome**
-> **Autor:** David Martínez (`dmartineza02@liverpool.com.mx`)
+> [!NOTE]
+> **DOCUMENTACIÓN TÉCNICA OFICIAL DE ARQUITECTURA Y MANTENIMIENTO**  
+> Ecosistema Integral de Cotizaciones, Operación y Extensión de Comercio · El Puerto de Liverpool
 
 ---
 
-## 🛠️ Guía de Ejecución de Funciones de Diagnóstico (Editor de Apps Script)
+## 📋 Metadatos del Documento (Estándar IEEE 1063 / ISO 26514)
 
-Esta sección describe el propósito y procedimiento para ejecutar cada una de las **12 funciones de diagnóstico e inspección manual** desde el entorno de desarrollo de Google Apps Script.
+| Atributo | Especificación Técnica |
+| :--- | :--- |
+| **Documento** | Guía de Mantenimiento y Operación (Runbook de TI) |
+| **Audiencia** | Equipo de Mantenimiento, Ingenieros de Soporte y TI Liverpool |
+| **Autor** | **David Martínez** (`dmartineza02@liverpool.com.mx`) |
+| **Organización** | El Puerto de Liverpool · Equipo Ventel |
+| **Última Revisión** | Agosto 2026 |
 
 ---
+
+## 👨‍💻 Propósito del Runbook
+
+> [!IMPORTANT]
+> Este manual está diseñado como un **Runbook Operativo de Respuesta Inmediata** para los ingenieros de soporte y mantenimiento de El Puerto de Liverpool. Proporciona instrucciones precisas para diagnosticar, resolver fallas operativas y realizar actualizaciones sin interrumpir el servicio.
+
+---
+
+## 🧰 Guía de Ejecución de Funciones de Diagnóstico (Editor Apps Script)
+
+Para auditar la salud del sistema sin ingresar a la interfaz web, abre el editor de Google Apps Script y ejecuta directamente las siguientes funciones desde la barra de herramientas:
+
+```mermaid
+flowchart LR
+    Editor["Editor de Apps Script"] --> SuiteHealth["revisionMaestra()\n(Admin.gs)"]
+    Editor --> SombraMaster["NOMBRAR_MAESTRO()\n(Permisos.gs)"]
+    Editor --> FlushCache["cotInvalidarCache_()\n(Cache.gs)"]
+    Editor --> DiagPromos["diagPromos()\n(DiagnosticoPromos.gs)"]
+
+    SuiteHealth --> Reporte["Reporte 25 Checks"]
+    SombraMaster --> AdminAcceso["Restablece Administrador Maestro"]
+    FlushCache --> CacheClean["Limpia Caché de Lectura Global"]
+    DiagPromos --> PromoStatus["Verifica Hojas Comerciales"]
+```
 
 ### 📋 Catálogo de Funciones de Diagnóstico Backend
 
@@ -33,10 +63,13 @@ Esta sección describe el propósito y procedimiento para ejecutar cada una de l
 
 ## 📖 Runbook de Procedimientos de Mantenimiento
 
-### 🛑 Escenario 1: Cambios de Estructura en Liverpool.com.mx (Mantenimiento de Extensión)
-- **Síntoma:** La extensión de Chrome deja de extraer precios, imágenes o títulos de productos.
-- **Causa:** El equipo de desarrollo web de Liverpool modificó las clases CSS, selectores `data-testid` o la estructura del stream Next.js.
-- **Solución:**
+### 🛑 Escenario 1: Cambios de Estructura en Liverpool.com.mx (Extensión Chrome)
+> [!WARNING]
+> Si Liverpool actualiza las clases CSS o los atributos `data-testid` en su tienda en línea, el extractor de la extensión dejará de capturar datos.
+
+- **Síntoma:** La extensión de Chrome no extrae precios, imágenes o títulos de productos en la bolsa o fichas PDP.
+- **Causa:** El equipo de desarrollo web de Liverpool modificó las clases CSS o el DOM en `liverpool.com.mx`.
+- **Procedimiento de Solución:**
   1. Abre `liverpool.com.mx` en una pestaña de Chrome con un producto afectado.
   2. Haz clic derecho > *Inspeccionar* y analiza la nueva estructura del DOM.
   3. Revisa si los atributos `data-testid` cambiaron (ej. `[data-testid="original"]` -> `[data-testid="price-original"]`).
@@ -49,7 +82,7 @@ Esta sección describe el propósito y procedimiento para ejecutar cada una de l
 
 ### 🔑 Escenario 2: Restablecimiento de Emergencia del Administrador Maestro
 - **Síntoma:** Todos los usuarios administradores perdieron acceso a la consola o la hoja `_PermisosSistema` fue borrada accidentalmente.
-- **Solución:**
+- **Procedimiento de Solución:**
   1. Abre el proyecto en el editor de Apps Script.
   2. En la barra superior de selección de funciones, elige `NOMBRAR_MAESTRO`.
   3. Haz clic en **Ejecutar**.
@@ -59,7 +92,7 @@ Esta sección describe el propósito y procedimiento para ejecutar cada una de l
 
 ### 🔄 Escenario 3: Limpieza Forzada de Caché por Datos Desactualizados
 - **Síntoma:** Los usuarios reportan que ven promociones o datos de herramientas desactualizados en el portal web.
-- **Solución:**
+- **Procedimiento de Solución:**
   1. En el editor de Apps Script, selecciona la función `cotInvalidarCache_` en `Cache.gs`.
   2. Haz clic en **Ejecutar**.
   3. Esto incrementará el contador global `COT_CACHE_GEN`, forzando a todas las sesiones activas a consultar datos frescos directamente desde Google Sheets.
@@ -69,7 +102,7 @@ Esta sección describe el propósito y procedimiento para ejecutar cada una de l
 ### ⚠️ Escenario 4: Bloqueo o Límite de Tiempo por Concurrencia en Sheets
 - **Síntoma:** Múltiples asesores reciben la alerta `"El sistema está ocupado guardando otra cotización"`.
 - **Causa:** Más de 5 usuarios intentaron guardar una cotización en el mismo segundo exacto superando los 30 segundos del candado `LockService`.
-- **Solución:**
+- **Procedimiento de Solución:**
   1. Solicita a los asesores esperar 5 segundos antes de reintentar.
   2. Si el volumen operativo crece de forma permanente, abre `Code.gs` y ajusta el tiempo de espera del candado en `saveQuoteAndGoToPreview`:
      ```javascript
@@ -99,7 +132,9 @@ sequenceDiagram
     Dev->>Production: Clic en "Desplegar" (Mantiene la misma URL /exec)
 ```
 
-> 🚨 **REGLA DE ORO:** Nunca utilices la opción "Nuevo Despliegue" para una actualización en producción. Utiliza siempre **"Gestionar Despliegues" > "Editar" > "Nueva Versión"**. Esto garantiza que la URL del sistema (`.../exec`) se mantenga exactamente igual para todos los usuarios y marcadores del equipo.
+> [!CAUTION]
+> **REGLA DE ORO DE DESPLIEGUE:**  
+> Nunca utilices la opción "Nuevo Despliegue" para una actualización en producción. Utiliza siempre **"Gestionar Despliegues" > "Editar" > "Nueva Versión"**. Esto garantiza que la URL del sistema (`.../exec`) se mantenga exactamente igual para todos los usuarios y marcadores del equipo.
 
 ---
 

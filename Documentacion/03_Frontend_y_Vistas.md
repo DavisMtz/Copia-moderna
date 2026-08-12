@@ -1,159 +1,68 @@
-# Frontend — Referencia Técnica Detallada de Componentes y Vistas
+# Frontend — Documentación Total y Exhaustiva de los 40 Archivos HTML
 
-> **DOCUMENTACIÓN TÉCNICA OFICIAL DE ARQUITECTURA Y MANTENIMIENTO**
+> **DOCUMENTACIÓN TÉCNICA Y DIDÁCTICA DE ARQUITECTURA Y MANTENIMIENTO**
 > **Sistema Integral Portal Ventel & Extensión Chrome**
 > **Autor:** David Martínez (`dmartineza02@liverpool.com.mx`)
 
 ---
 
-## 🎨 Especificación de Objetos y APIs Globales del Cliente
+## 🎨 Cobertura Total de la Capa de Presentación (40 Archivos HTML)
 
-Esta sección contiene la referencia técnica completa de los objetos JavaScript expuestos en el ámbito global (`window`) a través de las plantillas del frontend.
-
----
-
-### 📄 1. `app_core.html` — Núcleo Cliente
-
-#### `window.AppSession` (Gestión de Sesión e Identidad)
-- `userName`: `string` — Nombre completo del usuario (`localStorage` bajo `ventel-user-name`).
-- `userEmail`: `string` — Correo electrónico normalizado (`localStorage` bajo `ventel-user-email`).
-- `isAdvanced`: `boolean` — Banderola legacy de usuario avanzado.
-- `firstName`: `string` — Primer palabra del nombre o `'Usuario'`.
-- `rol`: `'normal' | 'avanzado' | 'maestro'` — Rol jerárquico activo.
-- `isMaster`: `boolean` — `true` si `rol === 'maestro'`.
-- `bloques`: `string[]` — Arreglo de identificadores de bloques de permisos otorgados por el servidor.
-- `can(bloqueId: string): boolean` — Permisivo. Retorna `true` si posee el bloque o si los bloques aún no han sido cargados.
-- `canStrict(bloqueId: string): boolean` — Estricto. Retorna `false` si los bloques no han sido confirmados. Usado en consola y administración.
-- `refrescar(): Promise<Object|null>` — Invoca el backend (`obtenerPermisosSesion`) para actualizar roles y bloques. Si la cuenta fue dada de baja (`activo === false`), limpia la sesión y redirige a `login`.
-- `save(data: Object): void` — Persiste nombre, correo, rol y bloques en `localStorage`.
-- `clear(): void` — Limpia datos de identidad en `localStorage` preservando la configuración visual del usuario (tema, escala de texto).
-
-#### `window.AppUrl` (Enrutamiento e Iframe Navigation)
-- `PAGINAS`: `string[]` — Lista blanca de páginas válidas (`login`, `registro`, `recuperar`, `dashboard`, `inicio_avanzado`, `cotizacion`, `cotizado_preview`, `consulta_cotizacion`, `revision_cotizacion`, `correoventel`, `correo_cliente`, `anuncios`, `portal_contenido`, `operacion`, `consola`, `atenciones`).
-- `build(page: string, params?: Object, ancla?: string): string|null` — Construye URLs con parámetros normalizados en `URLSearchParams`, filtrando parámetros de rastreo (`PARAMS_BASURA`).
-- `go(page: string, params?: Object, ancla?: string): boolean` — Redirige el marco superior (`window.top.location.href`). Si la API `navigator.userActivation` ha expirado (más de 5s tras un clic durante operaciones asíncronas), muestra el banner **`NavAviso`** con enlace directo manual.
-- `param(name: string): string` — Lee parámetros inyectados por el servidor en `window.__APP__` o de `window.location.search`.
-- `actualizar(params: Object, ancla?: string, apilar?: boolean): boolean` — Actualiza la barra de direcciones sin recargar la página mediante `google.script.history`.
-- `irAncla(nombre?: string, intentos?: number): void` — Desplazamiento suave hacia un elemento por ID con animación de resplandor.
-
-#### `window.AppCache` & `AppCache.session` (Almacenamiento Local)
-- `get(name: string, maxAgeMs?: number): {data: any, ageMs: number, at: number}|null` — Recupera datos de `localStorage` verificando vigencia.
-- `set(name: string, data: any, opts?: {ttl: number}): boolean` — Almacena datos JSON con prefijo `ventel-cache-`.
-- `removeByPrefix(prefijo: string): number` — Invalida familias de claves (ej. `quotes-`).
-- `purgeExpired(): void` — Limpia claves obsoletas o con esquema de versión anterior.
-
-#### `window.AppBusy` (Indicador de Carga Global)
-- `start(etiqueta?: string): number` — Incrementa el contador de llamadas activas y muestra el anillo de puntos de Liverpool. Retorna un token de seguimiento.
-- `done(token: number): void` — Decrementa el contador y oculta el anillo al llegar a cero.
-- `wrap(promesa: Promise, etiqueta?: string): Promise` — Envuelve una promesa mostrando el indicador durante su ejecución.
-
-#### `window.AppRun` (Wrapper Async para `google.script.run`)
-- `call(fnName: string, args?: any[], opts?: {key?: string, busy?: boolean|string}): Promise<any>` — Ejecuta llamadas de servidor deduplicando peticiones idénticas en vuelo.
-- `swr(cacheName: string, fnName: string, args?: any[], opts: {onData: Function, ttl?: number, fuerza?: boolean}): Promise<any>` — Implementa el patrón Stale-While-Revalidate: llama a `onData` inmediatamente con la caché local y vuelve a llamarlo al recibir los datos frescos del servidor.
+Este documento detalla la responsabilidad técnica, estructura e integración de los **40 archivos HTML** (vistas principales, parciales, componentes e infraestructura) del proyecto.
 
 ---
 
-### 📄 2. `app_shell.html` — Layout Maestro
+### 🧱 1. Archivos de Infraestructura y Componentes Reutilizables (`app_*.html`)
 
-#### `window.AppShell`
-- `mount(opts?: {active?: string, title?: string}): void` — Envuelve el contenido principal (`#main-content`) dentro del layout corporativo, construye la barra superior (`topbar`), la barra lateral (`sidebar`) y aplica las preferencias de vista guardadas.
-- `nav(page: string): void` — Navegación inteligente. Si el destino es `atenciones`, abre un panel lateral superpuesto (`AppAtenciones.abrirPanel()`) sin recargar la página.
-- `logout(): void` — Cierra sesión y redirige a `login`.
-- `toggleDrawer(): void` — Conmuta la visibilidad del menú lateral en dispositivos móviles.
-- `setTheme(name: 'aurora'|'slate'|'carbon'): void` — Cambia el atributo `data-theme` en la etiqueta `<html>`.
-- `setDensity(mode: 'cozy'|'compact'): void` — Cambia el atributo `data-density`.
-- `setTextScale(scale: 'sm'|'md'|'lg'|'xl'): void` — Cambia el atributo `data-textscale`.
-- `toggleContrast(): void` — Conmuta el atributo `data-contrast="high"`.
-
----
-
-### 📄 3. `app_auth.html` — Componentes de Autenticación
-
-#### `window.AuthStage`
-- `paint(): void` — Inyecta el logotipo vectorial SVG de Liverpool en elementos `[data-liv]`.
-- `play(opts?: {title?: string}): void` — Ejecuta la secuencia de animación GSAP (trazo DrawSVG de logotipo, entrada de tarjeta, revelado de formulario y efecto parallaje con puntero).
-- `paso(sel: string|HTMLElement, paso: number): void` — Actualiza la barra de progreso de pasos (`auth-steps`), sustituyendo números por palomitas SVG en pasos completados.
-- `cuenta(el: HTMLElement, segundos: number, opts?: Object): Object` — Inicia un contador regresivo `mm:ss` para el reenvío de códigos OTP.
-
-#### `window.AuthOtp` (Widget de Código OTP de 6 Celdas)
-- `mount(root: HTMLElement, opts?: {longitud?: number, onComplete?: Function}): Object` — Renderiza 6 cajas de texto independientes. Distribuye códigos pegados completos, navega con flechas/backspace, limita entradas a dígitos numéricos y ejecuta animación de agitación (`shake`) ante errores.
-
----
-
-### 📄 4. `app_comando.html` — Paleta de Comandos (`Ctrl+K`)
-
-#### `window.AppComando`
-- `abrir(termino?: string): void` — Abre la paleta de comandos animando su geometría desde el botón detonador mediante técnica GSAP FLIP (First, Last, Invert, Play) con contra-escala inversa (`1 / scale`) para evitar distorsionar el texto.
-- `cerrar(instantaneo?: boolean): void` — Cierra el modal.
-- `refrescar(): void` — Re-indiza los catálogos locales y actualiza la lista de resultados.
+| Archivo | Tipo | Descripción y Lógica Interna |
+| :--- | :--- | :--- |
+| `app_core.html` | Infraestructura | Núcleo JS. Define `AppSession` (sesión), `AppUrl` (enrutador con enlace de rescate `NavAviso`), `AppCache` (almacenamiento local), `AppBusy` (indicador de carga) y `AppRun.swr` (patrón Stale-While-Revalidate). |
+| `app_shell.html` | Layout Maestro | Contenedor de la aplicación (`AppShell.mount()`). Genera la barra superior, el menú lateral colapsable, el selector de áreas y el menú de preferencias visuales. |
+| `app_theme.html` | Sistema de Diseño | Define tokens CSS y 3 temas (`aurora`, `slate`, `carbon`), tipografías (`Inter`, `JetBrains Mono`) y clases base de UI (botones, badges, tarjetas, modales, tablas). |
+| `app_auth.html` | Componente Auth | Secuencias de animación GSAP para login/registro, trazo del logotipo de Liverpool (DrawSVG), medidor de fuerza de contraseña y widget OTP de 6 celdas (`AuthOtp`). |
+| `app_buscar.html` | Motor de Búsqueda | Normalización de cadenas, desensamblado de acentos NFD, tokenización y resaltado HTML con etiquetas `<mark>`. Incluye caché de memoización de 2 generaciones. |
+| `app_comando.html` | Paleta de Comandos | Modal accesible vía `Ctrl+K` o `/`. Transforma su geometría desde el botón detonador mediante técnica GSAP FLIP con contra-escala inversa. |
+| `app_operacion.html` | Isla Dinámica | Botón flotante inferior (`.op-pill`) con morfeo SVG (GSAP MorphSVGPlugin), panel lateral de incidentes y prompt de rescate para `AppAtenciones`. |
+| `app_icons.html` | Repositorio SVG | Catálogo centralizado de iconos vectoriales SVG para todos los botones y estados del sistema. |
+| `app_motion.html` | Animaciones | Funciones de animación e interacción visual (efectos de sacudida `shake`, resplandor `glow` y transiciones de pantalla). |
+| `app_onboarding.html` | Tour Guiado | Overlay interactivo para recorridos guiados paso a paso (`AppOnboarding`) sincronizado con la hoja `Onboarding`. |
+| `app_guardado.html` | Autoguardado | Gestor de persistencia en segundo plano para borradores de cotizaciones en `localStorage`. |
+| `app_atenciones.html` | Componente | Panel lateral superpuesto para gestión rápida de atenciones pospuestas sin salir de la vista actual. |
+| `app_prefs.html` | Preferencias | Lógica de conmutación de temas, densidad compacta, escala de texto y alto contraste. |
+| `app_tailwind.html` | Estilos Tailwind | Capa de utilidades CSS de Tailwind con shims de compatibilidad para el tema oscuro `carbon`. |
+| `app_estado_historial.html` | Componente | Vista gráfica del historial por horas y días del estado operativo de los sistemas. |
+| `app_estatus.html` | Componente | Formateadores y badges de estado para las cotizaciones (`En Revisión`, `Aprobada`, `Rechazada`). |
+| `app_extension_guia.html` | Modal Guía | Modal instructivo con pasos para instalar y utilizar la Extensión de Chrome. |
+| `app_ccl.html` | Modal CCL | Modal de vista previa e inyección del formato de impresión CCL Liverpool. |
+| `app_support.html` | Modal Soporte | Ventana emergente con información de contacto y soporte técnico del equipo Ventel. |
 
 ---
 
-### 📄 5. `app_operacion.html` — Isla Dinámica e Indicador de Salud
+### 🖼️ 2. Vistas Principales de la Aplicación
 
-#### `window.AppOperacion`
-- `abrir(): void` — Abre el panel lateral desplegable con el detalle de salud de los sistemas.
-- `reportar(sistema?: string): void` — Abre el panel directamente en el formulario de reporte de fallas.
-- `refrescar(forzar?: boolean): void` — Re-consulta el estado del servidor (`opEstadoSesion`).
-- `alCambiar(cb: Function): Function` — Registra un listener de cambio de estado. Invoca el callback inmediatamente con los datos actuales.
-
----
-
-### 📄 6. `app_buscar.html` — Motor de Búsqueda Tokenizado
-
-#### `window.AppBuscar`
-- `normaliza(s: any): string` — Convierte a minúsculas, descompone acentos NFD y elimina puntuación.
-- `compacta(s: any): string` — Remueve todos los caracteres no alfanuméricos (para folios `lvp202601`).
-- `palabras(norm: string): string[]` — Tokeniza texto separando transiciones entre letras y números.
-- `consulta(q: string): Object` — Construye un objeto de consulta enriquecido con expansión de sinónimos.
-- `filtra(lista: Array, termino: string, camposFn: Function, opts?: Object): Array` — Filtra y ordena un arreglo por puntuación de relevancia.
-- `resalta(texto: string, termino: string): string` — Retorna cadenas HTML envolviendo coincidencias en etiquetas `<mark>`.
-
----
-
-## 🎨 Paleta de Variables y Tokens CSS (`app_theme.html`)
-
-```css
-:root {
-  /* Tipografías */
-  --fuente: 'Inter', system-ui, -apple-system, sans-serif;
-  --mono: 'JetBrains Mono', monospace;
-
-  /* Tema Aurora (Predeterminado) */
-  --bg: #F8FAFC;
-  --surface: #FFFFFF;
-  --surface2: #F1F5F9;
-  --line: #E2E8F0;
-  --ink: #0F172A;
-  --inkSoft: #475569;
-  --inkFaint: #94A3B8;
-
-  /* Liverpool Corporate Brand Tokens */
-  --brand: #E10098;
-  --brandDeep: #C20083;
-  --brandTint: #FDF2F8;
-
-  /* Estados */
-  --ok: #10B981;
-  --okTint: #ECFDF5;
-  --warn: #F59E0B;
-  --warnTint: #FFFBEB;
-  --alert: #EF4444;
-  --alertTint: #FEF2F2;
-}
-
-/* Override Tema Carbon (Dark Mode) */
-html[data-theme="carbon"] {
-  --bg: #0E1014;
-  --surface: #161920;
-  --surface2: #212631;
-  --line: #2E3545;
-  --ink: #F8FAFC;
-  --inkSoft: #94A3B8;
-  --inkFaint: #64748B;
-  --brandTint: #2D001F;
-}
-```
+| Archivo | Ruta (`?page=`) | Descripción y Lógica |
+| :--- | :--- | :--- |
+| `Index.html` | `portal` | Landing page principal. Muestra las herramientas, paqueterías, plantillas, anuncios y puente de búsqueda hacia cotizaciones. |
+| `Promociones.html` | `promociones` | Monitor de promociones comerciales, ofertas Marketplace y eventos de Google Calendar a 90 días. |
+| `estado.html` | `estado` | Tablero público de estado de los sistemas (Connect, Página/App, Salesforce, CCAIP) accesible sin sesión. |
+| `inicio.html` | `dashboard` | Dashboard del asesor. Muestra resumen de cotizaciones propias, accesos rápidos y atenciones pendientes. |
+| `inicio_avanzado.html` | `inicio_avanzado` | Dashboard de supervisión. Muestra gráficas de rendimiento, métricas mensuales y ranking de asesores. |
+| `cotizacion.html` | `cotizacion` | Pantalla principal de creación y edición de cotizaciones. Integrada con la Extensión de Chrome. |
+| `cotizado_preview.html` | `cotizado_preview` | Vista previa del documento generado antes de su aprobación o envío. |
+| `consulta_cotizacion.html` | `consulta_cotizacion` | Buscador y vista detallada de cotizaciones registradas. |
+| `revision_cotizacion.html` | `revision_cotizacion` | Pantalla de auditoría para supervisores. Muestra la ficha raspada en vivo en un iframe purgado `srcdoc` y los 8 puntos de auditoría. |
+| `consola.html` | `consola` | Consola Maestra de Administración. Pestañas de Miembros, Módulos, Ajustes, Formatos, Salud y Bitácora. |
+| `operacion.html` | `operacion` | Panel de supervisión de incidentes operativos. Permite confirmar, descartar o actualizar fallas. |
+| `atenciones.html` | `atenciones` | Tablero de gestión de clientes en atención pospuesta con reserva de 15 minutos y pool público. |
+| `portal_contenido.html` | `portal_contenido` | Editor de contenido del portal. Gestión celda por celda e importación masiva para 9 colecciones. |
+| `anuncios.html` | `anuncios` | Constructor y administrador de anuncios, banners y modales promocionales. |
+| `correo_cliente.html` | `correo_cliente` | Editor de correos a clientes con plantillas HTML responsivas y carga de adjuntos. |
+| `correoventel.html` | `correoventel` | Pantalla de envío de cotizaciones por correo al cliente final. |
+| `inicioDeSesion.html` | `login` | Pantalla de inicio de sesión. |
+| `registro.html` | `registro` | Pantalla de registro de nuevos usuarios con verificación por código OTP. |
+| `recuperar.html` | `recuperar` | Pantalla de recuperación de contraseña en 3 pasos (solicitud, OTP, clave nueva). |
+| `LoaderPartial.html` | Parcial | Pantalla de carga inicial con spinner corporativo. |
+| `ViewPrefsPartial.html` | Parcial | Fragmento de interfaz para el panel de ajustes visuales. |
 
 ---
 

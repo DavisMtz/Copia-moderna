@@ -1,107 +1,80 @@
-# Base de Datos — Diccionario Completo de Tablas e Integridad
+# Base de Datos — Manual Explicativo de Tablas e Integridad
 
-> **DOCUMENTACIÓN TÉCNICA OFICIAL DE ARQUITECTURA Y MANTENIMIENTO**
+> **DOCUMENTACIÓN TÉCNICA Y DIDÁCTICA DE ARQUITECTURA Y MANTENIMIENTO**
 > **Sistema Integral Portal Ventel & Extensión Chrome**
 > **Autor:** David Martínez (`dmartineza02@liverpool.com.mx`)
 
 ---
 
-## 🗂️ Diccionario Técnico de Tablas (Google Sheets)
+## 🗄️ Filosofía de Diseño: Google Sheets como Base de Datos Relacional
 
-Esta sección contiene la especificación completa de todos los campos, tipos de datos y reglas para las **27 hojas de cálculo** distribuidas en los 3 libros que conforman la base de datos relacional del ecosistema Ventel.
+Usar Google Sheets como base de datos de un sistema empresarial presenta desafíos únicos. A diferencia de una base de datos SQL tradicional (donde las columnas están fijadas por esquemas estrictos), en Google Sheets un usuario con permisos de edición podría mover una columna, cambiarle el nombre o insertar filas manualmente.
 
----
-
-### 📘 Libro 1: Base de Datos Principal del Sistema (Spreadsheet Activo)
-
-#### 1. Hoja: `Registros` (Usuarios del Sistema)
-- `Nombre` (`string`): Nombre completo del usuario o asesor.
-- `Email` (`string`): Correo electrónico corporativo normalizado (Llave Primaria de Identidad).
-- `PasswordHash` (`string`): Hex digest SHA-256 de contraseña concatenada con `HASH_SALT`.
-- `Avanzado` (`boolean` / `Si` / `No`): Indica si el usuario tiene nivel jerárquico Supervisor.
-- `PasswordTemporal` (`boolean` / `Si` / `No`): Columna auto-reparable. `Si` indica que el usuario debe cambiar su clave al entrar.
-- `FechaAlta` (`Date`): Sello de tiempo de creación de la cuenta.
-
-#### 2. Hoja: `Cotizaciones` (Cabeceras de Cotización)
-- `Folio` (`string`): Folio único secuencial `LVP-YYMMDD-XXXX` (Llave Primaria).
-- `Timestamp` (`Date`): Fecha y hora de generación de la cotización.
-- `AsesorCorreo` (`string`): Correo electrónico del asesor que generó la cotización.
-- `AsesorNombre` (`string`): Nombre completo del asesor.
-- `Extencion` (`string`): Extensión telefónica corporativa del asesor.
-- `ClienteNombre` (`string`): Nombre completo del cliente.
-- `CorreoCliente` (`string`): Correo electrónico del cliente.
-- `Numero` (`string`): Teléfono a 10 dígitos del cliente.
-- `Subtotal` (`number`): Importe subtotal en Pesos MXN.
-- `IVA` (`number`): Importe de IVA (16%) en Pesos MXN.
-- `TotalGeneral` (`number`): Importe total en Pesos MXN.
-- `Estatus` (`string`): Estado actual (`Folio Generado`, `En Revisión`, `Aprobada`, `Rechazada`, `Enviada por Correo`).
-- `Observaciones` (`string`): Notas adicionales del asesor.
-- `LinkPDF` (`string`): URL pública del archivo PDF almacenado en Google Drive.
-- `Formato` (`string`): Columna auto-reparable. ID del formato de impresión utilizado (`actual`, `ccl_liverpool`).
-- `LinkSheetCCL` (`string`): Columna auto-reparable. URL de la hoja de cálculo CCL generada.
-- `RevisionEstado` (`string`): Estado de la revisión (`Aprobada`, `Rechazada`, `En Revisión`).
-- `RevisadoPor` (`string`): Correo del supervisor o `politica-automatica@sistema`.
-- `RevisadoNombre` (`string`): Nombre del revisor.
-- `RevisionFecha` (`Date`): Sello de tiempo de aprobación o rechazo.
-- `RevisionNotas` (`string`): Observaciones del supervisor o reglas de política aplicadas.
-- `RevisionChecklist` (`string`): Resumen textual del resultado de los 8 puntos de auditoría.
-
-#### 3. Hoja: `DetalleCotizaciones` (Partidas de Producto)
-- `FolioCotizacion` (`string`): Llave Foránea conectada con `Cotizaciones.Folio`.
-- `SKU` (`string`): Código de producto o variante a 9 o 10 dígitos.
-- `DescripcionProducto` (`string`): Nombre o título del producto.
-- `Cantidad` (`integer`): Unidades cotizadas.
-- `PrecioUnitarioBase` (`number`): Precio unitario original en Pesos MXN.
-- `CostoPagoUnicoLinea` (`number`): Importe subtotal de la línea de producto.
-- `DescPublicoPorcentaje` (`number`): Porcentaje de descuento público.
-- `AplicaDescAdicional` (`string`): `Si` / `No` si aplica descuento de colaborador o tarjeta.
-- `PorcentajeDescAdicional` (`number`): Porcentaje de descuento adicional.
-- `ImagenUrl` (`string`): Columna auto-reparable. URL de la imagen del producto en CDN Liverpool.
-- `LinkArticulo` (`string`): Columna auto-reparable. URL de la ficha del producto en `liverpool.com.mx`.
-
-#### 4. Hojas de Operación: `OperacionReportes`, `OperacionIncidentes`, `OperacionActualizaciones`, `OperacionCatalogo`
-- `OperacionReportes`: `ID`, `Fecha`, `Correo`, `Nombre`, `Sistema`, `SistemaClave`, `Submotivo`, `SubmotivoClave`, `Notas`, `Evidencias` (JSON URLs Drive), `IncidenteId`, `Estado`.
-- `OperacionIncidentes`: `ID`, `Clave`, `Sistema`, `SistemaClave`, `Submotivo`, `Estado` (`posible`, `confirmado`, `intermitencia`, `mantenimiento`, `resuelto`, `descartado`), `Titulo`, `Detalle`, `Creado`, `CreadoPor`, `Confirmado`, `ConfirmadoPor`, `Actualizado`, `Cerrado`, `Origen`.
-- `OperacionActualizaciones`: `ID`, `IncidenteId`, `Fecha`, `Autor`, `AutorNombre`, `Estado`, `Nota`, `Aviso`.
-- `OperacionCatalogo`: `Tipo` (`sistema`, `submotivo`, `estado`), `SistemaClave`, `Valor`, `Clave`, `Tono` (`ok`, `info`, `warn`, `alert`, `neutro`), `Creado`, `CreadoPor`, `Activo`, `Usos`.
-
-#### 5. Hoja: `AtencionesPendientes` y `AtencionesTipos`
-- `AtencionesPendientes`: `ID` (`AT-XXXX-YYYYY`), `Fecha`, `Asesor`, `AsesorNombre`, `Cliente`, `Telefono`, `Correo`, `Tipo`, `Notas`, `HoraPromesa`, `LiberarEn`, `Estado` (`pendiente`, `rescatada`, `finalizada`), `RescatadaPor`, `RescatadaEn`, `CerradaPor`, `CerradaEn`, `Resultado`.
-- `AtencionesTipos`: `Tipo`, `Clave`, `Usos`, `Creado`, `Por`.
-
-#### 6. Hojas de Auditoría y Métricas: `BitacoraConsola`, `MetricasCorreos`, `CorreosEnviados`, `Onboarding`
-- `BitacoraConsola`: `Fecha`, `Quien`, `Accion`, `Objetivo`, `Detalle`.
-- `MetricasCorreos`: `Fecha`, `Tipo` (`cotizacion`, `cliente`), `Referencia`, `AsesorEmail`, `AsesorNombre`, `Para`, `Destinatarios`, `CC`, `CCO`, `Asunto`, `Adjuntos`, `Remitente`, `AliasUsado`, `Resultado`, `Detalle`.
-- `CorreosEnviados`: `Fecha`, `Plantilla`, `To`, `CC`, `CCO`, `Asunto`, `Asesor`, `Remitente`, `Adjuntos`.
-- `Onboarding`: `Correo`, `Pantalla`, `Version`, `Estado` (`completado`, `omitido`), `PasoFinal`, `TotalPasos`, `Actualizado`.
-
-#### 7. Hojas Ocultas del Sistema (`_`)
-- **`_PermisosSistema`:** `Email`, `Rol` (`normal`, `avanzado`, `maestro`), `Permisos` (JSON `{"mas":[], "menos":[]}`), `Activo` (`Si`/`No`), `Actualizado`, `Por`. Oculta mediante `sheet.hideSheet()`.
-- **`_PreferenciasUsuario`:** `Email`, `Preferencias` (JSON validado `{v: schema, t: timestamp, data: {tema, densidad, textscale, contraste, fijados, menuPlegado, inicio, vistos}}`), `Version`, `Actualizado`. Oculta mediante `sheet.hideSheet()`.
+Para evitar que estos eventos corrompan la información, el backend del Portal Ventel implementa **tres mecanismos de resistencia de datos**.
 
 ---
 
-### 📙 Libro 2: Base de Datos de Portales (`PORTAL_SHEET_ID`)
-
-Contiene 10 pestañas configurables para el contenido dinámico del portal web:
-1. `Herramientas`: `Nombre`, `Descripcion`, `Url`, `Icono`, `Categoria`, `Etiqueta`, `Orden`, `Activo`.
-2. `Presentaciones`: `Titulo`, `Descripcion`, `Url`, `Icono`, `Seccion`, `Orden`, `Activo`.
-3. `Paqueterias`: `Nombre`, `Url`, `Icono`, `Telefono`, `RastrearUrl`, `Orden`, `Activo`.
-4. `Formatos`: `Nombre`, `Descripcion`, `Url`, `Categoria`, `Extension`, `Orden`, `Activo`.
-5. `PdePago`: `Nombre`, `Descripcion`, `Url`, `Icono`, `Orden`, `Activo`.
-6. `Plantillas`: `Titulo`, `Categoria`, `ContenidoHtml`, `Variables`, `Orden`, `Activo`.
-7. `Anuncios`: `ID`, `Titulo`, `Subtitulo`, `Contenido`, `ImagenUrl`, `BotonTexto`, `BotonUrl`, `Formato` (`banner`, `destacado`, `tarjeta`, `modal`), `Inicio`, `Fin`, `Activo`, `Orden`.
-8. `Promociones`: `Nombre`, `Vigencia`, `Mecanica`, `Legales`, `Seccion`, `Terminado`, `Activo`.
-9. `MKP`: `Nombre`, `Vigencia`, `Comision`, `Condiciones`, `Activo`.
-10. `Reportes`: `Fecha`, `Elemento`, `Url`, `ReportadoPor`, `Estado`.
+## 🛡️ Mecanismos de Resistencia e Integridad
 
 ---
 
-### 📗 Libro 3: Base de Datos de Trazabilidad (`TRAZ_SHEET_ID`)
+### 1. Acceso Dinámico por Nombre de Encabezado (No por Posición)
+- **El Problema en Código Frágil:**
+  Muchos scripts de Apps Script escriben datos por posición fija: `hoja.getRange(fila, 3).setValue(cliente)`. Si alguien inserta una columna nueva antes de la columna 3, el nombre del cliente se escribirá en la columna equivocada.
+- **La Solución en Portal Ventel:**
+  El backend lee siempre la primera fila de la hoja (los encabezados), construye un índice dinámico en memoria y busca la posición exacta del nombre del campo:
+  ```javascript
+  const headers = sheet.getRange(1, 1, 1, sheet.getLastColumn()).getValues()[0];
+  const clienteIdx = headers.indexOf("ClienteNombre");
+  // clienteIdx devuelve la posición real de "ClienteNombre" sin importar dónde esté ubicada
+  filaData[clienteIdx] = quoteData.clientName;
+  ```
 
-Contiene 6 pestañas de procesos de homologación 2026:
-- Pestañas: `bigticket`, `softline`, `slmensajerias`, `mkp`, `tienda`, `generales`.
-- Esquema de Campos: `NombreProceso`, `ReporteDonde`, `AvanceFallas`, `SolucionDirecta`, `PlataformasInvolucradas`, `Observaciones`.
+---
+
+### 2. Columnas Auto-Reparables (Auto-Healing Schema)
+- **¿Cómo funciona?**
+  Cuando se despliega una nueva actualización de software que requiere guardar un dato adicional (ejemplo: guardar la URL de la ficha del producto `LinkArticulo`), no es necesario que el desarrollador edite manualmente la hoja de cálculo en producción.
+  Al momento de guardar la primera cotización con el nuevo campo:
+  1. El backend busca el encabezado `LinkArticulo`.
+  2. Si no lo encuentra (`indexOf === -1`), inserta automáticamente la palabra `"LinkArticulo"` al final de la primera fila.
+  3. Actualiza el índice en tiempo de ejecución y guarda el dato en la nueva columna.
+
+---
+
+### 3. Preservación Intacta de Fórmulas (`getFormulas()`)
+- **El Problema:**
+  Si un administrador agrega una fórmula personalizada en la hoja `Cotizaciones` (ejemplo: una fórmula `=SUMA(...)` o `=SI(...)` para calcular comisiones), y luego el sistema actualiza el estado de esa cotización sobrescribiendo la fila completa con `setValues()`, la fórmula personalizada se perdería y se convertiría en un valor de texto estático.
+- **La Solución:**
+  Al actualizar una fila existente, `saveQuoteDataToSheets` ejecuta primero `.getFormulas()` sobre la fila. Si detecta que alguna celda contiene una fórmula iniciada con `=`, conserva la fórmula original en el arreglo de escritura en lugar de sobrescribirla con el valor calculado.
+
+---
+
+## 📋 Diccionario Detallado de Tablas Principales
+
+### 1. `Registros` (Tabla de Usuarios)
+- **Email (Llave Primaria):** Correo institucional del asesor. Base para la autenticación y permisos.
+- **PasswordHash:** Digest SHA-256 de la contraseña + `HASH_SALT`.
+- **Avanzado:** Boolean que define si el usuario pertenece al grupo de supervisión.
+- **PasswordTemporal:** Marca auto-reparable (`Si`/`No`) que obliga al usuario a cambiar su contraseña en el siguiente inicio de sesión.
+
+### 2. `Cotizaciones` (Cabeceras de Cotización)
+- **Folio (Llave Primaria):** Identificador `LVP-YYMMDD-XXXX`.
+- **AsesorCorreo / AsesorNombre / Extencion:** Identidad del vendedor que realizó la cotización.
+- **ClienteNombre / CorreoCliente / Numero:** Datos de contacto del cliente cotizado.
+- **Subtotal / IVA / TotalGeneral:** Importes económicos en Pesos MXN (IVA fijado al 16%).
+- **Estatus:** Estado dentro del flujo de trabajo (`Folio Generado`, `En Revisión`, `Aprobada`, `Rechazada`, `Enviada por Correo`).
+- **LinkPDF:** Enlace directo al documento PDF exportado en Google Drive.
+- **Formato:** ID del formato de diseño aplicado (`actual`, `ccl_liverpool`).
+- **RevisionEstado / RevisadoPor / RevisionNotas:** Registro de auditoría del supervisor o motor de reglas automáticas.
+
+### 3. `DetalleCotizaciones` (Partidas de Producto)
+- **FolioCotizacion (Llave Foránea):** Vincula cada producto con la cabecera en `Cotizaciones.Folio`.
+- **SKU:** Código de artículo o variante a 9 o 10 dígitos.
+- **DescripcionProducto / Cantidad / PrecioUnitarioBase:** Datos base del producto.
+- **DescPublicoPorcentaje / AplicaDescAdicional / PorcentajeDescAdicional:** Descuentos aplicados.
+- **ImagenUrl:** Enlace a la imagen del producto en CDN Liverpool.
+- **LinkArticulo:** Enlace directo a la ficha del producto en `liverpool.com.mx` extraído por la extensión de Chrome.
 
 ---
 
