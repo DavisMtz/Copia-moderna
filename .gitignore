@@ -1,0 +1,15 @@
+# Copias de trabajo que crea Claude Code. No son código: son checkouts
+# paralelos del propio repo. Si se rastrean, al mover la carpeta dejan un
+# .git huérfano dentro del árbol y `git status` muere con
+# "fatal: not a git repository". Ya pasó una vez; por eso están fuera.
+.claude/worktrees/
+
+# Basura de Windows
+Thumbs.db
+desktop.ini
+$RECYCLE.BIN/
+
+# Respaldos y temporales sueltos
+*.tmp
+*.bak
+~$*

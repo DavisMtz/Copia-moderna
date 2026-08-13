@@ -1,0 +1,561 @@
+<!DOCTYPE html>
+<!--
+  =====================================================================
+   Ventel · Extractor de Bolsa
+   Hecho por su gran amigo David Martínez "El escritor"
+   v1.0 · 18/07/2026
+  =====================================================================
+-->
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <title>Extractor Ventel</title>
+  <style>
+    :root {
+      --primary-color: #E10098;
+      --primary-dark: #c10080;
+      --primary-light: #ff3fb8;
+      --accent: #a855f7;
+      --bg-color: #ffffff;
+      --field-bg: #f8fafc;
+      --card-bg: #ffffff;
+      --text-main: #1e293b;
+      --text-muted: #64748b;
+      --border-color: #e6e9f0;
+      --success-color: #10b981;
+      --shadow-sm: 0 1px 2px rgba(15, 23, 42, 0.06);
+      --shadow-md: 0 4px 14px rgba(15, 23, 42, 0.08);
+      --shadow-lg: 0 10px 30px rgba(225, 0, 152, 0.18);
+    }
+
+    * { box-sizing: border-box; }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+      margin: 0;
+      padding: 0;
+      width: 380px;
+      background-color: var(--bg-color);
+      color: var(--text-main);
+      -webkit-font-smoothing: antialiased;
+    }
+
+    /* ---------- Header ---------- */
+    .header {
+      background: var(--primary-color);
+      color: white;
+      padding: 18px 16px;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .header .logo-box {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-shrink: 0;
+    }
+
+    .header .logo-box svg { display: block; }
+
+    .header h1 {
+      margin: 0;
+      font-size: 16px;
+      font-weight: 700;
+      letter-spacing: 0.3px;
+      line-height: 1.2;
+    }
+
+    .header .subtitle {
+      font-size: 11px;
+      opacity: 0.9;
+      font-weight: 500;
+    }
+
+    /* ---------- Content ---------- */
+    .content {
+      padding: 16px;
+      display: flex;
+      flex-direction: column;
+      gap: 14px;
+    }
+
+    .instructions {
+      font-size: 12px;
+      line-height: 1.6;
+      color: var(--text-muted);
+      background-color: var(--card-bg);
+      padding: 12px 14px;
+      border-radius: 10px;
+      border: 1px solid var(--border-color);
+      box-shadow: var(--shadow-sm);
+    }
+
+    .instructions strong { color: var(--text-main); }
+
+    .instructions ol {
+      margin: 8px 0 0;
+      padding-left: 18px;
+    }
+    .instructions li { margin-bottom: 4px; }
+    .instructions li:last-child { margin-bottom: 0; }
+
+    /* ---------- Buttons ---------- */
+    .btn {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      background: var(--primary-color);
+      color: white;
+      border: none;
+      padding: 12px 16px;
+      font-size: 13px;
+      font-weight: 600;
+      border-radius: 10px;
+      cursor: pointer;
+      transition: transform 0.15s ease, box-shadow 0.2s ease, filter 0.2s ease;
+      box-shadow: var(--shadow-md);
+    }
+
+    .btn:hover {
+      background: var(--primary-dark);
+      transform: translateY(-1px);
+      box-shadow: var(--shadow-lg);
+    }
+
+    .btn:active { transform: translateY(0); }
+
+    .btn-secondary {
+      background: transparent;
+      color: var(--text-main);
+      border: 1px solid var(--border-color);
+      box-shadow: var(--shadow-sm);
+    }
+    .btn-secondary:hover {
+      filter: none;
+      background: #fdf2f9;
+      border-color: var(--primary-color);
+      color: var(--primary-color);
+    }
+
+    .btn:disabled {
+      background: #cbd5e1;
+      color: #ffffff;
+      cursor: not-allowed;
+      transform: none;
+      box-shadow: none;
+      filter: none;
+    }
+
+    /* ---------- Result ---------- */
+    .result-container {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+      animation: fadeIn 0.25s ease;
+    }
+
+    @keyframes fadeIn {
+      from { opacity: 0; transform: translateY(6px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+
+    .result-label {
+      font-size: 12px;
+      font-weight: 600;
+      color: var(--text-muted);
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    #itemCount,
+    #compraPedido {
+      background: var(--primary-color);
+      color: white;
+      font-size: 11px;
+      font-weight: 700;
+      padding: 3px 10px;
+      border-radius: 999px;
+    }
+
+    /* ---------- Stats / Resumen ---------- */
+    .stats {
+      display: flex;
+      gap: 8px;
+    }
+
+    .stat {
+      flex: 1;
+      background: #fdf2f9;
+      border: 1px solid #fbcfe8;
+      border-radius: 10px;
+      padding: 8px 10px;
+      text-align: center;
+    }
+
+    .stat-label {
+      display: block;
+      font-size: 10px;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      color: var(--text-muted);
+    }
+
+    .stat-value {
+      display: block;
+      font-size: 15px;
+      font-weight: 700;
+      color: var(--primary-color);
+      margin-top: 2px;
+    }
+
+    /* ---------- Spinner ---------- */
+    .spinner {
+      width: 14px;
+      height: 14px;
+      border: 2px solid rgba(255, 255, 255, 0.35);
+      border-top-color: #ffffff;
+      border-radius: 50%;
+      animation: spin 0.7s linear infinite;
+    }
+
+    @keyframes spin {
+      to { transform: rotate(360deg); }
+    }
+
+    .json-textarea {
+      width: 100%;
+      height: 150px;
+      font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+      font-size: 11px;
+      padding: 10px;
+      border-radius: 10px;
+      border: 1px solid var(--border-color);
+      background-color: var(--field-bg);
+      color: var(--text-main);
+      resize: none;
+      line-height: 1.5;
+    }
+
+    .json-textarea:focus {
+      outline: none;
+      border-color: var(--primary-color);
+      box-shadow: 0 0 0 3px rgba(225, 0, 152, 0.12);
+    }
+
+    /* El resumen de la compra no es código: se lee, y a veces se corrige antes
+       de pegarlo. Por eso va con la tipografía del popup y algo más de aire. */
+    .texto-compra {
+      font-family: inherit;
+      font-size: 12px;
+      height: 200px;
+      line-height: 1.55;
+      white-space: pre-wrap;
+    }
+
+    .avisos-compra {
+      margin: 0;
+      font-size: 10px;
+      line-height: 1.5;
+      color: var(--text-muted);
+    }
+    .avisos-compra:empty { display: none; }
+
+    /* ---------- Status ---------- */
+    .status-msg {
+      font-size: 12px;
+      font-weight: 500;
+      text-align: center;
+      padding: 8px;
+      border-radius: 8px;
+      display: none;
+    }
+
+    .status-success {
+      background-color: #d1fae5;
+      color: #065f46;
+      display: block;
+    }
+
+    .status-error {
+      background-color: #fee2e2;
+      color: #991b1b;
+      display: block;
+    }
+
+    .actions { display: flex; gap: 8px; }
+    .actions button { flex: 1; }
+
+    /* ---------- Separador entre las dos funciones ---------- */
+    .separador {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      font-size: 10px;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+      color: var(--text-muted);
+      margin: -2px 0;
+    }
+    .separador::before,
+    .separador::after {
+      content: "";
+      flex: 1;
+      height: 1px;
+      background: var(--border-color);
+    }
+
+    .pie-ayuda {
+      margin: -6px 0 0;
+      font-size: 11px;
+      line-height: 1.5;
+      color: var(--text-muted);
+    }
+
+    /* ---------- Ajustes: enlace del Sistema de Cotizaciones ---------- */
+    .config-toggle {
+      background: none;
+      border: none;
+      padding: 0;
+      font: inherit;
+      font-size: 11px;
+      font-weight: 600;
+      color: var(--text-muted);
+      cursor: pointer;
+      align-self: center;
+      display: inline-flex;
+      align-items: center;
+      gap: 5px;
+    }
+    .config-toggle:hover { color: var(--primary-color); }
+
+    .config-panel {
+      display: none;
+      flex-direction: column;
+      gap: 8px;
+      background: var(--field-bg);
+      border: 1px solid var(--border-color);
+      border-radius: 10px;
+      padding: 12px;
+    }
+    .config-panel.abierto { display: flex; }
+
+    .config-panel label {
+      font-size: 11px;
+      font-weight: 600;
+      color: var(--text-main);
+    }
+
+    .config-panel .ayuda {
+      font-size: 10px;
+      line-height: 1.5;
+      color: var(--text-muted);
+      margin: 0;
+    }
+
+    .config-input {
+      width: 100%;
+      font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+      font-size: 10px;
+      padding: 8px 10px;
+      border-radius: 8px;
+      border: 1px solid var(--border-color);
+      background: var(--card-bg);
+      color: var(--text-main);
+    }
+    .config-input:focus {
+      outline: none;
+      border-color: var(--primary-color);
+      box-shadow: 0 0 0 3px rgba(225, 0, 152, 0.12);
+    }
+
+    /* ---------- Easter egg ---------- */
+    .signature {
+      padding: 4px 16px 6px;
+      text-align: center;
+      font-size: 8px;
+      letter-spacing: 0.3px;
+      color: var(--text-muted);
+      opacity: 0.04;
+      transition: opacity 1.2s ease 0.8s;
+      cursor: default;
+      user-select: none;
+    }
+
+    .signature:hover {
+      opacity: 1;
+    }
+
+    .signature .made-by {
+      font-family: "Segoe Script", "Brush Script MT", cursive;
+      font-size: 10px;
+      color: var(--primary-color);
+    }
+  </style>
+</head>
+<body>
+  <div class="header">
+    <div class="logo-box">
+      <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M6 2 3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4z"></path><line x1="3" y1="6" x2="21" y2="6"></line><path d="M16 10a4 4 0 0 1-8 0"></path></svg>
+    </div>
+    <div class="title-wrap">
+      <h1>Ventel · Extractor de Bolsa</h1>
+      <div class="subtitle">Liverpool → Sistema de Cotizaciones</div>
+    </div>
+  </div>
+
+  <div class="content">
+    <div class="instructions">
+      <strong>Instrucciones</strong>
+      <ol>
+        <li>Entra a tu bolsa de compras en el portal de Liverpool o abre el archivo local de la bolsa.</li>
+        <li>Haz clic en <strong>Cotizar</strong>: se abre el sistema con los artículos ya cargados.</li>
+        <li>Escribe el nombre, el correo y el teléfono del cliente, y listo.</li>
+      </ol>
+    </div>
+
+    <button id="btnCotizar" class="btn">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="16" y1="13" x2="8" y2="13"></line><line x1="16" y1="17" x2="8" y2="17"></line></svg>
+      Cotizar
+    </button>
+    <p class="pie-ayuda">
+      Si no tienes la sesión abierta, primero te pide iniciarla y después continúa solo.
+      El folio se genera al mandar la cotización a vista previa, como siempre.
+    </p>
+
+    <div class="separador"><span>o solo el JSON</span></div>
+
+    <button id="btnExtract" class="btn btn-secondary">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg>
+      Extraer Artículos de Bolsa
+    </button>
+
+    <!-- Segunda función: el visor. No toca nada de la extracción de arriba. -->
+    <div class="separador"><span>o mira todo el detalle</span></div>
+
+    <button id="btnViewer" class="btn btn-secondary">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path><circle cx="12" cy="12" r="3"></circle></svg>
+      Abrir visor avanzado
+    </button>
+    <p class="pie-ayuda">
+      Abre en una pestaña nueva la ficha completa de cada artículo: SKU general y de
+      variante, precio de lista, meses sin intereses, proveedor, galería de imágenes y
+      todos los campos que la página guarda sin mostrarlos.
+    </p>
+
+    <!-- Cuarta función: inspeccionar un artículo suelto en su ficha. -->
+    <div class="separador"><span>o inspecciona un artículo</span></div>
+
+    <button id="btnInspector" class="btn btn-secondary">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>
+      Inspeccionar artículo
+    </button>
+    <p class="pie-ayuda">
+      En la ficha de un producto de Liverpool: abre una ventana con <strong>todos</strong>
+      los datos del artículo — colores disponibles, tallas o capacidades, SKU general y
+      por variante, fotos, vendedor, especificaciones y lo que la página no muestra.
+    </p>
+
+    <!-- Quinta función: la compra ya cerrada. Tampoco toca nada de lo de arriba. -->
+    <div class="separador"><span>o cuando la compra ya se hizo</span></div>
+
+    <button id="btnCompra" class="btn btn-secondary">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 11l3 3L22 4"></path><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"></path></svg>
+      Copiar datos de la compra
+    </button>
+    <p class="pie-ayuda">
+      En la pantalla de <strong>“¡Gracias por comprar!”</strong>: arma el resumen listo
+      para pegar con el número de pedido, los artículos, la entrega estimada, el pago,
+      el plan y el folio de la atención.
+    </p>
+
+    <div id="status" class="status-msg"></div>
+
+    <div class="result-container" id="compraContainer" style="display: none;">
+      <div class="result-label">
+        <span>Datos de la compra</span>
+        <span id="compraPedido">Pedido</span>
+      </div>
+      <textarea id="txtCompra" class="json-textarea texto-compra" readonly></textarea>
+      <p class="avisos-compra" id="compraAvisos"></p>
+
+      <div class="actions">
+        <button id="btnCompraCopy" class="btn btn-secondary">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg>
+          Copiar de nuevo
+        </button>
+        <button id="btnCompraDownload" class="btn btn-secondary">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg>
+          Descargar
+        </button>
+      </div>
+    </div>
+
+    <div class="result-container" id="resultContainer" style="display: none;">
+      <div class="stats">
+        <div class="stat">
+          <span class="stat-label">Artículos</span>
+          <span class="stat-value" id="statItems">0</span>
+        </div>
+        <div class="stat">
+          <span class="stat-label">Total bolsa</span>
+          <span class="stat-value" id="statTotal">$0.00</span>
+        </div>
+      </div>
+
+      <div class="result-label">
+        <span>JSON Generado</span>
+        <span id="itemCount">0 artículos</span>
+      </div>
+      <textarea id="txtJson" class="json-textarea" readonly></textarea>
+
+      <div class="actions">
+        <button id="btnCopy" class="btn btn-secondary">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg>
+          Copiar JSON
+        </button>
+        <button id="btnDownload" class="btn btn-secondary">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg>
+          Descargar
+        </button>
+      </div>
+    </div>
+
+    <!-- Enlace del sistema. Se guarda una vez por equipo: la URL de una webapp de
+         Apps Script cambia con cada despliegue nuevo, así que no puede vivir
+         escrita dentro de la extensión. -->
+    <button id="btnConfigToggle" class="config-toggle" type="button" aria-expanded="false" aria-controls="configPanel">
+      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"></circle><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 1 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 1 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.6h.09A1.65 1.65 0 0 0 10 3.09V3a2 2 0 1 1 4 0v.09A1.65 1.65 0 0 0 15 4.6a1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9v.09A1.65 1.65 0 0 0 20.91 10H21a2 2 0 1 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"></path></svg>
+      Enlace del Sistema de Cotizaciones
+    </button>
+
+    <div id="configPanel" class="config-panel">
+      <label for="inpCotizadorUrl">URL de la aplicación (termina en /exec)</label>
+      <input id="inpCotizadorUrl" class="config-input" type="url" spellcheck="false"
+             placeholder="https://script.google.com/a/macros/…/exec">
+      <p class="ayuda">
+        Ábrela desde el sistema y copia la dirección de la barra hasta <strong>/exec</strong>,
+        sin los parámetros que vengan después. Se guarda solo en este equipo.
+      </p>
+      <div class="actions">
+        <button id="btnConfigSave" class="btn btn-secondary" type="button">Guardar enlace</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- 🥚 Easter egg: pasa el cursor por aquí abajo y espera... -->
+  <div class="signature" title="🥚">
+    <span class="made-by">Hecho por su gran amigo David Martínez</span> · El escritor · v1.0 · 18/07/2026
+  </div>
+
+  <script src="deep-extractor.js"></script>
+  <script src="purchase-extractor.js"></script>
+  <script src="product-inspector.js"></script>
+  <script src="popup.js"></script>
+</body>
+</html>

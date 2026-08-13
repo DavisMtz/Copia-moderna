@@ -1,0 +1,939 @@
+(function(){var K=document.head||document.getElementsByTagName("head")[0];if(!document.querySelector("link[data-jml-swiper-css]")){var Z=document.createElement("link");Z.rel="stylesheet",Z.href="https://cdn.jsdelivr.net/npm/swiper@11.0.5/swiper-bundle.min.css",Z.setAttribute("data-jml-swiper-css","1"),Z.onerror=function(){var J=document.createElement("link");J.rel="stylesheet",J.href="https://rerender.jewelml.io/lib/swiper-bundle.min.css",J.setAttribute("data-jml-swiper-css","fallback"),K.appendChild(J)},K.appendChild(Z)}function re(){"2.2.4";window.jml=window.jml||{},Object.assign(window.jml,window.jmlrc||{});try{window.jml.item_id=(()=>{function P(C){return C!=null&&(C=C.toLowerCase(),C=C.normalize("NFKD"),C=C.replace(/[\u0300-\u036f]/g,""),C=C.replace(/\s+/g,"_")),C}function E(){function C(){const j=window.__next_f.filter(p=>Array.isArray(p)&&p[0]===1&&typeof p[1]=="string").map(p=>p[1]);for(const p of document.querySelectorAll("script")){let M,h=/__next_f\.push\(\[(\d+),(.*)\]\s*\)/gs;for(;(M=h.exec(p.textContent))!==null;)if(parseInt(M[1])===1)try{const _=JSON.parse(M[2]);typeof _=="string"&&j.push(_)}catch{}}const I=j.join(""),D=new Map;let L=0;for(;L<I.length;){const p=I.indexOf(":",L);if(p===-1)break;const M=I.substring(L,p);if(!/^[0-9a-f]+$/i.test(M)){const _=I.indexOf(`
+`,L);L=_<0?I.length:_+1;continue}const h=I.indexOf(`
+`,p+1);D.set(M,h<0?I.substring(p+1):I.substring(p+1,h)),L=h<0?I.length:h+1}const k=new Map,u=new Set(["{","[",'"',"'","-","0","1","2","3","4","5","6","7","8","9","t","f","n"]);for(const[p,M]of D)try{k.set(p,u.has(M[0])?JSON.parse(M):M)}catch{k.set(p,M)}function v(p){return p&&typeof p=="object"&&!Array.isArray(p)&&typeof p.maximumListPrice=="number"&&typeof p.minimumPromoPrice=="number"&&Array.isArray(p.sizeSet)&&Array.isArray(p.variants)&&p.variants.length>0&&p.variants[0]!==null&&Array.isArray(p.colorSet)}function S(p,M=new WeakSet,h=0){if(h>80||p==null)return null;if(typeof p=="string"){if(p.startsWith("$")&&!p.startsWith("$L")){const _=k.get(p.slice(1));if(_!=null)return S(_,M,h+1)}return null}if(typeof p!="object"||M.has(p))return null;if(M.add(p),v(p))return p;for(const _ of Array.isArray(p)?p:Object.values(p)){const R=S(_,M,h+1);if(R)return R}return null}const N=S(k.get("c"));if(!N)return null;const W=new URLSearchParams(window.location.search).get("skuid"),b=N.variants.map(p=>({skuId:p.skuId,colorName:p.colorName??null}));return{id:N.id,hasColor:N.colorSet.length>0,selectedVariant:b.find(p=>p.skuId===W)??b[0]??null}}function $(){const j=document.querySelector("h1");if(!j)return null;const I=Object.keys(j).find(L=>L.startsWith("__reactFiber"));if(!I)return null;let D=j[I];for(;D;){const L=D.memoizedProps;if(L&&L.product&&typeof L.product.id<"u"){const k=L.product,u=new URLSearchParams(window.location.search).get("skuid"),v=(k.variants||[]).filter(S=>S).map(S=>({skuId:S.skuId,colorName:S.colorName??null}));return{id:k.id,hasColor:Array.isArray(k.colorSet)&&k.colorSet.length>0,selectedVariant:v.find(S=>S.skuId===u)??v[0]??null}}D=D.return}return null}const U=window.location.pathname.split("/").filter(Boolean).pop(),T=C();if(T&&T.id===U)return T;const O=$();if(O)return O;if(T)return T;throw new Error("Product not found")}function z(C,$){if(!C)return{color:void 0,productId:void 0};const U=C?.variants,T=U.findIndex(I=>I.clothingBrandColor?P(I.clothingBrandColor)===P($):P(I.color)===P($)),O=T<0?0:T;return U[O]?.color}function q(){let C;return document.querySelector(".attributeAccordionText")?.innerText.includes("Color")&&(C=document.querySelector(".attributeAccordionTextValue")?.textContent?.trim()),{elementColor:C}}function Q(){jml.logs=jml.logs??[];const{elementColor:C}=q();if(!C)return;if(window.next.router.components["/tienda/oneColumnPage"].props.pageProps.initialPropsData)return z(window.next.router.components["/tienda/oneColumnPage"].props.pageProps.initialPropsData.mainContent.records[0].allMeta,C);const $=JSON.parse(document.querySelector("#__NEXT_DATA__")?.innerText);return z($.query?.data?.mainContent?.records?.at(0)?.allMeta,C)}try{if(window?.jml?.isStaging){const U=E();if(!U)return"empty";if(U.hasColor){const T=P(U.selectedVariant.colorName);return`${U.id}_${T}`}return U.id}let C=window.location.pathname.split("/").pop();if(!C)return"empty";let $=Q();return $?($=P($),`${C}_${$}`):C}catch{return"empty"}})()||"empty"}catch(P){jml.debug().log("failed to load __jml_item_id",P),window.jml.item_id="empty"}window.location.search.includes("dev=jewel")?(console.log("dev=jewel detected, loading dev_custom_selector_function"),window.location.search.includes("dev=jewel")&&(window.__jml_custom_function=(()=>{function P(){const i=document.cookie.match(/(?:^|;\s*)jewel-migrated=([^;]*)/);return i?i[1]==="true":!1}window.jml.isStaging=P();const E="LP";window.jml.userIsLoggedIn=!1;const z="jml-hide-add-to-cart";function q(){if(document.getElementById(z))return;const i=document.createElement("style");i.id=z,i.textContent=`
+      ._jml_carousel_slide .jml-add-to-cart-wrapper {
+        display: none !important;
+      }
+      ._jml_carousel_slide:hover .jml-add-to-cart-wrapper {
+        display: none !important;
+      }
+      ._jml_carousel_slide._jml_carousel_slide:hover .jml-add-to-cart-wrapper.jml-add-to-cart-wrapper {
+          display: none !important;
+      }
+
+      [id^="jml-mobileAddtoCart-button-wrapper-"] {
+        display: none !important;
+      }
+    `,document.head.appendChild(i)}function Q(){const i=document.getElementById(z);i&&i.remove()}function C(i,l){const a=new Date;a.setFullYear(a.getFullYear()+1),document.cookie=[i+"="+encodeURIComponent(l),"path=/","expires="+a.toUTCString(),"SameSite=Lax"].join("; ")}function $(i){document.cookie=`${i}=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT; SameSite=Lax`}jml.checkAuthState=()=>{q();const i=`jml_userid_${jml.integration_id}`,l=localStorage.getItem("jewel_hashed_userid");l&&l!==" "&&l!=="null"&&l!=="undefined"&&l!=="na"?(window.jml.userIsLoggedIn=!0,localStorage.setItem(i,l),window.jml.wishlistUpdate(),Q()):(window.jml.userIsLoggedIn=!1,localStorage.removeItem(i),$(i))};let U=null;jml.oldCheckAuthState=()=>{U&&clearInterval(U),U=setInterval(()=>{if(!window.getProfileId||!window.getProfileId())return;const i=window.getProfileId();if(!i||i===""||i==="undefined"||i==="null"){window.jml.userIsLoggedIn=!1;const l=`jml_userid_${jml.integration_id}`;localStorage.removeItem(l),$(l)}else window.jml.userIsLoggedIn=!0,window.jml.wishlistUpdate();clearInterval(U)},100)};async function T(i){const l=new TextEncoder,a=await crypto.subtle.importKey("raw",l.encode("jewelml"),{name:"HMAC",hash:"SHA-256"},!1,["sign"]),c=await crypto.subtle.sign("HMAC",a,l.encode(i));return Array.from(new Uint8Array(c)).map(t=>t.toString(16).padStart(2,"0")).join("")}const O=function(){const i=localStorage.setItem.bind(localStorage),l=localStorage.removeItem.bind(localStorage),a=localStorage.clear.bind(localStorage);localStorage.setItem=function(c,t){const e=localStorage.getItem(c);i(c,t),window.dispatchEvent(new CustomEvent("jml:ls-change",{detail:{type:"set",key:c,value:t,oldValue:e}}))},localStorage.removeItem=function(c){const t=localStorage.getItem(c);l(c),window.dispatchEvent(new CustomEvent("jml:ls-change",{detail:{type:"remove",key:c,oldValue:t}}))},localStorage.clear=function(){a(),window.dispatchEvent(new CustomEvent("jml:ls-change",{detail:{type:"clear"}}))},window.addEventListener("jml:ls-change",({detail:{key:c,type:t,value:e}})=>{c&&((c.startsWith("jml_userid_")||c.startsWith("jml_uuid_"))&&t==="set"&&C(c,e),c==="jewel_hashed_userid"&&setTimeout(()=>jml.checkAuthState()))}),setTimeout(()=>{const c=t=>{const e=localStorage.getItem(t);e&&C(t,e)};c(`jml_uuid_${jml.integration_id}`),c(`jml_userid_${jml.integration_id}`)})};localStorage?O():setTimeout(()=>O()),window.jml.sendJewelViewItem=i=>{window.location.pathname.startsWith("/tienda/pdp/")&&i!=="empty"&&window.dataLayer.push({event:"jewel_view_item",item_id:i})},setTimeout(()=>{try{const l=localStorage.getItem("jml_userid_67fd95260740ccc4ec658d03");["7ffff06e660184dcf111c63dab65561abba1bff7ca050cae8bc0e8c392398092"].includes(l)&&localStorage.removeItem("jml_userid_67fd95260740ccc4ec658d03")}catch{}window.jml.personalizedSavedModels=[...window.jml.personalizedSavedModels,"recently-viewed-items-global","recently-viewed-items-global-dev"];let i=window.jml.item_id;window.jml.sendJewelViewItem(i),Object.defineProperty(window.jml,"item_id",{configurable:!0,enumerable:!0,get(){return i},set(l){const a=i;i=l,l!==a&&window.dispatchEvent(new CustomEvent("jml:item_id_changed",{bubbles:!0,detail:{oldValue:a,newValue:l,timestamp:Date.now()}}))}}),window.addEventListener("jml:item_id_changed",function(l){const{newValue:a}=l.detail;window.jml.sendJewelViewItem(a)}),window.jml.isStaging=P(),window.jml.integration_id&&(window.jml.isStaging?jml.checkAuthState():jml.oldCheckAuthState())});const j=document.createElement("style");j.type="text/css",j.textContent=`
+  .o-carousel-section {
+      display: none !important;
+  }
+  .wishlist-snackbar {
+      z-index: 9999999999 !important;
+  }
+  `,window.jml.isStaging&&(j.textContent+=`
+      section[data-testid*="container-similar-products-grid"] {
+        padding-top: 0px !important;
+      }
+      section[data-testid*="container-similar-products-grid"] > div:not([id]) {
+        display: none;
+      }
+
+      div[id*="jml-carousel"] {
+        margin-top: 32px !important;
+      }
+    `),j.textContent+=`
+    @keyframes jml-spin {
+      from { transform: rotate(0deg); }
+      to { transform: rotate(360deg); }
+    }
+    @keyframes jml-skeleton-shimmer {
+      0% { background-position: -240px 0; }
+      100% { background-position: calc(240px + 100%) 0; }
+    }
+    .jml-skeleton {
+      background-color: #efefef;
+      background-image: linear-gradient(90deg, #efefef 0%, #e4e4e4 50%, #efefef 100%);
+      background-size: 240px 100%;
+      background-repeat: no-repeat;
+      animation: jml-skeleton-shimmer 1.4s ease-in-out infinite;
+      border-radius: 4px;
+      display: inline-block;
+    }
+    .jewel-modal-confirm-button[disabled] {
+      opacity: 0.5;
+      cursor: not-allowed;
+    }
+  `,document.head.appendChild(j);const I="url('data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSIxNyIgaGVpZ2h0PSIxNyIgdmlld0JveD0iMCAwIDE3IDE3IiBmaWxsPSJub25lIj4KPHBhdGggZmlsbC1ydWxlPSJldmVub2RkIiBjbGlwLXJ1bGU9ImV2ZW5vZGQiIGQ9Ik0yLjE0NTUxIDUuOTM3OUMyLjE0NTUxIDMuODA4MzkgMy44NDgxNCAyLjE0MDg3IDUuOTg0MjEgMi4xNDA4N0M2LjkzOTk4IDIuMTQwODcgNy44NjAxMSAyLjQ4Nzk0IDguNTc1MDkgMy4wNjgzMUM5LjI5MDA2IDIuNDg3OTQgMTAuMjEwMiAyLjE0MDg3IDExLjE2NiAyLjE0MDg3QzEzLjMwMiAyLjE0MDg3IDE1LjAwNDcgMy44MDgzOSAxNS4wMDQ3IDUuOTM3OUMxNS4wMDQ3IDcuMjM1NDQgMTQuNDA3MiA4LjM1ODg0IDEzLjUwMDggOS40NTMyMkMxMi42MTMxIDEwLjUyNDkgMTEuMzU5NSAxMS42NDkxIDkuOTE0MTcgMTIuOTQ1Mkw5Ljg1ODYzIDEyLjk5NUw5Ljg1NzE4IDEyLjk5NjNMOC41NzMzOCAxNC4xNDA5TDcuMjkxMTEgMTIuOTg4OUw3LjI1MDc5IDEyLjk1MjhDNS43OTkzIDExLjY1NCA0LjU0MDI3IDEwLjUyNzMgMy42NDk1NSA5LjQ1MjY4QzIuNzQyOTcgOC4zNTg4OCAyLjE0NTUxIDcuMjM1NDUgMi4xNDU1MSA1LjkzNzlaIiBmaWxsPSIjZTEwMDk4Ii8+Cjwvc3ZnPg==')",D="url('data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSIxNyIgaGVpZ2h0PSIxNyIgdmlld0JveD0iMCAwIDI0IDI0IiBmaWxsPSJub25lIj48Y2lyY2xlIGN4PSIxMiIgY3k9IjEyIiByPSI5IiBzdHJva2U9IiNlMTAwOTgiIHN0cm9rZS13aWR0aD0iMiIgc3Ryb2tlLWxpbmVjYXA9InJvdW5kIiBzdHJva2UtZGFzaGFycmF5PSI0MiAxNCIvPjwvc3ZnPg==')",L="url('data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMTYiIGhlaWdodD0iMTciIHZpZXdCb3g9IjAgMCAxNiAxNyIgZmlsbD0ibm9uZSIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj4KPHBhdGggZmlsbC1ydWxlPSJldmVub2RkIiBjbGlwLXJ1bGU9ImV2ZW5vZGQiIGQ9Ik01LjE3MjA4IDMuNTA0MThDMy43NjE1MiAzLjUwNDE4IDIuNjc3NTIgNC41ODY2MyAyLjY3NzUyIDUuOTU3MDdDMi42Nzc1MiA2LjgwNzIzIDMuMDU4ODQgNy42MzI2NCAzLjg3MjMxIDguNjE0MDlDNC42OTMyMSA5LjYwNDUxIDUuODgwMDcgMTAuNjY4NCA3LjM3NjI5IDEyLjAwNzNMNy4zNzcyNiAxMi4wMDgyTDcuNzY0NjYgMTIuMzU2Mkw4LjE0OTA5IDEyLjAxMzVDOC4xNDkzMyAxMi4wMTMyIDguMTQ5NTYgMTIuMDEzIDguMTQ5OCAxMi4wMTI4QzkuNjQ1ODQgMTAuNjcxMiAxMC44MzI1IDkuNjA2MTEgMTEuNjUzNSA4LjYxNDk3QzEyLjQ2NzEgNy42MzI2OCAxMi44NDg0IDYuODA3MjQgMTIuODQ4NCA1Ljk1NzA3QzEyLjg0ODQgNC41ODY2MyAxMS43NjQ0IDMuNTA0MTggMTAuMzUzOCAzLjUwNDE4QzkuNTUyMjIgMy41MDQxOCA4Ljc3NDgzIDMuODc1NyA4LjI3MTc4IDQuNDU4NjdMNy43NjI5NSA1LjA0ODMyTDcuMjU0MTMgNC40NTg2N0M2Ljc1MTA4IDMuODc1NyA1Ljk3MzY5IDMuNTA0MTggNS4xNzIwOCAzLjUwNDE4Wk0xLjMzMzM3IDUuOTU3MDdDMS4zMzMzNyAzLjgyNzU1IDMuMDM2MDEgMi4xNjAwMyA1LjE3MjA4IDIuMTYwMDNDNi4xMjc4NSAyLjE2MDAzIDcuMDQ3OTggMi41MDcxMSA3Ljc2Mjk1IDMuMDg3NDhDOC40Nzc5MyAyLjUwNzExIDkuMzk4MDYgMi4xNjAwMyAxMC4zNTM4IDIuMTYwMDNDMTIuNDg5OSAyLjE2MDAzIDE0LjE5MjUgMy44Mjc1NSAxNC4xOTI1IDUuOTU3MDdDMTQuMTkyNSA3LjI1NDYgMTMuNTk1MSA4LjM3OCAxMi42ODg2IDkuNDcyMzhDMTEuODAxIDEwLjU0NDEgMTAuNTQ3NCAxMS42NjgzIDkuMTAyMDMgMTIuOTY0NEw5LjA0NjQ5IDEzLjAxNDJMOS4wNDUwNCAxMy4wMTU1TDcuNzYxMjUgMTQuMTZMNi40Nzg5NyAxMy4wMDgxTDYuNDM4NjUgMTIuOTcyQzQuOTg3MTcgMTEuNjczMSAzLjcyODE0IDEwLjU0NjUgMi44Mzc0MiA5LjQ3MTg1QzEuOTMwODMgOC4zNzgwNCAxLjMzMzM3IDcuMjU0NjEgMS4zMzMzNyA1Ljk1NzA3WiIgZmlsbD0iIzVDNUM1QyIvPgo8L3N2Zz4K')",k={"x-brand-id":E,"Content-Type":"application/json"};window.jml.getProductById=async i=>await(await fetch(`/web-bff/product/${i}`,{headers:k})).json(),window.jml.redirects=(i,l)=>{if(window.jml.isStaging){let s=function(f){const w=document.querySelector(`[offer-id="${f}"]`);return w?w.closest("._jml_card_wrapper")?.querySelector("[data-variant]")?.getAttribute("data-variant")??null:null};var r=s;if(!(l.split("_").length>1)){window.next.router.push(i);return}const d=s(l);window.next.router.push(`${i}&skuid=${d}`);return}const a=i.match(/\/tienda\/pdp\/([^\/]+(?:\/[^\/]+)*)\/(\d+)/);if(!a)return;const c=a[1],t=i.split("/").at(-1).split("?")[0],n=`/tienda/oneColumnPage?productName=${c.split("-").map(m=>m.charAt(0).toUpperCase()+m.slice(1)).join("-")}&productId=${t}&pdpTypeForSPA=default&skuId=${l||t}`,o=`${i}${i.includes("?")?"&":"?"}skuid=${l.split("_")[0]||t}`;window.next.router.push(n,o,{scroll:!1}),window.scrollTo({top:0,behavior:"smooth"})},window.jml.updateTPSTitle=jml.debounce(async function(){const i=document.querySelector('[data-jmlmodel="T_prod"]');if(!i)return;let l=i.closest('[id$="-jml-carousel"]');if(!l)return;const a=l.querySelector("._jml_section_title_css");if(!a)return;let c=null;try{const t=[],e=window.jml.isStaging?'[data-testid$="-breadcrumb-ul"]':".m-breadcrumb-list";if(document.querySelector(e)?.childNodes?.forEach(n=>{t.push(n.innerText)}),t.length>1)c=t.at(-1).trim().toLowerCase();else{const n=window.location.pathname.split("/").at(-1);if(window.jml.isStaging){const{categoryBreadCrumbs:o}=await window.jml.getProductById(n);c=o.at(-1).categoryName.trim().toLowerCase()}else{const o=await fetch("/getpdpdynamiccontent",{method:"POST",body:JSON.stringify({productId:n})});o.ok&&(c=(await o.json()).breadCrumbs.at(-1).categoryName.trim().toLowerCase())}}}catch{}c&&(a.textContent=`Los m\xE1s vendidos en ${c}`)},50),window.jml.getProductData=async(i,l)=>{const a=await fetch(`/tienda/oneColumnPageData?productId=${i}&pdpType=default&skuId=${l}`,{method:"GET",credentials:"include",headers:{"content-type":"application/json",accept:"application/json",brand:E,channel:"WEB"}});return a.ok?await a.json():null},window.jml.showSnackbar=(i,l="success",a=3e3)=>{const c=document.querySelectorAll(".mdc-snackbar");c.forEach((r,m)=>{r.style.margin="6px",r.setAttribute("data-debug-index",m)});const t=c[l==="success"?1:l==="warning"?2:0],e=document.querySelectorAll(".m-alert__container.mdc-snackbar")[1],n=document.querySelectorAll(".a-alert__icon")[1],o=t.querySelector(".mdc-snackbar__label");o&&(o.textContent=i),e.classList.contains("-alert")&&e.classList.remove("-alert"),n.classList.contains("icon-error")&&(n.classList.remove("icon-error"),n.classList.add("icon-done")),e.classList.add("-success"),t.classList.add("mdc-snackbar--open"),t.offsetWidth,setTimeout(()=>{t.classList.remove("mdc-snackbar--open"),n.classList.add("icon-error"),n.classList.remove("icon-done")},a)},window.jml.showAlertSnackbar=(i,l=3e3)=>{const a=document.querySelector(".m-alert__container.mdc-snackbar.-alert")||document.querySelector(".m-alert__container.mdc-snackbar");if(!a)return;a.classList.add("-alert"),a.classList.remove("-success");const c=a.querySelector(".a-alert__icon");c&&(c.classList.add("icon-error"),c.classList.remove("icon-done"));const t=a.querySelector(".mdc-snackbar__label");t&&(t.textContent=i),a.classList.add("mdc-snackbar--open"),a.offsetWidth,setTimeout(()=>{a.classList.remove("mdc-snackbar--open")},l)},window.jml.showSuccessSnackbar=(i,l=3e3)=>{const a=document.querySelector(".m-alert__container.mdc-snackbar.-success")||document.querySelector(".m-alert__container.mdc-snackbar");if(!a)return;a.classList.add("-success"),a.classList.remove("-alert");const c=a.querySelector(".a-alert__icon");c&&(c.classList.add("icon-done"),c.classList.remove("icon-error"));const t=a.querySelector(".mdc-snackbar__label");t&&(t.textContent=i),a.classList.add("mdc-snackbar--open"),a.offsetWidth,setTimeout(()=>{a.classList.remove("mdc-snackbar--open")},l)};const u=(()=>{const i={success:{bg:"rgb(231, 248, 236)",color:"rgb(7, 134, 44)",icon:"check_circle_outline"},error:{bg:"rgb(255, 230, 230)",color:"rgb(181, 0, 0)",icon:"error_outline"},warning:{bg:"rgb(253, 245, 230)",color:"rgb(168, 112, 0)",icon:"warning_amber"},info:{bg:"rgb(235, 247, 249)",color:"rgb(39, 121, 141)",icon:"info_outline"}};function l(){if(document.getElementById("jewel-toast-styles"))return;const n=document.createElement("style");n.id="jewel-toast-styles",n.textContent=`
+        #jewel-toast-root {
+          position: fixed;
+          top: 128px;
+          left: 0;
+          right: 0;
+          z-index: 99999999;
+          display: flex;
+          flex-direction: column;
+          align-items: center;
+          gap: 8px;
+          padding: 0px 16px 12px 16px;
+          pointer-events: none;
+          box-sizing: border-box;
+        }
+
+        /* Desktop: respect the navbar height (128px) + extra breathing room */
+        @media (min-width: 768px) {
+          #jewel-toast-root {
+            padding: 0;
+          }
+        }
+
+        .jewel-toast {
+          display: flex;
+          align-items: center;
+          justify-content: space-between;
+          gap: 12px;
+          width: 100%;
+          max-width: 688px;
+          padding: 13px 12px;
+          border-radius: 4px;
+          box-shadow: rgba(20, 20, 20, 0.12) 0px 6px 12px 0px;
+          font-family: Gotham-Medium, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+          font-size: 12px;
+          font-weight: 500;
+          line-height: 1.4;
+          box-sizing: border-box;
+          pointer-events: all;
+          height: 48px;
+
+          /* Entrance animation */
+          opacity: 0;
+          transform: translateY(-10px);
+          transition: opacity 220ms ease, transform 220ms ease;
+        }
+
+        /* On mobile: full width with horizontal margins handled by root padding */
+        @media (max-width: 767px) {
+          .jewel-toast {
+            max-width: 100%;
+            font-size: 12px;
+            padding: 14px 14px;
+          }
+        }
+
+        .jewel-toast.jewel-toast--visible {
+          opacity: 1;
+          transform: translateY(0);
+        }
+
+        .jewel-toast--exit {
+          opacity: 0 !important;
+          transform: translateY(-10px) !important;
+        }
+
+        .jewel-toast__body {
+          display: flex;
+          align-items: center;
+          gap: 8px;
+          flex: 1;
+          min-width: 0;
+        }
+
+        .jewel-toast__icon {
+          font-family: 'Material Icons';
+          font-size: 16px;
+          font-style: normal;
+          font-weight: normal;
+          line-height: 1;
+          flex-shrink: 0;
+          user-select: none;
+        }
+
+        .jewel-toast__message {
+          flex: 1;
+          min-width: 0;
+          word-break: break-word;
+        }
+
+        .jewel-toast__close {
+          background: none;
+          border: none;
+          padding: 0;
+          margin: 0;
+          cursor: pointer;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          flex-shrink: 0;
+          opacity: 0.7;
+          transition: opacity 150ms ease;
+          line-height: 1;
+        }
+
+        .jewel-toast__close:hover {
+          opacity: 1;
+        }
+
+        .jewel-toast__close-icon {
+          font-family: 'Material Icons';
+          font-size: 16px;
+          font-style: normal;
+          font-weight: normal;
+          line-height: 1;
+          user-select: none;
+        }
+      `,document.head.appendChild(n)}function a(){let n=document.getElementById("jewel-toast-root");return n||(n=document.createElement("div"),n.id="jewel-toast-root",n.setAttribute("role","region"),n.setAttribute("aria-live","polite"),n.setAttribute("aria-label","Notifications"),document.body.appendChild(n)),n}function c(n,o){const r=i[n]||i.info,m="jt-"+Date.now()+"-"+Math.random().toString(36).slice(2,6),s=document.createElement("div");s.id=m,s.className="jewel-toast",s.setAttribute("role","alert"),s.style.backgroundColor=r.bg,s.style.color=r.color;const d=document.createElement("div");d.className="jewel-toast__body";const f=document.createElement("span");f.className="jewel-toast__icon",f.textContent=r.icon,f.style.color=r.color,f.setAttribute("aria-hidden","true");const w=document.createElement("span");w.className="jewel-toast__message",w.textContent=o,d.appendChild(f),d.appendChild(w);const g=document.createElement("button");g.className="jewel-toast__close",g.setAttribute("aria-label","Cerrar notificaci\xF3n"),g.style.color=r.color;const y=document.createElement("span");return y.className="jewel-toast__close-icon",y.textContent="close",y.setAttribute("aria-hidden","true"),g.appendChild(y),s.appendChild(d),s.appendChild(g),{toast:s,id:m,closeBtn:g}}function t(n){const o=document.getElementById(n);o&&(o.classList.add("jewel-toast--exit"),setTimeout(()=>{o.remove();const r=document.getElementById("jewel-toast-root");r&&r.children.length===0&&r.remove()},220))}function e(n,o,r=4e3){l();const m=a(),{toast:s,id:d,closeBtn:f}=c(n,o);m.appendChild(s),requestAnimationFrame(()=>{requestAnimationFrame(()=>{s.classList.add("jewel-toast--visible")})});let w=setTimeout(()=>t(d),r);return s.addEventListener("mouseenter",()=>clearTimeout(w)),s.addEventListener("mouseleave",()=>{w=setTimeout(()=>t(d),1500)}),f.addEventListener("click",()=>{clearTimeout(w),t(d)}),d}return{success:(n,o)=>e("success",n,o),error:(n,o)=>e("error",n,o),warning:(n,o)=>e("warning",n,o),info:(n,o)=>e("info",n,o),dismiss:t}})();function v(){const i=document.querySelector('[data-testid="product-configurator-delivery-selection-card-Recibe a domicilio"]'),l=document.querySelector('[data-testid="product-configurator-delivery-selection-card-Click & Collect"]');if(!i||!l)return null;const a=c=>c.querySelector("span.material-icons")!==null;return a(i)?"home":a(l)?"click-collect":null}async function S(){try{return(await(await fetch(`${BFF}/user/favoriteStore`,{headers:k})).json()).id}catch{return}}async function N(i,l){try{const{variants:a}=await window.jml.getProductById(i),c=a.find(t=>t.skuId===l)?.offers?.bestOffer;return c?{offerId:c.offerId,sellerId:c.sellerId}:void 0}catch{return}}async function W(i,{retryableCodes:l=new Set,successCodes:a=new Set,maxRetries:c=1}={}){for(let t=0;t<=c;t++){const e=await i();if(e.ok)return{status:"success",data:await e.json().catch(()=>null)};const n=await e.json().catch(()=>({}));if(a.has(n.code))return{status:"success"};if(!(l.has(n.code)&&t<c))return{status:"fail",error:n}}}function b(i){return i!=null&&(i=i.toLowerCase(),i=i.normalize("NFKD"),i=i.replace(/[\u0300-\u036f]/g,""),i=i.replace(/\s+/g,"_")),i}window.jml.wishlistUpdate=jml.debounce(async function(){if(!window.jml.userIsLoggedIn)return;document.querySelectorAll('[id^="jml-wishlist-button-wrapper"]').forEach(l=>{l.style.display="block"});try{if(window.jml.isStaging){const a=await(await fetch("/web-bff/wishlists/details",{credentials:"include",headers:k})).json();if(a.length===0)return;let c=a.find(({wishlist:t})=>t.isDefault);c||(c=a[0]),window.jml.wishlistId=c.wishlist.id,window.jml.wishlistName=c.wishlist.name,c.items?.forEach(({id:t,wishlistItemId:e})=>{const n=`[id^="jml-wishlist-button-wrapper-${t}"]`;document.querySelectorAll(n).forEach(o=>{o.style.backgroundImage=I,o.classList.add("jewel_added_wishlist"),o.dataset.wishlistItemId=e})})}else{const c=(await(await fetch("/wishListSimpleApigee",{credentials:"include",headers:{accept:"application/json",brand:E,channel:"WEB"}})).json())?.lstWishList;if(!c)return;let t=c.find(({isDefault:e})=>e);t||(t=c[0]),window.jml.wishlistId=t.id,window.jml.wishlistName=t.name,t.lstWishListDetails?.forEach(e=>{const o=`[id^="jml-wishlist-button-wrapper-${e.productId}"]`;document.querySelectorAll(o).forEach(r=>{r.style.backgroundImage=I,r.classList.add("jewel_added_wishlist"),r.dataset.wishlistItemId=e.wishlistProdId})})}}catch{}},250),window.jml.wishlistUpdateUI=(i,l,a)=>{const c=l.split("_")[0],t=document.querySelectorAll(`[id^="jml-wishlist-button-wrapper-${c}"]`),e={wishlisted:I,"not-wishlisted":L,loading:D};t.forEach(n=>{n.style.backgroundImage=e[i],n.style.animation=i==="loading"?"jml-spin 1s linear infinite":"none",i==="wishlisted"?(n.classList.add("jewel_added_wishlist"),a&&(n.dataset.wishlistItemId=a)):i==="not-wishlisted"&&(n.classList.remove("jewel_added_wishlist"),delete n.dataset.wishlistItemId)})},window.jml.newWishlistAdd=async function(i,l,a,c){const t=i.split("_")[0];let e={productId:t,skuId:l};if(a){const o=await N(t,l);o&&(e.sellerId=o.sellerId)}const n=await W(()=>fetch(`/web-bff/wishlists/${window.jml.wishlistId}/add`,{method:"POST",credentials:"include",headers:k,body:JSON.stringify(e)}),{retryableCodes:new Set(["WishlistResponseBadRequestError"]),successCodes:new Set(["WishlistItemAlreadyAddedError"])});if(n.status==="success"){window.jml.wishlistUpdateUI("wishlisted",i,n.data?.wishlistItemId);const o=document.getElementById(`jml-wishlist-button-wrapper-${i}-${c}`);o&&jml.gtmFavoriteClicked(o)}else throw new Error("Wishlist add failed")},window.jml.oldWishlistAdd=async function(i,l,a,c){const t=i.split("_")[0];let e={productId:t,skuId:l,wishlistId:window.jml.wishlistId??""};if(a){const o=await window.jml.getProductData(t,l);if(o){const r=o?.mainContent?.records?.at(0)?.allMeta?.variants.find(m=>m?.skuId===l)?.offers?.bestOffer;e.offerId=r?.offerId,e.sellerId=r?.sellerId,e.sellerSapSkuId=r?.sellerSkuId,e.sellerOperatorId=r?.sellerOperatorId}else throw new Error("Item data not found")}const n=await fetch("/addItemToWishlistApigee",{method:"PUT",credentials:"include",headers:{accept:"application/json","content-type":"application/json",brand:E,channel:"WEB"},body:JSON.stringify(e)});if(n.ok){const o=await n.json();window.jml.wishlistUpdateUI("wishlisted",i,o?.productAdded?.wishlistProdId);const r=document.getElementById(`jml-wishlist-button-wrapper-${i}-${c}`);r&&jml.gtmFavoriteClicked(r)}else throw new Error("Wishlist add failed")},window.jml.wishlistAdd=async function(i,l,a,c){try{if(!window.jml.wishlistId)return;window.jml.wishlistUpdateUI("loading",i),window.jml.isStaging?await window.jml.newWishlistAdd(i,l,a,c):await window.jml.oldWishlistAdd(i,l,a,c);const t=window.jml.wishlistName||"tu lista";window.jml.isStaging?u.success(`Guardado en ${t}`):jml.showSuccessSnackbar(`Guardado en ${t}`)}catch{window.jml.wishlistUpdateUI("not-wishlisted",i),window.jml.isStaging?u.error("No se pudo agregar a tu lista. Intenta de nuevo."):window.jml.showAlertSnackbar("No se pudo agregar a tu lista. Intenta de nuevo.")}},window.jml.newWishlistRemove=async function(i,l){if((await W(()=>fetch(`/web-bff/wishlists/${window.jml.wishlistId}/items/${l}`,{method:"DELETE",credentials:"include",headers:{"x-brand-id":E}}),{retryableCodes:new Set(["WishlistResponseBadRequestError"]),successCodes:new Set(["WishlistResponseNotFoundError"])})).status==="success")window.jml.wishlistUpdateUI("not-wishlisted",i);else throw new Error("Wishlist remove failed")},window.jml.oldWishlistRemove=async function(i,l){const a=i.split("_")[0],n=(await(await fetch("/wishListSimpleApigee",{credentials:"include",headers:{accept:"application/json",brand:"LP",channel:"WEB"}})).json())?.lstWishList?.[0]?.id;if(!n||!l)throw new Error("Wishlist ID or wishlist product ID not found");if(!(await fetch("/deleteItemToWishlistApigee",{method:"PUT",credentials:"include",headers:{accept:"application/json","content-type":"application/json",brand:E,channel:"WEB"},body:JSON.stringify({wishlistId:n,wishlistProdId:l})})).ok)throw new Error("Wishlist remove failed");window.jml.wishlistUpdateUI("not-wishlisted",i)},window.jml.wishlistRemove=async function(i,l){try{if(!window.jml.wishlistId)return;window.jml.wishlistUpdateUI("loading",i),window.jml.isStaging?await window.jml.newWishlistRemove(i,l):await window.jml.oldWishlistRemove(i,l);const a=window.jml.wishlistName||"tu lista";window.jml.isStaging?u.success(`Eliminaste el producto de ${a} exitosamente.`):jml.showSuccessSnackbar(`Eliminaste el producto de ${a} exitosamente.`)}catch{window.jml.wishlistUpdateUI("wishlisted",i),window.jml.isStaging?u.error("No se pudo eliminar de tu lista. Intenta de nuevo."):window.jml.showAlertSnackbar("No se pudo eliminar de tu lista. Intenta de nuevo.")}},window.jml.wishlistButton=async function(i,l,a,c,t){if(i.preventDefault(),i.stopPropagation(),!window.jml.userIsLoggedIn)return;const e=document.getElementById(`jml-wishlist-button-wrapper-${l}-${a}`);e?.classList.contains("jewel_added_wishlist")?await window.jml.wishlistRemove(l,e.dataset.wishlistItemId):await window.jml.wishlistAdd(l,c,t,a)};async function p(i,l,a){try{const c="/web-bff",t={id:i,sku:l,quantity:jml.cartQuantity};if(v()==="click-collect"&&window.jml.userIsLoggedIn){const o=await S();t.initialAddress={storeId:String(o)}}a&&jml.cart.sellerInfo&&(t.sellerId=jml.cart.sellerInfo.sellerId,t.offerId=jml.cart.sellerInfo.offerId);const e=await fetch(`${c}/cart/items`,{method:"POST",headers:k,body:JSON.stringify(t)});return e.ok?{ok:!0}:{ok:!1,message:(await e.json().catch(()=>null))?.message}}catch{return{ok:!1}}}async function M(i,l,a,c){try{const t={quantity:jml.cartQuantity,catalogRefIds:l,productId:i,productType:c,isEDDCallRequired:"false"};if(a){const o=await window.jml.getProductData(i,l);if(o){const r=o?.mainContent?.records?.at(0)?.allMeta?.variants.find(m=>m?.skuId===l)?.offers?.bestOffer;t.offerId=r?.offerId,t.sellerId=r?.sellerId,t.sellerName=r?.sellerName,t.sellerSkuId=r?.sellerSkuId,t.sellerOperatorId=r?.sellerOperatorId}else throw new Error("Item data not found")}const e=await fetch("/addpdpitemtocart",{method:"POST",credentials:"include",headers:{"content-type":"application/json",accept:"application/json",brand:E,channel:"WEB"},body:JSON.stringify(t)});if(!e.ok)return{ok:!1};const n=await e.json().catch(()=>null);if(n?.formError){const o=Object.keys(n).find(r=>/^\d+$/.test(r)&&n[r]?.err);return{ok:!1,message:o?n[o].err:void 0}}return{ok:!0}}catch(t){return jml.errors=jml.errors??[],jml.errors.push(t.message),{ok:!1}}}window.jml.addToCart=async function(i,l,a,c,t,e){i.preventDefault(),i.stopPropagation();try{const n=l.split("_")[0];let o={ok:!1};if(window.jml.isStaging?o=await p(n,a,t):o=await M(n,a,t,e??"Soft Line"),!o.ok){const d="Ocurri\xF3 un error al agregar a tu bolsa.";return window.jml.isStaging?u.error(o.message||d):window.jml.showAlertSnackbar(o.message||d),o}window.jml.isStaging?u.success(`Agregaste ${window.jml.cartQuantity} art\xEDculo(s) a tu bolsa.`):window.jml.showSuccessSnackbar(`Agregaste ${window.jml.cartQuantity} art\xEDculo(s) a tu bolsa.`);const r=document.getElementById(`jml-addToCart-button-wrapper-${l}-${c}`),m=document.getElementById(`jml-mobileAddtoCart-button-wrapper-${l}-${c}`);r&&jml.gtmCartClicked(r),m&&jml.gtmCartClicked(m);const s=document.querySelector(`.jml-item-size-${a}-${c}`);if(s){const d=s.innerText;s.style.transition="all 0.25s ease-in-out",s.innerText="\u2714",setTimeout(()=>{s.innerText=d,s.style.transition="none"},1e3)}if(window.jml.isStaging){const d=document.querySelectorAll('[data-testid$="header-cart-quantity"]');d.length===0?document.querySelectorAll('[data-testid$="header-shopping-cart-shopping-link"]').forEach(f=>{const w=document.createElement("div");w.className="flex items-center justify-center w-[23px] h-[23px] text-body-sm font-semibold rounded-full bg-icon-alert text-header-icon absolute top-5 left-6",w.setAttribute("data-testid","bltc47588223af88ea0-header-shopping-cart-header-cart-quantity"),w.textContent="1",f.style.position="relative",f.appendChild(w)}):d.forEach(f=>{if(!f.textContent.includes("+")){const w=parseInt(f.textContent)+1;f.textContent=w>9?"9+":String(w)}})}else{const d=document.querySelectorAll(".a-header__bag>span");if(d.length===0){const f=document.createElement("span");f.innerText="1",document.querySelector(".a-header__bag").appendChild(f)}else if(!d[0].innerText.includes("+")){const f=parseInt(d[0].innerText)+1;f>9?d[0].innerText="9+":d[0].innerText=f}}return o}catch{return{ok:!1}}},window.jml.selectMobileCartSize=function(i,l){i.preventDefault(),i.stopPropagation();const a=jml.sizeOptions[parseInt(l)];window.jml.cart={size:a.size,offerId:jml.selectedProduct.productId,itemVariantId:a.skuId,unique:jml.selectedUnique,isMarketplace:a.isMarketplace,articleType:jml.selectedProduct.productType,sellerInfo:a.offers?.bestOffer},window.jml.updateCartUI({action:"size-changed"})},window.jml.addToCartMobile=async function(i,l){if(!window.jml.cart){window.jml.isStaging?u.warning("Por favor, selecciona una opci\xF3n"):window.jml.showAlertSnackbar("Por favor, selecciona una opci\xF3n");return}try{const a=document.getElementById("jml-mobile-cart-confirm-button-text"),c=document.getElementById("jml-mobile-cart-confirm-button-loading");a.style.display="none",c.style.display="block";const t=await window.jml.addToCart(i,jml.selectedOfferId,window.jml.cart.itemVariantId,window.jml.cart.unique,window.jml.cart.isMarketplace,window.jml.cart.articleType);a.style.display="block",c.style.display="none",t?.ok&&(l?window.jml.closeModalDesktop():window.jml.closeModalMobile())}catch{}},window.jml.sortSizes=i=>{const l=["Short","Regular","Long"],a=["2XCH","XXCH","XCH","CH","P","M","G","XG","2XG","XXG","3XG","XXXG","XXL","Est\xE1ndar","Euro","King","Matrimonial","Queen"],c=["32GB","32 GB","64GB","64 GB","128GB","128 GB","256GB","256 GB","512GB","512 GB","1TB","1 TB","2TB","2 TB","3TB","3 TB","4TB","4 TB","5TB","5 TB"],t=(e,n)=>e<n?-1:e>n?1:0;return[...i].sort((e,n)=>{const o=e.size,r=n.size;if(!o||!r)return 0;const m=o.split(" "),s=r.split(" "),d=m[0],f=s[0];if(c.includes(o)&&c.includes(r))return t(c.indexOf(o),c.indexOf(r));if(a.includes(d)&&a.includes(f))return t(a.indexOf(d),a.indexOf(f));const w=Number(d),g=Number(f);if(Number.isFinite(w)&&Number.isFinite(g)&&d!==""&&f!=="")return t(w,g);if(m.length>1&&s.length>1){const y=m[1],A=s[1];return l.includes(y)&&l.includes(A)?t(l.indexOf(y),l.indexOf(A)):t(o,r)}return t(o,r)})},window.jml.getVariantsInfo=async function(i,l){try{if(window.jml.isStaging){const{variants:w,colorSet:g,smallImage:y,id:A,productType:x,brand:B,title:F}=await fetch(`/web-bff/product/${i}`).then(G=>G.json()),H=w.map(G=>({...G,isMarketplace:!!G.bestOfferSellerName})),X=H.every(G=>!G.colorName),ee=X?[]:g,te=X?[[...H]]:ee.map(({colorName:G})=>H.filter(Y=>Y.colorName.toLowerCase()===G.toLowerCase()||Y.clothingBrandColor?.toLowerCase()===G.toLowerCase()));return{colorSet:ee,variantsByColor:te,variants:H,defaultImage:y,productId:A,productType:x,brand:B,title:F,hasColor:!X}}const a=await fetch(`/tienda/oneColumnPageData?productId=${i}&pdpType=default${l?`&skuId=${l}`:""}`,{headers:{accept:"application/json, text/plain, */*",brand:E,channel:"WEB"}}).then(w=>w.json()),{variants:c,id:t,productImages:e,productType:n,brand:o,title:r}=a.mainContent.records[0].allMeta,m=c.map(w=>({skuId:w.skuId,colorName:w.color,clothingBrandColor:w.clothingBrandColor,colorHex:w.colorhex,smallImage:w.smallImage,size:w.size,title:w.skuName,isMarketplace:w.sellernames.some(g=>g.toLowerCase()!=="liverpool")})),s=m.every(w=>!w.colorName),d=s?[]:m.map(({clothingBrandColor:w,colorName:g,colorHex:y})=>({colorName:w??g,colorHex:y})).reduce((w,g)=>(w.find(({colorHex:A})=>A===g.colorHex)||w.push(g),w),[]),f=s?[[...m]]:d.map(({colorName:w})=>m.filter(g=>g.colorName.toLowerCase()===w.toLowerCase()||g.clothingBrandColor?.toLowerCase()===w.toLowerCase()));return{colorSet:d,variantsByColor:f,variants:m,productId:t,defaultImage:e[0].imageUrl,productType:n,brand:o,title:r,hasColor:!s}}catch(a){return jml.variantsError=a.stack,null}},window.jml.selectMobileCartColor=(i,l)=>{jml.selectedColor=parseInt(l),jml.cart=null,jml.sizeOptions=jml.sortSizes(jml.selectedProduct.variantsByColor[jml.selectedColor]),jml.hasSizes=jml.sizeOptions.find(a=>!!a.size)??!1,jml.hasSizes||window.jml.selectMobileCartSize(i,0),window.jml.updateCartUI({action:"color-changed"})},window.jml.buildColorPicker=()=>jml.selectedProduct.colorSet.map(({colorName:i,clothingBrandColor:l},a)=>`<button
+        onclick="window.jml.selectMobileCartColor(event, '${a}');"
+        style="padding:0px;outline:none;background-color:transparent;display:flex;flex-direction:column;align-items:center;justify-content:center;border:0px;"
+      >
+        <div style="background-color:transparent;position:relative;${a===jml.selectedColor?"border-radius:4px;border:1px solid #E10098":"border-radius:4px;border:1px solid transparent"};display:flex;flex-direction:column;align-items:center;justify-content:center;width:60px;height:78px;">
+          <img src="${jml.selectedProduct.variantsByColor[a]?.at(0)?.smallImage??jml.selectedProduct.defaultImage}" style="width:100%;"></img>
+          ${a===jml.selectedColor?`<div style="position:absolute;top:-12px;right:-8px">
+            <svg width="14" height="14" viewBox="0 0 14 14" fill="none" xmlns="http://www.w3.org/2000/svg">
+              <path d="M0 7C0 3.13401 3.13401 0 7 0C10.866 0 14 3.13401 14 7C14 10.866 10.866 14 7 14C3.13401 14 0 10.866 0 7Z" fill="#E10098"/>
+              <path fill-rule="evenodd" clip-rule="evenodd" d="M9.85355 4.93551C10.0488 5.13077 10.0488 5.44735 9.85355 5.64262L6.28571 9.21045L4.14645 7.07119C3.95118 6.87593 3.95118 6.55934 4.14645 6.36408C4.34171 6.16882 4.65829 6.16882 4.85355 6.36408L6.28571 7.79624L9.14645 4.93551C9.34171 4.74025 9.65829 4.74025 9.85355 4.93551Z" fill="white"/>
+            </svg>
+          </div>`:""}
+        </div>
+        <p style="font-size:12px;margin:4px 0px 0px;color:${a===jml.selectedColor?"#333333":"#767676"};width:60px;">${l??i}</p>
+      </button>`).join(""),window.jml.buildSizePicker=()=>jml.sizeOptions.map((i,l)=>`<button onclick="window.jml.selectMobileCartSize(event, '${l}');" 
+        class="jewel-modal-product-button ${i.skuId===window.jml.cart?.itemVariantId?"jewel-modal-product-button-selected":""}">${i.size}</button>
+        `).join(""),window.jml.buildQuantityPicker=()=>`
+      <p style="font-family:robotomedium, Roboto-Medium;font-size:14px;margin:0px;">Cantidad:</p>
+      <div style="display:flex;gap:8px;">
+        <button onclick="window.jml.decrementQuantity()" style="outline:none;width:40px;height:40px;background-color:#F5F5F5;border:1px solid #C0C0C0;border-radius:4px;${jml.cartQuantity===1?"color:#C0C0C0":""}">-</button/>
+        <p style="margin:0px;height:40px;width:64px;background-color:transparent;border:1px solid #C0C0C0;border-radius:4px;text-align:center;line-height:40px;">${jml.cartQuantity}</p>
+        <button onclick="window.jml.incrementQuantity()" style="outline:none;width:40px;height:40px;background-color:#F5F5F5;border:1px solid #C0C0C0;border-radius:4px;">+</button/>
+      </div>`,window.jml.incrementQuantity=()=>{jml.cartQuantity+=1;const i=document.getElementById("jml-mobile-cart-quantity-picker");i.innerHTML=window.jml.buildQuantityPicker()},window.jml.decrementQuantity=()=>{if(jml.cartQuantity>1){jml.cartQuantity-=1;const i=document.getElementById("jml-mobile-cart-quantity-picker");i.innerHTML=window.jml.buildQuantityPicker()}},window.jml.updateCartUI=({action:i})=>{if(i==="color-changed"&&jml.selectedProduct.hasColor){const l=document.getElementById("jml-mobile-cart-selected-color");l.innerText=jml.selectedProduct.colorSet[jml.selectedColor].colorName;const a=document.getElementById("jml-mobile-cart-color-pickers");a.innerHTML=window.jml.buildColorPicker();const c=document.getElementById("jml-mobile-cart-main-image");c.src=jml.sizeOptions?.at(0)?.smallImage??jml.selectedProduct.defaultImage}if(jml.hasSizes){const l=document.getElementById("jml-mobile-cart-selected-size");l.innerText=window.jml?.cart?.size??"Selecciona una opci\xF3n";const a=document.getElementById("jml-mobile-cart-size-pickers");a.innerHTML=window.jml.buildSizePicker()}},window.jml.buildImageSkeleton=()=>`
+    <div class="jml-skeleton" style="width: 80px; height: 104px;"></div>
+  `,window.jml.buildImage=(i,l)=>`
+    <img id="jml-mobile-cart-main-image" src="${i}" alt="${l}" style="width: 80px; height: 104px; object-fit: contain; border-radius: 4px;">
+  `,window.jml.buildMetaSkeleton=()=>`
+    <div style="display: flex; flex-direction: column; gap: 8px; padding-top: 4px;">
+      <div class="jml-skeleton" style="width: 90px; height: 16px;"></div>
+      <div class="jml-skeleton" style="width: 180px; height: 16px;"></div>
+      <div class="jml-skeleton" style="width: 140px; height: 16px;"></div>
+    </div>
+  `,window.jml.buildMeta=(i,l)=>`
+    <p style="margin-bottom: 0px; font-size: 16px; font-weight: 600; color: #000; line-height: 20.8px; font-family: 'robotoRegular', sans-serif;">${i}</p>
+    <p style="margin-bottom: 0px; font-size: 16px; font-weight: 400; color: #000; line-height: 20.8px; font-family: 'robotoRegular', sans-serif;">${l}</p>
+  `,window.jml.buildOptionsSkeleton=()=>`
+    <div class="jml-skeleton" style="display:block;height: 48px; margin: 24px 0 16px 0; border-radius: 8px;"></div>
+    <div style="display: flex; gap: 8px; flex-wrap: wrap;">
+      <div class="jml-skeleton" style="width: 60px; height: 78px;"></div>
+      <div class="jml-skeleton" style="width: 60px; height: 78px;"></div>
+      <div class="jml-skeleton" style="width: 60px; height: 78px;"></div>
+      <div class="jml-skeleton" style="width: 60px; height: 78px;"></div>
+    </div>
+    <div class="jml-skeleton" style="display:block;height: 48px; margin: 24px 0 16px 0; border-radius: 8px;"></div>
+    <div style="display: flex; flex-wrap: wrap; gap: 8px 12px;">
+      <div class="jml-skeleton" style="width: 64px; height: 40px;"></div>
+      <div class="jml-skeleton" style="width: 64px; height: 40px;"></div>
+      <div class="jml-skeleton" style="width: 64px; height: 40px;"></div>
+      <div class="jml-skeleton" style="width: 64px; height: 40px;"></div>
+      <div class="jml-skeleton" style="width: 64px; height: 40px;"></div>
+    </div>
+  `,window.jml.buildOptions=()=>{const i=jml.selectedProduct.hasColor?`
+      <div style="background-color: #f5f5f5; padding: 8px; border-radius: 8px; height: 48px; display: flex; flex-direction: row; gap: 4px; align-items: center; margin: 24px 0 16px 0;">
+        <p style="margin: 0; font-size: 14px; font-weight: 600; color: #333333;">Color:</p>
+        <p id="jml-mobile-cart-selected-color" style="margin: 0; font-size: 14px; font-weight: 400; color: #333333;">${jml.selectedProduct.colorSet[jml.selectedColor].colorName}</p>
+      </div>
+      <div id="jml-mobile-cart-color-pickers" style="display: flex; gap: 8px; align-items: start;flex-wrap:wrap">
+        ${window.jml.buildColorPicker()}
+      </div>
+    `:"",l=jml.hasSizes?`
+      <div id="jml-mobile-cart-size-container">
+        <div style="background-color: #f5f5f5; padding: 8px; border-radius: 8px; height: 48px; display: flex; flex-direction: row; gap: 4px; align-items: center; margin: 24px 0 16px 0;">
+          <p style="margin: 0; font-size: 14px; font-weight: 600; color: #333333;">Talla:</p>
+          <p id="jml-mobile-cart-selected-size" style="margin: 0; font-size: 14px; font-weight: 400; color: #333333;">Selecciona una opci\xF3n</p>
+        </div>
+        <div id="jml-mobile-cart-size-pickers" style="display: flex; flex-wrap: wrap; gap: 8px 12px;">
+          ${window.jml.buildSizePicker()}
+        </div>
+      </div>
+    `:"";return i+l},window.jml.populateModalContent=(i,l,a)=>{const c=document.getElementById("jml-cart-image-wrapper"),t=document.getElementById("jml-cart-product-meta"),e=document.getElementById("jml-cart-options"),n=document.getElementById("jml-mobile-cart-confirm-button");if(!c||!t||!e)return;if(!jml.selectedProduct){t.innerHTML='<p style="color:#b50000;font-size:14px;margin:0;padding:8px 0;">No se pudo cargar la informaci\xF3n del producto.</p>',e.innerHTML="";return}const o=jml.selectedProduct.variants.find(({skuId:d})=>l===d)??jml.selectedProduct.variants[0];if(jml.selectedColor=jml.selectedProduct.hasColor?jml.selectedProduct.colorSet.findIndex(({colorName:d})=>o.colorName.toLowerCase()===d.toLowerCase()||o.clothingBrandColor?.toLowerCase()===d.toLowerCase()):0,jml.selectedColor===-1&&(jml.selectedColor=0),jml.sizeOptions=jml.sortSizes(jml.selectedProduct.variantsByColor[jml.selectedColor]),jml.hasSizes=jml.sizeOptions.find(d=>!!d.size)??!1,!jml.hasSizes){if(!jml.sizeOptions.at(0)){t.innerHTML='<p style="color:#b50000;font-size:14px;margin:0;padding:8px 0;">No se pudo cargar la informaci\xF3n del producto.</p>',e.innerHTML="";return}window.jml.selectMobileCartSize(i,0)}const r=jml.sizeOptions?.at(0)?.smallImage??jml.selectedProduct.defaultImage,m=jml.selectedProduct.title,s=jml.selectedProduct.brand;c.innerHTML=window.jml.buildImage(r,m),t.innerHTML=window.jml.buildMeta(s,m),e.innerHTML=window.jml.buildOptions(),n&&n.removeAttribute("disabled")},window.jml.openModalMobile=async function(i,l,a,c){i.preventDefault(),i.stopPropagation();try{document.querySelector("html").classList.add("noscroll"),window.jml.cart=null,jml.selectedProduct=null,jml.sizeOptions=null,jml.selectedUnique=c,jml.selectedOfferId=l,jml.cartQuantity=1;const e=l.split("_").length>1?l.split("_")[0]:l,n=`<div id="jml-mobile-modal" role="presentation" data-testid="base-modal" style="position: fixed; inset: 0px; z-index: 999999;">
+        <div tabindex="-1" class="jml-mobile-modal">
+          <div class="jewel-modal-content">
+            <div class="jewel-modal-product">
+              <div class="jewel-modal-product-header">
+                <p class="jewel-modal-product-title" style="font-family:robotomedium, Roboto-Medium;">Selecciona una opci\xF3n</p>
+                <div class="jewel-modal-product-close-button" onclick="window.jml.closeModalMobile()">
+                  <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                    <path d="M19 6.41L17.59 5L12 10.59L6.41 5L5 6.41L10.59 12L5 17.59L6.41 19L12 13.41L17.59 19L19 17.59L13.41 12L19 6.41Z" fill="#333333"/>
+                  </svg>
+                </div>
+              </div>
+              <div class="jewel-modal-product-content">
+                <div style="padding: 16px 16px 24px 16px;overflow-y:auto;max-height: 75svh;">
+                  <div style="display: flex; flex-direction: row; gap: 16px;">
+                    <div id="jml-cart-image-wrapper" style="flex: 0 0 80px;">
+                      ${window.jml.buildImageSkeleton()}
+                    </div>
+                    <div id="jml-cart-product-meta" style="display: flex; flex-direction: column; flex: 1; min-width: 0;">
+                      ${window.jml.buildMetaSkeleton()}
+                    </div>
+                  </div>
+                  <div id="jml-cart-options">
+                    ${window.jml.buildOptionsSkeleton()}
+                  </div>
+                  <div id="jml-mobile-cart-quantity-picker" style="margin-top:24px;display:flex;justify-content:space-between;align-items:center;">
+                    ${window.jml.buildQuantityPicker()}
+                  </div>
+                </div>
+                <div style="padding: 16px 16px 24px 16px; border-top: 1px solid #f5f5f5;">
+                  <button id="jml-mobile-cart-confirm-button" class="jewel-modal-confirm-button" onclick="window.jml.addToCartMobile(event,false)" disabled style="display:flex;align-items:center;justify-content:center;">
+                    <p id="jml-mobile-cart-confirm-button-text" style="margin: 0;">Agregar a mi bolsa</p>
+                    <div id="jml-mobile-cart-confirm-button-loading" style="display: none;" class="jml-loading-animation">
+                      <svg
+                        xmlns="http://www.w3.org/2000/svg"
+                        width="24"
+                        height="24"
+                        viewBox="0 0 24 24"
+                        fill="none"
+                        stroke="currentColor"
+                        stroke-width="2"
+                        stroke-linecap="round"
+                        stroke-linejoin="round"
+                      >
+                        <path d="M21 12a9 9 0 11-6.219-8.56" />
+                      </svg>
+                    </div>
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div onclick="window.jml.closeModalMobile()" class="jewel-modal-backdrop-container" data-testid="modal-backdrop-container" style="animation: show-jml-modal-backdrop 0.3s ease-in-out;">
+          <div role="presentation" class="jewel-modal-backdrop"></div>
+        </div>
+      </div>`;document.body.appendChild(document.createRange().createContextualFragment(n));try{const o=document.getElementById(`jml-mobileAddtoCart-button-wrapper-${l}-${c}`);jml.pageModel=h(o),window.dataLayer.push({event:"jewel_pdp_view",jml_page:window.location.pathname,jml_query:window.location.search,jewel_model_name:jml.pageModel})}catch{}if(jml.selectedProduct=await window.jml.getVariantsInfo(e,l),!document.getElementById("jml-mobile-modal"))return;window.jml.populateModalContent(i,a,!1)}catch(t){window.jml.fail=t.stack}},window.jml.closeModalMobile=function(){document.querySelector("html").classList.remove("noscroll");const l=document.getElementById("jml-mobile-modal"),a=document.querySelector(".jewel-modal-backdrop-container"),c=document.querySelector(".jewel-modal-content");l&&(c.style.animation="hide-jml-modal 0.3s ease-in-out",a.style.animation="hide-jml-modal-backdrop 0.3s ease-in-out",l.addEventListener("animationend",()=>l.remove())),jml.pageModel=null},window.jml.openModalDesktop=async function(i,l,a,c){i.preventDefault(),i.stopPropagation(),jml.fail=void 0;try{document.querySelector("html").classList.add("noscroll"),window.jml.cart=null,jml.selectedProduct=null,jml.sizeOptions=null,jml.selectedUnique=c,jml.selectedOfferId=l,jml.cartQuantity=1;const e=l.split("_").length>1?l.split("_")[0]:l,n=`<div id="jml-mobile-modal" role="presentation" data-testid="base-modal" style="position: fixed; inset: 0px; z-index: 999999;">
+        <div tabindex="-1" class="jml-mobile-modal">
+          <div class="jewel-modal-content" style="animation: show-jml-modal-desktop 0.3s ease-in-out;">
+            <div class="jewel-modal-product">
+              <div class="jewel-modal-product-header">
+                <p class="jewel-modal-product-title" style="font-family:robotomedium, Roboto-Medium;">Selecciona una opci\xF3n</p>
+                <div class="jewel-modal-product-close-button" onclick="window.jml.closeModalDesktop()">
+                  <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                    <path d="M19 6.41L17.59 5L12 10.59L6.41 5L5 6.41L10.59 12L5 17.59L6.41 19L12 13.41L17.59 19L19 17.59L13.41 12L19 6.41Z" fill="#333333"/>
+                  </svg>
+                </div>
+              </div>
+              <div class="jewel-modal-product-content">
+                <div style="padding: 16px 16px 0px 16px;overflow-y:auto;max-height: calc(100svh - 137px);">
+                  <div style="display: flex; flex-direction: row; gap: 16px;">
+                    <div id="jml-cart-image-wrapper" style="flex: 0 0 80px;">
+                      ${window.jml.buildImageSkeleton()}
+                    </div>
+                    <div style="display: flex; flex-direction: column; flex: 1; min-width: 0;">
+                      <div id="jml-cart-product-meta">
+                        ${window.jml.buildMetaSkeleton()}
+                      </div>
+                      <div>
+                        <div id="jml-cart-options">
+                          ${window.jml.buildOptionsSkeleton()}
+                        </div>
+                        <div id="jml-mobile-cart-quantity-picker" style="margin-top:24px;display:flex;justify-content:space-between;align-items:center;">
+                          ${window.jml.buildQuantityPicker()}
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                  <div style="height:1px;width:100%;border-bottom: 1px solid #D8D8D8;padding:32px 16px 24px 16px"></div>
+                </div>
+                <div style="padding: 16px 16px 24px 16px;">
+                  <button id="jml-mobile-cart-confirm-button" class="jewel-modal-confirm-button" onclick="window.jml.addToCartMobile(event,true)" disabled style="display:flex;align-items:center;justify-content:center;">
+                    <p id="jml-mobile-cart-confirm-button-text" style="margin: 0;">Agregar a mi bolsa</p>
+                    <div id="jml-mobile-cart-confirm-button-loading" style="display: none;" class="jml-loading-animation">
+                      <svg
+                        xmlns="http://www.w3.org/2000/svg"
+                        width="24"
+                        height="24"
+                        viewBox="0 0 24 24"
+                        fill="none"
+                        stroke="currentColor"
+                        stroke-width="2"
+                        stroke-linecap="round"
+                        stroke-linejoin="round"
+                      >
+                        <path d="M21 12a9 9 0 11-6.219-8.56" />
+                      </svg>
+                    </div>
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div onclick="window.jml.closeModalDesktop()" class="jewel-modal-backdrop-container" data-testid="modal-backdrop-container" style="animation: show-jml-modal-backdrop 0.3s ease-in-out;">
+          <div role="presentation" class="jewel-modal-backdrop"></div>
+        </div>
+      </div>`;document.body.appendChild(document.createRange().createContextualFragment(n));try{const o=document.getElementById(`jml-mobileAddtoCart-button-wrapper-${l}-${c}`);jml.pageModel=h(o),window.dataLayer.push({event:"jewel_pdp_view",jml_page:window.location.pathname,jml_query:window.location.search,jewel_model_name:jml.pageModel})}catch{}if(jml.selectedProduct=await window.jml.getVariantsInfo(e,l),!document.getElementById("jml-mobile-modal"))return;window.jml.populateModalContent(i,a,!0)}catch(t){window.jml.fail=t.stack}},window.jml.closeModalDesktop=function(){document.querySelector("html").classList.remove("noscroll");const l=document.getElementById("jml-mobile-modal"),a=document.querySelector(".jewel-modal-backdrop-container"),c=document.querySelector(".jewel-modal-content");l&&(c.style.animation="hide-jml-modal-desktop 0.3s ease-in-out",a.style.animation="hide-jml-modal-backdrop 0.3s ease-in-out",l.addEventListener("animationend",()=>l.remove())),jml.pageModel=null};function h(i){if(i){let l=_(i,"_jml_carousel_slide"),[a,c,t]=R(l);return c}}function _(i,l){let a=i.parentElement;for(;a;){if(a.classList.contains(l))return a;a=a.parentElement}return null}function R(i){let l=i.querySelector("._jml_section_item_link_css").innerText.trim(),a=i.querySelector("a[data-jmlmodel]").getAttribute("data-jmlmodel").trim(),c=i.querySelector("a[data-jmlmodel]").getAttribute("offer-id").trim();return[l,a,c]}})())):window.__jml_custom_function=(()=>{function P(){const t=document.cookie.match(/(?:^|;\s*)jewel-migrated=([^;]*)/);return t?t[1]==="true":!1}window.jml.isStaging=P();const E="LP";window.jml.userIsLoggedIn=!1;const z="jml-hide-add-to-cart";function q(){if(document.getElementById(z))return;const t=document.createElement("style");t.id=z,t.textContent=`
+      ._jml_carousel_slide .jml-add-to-cart-wrapper {
+        display: none !important;
+      }
+      ._jml_carousel_slide:hover .jml-add-to-cart-wrapper {
+        display: none !important;
+      }
+      ._jml_carousel_slide._jml_carousel_slide:hover .jml-add-to-cart-wrapper.jml-add-to-cart-wrapper {
+          display: none !important;
+      }
+
+      [id^="jml-mobileAddtoCart-button-wrapper-"] {
+        display: none !important;
+      }
+    `,document.head.appendChild(t)}function Q(){const t=document.getElementById(z);t&&t.remove()}function C(t,e){const n=new Date;n.setFullYear(n.getFullYear()+1),document.cookie=[t+"="+encodeURIComponent(e),"path=/","expires="+n.toUTCString(),"SameSite=Lax"].join("; ")}function $(t){document.cookie=`${t}=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT; SameSite=Lax`}jml.checkAuthState=()=>{q();function t(r){const m=document.cookie.match(new RegExp("(^| )"+r+"=([^;]+)"));return m?m[2]:null}if(t("x-cs-folio-id"))return;const n=`jml_userid_${jml.integration_id}`,o=localStorage.getItem("jewel_hashed_userid");o&&o!==" "&&o!=="null"&&o!=="undefined"&&o!=="na"?(window.jml.userIsLoggedIn=!0,localStorage.setItem(n,o),window.jml.wishlistUpdate(),Q()):(window.jml.userIsLoggedIn=!1,localStorage.removeItem(n),$(n))};let U=null;jml.oldCheckAuthState=()=>{U&&clearInterval(U),U=setInterval(()=>{if(!window.getProfileId||!window.getProfileId())return;const t=window.getProfileId();if(!t||t===""||t==="undefined"||t==="null"){window.jml.userIsLoggedIn=!1;const e=`jml_userid_${jml.integration_id}`;localStorage.removeItem(e),$(e)}else window.jml.userIsLoggedIn=!0,window.jml.wishlistUpdate();clearInterval(U)},100)};async function T(t){const e=new TextEncoder,n=await crypto.subtle.importKey("raw",e.encode("jewelml"),{name:"HMAC",hash:"SHA-256"},!1,["sign"]),o=await crypto.subtle.sign("HMAC",n,e.encode(t));return Array.from(new Uint8Array(o)).map(r=>r.toString(16).padStart(2,"0")).join("")}const O=function(){const t=localStorage.setItem.bind(localStorage),e=localStorage.removeItem.bind(localStorage),n=localStorage.clear.bind(localStorage);localStorage.setItem=function(o,r){const m=localStorage.getItem(o);t(o,r),window.dispatchEvent(new CustomEvent("jml:ls-change",{detail:{type:"set",key:o,value:r,oldValue:m}}))},localStorage.removeItem=function(o){const r=localStorage.getItem(o);e(o),window.dispatchEvent(new CustomEvent("jml:ls-change",{detail:{type:"remove",key:o,oldValue:r}}))},localStorage.clear=function(){n(),window.dispatchEvent(new CustomEvent("jml:ls-change",{detail:{type:"clear"}}))},window.addEventListener("jml:ls-change",({detail:{key:o,type:r,value:m}})=>{o&&((o.startsWith("jml_userid_")||o.startsWith("jml_uuid_"))&&r==="set"&&C(o,m),o==="jewel_hashed_userid"&&setTimeout(()=>jml.checkAuthState()))}),setTimeout(()=>{const o=r=>{const m=localStorage.getItem(r);m&&C(r,m)};o(`jml_uuid_${jml.integration_id}`),o(`jml_userid_${jml.integration_id}`)})};localStorage?O():setTimeout(()=>O()),window.jml.sendJewelViewItem=t=>{window.location.pathname.startsWith("/tienda/pdp/")&&t!=="empty"&&window.dataLayer.push({event:"jewel_view_item",item_id:t})},setTimeout(()=>{try{const e=localStorage.getItem("jml_userid_67fd95260740ccc4ec658d03");["7ffff06e660184dcf111c63dab65561abba1bff7ca050cae8bc0e8c392398092"].includes(e)&&localStorage.removeItem("jml_userid_67fd95260740ccc4ec658d03")}catch{}window.jml.personalizedSavedModels=[...window.jml.personalizedSavedModels,"recently-viewed-items-global","recently-viewed-items-global-dev"];let t=window.jml.item_id;window.jml.sendJewelViewItem(t),Object.defineProperty(window.jml,"item_id",{configurable:!0,enumerable:!0,get(){return t},set(e){const n=t;t=e,e!==n&&window.dispatchEvent(new CustomEvent("jml:item_id_changed",{bubbles:!0,detail:{oldValue:n,newValue:e,timestamp:Date.now()}}))}}),window.addEventListener("jml:item_id_changed",function(e){const{newValue:n}=e.detail;window.jml.sendJewelViewItem(n)}),window.jml.isStaging=P(),window.jml.integration_id&&(window.jml.isStaging?jml.checkAuthState():jml.oldCheckAuthState())});const j=document.createElement("style");j.type="text/css",j.textContent=`
+  .o-carousel-section {
+      display: none !important;
+  }
+  .wishlist-snackbar {
+      z-index: 9999999999 !important;
+  }
+  `,window.jml.isStaging&&(j.textContent+=`
+      section[data-testid*="container-similar-products-grid"] {
+        padding-top: 0px !important;
+      }
+      section[data-testid*="container-similar-products-grid"] > div:not([id]) {
+        display: none;
+      }
+
+      div[id*="jml-carousel"] {
+        margin-top: 32px !important;
+      }
+    `),j.textContent+=`
+    @keyframes jml-spin {
+      from { transform: rotate(0deg); }
+      to { transform: rotate(360deg); }
+    }
+    @keyframes jml-skeleton-shimmer {
+      0% { background-position: -240px 0; }
+      100% { background-position: calc(240px + 100%) 0; }
+    }
+    .jml-skeleton {
+      background-color: #efefef;
+      background-image: linear-gradient(90deg, #efefef 0%, #e4e4e4 50%, #efefef 100%);
+      background-size: 240px 100%;
+      background-repeat: no-repeat;
+      animation: jml-skeleton-shimmer 1.4s ease-in-out infinite;
+      border-radius: 4px;
+      display: inline-block;
+    }
+    .jewel-modal-confirm-button[disabled] {
+      opacity: 0.5;
+      cursor: not-allowed;
+    }
+  `,document.head.appendChild(j);const I="url('data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSIxNyIgaGVpZ2h0PSIxNyIgdmlld0JveD0iMCAwIDE3IDE3IiBmaWxsPSJub25lIj4KPHBhdGggZmlsbC1ydWxlPSJldmVub2RkIiBjbGlwLXJ1bGU9ImV2ZW5vZGQiIGQ9Ik0yLjE0NTUxIDUuOTM3OUMyLjE0NTUxIDMuODA4MzkgMy44NDgxNCAyLjE0MDg3IDUuOTg0MjEgMi4xNDA4N0M2LjkzOTk4IDIuMTQwODcgNy44NjAxMSAyLjQ4Nzk0IDguNTc1MDkgMy4wNjgzMUM5LjI5MDA2IDIuNDg3OTQgMTAuMjEwMiAyLjE0MDg3IDExLjE2NiAyLjE0MDg3QzEzLjMwMiAyLjE0MDg3IDE1LjAwNDcgMy44MDgzOSAxNS4wMDQ3IDUuOTM3OUMxNS4wMDQ3IDcuMjM1NDQgMTQuNDA3MiA4LjM1ODg0IDEzLjUwMDggOS40NTMyMkMxMi42MTMxIDEwLjUyNDkgMTEuMzU5NSAxMS42NDkxIDkuOTE0MTcgMTIuOTQ1Mkw5Ljg1ODYzIDEyLjk5NUw5Ljg1NzE4IDEyLjk5NjNMOC41NzMzOCAxNC4xNDA5TDcuMjkxMTEgMTIuOTg4OUw3LjI1MDc5IDEyLjk1MjhDNS43OTkzIDExLjY1NCA0LjU0MDI3IDEwLjUyNzMgMy42NDk1NSA5LjQ1MjY4QzIuNzQyOTcgOC4zNTg4OCAyLjE0NTUxIDcuMjM1NDUgMi4xNDU1MSA1LjkzNzlaIiBmaWxsPSIjZTEwMDk4Ii8+Cjwvc3ZnPg==')",D="url('data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSIxNyIgaGVpZ2h0PSIxNyIgdmlld0JveD0iMCAwIDI0IDI0IiBmaWxsPSJub25lIj48Y2lyY2xlIGN4PSIxMiIgY3k9IjEyIiByPSI5IiBzdHJva2U9IiNlMTAwOTgiIHN0cm9rZS13aWR0aD0iMiIgc3Ryb2tlLWxpbmVjYXA9InJvdW5kIiBzdHJva2UtZGFzaGFycmF5PSI0MiAxNCIvPjwvc3ZnPg==')",L="url('data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMTYiIGhlaWdodD0iMTciIHZpZXdCb3g9IjAgMCAxNiAxNyIgZmlsbD0ibm9uZSIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj4KPHBhdGggZmlsbC1ydWxlPSJldmVub2RkIiBjbGlwLXJ1bGU9ImV2ZW5vZGQiIGQ9Ik01LjE3MjA4IDMuNTA0MThDMy43NjE1MiAzLjUwNDE4IDIuNjc3NTIgNC41ODY2MyAyLjY3NzUyIDUuOTU3MDdDMi42Nzc1MiA2LjgwNzIzIDMuMDU4ODQgNy42MzI2NCAzLjg3MjMxIDguNjE0MDlDNC42OTMyMSA5LjYwNDUxIDUuODgwMDcgMTAuNjY4NCA3LjM3NjI5IDEyLjAwNzNMNy4zNzcyNiAxMi4wMDgyTDcuNzY0NjYgMTIuMzU2Mkw4LjE0OTA5IDEyLjAxMzVDOC4xNDkzMyAxMi4wMTMyIDguMTQ5NTYgMTIuMDEzIDguMTQ5OCAxMi4wMTI4QzkuNjQ1ODQgMTAuNjcxMiAxMC44MzI1IDkuNjA2MTEgMTEuNjUzNSA4LjYxNDk3QzEyLjQ2NzEgNy42MzI2OCAxMi44NDg0IDYuODA3MjQgMTIuODQ4NCA1Ljk1NzA3QzEyLjg0ODQgNC41ODY2MyAxMS43NjQ0IDMuNTA0MTggMTAuMzUzOCAzLjUwNDE4QzkuNTUyMjIgMy41MDQxOCA4Ljc3NDgzIDMuODc1NyA4LjI3MTc4IDQuNDU4NjdMNy43NjI5NSA1LjA0ODMyTDcuMjU0MTMgNC40NTg2N0M2Ljc1MTA4IDMuODc1NyA1Ljk3MzY5IDMuNTA0MTggNS4xNzIwOCAzLjUwNDE4Wk0xLjMzMzM3IDUuOTU3MDdDMS4zMzMzNyAzLjgyNzU1IDMuMDM2MDEgMi4xNjAwMyA1LjE3MjA4IDIuMTYwMDNDNi4xMjc4NSAyLjE2MDAzIDcuMDQ3OTggMi41MDcxMSA3Ljc2Mjk1IDMuMDg3NDhDOC40Nzc5MyAyLjUwNzExIDkuMzk4MDYgMi4xNjAwMyAxMC4zNTM4IDIuMTYwMDNDMTIuNDg5OSAyLjE2MDAzIDE0LjE5MjUgMy44Mjc1NSAxNC4xOTI1IDUuOTU3MDdDMTQuMTkyNSA3LjI1NDYgMTMuNTk1MSA4LjM3OCAxMi42ODg2IDkuNDcyMzhDMTEuODAxIDEwLjU0NDEgMTAuNTQ3NCAxMS42NjgzIDkuMTAyMDMgMTIuOTY0NEw5LjA0NjQ5IDEzLjAxNDJMOS4wNDUwNCAxMy4wMTU1TDcuNzYxMjUgMTQuMTZMNi40Nzg5NyAxMy4wMDgxTDYuNDM4NjUgMTIuOTcyQzQuOTg3MTcgMTEuNjczMSAzLjcyODE0IDEwLjU0NjUgMi44Mzc0MiA5LjQ3MTg1QzEuOTMwODMgOC4zNzgwNCAxLjMzMzM3IDcuMjU0NjEgMS4zMzMzNyA1Ljk1NzA3WiIgZmlsbD0iIzVDNUM1QyIvPgo8L3N2Zz4K')",k={"x-brand-id":E,"Content-Type":"application/json"};window.jml.getProductById=async t=>await(await fetch(`/web-bff/product/${t}`,{headers:k})).json(),window.jml.redirects=(t,e)=>{if(window.jml.isStaging){let g=function(A){const x=document.querySelector(`[offer-id="${A}"]`);return x?x.closest("._jml_card_wrapper")?.querySelector("[data-variant]")?.getAttribute("data-variant")??null:null};var f=g;if(!(e.split("_").length>1)){window.next.router.push(t);return}const y=g(e);window.next.router.push(`${t}&skuid=${y}`);return}const n=t.match(/\/tienda\/pdp\/([^\/]+(?:\/[^\/]+)*)\/(\d+)/);if(!n)return;const o=n[1],r=t.split("/").at(-1).split("?")[0],s=`/tienda/oneColumnPage?productName=${o.split("-").map(w=>w.charAt(0).toUpperCase()+w.slice(1)).join("-")}&productId=${r}&pdpTypeForSPA=default&skuId=${e||r}`,d=`${t}${t.includes("?")?"&":"?"}skuid=${e.split("_")[0]||r}`;window.next.router.push(s,d,{scroll:!1}),window.scrollTo({top:0,behavior:"smooth"})},window.jml.updateTPSTitle=jml.debounce(async function(){const t=document.querySelector('[data-jmlmodel="T_prod"]');if(!t)return;let e=t.closest('[id$="-jml-carousel"]');if(!e)return;const n=e.querySelector("._jml_section_title_css");if(!n)return;let o=null;try{const r=[],m=window.jml.isStaging?'[data-testid$="-breadcrumb-ul"]':".m-breadcrumb-list";if(document.querySelector(m)?.childNodes?.forEach(s=>{r.push(s.innerText)}),r.length>1)o=r.at(-1).trim().toLowerCase();else{const s=window.location.pathname.split("/").at(-1);if(window.jml.isStaging){const{categoryBreadCrumbs:d}=await window.jml.getProductById(s);o=d.at(-1).categoryName.trim().toLowerCase()}else{const d=await fetch("/getpdpdynamiccontent",{method:"POST",body:JSON.stringify({productId:s})});d.ok&&(o=(await d.json()).breadCrumbs.at(-1).categoryName.trim().toLowerCase())}}}catch{}o&&(n.textContent=`Los m\xE1s vendidos en ${o}`)},50),window.jml.getProductData=async(t,e)=>{const n=await fetch(`/tienda/oneColumnPageData?productId=${t}&pdpType=default&skuId=${e}`,{method:"GET",credentials:"include",headers:{"content-type":"application/json",accept:"application/json",brand:E,channel:"WEB"}});return n.ok?await n.json():null},window.jml.showSnackbar=(t,e="success",n=3e3)=>{const o=document.querySelectorAll(".mdc-snackbar");o.forEach((f,w)=>{f.style.margin="6px",f.setAttribute("data-debug-index",w)});const r=o[e==="success"?1:e==="warning"?2:0],m=document.querySelectorAll(".m-alert__container.mdc-snackbar")[1],s=document.querySelectorAll(".a-alert__icon")[1],d=r.querySelector(".mdc-snackbar__label");d&&(d.textContent=t),m.classList.contains("-alert")&&m.classList.remove("-alert"),s.classList.contains("icon-error")&&(s.classList.remove("icon-error"),s.classList.add("icon-done")),m.classList.add("-success"),r.classList.add("mdc-snackbar--open"),r.offsetWidth,setTimeout(()=>{r.classList.remove("mdc-snackbar--open"),s.classList.add("icon-error"),s.classList.remove("icon-done")},n)},window.jml.showAlertSnackbar=(t,e=3e3)=>{const n=document.querySelector(".m-alert__container.mdc-snackbar.-alert")||document.querySelector(".m-alert__container.mdc-snackbar");if(!n)return;n.classList.add("-alert"),n.classList.remove("-success");const o=n.querySelector(".a-alert__icon");o&&(o.classList.add("icon-error"),o.classList.remove("icon-done"));const r=n.querySelector(".mdc-snackbar__label");r&&(r.textContent=t),n.classList.add("mdc-snackbar--open"),n.offsetWidth,setTimeout(()=>{n.classList.remove("mdc-snackbar--open")},e)},window.jml.showSuccessSnackbar=(t,e=3e3)=>{const n=document.querySelector(".m-alert__container.mdc-snackbar.-success")||document.querySelector(".m-alert__container.mdc-snackbar");if(!n)return;n.classList.add("-success"),n.classList.remove("-alert");const o=n.querySelector(".a-alert__icon");o&&(o.classList.add("icon-done"),o.classList.remove("icon-error"));const r=n.querySelector(".mdc-snackbar__label");r&&(r.textContent=t),n.classList.add("mdc-snackbar--open"),n.offsetWidth,setTimeout(()=>{n.classList.remove("mdc-snackbar--open")},e)};const u=(()=>{const t={success:{bg:"rgb(231, 248, 236)",color:"rgb(7, 134, 44)",icon:"check_circle_outline"},error:{bg:"rgb(255, 230, 230)",color:"rgb(181, 0, 0)",icon:"error_outline"},warning:{bg:"rgb(253, 245, 230)",color:"rgb(168, 112, 0)",icon:"warning_amber"},info:{bg:"rgb(235, 247, 249)",color:"rgb(39, 121, 141)",icon:"info_outline"}};function e(){if(document.getElementById("jewel-toast-styles"))return;const s=document.createElement("style");s.id="jewel-toast-styles",s.textContent=`
+        #jewel-toast-root {
+          position: fixed;
+          top: 128px;
+          left: 0;
+          right: 0;
+          z-index: 99999999;
+          display: flex;
+          flex-direction: column;
+          align-items: center;
+          gap: 8px;
+          padding: 0px 16px 12px 16px;
+          pointer-events: none;
+          box-sizing: border-box;
+        }
+
+        /* Desktop: respect the navbar height (128px) + extra breathing room */
+        @media (min-width: 768px) {
+          #jewel-toast-root {
+            padding: 0;
+          }
+        }
+
+        .jewel-toast {
+          display: flex;
+          align-items: center;
+          justify-content: space-between;
+          gap: 12px;
+          width: 100%;
+          max-width: 688px;
+          padding: 13px 12px;
+          border-radius: 4px;
+          box-shadow: rgba(20, 20, 20, 0.12) 0px 6px 12px 0px;
+          font-family: Gotham-Medium, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+          font-size: 12px;
+          font-weight: 500;
+          line-height: 1.4;
+          box-sizing: border-box;
+          pointer-events: all;
+          height: 48px;
+
+          /* Entrance animation */
+          opacity: 0;
+          transform: translateY(-10px);
+          transition: opacity 220ms ease, transform 220ms ease;
+        }
+
+        /* On mobile: full width with horizontal margins handled by root padding */
+        @media (max-width: 767px) {
+          .jewel-toast {
+            max-width: 100%;
+            font-size: 12px;
+            padding: 14px 14px;
+          }
+        }
+
+        .jewel-toast.jewel-toast--visible {
+          opacity: 1;
+          transform: translateY(0);
+        }
+
+        .jewel-toast--exit {
+          opacity: 0 !important;
+          transform: translateY(-10px) !important;
+        }
+
+        .jewel-toast__body {
+          display: flex;
+          align-items: center;
+          gap: 8px;
+          flex: 1;
+          min-width: 0;
+        }
+
+        .jewel-toast__icon {
+          font-family: 'Material Icons';
+          font-size: 16px;
+          font-style: normal;
+          font-weight: normal;
+          line-height: 1;
+          flex-shrink: 0;
+          user-select: none;
+        }
+
+        .jewel-toast__message {
+          flex: 1;
+          min-width: 0;
+          word-break: break-word;
+        }
+
+        .jewel-toast__close {
+          background: none;
+          border: none;
+          padding: 0;
+          margin: 0;
+          cursor: pointer;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          flex-shrink: 0;
+          opacity: 0.7;
+          transition: opacity 150ms ease;
+          line-height: 1;
+        }
+
+        .jewel-toast__close:hover {
+          opacity: 1;
+        }
+
+        .jewel-toast__close-icon {
+          font-family: 'Material Icons';
+          font-size: 16px;
+          font-style: normal;
+          font-weight: normal;
+          line-height: 1;
+          user-select: none;
+        }
+      `,document.head.appendChild(s)}function n(){let s=document.getElementById("jewel-toast-root");return s||(s=document.createElement("div"),s.id="jewel-toast-root",s.setAttribute("role","region"),s.setAttribute("aria-live","polite"),s.setAttribute("aria-label","Notifications"),document.body.appendChild(s)),s}function o(s,d){const f=t[s]||t.info,w="jt-"+Date.now()+"-"+Math.random().toString(36).slice(2,6),g=document.createElement("div");g.id=w,g.className="jewel-toast",g.setAttribute("role","alert"),g.style.backgroundColor=f.bg,g.style.color=f.color;const y=document.createElement("div");y.className="jewel-toast__body";const A=document.createElement("span");A.className="jewel-toast__icon",A.textContent=f.icon,A.style.color=f.color,A.setAttribute("aria-hidden","true");const x=document.createElement("span");x.className="jewel-toast__message",x.textContent=d,y.appendChild(A),y.appendChild(x);const B=document.createElement("button");B.className="jewel-toast__close",B.setAttribute("aria-label","Cerrar notificaci\xF3n"),B.style.color=f.color;const F=document.createElement("span");return F.className="jewel-toast__close-icon",F.textContent="close",F.setAttribute("aria-hidden","true"),B.appendChild(F),g.appendChild(y),g.appendChild(B),{toast:g,id:w,closeBtn:B}}function r(s){const d=document.getElementById(s);d&&(d.classList.add("jewel-toast--exit"),setTimeout(()=>{d.remove();const f=document.getElementById("jewel-toast-root");f&&f.children.length===0&&f.remove()},220))}function m(s,d,f=4e3){e();const w=n(),{toast:g,id:y,closeBtn:A}=o(s,d);w.appendChild(g),requestAnimationFrame(()=>{requestAnimationFrame(()=>{g.classList.add("jewel-toast--visible")})});let x=setTimeout(()=>r(y),f);return g.addEventListener("mouseenter",()=>clearTimeout(x)),g.addEventListener("mouseleave",()=>{x=setTimeout(()=>r(y),1500)}),A.addEventListener("click",()=>{clearTimeout(x),r(y)}),y}return{success:(s,d)=>m("success",s,d),error:(s,d)=>m("error",s,d),warning:(s,d)=>m("warning",s,d),info:(s,d)=>m("info",s,d),dismiss:r}})();function v(){const t=document.querySelector('[data-testid="product-configurator-delivery-selection-card-Recibe a domicilio"]'),e=document.querySelector('[data-testid="product-configurator-delivery-selection-card-Click & Collect"]');if(!t||!e)return null;const n=o=>o.querySelector("span.material-icons")!==null;return n(t)?"home":n(e)?"click-collect":null}async function S(){try{return(await(await fetch(`${BFF}/user/favoriteStore`,{headers:k})).json()).id}catch{return}}async function N(t,e){try{const{variants:n}=await window.jml.getProductById(t),o=n.find(r=>r.skuId===e)?.offers?.bestOffer;return o?{offerId:o.offerId,sellerId:o.sellerId}:void 0}catch{return}}async function W(t,{retryableCodes:e=new Set,successCodes:n=new Set,maxRetries:o=1}={}){for(let r=0;r<=o;r++){const m=await t();if(m.ok)return{status:"success",data:await m.json().catch(()=>null)};const s=await m.json().catch(()=>({}));if(n.has(s.code))return{status:"success"};if(!(e.has(s.code)&&r<o))return{status:"fail",error:s}}}function b(t){return t!=null&&(t=t.toLowerCase(),t=t.normalize("NFKD"),t=t.replace(/[\u0300-\u036f]/g,""),t=t.replace(/\s+/g,"_")),t}window.jml.wishlistUpdate=jml.debounce(async function(){if(!window.jml.userIsLoggedIn)return;function t(o){const r=document.cookie.match(new RegExp("(^| )"+o+"=([^;]+)"));return r?r[2]:null}if(t("x-cs-folio-id"))return;document.querySelectorAll('[id^="jml-wishlist-button-wrapper"]').forEach(o=>{o.style.display="block"});try{if(window.jml.isStaging){const r=await(await fetch("/web-bff/wishlists/details",{credentials:"include",headers:k})).json();if(r.length===0)return;let m=r.find(({wishlist:s})=>s.isDefault);m||(m=r[0]),window.jml.wishlistId=m.wishlist.id,window.jml.wishlistName=m.wishlist.name,m.items?.forEach(({id:s,wishlistItemId:d})=>{const f=`[id^="jml-wishlist-button-wrapper-${s}"]`;document.querySelectorAll(f).forEach(w=>{w.style.backgroundImage=I,w.classList.add("jewel_added_wishlist"),w.dataset.wishlistItemId=d})})}else{const m=(await(await fetch("/wishListSimpleApigee",{credentials:"include",headers:{accept:"application/json",brand:E,channel:"WEB"}})).json())?.lstWishList;if(!m)return;let s=m.find(({isDefault:d})=>d);s||(s=m[0]),window.jml.wishlistId=s.id,window.jml.wishlistName=s.name,s.lstWishListDetails?.forEach(d=>{const w=`[id^="jml-wishlist-button-wrapper-${d.productId}"]`;document.querySelectorAll(w).forEach(g=>{g.style.backgroundImage=I,g.classList.add("jewel_added_wishlist"),g.dataset.wishlistItemId=d.wishlistProdId})})}}catch{}},250),window.jml.wishlistUpdateUI=(t,e,n)=>{const o=e.split("_")[0],r=document.querySelectorAll(`[id^="jml-wishlist-button-wrapper-${o}"]`),m={wishlisted:I,"not-wishlisted":L,loading:D};r.forEach(s=>{s.style.backgroundImage=m[t],s.style.animation=t==="loading"?"jml-spin 1s linear infinite":"none",t==="wishlisted"?(s.classList.add("jewel_added_wishlist"),n&&(s.dataset.wishlistItemId=n)):t==="not-wishlisted"&&(s.classList.remove("jewel_added_wishlist"),delete s.dataset.wishlistItemId)})},window.jml.newWishlistAdd=async function(t,e,n,o){const r=t.split("_")[0];let m={productId:r,skuId:e};if(n){const d=await N(r,e);d&&(m.sellerId=d.sellerId)}const s=await W(()=>fetch(`/web-bff/wishlists/${window.jml.wishlistId}/add`,{method:"POST",credentials:"include",headers:k,body:JSON.stringify(m)}),{retryableCodes:new Set(["WishlistResponseBadRequestError"]),successCodes:new Set(["WishlistItemAlreadyAddedError"])});if(s.status==="success"){window.jml.wishlistUpdateUI("wishlisted",t,s.data?.wishlistItemId);const d=document.getElementById(`jml-wishlist-button-wrapper-${t}-${o}`);d&&_(d)}else throw new Error("Wishlist add failed")},window.jml.oldWishlistAdd=async function(t,e,n,o){const r=t.split("_")[0];let m={productId:r,skuId:e,wishlistId:window.jml.wishlistId??""};if(n){const d=await window.jml.getProductData(r,e);if(d){const f=d?.mainContent?.records?.at(0)?.allMeta?.variants.find(w=>w?.skuId===e)?.offers?.bestOffer;m.offerId=f?.offerId,m.sellerId=f?.sellerId,m.sellerSapSkuId=f?.sellerSkuId,m.sellerOperatorId=f?.sellerOperatorId}else throw new Error("Item data not found")}const s=await fetch("/addItemToWishlistApigee",{method:"PUT",credentials:"include",headers:{accept:"application/json","content-type":"application/json",brand:E,channel:"WEB"},body:JSON.stringify(m)});if(s.ok){const d=await s.json();window.jml.wishlistUpdateUI("wishlisted",t,d?.productAdded?.wishlistProdId);const f=document.getElementById(`jml-wishlist-button-wrapper-${t}-${o}`);f&&_(f)}else throw new Error("Wishlist add failed")},window.jml.wishlistAdd=async function(t,e,n,o){try{if(!window.jml.wishlistId)return;window.jml.wishlistUpdateUI("loading",t),window.jml.isStaging?await window.jml.newWishlistAdd(t,e,n,o):await window.jml.oldWishlistAdd(t,e,n,o);const r=window.jml.wishlistName||"tu lista";window.jml.isStaging?u.success(`Guardado en ${r}`):jml.showSuccessSnackbar(`Guardado en ${r}`)}catch{window.jml.wishlistUpdateUI("not-wishlisted",t),window.jml.isStaging?u.error("No se pudo agregar a tu lista. Intenta de nuevo."):window.jml.showAlertSnackbar("No se pudo agregar a tu lista. Intenta de nuevo.")}},window.jml.newWishlistRemove=async function(t,e){if((await W(()=>fetch(`/web-bff/wishlists/${window.jml.wishlistId}/items/${e}`,{method:"DELETE",credentials:"include",headers:{"x-brand-id":E}}),{retryableCodes:new Set(["WishlistResponseBadRequestError"]),successCodes:new Set(["WishlistResponseNotFoundError"])})).status==="success")window.jml.wishlistUpdateUI("not-wishlisted",t);else throw new Error("Wishlist remove failed")},window.jml.oldWishlistRemove=async function(t,e){const n=t.split("_")[0],s=(await(await fetch("/wishListSimpleApigee",{credentials:"include",headers:{accept:"application/json",brand:"LP",channel:"WEB"}})).json())?.lstWishList?.[0]?.id;if(!s||!e)throw new Error("Wishlist ID or wishlist product ID not found");if(!(await fetch("/deleteItemToWishlistApigee",{method:"PUT",credentials:"include",headers:{accept:"application/json","content-type":"application/json",brand:E,channel:"WEB"},body:JSON.stringify({wishlistId:s,wishlistProdId:e})})).ok)throw new Error("Wishlist remove failed");window.jml.wishlistUpdateUI("not-wishlisted",t)},window.jml.wishlistRemove=async function(t,e){try{if(!window.jml.wishlistId)return;window.jml.wishlistUpdateUI("loading",t),window.jml.isStaging?await window.jml.newWishlistRemove(t,e):await window.jml.oldWishlistRemove(t,e);const n=window.jml.wishlistName||"tu lista";window.jml.isStaging?u.success(`Eliminaste el producto de ${n} exitosamente.`):jml.showSuccessSnackbar(`Eliminaste el producto de ${n} exitosamente.`)}catch{window.jml.wishlistUpdateUI("wishlisted",t),window.jml.isStaging?u.error("No se pudo eliminar de tu lista. Intenta de nuevo."):window.jml.showAlertSnackbar("No se pudo eliminar de tu lista. Intenta de nuevo.")}},window.jml.wishlistButton=async function(t,e,n,o,r){if(t.preventDefault(),t.stopPropagation(),!window.jml.userIsLoggedIn)return;const m=document.getElementById(`jml-wishlist-button-wrapper-${e}-${n}`);m?.classList.contains("jewel_added_wishlist")?await window.jml.wishlistRemove(e,m.dataset.wishlistItemId):await window.jml.wishlistAdd(e,o,r,n)};async function p(t,e,n){try{const o="/web-bff",r={id:t,sku:e,quantity:jml.cartQuantity};if(v()==="click-collect"&&window.jml.userIsLoggedIn){const d=await S();r.initialAddress={storeId:String(d)}}n&&jml.cart.sellerInfo&&(r.sellerId=jml.cart.sellerInfo.sellerId,r.offerId=jml.cart.sellerInfo.offerId);const m=await fetch(`${o}/cart/items`,{method:"POST",headers:k,body:JSON.stringify(r)});return m.ok?{ok:!0}:{ok:!1,message:(await m.json().catch(()=>null))?.message}}catch{return{ok:!1}}}async function M(t,e,n,o){try{const r={quantity:jml.cartQuantity,catalogRefIds:e,productId:t,productType:o,isEDDCallRequired:"false"};if(n){const d=await window.jml.getProductData(t,e);if(d){const f=d?.mainContent?.records?.at(0)?.allMeta?.variants.find(w=>w?.skuId===e)?.offers?.bestOffer;r.offerId=f?.offerId,r.sellerId=f?.sellerId,r.sellerName=f?.sellerName,r.sellerSkuId=f?.sellerSkuId,r.sellerOperatorId=f?.sellerOperatorId}else throw new Error("Item data not found")}const m=await fetch("/addpdpitemtocart",{method:"POST",credentials:"include",headers:{"content-type":"application/json",accept:"application/json",brand:E,channel:"WEB"},body:JSON.stringify(r)});if(!m.ok)return{ok:!1};const s=await m.json().catch(()=>null);if(s?.formError){const d=Object.keys(s).find(f=>/^\d+$/.test(f)&&s[f]?.err);return{ok:!1,message:d?s[d].err:void 0}}return{ok:!0}}catch(r){return jml.errors=jml.errors??[],jml.errors.push(r.message),{ok:!1}}}window.jml.addToCart=async function(t,e,n,o,r,m){t.preventDefault(),t.stopPropagation();try{const s=e.split("_")[0];let d={ok:!1};if(window.jml.isStaging?d=await p(s,n,r):d=await M(s,n,r,m??"Soft Line"),!d.ok){const y="Ocurri\xF3 un error al agregar a tu bolsa.";return window.jml.isStaging?u.error(d.message||y):window.jml.showAlertSnackbar(d.message||y),d}window.jml.isStaging?u.success(`Agregaste ${window.jml.cartQuantity} art\xEDculo(s) a tu bolsa.`):window.jml.showSuccessSnackbar(`Agregaste ${window.jml.cartQuantity} art\xEDculo(s) a tu bolsa.`);const f=document.getElementById(`jml-addToCart-button-wrapper-${e}-${o}`),w=document.getElementById(`jml-mobileAddtoCart-button-wrapper-${e}-${o}`);f&&h(f),w&&h(w);const g=document.querySelector(`.jml-item-size-${n}-${o}`);if(g){const y=g.innerText;g.style.transition="all 0.25s ease-in-out",g.innerText="\u2714",setTimeout(()=>{g.innerText=y,g.style.transition="none"},1e3)}if(window.jml.isStaging){const y=document.querySelectorAll('[data-testid$="header-cart-quantity"]');y.length===0?document.querySelectorAll('[data-testid$="header-shopping-cart-shopping-link"]').forEach(A=>{const x=document.createElement("div");x.className="flex items-center justify-center w-[23px] h-[23px] text-body-sm font-semibold rounded-full bg-icon-alert text-header-icon absolute top-5 left-6",x.setAttribute("data-testid","bltc47588223af88ea0-header-shopping-cart-header-cart-quantity"),x.textContent="1",A.style.position="relative",A.appendChild(x)}):y.forEach(A=>{if(!A.textContent.includes("+")){const x=parseInt(A.textContent)+1;A.textContent=x>9?"9+":String(x)}})}else{const y=document.querySelectorAll(".a-header__bag>span");if(y.length===0){const A=document.createElement("span");A.innerText="1",document.querySelector(".a-header__bag").appendChild(A)}else if(!y[0].innerText.includes("+")){const A=parseInt(y[0].innerText)+1;A>9?y[0].innerText="9+":y[0].innerText=A}}return d}catch{return{ok:!1}}},window.jml.selectMobileCartSize=function(t,e){t.preventDefault(),t.stopPropagation();const n=jml.sizeOptions[parseInt(e)];window.jml.cart={size:n.size,offerId:jml.selectedProduct.productId,itemVariantId:n.skuId,unique:jml.selectedUnique,isMarketplace:n.isMarketplace,articleType:jml.selectedProduct.productType,sellerInfo:n.offers?.bestOffer},window.jml.updateCartUI({action:"size-changed"})},window.jml.addToCartMobile=async function(t,e){if(!window.jml.cart){window.jml.isStaging?u.warning("Por favor, selecciona una opci\xF3n"):window.jml.showAlertSnackbar("Por favor, selecciona una opci\xF3n");return}try{const n=document.getElementById("jml-mobile-cart-confirm-button-text"),o=document.getElementById("jml-mobile-cart-confirm-button-loading");n.style.display="none",o.style.display="block";const r=await window.jml.addToCart(t,jml.selectedOfferId,window.jml.cart.itemVariantId,window.jml.cart.unique,window.jml.cart.isMarketplace,window.jml.cart.articleType);n.style.display="block",o.style.display="none",r?.ok&&(e?window.jml.closeModalDesktop():window.jml.closeModalMobile())}catch{}},window.jml.sortSizes=t=>{const e=["Short","Regular","Long"],n=["2XCH","XXCH","XCH","CH","P","M","G","XG","2XG","XXG","3XG","XXXG","XXL","Est\xE1ndar","Euro","King","Matrimonial","Queen"],o=["32GB","32 GB","64GB","64 GB","128GB","128 GB","256GB","256 GB","512GB","512 GB","1TB","1 TB","2TB","2 TB","3TB","3 TB","4TB","4 TB","5TB","5 TB"],r=(m,s)=>m<s?-1:m>s?1:0;return[...t].sort((m,s)=>{const d=m.size,f=s.size;if(!d||!f)return 0;const w=d.split(" "),g=f.split(" "),y=w[0],A=g[0];if(o.includes(d)&&o.includes(f))return r(o.indexOf(d),o.indexOf(f));if(n.includes(y)&&n.includes(A))return r(n.indexOf(y),n.indexOf(A));const x=Number(y),B=Number(A);if(Number.isFinite(x)&&Number.isFinite(B)&&y!==""&&A!=="")return r(x,B);if(w.length>1&&g.length>1){const F=w[1],H=g[1];return e.includes(F)&&e.includes(H)?r(e.indexOf(F),e.indexOf(H)):r(d,f)}return r(d,f)})},window.jml.getVariantsInfo=async function(t,e){try{if(window.jml.isStaging){const{variants:x,colorSet:B,smallImage:F,id:H,productType:X,brand:ee,title:te}=await fetch(`/web-bff/product/${t}`).then(V=>V.json()),G=x.map(V=>({...V,isMarketplace:!!V.bestOfferSellerName})),Y=G.every(V=>!V.colorName),oe=Y?[]:B,le=Y?[[...G]]:oe.map(({colorName:V})=>G.filter(ie=>ie.colorName.toLowerCase()===V.toLowerCase()||ie.clothingBrandColor?.toLowerCase()===V.toLowerCase()));return{colorSet:oe,variantsByColor:le,variants:G,defaultImage:F,productId:H,productType:X,brand:ee,title:te,hasColor:!Y}}const n=await fetch(`/tienda/oneColumnPageData?productId=${t}&pdpType=default${e?`&skuId=${e}`:""}`,{headers:{accept:"application/json, text/plain, */*",brand:E,channel:"WEB"}}).then(x=>x.json()),{variants:o,id:r,productImages:m,productType:s,brand:d,title:f}=n.mainContent.records[0].allMeta,w=o.map(x=>({skuId:x.skuId,colorName:x.color,clothingBrandColor:x.clothingBrandColor,colorHex:x.colorhex,smallImage:x.smallImage,size:x.size,title:x.skuName,isMarketplace:x.sellernames.some(B=>B.toLowerCase()!=="liverpool")})),g=w.every(x=>!x.colorName),y=g?[]:w.map(({clothingBrandColor:x,colorName:B,colorHex:F})=>({colorName:x??B,colorHex:F})).reduce((x,B)=>(x.find(({colorHex:H})=>H===B.colorHex)||x.push(B),x),[]),A=g?[[...w]]:y.map(({colorName:x})=>w.filter(B=>B.colorName.toLowerCase()===x.toLowerCase()||B.clothingBrandColor?.toLowerCase()===x.toLowerCase()));return{colorSet:y,variantsByColor:A,variants:w,productId:r,defaultImage:m[0].imageUrl,productType:s,brand:d,title:f,hasColor:!g}}catch(n){return jml.variantsError=n.stack,null}},window.jml.selectMobileCartColor=(t,e)=>{jml.selectedColor=parseInt(e),jml.cart=null,jml.sizeOptions=jml.sortSizes(jml.selectedProduct.variantsByColor[jml.selectedColor]),jml.hasSizes=jml.sizeOptions.find(n=>!!n.size)??!1,jml.hasSizes||window.jml.selectMobileCartSize(t,0),window.jml.updateCartUI({action:"color-changed"})},window.jml.buildColorPicker=()=>jml.selectedProduct.colorSet.map(({colorName:t,clothingBrandColor:e},n)=>`<button
+        onclick="window.jml.selectMobileCartColor(event, '${n}');"
+        style="padding:0px;outline:none;background-color:transparent;display:flex;flex-direction:column;align-items:center;justify-content:center;border:0px;"
+      >
+        <div style="background-color:transparent;position:relative;${n===jml.selectedColor?"border-radius:4px;border:1px solid #E10098":"border-radius:4px;border:1px solid transparent"};display:flex;flex-direction:column;align-items:center;justify-content:center;width:60px;height:78px;">
+          <img src="${jml.selectedProduct.variantsByColor[n]?.at(0)?.smallImage??jml.selectedProduct.defaultImage}" style="width:100%;"></img>
+          ${n===jml.selectedColor?`<div style="position:absolute;top:-12px;right:-8px">
+            <svg width="14" height="14" viewBox="0 0 14 14" fill="none" xmlns="http://www.w3.org/2000/svg">
+              <path d="M0 7C0 3.13401 3.13401 0 7 0C10.866 0 14 3.13401 14 7C14 10.866 10.866 14 7 14C3.13401 14 0 10.866 0 7Z" fill="#E10098"/>
+              <path fill-rule="evenodd" clip-rule="evenodd" d="M9.85355 4.93551C10.0488 5.13077 10.0488 5.44735 9.85355 5.64262L6.28571 9.21045L4.14645 7.07119C3.95118 6.87593 3.95118 6.55934 4.14645 6.36408C4.34171 6.16882 4.65829 6.16882 4.85355 6.36408L6.28571 7.79624L9.14645 4.93551C9.34171 4.74025 9.65829 4.74025 9.85355 4.93551Z" fill="white"/>
+            </svg>
+          </div>`:""}
+        </div>
+        <p style="font-size:12px;margin:4px 0px 0px;color:${n===jml.selectedColor?"#333333":"#767676"};width:60px;">${e??t}</p>
+      </button>`).join(""),window.jml.buildSizePicker=()=>jml.sizeOptions.map((t,e)=>`<button onclick="window.jml.selectMobileCartSize(event, '${e}');" 
+        class="jewel-modal-product-button ${t.skuId===window.jml.cart?.itemVariantId?"jewel-modal-product-button-selected":""}">${t.size}</button>
+        `).join(""),window.jml.buildQuantityPicker=()=>`
+      <p style="font-family:robotomedium, Roboto-Medium;font-size:14px;margin:0px;">Cantidad:</p>
+      <div style="display:flex;gap:8px;">
+        <button onclick="window.jml.decrementQuantity()" style="outline:none;width:40px;height:40px;background-color:#F5F5F5;border:1px solid #C0C0C0;border-radius:4px;${jml.cartQuantity===1?"color:#C0C0C0":""}">-</button/>
+        <p style="margin:0px;height:40px;width:64px;background-color:transparent;border:1px solid #C0C0C0;border-radius:4px;text-align:center;line-height:40px;">${jml.cartQuantity}</p>
+        <button onclick="window.jml.incrementQuantity()" style="outline:none;width:40px;height:40px;background-color:#F5F5F5;border:1px solid #C0C0C0;border-radius:4px;">+</button/>
+      </div>`,window.jml.incrementQuantity=()=>{jml.cartQuantity+=1;const t=document.getElementById("jml-mobile-cart-quantity-picker");t.innerHTML=window.jml.buildQuantityPicker()},window.jml.decrementQuantity=()=>{if(jml.cartQuantity>1){jml.cartQuantity-=1;const t=document.getElementById("jml-mobile-cart-quantity-picker");t.innerHTML=window.jml.buildQuantityPicker()}},window.jml.updateCartUI=({action:t})=>{if(t==="color-changed"&&jml.selectedProduct.hasColor){const e=document.getElementById("jml-mobile-cart-selected-color");e.innerText=jml.selectedProduct.colorSet[jml.selectedColor].colorName;const n=document.getElementById("jml-mobile-cart-color-pickers");n.innerHTML=window.jml.buildColorPicker();const o=document.getElementById("jml-mobile-cart-main-image");o.src=jml.sizeOptions?.at(0)?.smallImage??jml.selectedProduct.defaultImage}if(jml.hasSizes){const e=document.getElementById("jml-mobile-cart-selected-size");e.innerText=window.jml?.cart?.size??"Selecciona una opci\xF3n";const n=document.getElementById("jml-mobile-cart-size-pickers");n.innerHTML=window.jml.buildSizePicker()}},window.jml.buildImageSkeleton=()=>`
+    <div class="jml-skeleton" style="width: 80px; height: 104px;"></div>
+  `,window.jml.buildImage=(t,e)=>`
+    <img id="jml-mobile-cart-main-image" src="${t}" alt="${e}" style="width: 80px; height: 104px; object-fit: contain; border-radius: 4px;">
+  `,window.jml.buildMetaSkeleton=()=>`
+    <div style="display: flex; flex-direction: column; gap: 8px; padding-top: 4px;">
+      <div class="jml-skeleton" style="width: 90px; height: 16px;"></div>
+      <div class="jml-skeleton" style="width: 180px; height: 16px;"></div>
+      <div class="jml-skeleton" style="width: 140px; height: 16px;"></div>
+    </div>
+  `,window.jml.buildMeta=(t,e)=>`
+    <p style="margin-bottom: 0px; font-size: 16px; font-weight: 600; color: #000; line-height: 20.8px; font-family: 'robotoRegular', sans-serif;">${t}</p>
+    <p style="margin-bottom: 0px; font-size: 16px; font-weight: 400; color: #000; line-height: 20.8px; font-family: 'robotoRegular', sans-serif;">${e}</p>
+  `,window.jml.buildOptionsSkeleton=()=>`
+    <div class="jml-skeleton" style="display:block;height: 48px; margin: 24px 0 16px 0; border-radius: 8px;"></div>
+    <div style="display: flex; gap: 8px; flex-wrap: wrap;">
+      <div class="jml-skeleton" style="width: 60px; height: 78px;"></div>
+      <div class="jml-skeleton" style="width: 60px; height: 78px;"></div>
+      <div class="jml-skeleton" style="width: 60px; height: 78px;"></div>
+      <div class="jml-skeleton" style="width: 60px; height: 78px;"></div>
+    </div>
+    <div class="jml-skeleton" style="display:block;height: 48px; margin: 24px 0 16px 0; border-radius: 8px;"></div>
+    <div style="display: flex; flex-wrap: wrap; gap: 8px 12px;">
+      <div class="jml-skeleton" style="width: 64px; height: 40px;"></div>
+      <div class="jml-skeleton" style="width: 64px; height: 40px;"></div>
+      <div class="jml-skeleton" style="width: 64px; height: 40px;"></div>
+      <div class="jml-skeleton" style="width: 64px; height: 40px;"></div>
+      <div class="jml-skeleton" style="width: 64px; height: 40px;"></div>
+    </div>
+  `,window.jml.buildOptions=()=>{const t=jml.selectedProduct.hasColor?`
+      <div style="background-color: #f5f5f5; padding: 8px; border-radius: 8px; height: 48px; display: flex; flex-direction: row; gap: 4px; align-items: center; margin: 24px 0 16px 0;">
+        <p style="margin: 0; font-size: 14px; font-weight: 600; color: #333333;">Color:</p>
+        <p id="jml-mobile-cart-selected-color" style="margin: 0; font-size: 14px; font-weight: 400; color: #333333;">${jml.selectedProduct.colorSet[jml.selectedColor].colorName}</p>
+      </div>
+      <div id="jml-mobile-cart-color-pickers" style="display: flex; gap: 8px; align-items: start;flex-wrap:wrap">
+        ${window.jml.buildColorPicker()}
+      </div>
+    `:"",e=jml.hasSizes?`
+      <div id="jml-mobile-cart-size-container">
+        <div style="background-color: #f5f5f5; padding: 8px; border-radius: 8px; height: 48px; display: flex; flex-direction: row; gap: 4px; align-items: center; margin: 24px 0 16px 0;">
+          <p style="margin: 0; font-size: 14px; font-weight: 600; color: #333333;">Talla:</p>
+          <p id="jml-mobile-cart-selected-size" style="margin: 0; font-size: 14px; font-weight: 400; color: #333333;">Selecciona una opci\xF3n</p>
+        </div>
+        <div id="jml-mobile-cart-size-pickers" style="display: flex; flex-wrap: wrap; gap: 8px 12px;">
+          ${window.jml.buildSizePicker()}
+        </div>
+      </div>
+    `:"";return t+e},window.jml.populateModalContent=(t,e,n)=>{const o=document.getElementById("jml-cart-image-wrapper"),r=document.getElementById("jml-cart-product-meta"),m=document.getElementById("jml-cart-options"),s=document.getElementById("jml-mobile-cart-confirm-button");if(!o||!r||!m)return;if(!jml.selectedProduct){r.innerHTML='<p style="color:#b50000;font-size:14px;margin:0;padding:8px 0;">No se pudo cargar la informaci\xF3n del producto.</p>',m.innerHTML="";return}const d=jml.selectedProduct.variants.find(({skuId:y})=>e===y)??jml.selectedProduct.variants[0];if(jml.selectedColor=jml.selectedProduct.hasColor?jml.selectedProduct.colorSet.findIndex(({colorName:y})=>d.colorName.toLowerCase()===y.toLowerCase()||d.clothingBrandColor?.toLowerCase()===y.toLowerCase()):0,jml.selectedColor===-1&&(jml.selectedColor=0),jml.sizeOptions=jml.sortSizes(jml.selectedProduct.variantsByColor[jml.selectedColor]),jml.hasSizes=jml.sizeOptions.find(y=>!!y.size)??!1,!jml.hasSizes){if(!jml.sizeOptions.at(0)){r.innerHTML='<p style="color:#b50000;font-size:14px;margin:0;padding:8px 0;">No se pudo cargar la informaci\xF3n del producto.</p>',m.innerHTML="";return}window.jml.selectMobileCartSize(t,0)}const f=jml.sizeOptions?.at(0)?.smallImage??jml.selectedProduct.defaultImage,w=jml.selectedProduct.title,g=jml.selectedProduct.brand;o.innerHTML=window.jml.buildImage(f,w),r.innerHTML=window.jml.buildMeta(g,w),m.innerHTML=window.jml.buildOptions(),s&&s.removeAttribute("disabled")},window.jml.openModalMobile=async function(t,e,n,o){t.preventDefault(),t.stopPropagation();try{document.querySelector("html").classList.add("noscroll"),window.jml.cart=null,jml.selectedProduct=null,jml.sizeOptions=null,jml.selectedUnique=o,jml.selectedOfferId=e,jml.cartQuantity=1;const m=e.split("_").length>1?e.split("_")[0]:e,s=`<div id="jml-mobile-modal" role="presentation" data-testid="base-modal" style="position: fixed; inset: 0px; z-index: 999999;">
+        <div tabindex="-1" class="jml-mobile-modal">
+          <div class="jewel-modal-content">
+            <div class="jewel-modal-product">
+              <div class="jewel-modal-product-header">
+                <p class="jewel-modal-product-title" style="font-family:robotomedium, Roboto-Medium;">Selecciona una opci\xF3n</p>
+                <div class="jewel-modal-product-close-button" onclick="window.jml.closeModalMobile()">
+                  <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                    <path d="M19 6.41L17.59 5L12 10.59L6.41 5L5 6.41L10.59 12L5 17.59L6.41 19L12 13.41L17.59 19L19 17.59L13.41 12L19 6.41Z" fill="#333333"/>
+                  </svg>
+                </div>
+              </div>
+              <div class="jewel-modal-product-content">
+                <div style="padding: 16px 16px 24px 16px;overflow-y:auto;max-height: 75svh;">
+                  <div style="display: flex; flex-direction: row; gap: 16px;">
+                    <div id="jml-cart-image-wrapper" style="flex: 0 0 80px;">
+                      ${window.jml.buildImageSkeleton()}
+                    </div>
+                    <div id="jml-cart-product-meta" style="display: flex; flex-direction: column; flex: 1; min-width: 0;">
+                      ${window.jml.buildMetaSkeleton()}
+                    </div>
+                  </div>
+                  <div id="jml-cart-options">
+                    ${window.jml.buildOptionsSkeleton()}
+                  </div>
+                  <div id="jml-mobile-cart-quantity-picker" style="margin-top:24px;display:flex;justify-content:space-between;align-items:center;">
+                    ${window.jml.buildQuantityPicker()}
+                  </div>
+                </div>
+                <div style="padding: 16px 16px 24px 16px; border-top: 1px solid #f5f5f5;">
+                  <button id="jml-mobile-cart-confirm-button" class="jewel-modal-confirm-button" onclick="window.jml.addToCartMobile(event,false)" disabled style="display:flex;align-items:center;justify-content:center;">
+                    <p id="jml-mobile-cart-confirm-button-text" style="margin: 0;">Agregar a mi bolsa</p>
+                    <div id="jml-mobile-cart-confirm-button-loading" style="display: none;" class="jml-loading-animation">
+                      <svg
+                        xmlns="http://www.w3.org/2000/svg"
+                        width="24"
+                        height="24"
+                        viewBox="0 0 24 24"
+                        fill="none"
+                        stroke="currentColor"
+                        stroke-width="2"
+                        stroke-linecap="round"
+                        stroke-linejoin="round"
+                      >
+                        <path d="M21 12a9 9 0 11-6.219-8.56" />
+                      </svg>
+                    </div>
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div onclick="window.jml.closeModalMobile()" class="jewel-modal-backdrop-container" data-testid="modal-backdrop-container" style="animation: show-jml-modal-backdrop 0.3s ease-in-out;">
+          <div role="presentation" class="jewel-modal-backdrop"></div>
+        </div>
+      </div>`;document.body.appendChild(document.createRange().createContextualFragment(s));try{const d=document.getElementById(`jml-mobileAddtoCart-button-wrapper-${e}-${o}`);jml.pageModel=i(d),window.dataLayer.push({event:"jewel_pdp_view",jml_page:window.location.pathname,jml_query:window.location.search,jewel_model_name:jml.pageModel})}catch{}if(jml.selectedProduct=await window.jml.getVariantsInfo(m,e),!document.getElementById("jml-mobile-modal"))return;window.jml.populateModalContent(t,n,!1)}catch(r){window.jml.fail=r.stack}},window.jml.closeModalMobile=function(){document.querySelector("html").classList.remove("noscroll");const e=document.getElementById("jml-mobile-modal"),n=document.querySelector(".jewel-modal-backdrop-container"),o=document.querySelector(".jewel-modal-content");e&&(o.style.animation="hide-jml-modal 0.3s ease-in-out",n.style.animation="hide-jml-modal-backdrop 0.3s ease-in-out",e.addEventListener("animationend",()=>e.remove())),jml.pageModel=null},window.jml.openModalDesktop=async function(t,e,n,o){t.preventDefault(),t.stopPropagation(),jml.fail=void 0;try{document.querySelector("html").classList.add("noscroll"),window.jml.cart=null,jml.selectedProduct=null,jml.sizeOptions=null,jml.selectedUnique=o,jml.selectedOfferId=e,jml.cartQuantity=1;const m=e.split("_").length>1?e.split("_")[0]:e,s=`<div id="jml-mobile-modal" role="presentation" data-testid="base-modal" style="position: fixed; inset: 0px; z-index: 999999;">
+        <div tabindex="-1" class="jml-mobile-modal">
+          <div class="jewel-modal-content" style="animation: show-jml-modal-desktop 0.3s ease-in-out;">
+            <div class="jewel-modal-product">
+              <div class="jewel-modal-product-header">
+                <p class="jewel-modal-product-title" style="font-family:robotomedium, Roboto-Medium;">Selecciona una opci\xF3n</p>
+                <div class="jewel-modal-product-close-button" onclick="window.jml.closeModalDesktop()">
+                  <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                    <path d="M19 6.41L17.59 5L12 10.59L6.41 5L5 6.41L10.59 12L5 17.59L6.41 19L12 13.41L17.59 19L19 17.59L13.41 12L19 6.41Z" fill="#333333"/>
+                  </svg>
+                </div>
+              </div>
+              <div class="jewel-modal-product-content">
+                <div style="padding: 16px 16px 0px 16px;overflow-y:auto;max-height: calc(100svh - 137px);">
+                  <div style="display: flex; flex-direction: row; gap: 16px;">
+                    <div id="jml-cart-image-wrapper" style="flex: 0 0 80px;">
+                      ${window.jml.buildImageSkeleton()}
+                    </div>
+                    <div style="display: flex; flex-direction: column; flex: 1; min-width: 0;">
+                      <div id="jml-cart-product-meta">
+                        ${window.jml.buildMetaSkeleton()}
+                      </div>
+                      <div>
+                        <div id="jml-cart-options">
+                          ${window.jml.buildOptionsSkeleton()}
+                        </div>
+                        <div id="jml-mobile-cart-quantity-picker" style="margin-top:24px;display:flex;justify-content:space-between;align-items:center;">
+                          ${window.jml.buildQuantityPicker()}
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                  <div style="height:1px;width:100%;border-bottom: 1px solid #D8D8D8;padding:32px 16px 24px 16px"></div>
+                </div>
+                <div style="padding: 16px 16px 24px 16px;">
+                  <button id="jml-mobile-cart-confirm-button" class="jewel-modal-confirm-button" onclick="window.jml.addToCartMobile(event,true)" disabled style="display:flex;align-items:center;justify-content:center;">
+                    <p id="jml-mobile-cart-confirm-button-text" style="margin: 0;">Agregar a mi bolsa</p>
+                    <div id="jml-mobile-cart-confirm-button-loading" style="display: none;" class="jml-loading-animation">
+                      <svg
+                        xmlns="http://www.w3.org/2000/svg"
+                        width="24"
+                        height="24"
+                        viewBox="0 0 24 24"
+                        fill="none"
+                        stroke="currentColor"
+                        stroke-width="2"
+                        stroke-linecap="round"
+                        stroke-linejoin="round"
+                      >
+                        <path d="M21 12a9 9 0 11-6.219-8.56" />
+                      </svg>
+                    </div>
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div onclick="window.jml.closeModalDesktop()" class="jewel-modal-backdrop-container" data-testid="modal-backdrop-container" style="animation: show-jml-modal-backdrop 0.3s ease-in-out;">
+          <div role="presentation" class="jewel-modal-backdrop"></div>
+        </div>
+      </div>`;document.body.appendChild(document.createRange().createContextualFragment(s));try{const d=document.getElementById(`jml-mobileAddtoCart-button-wrapper-${e}-${o}`);jml.pageModel=i(d),window.dataLayer.push({event:"jewel_pdp_view",jml_page:window.location.pathname,jml_query:window.location.search,jewel_model_name:jml.pageModel})}catch{}if(jml.selectedProduct=await window.jml.getVariantsInfo(m,e),!document.getElementById("jml-mobile-modal"))return;window.jml.populateModalContent(t,n,!0)}catch(r){window.jml.fail=r.stack}},window.jml.closeModalDesktop=function(){document.querySelector("html").classList.remove("noscroll");const e=document.getElementById("jml-mobile-modal"),n=document.querySelector(".jewel-modal-backdrop-container"),o=document.querySelector(".jewel-modal-content");e&&(o.style.animation="hide-jml-modal-desktop 0.3s ease-in-out",n.style.animation="hide-jml-modal-backdrop 0.3s ease-in-out",e.addEventListener("animationend",()=>e.remove())),jml.pageModel=null};function h(t){const{itemName:e,modelName:n,offerId:o}=R(t);window.dataLayer.push({event:"jewel_cart_click",jewel_item_name:e,jewel_model_name:n,jewel_offer_id:o,model:n,value:e})}function _(t){const{itemName:e,modelName:n,offerId:o}=R(t);window.dataLayer.push({event:"jewel_favorite_click",jewel_item_name:e,jewel_model_name:n,jewel_offer_id:o,model:n,value:e})}function R(t){if(t){let e=l(t,["_jml_grid_item","_jml_carousel_slide"]),[n,o,r]=c(e);return{itemName:n,modelName:o,offerId:r}}}function i(t){if(t){let e=l(t,["_jml_grid_item","_jml_carousel_slide"]),[n,o,r]=c(e);return o}}function l(t,e){let n=t.parentElement;for(;n;){for(let o of e)if(n.classList.contains(o))return n;n=n.parentElement}return null}function a(t,e){let n=t.parentElement;for(;n;){if(n.classList.contains(e))return n;n=n.parentElement}return null}function c(t){let e=t.querySelector("._jml_section_item_link_css").innerText.trim(),n=t.querySelector("[data-jmlmodel]"),o=n.getAttribute("data-jmlmodel").trim(),r=n.getAttribute("offer-id").trim();return[e,o,r]}})();try{var J=typeof window.__jml_custom_function=="function"?window.__jml_custom_function():window.__jml_custom_function;if(J===!1){window.jml={};return}}catch(P){console.warn("jml custom_selector_function threw",P)}window.jml={...window.jmlrc,...window.jml,version:"2.2.4",currentUrl:window.location.href,carouselRendered:!1,noRecs:!1,tries:0,maxTries:3,enable_reload:!1,serviceDown:!1,renderInProgress:!1,rendered:0,shouldRender:0,user:window.__jmlt&&window.__jmlt.s?window.__jmlt.s():{},item_url:window.location.pathname,pathToRegex:function(E){const z=/[\[\]\(\)\.\+\*\?\|]/.test(E),q=E.replace(/\\\//g,"/");return z&&!E.includes(":")?new RegExp(q):new RegExp("^"+E.replace(/\/:\w+\(\.\+\)/g,"/(.+)").replace(/:\w+/g,"[^/]+").replace(/\//g,"\\/")+"$")},catalogPath:"https://repersonalize.jewelml.io/c/p/67fd95260740ccc4ec658d03/l",batchPath:"https://repersonalize.jewelml.io/c/p/67fd95260740ccc4ec658d03/b",enable_unified_cache:!0,routesObject:{},layoutSectionsMap:{},enableLazyHydration:!0,url_homepage:"https://www.liverpool.com.mx",integration_id:"67fd95260740ccc4ec658d03",algolia_client_properties:null,debug_mode:window.sessionStorage.getItem("__jml_debug_mode")||!1,enable_deduplicate:!0,max_deduplicate_items:0,dynamic_carousel_load:!1,max_carousel_load:0,personalizedSavedModels:["GP_prod","LM_prod","RA1_prod","RA2_prod","RA3_prod","RA4_prod"],item_id_function:`(() => {
+  function normalizeString(value) {
+    if (value !== null && value !== undefined) {
+      value = value.toLowerCase();
+      value = value.normalize('NFKD');
+      value = value.replace(/[\\u0300-\\u036f]/g, '');
+      value = value.replace(/\\s+/g, '_');
+    }
+    return value;
+  }
+
+  function getStagingItemId() {
+    // --- Approach 1: RSC __next_f ---
+    // Works correctly on hard nav / first load (when 'c' root is fresh).
+    // On PDP\u2192PDP SPA navigation, 'c' stays stale (first page ever loaded),
+    // so the result is validated against the current URL before being trusted.
+    function tryRSC() {
+      const chunks = window.__next_f
+        .filter(x => Array.isArray(x) && x[0] === 1 && typeof x[1] === 'string')
+        .map(x => x[1]);
+
+      for (const s of document.querySelectorAll('script')) {
+        let m, re = /__next_f\\.push\\(\\[(\\d+),(.*)\\]\\s*\\)/gs;
+        while ((m = re.exec(s.textContent)) !== null)
+          if (parseInt(m[1]) === 1)
+            try { const p = JSON.parse(m[2]); if (typeof p === 'string') chunks.push(p); } catch {}
+      }
+
+      const fullText = chunks.join('');
+      const rows = new Map();
+      let i = 0;
+      while (i < fullText.length) {
+        const ci = fullText.indexOf(':', i); if (ci === -1) break;
+        const id = fullText.substring(i, ci);
+        if (!/^[0-9a-f]+$/i.test(id)) { const nl = fullText.indexOf('\\n', i); i = nl < 0 ? fullText.length : nl + 1; continue; }
+        const nl = fullText.indexOf('\\n', ci + 1);
+        rows.set(id, nl < 0 ? fullText.substring(ci + 1) : fullText.substring(ci + 1, nl));
+        i = nl < 0 ? fullText.length : nl + 1;
+      }
+
+      const parsed = new Map();
+      const JS = new Set(['{', '[', '"', "'", '-', '0', '1', '2', '3', '4', '5', '6', '7', '8', '9', 't', 'f', 'n']);
+      for (const [id, raw] of rows)
+        try { parsed.set(id, JS.has(raw[0]) ? JSON.parse(raw) : raw); } catch { parsed.set(id, raw); }
+
+      function isProduct(o) {
+        return o && typeof o === 'object' && !Array.isArray(o)
+          && typeof o.maximumListPrice === 'number' && typeof o.minimumPromoPrice === 'number'
+          && Array.isArray(o.sizeSet)
+          && Array.isArray(o.variants) && o.variants.length > 0 && o.variants[0] !== null
+          && Array.isArray(o.colorSet);
+      }
+
+      function find(node, seen = new WeakSet(), d = 0) {
+        if (d > 80 || node == null) return null;
+        if (typeof node === 'string') {
+          if (node.startsWith('$') && !node.startsWith('$L')) {
+            const r = parsed.get(node.slice(1)); if (r != null) return find(r, seen, d + 1);
+          }
+          return null;
+        }
+        if (typeof node !== 'object' || seen.has(node)) return null;
+        seen.add(node);
+        if (isProduct(node)) return node;
+        for (const c of (Array.isArray(node) ? node : Object.values(node))) {
+          const f = find(c, seen, d + 1); if (f) return f;
+        }
+        return null;
+      }
+
+      const p = find(parsed.get('c'));
+      if (!p) return null;
+
+      const urlSku = new URLSearchParams(window.location.search).get('skuid');
+      const variants = p.variants.map(v => ({ skuId: v.skuId, colorName: v.colorName ?? null }));
+      return {
+        id: p.id,
+        hasColor: p.colorSet.length > 0,
+        selectedVariant: variants.find(v => v.skuId === urlSku) ?? variants[0] ?? null,
+      };
+    }
+
+    // --- Approach 2: React Fiber ---
+    // Always reflects the live rendered page state.
+    // Used as fallback when RSC returns stale data (PDP\u2192PDP SPA navigation).
+    function tryFiber() {
+      const heading = document.querySelector('h1');
+      if (!heading) return null;
+
+      const fiberKey = Object.keys(heading).find(k => k.startsWith('__reactFiber'));
+      if (!fiberKey) return null;
+
+      let current = heading[fiberKey];
+      while (current) {
+        const props = current.memoizedProps;
+        if (props && props.product && typeof props.product.id !== 'undefined') {
+          const p = props.product;
+          const urlSku = new URLSearchParams(window.location.search).get('skuid');
+          const variants = (p.variants || [])
+            .filter(v => v)
+            .map(v => ({ skuId: v.skuId, colorName: v.colorName ?? null }));
+          return {
+            id: p.id,
+            hasColor: Array.isArray(p.colorSet) && p.colorSet.length > 0,
+            selectedVariant: variants.find(v => v.skuId === urlSku) ?? variants[0] ?? null,
+          };
+        }
+        current = current.return;
+      }
+      return null;
+    }
+
+    // Validate RSC result against the current URL's product ID.
+    // If they don't match, RSC data is stale \u2192 fall back to fiber.
+    const currentProductId = window.location.pathname.split('/').filter(Boolean).pop();
+
+    const rscResult = tryRSC();
+    if (rscResult && rscResult.id === currentProductId) return rscResult;
+
+    const fiberResult = tryFiber();
+    if (fiberResult) return fiberResult;
+
+    // Last resort: return RSC result even if unvalidated
+    if (rscResult) return rscResult;
+
+    throw new Error('Product not found');
+  }
+
+  function getMainColorFromNext(allMeta, currentSKUPDPColor) {
+    if (!allMeta) {
+      return {
+        color: undefined,
+        productId: undefined
+      }
+    }
+
+    const variants = allMeta?.variants
+    const currentVariantIndex = variants.findIndex(item => {
+      if (item.clothingBrandColor) {
+         return normalizeString(item.clothingBrandColor) === normalizeString(currentSKUPDPColor)
+      }
+      return normalizeString(item.color) === normalizeString(currentSKUPDPColor)
+    })
+
+    // If not find an index will return -1
+    const validVariantIndex = currentVariantIndex < 0 ? 0 : currentVariantIndex
+
+    const color = variants[validVariantIndex]?.color
+
+    return color
+  }
+
+  function getMainColorFromElements() {
+    let color = undefined
+    
+    const isColor = document.querySelector('.attributeAccordionText')?.innerText.includes('Color'); 
+
+    if (isColor) {
+      color = document.querySelector('.attributeAccordionTextValue')?.textContent?.trim()
+    }
+
+    return {
+      elementColor: color
+    }
+  }
+
+  function getMainColor() {
+    jml.logs = jml.logs ?? []
+    const { elementColor } = getMainColorFromElements()
+
+
+    if (!elementColor) {
+      return undefined
+    }
+
+    if (window.next.router.components['/tienda/oneColumnPage'].props.pageProps.initialPropsData) {
+      return getMainColorFromNext(window.next.router.components['/tienda/oneColumnPage'].props.pageProps.initialPropsData.mainContent.records[0].allMeta, elementColor)
+    }
+
+    const rawData = JSON.parse(document.querySelector("#__NEXT_DATA__")?.innerText)
+    
+    return getMainColorFromNext(rawData.query?.data?.mainContent?.records?.at(0)?.allMeta, elementColor)
+  }
+  
+  try {
+    if (window?.jml?.isStaging) {
+      const stagingProduct = getStagingItemId()
+
+      if (!stagingProduct) {
+        return "empty"
+      }
+
+      if (stagingProduct.hasColor) {
+        const color = normalizeString(stagingProduct.selectedVariant.colorName)
+
+        return \`\${stagingProduct.id}_\${color}\`
+      }
+
+      return stagingProduct.id
+    }
+
+    let productId = window.location.pathname.split("/").pop()
+    if (!productId) return 'empty';
+
+    let color = getMainColor()
+
+    if (!color) {
+      return productId
+    }
+
+    color = normalizeString(color)
+
+    return \`\${productId}_\${color}\`
+  } catch (error) {
+    return "empty"
+  }
+})()`,observers:new Map,Swiper:window.Swiper},(()=>{function P(z){return z.replace(/\//g,"/")}if(Object.keys(jml.routesObject).filter(z=>z!=="/").some(z=>{try{return jml.pathToRegex(P(z)).test(location.pathname)}catch(q){return console.warn("Invalid pattern:",z,q),!1}})&&window.jml.item_id&&window.jml.item_id!=="undefined"&&window.jml.item_id!=="null"&&window.location.pathname!=="/"){const z=localStorage.getItem("jml_recently_viewed_items_67fd95260740ccc4ec658d03"),q=z?z.split(","):[],Q=window.jml.item_id==="empty"?encodeURIComponent(window.jml.item_url):window.jml.item_id;let C="";if(q.length===0)C=Q.toString();else{const $=q.filter(U=>U!==Q.toString());$.unshift(Q),C=$.slice(0,20).join(",")}localStorage.setItem("jml_recently_viewed_items_67fd95260740ccc4ec658d03",C)}})(),setTimeout(function(){function P(T,O){let j;return function(...I){clearTimeout(j),j=setTimeout(()=>T.apply(this,I),O)}}function E(){window.jml||(window.jml={}),window.jml.observers||(window.jml.observers=new Map)}function z(T,O=document.body){E();let j;const I=O||document.body||document.documentElement;if(!I)return;if(window.jml.observers.has(I))return window.jml.observers.get(I);const D=new MutationObserver(L=>{jml.debug().log("r.js mutation"),document.querySelectorAll("div[id$='jml-carousel']").length==0&&(jml.carouselRendered=!1);try{let k=(()=>{function u(b){return b!=null&&(b=b.toLowerCase(),b=b.normalize("NFKD"),b=b.replace(/[\u0300-\u036f]/g,""),b=b.replace(/\s+/g,"_")),b}function v(){function b(){const R=window.__next_f.filter(s=>Array.isArray(s)&&s[0]===1&&typeof s[1]=="string").map(s=>s[1]);for(const s of document.querySelectorAll("script")){let d,f=/__next_f\.push\(\[(\d+),(.*)\]\s*\)/gs;for(;(d=f.exec(s.textContent))!==null;)if(parseInt(d[1])===1)try{const w=JSON.parse(d[2]);typeof w=="string"&&R.push(w)}catch{}}const i=R.join(""),l=new Map;let a=0;for(;a<i.length;){const s=i.indexOf(":",a);if(s===-1)break;const d=i.substring(a,s);if(!/^[0-9a-f]+$/i.test(d)){const w=i.indexOf(`
+`,a);a=w<0?i.length:w+1;continue}const f=i.indexOf(`
+`,s+1);l.set(d,f<0?i.substring(s+1):i.substring(s+1,f)),a=f<0?i.length:f+1}const c=new Map,t=new Set(["{","[",'"',"'","-","0","1","2","3","4","5","6","7","8","9","t","f","n"]);for(const[s,d]of l)try{c.set(s,t.has(d[0])?JSON.parse(d):d)}catch{c.set(s,d)}function e(s){return s&&typeof s=="object"&&!Array.isArray(s)&&typeof s.maximumListPrice=="number"&&typeof s.minimumPromoPrice=="number"&&Array.isArray(s.sizeSet)&&Array.isArray(s.variants)&&s.variants.length>0&&s.variants[0]!==null&&Array.isArray(s.colorSet)}function n(s,d=new WeakSet,f=0){if(f>80||s==null)return null;if(typeof s=="string"){if(s.startsWith("$")&&!s.startsWith("$L")){const w=c.get(s.slice(1));if(w!=null)return n(w,d,f+1)}return null}if(typeof s!="object"||d.has(s))return null;if(d.add(s),e(s))return s;for(const w of Array.isArray(s)?s:Object.values(s)){const g=n(w,d,f+1);if(g)return g}return null}const o=n(c.get("c"));if(!o)return null;const r=new URLSearchParams(window.location.search).get("skuid"),m=o.variants.map(s=>({skuId:s.skuId,colorName:s.colorName??null}));return{id:o.id,hasColor:o.colorSet.length>0,selectedVariant:m.find(s=>s.skuId===r)??m[0]??null}}function p(){const R=document.querySelector("h1");if(!R)return null;const i=Object.keys(R).find(a=>a.startsWith("__reactFiber"));if(!i)return null;let l=R[i];for(;l;){const a=l.memoizedProps;if(a&&a.product&&typeof a.product.id<"u"){const c=a.product,t=new URLSearchParams(window.location.search).get("skuid"),e=(c.variants||[]).filter(n=>n).map(n=>({skuId:n.skuId,colorName:n.colorName??null}));return{id:c.id,hasColor:Array.isArray(c.colorSet)&&c.colorSet.length>0,selectedVariant:e.find(n=>n.skuId===t)??e[0]??null}}l=l.return}return null}const M=window.location.pathname.split("/").filter(Boolean).pop(),h=b();if(h&&h.id===M)return h;const _=p();if(_)return _;if(h)return h;throw new Error("Product not found")}function S(b,p){if(!b)return{color:void 0,productId:void 0};const M=b?.variants,h=M.findIndex(i=>i.clothingBrandColor?u(i.clothingBrandColor)===u(p):u(i.color)===u(p)),_=h<0?0:h;return M[_]?.color}function N(){let b;return document.querySelector(".attributeAccordionText")?.innerText.includes("Color")&&(b=document.querySelector(".attributeAccordionTextValue")?.textContent?.trim()),{elementColor:b}}function W(){jml.logs=jml.logs??[];const{elementColor:b}=N();if(!b)return;if(window.next.router.components["/tienda/oneColumnPage"].props.pageProps.initialPropsData)return S(window.next.router.components["/tienda/oneColumnPage"].props.pageProps.initialPropsData.mainContent.records[0].allMeta,b);const p=JSON.parse(document.querySelector("#__NEXT_DATA__")?.innerText);return S(p.query?.data?.mainContent?.records?.at(0)?.allMeta,b)}try{if(window?.jml?.isStaging){const M=v();if(!M)return"empty";if(M.hasColor){const h=u(M.selectedVariant.colorName);return`${M.id}_${h}`}return M.id}let b=window.location.pathname.split("/").pop();if(!b)return"empty";let p=W();return p?(p=u(p),`${b}_${p}`):b}catch{return"empty"}})()||"";k!==window.jml.item_id&&(window.jml.item_id=k,jml.renderPlacements(jml))}catch(k){jml.debug().log("failed to load __jml_item_id",k)}jml.currentUrl!==window.location.href&&(clearTimeout(j),j=setTimeout(()=>{jml.item_url=window.location.pathname,jml.currentUrl=window.location.href,jml.carouselRendered=!1,jml.noRecs=!1,jml.tries=0,T()},1e3)),L.forEach(k=>{k.type==="childList"&&(Array.from(k.addedNodes).forEach(u=>{u.nodeType===1&&q().some(N=>{try{return!!(u.matches&&u.matches(N)||u.querySelector&&u.querySelector(N))}catch{return!1}})&&(document.querySelectorAll("div[id$='jml-carousel']").forEach(N=>{N.remove()}),T(u))}),Array.from(k.removedNodes).forEach(u=>{if(u.nodeType===1){const v=u.id&&typeof u.id=="string"&&u.id.includes("jml-carousel"),S=!v&&u.querySelector&&!!u.querySelector("div[id$='jml-carousel']");(v||S)&&(jml.carouselRemoved=!0,T(null,"removed"))}}))})});return window.jml.observers.set(I,D),D.observe(I,{subtree:!0,childList:!0}),D}function q(){var T=[];return jml.layoutSectionsMap?Object.keys(jml.layoutSectionsMap).forEach(O=>{(jml.layoutSectionsMap[O]||[]).forEach(j=>{j.active!==!1&&j.exact_target_selector&&T.push(j.exact_target_selector)})}):jml.routesObject&&Object.keys(jml.routesObject).forEach(O=>{(jml.routesObject[O]||[]).forEach(j=>{(j.associated_sections||[]).forEach(I=>{I.active!==!1&&I.section&&I.section.exact_target_selector&&T.push(I.section.exact_target_selector)})})}),T}var Q=(T,O)=>{if(jml.debug().log("jml_carousel_called"),O==="removed"){try{window.jml.item_id=(()=>{function j(u){return u!=null&&(u=u.toLowerCase(),u=u.normalize("NFKD"),u=u.replace(/[\u0300-\u036f]/g,""),u=u.replace(/\s+/g,"_")),u}function I(){function u(){const b=window.__next_f.filter(e=>Array.isArray(e)&&e[0]===1&&typeof e[1]=="string").map(e=>e[1]);for(const e of document.querySelectorAll("script")){let n,o=/__next_f\.push\(\[(\d+),(.*)\]\s*\)/gs;for(;(n=o.exec(e.textContent))!==null;)if(parseInt(n[1])===1)try{const r=JSON.parse(n[2]);typeof r=="string"&&b.push(r)}catch{}}const p=b.join(""),M=new Map;let h=0;for(;h<p.length;){const e=p.indexOf(":",h);if(e===-1)break;const n=p.substring(h,e);if(!/^[0-9a-f]+$/i.test(n)){const r=p.indexOf(`
+`,h);h=r<0?p.length:r+1;continue}const o=p.indexOf(`
+`,e+1);M.set(n,o<0?p.substring(e+1):p.substring(e+1,o)),h=o<0?p.length:o+1}const _=new Map,R=new Set(["{","[",'"',"'","-","0","1","2","3","4","5","6","7","8","9","t","f","n"]);for(const[e,n]of M)try{_.set(e,R.has(n[0])?JSON.parse(n):n)}catch{_.set(e,n)}function i(e){return e&&typeof e=="object"&&!Array.isArray(e)&&typeof e.maximumListPrice=="number"&&typeof e.minimumPromoPrice=="number"&&Array.isArray(e.sizeSet)&&Array.isArray(e.variants)&&e.variants.length>0&&e.variants[0]!==null&&Array.isArray(e.colorSet)}function l(e,n=new WeakSet,o=0){if(o>80||e==null)return null;if(typeof e=="string"){if(e.startsWith("$")&&!e.startsWith("$L")){const r=_.get(e.slice(1));if(r!=null)return l(r,n,o+1)}return null}if(typeof e!="object"||n.has(e))return null;if(n.add(e),i(e))return e;for(const r of Array.isArray(e)?e:Object.values(e)){const m=l(r,n,o+1);if(m)return m}return null}const a=l(_.get("c"));if(!a)return null;const c=new URLSearchParams(window.location.search).get("skuid"),t=a.variants.map(e=>({skuId:e.skuId,colorName:e.colorName??null}));return{id:a.id,hasColor:a.colorSet.length>0,selectedVariant:t.find(e=>e.skuId===c)??t[0]??null}}function v(){const b=document.querySelector("h1");if(!b)return null;const p=Object.keys(b).find(h=>h.startsWith("__reactFiber"));if(!p)return null;let M=b[p];for(;M;){const h=M.memoizedProps;if(h&&h.product&&typeof h.product.id<"u"){const _=h.product,R=new URLSearchParams(window.location.search).get("skuid"),i=(_.variants||[]).filter(l=>l).map(l=>({skuId:l.skuId,colorName:l.colorName??null}));return{id:_.id,hasColor:Array.isArray(_.colorSet)&&_.colorSet.length>0,selectedVariant:i.find(l=>l.skuId===R)??i[0]??null}}M=M.return}return null}const S=window.location.pathname.split("/").filter(Boolean).pop(),N=u();if(N&&N.id===S)return N;const W=v();if(W)return W;if(N)return N;throw new Error("Product not found")}function D(u,v){if(!u)return{color:void 0,productId:void 0};const S=u?.variants,N=S.findIndex(p=>p.clothingBrandColor?j(p.clothingBrandColor)===j(v):j(p.color)===j(v)),W=N<0?0:N;return S[W]?.color}function L(){let u;return document.querySelector(".attributeAccordionText")?.innerText.includes("Color")&&(u=document.querySelector(".attributeAccordionTextValue")?.textContent?.trim()),{elementColor:u}}function k(){jml.logs=jml.logs??[];const{elementColor:u}=L();if(!u)return;if(window.next.router.components["/tienda/oneColumnPage"].props.pageProps.initialPropsData)return D(window.next.router.components["/tienda/oneColumnPage"].props.pageProps.initialPropsData.mainContent.records[0].allMeta,u);const v=JSON.parse(document.querySelector("#__NEXT_DATA__")?.innerText);return D(v.query?.data?.mainContent?.records?.at(0)?.allMeta,u)}try{if(window?.jml?.isStaging){const S=I();if(!S)return"empty";if(S.hasColor){const N=j(S.selectedVariant.colorName);return`${S.id}_${N}`}return S.id}let u=window.location.pathname.split("/").pop();if(!u)return"empty";let v=k();return v?(v=j(v),`${u}_${v}`):u}catch{return"empty"}})()||"empty"}catch(j){jml.debug().log("failed to load __jml_item_id",j),window.jml.item_id="empty"}jml.carouselRendered=!1,jml.tries=0,jml.renderPlacements(jml);return}try{try{window.jml.item_id=(()=>{function j(u){return u!=null&&(u=u.toLowerCase(),u=u.normalize("NFKD"),u=u.replace(/[\u0300-\u036f]/g,""),u=u.replace(/\s+/g,"_")),u}function I(){function u(){const b=window.__next_f.filter(e=>Array.isArray(e)&&e[0]===1&&typeof e[1]=="string").map(e=>e[1]);for(const e of document.querySelectorAll("script")){let n,o=/__next_f\.push\(\[(\d+),(.*)\]\s*\)/gs;for(;(n=o.exec(e.textContent))!==null;)if(parseInt(n[1])===1)try{const r=JSON.parse(n[2]);typeof r=="string"&&b.push(r)}catch{}}const p=b.join(""),M=new Map;let h=0;for(;h<p.length;){const e=p.indexOf(":",h);if(e===-1)break;const n=p.substring(h,e);if(!/^[0-9a-f]+$/i.test(n)){const r=p.indexOf(`
+`,h);h=r<0?p.length:r+1;continue}const o=p.indexOf(`
+`,e+1);M.set(n,o<0?p.substring(e+1):p.substring(e+1,o)),h=o<0?p.length:o+1}const _=new Map,R=new Set(["{","[",'"',"'","-","0","1","2","3","4","5","6","7","8","9","t","f","n"]);for(const[e,n]of M)try{_.set(e,R.has(n[0])?JSON.parse(n):n)}catch{_.set(e,n)}function i(e){return e&&typeof e=="object"&&!Array.isArray(e)&&typeof e.maximumListPrice=="number"&&typeof e.minimumPromoPrice=="number"&&Array.isArray(e.sizeSet)&&Array.isArray(e.variants)&&e.variants.length>0&&e.variants[0]!==null&&Array.isArray(e.colorSet)}function l(e,n=new WeakSet,o=0){if(o>80||e==null)return null;if(typeof e=="string"){if(e.startsWith("$")&&!e.startsWith("$L")){const r=_.get(e.slice(1));if(r!=null)return l(r,n,o+1)}return null}if(typeof e!="object"||n.has(e))return null;if(n.add(e),i(e))return e;for(const r of Array.isArray(e)?e:Object.values(e)){const m=l(r,n,o+1);if(m)return m}return null}const a=l(_.get("c"));if(!a)return null;const c=new URLSearchParams(window.location.search).get("skuid"),t=a.variants.map(e=>({skuId:e.skuId,colorName:e.colorName??null}));return{id:a.id,hasColor:a.colorSet.length>0,selectedVariant:t.find(e=>e.skuId===c)??t[0]??null}}function v(){const b=document.querySelector("h1");if(!b)return null;const p=Object.keys(b).find(h=>h.startsWith("__reactFiber"));if(!p)return null;let M=b[p];for(;M;){const h=M.memoizedProps;if(h&&h.product&&typeof h.product.id<"u"){const _=h.product,R=new URLSearchParams(window.location.search).get("skuid"),i=(_.variants||[]).filter(l=>l).map(l=>({skuId:l.skuId,colorName:l.colorName??null}));return{id:_.id,hasColor:Array.isArray(_.colorSet)&&_.colorSet.length>0,selectedVariant:i.find(l=>l.skuId===R)??i[0]??null}}M=M.return}return null}const S=window.location.pathname.split("/").filter(Boolean).pop(),N=u();if(N&&N.id===S)return N;const W=v();if(W)return W;if(N)return N;throw new Error("Product not found")}function D(u,v){if(!u)return{color:void 0,productId:void 0};const S=u?.variants,N=S.findIndex(p=>p.clothingBrandColor?j(p.clothingBrandColor)===j(v):j(p.color)===j(v)),W=N<0?0:N;return S[W]?.color}function L(){let u;return document.querySelector(".attributeAccordionText")?.innerText.includes("Color")&&(u=document.querySelector(".attributeAccordionTextValue")?.textContent?.trim()),{elementColor:u}}function k(){jml.logs=jml.logs??[];const{elementColor:u}=L();if(!u)return;if(window.next.router.components["/tienda/oneColumnPage"].props.pageProps.initialPropsData)return D(window.next.router.components["/tienda/oneColumnPage"].props.pageProps.initialPropsData.mainContent.records[0].allMeta,u);const v=JSON.parse(document.querySelector("#__NEXT_DATA__")?.innerText);return D(v.query?.data?.mainContent?.records?.at(0)?.allMeta,u)}try{if(window?.jml?.isStaging){const S=I();if(!S)return"empty";if(S.hasColor){const N=j(S.selectedVariant.colorName);return`${S.id}_${N}`}return S.id}let u=window.location.pathname.split("/").pop();if(!u)return"empty";let v=k();return v?(v=j(v),`${u}_${v}`):u}catch{return"empty"}})()||"empty"}catch(j){jml.debug().log("failed to load __jml_item_id",j),window.jml.item_id="empty"}jml.renderPlacements(jml),(()=>{function j(D){return D.replace(/\//g,"/")}if(Object.keys(jml.routesObject).filter(D=>D!=="/").some(D=>{try{return jml.pathToRegex(j(D)).test(location.pathname)}catch(L){return console.warn("Invalid pattern:",D,L),!1}})&&window.jml.item_id&&window.jml.item_id!=="undefined"&&window.jml.item_id!=="null"&&window.location.pathname!=="/"){const D=localStorage.getItem("jml_recently_viewed_items_67fd95260740ccc4ec658d03"),L=D?D.split(","):[],k=window.jml.item_id==="empty"?encodeURIComponent(window.jml.item_url):window.jml.item_id;let u="";if(L.length===0)u=k.toString();else{const v=L.filter(S=>S!==k.toString());v.unshift(k),u=v.slice(0,20).join(",")}localStorage.setItem("jml_recently_viewed_items_67fd95260740ccc4ec658d03",u)}})()}catch{}jml.tries+=1},C=P((T,O)=>{jml.carouselRemoved&&(O="removed",jml.carouselRemoved=!1),!(jml.renderInProgress||jml.serviceDown||jml.tries>=jml.maxTries||jml.noRecs||jml.carouselRendered&&O!=="removed")&&Q(T,O)},500);function $(T,O=1e4){return new Promise((j,I)=>{if(!T||typeof T!="string"){I(new Error("waitForElement selector must be a non-empty string"));return}let D;try{D=document.querySelector(T)}catch(u){I(u);return}if(D){j(D);return}const L=new MutationObserver(()=>{let u;try{u=document.querySelector(T)}catch(v){clearTimeout(k),L.disconnect(),I(v);return}u&&(clearTimeout(k),L.disconnect(),j(u))});L.observe(document.documentElement,{childList:!0,subtree:!0});const k=setTimeout(()=>{L.disconnect(),I(new Error(`Element ${T} not found within ${O}ms`))},O)})}async function U(){jml.debug().log("r.js delayedRender call"),await $("",1e4).then(()=>{jml.debug().log("r.js Element found")}).catch(j=>{jml.debug().log("r.js Element NOT found",j)}).finally(()=>{jml.debug().log("r.js Rendering placements"),z(C),jml.renderPlacements(jml)})}z(C),C()},0)}function ne(J,P,E){var z=document.querySelector('script[src="'+J+'"]');if(z){if(z.getAttribute("data-jml-loaded")==="1"||J.indexOf("swiper")>-1&&window.Swiper){P();return}z.addEventListener("load",function(){P()}),z.addEventListener("error",function(){P()});return}var q=document.createElement("script");q.src=J,q.onload=function(){q.setAttribute("data-jml-loaded","1"),P()},q.onerror=function(){if(E){var Q=document.createElement("script");Q.src=E,Q.onload=function(){Q.setAttribute("data-jml-loaded","1"),P()},Q.onerror=function(){P()},Q.crossOrigin="anonymous",K.appendChild(Q)}else P()},q.crossOrigin="anonymous",K.appendChild(q)}ne("https://cdn.jsdelivr.net/npm/swiper@12.1.2/swiper-bundle.min.js",function(){ne("https://rerender.jewelml.io/r/d/core.web.min.js",re)},"https://rerender.jewelml.io/lib/swiper-bundle.min.js")})();

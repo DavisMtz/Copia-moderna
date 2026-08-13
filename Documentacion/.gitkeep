@@ -1,0 +1,3 @@
+# Marcador: git no rastrea carpetas vacías, y sin este archivo
+# "Documentacion/" no aparecería en GitHub. Puede borrarse en cuanto
+# la carpeta tenga contenido real.

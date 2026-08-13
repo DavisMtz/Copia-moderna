@@ -1,18 +1,23 @@
-# Finales de línea
+# Finales de línea, para TODO el repositorio.
 #
-# Este proyecto tiene una mezcla histórica: la mayoría de las pantallas usa CRLF y los
-# archivos nuevos nacen con LF. Esa mezcla es inofensiva mientras nadie la cambie sin
-# querer, y es exactamente lo que pasa en cuanto una herramienta reescribe un archivo
-# entero: el contenido queda bien y el diff sale con TODAS las líneas modificadas, lo que
-# entierra el cambio real y convierte en conflicto cualquier otra rama que toque el mismo
-# archivo.
+# Extiende a la extensión de Chrome la misma política que ya rige el proyecto de
+# Apps Script (ver "Carpeta del proyecto/.gitattributes", donde está el porqué
+# completo): `-text` significa que git no normaliza nada, cada archivo conserva
+# los finales que ya trae y el diff muestra solo lo que de verdad cambió.
 #
-# `-text` le dice a git que no normalice nada: cada archivo conserva los finales que ya
-# tiene y el diff solo muestra lo que de verdad cambió. Es la opción correcta aquí porque
-# el destino es Apps Script, que no se entera de los finales de línea, así que no hay
-# ninguna razón técnica para unificarlos —y unificarlos ahora produciría de una vez el
-# mismo diff gigante que esto viene a evitar.
+# Sin esto, en cuanto una herramienta reescribe un archivo entero el diff sale
+# con TODAS las líneas modificadas, lo que entierra el cambio real. Es
+# exactamente el ruido que hubo que descartar al subir este repo por primera vez.
 *.html -text
 *.gs   -text
+*.js   -text
+*.css  -text
 *.json -text
 *.md   -text
+
+# La página guardada de Liverpool es una captura, no código nuestro: se
+# conserva byte a byte. Muchos de sus archivos no tienen extensión (`js(1)`,
+# `saved_resource`, `dc_pre=...`) o traen una postiza (`.descarga`), así que
+# las reglas de arriba no los alcanzan y git los normalizaría a CRLF. Reproducir
+# la página exige que sea idéntica a lo que sirvió el servidor.
+"Extencion para chrome/Mi Bolsa_files/**" -text

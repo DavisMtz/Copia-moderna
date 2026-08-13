@@ -1,0 +1,138 @@
+<!DOCTYPE html>
+<!--
+  =====================================================================
+   Ventel · Inspector de artículo
+   Muestra toda la información extraída de una ficha de producto de
+   Liverpool: lo visible y lo que la página guarda sin mostrar.
+   Hecho por su gran amigo David Martínez "El escritor" · v1.7 · 11/08/2026
+  =====================================================================
+-->
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <title>Ventel · Inspector de artículo</title>
+  <link rel="stylesheet" href="inspector.css">
+</head>
+<body>
+  <!-- Header with brand, product name, and action buttons -->
+  <header class="cabecera">
+    <div class="contenedor cabecera-fila">
+      <div class="marca">
+        <!-- Magnifying glass + eye icon (inspector theme) -->
+        <svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <circle cx="11" cy="11" r="8"></circle>
+          <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
+          <path d="M11 8a3 3 0 0 0-3 3"></path>
+        </svg>
+        <div>
+          <h1>Inspector de artículo</h1>
+          <p class="origen" id="origen">Cargando…</p>
+        </div>
+      </div>
+      <div class="cabecera-acciones">
+        <button id="btnActualizar" class="btn btn-sec">Actualizar</button>
+        <button id="btnExportJson" class="btn btn-sec">Exportar JSON</button>
+        <a id="btnAbrirLiverpool" class="btn btn-pri" target="_blank">Abrir en Liverpool</a>
+      </div>
+    </div>
+  </header>
+
+  <main class="contenedor">
+    <!-- Hero section: main image + key product info side by side -->
+    <section class="hero" id="hero" aria-label="Resumen del producto">
+      <div class="hero-galeria" id="heroGaleria">
+        <!-- Main image display -->
+        <div class="hero-imagen-principal" id="imagenPrincipal"></div>
+        <!-- Thumbnail strip -->
+        <div class="hero-miniaturas" id="miniaturas"></div>
+      </div>
+      <div class="hero-info" id="heroInfo">
+        <!-- Brand badge, product name, SKUs, prices, seller, availability -->
+      </div>
+    </section>
+
+    <!-- Colors section -->
+    <section class="seccion-inspector" id="secColores" hidden>
+      <h2>Colores disponibles</h2>
+      <div class="colores-rejilla" id="coloresRejilla"></div>
+    </section>
+
+    <!-- Sizes/Capacities section -->
+    <section class="seccion-inspector" id="secTallas" hidden>
+      <h2>Tallas / Capacidades</h2>
+      <div class="tallas-rejilla" id="tallasRejilla"></div>
+    </section>
+
+    <!-- Variants table (SKU per color/size) -->
+    <section class="seccion-inspector" id="secVariantes" hidden>
+      <h2>Variantes (SKU por color / capacidad)</h2>
+      <div class="tabla-scroll">
+        <table class="tabla-variantes" id="tablaVariantes"></table>
+      </div>
+    </section>
+
+    <!-- Payment plans -->
+    <section class="seccion-inspector" id="secPagos" hidden>
+      <h2>Planes de pago</h2>
+      <div class="planes-rejilla" id="planesRejilla"></div>
+    </section>
+
+    <!-- Promotions -->
+    <section class="seccion-inspector" id="secPromos" hidden>
+      <h2>Promociones</h2>
+      <div id="promosCuerpo"></div>
+    </section>
+
+    <!-- Specifications -->
+    <section class="seccion-inspector" id="secSpecs" hidden>
+      <h2>Especificaciones</h2>
+      <table class="tabla-specs" id="tablaSpecs"></table>
+    </section>
+
+    <!-- Description -->
+    <section class="seccion-inspector" id="secDescripcion" hidden>
+      <h2>Descripción</h2>
+      <div class="descripcion-cuerpo" id="descripcionCuerpo"></div>
+    </section>
+
+    <!-- Category & Classification -->
+    <section class="seccion-inspector" id="secCategoria" hidden>
+      <h2>Clasificación</h2>
+      <div id="categoriaCuerpo"></div>
+    </section>
+
+    <!-- Rating -->
+    <section class="seccion-inspector" id="secRating" hidden>
+      <h2>Calificación</h2>
+      <div id="ratingCuerpo"></div>
+    </section>
+
+    <!-- All Images Gallery -->
+    <section class="seccion-inspector" id="secGaleria" hidden>
+      <h2>Galería completa de imágenes</h2>
+      <div class="galeria-completa" id="galeriaCompleta"></div>
+    </section>
+
+    <!-- Meta tags & identifiers -->
+    <section class="seccion-inspector" id="secMeta" hidden>
+      <h2>Metadatos y datos técnicos</h2>
+      <table class="tabla-specs" id="tablaMeta"></table>
+    </section>
+
+    <!-- Raw JSON (collapsible) -->
+    <details class="bloque-diagnostico" id="rawSection">
+      <summary>Datos crudos del flight data (JSON)</summary>
+      <pre class="json-crudo" id="rawJson"></pre>
+    </details>
+
+    <!-- Warnings -->
+    <div id="avisos"></div>
+  </main>
+
+  <!-- Toast notification -->
+  <div class="aviso-flotante" id="aviso" role="status" aria-live="polite" hidden></div>
+
+  <script src="product-inspector.js"></script>
+  <script src="inspector-ui.js"></script>
+</body>
+</html>
