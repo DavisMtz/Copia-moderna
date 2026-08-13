@@ -1,0 +1,10 @@
+# Lo que NUNCA debe subir a Apps Script.
+# clasp solo empuja .gs / .js / .html / appsscript.json, esto es el cinturon extra.
+.git/**
+.github/**
+.claude/**
+node_modules/**
+*.md
+.gitattributes
+.clasp.json
+.claspignore
