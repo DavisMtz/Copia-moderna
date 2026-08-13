@@ -1341,6 +1341,11 @@ table.ds-matrix{width:100%;border-collapse:separate;border-spacing:0;min-width:5
 <?!= include('app_guardado') ?>
 <?!= include('app_onboarding') ?>
 <?!= include('app_operacion') ?>
+<?!= include('app_precarga') ?>
+<!-- El Portal es la landing: de aquí sale buena parte de los trayectos del día, así que
+     declararlo es lo que permite aprender "entra al Portal y se va a cotizar". Va con
+     `aqui()` y no por el shell porque este archivo tiene el suyo propio. -->
+<script>if (window.AppPrecarga) AppPrecarga.aqui('portal');</script>
 <template id="__bundler_thumbnail" data-bg-color="#E10098">
   <svg viewBox="0 0 1200 800" xmlns="http://www.w3.org/2000/svg">
     <rect width="1200" height="800" fill="#E10098"/>

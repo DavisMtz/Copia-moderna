@@ -675,6 +675,9 @@
   <?!= include('app_guardado'); ?>
   <?!= include('app_buscar'); ?>
   <?!= include('app_comando'); ?>
+  <?!= include('app_precarga'); ?>
+  <!-- Sin shell: declara ella misma su pantalla (ver app_precarga.aqui). -->
+  <script>if (window.AppPrecarga) AppPrecarga.aqui('estado');</script>
   <?!= include('app_motion'); ?>
   <!-- ScrollTrigger y SplitText solo los necesita ESTA pantalla (app_motion carga el
        núcleo de GSAP para todas). Si el CDN no responde, el script de abajo comprueba

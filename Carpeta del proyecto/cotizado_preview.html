@@ -469,6 +469,11 @@
     <?!= include('app_motion'); ?>
     <?!= include('LoaderPartial'); ?>
     <?!= include('app_comando'); ?>
+    <?!= include('app_precarga'); ?>
+    <!-- Esta pantalla no monta el shell, así que dice ella misma dónde está. Importa
+         más que en otras: "cotizar → vista previa → enviar" es el trayecto más repetido
+         de la aplicación, y sin esta línea la cadena se cortaría justo en medio. -->
+    <script>if (window.AppPrecarga) AppPrecarga.aqui('cotizado_preview');</script>
     <?!= include('app_operacion'); ?>
     <?!= include('app_atenciones'); ?>
     <script>

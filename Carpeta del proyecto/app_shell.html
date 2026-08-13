@@ -270,7 +270,8 @@
       // el rótulo de la pantalla abierta deja al asesor sin saber dónde está.
       if (area !== a && !areaVisible(a)) return '';
       var cls = 'app-switch-item' + (area === a ? ' active' : '');
-      return '<a class="' + cls + '" href="#" onclick="AppShell.nav(\'' + page + '\');return false;">' +
+      var pre = (area === a) ? '' : ' data-precarga="' + page + '"';
+      return '<a class="' + cls + '" href="#"' + pre + ' onclick="AppShell.nav(\'' + page + '\');return false;">' +
         '<span class="asw-ic">' + icon + '</span>' +
         '<span class="asw-tx"><b>' + name + '</b><small>' + sub + '</small></span></a>';
     }
@@ -281,7 +282,8 @@
       // El área entra por la primera pantalla que esta persona sí puede abrir: para un
       // supervisor sin consola es el panel; para un maestro sin supervisión, la consola.
       var cls = 'app-switch-item' + (area === 'gestion' ? ' active' : '');
-      bloqueGestion = '<a class="' + cls + '" href="#" onclick="AppShell.nav(\'' + gestion[0].page + '\');return false;">' +
+      var preG = (area === 'gestion') ? '' : ' data-precarga="' + gestion[0].page + '"';
+      bloqueGestion = '<a class="' + cls + '" href="#"' + preG + ' onclick="AppShell.nav(\'' + gestion[0].page + '\');return false;">' +
         '<span class="asw-ic">' + IC_GEAR + '</span>' +
         '<span class="asw-tx"><b>Gestión</b><small>' + esc(AppFunciones.subtituloGestion(gestion)) + '</small></span></a>';
     }
@@ -309,7 +311,12 @@
   function sidebarHTML(active) {
     function link(page, label, icon, extra) {
       var cls = 'side-link' + (active === page ? ' active' : '');
-      return '<button class="' + cls + '"' + (extra || '') +
+      /* `data-precarga` es lo único que hace falta para que apuntar a este enlace
+         caliente su destino: AppPrecarga.cablearContenedor lo busca y se encarga.
+         No se marca la pantalla ACTIVA: precargar donde ya estás es gastar una
+         llamada en no ir a ninguna parte. */
+      var pre = (active === page) ? '' : ' data-precarga="' + page + '"';
+      return '<button class="' + cls + '"' + pre + (extra || '') +
              ' onclick="AppShell.nav(\'' + page + '\')">' + icon + ' ' + label + '</button>';
     }
     /** Devuelve el apartado solo si al menos uno de sus enlaces sobrevivió al filtro. */
@@ -348,7 +355,7 @@
          encima de lo que se esté haciendo (ver AppShell.nav). Por eso está en TODAS las
          pantallas y por eso pulsarlo no cuesta perder el trabajo a medias. */
       (puede('atenciones')
-        ? link('atenciones', 'Atenciones', IC_RELOJ, ' data-precarga-atenciones aria-haspopup="dialog"')
+        ? link('atenciones', 'Atenciones', IC_RELOJ, ' aria-haspopup="dialog"')
         : '') +
       apartado('Cotizaciones', [
         ['cotizar',           'cotizacion',       'Nueva cotización',         IC_DOC],
@@ -406,21 +413,35 @@
   }
 
   /**
-   * Precarga por intención: al APUNTAR a "Atenciones" se pide el panorama, antes de
-   * que se pulse.
+   * Precarga por intención: al APUNTAR a un enlace de la barra se piden los datos de
+   * su pantalla, antes de que se pulse.
    *
    * Entre que el ratón entra en el botón y se suelta el clic pasan tranquilamente 300 ms
    * —y con el foco del teclado, más—, que es justo lo que tarda el viaje al servidor de
-   * Apps Script. Aprovechar ese hueco es la diferencia entre un panel que aparece lleno
-   * y uno que aparece con una rueda girando. Si al final no se pulsa, lo único que ha
-   * pasado es que la caché quedó caliente para la próxima.
+   * Apps Script. Aprovechar ese hueco es la diferencia entre una pantalla que aparece
+   * llena y una que aparece con una rueda girando. Si al final no se pulsa, lo único que
+   * ha pasado es que la caché quedó caliente para la próxima.
+   *
+   * Esto empezó siendo el botón de Atenciones y solo ese: la idea era buena y la barra
+   * entera se quedó fuera. Ahora la condición de que un enlace precargue es tener
+   * `data-precarga` puesto, que `link()` reparte solo, y quién sabe calentar qué lo
+   * decide el registro de app_precarga —incluido Atenciones, que sigue calentándose con
+   * su propio `AppAtenciones.precargar()` porque su caché es suya—.
    *
    * Se cablea aquí y no en el HTML de la barra porque `sidebarHTML` se vuelve a pintar
    * cuando el rol cambia al refrescar la sesión, y con él se van las escuchas.
    */
   function cablearPrecarga(aside) {
-    var btn = aside.querySelector('[data-precarga-atenciones]');
-    if (!btn) return;
+    if (window.AppPrecarga && AppPrecarga.cablearContenedor) {
+      AppPrecarga.cablearContenedor(aside);
+      return;
+    }
+    /* Sin el módulo, se conserva el comportamiento que esta barra tenía antes: el
+       botón de Atenciones precarga igual. Una pantalla que no incluya app_precarga
+       no puede perder algo que ya funcionaba. */
+    var btn = aside.querySelector('[data-precarga="atenciones"]');
+    if (!btn || btn.__precargaLegado) return;
+    btn.__precargaLegado = true;
     var pedir = function () {
       if (window.AppAtenciones && AppAtenciones.precargar) AppAtenciones.precargar();
     };
@@ -475,6 +496,11 @@
       var un = document.getElementById('user-name');
       if (un && window.AppSession) un.textContent = AppSession.firstName;
       syncPrefUI();
+      /* La precarga necesita saber DÓNDE estamos para dos cosas: anotar el trayecto
+         cuando se navegue y saber qué fila de su matriz mirar para predecir. El shell
+         ya lo sabe —es el mismo dato con el que marca el enlace activo—, así que se lo
+         dice él y ninguna pantalla con barra tiene que acordarse de nada. */
+      if (window.AppPrecarga && opts.active) AppPrecarga.aqui(opts.active);
       cablearPrecarga(aside);
 
       // Una preferencia puede cambiar sin que se haya tocado NADA de esta barra: llega

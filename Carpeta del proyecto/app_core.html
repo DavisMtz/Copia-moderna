@@ -742,6 +742,9 @@
   /** Parámetros de campaña que ensucian un enlace compartido y no significan nada aquí. */
   const PARAMS_BASURA = /^(utm_|fbclid$|gclid$|mc_eid$|_ga$)/i;
 
+  /** Quien quiere enterarse de que se está navegando (ver AppUrl.alNavegar). */
+  const oyentesNav = [];
+
   const AppUrl = {
     base: cfg.baseUrl || '',
 
@@ -808,7 +811,40 @@
      * esa sí navega. Devuelve false solo cuando falta la URL base, que es lo
      * único que las pantallas tratan como error.
      */
+    /**
+     * Avisa ANTES de cada navegación, con la pantalla de destino.
+     *
+     * Existe para que la precarga predictiva pueda aprender el grafo de la app sin
+     * que nadie tenga que ir botón por botón: toda navegación —barra lateral,
+     * conmutador de áreas, paleta de comandos, enlaces de cada pantalla— pasa por
+     * `go`, así que este es el único sitio donde hace falta escuchar.
+     *
+     * Se avisa ANTES y no después a propósito: después no hay después. La línea
+     * siguiente asigna `window.top.location` y esta página se está descargando; un
+     * aviso posterior no siempre llega a ejecutarse, y lo que hay que anotar es
+     * precisamente el trayecto que se acaba de decidir.
+     *
+     * Un oyente que falle no puede impedir la navegación: el trabajo de esta
+     * función es llevar a la pantalla, y una anotación rota no es motivo para
+     * dejar a nadie donde estaba.
+     *
+     * Mismo contrato que AppOperacion.alCambiar y AppPrefs.alCambiar: devuelve la
+     * función para dejar de escuchar.
+     */
+    alNavegar: function (cb) {
+      if (typeof cb !== 'function') return function () {};
+      oyentesNav.push(cb);
+      return function () {
+        const i = oyentesNav.indexOf(cb);
+        if (i > -1) oyentesNav.splice(i, 1);
+      };
+    },
+
     go: function (page, params, ancla) {
+      oyentesNav.forEach(function (cb) {
+        try { cb(page, params); } catch (e) { console.error(e); }
+      });
+
       const url = this.build(page, params, ancla);
       if (!url) {
         // Antes esto era un alert() del navegador: bloquea el iframe, no explica

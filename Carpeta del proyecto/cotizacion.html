@@ -484,6 +484,7 @@
     <?!= include('app_extension_guia'); ?>
     <?!= include('LoaderPartial'); ?>
     <?!= include('app_comando'); ?>
+    <?!= include('app_precarga'); ?>
     <?!= include('app_operacion'); ?>
     <?!= include('app_atenciones'); ?>
     <script>
@@ -1121,20 +1122,69 @@
             }
         }
 
+        /* Copia local del catálogo de formatos.
+           La clave y el TTL son los mismos que usa el calentador de app_precarga: si
+           dejaran de coincidir, la precarga escribiría en un sitio que esta pantalla no
+           lee y el ahorro desaparecería sin que nada diera error. */
+        const FORMATOS_CACHE_KEY = 'formatos-cotizacion';
+        const FORMATOS_TTL_MS = 12 * 60 * 60 * 1000;
+
         function loadQuoteFormats(preferredId) {
             const container = document.getElementById('format-options');
+            const cache = window.AppCache;
+
+            /* Pintado inmediato desde lo guardado. El catálogo de formatos se toca un
+               par de veces al año, así que enseñar el de ayer mientras se comprueba no
+               tiene ningún riesgo y quita la espera del arranque —que es el momento en
+               que alguien está esperando para empezar a cotizar—. */
+            let pintadoDeCache = false;
+            let huellaPintada = '';
+            const huella = function (r) {
+                try { return JSON.stringify([r.formats, r.defaultId]); } catch (e) { return ''; }
+            };
+            try {
+                const guardado = cache ? cache.get(FORMATOS_CACHE_KEY, FORMATOS_TTL_MS) : null;
+                if (guardado && guardado.data && guardado.data.success) {
+                    renderFormatOptions(guardado.data.formats, guardado.data.defaultId);
+                    if (preferredId) setSelectedFormat(preferredId);
+                    pintadoDeCache = true;
+                    huellaPintada = huella(guardado.data);
+                }
+            } catch (e) {}
+
             google.script.run
                 .withSuccessHandler(function(response) {
                     if (response && response.success) {
+                        try { if (cache) cache.set(FORMATOS_CACHE_KEY, response, { ttl: FORMATOS_TTL_MS }); } catch (e) {}
+
+                        /* Si el catálogo es el mismo que ya está pintado —el caso normal,
+                           porque esto cambia un par de veces al año— no se repinta. No es
+                           una optimización: renderFormatOptions reconstruye los radios y
+                           reinicia `selectedFormatId` al de por omisión, así que repintar
+                           encima le cambiaría el formato elegido a quien ya lo hubiera
+                           tocado en el segundo que tarda el servidor. Y de paso volvería a
+                           lanzar la animación de entrada de las tarjetas. */
+                        if (pintadoDeCache && huella(response) === huellaPintada) return;
+
+                        // El catálogo SÍ cambió: hay que repintar, pero conservando la
+                        // elección de la persona si el formato que había escogido sigue.
+                        const elegido = pintadoDeCache
+                            ? ((document.querySelector('input[name="quote-format"]:checked') || {}).value || '')
+                            : '';
                         renderFormatOptions(response.formats, response.defaultId);
                         if (preferredId) setSelectedFormat(preferredId);
-                    } else {
+                        else if (elegido) setSelectedFormat(elegido);
+                    } else if (!pintadoDeCache) {
                         container.innerHTML = '<p class="text-sm text-red-600">No se pudieron cargar los formatos disponibles.</p>';
                     }
                 })
                 .withFailureHandler(function(error) {
                     console.error('getEnabledQuoteFormats:', error);
-                    container.innerHTML = '<p class="text-sm text-red-600">No pudimos cargar los formatos. Revisa tu conexión y recarga la página.</p>';
+                    // Con la lista ya pintada de la copia local, una caída de red no
+                    // debe borrarla para poner un error: se puede seguir cotizando.
+                    if (!pintadoDeCache) {
+                        container.innerHTML = '<p class="text-sm text-red-600">No pudimos cargar los formatos. Revisa tu conexión y recarga la página.</p>';
+                    }
                 })
                 .getEnabledQuoteFormats();
         }

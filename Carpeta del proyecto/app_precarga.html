@@ -1,0 +1,717 @@
+<script>
+/**
+ * =====================================================================================
+ * PRECARGA PREDICTIVA | Sistema de cotizaciones Ventel
+ * =====================================================================================
+ * Tener lista la pantalla a la que la persona va a ir, antes de que pulse.
+ *
+ * POR QUÉ EXISTE
+ * En Apps Script cambiar de vista es una carga COMPLETA de la aplicación: el iframe del
+ * sandbox, el HTML entero, los módulos y encima la primera llamada al servidor para
+ * traer los datos. Esa última parte es la única que se puede adelantar, y es la que se
+ * adelanta aquí: si cuando la pantalla nueva arranca sus datos ya están en la copia
+ * local, `AppRun.swr` los pinta en el primer fotograma y la espera desaparece.
+ *
+ * `app_shell` ya hacía esto para UN botón —Atenciones— y el comentario de aquella
+ * función decía la idea entera: entre que el ratón entra en el botón y se suelta el clic
+ * pasan tranquilamente 300 ms, y si al final no se pulsa, lo único que ha pasado es que
+ * la caché quedó caliente. Este módulo lo generaliza a toda la barra y le añade lo que
+ * faltaba: adivinar el destino sin necesidad de que nadie apunte a nada.
+ *
+ * DOS DISPARADORES, Y SON DISTINTOS A PROPÓSITO
+ *
+ *   1. POR INTENCIÓN. Apuntar con el ratón, recibir el foco del teclado o tocar en
+ *      táctil. Es certeza casi total —ya se está yendo ahí— así que no pide condiciones:
+ *      basta que el destino tenga calentador y la sesión tenga el permiso.
+ *
+ *   2. POR PREDICCIÓN. Una cadena de Markov de primer orden sobre los trayectos de ESTA
+ *      persona: desde `cotizacion` el destino siguiente es `cotizado_preview` cuatro de
+ *      cada cinco veces. Aquí no hay certeza, hay una apuesta, y por eso va cargada de
+ *      condiciones: confianza mínima, muestra mínima, una sola apuesta por carga, y
+ *      nunca durante el arranque.
+ *
+ * LO QUE ESTE MÓDULO NO HACE, Y ES LO QUE LO MANTIENE SEGURO
+ *
+ *   · No escribe NADA en el servidor. El registro de calentadores solo contiene lecturas.
+ *     Una precarga que crea, reserva o envía sería una acción que nadie pidió, disparada
+ *     por pasar el ratón por encima de un botón.
+ *   · No inventa formas de caché. Cada calentador escribe en la MISMA clave y con la
+ *     MISMA forma que la pantalla de destino ya lee. Es la regla más importante del
+ *     archivo y la más fácil de romper: `inicio.html` guarda el ARREGLO de cotizaciones
+ *     y `operacion.html` guarda la RESPUESTA ENTERA. Guardar la respuesta donde se
+ *     espera un arreglo no da error —`Array.isArray` dice que no y la pantalla lo
+ *     ignora—, así que la precarga parecería funcionar sin ahorrar un solo milisegundo.
+ *   · No precarga lo que no se puede abrir. Si la sesión no trae el bloque, la llamada
+ *     volvería rechazada por `secIdentidadConBloque_`: sería gastar cuota para nada.
+ *   · No compite con la pantalla en la que estás. La predicción espera a que la carga
+ *     inicial termine y a que el navegador esté ocioso. Adelantar la pantalla siguiente
+ *     a costa de retrasar la actual es exactamente el negocio contrario al que se busca.
+ *
+ * DEPENDE de app_core (AppCache, AppRun, AppSession, AppUrl) y se incluye DESPUÉS.
+ * Sin ellos no se cae: se queda inerte y la app funciona como siempre.
+ *
+ * USO en cada pantalla:  <?!= include('app_precarga'); ?>   (después de app_core)
+ * El shell declara solo dónde está: AppShell.mount() llama a AppPrecarga.aqui(active).
+ */
+(function () {
+  'use strict';
+
+  /* ── Parámetros ────────────────────────────────────────────────────────────
+     Los tres primeros son los diales de la apuesta. Subir la confianza o la
+     muestra hace el módulo más tacaño (menos aciertos, menos cuota gastada);
+     bajarlos, más generoso. */
+
+  /** Probabilidad mínima del destino para apostar por él. */
+  var MIN_CONFIANZA = 0.6;
+
+  /** Peso mínimo de trayectos desde este origen. Es peso YA DECAÍDO, no visitas
+   *  brutas: dos meses sin pasar por aquí valen menos que la semana pasada. */
+  var MIN_MUESTRA = 5;
+
+  /** Semivida de la costumbre. La misma que usa la memoria del buscador general
+   *  (app_comando), para que las dos partes de la app olviden al mismo ritmo. */
+  var MEDIA_VIDA = 14 * 24 * 3600e3;
+
+  /** Cuánto se espera tras la carga antes de pensar siquiera en precargar.
+   *  La pantalla actual tiene que haber pedido y pintado lo suyo primero. */
+  var ESPERA_ARRANQUE = 2500;
+
+  /** Techo de apuestas por carga de pantalla. */
+  var MAX_APUESTAS = 1;
+
+  /** Cuánto hay que quedarse sobre un enlace para que cuente como intención. */
+  var RETARDO_INTENCION = 70;
+
+  /** Techo de precargas por intención en una misma carga de pantalla.
+   *  Con el retardo de arriba esto casi nunca se toca; está por lo que pueda pasar
+   *  con un ratón nervioso, para que la cuota de Apps Script no dependa de eso. */
+  var MAX_INTENCIONES = 4;
+
+  /** Destinos recordados por origen. Más que esto es ruido: nadie sale de una
+   *  pantalla hacia ocho sitios distintos con regularidad. */
+  var MAX_DESTINOS = 8;
+
+  /** Orígenes guardados. Hay 19 pantallas; el tope solo acota un almacenamiento
+   *  que se comparte con las cachés de datos, y esto no puede ser lo que las eche. */
+  var MAX_ORIGENES = 24;
+
+  var K_TRAYECTOS = 'ventel-nav-trayectos';
+
+  /* ── Atajos tolerantes ─────────────────────────────────────────────────────
+     Todo se pregunta con typeof: este módulo se incluye en pantallas que cargan
+     conjuntos distintos de partials, y ninguna debe romperse por su ausencia. */
+
+  function hayNucleo() {
+    return !!(window.AppCache && window.AppRun && window.AppRun.call);
+  }
+
+  function correo() {
+    try { return (window.AppSession && AppSession.userEmail) || ''; } catch (e) { return ''; }
+  }
+
+  /** ¿La sesión trae este bloque? Sin AppSession se responde que sí, igual que
+   *  hace el shell: la puerta de verdad está en el servidor, no aquí. */
+  function puede(bloque) {
+    if (!bloque) return true;
+    try { return !window.AppSession || AppSession.can(bloque); } catch (e) { return true; }
+  }
+
+  /**
+   * ¿Es buen momento para gastar una llamada que nadie ha pedido?
+   *
+   * Con «ahorro de datos» puesto o en una red de 2G, adelantar trabajo es justo
+   * lo contrario de lo que la persona pidió al activar esa opción. Y con la
+   * pestaña en segundo plano no hay nadie mirando: el navegador además ralentiza
+   * los temporizadores, así que la precarga llegaría tarde y habría costado igual.
+   */
+  function momentoBueno() {
+    try {
+      if (document.visibilityState && document.visibilityState !== 'visible') return false;
+      var c = navigator.connection || navigator.mozConnection || navigator.webkitConnection;
+      if (c) {
+        if (c.saveData) return false;
+        if (/(^|-)2g$/.test(String(c.effectiveType || ''))) return false;
+      }
+    } catch (e) {}
+    return true;
+  }
+
+  /** requestIdleCallback donde exista; si no, un respiro y adelante. */
+  function cuandoOcioso(fn, msTope) {
+    try {
+      if (typeof requestIdleCallback === 'function') {
+        requestIdleCallback(fn, { timeout: msTope || 2000 });
+        return;
+      }
+    } catch (e) {}
+    setTimeout(fn, 200);
+  }
+
+  /* ═══════════════════════════════════════════════════════════════════════════
+     REGISTRO DE CALENTADORES
+     ═══════════════════════════════════════════════════════════════════════════
+     Un calentador dice cuatro cosas de una pantalla: qué permiso hace falta, en
+     qué clave guarda su copia local, a qué función del servidor llama, y —lo
+     importante— QUÉ TROZO de la respuesta se guarda.
+
+     `extrae(respuesta)` devuelve lo que hay que guardar, o null para no guardar
+     nada. Ese null es también el filtro de errores: nunca se cachea una respuesta
+     fallida, que es la misma regla que ya siguen `accept` en AppRun.swr y
+     `ancGuardarLista` en anuncios.
+
+     Vive aquí, centralizado, y no en cada pantalla, por una razón mecánica: para
+     precargar `cotizacion` desde `dashboard`, el código de `cotizacion.html` no
+     está cargado. El destino no puede describirse a sí mismo si todavía no existe.
+
+     Una pantalla puede traer VARIOS calentadores (el panel avanzado tiene dos
+     apartados con permisos distintos, y cada quien calienta el que puede abrir). */
+
+  var CALENTADORES = {
+
+    /* Inicio del asesor. Guarda el ARREGLO de cotizaciones, no la respuesta:
+       así lo escribe y así lo lee inicio.html (`Array.isArray(cached.data)`). */
+    dashboard: [{
+      bloque: '',
+      clave: function () { return 'quotes-' + correo(); },
+      fn: 'getQuotesForUser',
+      args: function () { return [correo(), null, false]; },
+      ttl: 0,
+      fresco: 3 * 60 * 1000,
+      extrae: function (r) { return (r && r.success) ? (r.quotes || []) : null; }
+    }],
+
+    /* Panel avanzado: dos apartados, dos permisos, dos copias locales.
+       El de supervisión trae la tabla entera del equipo; el de revisión, solo la
+       cola. Quien tenga los dos calienta los dos; quien tenga uno, uno. */
+    inicio_avanzado: [
+      {
+        bloque: 'revisar',
+        clave: function () { return 'pendientes-' + correo(); },
+        fn: 'revListaPendientes',
+        args: function () { return [correo()]; },
+        ttl: 5 * 60 * 1000,
+        fresco: 60 * 1000,
+        extrae: function (r) { return (r && r.success) ? (r.quotes || []) : null; }
+      },
+      {
+        bloque: 'supervision',
+        clave: function () { return 'sup-quotes-' + correo(); },
+        fn: 'getSupervisionQuotes',
+        args: function () { return [correo()]; },
+        ttl: 0,
+        fresco: 2 * 60 * 1000,
+        extrae: function (r) { return (r && r.success) ? (r.quotes || []) : null; }
+      }
+    ],
+
+    /* Nueva cotización. El catálogo de formatos cambia como mucho un par de veces
+       al año, así que es el candidato perfecto: se calienta una vez y sirve
+       durante días. La copia local la lee `loadQuoteFormats` en cotizacion.html. */
+    cotizacion: [{
+      bloque: 'cotizar',
+      clave: function () { return 'formatos-cotizacion'; },
+      fn: 'getEnabledQuoteFormats',
+      args: function () { return []; },
+      ttl: 12 * 60 * 60 * 1000,
+      fresco: 60 * 60 * 1000,
+      extrae: function (r) { return (r && r.success) ? r : null; }
+    }],
+
+    /* Las dos pantallas de correo comparten clave a propósito: es el mismo dato
+       del mismo remitente. Calentar una deja lista la otra. */
+    correoventel: [{
+      bloque: 'enviar_cotizacion',
+      clave: function () { return 'sender-info'; },
+      fn: 'getMailSenderInfo',
+      args: function () { return []; },
+      ttl: 30 * 60 * 1000,
+      fresco: 10 * 60 * 1000,
+      extrae: function (r) { return (r && r.success && r.aliasAvailable) ? r : null; }
+    }],
+
+    correo_cliente: [{
+      bloque: 'correos_cliente',
+      clave: function () { return 'sender-info'; },
+      fn: 'getMailSenderInfo',
+      args: function () { return []; },
+      ttl: 30 * 60 * 1000,
+      fresco: 10 * 60 * 1000,
+      extrae: function (r) { return (r && r.success && r.aliasAvailable) ? r : null; }
+    }],
+
+    /* Bandeja de supervisión de fallas. TTL corto —45 s, el mismo que usa la
+       pantalla— porque una bandeja de incidencias vieja es peor que una vacía. */
+    operacion: [{
+      bloque: 'operacion',
+      clave: function () { return 'operacion-panel'; },
+      fn: 'opPanel',
+      args: function () { return [correo()]; },
+      ttl: 45000,
+      fresco: 20000,
+      extrae: function (r) { return (r && r.success) ? r : null; }
+    }],
+
+    anuncios: [{
+      bloque: 'anuncios',
+      clave: function () { return 'anuncios-admin-' + correo(); },
+      fn: 'getAnunciosAdmin',
+      args: function () { return [correo()]; },
+      ttl: 10 * 60 * 1000,
+      fresco: 3 * 60 * 1000,
+      extrae: function (r) { return (r && r.status === 'ok') ? r : null; }
+    }],
+
+    /* Del contenido del Portal se calienta el CATÁLOGO de colecciones, que es lo
+       que la pantalla pide primero y lo que decide qué pestañas dibuja. Las filas
+       de cada colección dependen de cuál se abra y no se pueden adivinar. */
+    portal_contenido: [{
+      bloque: 'portal_contenido',
+      clave: function () { return 'pc-catalogo-' + correo(); },
+      fn: 'portalContenidoCatalogo',
+      args: function () { return [correo()]; },
+      ttl: 24 * 60 * 60 * 1000,
+      fresco: 6 * 60 * 60 * 1000,
+      extrae: function (r) {
+        return (r && r.status === 'ok' && (r.colecciones || []).length) ? r : null;
+      }
+    }],
+
+    /* Atenciones no lleva calentador propio: su módulo ya sabe hacerlo y además
+       vive cargado en casi todas las pantallas. Duplicar aquí su clave y su TTL
+       sería una segunda copia de la verdad que se separaría al primer cambio. */
+    atenciones: [{
+      bloque: 'atenciones',
+      propio: function () {
+        if (window.AppAtenciones && AppAtenciones.precargar) return AppAtenciones.precargar();
+        return null;
+      }
+    }]
+
+    /* NO están, y es una decisión, no un olvido:
+         · consola      · promociones      · estado      · consulta_cotizacion
+       De las dos primeras no se pudo verificar con qué clave y con qué forma
+       guardan su copia local, y un calentador que escribe en la clave equivocada
+       gasta una llamada y no ahorra ninguna. Las dos últimas dependen de un folio
+       o de un rango que solo se conoce al llegar. Añadirlas es copiar un bloque
+       de arriba en cuanto se compruebe el par (clave, forma) que ya usa la
+       pantalla; mientras tanto, el módulo simplemente no apuesta por ellas. */
+  };
+
+  /* ── Calentadores añadidos en caliente ─────────────────────────────────────
+     Para un módulo que sí vive en todas las pantallas y prefiere describirse a
+     sí mismo (como haría AppAtenciones si algún día quisiera). */
+  var EXTRA = {};
+
+  function calentadoresDe(page) {
+    var base = CALENTADORES[page] || [];
+    var extra = EXTRA[page] || [];
+    return base.concat(extra);
+  }
+
+  /* ═══════════════════════════════════════════════════════════════════════════
+     MEMORIA DE TRAYECTOS  ·  cadena de Markov de primer orden
+     ═══════════════════════════════════════════════════════════════════════════
+     Forma guardada:
+        { "cotizacion": { t: 1723545600000, d: { "cotizado_preview": 8.2, "dashboard": 1.1 } } }
+
+     Los conteos son DECIMALES porque decaen. Al anotar un trayecto nuevo se
+     apagan primero todos los del mismo origen según el tiempo transcurrido, y
+     después se suma 1 al destino. Así una costumbre abandonada se apaga sola sin
+     necesidad de ninguna limpieza periódica, que es el mismo criterio con el que
+     app_comando pondera lo que abres.
+
+     Por qué decae en la ESCRITURA y no en la lectura: leer ocurre en el arranque
+     de cada pantalla y tiene que ser barato; escribir ocurre una vez por
+     navegación. Además, decaer al leer sin guardar el resultado obligaría a
+     rehacer la cuenta cada vez.
+
+     Vive en localStorage y no en la cuenta, por la misma razón que la memoria del
+     buscador: es una costumbre de esta persona en este equipo, no un dato del
+     negocio, y subirla costaría una escritura por cada clic del menú.
+
+     La clave lleva el correo, así que en un equipo compartido —que en un centro de
+     atención es lo normal— nadie hereda las predicciones del turno anterior. */
+
+  var memoria = null;
+
+  function claveTrayectos() {
+    var c = correo();
+    return K_TRAYECTOS + (c ? '-' + c.toLowerCase() : '');
+  }
+
+  function leerTrayectos() {
+    if (memoria) return memoria;
+    try {
+      var raw = JSON.parse(localStorage.getItem(claveTrayectos()) || '{}');
+      memoria = (raw && typeof raw === 'object' && !Array.isArray(raw)) ? raw : {};
+    } catch (e) { memoria = {}; }
+    return memoria;
+  }
+
+  function guardarTrayectos(m) {
+    try { localStorage.setItem(claveTrayectos(), JSON.stringify(m)); } catch (e) {}
+  }
+
+  /** Apaga los conteos de un origen según lo que haya llovido desde la última vez. */
+  function decaer(entrada, ahora) {
+    var edad = Math.max(0, ahora - (entrada.t || ahora));
+    if (edad < 60000) return;                       // menos de un minuto: no cambia nada
+    var factor = Math.pow(0.5, edad / MEDIA_VIDA);
+    Object.keys(entrada.d).forEach(function (destino) {
+      var v = entrada.d[destino] * factor;
+      // Por debajo de esto ya no puede influir en ninguna decisión y solo ocupa sitio.
+      if (v < 0.05) delete entrada.d[destino];
+      else entrada.d[destino] = v;
+    });
+  }
+
+  /**
+   * Anota que se fue de `origen` a `destino`.
+   *
+   * Se ignoran los trayectos a uno mismo: recargar la pantalla en la que ya estás
+   * no dice nada sobre a dónde sueles ir después, y si se contara acabaría siendo
+   * el destino más probable de casi todas —con lo que la predicción se dedicaría a
+   * precargar la pantalla que ya está abierta.
+   */
+  function anotar(origen, destino) {
+    if (!origen || !destino || origen === destino) return;
+    var m = leerTrayectos();
+    var ahora = Date.now();
+    var e = m[origen] || { t: ahora, d: {} };
+    if (!e.d || typeof e.d !== 'object') e.d = {};
+
+    decaer(e, ahora);
+    e.d[destino] = (e.d[destino] || 0) + 1;
+    e.t = ahora;
+
+    // Poda de destinos: se conservan los más pesados de este origen.
+    var destinos = Object.keys(e.d);
+    if (destinos.length > MAX_DESTINOS) {
+      destinos.sort(function (a, b) { return e.d[b] - e.d[a]; })
+              .slice(MAX_DESTINOS)
+              .forEach(function (k) { delete e.d[k]; });
+    }
+    m[origen] = e;
+
+    // Poda de orígenes: se van los que hace más que no se pisan.
+    var origenes = Object.keys(m);
+    if (origenes.length > MAX_ORIGENES) {
+      origenes.sort(function (a, b) { return (m[b].t || 0) - (m[a].t || 0); })
+              .slice(MAX_ORIGENES)
+              .forEach(function (k) { delete m[k]; });
+    }
+
+    guardarTrayectos(m);
+  }
+
+  /**
+   * Destino más probable desde `origen`, o null si no hay apuesta que merezca la pena.
+   * Devuelve { page, p, peso } para que el diagnóstico pueda explicarse.
+   */
+  function prediccion(origen) {
+    if (!origen) return null;
+    var e = leerTrayectos()[origen];
+    if (!e || !e.d) return null;
+
+    // El peso se mira YA decaído: es lo que dice cuánta evidencia RECIENTE hay.
+    // Sin esto, seis meses de costumbre abandonada seguirían pareciendo muestra
+    // suficiente y la app precargaría durante semanas la pantalla equivocada.
+    var copia = { t: e.t, d: {} };
+    Object.keys(e.d).forEach(function (k) { copia.d[k] = e.d[k]; });
+    decaer(copia, Date.now());
+
+    var total = 0, mejor = null, mejorPeso = 0;
+    Object.keys(copia.d).forEach(function (destino) {
+      var v = copia.d[destino];
+      total += v;
+      if (v > mejorPeso) { mejorPeso = v; mejor = destino; }
+    });
+
+    if (!mejor || total < MIN_MUESTRA) return null;
+    var p = mejorPeso / total;
+    if (p < MIN_CONFIANZA) return null;
+    return { page: mejor, p: p, peso: total };
+  }
+
+  /* ═══════════════════════════════════════════════════════════════════════════
+     EJECUCIÓN
+     ═══════════════════════════════════════════════════════════════════════════ */
+
+  var pedidos = {};       // clave de caché → true, para no pedir dos veces por carga
+  var apuestas = 0;       // predicciones lanzadas en esta carga
+  var intenciones = 0;    // precargas por ratón/teclado en esta carga
+  var aquiEstoy = '';
+
+  /**
+   * Ejecuta un calentador. Devuelve una promesa que SIEMPRE resuelve: una precarga
+   * que falla no es un error de la aplicación, es una precarga que no ocurrió, y
+   * ni siquiera merece un aviso en pantalla.
+   */
+  function calentar(c) {
+    if (!puede(c.bloque)) return Promise.resolve(false);
+
+    // Calentador delegado (Atenciones): el módulo dueño sabe lo suyo.
+    if (typeof c.propio === 'function') {
+      try {
+        var r = c.propio();
+        return Promise.resolve(r).then(function () { return true; }, function () { return false; });
+      } catch (e) { return Promise.resolve(false); }
+    }
+
+    if (!hayNucleo()) return Promise.resolve(false);
+
+    var clave;
+    try { clave = c.clave(); } catch (e) { return Promise.resolve(false); }
+    if (!clave) return Promise.resolve(false);
+    if (pedidos[clave]) return Promise.resolve(false);
+
+    // Ya está fresca: la mejor precarga es la que no se hace. Sin esta comprobación
+    // pasar el ratón por la barra tres veces serían tres viajes al servidor para
+    // volver a traer exactamente lo que ya estaba guardado.
+    try {
+      if (c.fresco && AppCache.get(clave, c.fresco)) return Promise.resolve(false);
+    } catch (e) {}
+
+    pedidos[clave] = true;
+
+    var args;
+    try { args = c.args(); } catch (e) { return Promise.resolve(false); }
+
+    /* `busy: false` es la línea que hace que esto sea invisible.
+       El indicador de la esquina significa "estás esperando algo"; encenderlo por
+       una llamada que nadie pidió convertiría la precarga en ruido y haría creer
+       que la pantalla está ocupada cuando está lista.
+
+       La `key` lleva un prefijo propio para NO fusionarse con una llamada real que
+       la pantalla esté haciendo en paralelo: si se fusionaran, la llamada de verdad
+       heredaría el `busy: false` de esta y el indicador se quedaría apagado durante
+       una espera que sí hay que anunciar. */
+    return AppRun.call(c.fn, args, { key: 'precarga:' + c.fn + ':' + clave, busy: false })
+      .then(function (resp) {
+        var dato = null;
+        try { dato = c.extrae ? c.extrae(resp) : resp; } catch (e) { dato = null; }
+        if (dato === null || dato === undefined) return false;
+        try { AppCache.set(clave, dato, c.ttl ? { ttl: c.ttl } : undefined); } catch (e) {}
+        return true;
+      }, function () {
+        // Falló la red o el permiso. Se olvida el intento para que un segundo
+        // acercamiento del ratón —cuando la conexión vuelva— pueda reintentarlo.
+        delete pedidos[clave];
+        return false;
+      });
+  }
+
+  /** Calienta todo lo que corresponda a una pantalla. */
+  function calentarPagina(page, saltarGuardas) {
+    if (!page) return Promise.resolve(false);
+    if (!saltarGuardas && !momentoBueno()) return Promise.resolve(false);
+    var lista = calentadoresDe(page);
+    if (!lista.length) return Promise.resolve(false);
+    return Promise.all(lista.map(calentar)).then(function (res) {
+      return res.some(Boolean);
+    });
+  }
+
+  /* ═══════════════════════════════════════════════════════════════════════════
+     PRECARGA POR INTENCIÓN
+     ═══════════════════════════════════════════════════════════════════════════ */
+
+  /**
+   * Cablea un elemento para que apuntarlo caliente su destino.
+   *
+   * EL RATÓN QUE PASA NO ES EL RATÓN QUE VA. Bajar el puntero por la barra lateral
+   * hasta el último enlace cruza por encima de todos los de arriba, y disparar en
+   * cada cruce serían seis llamadas al servidor para acabar abriendo una sola. Por
+   * eso `mouseenter` no pide nada de inmediato: arranca un temporizador corto que
+   * `mouseleave` cancela. Quedarse quieto 70 ms sobre un botón es intención;
+   * atravesarlo, no. Del margen de ~300 ms que hay hasta el clic se gastan 70 y
+   * quedan de sobra los que hacen falta.
+   *
+   * El foco del teclado y el toque en táctil sí disparan al instante: los dos son
+   * deliberados —nadie tabula «de paso»— y en táctil `touchstart` llega unos 100 ms
+   * antes que el `click`, que es todo el margen que hay.
+   *
+   * Una vez pedido, se desconecta: el dato ya está en marcha o ya está en la caché.
+   */
+  function cablear(el, page) {
+    if (!el || !page || el.__precargaLista) return;
+    if (!calentadoresDe(page).length) return;     // sin calentador no hay nada que cablear
+    el.__precargaLista = true;
+
+    var reloj = null;
+    var pedir = function () {
+      if (reloj) { clearTimeout(reloj); reloj = null; }
+      el.removeEventListener('mouseenter', conRetardo);
+      el.removeEventListener('mouseleave', cancelar);
+      if (intenciones >= MAX_INTENCIONES) return;
+      intenciones++;
+      calentarPagina(page);
+    };
+    var conRetardo = function () {
+      if (reloj) clearTimeout(reloj);
+      reloj = setTimeout(pedir, RETARDO_INTENCION);
+    };
+    var cancelar = function () {
+      if (reloj) { clearTimeout(reloj); reloj = null; }
+    };
+
+    el.addEventListener('mouseenter', conRetardo);
+    el.addEventListener('mouseleave', cancelar);
+    el.addEventListener('focus', pedir, { once: true });
+    el.addEventListener('touchstart', pedir, { once: true, passive: true });
+  }
+
+  /** Cablea todo lo que declare `data-precarga="<pantalla>"` dentro de una raíz. */
+  function cablearContenedor(raiz) {
+    if (!raiz || !raiz.querySelectorAll) return 0;
+    var nodos = raiz.querySelectorAll('[data-precarga]');
+    var n = 0;
+    for (var i = 0; i < nodos.length; i++) {
+      var page = nodos[i].getAttribute('data-precarga');
+      if (page) { cablear(nodos[i], page); n++; }
+    }
+    return n;
+  }
+
+  /* ═══════════════════════════════════════════════════════════════════════════
+     PRECARGA POR PREDICCIÓN
+     ═══════════════════════════════════════════════════════════════════════════ */
+
+  function apostar() {
+    if (apuestas >= MAX_APUESTAS) return;
+    if (!aquiEstoy || !momentoBueno()) return;
+
+    var pred = prediccion(aquiEstoy);
+    if (!pred) return;
+    if (pred.page === aquiEstoy) return;
+    if (!calentadoresDe(pred.page).length) return;
+
+    apuestas++;
+    calentarPagina(pred.page);
+  }
+
+  /**
+   * El arranque de la predicción.
+   *
+   * Espera a `load` y aún así se toma dos segundos y medio más, y solo entonces
+   * pide hueco ocioso. Suena exagerado y no lo es: la pantalla recién abierta está
+   * pidiendo SUS datos en ese mismo momento, y en Apps Script las llamadas se hacen
+   * de una en una por iframe. Colar aquí una llamada especulativa retrasaría la que
+   * la persona está mirando —cambiar una espera real por una hipotética—, que es
+   * justo lo contrario de lo que este archivo viene a hacer.
+   */
+  function programarApuesta() {
+    var arrancar = function () {
+      setTimeout(function () { cuandoOcioso(apostar, 3000); }, ESPERA_ARRANQUE);
+    };
+    if (document.readyState === 'complete') arrancar();
+    else window.addEventListener('load', arrancar, { once: true });
+  }
+
+  /* ═══════════════════════════════════════════════════════════════════════════
+     ENGANCHE CON LA NAVEGACIÓN
+     ═══════════════════════════════════════════════════════════════════════════
+     AppUrl.go es el paso obligado de TODA navegación de la app —la barra lateral,
+     el conmutador de áreas, la paleta de comandos y los enlaces de cada pantalla
+     acaban ahí—, así que escuchar ese único punto basta para aprender el grafo
+     entero sin tocar ni un botón. */
+
+  function engancharNavegacion() {
+    if (!window.AppUrl || typeof AppUrl.alNavegar !== 'function') return;
+    AppUrl.alNavegar(function (destino) {
+      anotar(aquiEstoy, destino);
+    });
+  }
+
+  /* ═══════════════════════════════════════════════════════════════════════════
+     API
+     ═══════════════════════════════════════════════════════════════════════════ */
+
+  var AppPrecarga = {
+    /**
+     * Declara en qué pantalla estamos. Sin esto el módulo no aprende (no sabe de
+     * dónde sale el trayecto) ni predice (no sabe qué fila de la matriz mirar).
+     *
+     * Lo llama AppShell.mount() con la pantalla activa, así que las que montan el
+     * shell no tienen que hacer nada. Las que no lo montan —la vista previa, el
+     * tablero público, el Monitor— lo dicen ellas mismas en una línea.
+     */
+    aqui: function (page) {
+      if (!page || aquiEstoy === page) return;
+      aquiEstoy = String(page);
+      programarApuesta();
+    },
+
+    /** Pantalla declarada, para quien la necesite. */
+    donde: function () { return aquiEstoy; },
+
+    cablear: cablear,
+    cablearContenedor: cablearContenedor,
+
+    /** Calienta una pantalla a mano (un enlace suelto, un botón de otra pantalla). */
+    calentar: function (page) { return calentarPagina(page); },
+
+    /** ¿Esta pantalla se puede precargar? Útil para no cablear de más. */
+    sabeCalentar: function (page) { return calentadoresDe(page).length > 0; },
+
+    /**
+     * Qué destino se apostaría desde donde estamos, sin apostar nada.
+     * Devuelve { page, p, peso } o null si todavía no hay evidencia suficiente.
+     *
+     * Separado de `diagnostico()` a propósito: aquel devuelve texto para leer en la
+     * consola y este devuelve el dato, que es lo que necesita quien quiera decidir
+     * algo con él —o comprobar el módulo desde fuera del navegador—.
+     */
+    predice: function (desde) { return prediccion(desde || aquiEstoy); },
+
+    /**
+     * Registra un calentador desde fuera. Pensado para un módulo que vive en todas
+     * las pantallas y prefiere describir su propia caché en vez de duplicarla aquí.
+     */
+    registrar: function (page, calentador) {
+      if (!page || !calentador) return;
+      if (!EXTRA[page]) EXTRA[page] = [];
+      EXTRA[page].push(calentador);
+    },
+
+    /** Olvida los trayectos aprendidos de esta persona. */
+    olvidar: function () {
+      memoria = {};
+      try { localStorage.removeItem(claveTrayectos()); } catch (e) {}
+    },
+
+    /**
+     * Diagnóstico manual desde la consola del navegador:
+     *   AppPrecarga.diagnostico()
+     * Dice dónde cree que está, qué apostaría desde aquí y con qué evidencia.
+     */
+    diagnostico: function () {
+      var m = leerTrayectos();
+      var pred = prediccion(aquiEstoy);
+      var salida = {
+        aqui: aquiEstoy || '(sin declarar)',
+        momentoBueno: momentoBueno(),
+        apuestasHechas: apuestas + ' / ' + MAX_APUESTAS,
+        precargasPorIntencion: intenciones + ' / ' + MAX_INTENCIONES,
+        prediccion: pred
+          ? (pred.page + '  ·  ' + Math.round(pred.p * 100) + '% de confianza, peso ' + pred.peso.toFixed(1))
+          : '(todavía no hay suficiente para apostar)',
+        pantallasQueSabeCalentar: Object.keys(CALENTADORES).concat(Object.keys(EXTRA)),
+        trayectos: {}
+      };
+      Object.keys(m).forEach(function (o) {
+        var d = m[o].d || {};
+        salida.trayectos[o] = Object.keys(d)
+          .sort(function (a, b) { return d[b] - d[a]; })
+          .map(function (k) { return k + ' (' + d[k].toFixed(1) + ')'; })
+          .join(', ');
+      });
+      return salida;
+    }
+  };
+
+  window.AppPrecarga = AppPrecarga;
+
+  engancharNavegacion();
+})();
+</script>

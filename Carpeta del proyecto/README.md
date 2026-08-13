@@ -14,6 +14,10 @@ el servidor renderiza con `include()`, y la lógica de servidor vive en los `.gs
   el indicador delegado a la isla de estado de `app_operacion.html`.
 - **Animación:** GSAP 3.13 desde `app_motion.html`, con `MorphSVGPlugin`. Todas las
   pantallas respetan `prefers-reduced-motion`.
+- **Precarga:** `app_precarga.html` calienta la caché de la pantalla a la que se va a ir,
+  por intención (apuntar un enlace) y por predicción (cadena de Markov de los trayectos
+  de cada persona). El registro de calentadores es la única lista de qué llamada
+  corresponde a cada pantalla y tiene que decir lo mismo que la pantalla lee.
 
 ---
 
@@ -418,3 +422,71 @@ Eso destapó dos fallos en el enlace profundo del Portal, ya corregidos:
 - **No se propone «¿quisiste decir…?».** `AppBuscar` ya tolera erratas por distancia de
   edición dentro del propio filtro, así que la corrección ocurre sin decirlo. Un cartel de
   sugerencia encima de resultados que ya son los correctos sobra.
+
+### Precarga predictiva (`app_precarga.html`) — nuevo
+
+En Apps Script cambiar de vista es una carga completa de la aplicación, y de todo lo que
+tarda solo hay una parte que se puede adelantar: la primera llamada al servidor de la
+pantalla destino. Si al arrancar sus datos ya están en la copia local, `AppRun.swr` los
+pinta en el primer fotograma y la espera desaparece.
+
+Esto ya existía para **un** botón —Atenciones—, con el razonamiento correcto escrito en su
+comentario y sin aplicar a los otros veinte enlaces de la aplicación.
+
+**Piezas:** `app_precarga.html` (el módulo), `AppUrl.alNavegar` en `app_core.html` (el
+punto donde se aprende) y `cablearPrecarga` en `app_shell.html` (el que reparte). Se
+incluye en 16 pantallas.
+
+#### Cómo decide
+
+| Disparador | Cuándo | Condiciones |
+|---|---|---|
+| Intención | Apuntar un enlace 70 ms, recibir el foco, o tocar en táctil | Que exista calentador y la sesión tenga el bloque |
+| Predicción | Una vez por carga, tras `load` + 2.5 s y con el navegador ocioso | 60 % de confianza, peso ≥ 5 y un solo intento |
+
+El retardo de 70 ms en el ratón es la diferencia entre intención y roce: bajar el puntero
+hasta el último enlace de la barra cruza por encima de todos los de arriba, y sin el
+retardo eso serían seis llamadas para acabar abriendo una. `mouseleave` cancela. El foco
+del teclado y el toque no esperan: nadie tabula «de paso», y en táctil `touchstart` es
+todo el margen que hay antes del clic.
+
+La predicción es una **cadena de Markov de primer orden** sobre los trayectos de esa
+persona, guardada en `localStorage` con la clave del correo —en un equipo compartido nadie
+hereda las predicciones del turno anterior—. Los conteos **decaen** con semivida de dos
+semanas, la misma que usa la memoria del buscador general, así que una costumbre
+abandonada se apaga sola sin ninguna limpieza periódica. Los trayectos a la misma pantalla
+no cuentan: recargar donde ya estás no dice nada de a dónde sueles ir.
+
+#### La regla que hace que esto no mienta
+
+Cada calentador escribe en la **misma clave y con la misma forma** que la pantalla de
+destino ya lee. Es lo más fácil de romper del archivo: `inicio.html` guarda el ARREGLO de
+cotizaciones y `operacion.html` guarda la RESPUESTA ENTERA. Escribir la respuesta donde se
+espera un arreglo no da error —`Array.isArray` dice que no y la pantalla lo ignora—, así
+que la precarga parecería funcionar sin ahorrar un milisegundo. Por eso el registro está
+centralizado y no repartido: para poder verificarlo de una lectura.
+
+#### Lo que se corrigió por el camino
+
+1. **Los formatos de cotización no tenían copia local.** `getEnabledQuoteFormats` se pedía
+   en cada arranque de `cotizacion.html` y el catálogo cambia un par de veces al año.
+   Precargarlo no habría ahorrado nada porque no había dónde dejarlo. Ahora se guarda 12 h
+   y la pantalla pinta desde la copia mientras comprueba. Con un detalle que costaba un
+   fallo: `renderFormatOptions` reconstruye los radios y reinicia `selectedFormatId`, así
+   que repintar sobre el dato fresco le habría cambiado el formato elegido a quien ya lo
+   hubiera tocado. Si el catálogo no cambió, no se repinta.
+
+#### Decisiones que se dejan como están (precarga)
+
+- **Consola y Monitor de promociones no tienen calentador.** No se pudo verificar con qué
+  clave y con qué forma guardan su copia local, y un calentador que escribe en la clave
+  equivocada gasta una llamada sin ahorrar ninguna. Añadirlos es copiar un bloque del
+  registro en cuanto se compruebe ese par.
+- **La vista previa y la consulta de folio tampoco.** Dependen de un folio que solo se
+  conoce al llegar. Sí declaran su pantalla, que es lo que mantiene entera la cadena
+  «cotizar → vista previa → enviar».
+- **La memoria de trayectos vive en `localStorage`, no en la cuenta.** Por lo mismo que la
+  memoria del buscador: es una costumbre de esta persona en este equipo, no un dato del
+  negocio.
+- **Nada del registro escribe en el servidor.** Solo lecturas. Una precarga que crea o
+  reserva sería una acción que nadie pidió, disparada por pasar el ratón por encima.

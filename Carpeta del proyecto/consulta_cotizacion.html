@@ -461,6 +461,9 @@
     <?!= include('app_onboarding'); ?>
     <?!= include('LoaderPartial'); ?>
     <?!= include('app_comando'); ?>
+    <?!= include('app_precarga'); ?>
+    <!-- Sin shell: declara ella misma su pantalla (ver app_precarga.aqui). -->
+    <script>if (window.AppPrecarga) AppPrecarga.aqui('consulta_cotizacion');</script>
     <?!= include('app_operacion'); ?>
     <?!= include('app_atenciones'); ?>
     <script>
