@@ -9,7 +9,7 @@ se publica en `main` de forma automática al terminar cada tarea.
 | --- | --- |
 | `Carpeta del proyecto/` | El proyecto de Google Apps Script: el portal, las cotizaciones, la consola y todas las vistas. Tiene su propio [README](Carpeta%20del%20proyecto/README.md) con el detalle. |
 | `Extencion para chrome/` | La extensión de Chrome que extrae datos de artículos y compras en Liverpool. Incluye `Mi Bolsa_files/`, una captura de la página real que sirve para probar el extractor sin abrir el navegador. |
-| `Documentacion/` | Documentación funcional y técnica del sistema, numerada del `00` al `07`. |
+| `Documentacion/` | Manual técnico de soporte y mantenimiento, numerado del `00` al `09`. Empieza por [`00_README_Inicio.md`](Documentacion/00_README_Inicio.md). |
 
 ## Publicación automática
 

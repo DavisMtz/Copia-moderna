@@ -1,75 +1,331 @@
-# Frontend — Documentación Total y Exhaustiva de los 40 Archivos HTML
+# 03 · Frontend · las 40 pantallas y módulos `.html`
 
-> **DOCUMENTACIÓN TÉCNICA Y DIDÁCTICA DE ARQUITECTURA Y MANTENIMIENTO**
-> **Sistema Integral Portal Ventel & Extensión Chrome**
-> **Autor:** David Martínez (`dmartineza02@liverpool.com.mx`)
-
----
-
-## 🎨 Cobertura Total de la Capa de Presentación (40 Archivos HTML)
-
-Este documento detalla la responsabilidad técnica, estructura e integración de los **40 archivos HTML** (vistas principales, parciales, componentes e infraestructura) del proyecto.
+Cómo está construido el cliente, qué módulo hace qué y qué reglas hay que respetar para que
+una pantalla nueva se comporte como las demás.
 
 ---
 
-### 🧱 1. Archivos de Infraestructura y Componentes Reutilizables (`app_*.html`)
+## 1. Cómo funciona realmente un `include`
 
-| Archivo | Tipo | Descripción y Lógica Interna |
-| :--- | :--- | :--- |
-| `app_core.html` | Infraestructura | Núcleo JS. Define `AppSession` (sesión), `AppUrl` (enrutador con enlace de rescate `NavAviso`), `AppCache` (almacenamiento local), `AppBusy` (indicador de carga) y `AppRun.swr` (patrón Stale-While-Revalidate). |
-| `app_shell.html` | Layout Maestro | Contenedor de la aplicación (`AppShell.mount()`). Genera la barra superior, el menú lateral colapsable, el selector de áreas y el menú de preferencias visuales. |
-| `app_theme.html` | Sistema de Diseño | Define tokens CSS y 3 temas (`aurora`, `slate`, `carbon`), tipografías (`Inter`, `JetBrains Mono`) y clases base de UI (botones, badges, tarjetas, modales, tablas). |
-| `app_auth.html` | Componente Auth | Secuencias de animación GSAP para login/registro, trazo del logotipo de Liverpool (DrawSVG), medidor de fuerza de contraseña y widget OTP de 6 celdas (`AuthOtp`). |
-| `app_buscar.html` | Motor de Búsqueda | Normalización de cadenas, desensamblado de acentos NFD, tokenización y resaltado HTML con etiquetas `<mark>`. Incluye caché de memoización de 2 generaciones. |
-| `app_comando.html` | Paleta de Comandos | Modal accesible vía `Ctrl+K` o `/`. Transforma su geometría desde el botón detonador mediante técnica GSAP FLIP con contra-escala inversa. |
-| `app_operacion.html` | Isla Dinámica | Botón flotante inferior (`.op-pill`) con morfeo SVG (GSAP MorphSVGPlugin), panel lateral de incidentes y prompt de rescate para `AppAtenciones`. |
-| `app_icons.html` | Repositorio SVG | Catálogo centralizado de iconos vectoriales SVG para todos los botones y estados del sistema. |
-| `app_motion.html` | Animaciones | Funciones de animación e interacción visual (efectos de sacudida `shake`, resplandor `glow` y transiciones de pantalla). |
-| `app_onboarding.html` | Tour Guiado | Overlay interactivo para recorridos guiados paso a paso (`AppOnboarding`) sincronizado con la hoja `Onboarding`. |
-| `app_guardado.html` | Autoguardado | Gestor de persistencia en segundo plano para borradores de cotizaciones en `localStorage`. |
-| `app_atenciones.html` | Componente | Panel lateral superpuesto para gestión rápida de atenciones pospuestas sin salir de la vista actual. |
-| `app_prefs.html` | Preferencias | Lógica de conmutación de temas, densidad compacta, escala de texto y alto contraste. |
-| `app_tailwind.html` | Estilos Tailwind | Capa de utilidades CSS de Tailwind con shims de compatibilidad para el tema oscuro `carbon`. |
-| `app_estado_historial.html` | Componente | Vista gráfica del historial por horas y días del estado operativo de los sistemas. |
-| `app_estatus.html` | Componente | Formateadores y badges de estado para las cotizaciones (`En Revisión`, `Aprobada`, `Rechazada`). |
-| `app_extension_guia.html` | Modal Guía | Modal instructivo con pasos para instalar y utilizar la Extensión de Chrome. |
-| `app_ccl.html` | Modal CCL | Modal de vista previa e inyección del formato de impresión CCL Liverpool. |
-| `app_support.html` | Modal Soporte | Ventana emergente con información de contacto y soporte técnico del equipo Ventel. |
+`<?!= include('app_core'); ?>` **no** es un import. `include()` (`Code.gs:190`) devuelve el
+**contenido de texto** de otro archivo y lo pega ahí mismo durante el render del servidor.
+
+Consecuencias que hay que tener presentes siempre:
+
+- **Todo el JavaScript comparte un único ámbito global.** Por eso cada módulo se envuelve en
+  una IIFE y publica una sola variable (`window.AppCache`, `window.AppShell`…).
+- **El orden importa y no es negociable.** Un módulo que use `AppRun` tiene que ir después
+  de `app_core`. Un módulo que use `AppMotion.toast` tiene que ir después de `app_motion`, o
+  comprobar su existencia.
+- **Una plantilla revienta si usa una variable que no se le pasó.** De ahí que `PARAMS_VISTA`
+  se inyecte entero en todas las pantallas.
+- **Si una pantalla no incluye un módulo, sus funciones no existen ahí.** Ya provocó un fallo
+  real: el reporte de falla funcionaba en dieciocho pantallas y habría fallado en la
+  decimonovena, porque el Monitor de promociones carga `app_operacion` pero no
+  `app_guardado`. Se resolvió con una envoltura que usa la cola cuando está y llama directo
+  cuando no. **Una acción no puede funcionar o no según qué includes tenga cada pantalla.**
 
 ---
 
-### 🖼️ 2. Vistas Principales de la Aplicación
+## 2. El orden canónico de includes
 
-| Archivo | Ruta (`?page=`) | Descripción y Lógica |
-| :--- | :--- | :--- |
-| `Index.html` | `portal` | Landing page principal. Muestra las herramientas, paqueterías, plantillas, anuncios y puente de búsqueda hacia cotizaciones. |
-| `Promociones.html` | `promociones` | Monitor de promociones comerciales, ofertas Marketplace y eventos de Google Calendar a 90 días. |
-| `estado.html` | `estado` | Tablero público de estado de los sistemas (Connect, Página/App, Salesforce, CCAIP) accesible sin sesión. |
-| `inicio.html` | `dashboard` | Dashboard del asesor. Muestra resumen de cotizaciones propias, accesos rápidos y atenciones pendientes. |
-| `inicio_avanzado.html` | `inicio_avanzado` | Dashboard de supervisión. Muestra gráficas de rendimiento, métricas mensuales y ranking de asesores. |
-| `cotizacion.html` | `cotizacion` | Pantalla principal de creación y edición de cotizaciones. Integrada con la Extensión de Chrome. |
-| `cotizado_preview.html` | `cotizado_preview` | Vista previa del documento generado antes de su aprobación o envío. |
-| `consulta_cotizacion.html` | `consulta_cotizacion` | Buscador y vista detallada de cotizaciones registradas. |
-| `revision_cotizacion.html` | `revision_cotizacion` | Pantalla de auditoría para supervisores. Muestra la ficha raspada en vivo en un iframe purgado `srcdoc` y los 8 puntos de auditoría. |
-| `consola.html` | `consola` | Consola Maestra de Administración. Pestañas de Miembros, Módulos, Ajustes, Formatos, Salud y Bitácora. |
-| `operacion.html` | `operacion` | Panel de supervisión de incidentes operativos. Permite confirmar, descartar o actualizar fallas. |
-| `atenciones.html` | `atenciones` | Tablero de gestión de clientes en atención pospuesta con reserva de 15 minutos y pool público. |
-| `portal_contenido.html` | `portal_contenido` | Editor de contenido del portal. Gestión celda por celda e importación masiva para 9 colecciones. |
-| `anuncios.html` | `anuncios` | Constructor y administrador de anuncios, banners y modales promocionales. |
-| `correo_cliente.html` | `correo_cliente` | Editor de correos a clientes con plantillas HTML responsivas y carga de adjuntos. |
-| `correoventel.html` | `correoventel` | Pantalla de envío de cotizaciones por correo al cliente final. |
-| `inicioDeSesion.html` | `login` | Pantalla de inicio de sesión. |
-| `registro.html` | `registro` | Pantalla de registro de nuevos usuarios con verificación por código OTP. |
-| `recuperar.html` | `recuperar` | Pantalla de recuperación de contraseña en 3 pasos (solicitud, OTP, clave nueva). |
-| `LoaderPartial.html` | Parcial | Pantalla de carga inicial con spinner corporativo. |
-| `ViewPrefsPartial.html` | Parcial | Fragmento de interfaz para el panel de ajustes visuales. |
+Este es el patrón de una pantalla de app completa. Cópialo tal cual al crear una nueva:
+
+```html
+<head>
+  <?!= include('ViewPrefsPartial'); ?>   <!-- 1. tema ANTES del primer fotograma -->
+  <?!= include('app_theme'); ?>          <!-- 2. tokens de diseño + tipografía -->
+  <?!= include('app_tailwind'); ?>       <!-- 3. preflight + utilidades -->
+  <script>
+    window.__APP__ = { baseUrl: '<?= baseUrl ?>', folio: '<?= folio ?>' /* … */ };
+  </script>
+  <?!= include('app_core'); ?>           <!-- 4. AppUrl · AppSession · AppCache · AppRun -->
+  <?!= include('app_prefs'); ?>          <!-- 5. preferencias local + nube -->
+  <?!= include('app_guardado'); ?>       <!-- 6. cola de escritura -->
+  <?!= include('app_buscar'); ?>         <!-- 7. motor de coincidencia -->
+  <?!= include('app_icons'); ?>
+  <?!= include('app_estatus'); ?>
+  <?!= include('app_motion'); ?>         <!-- 8. GSAP y helpers -->
+  <?!= include('app_support'); ?>
+  <?!= include('app_shell'); ?>          <!-- 9. marco: barra lateral + topbar -->
+  <?!= include('app_comando'); ?>        <!-- 10. buscador general Ctrl+K -->
+  <?!= include('LoaderPartial'); ?>
+  <?!= include('app_operacion'); ?>      <!-- 11. pastilla de estado (TODAS las pantallas) -->
+  <?!= include('app_atenciones'); ?>
+</head>
+```
+
+> **`window.__APP__` va ANTES de `app_core`.** Si falta, `AppUrl` arranca con la URL base
+> vacía, `build()` devuelve `null` y **cada clic del menú acaba en «no pudimos abrir la
+> pantalla»**. Es el fallo más caro y menos evidente del frontend. Ya ocurrió con
+> `atenciones.html`.
+
+Las páginas **públicas** (`Index`, `Promociones`, `estado`) reciben `APP_URL` en vez de
+`baseUrl`, y cargan un subconjunto: no usan `app_shell` ni `app_tailwind`.
 
 ---
 
-## ✍️ Firma de Responsabilidad Técnica
+## 3. Las 19 pantallas (16 con sesión + 3 públicas)
 
-**David Martínez**  
-*Escritor y Arquitecto Principal del Sistema*  
-Correo Institucional: `dmartineza02@liverpool.com.mx`  
-El Puerto de Liverpool · Equipo Ventel  
-*Agosto de 2026*
+### Con sesión (`PAGES` en `Code.gs`)
+
+| Clave de URL | Archivo | Qué es | Bloque |
+| --- | --- | --- | --- |
+| `login` | `inicioDeSesion.html` | Acceso | — |
+| `registro` | `registro.html` | Alta con código por correo | — |
+| `recuperar` | `recuperar.html` | Recuperación de contraseña | — |
+| `dashboard` | `inicio.html` | Inicio del asesor | *(sesión)* |
+| `inicio_avanzado` | `inicio_avanzado.html` | Panel de supervisión | `supervision` |
+| `cotizacion` | `cotizacion.html` | Captura de cotización | `cotizar` |
+| `cotizado_preview` | `cotizado_preview.html` | Vista previa del documento | `cotizar` |
+| `consulta_cotizacion` | `consulta_cotizacion.html` | Consulta de folios | `consultar` |
+| `revision_cotizacion` | `revision_cotizacion.html` | Revisión y aprobación | `revisar` |
+| `correoventel` | `correoventel.html` | Envío de la cotización | `enviar_cotizacion` |
+| `correo_cliente` | `correo_cliente.html` | Plantillas a clientes | `correos_cliente` |
+| `anuncios` | `anuncios.html` | Constructor de anuncios | `anuncios` |
+| `portal_contenido` | `portal_contenido.html` | Gestión del contenido del Portal | `portal_contenido` |
+| `operacion` | `operacion.html` | Bandeja de supervisión de fallas | `operacion` |
+| `consola` | `consola.html` | Consola de administración | `adm_*` / `sup_equipo` |
+| `atenciones` | `atenciones.html` | Atenciones pendientes | `atenciones` |
+
+> El cascarón de `consola`, `portal_contenido` y `atenciones` **se sirve a cualquiera que lo
+> pida**, igual que las demás. No enseña nada hasta que el servidor confirma el bloque en
+> cada llamada. Servir el cascarón no filtra nada y evita tener dos formas de rutear.
+
+### Públicas (`PORTAL_PAGES`)
+
+| Clave | Archivo | Qué es |
+| --- | --- | --- |
+| `portal` | `Index.html` (7 242 líneas) | **Landing del equipo.** Es la página por defecto y a la que cae cualquier ruta desconocida |
+| `promociones` | `Promociones.html` | Monitor de promociones y calendario comercial |
+| `estado` | `estado.html` | **Tablero de estado, público a propósito** |
+
+> `estado` es público porque «¿está caído o soy yo?» hay que poder contestarla justo cuando
+> no puedes entrar. Está verificado que por ahí no viaja ni un correo ni una nota interna:
+> solo cuántos reportes hubo y qué se confirmó.
+
+---
+
+## 4. Los módulos `app_*` y los parciales
+
+| Módulo | Líneas | Qué provee |
+| --- | --- | --- |
+| **`app_core`** | 1 996 | `AppUrl`, `AppSession`, `AppCache`, `AppRun`, `requireSession()`, `requireBlock()` |
+| **`app_shell`** | 574 | Marco común: barra lateral rosa + topbar. Se monta con `AppShell.mount({active, title})` |
+| **`app_comando`** | 2 098 | Buscador general (Ctrl+K o `/`) en todas las pantallas |
+| **`app_buscar`** | 599 | Motor de coincidencia compartido: un solo criterio de «esto coincide» para toda la app |
+| **`app_guardado`** | 685 | Guardado optimista: colas, reintentos y deshacer |
+| **`app_operacion`** | 1 932 | Pastilla de estado, panel y formulario de reporte. **En todas las pantallas** |
+| **`app_atenciones`** | 2 240 | Panel de atenciones, superponible sobre cualquier pantalla |
+| **`app_motion`** | 159 | GSAP 3.13 + MorphSVG. Todos los helpers de animación |
+| **`app_theme`** | 488 | Tokens de diseño y tipografía (Inter + JetBrains Mono) |
+| **`app_tailwind`** | 472 | Tailwind **compilado**: preflight + solo las utilidades que se usan |
+| **`app_icons`** | 118 | SVG unificados: lienzo 24×24, trazo 1.6, `currentColor` |
+| **`app_estatus`** | 225 | Fuente única del color de cada estatus de folio |
+| **`app_prefs`** | 473 | Mitad cliente de `Preferencias.gs` |
+| **`app_onboarding`** | 586 | Recorrido guiado sobre elementos reales |
+| **`app_support`** | 110 | Modal de soporte (sustituye los `mailto`) |
+| **`app_auth`** | 1 034 | Escenario visual de login/registro/recuperar |
+| **`app_ccl`** | 305 | Réplica en pantalla del formato CCL |
+| **`app_estado_historial`** | 607 | Gráfico de barras del historial de estado |
+| **`app_extension_guia`** | 722 | Guía paso a paso para instalar la extensión |
+| **`LoaderPartial`** | 275 | Loader de marca (isotipo Liverpool, `window.VentelLoader`) |
+| **`ViewPrefsPartial`** | 61 | Tema/densidad/texto/contraste **antes del primer fotograma** |
+
+---
+
+## 5. `app_core` — el contrato del cliente
+
+### `AppUrl`
+
+Modelo único de construcción de URLs. **Es el espejo de `PAGES` y `PARAMS_VISTA` del
+servidor.** Si añades una página o un parámetro en el servidor y no aquí, la navegación cae
+al Portal en silencio.
+
+| Método | Qué hace |
+| --- | --- |
+| `AppUrl.build(pagina, params)` | Arma la URL. Devuelve `null` si no hay `baseUrl` |
+| `AppUrl.go(pagina, params)` | Navega |
+| `AppUrl.param(nombre)` | Lee un parámetro de vista |
+| `AppUrl.params()` | Todos los parámetros |
+| `AppUrl.PAGINAS_TRAS_LOGIN` | **Lista blanca** de destinos válidos para `next` |
+
+### `AppSession`
+
+Lee la sesión de `localStorage`. Todas las claves llevan el prefijo `ventel-`, porque las
+webapps de Apps Script se sirven desde un origen compartido (`*.googleusercontent.com`) y
+una clave genérica como `userEmail` chocaría con la de otro script. Las claves viejas se
+migran una sola vez al cargar cualquier pantalla.
+
+| Propiedad | Qué es |
+| --- | --- |
+| `userName`, `userEmail`, `firstName` | Identidad |
+| `isAdvanced` | Interruptor heredado |
+| `rol` | `normal` / `avanzado` / `maestro`. Si falta, se deduce de `isAdvanced` |
+| `isMaster` | Atajo |
+| `bloques` | Bloques concedidos |
+
+> **`bloques` no es una credencial.** Cualquiera puede editarlo desde la consola del
+> navegador. Solo decide **qué botones se pintan**; el servidor vuelve a resolverlo en cada
+> llamada.
+
+> El módulo distingue «no tiene ningún bloque» de «todavía no se lo hemos preguntado al
+> servidor». Antes se confundían, y de esa diferencia depende si una función apagada por
+> mantenimiento se esconde o se sigue enseñando.
+
+### `AppCache`
+
+Almacén local con **namespace, versión, TTL y respaldo en memoria**. Regla del proyecto:
+toda entrada lleva versión y caducidad. Hubo un fallo real por saltarse esto — la copia
+local del Portal no las tenía, y una copia de hace meses se pintaba igual, de modo que el
+día que cambiara la forma del dato se habría roto solo para quien ya había entrado antes.
+
+> **Trampa documentada:** `AppCache` **borra la entrada al leerla caducada**. Un TTL
+> demasiado corto no significa «se revalida antes»: significa que el panel vuelve a arrancar
+> vacío. Le pasó al panel de atenciones con un TTL de un minuto; se subió a diez, que es lo
+> que usa el resto de módulos. `swr` revalida igual en cada apertura.
+
+### `AppRun`
+
+`google.script.run` como promesa, con **deduplicación** de llamadas idénticas en vuelo.
+
+```js
+AppRun.call('nombreFuncion', arg1, arg2)   // promesa simple
+AppRun.swr('nombreFuncion', args, opts)    // pinta lo cacheado y revalida por detrás
+```
+
+**`AppRun.swr` es el patrón por defecto.** Úsalo salvo que tengas un motivo escrito para no
+hacerlo.
+
+### Guardias
+
+- `requireSession()` — sin sesión, redirige a login.
+- `requireBlock(id)` — sin el bloque, esconde. **Cortesía, no seguridad.**
+
+---
+
+## 6. `app_guardado` — escritura optimista
+
+En Apps Script cada escritura es un viaje de medio segundo a un segundo. La cola resuelve
+tres cosas: la pantalla no se congela, cerrar la pestaña a medio envío no pierde el cambio
+en silencio (hay guardia de salida) y **la política de reintentos queda escrita**.
+
+El indicador se delega a la isla de estado de `app_operacion` — un solo sitio en pantalla
+donde mirar.
+
+**Cómo declarar reintentos, con el criterio del proyecto:**
+
+| Tipo de operación | Reintentos | Por qué |
+| --- | --- | --- |
+| Crea algo (registrar una atención) | **0** | Repetir daría de alta al mismo cliente dos veces |
+| Toma o reserva algo | **0** | Repetir pisaría una reserva ajena |
+| Avisa a terceros (reportar una falla) | **0** | Reportar avisa por Chat; repetirlo mandaría un segundo aviso por la misma caída |
+| Idempotente (fijar unas anotaciones) | **sí** | Repetir deja el mismo resultado |
+
+**Excepciones correctas al guardado en segundo plano**, y las dos están razonadas:
+
+- El **acuse del reporte de falla** espera al servidor: lo que devuelve es información real
+  (si el reporte disparó una incidencia, cuánta gente lleva reportando lo mismo) y eso no se
+  puede pintar antes de preguntarlo. Lo que se adelanta es el aviso en la pastilla, no el
+  resultado.
+- **Crear un estado nuevo del catálogo** bloquea el diálogo: el chip recién creado tiene que
+  quedar seleccionado, y eso no se puede adelantar sin saber la clave que asigna el servidor.
+
+---
+
+## 7. `app_comando` — el buscador general
+
+Se abre con **Ctrl+K** o **`/`** desde cualquier pantalla. Encuentra funciones de la app,
+cotizaciones, contenido del Portal, procesos de trazabilidad, personas, fallas abiertas y
+clientes esperando llamada.
+
+**Aprende de lo que abres.** Guarda las **veces** y la **última vez**, y ambas empujan el
+puntaje. Las cuatro decisiones del algoritmo, que conviene no deshacer sin leerlas:
+
+1. **Frecuencia con logaritmo.** La diferencia entre abrir algo una vez y diez es enorme;
+   entre cien y ciento diez, ninguna. Sin el logaritmo, lo de uso diario aplastaría a lo
+   demás para siempre.
+2. **Recencia que multiplica, con suelo.** Sumando, una costumbre abandonada seguiría
+   mandando en marzo porque las veces acumuladas no bajan nunca. Multiplicando, lo viejo se
+   apaga solo; el suelo evita que dos semanas de vacaciones borren seis meses de costumbre.
+3. **El empuje tiene tope (55 %).** Sin tope, lo aprendido acabaría ganándole a lo escrito:
+   teclearías «bitácora» y saldría «Nueva cotización». **El texto manda; la costumbre
+   desempata.**
+4. **Reordena, nunca inventa.** Se aplica después de filtrar: jamás hace aparecer algo que no
+   coincidía.
+
+Además: la pantalla en la que ya estás baja al final (gastar el primer resultado en «ir a
+donde ya estoy» es gastarlo en no hacer nada), y hay **ámbitos** — `portal:`, `cot:`,
+`procesos:`, `gente:`, `fallas:` — que se anuncian en el panel vacío, porque un prefijo que
+no se enseña existe para quien lea el código y para nadie más.
+
+> **Hay dos motores de búsqueda en el sistema.** El general usa `app_buscar`; el Portal
+> conserva el suyo. Está anotado como deuda consciente en `Carpeta del proyecto/README.md`:
+> migrarlo es una tarea propia, con sus quince índices y su resaltado.
+
+---
+
+## 8. Animación
+
+- **GSAP 3.13** con `MorphSVGPlugin`, cargado desde CDN en `app_motion.html`.
+- **Todo pasa por `GS()`**, que respeta `prefers-reduced-motion`. Si GSAP no carga (sin red
+  al CDN) o el usuario prefiere menos movimiento, **la interfaz sigue funcionando**: el
+  loader degrada a un giro estático y las animaciones no ocurren.
+- **Solo se anima `transform` y `opacity`.** Las barras del historial usan `scaleY`, nunca
+  `height`. La única excepción es la altura de un detalle desplegable, que es intrínsecamente
+  de layout, y ahí se acota con `contain` para que el recálculo no salga de la tarjeta.
+
+---
+
+## 9. Diseño visual
+
+- **Tokens en `app_theme`**: `--brand`, `--surface`, `--ink`, `--line`, `--ok`, `--warn`,
+  `--alert`, `--side-*`. **Nunca escribas un color a mano**; si te falta uno, añádelo como
+  token.
+- **Tres temas + alto contraste**, y todo módulo que use los tokens los hereda sin una línea
+  extra.
+- **El rosa es acento, no superficie** (regla 60/30/10). Fue un cambio de dirección
+  deliberado respecto al diseño anterior.
+- **Tipografía: Inter + JetBrains Mono.** Antes eran tres familias. Inter está dibujada para
+  pantalla y distingue `1/l/I` y `0/O`, que es justo lo que se lee todo el día aquí (folios
+  `LVP-260726-0001` y SKUs). El eje óptico (14..32) ajusta el dibujo al tamaño real: de ahí
+  viene el aire «premium», no de una segunda fuente decorativa.
+- **Iconos**: 24×24, sin relleno, trazo 1.6, `currentColor`. Heredan color y tamaño del
+  contenedor.
+- **Tailwind está compilado**, no es el CDN. El CDN descargaba ~100 KB de compilador y
+  generaba el CSS en el navegador en cada carga. **Si usas una clase de Tailwind que no esté
+  compilada, no existirá**: hay que añadirla a `app_tailwind.html`.
+
+---
+
+## 10. Dependencias externas del cliente
+
+| Recurso | De dónde | Si falla |
+| --- | --- | --- |
+| GSAP 3.13 + MorphSVG | `cdn.jsdelivr.net` | La interfaz funciona sin animación |
+| Inter + JetBrains Mono | `fonts.googleapis.com` | Cae a la tipografía del sistema |
+
+Son las **dos únicas** dependencias de red del frontend. Tailwind ya está compilado dentro
+del proyecto precisamente para no ser la tercera.
+
+---
+
+## 11. Reglas para una pantalla nueva
+
+1. Define `window.__APP__` **antes** de `app_core`.
+2. Registra la página en `PAGES` (servidor) **y** en `AppUrl` (cliente). Son espejo.
+3. Monta el shell: `AppShell.mount({ active: 'clave', title: 'Título' })`.
+4. Pide datos con `AppRun.swr`, no con `AppRun.call`, salvo motivo escrito.
+5. Incluye `app_operacion`: la pastilla de estado va en **todas** las pantallas.
+6. Si la pantalla escribe, pasa por `AppGuardado` y **declara los reintentos con su motivo**.
+7. Da entrada por URL a su estado (`?sec=`, `?q=`) y **escríbelo de vuelta** en la barra de
+   direcciones: la pestaña apila historial, la búsqueda lo reemplaza (una entrada por tecla
+   dejaría el botón atrás inservible).
+8. Añade la pantalla al catálogo del buscador general con sus bloques declarados.
+9. Usa tokens del tema y `icon()` de `app_icons`. Si pides un icono que no existe, `icon()`
+   cae a la llave inglesa: **parece una decisión y manda a buscar al sitio equivocado.**
+10. Comprueba `prefers-reduced-motion` usando `GS()` en lugar de llamar a GSAP directamente.
+
+---
+
+> **Creador del proyecto: David Martínez** | Asesor Ventel | Escritor

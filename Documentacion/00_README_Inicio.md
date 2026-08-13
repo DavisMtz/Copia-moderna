@@ -1,132 +1,187 @@
-# Portal Ventel — Manual Técnico y Guía de Mantenimiento
+# Portal Ventel · Manual técnico de soporte y mantenimiento
 
-> [!NOTE]
-> **DOCUMENTACIÓN TÉCNICA OFICIAL DE ARQUITECTURA Y MANTENIMIENTO**  
-> Ecosistema Integral de Cotizaciones, Operación y Extensión de Comercio · El Puerto de Liverpool
+Documentación para la persona que tenga que **dar soporte, actualizar o mantener** este
+sistema. No asume que conozcas el proyecto: asume que sabes leer código y que alguien te
+acaba de entregar las llaves.
 
----
-
-## 📋 Cuadro de Control y Metadatos (Estándar IEEE 1063 / ISO 26514)
-
-| Atributo | Especificación Técnica |
-| :--- | :--- |
-| **Nombre del Sistema** | Ecosistema Integral Portal Ventel & Extensión Chrome |
-| **Ubicación Proyecto Web** | `C:\Users\seguimientos\Desktop\Portal Ventel\Carpeta del proyecto` |
-| **Ubicación Extensión** | `C:\Users\seguimientos\Desktop\Portal Ventel\Extencion para chrome` |
-| **Versión del Documento** | v1.0 (Auditoría Estándar Empresarial) |
-| **Estado del Software** | v0.9 (Pruebas de Control / Producción Inicial) |
-| **Stack Principal** | Google Apps Script (V8) + Google Sheets + Chrome Extension (Manifest V3) |
-| **Público Objetivo** | Desarrolladores Senior, Arquitectos de Software, Equipo de Mantenimiento y TI Liverpool |
-| **Autor y Desarrollador** | **David Martínez** |
-| **Correo Institucional** | `dmartineza02@liverpool.com.mx` |
+| | |
+| --- | --- |
+| **Sistema** | Portal Ventel — cotizaciones, portal de información, operación y extensión de Chrome |
 | **Organización** | El Puerto de Liverpool · Equipo Ventel |
-| **Fecha de Publicación** | Agosto 2026 |
+| **Plataforma** | Google Apps Script (runtime V8) + Google Sheets + Chrome Extension (Manifest V3) |
+| **Zona horaria del proyecto** | `America/Mexico_City` |
+| **Carpeta raíz** | `C:\Users\seguimientos\Desktop\Portal Ventel` |
+| **Estado** | v0.9 — pruebas de control / producción inicial |
+| **En desarrollo desde** | Mayo 2025 |
+| **Documentación revisada** | Agosto 2026 |
 
 ---
 
-## 🎯 Propósito del Ecosistema
+## 1. Qué es esto, en una página
 
-> [!IMPORTANT]
-> El Portal Ventel es un software de grado empresarial diseñado para eliminar el error humano en el proceso de ventas y soporte posventa de El Puerto de Liverpool. Permite automatizar la creación de cotizaciones oficiales, auditar precios en tiempo real contra `liverpool.com.mx`, monitorear el estado operativo de los sistemas corporativos (Connect, Página/App, Salesforce, CCAIP) y gestionar atenciones a clientes pospuestas durante caídas operativas.
+Portal Ventel son **tres piezas que se usan juntas** y se despliegan por separado:
 
----
+1. **La webapp de Apps Script** (`Carpeta del proyecto/`). Es el 90 % del sistema. Sirve
+   todas las pantallas, guarda las cotizaciones, manda los correos, controla los permisos
+   y publica el tablero de estado.
+2. **La extensión de Chrome** (`Extencion para chrome/`). Se instala en el navegador del
+   asesor. Lee la bolsa de compras de `liverpool.com.mx` y la deja caer dentro de una
+   cotización nueva sin teclear nada.
+3. **Las hojas de cálculo**. Son la base de datos. No hay servidor SQL, no hay Firestore:
+   son pestañas de Google Sheets y por eso mucha gente ajena al código puede romperlas
+   (ver [`04_BaseDeDatos_y_Hojas.md`](04_BaseDeDatos_y_Hojas.md)).
 
-## 📚 Estructura Documental Estandarizada (IEEE 1063)
+El flujo que justifica todo lo demás:
 
-La documentación técnica del ecosistema está dividida en 8 manuales especializados:
-
-1. 📄 [**`00_README_Inicio.md`**](file:///C:/Users/seguimientos/Desktop/Portal%20Ventel/Documentacion/00_README_Inicio.md): Metadatos, resumen ejecutivo e inventario total verificable (82 archivos).
-2. 📄 [**`01_Arquitectura_General.md`**](file:///C:/Users/seguimientos/Desktop/Portal%20Ventel/Documentacion/01_Arquitectura_General.md): Patrones de arquitectura Serverless Monolítica, diagramas C4/Mermaid, análisis de concurrencia y límites de cuota de Google.
-3. 📄 [**`02_Backend_GoogleAppsScript.md`**](file:///C:/Users/seguimientos/Desktop/Portal%20Ventel/Documentacion/02_Backend_GoogleAppsScript.md): Referencia técnica exhaustiva de los 24 archivos `.gs` y `appsscript.json` (500+ funciones catalogadas), caché relacional por generación y algoritmos fuzzy.
-4. 📄 [**`03_Frontend_y_Vistas.md`**](file:///C:/Users/seguimientos/Desktop/Portal%20Ventel/Documentacion/03_Frontend_y_Vistas.md): Especificación técnica de los 40 archivos HTML, sistema de diseño, patrón SWR, animación GSAP FLIP (`Ctrl+K`), morphing SVG (`.op-pill`) y rescate de navegación `NavAviso`.
-5. 📄 [**`04_BaseDeDatos_y_Hojas.md`**](file:///C:/Users/seguimientos/Desktop/Portal%20Ventel/Documentacion/04_BaseDeDatos_y_Hojas.md): Diccionario de datos de 27 pestañas en 3 libros de Google Sheets, esquema relacional, resiliencia contra reordenamiento de columnas y auto-healing schema.
-6. 📄 [**`05_Extension_Chrome.md`**](file:///C:/Users/seguimientos/Desktop/Portal%20Ventel/Documentacion/05_Extension_Chrome.md): Especificación técnica de los 15 archivos de la Extensión Chrome (Manifest V3), desensamble de React Server Components (`self.__next_f.push`) y puente de comunicación `bridge.js`.
-7. 📄 [**`06_Seguridad_y_Permisos.md`**](file:///C:/Users/seguimientos/Desktop/Portal%20Ventel/Documentacion/06_Seguridad_y_Permisos.md): Modelo RBAC de 23 bloques de permisos y 3 roles, matriz `_PermisosSistema`, 4 modos de autenticación (`AUTH_MODO`), SHA-256 con salting y tokens `vales`.
-8. 📄 [**`07_Guia_de_Mantenimiento_y_Operacion.md`**](file:///C:/Users/seguimientos/Desktop/Portal%20Ventel/Documentacion/07_Guia_de_Mantenimiento_y_Operacion.md): **Runbook de TI**, guía de solución a 5 escenarios críticos de falla, catálogo de 12 funciones de diagnóstico desde el editor e instrucciones de despliegue.
-
----
-
-## 🗂️ Inventario Verificable de Archivos del Proyecto (82 Archivos)
-
-```mermaid
-graph TD
-    Root["Portal Ventel (82 Archivos Totales)"]
-    WebApp["Carpeta del proyecto (67 Archivos)"]
-    ChromeExt["Extencion para chrome (15 Archivos)"]
-    
-    BackendGS["24 Archivos Backend (.gs)\n02_Backend_GoogleAppsScript.md"]
-    FrontendHTML["40 Archivos Frontend (.html)\n03_Frontend_y_Vistas.md"]
-    Configs["3 Archivos Config/Readmes\nappsscript.json, .gitattributes, README"]
-
-    ExtFiles["15 Archivos Chrome Extension\n05_Extension_Chrome.md"]
-
-    Root --> WebApp & ChromeExt
-    WebApp --> BackendGS & FrontendHTML & Configs
-    ChromeExt --> ExtFiles
+```
+El asesor entra al Portal  →  arma una cotización  →  el sistema decide si necesita
+revisión  →  un supervisor la aprueba  →  se genera el PDF  →  se envía al cliente.
 ```
 
-### A. Archivos de `Carpeta del proyecto` (67 Archivos)
-
-#### 1. Backend (`.gs` - 24 Archivos)
-- [x] **`Admin.gs`** — Suite de salud `revisionMaestra()` (25 comprobaciones)
-- [x] **`Atenciones.gs`** — Rescate de clientes en atención pospuesta (34 funciones)
-- [x] **`AuditoriaCotizacion.gs`** — Motor determinista de 8 puntos de auditoría
-- [x] **`Cache.gs`** — Caché relacional por generación (`COT_CACHE_GEN`)
-- [x] **`Code.gs`** — Enrutador maestro (`doGet`), CRUD cotizaciones y buscador fuzzy
-- [x] **`Consola.gs`** — Backend de Consola Maestra de Administración
-- [x] **`CorreoCliente.gs`** — Correos con plantillas HTML a clientes con adjuntos
-- [x] **`Correos.gs`** — Envío de cotizaciones PDF con alias `cotizacion@liverpool.com.mx`
-- [x] **`Cuentas.gs`** — Alta de usuarios, OTP 6 dígitos y vales de reseteo
-- [x] **`DiagnosticoPromos.gs`** — Diagnóstico del monitor de promociones
-- [x] **`Equipo.gs`** — Capa de compatibilidad legacy que delega a `Consola.gs`
-- [x] **`Formatos.gs`** — Exportación PDF formato CCL Liverpool vía clonación de Sheets
-- [x] **`Metricas.gs`** — Registro de envíos y estadísticas en `MetricasCorreos`
-- [x] **`Onboarding.gs`** — Persistencia del estado de tutoriales guiados
-- [x] **`Operacion.gs`** — Tablero de estado de operación y umbrales de elevación
-- [x] **`Permisos.gs`** — Motor RBAC de 23 bloques y 3 roles en `_PermisosSistema`
-- [x] **`PoliticaRevision.gs`** — Motor de reglas para aprobación automática vs manual
-- [x] **`Portal.gs`** — Lector de datos públicos del portal (herramientas, formatos, calendar)
-- [x] **`PortalContenido.gs`** — Editor celda por celda para 9 colecciones e importación
-- [x] **`PortalPromosComercial.gs`** — Intérprete para la hoja comercial (>300 pestañas)
-- [x] **`Preferencias.gs`** — Sincronización de preferencias UI en `_PreferenciasUsuario`
-- [x] **`Revision.gs`** — Cola de revisión, scraping paralelo y renderizado `srcdoc`
-- [x] **`Seguridad.gs`** — Modos `AUTH_MODO`, hashing SHA-256 y tiempo constante
-- [x] **`Trazabilidad.gs`** — Lector de los procesos de homologación 2026
-
-#### 2. Frontend e Interfaz (`.html` - 40 Archivos)
-- [x] **`Index.html`**, **`LoaderPartial.html`**, **`Promociones.html`**, **`ViewPrefsPartial.html`**, **`anuncios.html`**, **`app_atenciones.html`**, **`app_auth.html`**, **`app_buscar.html`**, **`app_ccl.html`**, **`app_comando.html`**, **`app_core.html`**, **`app_estado_historial.html`**, **`app_estatus.html`**, **`app_extension_guia.html`**, **`app_guardado.html`**, **`app_icons.html`**, **`app_motion.html`**, **`app_onboarding.html`**, **`app_operacion.html`**, **`app_prefs.html`**, **`app_shell.html`**, **`app_support.html`**, **`app_tailwind.html`**, **`app_theme.html`**, **`atenciones.html`**, **`consola.html`**, **`consulta_cotizacion.html`**, **`correo_cliente.html`**, **`correoventel.html`**, **`cotizacion.html`**, **`cotizado_preview.html`**, **`estado.html`**, **`inicio.html`**, **`inicioDeSesion.html`**, **`inicio_avanzado.html`**, **`operacion.html`**, **`portal_contenido.html`**, **`recuperar.html`**, **`registro.html`**, **`revision_cotizacion.html`**.
-
-#### 3. Configuración (3 Archivos)
-- [x] **`appsscript.json`** — Manifiesto de Apps Script (V8, permisos OAuth)
-- [x] **`.gitattributes`** — Normalización de saltos de línea Git
-- [x] **`README.md`** — Leeme inicial en repositorio
+Alrededor de ese flujo hay cuatro subsistemas que crecieron después y que hoy pesan tanto
+como él: **permisos por bloques**, **estado de operación** (¿está caído Connect o soy yo?),
+**atenciones pendientes** (rescatar al cliente que se quedó colgado en una caída) y la
+**consola de administración**.
 
 ---
 
-### B. Archivos de `Extencion para chrome` (15 Archivos)
+## 2. Inventario verificado
 
-- [x] **`manifest.json`** — Manifiesto V3 (permisos `activeTab`, `scripting`, `storage`)
-- [x] **`bridge.js`** — Content Script puente inyectado en `*.googleusercontent.com`
-- [x] **`deep-extractor.js`** — Motor de extracción profunda (Desensamble stream Next.js)
-- [x] **`product-inspector.js`** — Motor de inspección PDP en vivo
-- [x] **`purchase-extractor.js`** — Extractor y redactado en "¡Gracias por comprar!"
-- [x] **`popup.html`** — Vista HTML principal del popup (380px)
-- [x] **`popup.js`** — Controlador del popup y orquestador de inyecciones
-- [x] **`inspector.html`** — Vista del Inspector de Producto PDP
-- [x] **`inspector-ui.js`** — Controlador UI del Inspector PDP
-- [x] **`inspector.css`** — Hoja de estilos del Inspector PDP
-- [x] **`viewer.html`** — Vista del Visor Avanzado de Bolsa
-- [x] **`viewer.js`** — Controlador UI del Visor Avanzado (Exportación JSON/CSV)
-- [x] **`viewer.css`** — Hoja de estilos del Visor Avanzado
-- [x] **`Captura de pantalla.png`** — Preview de la extensión
-- [x] **`Mi Bolsa.html` / `Mi Bolsa_files`** — Benchmark de prueba offline
+Conteo real de archivos, hecho sobre el repositorio, no estimado.
+
+| Ubicación | Contenido | Cantidad |
+| --- | --- | --- |
+| `Carpeta del proyecto/` | Backend Apps Script (`.gs`) | **24** |
+| `Carpeta del proyecto/` | Pantallas y módulos (`.html`) | **40** |
+| `Carpeta del proyecto/` | Manifiesto `appsscript.json` | 1 |
+| `Carpeta del proyecto/` | `README.md`, `.gitattributes`, `.claude/settings.json` | 3 |
+| `Extencion para chrome/` | Código de la extensión (`.js`, `.html`, `.css`, `manifest.json`) | **13** |
+| `Extencion para chrome/Mi Bolsa_files/` | Captura de una página real de Liverpool para probar sin navegador | banco de pruebas |
+| `Documentacion/` | Este manual | 10 documentos |
+
+Cifras clave del modelo, también verificadas contra el código:
+
+- **22 bloques de permisos** en 4 grupos (`PERM_BLOQUES`, `Permisos.gs`).
+- **3 roles**: `normal` (Asesor), `avanzado` (Supervisor), `maestro`.
+- **4 modos de autenticación**: `portal`, `auto`, `estricto`, `legado`.
+- **13 parámetros de vista** en el contrato de URLs (`PARAMS_VISTA`, `Code.gs`).
+- **16 páginas de app** con sesión + **3 páginas públicas** del Portal.
+- **~31 comprobaciones** en 10 áreas dentro de `revisionMaestra()` (el total exacto varía:
+  hay dos bucles que generan un check por pestaña del Portal).
+- **3 libros de Google Sheets** en uso + 1 plantilla + 1 archivo externo de comercial.
 
 ---
 
-## ✍️ Firma de Responsabilidad Técnica
+## 3. Los diez documentos
 
-**David Martínez**  
-*Escritor y Arquitecto Principal del Sistema*  
-Correo Institucional: `dmartineza02@liverpool.com.mx`  
-El Puerto de Liverpool · Equipo Ventel  
-*Agosto de 2026*
+| # | Documento | Léelo cuando… |
+| --- | --- | --- |
+| 00 | **`00_README_Inicio.md`** (este) | Es tu primer día. |
+| 01 | [`01_Arquitectura_General.md`](01_Arquitectura_General.md) | Necesitas entender cómo encajan las piezas antes de tocar nada. |
+| 02 | [`02_Backend_GoogleAppsScript.md`](02_Backend_GoogleAppsScript.md) | Vas a modificar lógica de servidor. Referencia archivo por archivo. |
+| 03 | [`03_Frontend_y_Vistas.md`](03_Frontend_y_Vistas.md) | Vas a tocar una pantalla, el menú, la caché del cliente o la navegación. |
+| 04 | [`04_BaseDeDatos_y_Hojas.md`](04_BaseDeDatos_y_Hojas.md) | Alguien movió una columna, o necesitas saber dónde vive un dato. |
+| 05 | [`05_Extension_Chrome.md`](05_Extension_Chrome.md) | La extensión dejó de extraer, o Liverpool cambió su página. |
+| 06 | [`06_Seguridad_y_Permisos.md`](06_Seguridad_y_Permisos.md) | «A fulano no le aparece el botón», o vas a añadir una capacidad nueva. |
+| 07 | [`07_Guia_de_Mantenimiento_y_Operacion.md`](07_Guia_de_Mantenimiento_y_Operacion.md) | Vas a desplegar, o algo está roto en producción. **Runbook.** |
+| 08 | [`08_Tareas_Frecuentes.md`](08_Tareas_Frecuentes.md) | Tienes que hacer un cambio concreto y quieres la receta exacta. |
+| 09 | [`09_Solucion_de_Problemas.md`](09_Solucion_de_Problemas.md) | Tienes un síntoma y no sabes de dónde viene. **Búscalo por síntoma.** |
+
+---
+
+## 4. Ruta para el técnico que llega nuevo
+
+**Primeros 30 minutos — orientación (no toques nada todavía).**
+
+1. Lee este documento entero y el capítulo 1 y 2 de
+   [`01_Arquitectura_General.md`](01_Arquitectura_General.md).
+2. Abre `Carpeta del proyecto/README.md`. No es un README de cortesía: contiene el registro
+   de revisiones por módulo, con **qué se corrigió y qué se dejó como está a propósito**.
+   Cuando algo te parezca mal diseñado, búscalo ahí antes de «arreglarlo»: es muy probable
+   que ya se haya decidido, con motivo escrito.
+3. Abre `Code.gs` y lee `PAGES`, `PORTAL_PAGES` y `PARAMS_VISTA` (líneas 56–124). Ese es el
+   mapa de rutas de todo el sistema.
+
+**Siguientes 2 horas — acceso real.**
+
+4. Consigue acceso de edición al proyecto de Apps Script y a los tres libros de Sheets.
+5. En el editor de Apps Script, ejecuta **`revisionMaestra()`** (`Admin.gs`). Autoriza
+   todos los permisos cuando Google los pida. El registro de ejecución te dirá, línea por
+   línea, qué está sano y qué está roto **hoy**. Es la mejor foto del sistema que existe.
+6. Ejecuta `VER_CORREOS_REGISTRADOS()` y `VER_PERMISOS_GUARDADOS()` (`Permisos.gs`) para
+   ver quién es quién.
+
+**Antes de tu primer cambio.**
+
+7. Lee [`08_Tareas_Frecuentes.md`](08_Tareas_Frecuentes.md). Si tu cambio está ahí, sigue la
+   receta: cubre los sitios espejo que hay que tocar a la vez y que no son evidentes.
+8. Lee la sección «Reglas que no se rompen» de abajo.
+
+---
+
+## 5. Reglas que no se rompen
+
+Estas ocho reglas condensan los errores que ya se cometieron una vez en este proyecto. No
+son estilo: cada una tiene una avería detrás.
+
+1. **`PAGES` (servidor, `Code.gs`) y `AppUrl` (cliente, `app_core.html`) son listas espejo.**
+   Si añades una página en una y no en la otra, la navegación cae al Portal en silencio: el
+   enrutador resuelve como Portal cualquier página que no reconoce. No falla, no avisa,
+   simplemente no va a donde dijiste.
+
+2. **El permiso del cliente es cortesía; el candado es del servidor.** `requireBlock()`,
+   los filtros de menú y los botones escondidos solo deciden **qué se dibuja**. El candado
+   real es `secIdentidadConBloque_()` (`Seguridad.gs`), y se vuelve a exigir en **cada**
+   llamada. Una función nueva expuesta al cliente sin gate de servidor es un agujero, por
+   mucho que su botón esté escondido.
+
+3. **Los formatos de cotización que ya salen al cliente no se tocan.** El PDF `actual` y el
+   formato oficial `ccl_liverpool` reproducen documentos aprobados. Un ajuste «estético»
+   ahí cambia lo que recibe un cliente real.
+
+4. **Las columnas se localizan por su NOMBRE de encabezado, nunca por su posición.** Todo
+   el sistema lee así (`indexOf("Folio")`, `pcMapaColumnas_`, `atenIndice_`, `opIndice_`).
+   Si escribes `fila[3]`, funcionará hasta que alguien inserte una columna en el Sheet, y
+   entonces fallará en silencio escribiendo el dato equivocado.
+
+5. **Al actualizar una fila se escribe celda por celda, solo en las columnas que manejas.**
+   Reescribir la fila entera borra columnas de otros módulos (`LinkSheetCCL`, las de
+   revisión) y convierte fórmulas en valores muertos.
+
+6. **Toda escritura invalida la caché.** `cotInvalidarCache_()`, `pcInvalidarCache_()`,
+   `opInvalidarCache_()`, `trazInvalidarCache()`. Si guardas sin invalidar, el usuario ve
+   su propio cambio desaparecer al recargar y abre un ticket que no vas a poder reproducir.
+
+7. **Los secretos van en las propiedades del script, no en el código.** Ejecuta
+   `secGuardarConfiguracion()` (`Seguridad.gs`). Ver la nota de deuda pendiente en
+   [`06_Seguridad_y_Permisos.md`](06_Seguridad_y_Permisos.md) §6.
+
+8. **En esta carpeta no hay borradores.** Un hook `Stop` de Claude Code
+   (`~/.claude/hooks/auto-push-proyecto.ps1`) hace `git add -A`, `commit` y `push origin main`
+   al terminar cada tarea. Un cambio a medias llega a `main` igual que uno terminado.
+
+---
+
+## 6. Glosario
+
+Términos que aparecen por todo el código y que no significan lo que parece.
+
+| Término | Qué es aquí |
+| --- | --- |
+| **Bloque** | Unidad mínima de permiso (`cotizar`, `revisar`, `adm_ajustes`). Se concede o se quita. No confundir con «rol». |
+| **Rol** | Paquete de bloques: `normal`, `avanzado`, `maestro`. |
+| **Ajuste** (de permisos) | Concesión (`mas`) o retiro (`menos`) por persona, **encima** del rol. |
+| **Módulo apagado** | Bloque desactivado globalmente por mantenimiento. El maestro se lo salta a propósito. |
+| **Incidencia** | Falla de un sistema corporativo (Connect, Salesforce…) confirmada o sospechada. |
+| **Reporte** | Aviso individual de un asesor. Tres reportes de personas distintas en 30 min crean una incidencia sola. |
+| **Atención** | Cliente que se quedó sin atender por una caída, y al que hay que devolver la llamada. |
+| **Pool público** | Atenciones que su autor liberó para que cualquier compañero las rescate. |
+| **Vale** | Token de un solo uso que separa «probé que el correo es mío» de «escribo la contraseña nueva». |
+| **Generación** | Contador que sube en cada escritura y sirve para invalidar toda la caché de golpe. |
+| **SWR** | *stale-while-revalidate*: se pinta lo guardado al instante y se revalida por detrás. Patrón por defecto del cliente. |
+| **Shell** | Marco común de las pantallas de app (`app_shell.html`): barra lateral, cabecera, isla de estado. El Portal **no** lo usa. |
+| **Flight data** | Los `self.__next_f.push([...])` que Next.js deja en el HTML de Liverpool. De ahí saca la extensión los datos que la página no enseña. |
+
+---
+
+> **Creador del proyecto: David Martínez** | Asesor Ventel | Escritor
