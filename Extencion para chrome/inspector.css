@@ -183,7 +183,10 @@ button { font-family: inherit; cursor: pointer; }
 .miniatura img {
   width: 100%;
   height: 100%;
-  object-fit: cover;
+  /* `cover` recortaba las fotos de producto sobre fondo blanco y las miniaturas
+     salían como tiras blancas con una rendija oscura en medio. */
+  object-fit: contain;
+  background-color: #fff;
 }
 .miniatura:hover, .miniatura.activa { border-color: var(--accent); }
 
@@ -219,7 +222,7 @@ button { font-family: inherit; cursor: pointer; }
   border: 2px solid var(--border);
   overflow: hidden;
 }
-.color-img img { width: 100%; height: 100%; object-fit: cover; }
+.color-img img { width: 100%; height: 100%; object-fit: contain; background-color: #fff; }
 .color-swatch:hover .color-img, .color-swatch.activo .color-img {
   border-color: var(--accent);
 }
@@ -597,8 +600,30 @@ button { font-family: inherit; cursor: pointer; }
 }
 
 /* --- Colores y tallas --- */
-.color-sku, .color-hex { font-size: 10px; color: var(--text-mut); }
-.color-swatch { width: 88px; }
+.color-sku, .color-dato { font-size: 10px; color: var(--text-mut); }
+.color-precio { font-size: var(--fs-xs); font-weight: 600; font-variant-numeric: tabular-nums; }
+.color-swatch { width: 104px; gap: var(--s1); }
+.color-img { width: 64px; height: 64px; }
+
+/* --- Identidad: un mismo número con varios nombres --- */
+.valor-clave { display: block; }
+.alias-clave { display: block; font-size: var(--fs-xs); color: var(--text-mut); margin-top: 2px; }
+
+/* --- Diagnóstico --- */
+.titulo-diagnostico {
+  margin-top: var(--s7);
+  margin-bottom: var(--s3);
+  font-size: var(--fs-sm);
+  font-weight: 600;
+  letter-spacing: .06em;
+  text-transform: uppercase;
+  color: var(--text-mut);
+  border-top: 1px solid var(--border);
+  padding-top: var(--s5);
+}
+.bloque-diagnostico { margin-top: var(--s2); }
+.bloque-diagnostico .nota-seccion { margin-bottom: var(--s3); }
+.nota-arriba { margin-top: 0; margin-bottom: var(--s3); }
 
 /* --- Planes de pago --- */
 .plan { display: flex; flex-direction: column; gap: var(--s1); }

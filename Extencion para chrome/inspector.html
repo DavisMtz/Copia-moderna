@@ -140,16 +140,22 @@
       <div class="seccion-cuerpo"></div>
     </section>
 
-    <section class="seccion-inspector" id="secMeta" hidden>
-      <h2>Metadatos de la página</h2>
-      <div class="seccion-cuerpo"></div>
-    </section>
+    <!--
+      De aquí abajo es diagnóstico: sirve cuando algo falta o no cuadra, pero no
+      es lo que se viene a ver. Va plegado para que no compita con la ficha.
+    -->
+    <h2 class="titulo-diagnostico">Si algo no cuadra</h2>
 
-    <section class="seccion-inspector" id="secDom" hidden>
-      <h2>Barrido del DOM <span class="conteo-seccion" data-conteo="secDom"></span></h2>
-      <p class="nota-seccion">Todo lo que la ficha enseña en pantalla, tal cual, por si algún dato no cayó en las secciones de arriba.</p>
+    <details class="bloque-diagnostico" id="secDom" data-filtrable="si" hidden>
+      <summary>Lo que la ficha enseña en pantalla <span class="conteo-seccion" data-conteo="secDom"></span></summary>
+      <p class="nota-seccion">Barrido del texto visible, tal cual, por si algún dato no cayó en las secciones de arriba.</p>
       <div class="seccion-cuerpo"></div>
-    </section>
+    </details>
+
+    <details class="bloque-diagnostico" id="secMeta" data-filtrable="si" hidden>
+      <summary>Metadatos de la página</summary>
+      <div class="seccion-cuerpo"></div>
+    </details>
 
     <details class="bloque-diagnostico" id="secFuentes">
       <summary>De dónde salió cada dato</summary>

@@ -331,17 +331,24 @@
     var caja = document.getElementById('resumen');
     if (!caja) return;
     vaciar(caja);
+    // Cifras que no se pisen entre sí: antes convivían "3 planes de pago" y
+    // "9 promociones", que son lo mismo contado de dos maneras distintas.
+    var vendedores = {};
+    (p.variants || []).forEach(function (v) { if (v.seller && v.seller.name) vendedores[v.seller.name] = true; });
+    var mejor = null;
+    (p.paymentPlans || []).forEach(function (plan) {
+      if (!plan.noInterest) return;
+      if (!mejor || plan.months > mejor.months) mejor = plan;
+    });
+
     var fichas = [
       ['Variantes', (p.variants || []).length],
       ['Características', (p.specifications || []).length],
-      ['Planes de pago', (p.paymentPlans || []).length],
-      ['Promociones', (p.promotions || []).length],
       ['Imágenes', (p.images || []).length],
-      ['Ofertas', (p.ofertas || []).length]
+      ['Vendedores', Object.keys(vendedores).length]
     ];
-    if (p.rating && p.rating.average !== null && p.rating.average !== undefined) {
-      fichas.push(['Calificación', p.rating.average + ' / 5']);
-    }
+    if (mejor) fichas.push(['Mejor plan a meses', mejor.months + ' × ' + dinero(mejor.monthlyPayment)]);
+    if (p.rating && esNumero(p.rating.average)) fichas.push(['Calificación', p.rating.average + ' / 5']);
     fichas.forEach(function (f) {
       caja.appendChild(el('div', { clase: 'tarjeta-resumen' }, [
         el('span', { clase: 'tarjeta-cifra', texto: String(f[1]) }),
@@ -350,50 +357,92 @@
     });
   }
 
+  /**
+   * Identidad. Liverpool llama de cuatro maneras al MISMO número (SKU general,
+   * "código de producto", id de catálogo y a veces el de la URL). Antes salían
+   * las cuatro filas con el mismo valor repetido y parecía que había cuatro
+   * claves distintas. Ahora cada número aparece UNA vez, con todos sus nombres.
+   */
   function pintarIdentidad(datos, p) {
     var caja = cuerpo('secIdentidad');
     if (!caja) return;
     var ident = p.identifiers || {};
-    var enlace = null;
-    if (p.url && /^https?:/i.test(p.url)) {
-      enlace = el('a', { href: p.url, target: '_blank', rel: 'noopener', texto: p.url });
-    }
-    var tabla = tablaPares([
-      ['Nombre', p.name],
-      ['Marca', p.brand],
-      ['Cadena', p.cadena === 'LP' ? 'Liverpool (LP)' : (p.cadena === 'SUB' ? 'Suburbia (SUB)' : p.cadena)],
-      ['Tipo de producto', p.productType],
+
+    // Se agrupan los alias por valor: mismo número, una sola fila.
+    var alias = [
       ['SKU general (padre)', p.skuGeneral],
+      ['código de producto', p.productCode],
+      ['id de catálogo', ident.productId],
       ['SKU de la variante en pantalla', p.varianteActual],
       ['skuid de la URL', p.skuVariante],
-      ['SKU de la tarjeta del vendedor', p.skuTarjetaVendedor],
-      ['Código de producto', p.productCode],
-      ['Id de producto (catálogo)', ident.productId],
-      ['SKU del vendedor', ident.sellerSkuId],
-      ['GTIN', ident.gtin],
-      ['MPN', ident.mpn],
-      ['Slug', p.slug],
-      ['Ficha', enlace]
-    ]);
+      ['SKU de la tarjeta del vendedor', p.skuTarjetaVendedor]
+    ];
+    var porValor = {}, ordenValores = [];
+    alias.forEach(function (a) {
+      var valor = a[1];
+      if (valor === null || valor === undefined || valor === '') return;
+      if (!porValor[valor]) { porValor[valor] = []; ordenValores.push(valor); }
+      porValor[valor].push(a[0]);
+    });
+
+    var filas = [
+      ['Nombre', p.name],
+      ['Marca', p.brand],
+      ['Cadena', p.cadena === 'LP' ? 'Liverpool (LP)' : (p.cadena === 'SUB' ? 'Suburbia (SUB)' : p.cadena)]
+    ];
+    ordenValores.forEach(function (valor) {
+      var nombres = porValor[valor];
+      var etiqueta = nombres[0].charAt(0).toUpperCase() + nombres[0].slice(1);
+      var celda = el('span', null, [
+        el('span', { clase: 'mono valor-clave', texto: valor }),
+        nombres.length > 1
+          ? el('span', { clase: 'alias-clave', texto: 'también llamado ' + nombres.slice(1).join(', ') })
+          : null
+      ]);
+      filas.push([etiqueta, celda]);
+    });
+    filas.push(['SKU del vendedor (marketplace)', ident.sellerSkuId]);
+    filas.push(['GTIN', ident.gtin]);
+    filas.push(['MPN', ident.mpn]);
+    if (p.url && /^https?:/i.test(p.url)) {
+      filas.push(['Ficha', el('a', { href: p.url, target: '_blank', rel: 'noopener', texto: p.url })]);
+    }
+
+    var tabla = tablaPares(filas);
     if (tabla) caja.appendChild(tabla);
     mostrar('secIdentidad', !!tabla);
   }
 
+  /**
+   * Precios. Cuando la ficha muestra un rango, el mínimo y el máximo YA son
+   * "el precio más bajo y más alto del catálogo": repetirlos en cuatro filas
+   * más era el ruido que hacía ilegible esta tabla.
+   */
   function pintarPrecios(p) {
     var caja = cuerpo('secPrecios');
     if (!caja) return;
     var pr = p.prices || {};
-    var tabla = tablaPares([
-      ['Precio mostrado', pr.esRango ? (dinero(pr.minPromo) + ' – ' + dinero(pr.maxPromo)) : dinero(pr.current)],
-      ['Precio de lista', pr.esRango ? (dinero(pr.minLista) + ' – ' + dinero(pr.maxLista)) : (pr.original !== null ? dinero(pr.original) : null)],
-      ['Descuento', pr.discountPercent ? pr.discountPercent + '%' : null],
-      ['Ahorro', pr.savings ? dinero(pr.savings) : null],
-      ['Moneda', pr.currency],
-      ['¿Es un rango?', pr.esRango ? 'Sí — la ficha no tiene una variante elegida del todo' : 'No'],
-      ['Precio más bajo del catálogo', pr.minPromo !== null ? dinero(pr.minPromo) : null],
-      ['Precio más alto del catálogo', pr.maxPromo !== null ? dinero(pr.maxPromo) : null],
-      ['Tal como se lee en pantalla', pr.textoPantalla]
-    ]);
+    var filas;
+
+    if (pr.esRango) {
+      filas = [
+        ['Precio en pantalla', dinero(pr.minPromo) + '  a  ' + dinero(pr.maxPromo)],
+        ['Precio de lista', (esNumero(pr.minLista) && esNumero(pr.maxLista)) ? dinero(pr.minLista) + '  a  ' + dinero(pr.maxLista) : null],
+        ['Descuento de la variante más barata', pr.discountPercent ? pr.discountPercent + '%  (ahorro ' + dinero(pr.savings) + ')' : null],
+        ['Moneda', pr.currency]
+      ];
+      caja.appendChild(el('p', { clase: 'nota-seccion nota-arriba', texto: 'La ficha enseña un rango porque todavía no hay una variante elegida del todo. El precio exacto de cada una está en la tabla de variantes.' }));
+    } else {
+      filas = [
+        ['Precio actual', esNumero(pr.current) ? dinero(pr.current) : null],
+        ['Precio de lista', esNumero(pr.original) ? dinero(pr.original) : null],
+        ['Descuento', pr.discountPercent ? pr.discountPercent + '%' : null],
+        ['Ahorro', pr.savings ? dinero(pr.savings) : null],
+        ['Moneda', pr.currency]
+      ];
+    }
+
+    var tabla = tablaPares(filas);
     if (tabla) caja.appendChild(tabla);
     mostrar('secPrecios', !!tabla);
   }
@@ -457,8 +506,14 @@
     var colores = p.colors || [];
     if (!caja || !colores.length) { mostrar('secColores', false); return; }
 
+    // Cada color es en realidad una variante: enseñar su precio aquí ahorra
+    // tener que cruzarlo a mano con la tabla de variantes.
+    var porSku = {};
+    (p.variants || []).forEach(function (v) { porSku[v.sku] = v; });
+
     var rejilla = el('div', { clase: 'colores-rejilla' });
     colores.forEach(function (c) {
+      var v = porSku[c.sku];
       var marco = el('div', { clase: 'color-img' });
       if (c.imageUrl) marco.appendChild(el('img', { src: c.imageUrl, alt: c.name || 'Color' }));
       else if (c.hex) marco.style.background = c.hex;
@@ -466,8 +521,11 @@
       rejilla.appendChild(el('div', { clase: 'color-swatch' + (c.selected ? ' activo' : '') }, [
         marco,
         el('span', { clase: 'color-nombre', texto: c.name || '—' }),
+        (v && v.size) ? el('span', { clase: 'color-dato', texto: v.size }) : null,
+        (v && esNumero(v.price)) ? el('span', { clase: 'color-precio', texto: dinero(v.price) }) : null,
         c.sku ? el('span', { clase: 'color-sku mono', texto: c.sku }) : null,
-        c.hex ? el('span', { clase: 'color-hex mono', texto: c.hex }) : null
+        (c.conOferta === false) ? el('span', { clase: 'color-dato', texto: 'sin oferta' }) : null,
+        c.selected ? el('span', { clase: 'etiqueta-mini', texto: 'en pantalla' }) : null
       ]));
     });
     caja.appendChild(rejilla);
@@ -506,9 +564,10 @@
           el('span', { clase: 'plan-detalle', texto: plan.description || '' }),
           el('span', {
             clase: 'plan-detalle',
-            texto: [plan.promoCode ? 'código ' + plan.promoCode : null,
-                    plan.minPurchaseAmount ? 'compra mínima ' + dinero(plan.minPurchaseAmount) : null,
-                    (plan.origenes || []).join(', ')].filter(Boolean).join(' · ')
+            texto: [nombresDeCubetas(plan.origenes, plan.origen),
+                    plan.promoCode ? 'código ' + plan.promoCode : null,
+                    plan.minPurchaseAmount ? 'compra mínima ' + dinero(plan.minPurchaseAmount) : null
+                   ].filter(Boolean).join(' · ')
           })
         ]));
       });
@@ -523,35 +582,75 @@
     mostrar('secPagos', true);
   }
 
+  /** "liverpoolEMI" y compañía son cubetas del catálogo; en pantalla, tarjetas. */
+  var NOMBRE_CUBETA = {
+    liverpool: 'Tarjeta Liverpool',
+    liverpoolEMI: 'Tarjeta Liverpool a meses',
+    other: 'Otras tarjetas',
+    otherEMI: 'Otras tarjetas a meses',
+    specialEMI: 'Meses especiales',
+    miniPagos: 'Mini pagos',
+    specialPromotions: 'Promociones especiales',
+    bestPromotion: 'La que anuncia la ficha'
+  };
+
+  function nombresDeCubetas(origenes, origen) {
+    var lista = (origenes && origenes.length) ? origenes : (origen ? [origen] : []);
+    return lista.map(function (o) { return NOMBRE_CUBETA[o] || o; }).join(' · ');
+  }
+
+  /**
+   * Promociones por variante. Solo los planes de MESES: el "pago único" no es
+   * una promoción, es no tener ninguna, y llenaba la tabla de filas con guiones.
+   */
   function pintarPromociones(p) {
     var caja = cuerpo('secPromos');
-    var promos = p.promotions || [];
-    if (!caja || !promos.length) { mostrar('secPromos', false); return; }
+    var promos = (p.promotions || []).filter(function (x) { return x.meses > 0; });
+    var envios = (p.promotions || []).filter(function (x) { return x.tipo === 'envío'; });
+    if (!caja || (!promos.length && !envios.length)) { mostrar('secPromos', false); return; }
 
-    var cabecera = el('thead', null, [el('tr', null, [
-      el('th', { texto: 'Tipo' }),
-      el('th', { texto: 'Descripción' }),
-      el('th', { clase: 'num', texto: 'Meses' }),
-      el('th', { clase: 'num', texto: 'Mensualidad' }),
-      el('th', { texto: 'Código' }),
-      el('th', { texto: 'SKU' }),
-      el('th', { texto: 'Origen' })
-    ])]);
-    var cuerpoTabla = el('tbody');
-    promos.forEach(function (pr) {
-      cuerpoTabla.appendChild(el('tr', null, [
-        el('td', null, [chip(pr.tipo || '—', pr.tipo === 'msi' ? 'chip-acento' : '')]),
-        el('td', { texto: textoODash(pr.descripcion) }),
-        el('td', { clase: 'num', texto: pr.meses ? String(pr.meses) : '—' }),
-        el('td', { clase: 'num', texto: pr.mensualidad ? dinero(pr.mensualidad) : '—' }),
-        el('td', { clase: 'mono', texto: textoODash(pr.codigo) }),
-        el('td', { clase: 'mono', texto: textoODash(pr.sku) }),
-        el('td', { texto: textoODash(pr.origen) })
-      ]));
+    // Para poner nombre a cada SKU sin obligar a cruzar tablas a mano.
+    var nombrePorSku = {};
+    (p.variants || []).forEach(function (v) {
+      nombrePorSku[v.sku] = [v.colorComercial || v.color, v.size].filter(Boolean).join(' / ');
     });
-    caja.appendChild(el('div', { clase: 'tabla-scroll' }, [
-      el('table', { clase: 'tabla-variantes' }, [cabecera, cuerpoTabla])
-    ]));
+
+    if (envios.length) {
+      var tira = el('div', { clase: 'tira-chips' });
+      envios.forEach(function (e) { tira.appendChild(chip(e.descripcion, 'chip-acento')); });
+      caja.appendChild(tira);
+    }
+
+    if (promos.length) {
+      var cabecera = el('thead', null, [el('tr', null, [
+        el('th', { texto: 'Variante' }),
+        el('th', { clase: 'num', texto: 'Meses' }),
+        el('th', { clase: 'num', texto: 'Mensualidad' }),
+        el('th', { texto: 'Con qué tarjeta' }),
+        el('th', { texto: 'Código' })
+      ])]);
+      var cuerpoTabla = el('tbody');
+      promos.forEach(function (pr) {
+        var etiquetaSku = nombrePorSku[pr.sku]
+          ? nombrePorSku[pr.sku] + '  ·  ' + pr.sku
+          : (pr.sku || '—');
+        cuerpoTabla.appendChild(el('tr', null, [
+          el('td', { texto: etiquetaSku }),
+          el('td', { clase: 'num' }, [chip(pr.meses + ' MSI', 'chip-acento')]),
+          el('td', { clase: 'num', texto: esNumero(pr.mensualidad) ? dinero(pr.mensualidad) : '—' }),
+          el('td', { texto: nombresDeCubetas(pr.origenes, pr.origen) || '—' }),
+          el('td', { clase: 'mono', texto: textoODash(pr.codigo) })
+        ]));
+      });
+      caja.appendChild(el('div', { clase: 'tabla-scroll' }, [
+        el('table', { clase: 'tabla-variantes' }, [cabecera, cuerpoTabla])
+      ]));
+    }
+
+    var unicos = (p.promotions || []).filter(function (x) { return x.tipo === 'pago único'; });
+    if (unicos.length) {
+      caja.appendChild(el('p', { clase: 'nota-seccion', texto: 'Todas las variantes admiten además pago único (sin meses).' }));
+    }
     mostrar('secPromos', true, promos.length);
   }
 
@@ -620,7 +719,10 @@
     }
     var tabla = tablaPares([
       ['Departamento', cat.department],
-      ['Tipo de producto', cat.productType]
+      // "Soft Line" / "Hard Line" es la división interna de Liverpool, no la
+      // categoría del artículo: sin decirlo, se lee como si el teléfono fuera
+      // de mercería.
+      ['División interna de Liverpool', cat.productType]
     ]);
     if (tabla) caja.appendChild(tabla);
     (cat.categorias || []).forEach(function (c) {
@@ -680,13 +782,30 @@
     ]);
     if (tabla) caja.appendChild(tabla);
 
+    // Las banderas del catálogo dichas en cristiano. "Talla De Ropa" en un
+    // teléfono no significa nada para nadie; que el selector de tallas use el
+    // formato de ropa, sí.
+    var ETIQUETA_BANDERA = {
+      esMarketplace: 'Lo vende un tercero por marketplace',
+      esColeccion: 'Se vende como colección de varios artículos',
+      esMesaDeRegalos: 'Se puede añadir a una mesa de regalos',
+      tieneGarantias: 'Ofrece garantía extendida de pago',
+      tieneServiciosConfort: 'Ofrece servicios de instalación o armado',
+      tieneProteccionCelular: 'Ofrece seguro de protección para celular',
+      tieneRegaloPromocional: 'Trae un regalo promocional',
+      tallaDeRopa: 'El selector de tallas usa el formato de ropa',
+      truefit: 'Tiene probador de tallas Truefit'
+    };
     var banderas = p.flags || {};
-    var activas = Object.keys(banderas).filter(function (k) { return banderas[k] === true; });
+    var activas = Object.keys(ETIQUETA_BANDERA).filter(function (k) { return banderas[k] === true; });
     if (activas.length) {
       var tira = el('div', { clase: 'tira-chips' });
-      activas.forEach(function (k) { tira.appendChild(chip(separarCamello(k))); });
-      caja.appendChild(el('h3', { clase: 'titulo-grupo', texto: 'Banderas del artículo' }));
+      activas.forEach(function (k) { tira.appendChild(chip(ETIQUETA_BANDERA[k])); });
+      caja.appendChild(el('h3', { clase: 'titulo-grupo', texto: 'Qué admite este artículo' }));
       caja.appendChild(tira);
+    }
+    if (banderas.mensajeRegalo) {
+      caja.appendChild(el('p', { clase: 'nota-seccion', texto: 'Regalo: ' + banderas.mensajeRegalo }));
     }
     mostrar('secDisponibilidad', !!caja.childNodes.length);
   }
@@ -709,6 +828,23 @@
     });
     caja.appendChild(rejilla);
     mostrar('secGaleria', true, imagenes.length);
+  }
+
+  /** Las claves de los avisos vienen en inglés dentro del catálogo. */
+  var TITULO_AVISO = {
+    latest_parts: 'Últimas piezas',
+    limited_pieces: 'Piezas limitadas',
+    electronic_purse: 'Monedero electrónico',
+    exclusive_package: 'Paquete exclusivo',
+    cross_border: 'Producto de importación',
+    free_shipping: 'Envío gratis'
+  };
+
+  /** Título de una política: el primer <strong> del propio documento. */
+  function tituloDePolitica(html, respaldo) {
+    var m = String(html || '').match(/<strong[^>]*>([^<]{3,80})<\/strong>/i);
+    if (m) return m[1].trim();
+    return respaldo;
   }
 
   function pintarPoliticas(p) {
@@ -739,11 +875,11 @@
     bloqueHtml('Garantía', pol.garantia);
     bloqueHtml('Liverpool Care', pol.liverpoolCare);
     (pol.documentos || []).forEach(function (d, i) {
-      bloqueHtml(d.titulo || ('Política ' + (i + 1)), d.html);
+      bloqueHtml(d.titulo || tituloDePolitica(d.html, 'Condiciones de entrega ' + (i + 1)), d.html);
     });
     var avisosTexto = pol.avisos || {};
     Object.keys(avisosTexto).forEach(function (k) {
-      bloqueHtml(separarCamello(k.replace(/_/g, ' ')), avisosTexto[k]);
+      bloqueHtml(TITULO_AVISO[k] || separarCamello(k.replace(/_/g, ' ')), avisosTexto[k]);
     });
 
     mostrar('secPoliticas', hayAlgo);
@@ -852,7 +988,9 @@
    */
   function aplicarFiltro(consulta) {
     var texto = normalizar(String(consulta || '').trim());
-    var secciones = document.querySelectorAll('.seccion-inspector');
+    // Los bloques de diagnóstico marcados como filtrables entran también: el
+    // barrido del DOM es justo donde se busca cuando falta algo.
+    var secciones = document.querySelectorAll('.seccion-inspector, [data-filtrable="si"]');
     var algoVisible = false;
 
     Array.prototype.forEach.call(secciones, function (sec) {
@@ -860,6 +998,7 @@
       if (!texto) {
         sec.hidden = false;
         algoVisible = true;
+        if (sec.tagName === 'DETAILS') sec.open = false;   // vuelve a plegarse al limpiar
         Array.prototype.forEach.call(sec.querySelectorAll(SELECTOR_FILAS), function (f) { f.hidden = false; });
         return;
       }
@@ -876,6 +1015,8 @@
         if (casa) visibles++;
       });
       sec.hidden = visibles === 0;
+      // Un resultado dentro de un bloque plegado es un resultado invisible.
+      if (visibles && sec.tagName === 'DETAILS') sec.open = true;
       if (visibles) algoVisible = true;
     });
 

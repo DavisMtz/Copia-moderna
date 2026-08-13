@@ -62,6 +62,18 @@ function inspectProductFromDOM() {
     }
     return salida;
   }
+  /**
+   * La descripción del catálogo viene con las frases pegadas
+   * ("…más accesible.Características destacadas:Pantalla Super Retina…").
+   * Se separa solo cuando tras el punto o los dos puntos viene una MAYÚSCULA y
+   * antes hay una minúscula o un dígito: así `6.7"` y `U.S.A.` se quedan como
+   * están. El texto original sigue intacto en `rawFlightData`.
+   */
+  function despegarFrases(texto_) {
+    if (!texto_) return texto_;
+    return String(texto_).replace(/([a-záéíóúüñ0-9])([.:;])([A-ZÁÉÍÓÚÜÑ])/g, '$1$2 $3');
+  }
+
   /** Solo hojas de texto: un <div> que envuelve media página no es una etiqueta. */
   function esHoja(nodo) {
     return !!nodo && !nodo.querySelector('p, span, div, li, a, table, ul');
@@ -871,7 +883,7 @@ function inspectProductFromDOM() {
       P.brand = oNulo(prod.brand);
       P.brandId = oNulo(prod.brandId);
       P.productType = oNulo(prod.productType);
-      P.description = oNulo(prod.productDescription);
+      P.description = despegarFrases(oNulo(prod.productDescription));
       P.identifiers.productId = oNulo(prod.id);
       if (!P.skuGeneral) P.skuGeneral = oNulo(prod.id);
 
@@ -1366,15 +1378,17 @@ function inspectProductFromDOM() {
       }
     }
 
-    // Todas las promociones de todas las variantes, sin repetir.
-    var vistas = {};
+    // Todas las promociones de todas las variantes, agrupadas.
+    //
+    // El mismo plan viene repetido en varias cubetas del stream (un 3 MSI sale a
+    // la vez en `liverpoolEMI` y en `other`). Antes la clave incluía la cubeta,
+    // así que el plan salía dos veces en la lista y parecía que había el doble de
+    // promociones de las que hay. Ahora la cubeta es un dato del plan, no parte
+    // de su identidad.
     for (var pv = 0; pv < P.variants.length; pv++) {
-      var planesV = P.variants[pv].paymentPlans;
+      var planesV = agruparPlanes(P.variants[pv].paymentPlans);
       for (var pj = 0; pj < planesV.length; pj++) {
         var plan = planesV[pj];
-        var clave = plan.origen + '|' + plan.months + '|' + plan.promoCode + '|' + plan.monthlyPayment;
-        if (vistas[clave]) continue;
-        vistas[clave] = true;
         P.promotions.push({
           tipo: plan.noInterest ? 'msi' : (plan.months > 0 ? 'pagos' : 'pago único'),
           descripcion: plan.description,
@@ -1382,7 +1396,8 @@ function inspectProductFromDOM() {
           meses: plan.months,
           mensualidad: plan.monthlyPayment,
           sku: P.variants[pv].sku,
-          origen: plan.origen
+          origen: plan.origen,
+          origenes: plan.origenes
         });
       }
     }
@@ -1391,10 +1406,10 @@ function inspectProductFromDOM() {
     // aquí evita que "precio actual" se lea como el precio del artículo cuando
     // en realidad es el de la variante más barata.
     if (P.prices.esRango) {
-      avisar('La ficha muestra un RANGO de precios (' +
+      avisar('La ficha enseña un RANGO de precios (' +
         (P.prices.minPromo !== null ? '$' + P.prices.minPromo : '?') + ' a ' +
         (P.prices.maxPromo !== null ? '$' + P.prices.maxPromo : '?') +
-        '): todavía no hay una variante elegida del todo, así que "precio actual" es el de arranque.');
+        ') porque todavía no hay una variante elegida del todo. El precio exacto de cada una está en la tabla de variantes.');
     }
 
     // Descuento y ahorro, con los precios que hayan quedado.
