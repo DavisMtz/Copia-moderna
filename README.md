@@ -1,0 +1,35 @@
+# Portal Ventel
+
+Repositorio espejo de la carpeta `Desktop\Portal Ventel`. Todo lo que se edita ahí
+se publica en `main` de forma automática al terminar cada tarea.
+
+## Qué hay en cada carpeta
+
+| Carpeta | Qué es |
+| --- | --- |
+| `Carpeta del proyecto/` | El proyecto de Google Apps Script: el portal, las cotizaciones, la consola y todas las vistas. Tiene su propio [README](Carpeta%20del%20proyecto/README.md) con el detalle. |
+| `Extencion para chrome/` | La extensión de Chrome que extrae datos de artículos y compras en Liverpool. Incluye `Mi Bolsa_files/`, una captura de la página real que sirve para probar el extractor sin abrir el navegador. |
+| `Documentacion/` | Documentación funcional y técnica del sistema, numerada del `00` al `07`. |
+
+## Publicación automática
+
+No hace falta hacer `commit` ni `push` a mano. Un hook `Stop` de Claude Code
+(`~/.claude/hooks/auto-push-proyecto.ps1`, fuera del repo a propósito) hace
+`git add -A`, `commit` y `push origin main` en cuanto termina una tarea.
+
+Dos consecuencias que conviene tener presentes:
+
+- **Aquí no hay borradores.** Un cambio a medias en esta carpeta llega a `main`
+  igual que uno terminado.
+- **Si mueves o renombras la carpeta, el hook deja de encontrarla.** Ya pasó una
+  vez. Ahora avisa en lugar de callarse, pero hay que actualizar la variable
+  `$repo` dentro del script.
+
+## Finales de línea
+
+El repositorio usa `-text` en `.gitattributes`: git no normaliza CRLF/LF, cada
+archivo conserva los finales que ya trae. Es deliberado. Sin eso, cualquier
+herramienta que reescriba un archivo entero produce un diff con **todas** las
+líneas modificadas, lo que entierra el cambio real y convierte en conflicto
+cualquier otra rama que toque ese archivo. El destino es Apps Script, al que los
+finales de línea le dan igual, así que no hay nada que ganar unificándolos.
