@@ -354,7 +354,124 @@
   function haySesion() { return !!(window.AppSession && AppSession.isLoggedIn()); }
   function correo() { return (window.AppSession && AppSession.userEmail) || ''; }
   function puede() { return !!(window.AppSession && AppSession.can('atenciones')); }
-  function toast(m, t) { if (window.AppMotion) AppMotion.toast(m, t); }
+
+  /* ── EL MÓDULO SE VISTE SOLO DONDE NO HAY TEMA ────────────────────────────
+     El panel trae su propio CSS (todo lo .atn-*), pero sus botones y el diálogo de
+     registrar usan las clases compartidas —.v-btn, .v-modal— que viven en app_theme.
+     En las pantallas de la app eso está garantizado; en el Portal y en Promociones no,
+     porque son landings con hoja propia y sin app_theme. Allí el panel se pintaba bien
+     pero los botones salían como los del navegador y el diálogo ni siquiera flotaba:
+     .v-modal-overlay sin CSS no es una capa, es un div más en mitad de la página.
+
+     Así que se comprueba si la clase existe y, solo si no, se inyecta un respaldo con
+     lo justo que este módulo usa. Donde app_theme está cargado no se inyecta nada y no
+     cambia ni un píxel; donde no está, el módulo se ve como en el resto de la app en
+     vez de romperse. Es la misma regla que ya sigue guardarFondo con app_guardado: lo
+     que no puede pasar es que algo funcione o no según qué includes tenga la pantalla. */
+  var estilosBase = false;
+  function asegurarEstilosBase() {
+    if (estilosBase || !document.body) return;
+    estilosBase = true;
+
+    // Se mide la clase de verdad en vez de buscar una variable del tema: lo que importa
+    // no es qué hoja esté puesta, sino si .v-btn viste al botón. Un div desnudo computa
+    // 'block'; con app_theme, 'inline-flex'.
+    var sonda = document.createElement('div');
+    sonda.className = 'v-btn';
+    sonda.style.position = 'absolute';   // fuera del flujo: medir no puede mover la página
+    sonda.style.visibility = 'hidden';
+    document.body.appendChild(sonda);
+    var como = '';
+    // Si la medición falla se supone que SÍ hay tema: inyectar de más pisaría estilos
+    // ajenos en las pantallas que ya funcionan, y no inyectar solo afea una que ya estaba rota.
+    try { como = getComputedStyle(sonda).display; } catch (e) { como = 'inline-flex'; }
+    sonda.parentNode.removeChild(sonda);
+    /* Valen 'flex' e 'inline-flex': sacar la sonda del flujo con position:absolute
+       convierte inline-flex en flex al computarlo —lo que la especificación llama
+       blockification— así que comparar solo con 'inline-flex' daba SIEMPRE negativo y el
+       respaldo se colaba también en las pantallas con tema, pisándoselo. */
+    if (como === 'inline-flex' || como === 'flex') return;
+
+    var st = document.createElement('style');
+    st.id = 'atn-estilos-base';
+    /* Copia reducida de app_theme: solo las clases que este módulo pone en pantalla, y
+       con los colores por defecto tras var() para respetar el tema de la pantalla si
+       resulta que sí define alguna de esas variables. El toast va por encima del panel
+       (10050) y de su diálogo (10070): en app_theme está en 10000 porque allí nadie lo
+       lanza desde encima de un panel, y un aviso que aparece DETRÁS de lo que lo provocó
+       se lee como que no salió. */
+    st.textContent =
+      '.v-btn{display:inline-flex;align-items:center;justify-content:center;gap:.5rem;' +
+      'padding:.62rem 1.1rem;border-radius:var(--rad-sm,10px);border:1px solid transparent;' +
+      'font-family:var(--f-body,inherit);font-weight:700;font-size:.9rem;line-height:1.2;' +
+      'cursor:pointer;text-decoration:none;transition:transform .15s ease,box-shadow .15s ease,color .15s ease,border-color .15s ease}' +
+      '.v-btn:hover:not(:disabled){transform:translateY(-2px);box-shadow:var(--sh-md,0 10px 20px -12px rgba(15,23,42,.35))}' +
+      '.v-btn:active:not(:disabled){transform:translateY(0) scale(.98)}' +
+      '.v-btn:focus-visible{outline:none;box-shadow:var(--ring,0 0 0 4px rgba(225,0,152,.16))}' +
+      '.v-btn:disabled{opacity:.55;cursor:not-allowed;box-shadow:none}' +
+      '.v-btn svg{width:1.15em;height:1.15em;flex:none}' +
+      '.v-btn-primary{background:var(--grad-brand,linear-gradient(135deg,#E10098,#ff4fb8));color:#fff;' +
+      'box-shadow:0 6px 14px -8px rgba(225,0,152,.55)}' +
+      '.v-btn-dark{background:var(--grad-ink,linear-gradient(135deg,#1B2330,#000));color:#fff}' +
+      '.v-btn-ghost{background:var(--surface,#fff);color:var(--ink-soft,#5C6B7E);border-color:var(--line,#E4E9F0)}' +
+      '.v-btn-ghost:hover:not(:disabled){color:var(--ink,#1B2330);border-color:var(--brand-soft,#f9a8d4)}' +
+      '.v-btn-sm{padding:.4rem .75rem;font-size:.8rem;border-radius:var(--rad-sm,10px)}' +
+      '.v-modal-overlay{position:fixed;inset:0;z-index:9999;display:none;align-items:center;' +
+      'justify-content:center;background:rgba(15,23,42,.45);backdrop-filter:blur(4px);' +
+      '-webkit-backdrop-filter:blur(4px);padding:clamp(.5rem,3vw,2rem)}' +
+      '.v-modal-overlay.active{display:flex}' +
+      '.v-modal{background:var(--surface,#fff);color:var(--ink,#1B2330);border:1px solid var(--line,#E4E9F0);' +
+      'border-radius:16px;padding:1.6rem;width:100%;max-width:34rem;max-height:90vh;overflow:auto;' +
+      'box-shadow:var(--sh-lg,0 40px 80px -30px rgba(15,23,42,.45))}' +
+      /* El formulario de registrar es la mitad del módulo. Sin esto sus campos salen como
+         los del navegador: sin ancho, pegados a su etiqueta y con el textarea diminuto. */
+      '.v-input,.v-select,.v-textarea{width:100%;border:1.5px solid var(--line,#E4E9F0);border-radius:10px;' +
+      'padding:.6rem .8rem;font-family:var(--f-body,inherit);font-size:.875rem;' +
+      'background:var(--surface,#fff);color:var(--ink,#1B2330);box-sizing:border-box;' +
+      'transition:border-color .16s ease,box-shadow .16s ease}' +
+      '.v-input::placeholder,.v-textarea::placeholder{color:var(--ink-faint,#94a3b8)}' +
+      '.v-input:focus,.v-select:focus,.v-textarea:focus{outline:none;border-color:var(--brand,#E10098);' +
+      'box-shadow:var(--ring,0 0 0 4px rgba(225,0,152,.16))}' +
+      '.v-input:disabled,.v-select:disabled,.v-textarea:disabled{background:var(--surface-2,#F4F7FA);' +
+      'color:var(--ink-faint,#94a3b8)}' +
+      '.v-label{display:block;font-size:.8rem;font-weight:600;color:var(--ink-soft,#5C6B7E);' +
+      'margin-bottom:.35rem;letter-spacing:.08em}' +
+      '.v-spinner{display:inline-block;width:1.1em;height:1.1em;border:2px solid currentColor;' +
+      'border-right-color:transparent;border-radius:50%;animation:v-spin .7s linear infinite;flex:none}' +
+      '@keyframes v-spin{to{transform:rotate(360deg)}}' +
+      '#v-toast-region{position:fixed;top:calc(1rem + var(--vb-alto,0px));right:1rem;z-index:10080;' +
+      'display:flex;flex-direction:column;gap:.5rem;max-width:min(24rem,calc(100vw - 2rem))}' +
+      '.v-toast{padding:.8rem 1rem;border-radius:12px;background:var(--grad-ink,#1B2330);color:#fff;' +
+      'font-size:.85rem;line-height:1.45;border-left:4px solid var(--ok,#16a34a);' +
+      'box-shadow:0 18px 40px -20px rgba(15,23,42,.6)}' +
+      '.v-toast.bad{border-left-color:var(--alert,#dc2626)}' +
+      '.v-toast.warn{border-left-color:var(--warn,#d97706)}';
+    (document.head || document.body).appendChild(st);
+  }
+
+  /* Los avisos son parte del trabajo, no un adorno: "no tienes acceso", "no se pudo
+     guardar" o "enlace copiado" son la única señal de que algo pasó. Colgaban de
+     AppMotion, que en el Portal no está, así que allí una atención que fallaba al
+     guardarse se deshacía en silencio. El respaldo escribe el MISMO marcado que
+     AppMotion.toast para que app_theme —donde esté— lo vista igual. */
+  function toast(m, t) {
+    if (window.AppMotion) { AppMotion.toast(m, t); return; }
+    if (!document.body) return;
+    asegurarEstilosBase();
+    var region = document.getElementById('v-toast-region');
+    if (!region) {
+      region = document.createElement('div');
+      region.id = 'v-toast-region';
+      region.setAttribute('aria-live', 'polite');
+      document.body.appendChild(region);
+    }
+    var el = document.createElement('div');
+    el.className = 'v-toast ' + (t === 'error' ? 'bad' : (t === 'warn' ? 'warn' : 'ok'));
+    el.textContent = m;
+    region.appendChild(el);
+    setTimeout(function () { if (el.parentNode) el.parentNode.removeChild(el); },
+               t === 'error' ? 7000 : 4500);
+  }
 
   function llamar(fn, args) {
     if (window.AppRun && AppRun.call) return AppRun.call(fn, args, { key: 'aten-' + fn });
@@ -512,6 +629,7 @@
     if (enfriando()) return false;        // dijo "ahora no" hace menos de dos minutos
 
     var sistema = (opts && opts.sistema) || '';
+    asegurarEstilosBase();
 
     aviso = document.createElement('div');
     aviso.className = 'atn-aviso no-print';
@@ -952,6 +1070,7 @@
    */
   function modal(titulo, cuerpo, textoOk, alAceptar) {
     cerrarModal();
+    asegurarEstilosBase();
     modalNodo = document.createElement('div');
     modalNodo.className = 'v-modal-overlay';
     // .v-modal-overlay vive en z-index 9999, por debajo del panel (10050). Un diálogo
@@ -1890,6 +2009,7 @@
       toast('Tu cuenta no tiene acceso a las atenciones pendientes.', 'warn');
       return false;
     }
+    asegurarEstilosBase();
 
     var pPedida = normPestana(opts.pestana);
 
