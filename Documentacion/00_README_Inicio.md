@@ -57,7 +57,7 @@ Conteo real de archivos, hecho sobre el repositorio, no estimado.
 | `Carpeta del proyecto/` | `README.md`, `.gitattributes`, `.claude/settings.json` | 3 |
 | `Extencion para chrome/` | Código de la extensión (`.js`, `.html`, `.css`, `manifest.json`) | **13** |
 | `Extencion para chrome/Mi Bolsa_files/` | Captura de una página real de Liverpool para probar sin navegador | banco de pruebas |
-| `Documentacion/` | Este manual | 10 documentos |
+| `Documentacion/` | Este manual | 11 documentos |
 
 Cifras clave del modelo, también verificadas contra el código:
 
@@ -72,7 +72,7 @@ Cifras clave del modelo, también verificadas contra el código:
 
 ---
 
-## 3. Los diez documentos
+## 3. Los once documentos
 
 | # | Documento | Léelo cuando… |
 | --- | --- | --- |
@@ -86,6 +86,7 @@ Cifras clave del modelo, también verificadas contra el código:
 | 07 | [`07_Guia_de_Mantenimiento_y_Operacion.md`](07_Guia_de_Mantenimiento_y_Operacion.md) | Vas a desplegar, o algo está roto en producción. **Runbook.** |
 | 08 | [`08_Tareas_Frecuentes.md`](08_Tareas_Frecuentes.md) | Tienes que hacer un cambio concreto y quieres la receta exacta. |
 | 09 | [`09_Solucion_de_Problemas.md`](09_Solucion_de_Problemas.md) | Tienes un síntoma y no sabes de dónde viene. **Búscalo por síntoma.** |
+| 10 | [`10_Sincronizacion_Apps_Script.md`](10_Sincronizacion_Apps_Script.md) | Vas a montar (o se te rompió) la publicación automática de `main` hacia Apps Script. |
 
 ---
 
@@ -158,7 +159,10 @@ son estilo: cada una tiene una avería detrás.
 
 8. **En esta carpeta no hay borradores.** Un hook `Stop` de Claude Code
    (`~/.claude/hooks/auto-push-proyecto.ps1`) hace `git add -A`, `commit` y `push origin main`
-   al terminar cada tarea. Un cambio a medias llega a `main` igual que uno terminado.
+   al terminar cada tarea. Un cambio a medias llega a `main` igual que uno terminado — y
+   desde `main` entra solo al proyecto de Apps Script
+   ([`10_Sincronizacion_Apps_Script.md`](10_Sincronizacion_Apps_Script.md)). Si trabajas en
+   algo que no debe verse todavía, hazlo en una rama.
 
 ---
 

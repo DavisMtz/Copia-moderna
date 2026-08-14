@@ -25,6 +25,24 @@ Dos consecuencias que conviene tener presentes:
   vez. Ahora avisa en lugar de callarse, pero hay que actualizar la variable
   `$repo` dentro del script.
 
+## De `main` a Google Apps Script
+
+La cadena no se detiene en GitHub. Cada push a `main` que toque
+`Carpeta del proyecto/` dispara el workflow
+[`apps-script-sync.yml`](.github/workflows/apps-script-sync.yml), que hace
+`clasp push` contra el `scriptId` de `Carpeta del proyecto/.clasp.json`. El
+resultado: lo que se edita en el escritorio acaba en el proyecto de Apps Script
+sin copiar y pegar nada.
+
+Necesita un secreto de repositorio, `CLASPRC_JSON`. Cómo generarlo, qué hace
+exactamente y qué revisar cuando falla está en
+[`Documentacion/10_Sincronizacion_Apps_Script.md`](Documentacion/10_Sincronizacion_Apps_Script.md).
+
+Dos advertencias que van juntas con la de arriba: `clasp push --force` **pisa**
+cualquier edición hecha a mano en el editor de Apps Script, y subir código no
+mueve la URL `/exec` de producción (eso es un despliegue aparte, opcional en el
+workflow). Ambas están explicadas en el documento 10.
+
 ## Finales de línea
 
 El repositorio usa `-text` en `.gitattributes`: git no normaliza CRLF/LF, cada
