@@ -1,0 +1,468 @@
+<!-- ════════════════════════════════════════════════════════════════════════
+     AURA · el contorno vivo de los buscadores
+     ────────────────────────────────────────────────────────────────────────
+     El buscador general llega a casi cualquier sitio de la aplicación —una
+     herramienta, una paquetería, un proceso, un cliente que espera llamada— y
+     aun así se lee como un campo de texto más. Esto es lo que lo distingue sin
+     gritar: un filo de color que respira, un destello que lo recorre de vez en
+     cuando y, al pasar el ratón, un barrido de luz.
+
+     Tres capas, y cada una hace una sola cosa:
+
+       halo    · el suelo del contorno. Va bajísimo a propósito (.05 en reposo,
+                 .16 con el cursor dentro): es lo que evita que el filo se corte
+                 en los tramos donde la onda no llega, no el protagonista. Un
+                 anillo macizo al 60 % se lee como un aviso de error.
+       onda    · un degradado cónico girando despacio. Es la que da la
+                 variación —tramos claros y tramos apagados recorriendo el
+                 contorno— y la que sube al enfocar.
+       cometa  · el punzante. Un arco corto y brillante que da una vuelta rápida
+                 y desaparece varios segundos. Al enfocar deja de esperar y
+                 orbita seguido, porque entonces sí hay algo ocurriendo.
+
+     Quien manda en reposo no es el color, es el suceso: el campo se ve casi
+     normal hasta que el cometa pasa. Un borde rosa permanente se convierte en
+     parte del mobiliario a los dos días; una vuelta cada siete segundos, no.
+
+     Por qué giro y no gradiente animado: rotar un elemento es transform puro y
+     lo resuelve la GPU. Animar los grados de un `conic-gradient` obliga a
+     repintar el degradado entero en cada fotograma, y esto vive en la barra
+     superior, que está fija en pantalla todo el día.
+
+     Degradación (el contrato de la casa): sin GSAP o con `prefers-reduced-motion`
+     no gira nada. Queda el halo, que responde al ratón y al foco con
+     transiciones de CSS, y el anillo de foco original SIGUE en su sitio: sólo
+     se cede cuando el aura está animando de verdad y tiene un resplandor con
+     el que sustituirlo. Nadie se queda sin saber dónde está el cursor porque
+     el CDN no contestara.
+
+     API · window.VentelAura
+       · mount(host, opts)  -> monta el aura en un contenedor con position:relative
+       · auto(root)         -> monta todo [data-vx-aura] que encuentre
+       · destroy(host)      -> mata las líneas de tiempo y quita el DOM
+
+     opts = { intensidad:'normal'|'sutil', destello:true, radio:null }
+
+     No necesita ningún plugin: núcleo de GSAP y ya. Si no está, se queda quieto.
+     ════════════════════════════════════════════════════════════════════════ -->
+<style>
+  /* ── El marco recortado ───────────────────────────────────────────────
+     Se sale 1.5px del campo por los cuatro lados y recorta con el mismo radio,
+     así lo único que asoma del disco que gira dentro es ese filo. El campo se
+     sube a z-index:1 con su fondo opaco y tapa el resto: eso es lo que
+     convierte un disco girando en un contorno. */
+  .vx-aura{
+    position:absolute;inset:-1.5px;z-index:0;
+    border-radius:15px;                       /* lo ajusta el JS al del campo */
+    overflow:hidden;
+    pointer-events:none;
+    /* El resplandor exterior: lo que da profundidad y hace que el campo
+       parezca encenderse en vez de cambiar de color. Va por transición de CSS
+       y no por fotogramas —una sombra difuminada es de las cosas más caras de
+       repintar—, así que se paga sólo durante los 400 ms del cambio. */
+    box-shadow:0 0 0 0 rgba(225,0,152,0);
+    transition:box-shadow .42s cubic-bezier(.22,1,.36,1);
+  }
+  .vx-aura-host:hover .vx-aura{box-shadow:0 5px 20px -9px rgba(225,0,152,.5)}
+  .vx-aura-host:focus-within .vx-aura{box-shadow:0 8px 28px -9px rgba(225,0,152,.66)}
+
+  /* El filo de marca. Es la capa que se ve siempre, también sin GSAP.
+     Su opacidad se declara AQUÍ y no desde JavaScript a propósito: un
+     `style.opacity` en línea gana a cualquier regla de CSS, y entonces las
+     dos de abajo —las que dan respuesta al ratón y marcan el foco cuando no
+     hay GSAP— no llegarían a aplicarse nunca. Con GSAP animando sí se escribe
+     en línea, y eso está bien: en ese caso es JavaScript quien lleva los
+     estados y las reglas de CSS deben apartarse. */
+  .vx-aura-halo{
+    position:absolute;inset:0;border-radius:inherit;
+    background:var(--brand,#E10098);
+    opacity:.05;
+    transition:opacity .38s cubic-bezier(.22,1,.36,1);
+  }
+  .vx-aura-sutil .vx-aura-halo{opacity:.035}
+
+  /* Las dos capas que giran. Centradas con `translate` —propiedad aparte— para
+     que GSAP se quede con `transform` entero y no haya que reescribir el
+     centrado en cada fotograma. Cuadradas y más anchas que el campo: así
+     cubren las esquinas en cualquier ángulo. */
+  .vx-aura-onda,
+  .vx-aura-cometa{
+    position:absolute;left:50%;top:50%;
+    width:170%;min-width:260px;aspect-ratio:1;
+    translate:-50% -50%;
+    border-radius:50%;
+    will-change:transform;
+    opacity:0;                                /* las enciende el JS */
+  }
+
+  /* Onda: dos brazos opuestos con núcleo claro y caída larga. Los tramos
+     transparentes entre ellos son tan importantes como los brazos: son los que
+     hacen que se vea PASAR algo en vez de un anillo encendido. */
+  .vx-aura-onda{
+    background:conic-gradient(from 0deg,
+      transparent 0deg,
+      var(--brand-bright,#EE2BAB) 48deg,
+      color-mix(in srgb,var(--brand,#E10098) 55%,transparent) 78deg,
+      transparent 140deg,
+      transparent 190deg,
+      color-mix(in srgb,var(--brand,#E10098) 70%,transparent) 246deg,
+      var(--brand-bright,#EE2BAB) 268deg,
+      transparent 330deg,
+      transparent 360deg);
+  }
+
+  /* Cometa: transparente casi toda la vuelta y un núcleo estrecho y claro.
+     Los 14° de núcleo son lo "punzante"; ensancharlos lo convierte en una
+     mancha girando, que es justo lo que no queremos. */
+  .vx-aura-cometa{
+    background:conic-gradient(from 0deg,
+      transparent 0deg,
+      transparent 292deg,
+      color-mix(in srgb,var(--brand,#E10098) 45%,transparent) 320deg,
+      var(--brand-bright,#EE2BAB) 340deg,
+      #fff 347deg,
+      var(--brand-bright,#EE2BAB) 352deg,
+      transparent 360deg);
+  }
+
+  /* Destello: va POR ENCIMA del campo, porque barre el ancho del campo y no
+     su contorno. Banda estrecha, inclinada y con el filo delantero de marca.
+     `mix-blend-mode` lo funde con lo que haya debajo en vez de pintar una
+     barra blanca sobre el texto. */
+  .vx-aura-brillo{
+    position:absolute;inset:0;z-index:2;
+    border-radius:inherit;overflow:hidden;contain:paint;
+    pointer-events:none;opacity:0;
+  }
+  .vx-aura-brillo i{
+    position:absolute;top:-30%;bottom:-30%;left:0;width:60%;
+    display:block;
+    background:linear-gradient(100deg,
+      transparent 0%,
+      color-mix(in srgb,var(--brand,#E10098) 30%,transparent) 38%,
+      color-mix(in srgb,#fff 88%,var(--brand-bright,#EE2BAB)) 50%,
+      color-mix(in srgb,var(--brand,#E10098) 22%,transparent) 62%,
+      transparent 100%);
+    mix-blend-mode:soft-light;
+    will-change:transform;
+  }
+  [data-theme="carbon"] .vx-aura-brillo i{mix-blend-mode:screen;opacity:.5}
+
+  /* El campo, por encima del marco. Lo pone el JS al montar, pero también aquí
+     para que valga desde el primer fotograma y no haya un parpadeo. */
+  .vx-aura-host > input,
+  .vx-aura-host > textarea{position:relative;z-index:1}
+
+  /* El borde propio del campo se templa hacia el color de marca. Sin esto se
+     leen DOS anillos —el filete gris de siempre y el filo rosa por fuera— y
+     compiten; con esto el contorno es uno solo que se va encendiendo. */
+  .vx-aura-host > input,
+  .vx-aura-host > textarea{
+    border-color:color-mix(in srgb,var(--brand,#E10098) 12%,var(--line,#E4E9F0));
+  }
+  .vx-aura-host:hover > input,
+  .vx-aura-host:hover > textarea{
+    border-color:color-mix(in srgb,var(--brand,#E10098) 38%,var(--line,#E4E9F0));
+  }
+  /* Enfocado, el borde propio se queda a media asta en vez de irse al 100 %.
+     Con los dos a tope se leen dos líneas duras y concéntricas —el filo del
+     aura y el borde del campo— y el conjunto sale romo, más de aviso de error
+     que de campo activo. Así la línea nítida es una sola, la del aura, y el
+     borde del campo la acompaña por dentro.
+
+     Sin animación no hay filo que haga de línea nítida, así que ahí el borde
+     va entero. Las dos reglas pesan igual, y por eso el orden importa: la de
+     `vivo` va DESPUÉS para poder ganar. */
+  .vx-aura-host:focus-within > input,
+  .vx-aura-host:focus-within > textarea{border-color:var(--brand,#E10098)}
+  .vx-aura-vivo:focus-within > input,
+  .vx-aura-vivo:focus-within > textarea{
+    border-color:color-mix(in srgb,var(--brand,#E10098) 55%,var(--line,#E4E9F0));
+  }
+
+  /* El anillo de foco original (4px de --brand-tint) taparía el filo justo
+     cuando más se necesita, así que se cede el trabajo al aura: borde de marca
+     al 100 % más resplandor exterior.
+
+     Y sólo se cede cuando el aura está ANIMANDO de verdad (la clase la pone el
+     JS después de comprobar GSAP y el movimiento reducido). Sin animación no
+     hay resplandor que sustituya al anillo, así que el anillo se queda: nadie
+     pierde la marca de foco porque el CDN no contestara. */
+  .vx-aura-vivo > input:focus,
+  .vx-aura-vivo > textarea:focus{box-shadow:none}
+
+  /* Estados sin JS: el halo responde igual con transiciones de CSS. Es lo que
+     sostiene el foco cuando el CDN no contesta o hay movimiento reducido, y
+     por eso el filo enfocado es MÁS visible que el anillo que sustituye. */
+  .vx-aura-host:hover .vx-aura-halo{opacity:.14}
+  .vx-aura-host:focus-within .vx-aura-halo{opacity:.16}
+  .vx-aura-sutil:hover .vx-aura-halo{opacity:.1}
+  .vx-aura-sutil:focus-within .vx-aura-halo{opacity:.12}
+
+  @media (prefers-reduced-motion: reduce){
+    .vx-aura-onda,.vx-aura-cometa,.vx-aura-brillo{display:none}
+  }
+</style>
+<script>
+(function () {
+  'use strict';
+
+  /* El guardián de la casa, igual que en app_motion. Sin GSAP o con movimiento
+     reducido el módulo SÍ se monta —el halo es parte del diseño, no del
+     movimiento—, pero no crea una sola línea de tiempo. */
+  var reducido = window.matchMedia
+    && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+  function anima() { return typeof window.gsap !== 'undefined' && !reducido; }
+
+  /* Opacidades del halo por estado. Todo el componente habla con esta escala:
+     reposo casi invisible, encima presente, dentro encendido. */
+  /* Opacidades del halo. Son bajas a propósito: el halo es el suelo del
+     contorno, no su protagonista. Lo que se ve moverse es la onda, y lo que
+     llama es el cometa; un anillo macizo al 60 % se lee como un aviso de
+     error, no como un campo vivo. */
+  var HALO = { reposo: .05, encima: .14, dentro: .16 };
+  var HALO_SUTIL = { reposo: .035, encima: .1, dentro: .12 };
+
+  function campoDe(host) {
+    return host.querySelector('input, textarea');
+  }
+
+  /* El radio se lee del campo real en vez de escribirse aquí: el buscador del
+     Portal usa 13px y el de Promociones `--rad-md` (12px), y mañana serán
+     otros. Se le suma el 1.5 que el marco se sale por fuera, que es lo que
+     mantiene las dos curvas concéntricas; con cualquier otro número las
+     esquinas se separan y el filo engorda justo en los redondeos. Es una sola
+     lectura de estilo al montar, no una por fotograma. */
+  function radioDe(campo, host) {
+    try {
+      var r = getComputedStyle(campo).borderTopLeftRadius;
+      var n = parseFloat(r);
+      if (!isNaN(n) && n > 0) return (n + 1.5) + 'px';
+    } catch (e) {}
+    try {
+      var rh = parseFloat(getComputedStyle(host).borderTopLeftRadius);
+      if (!isNaN(rh) && rh > 0) return (rh + 1.5) + 'px';
+    } catch (e) {}
+    return '15px';
+  }
+
+  function crearCapa(clase) {
+    var el = document.createElement('span');
+    el.className = clase;
+    el.setAttribute('aria-hidden', 'true');
+    return el;
+  }
+
+  /**
+   * Monta el aura en un contenedor que ya envuelve a un campo de texto.
+   * El contenedor tiene que ser `position:relative` (los dos buscadores ya lo son).
+   */
+  function mount(host, opts) {
+    if (!host || host.hasAttribute('data-vx-listo')) return null;
+    var campo = campoDe(host);
+    if (!campo) return null;
+    opts = opts || {};
+
+    var sutil = opts.intensidad === 'sutil';
+    host.setAttribute('data-vx-listo', '1');
+    host.classList.add('vx-aura-host');
+    if (sutil) host.classList.add('vx-aura-sutil');
+
+    var escala = sutil ? HALO_SUTIL : HALO;
+    var radio  = opts.radio || radioDe(campo, host);
+
+    /* ── DOM ──────────────────────────────────────────────────────────
+       El marco va como PRIMER hijo: así queda por debajo del icono, del
+       atajo de teclado y del botón de limpiar, que son absolutos y sin
+       z-index propio, y por debajo del desplegable de resultados. */
+    var marco  = crearCapa('vx-aura');
+    var halo   = crearCapa('vx-aura-halo');
+    var onda   = crearCapa('vx-aura-onda');
+    var cometa = crearCapa('vx-aura-cometa');
+    marco.style.borderRadius = radio;
+    marco.appendChild(halo);
+    marco.appendChild(onda);
+    marco.appendChild(cometa);
+    host.insertBefore(marco, host.firstChild);
+
+    var brillo = null, barra = null;
+    if (opts.destello !== false) {
+      brillo = crearCapa('vx-aura-brillo');
+      brillo.style.borderRadius = radio;
+      barra = document.createElement('i');
+      brillo.appendChild(barra);
+      host.appendChild(brillo);         /* por encima del campo */
+    }
+
+    var api = {
+      host: host, marco: marco, halo: halo,
+      onda: onda, cometa: cometa, brillo: brillo,
+      tls: [], oyentes: []
+    };
+    host._vxAura = api;
+
+    /* Sin GSAP el trabajo ya está hecho: el halo está puesto y el CSS se
+       encarga de :hover y :focus-within. No hay nada que animar ni que
+       limpiar después. */
+    if (!anima()) return api;
+
+    /* ── Movimiento ───────────────────────────────────────────────────
+       Todo dentro de un contexto: un `revert()` en destroy() deshace las
+       líneas de tiempo Y los estilos que dejaron puestos. */
+    host.classList.add('vx-aura-vivo');
+
+    var ctx = gsap.context(function () {
+
+      gsap.set([onda, cometa], { opacity: 0, rotation: 0 });
+
+      /* La onda gira siempre, muy despacio y muy tenue. Es transform sobre
+         un elemento pequeño: la GPU ni se entera. */
+      var tlOnda = gsap.timeline()
+        .to(onda, { opacity: .38, duration: 1.2, ease: 'power1.out' })
+        .to(onda, { rotation: 360, duration: 26, ease: 'none', repeat: -1 }, 0);
+
+      /* El cometa: una vuelta rápida y a esperar. `power2.inOut` es lo que lo
+         hace "controlado" en vez de mecánico —arranca, cruza y frena—, y el
+         retraso largo es lo que lo hace notar en vez de molestar: si diera
+         vueltas sin parar sería un spinner, y un spinner dice "espera", que
+         es justo lo contrario de lo que este campo tiene que decir. */
+      var tlCometa = gsap.timeline({ repeat: -1, repeatDelay: 6.4, delay: 1.6 })
+        .set(cometa, { rotation: -90 })
+        .to(cometa, { opacity: 1, duration: .16, ease: 'power1.out' })
+        .to(cometa, { rotation: 270, duration: 1.15, ease: 'power2.inOut' }, 0)
+        .to(cometa, { opacity: 0, duration: .34, ease: 'power1.in' }, '-=.36');
+
+      api.tls.push(tlOnda, tlCometa);
+
+      function haloA(valor, dur) {
+        gsap.to(halo, {
+          opacity: valor, duration: dur || .34,
+          ease: 'power2.out', overwrite: 'auto'
+        });
+      }
+
+      /* El destello. Una sola pasada, con el ease cargado al final para que
+         entre rápido y salga frenando: eso es lo que lo hace cinematográfico
+         y no una barra cruzando. Se reutiliza pausada en vez de crear un
+         tween por cada vez que el ratón entra. */
+      var tlBrillo = null;
+      if (barra) {
+        gsap.set(barra, { xPercent: -160, rotate: 8 });
+        tlBrillo = gsap.timeline({ paused: true })
+          .set(brillo, { opacity: 1 })
+          .fromTo(barra,
+            { xPercent: -160 },
+            { xPercent: 260, duration: .78, ease: 'power3.inOut' })
+          .to(brillo, { opacity: 0, duration: .2, ease: 'power1.in' }, '-=.18');
+        api.tls.push(tlBrillo);
+      }
+
+      var dentro = false;
+
+      function entra() {
+        haloA(dentro ? escala.dentro : escala.encima);
+        /* El cometa se adelanta a su turno: el destello y la vuelta salen
+           juntos, y esa coincidencia es la que se lee como respuesta. */
+        tlCometa.restart(true);
+        /* El barrido, sólo si el campo está vacío. Con texto escrito sería
+           luz pasando por encima de lo que la persona está leyendo. */
+        if (tlBrillo && !campo.value) tlBrillo.restart();
+      }
+
+      function sale() {
+        haloA(dentro ? escala.dentro : escala.reposo);
+      }
+
+      function enfoca() {
+        dentro = true;
+        haloA(escala.dentro, .28);
+        /* Con el cursor dentro el cometa deja de esperar: órbita seguida y un
+           poco más lenta. Ya no tiene que llamar la atención —ya la tiene—,
+           tiene que acompañar. */
+        tlCometa.repeatDelay(0);
+        gsap.to(tlCometa, { timeScale: .8, duration: .5, ease: 'power2.out' });
+        tlCometa.restart(true);
+        gsap.to(onda, { opacity: .62, duration: .5, ease: 'power2.out', overwrite: 'auto' });
+      }
+
+      function desenfoca() {
+        dentro = false;
+        haloA(escala.reposo, .5);
+        tlCometa.repeatDelay(6.4);
+        gsap.to(tlCometa, { timeScale: 1, duration: .5, ease: 'power2.out' });
+        gsap.to(onda, { opacity: .38, duration: .6, ease: 'power2.out', overwrite: 'auto' });
+      }
+
+      /* Al escribir, un pulso muy corto en la onda. Es opacidad sobre un
+         elemento que ya existe: cuesta nada y confirma que la tecla entró. */
+      var pulso = gsap.quickTo(onda, 'opacity', { duration: .18, ease: 'power2.out' });
+      var pulsando = false;
+      function teclea() {
+        if (!dentro || pulsando) return;
+        pulsando = true;
+        pulso(.9);
+        gsap.delayedCall(.16, function () { pulso(.62); pulsando = false; });
+      }
+
+      /* Fuera de la vista no hay nada que animar. Una pestaña de fondo con un
+         disco girando es batería que se va sin que nadie lo vea. */
+      function visibilidad() {
+        if (document.hidden) { tlOnda.pause(); tlCometa.pause(); }
+        else { tlOnda.resume(); tlCometa.resume(); }
+      }
+
+      function on(el, ev, fn) {
+        el.addEventListener(ev, fn);
+        api.oyentes.push([el, ev, fn]);
+      }
+      on(host, 'mouseenter', entra);
+      on(host, 'mouseleave', sale);
+      on(campo, 'focus', enfoca);
+      on(campo, 'blur', desenfoca);
+      on(campo, 'input', teclea);
+      on(document, 'visibilitychange', visibilidad);
+
+      /* Si el campo ya venía enfocado (atajo `/`, deep-link con ?q=), el
+         estado correcto es el de dentro, no el de reposo. */
+      if (document.activeElement === campo) enfoca();
+    }, host);
+
+    api.ctx = ctx;
+    return api;
+  }
+
+  /** Monta todo [data-vx-aura] que haya bajo `root`. Repetirlo no duplica nada. */
+  function auto(root) {
+    var nodos = (root || document).querySelectorAll('[data-vx-aura]');
+    for (var i = 0; i < nodos.length; i++) {
+      try {
+        mount(nodos[i], {
+          intensidad: nodos[i].getAttribute('data-vx-aura') === 'sutil' ? 'sutil' : 'normal',
+          destello: nodos[i].getAttribute('data-vx-destello') !== 'no'
+        });
+      } catch (e) { /* un buscador sin aura sigue buscando igual */ }
+    }
+  }
+
+  /** Deshace todo: líneas de tiempo, estilos, oyentes y DOM. */
+  function destroy(host) {
+    var api = host && host._vxAura;
+    if (!api) return;
+    if (api.ctx) api.ctx.revert();
+    api.oyentes.forEach(function (o) { o[0].removeEventListener(o[1], o[2]); });
+    if (api.marco && api.marco.parentNode) api.marco.parentNode.removeChild(api.marco);
+    if (api.brillo && api.brillo.parentNode) api.brillo.parentNode.removeChild(api.brillo);
+    host.classList.remove('vx-aura-host', 'vx-aura-sutil', 'vx-aura-vivo');
+    host.removeAttribute('data-vx-listo');
+    delete host._vxAura;
+  }
+
+  window.VentelAura = { mount: mount, auto: auto, destroy: destroy };
+
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', function () { auto(); });
+  } else {
+    auto();
+  }
+})();
+</script>

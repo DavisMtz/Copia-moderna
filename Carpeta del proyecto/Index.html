@@ -1363,8 +1363,16 @@ table.ds-matrix{width:100%;border-collapse:separate;border-spacing:0;min-width:5
      de pintar para evitar parpadeo; expone window.VentelPrefs. Ver ViewPrefsPartial.html -->
 <?!= include('ViewPrefsPartial') ?>
 <?!= include('LoaderPartial') ?>
-<?!= include('app_loaders'); ?>
-<script>if (window.VentelFX) VentelFX.pagina("portal");</script>
+<!-- Loader de ruta: el camión de Liverpool que se ve en cada sección mientras
+     la hoja de cálculo contesta. Se auto-monta en todo [data-vt-loader]. -->
+<?!= include('TruckLoaderPartial') ?>
+<!-- Familia de loaders en sitio (isotipo con MorphSVG, banda de cajas, onda).
+     Se auto-montan en todo [data-vx-loader]; el tipo lo elige cada seccion. -->
+<?!= include('app_loaders') ?>
+<!-- Contorno vivo de los buscadores. Se auto-monta en todo [data-vx-aura];
+     aquí lo lleva el buscador general del topbar, que es el que llega a
+     cualquier sitio de la aplicación y hasta ahora se leía como un campo más. -->
+<?!= include('app_aura') ?>
 <!-- Núcleo compartido con el sistema de cotizaciones: AppUrl / AppSession.
      El Portal es público, pero si el asesor ya inició sesión en Cotizaciones
      el acceso del sidebar y el control del topbar lo llevan directo a su panel. -->
@@ -1518,7 +1526,7 @@ table.ds-matrix{width:100%;border-collapse:separate;border-spacing:0;min-width:5
   <!-- TOPBAR -->
   <header class="topbar">
     <button class="menu-btn" onclick="toggleSidebar()" aria-label="Menú"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M4 7h16M4 12h16M4 17h16"/></svg></button>
-    <div class="search">
+    <div class="search" data-vx-aura>
       <input type="search" id="globalSearch" placeholder="Busca herramienta, paquetería, proceso… o escribe «tienda» / «cr»" autocomplete="off" spellcheck="false">
       <svg class="s-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><path d="m21 21-4.3-4.3"/></svg>
       <span class="s-kbd">/</span>

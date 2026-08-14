@@ -63,6 +63,7 @@ siempre existe, y duplicarla es cómo se desincroniza el sistema.
 | Abrir/cerrar modal o panel | `AppMotion.modalIn/modalOut(overlay, card)` | `app_motion.html` |
 | Micro-feedback y error | `AppMotion.pop(el)`, `AppMotion.shake(el)` | `app_motion.html` |
 | Aviso flotante | `AppMotion.toast(msg, tipo)` | `app_motion.html` |
+| Contorno vivo de un buscador | `VentelAura` sobre `[data-vx-aura]` | `app_aura.html` |
 | Tapar la pantalla entera mientras no hay nada | `VentelLoader` | `LoaderPartial.html` |
 | Esperar datos con el HTML ya pintado | `VentelLoaders` (`isotipo`, `cajas`, `onda`) | `app_loaders.html` |
 | Espera sin depender del CDN | `VentelTruck` (100 % CSS a propósito) | `TruckLoaderPartial.html` |
