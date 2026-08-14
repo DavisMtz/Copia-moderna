@@ -57,7 +57,7 @@ Conteo real de archivos, hecho sobre el repositorio, no estimado.
 | `Carpeta del proyecto/` | `README.md`, `.gitattributes`, `.claude/settings.json` | 3 |
 | `Extencion para chrome/` | Código de la extensión (`.js`, `.html`, `.css`, `manifest.json`) | **13** |
 | `Extencion para chrome/Mi Bolsa_files/` | Captura de una página real de Liverpool para probar sin navegador | banco de pruebas |
-| `Documentacion/` | Este manual | 11 documentos |
+| `Documentacion/` | Este manual | 14 documentos |
 
 Cifras clave del modelo, también verificadas contra el código:
 
@@ -72,7 +72,7 @@ Cifras clave del modelo, también verificadas contra el código:
 
 ---
 
-## 3. Los once documentos
+## 3. Los catorce documentos
 
 | # | Documento | Léelo cuando… |
 | --- | --- | --- |
@@ -88,6 +88,8 @@ Cifras clave del modelo, también verificadas contra el código:
 | 09 | [`09_Solucion_de_Problemas.md`](09_Solucion_de_Problemas.md) | Tienes un síntoma y no sabes de dónde viene. **Búscalo por síntoma.** |
 | 10 | [`10_Sincronizacion_Apps_Script.md`](10_Sincronizacion_Apps_Script.md) | Vas a montar (o se te rompió) la publicación automática de `main` hacia Apps Script, o necesitas publicar un cambio sin tener la PC delante. |
 | 11 | [`11_Animacion_GSAP.md`](11_Animacion_GSAP.md) | Vas a tocar una animación, un loader o una transición, o algo «parpadea», «salta» o se queda oculto al animar. |
+| 12 | [`12_Plan_de_Mejora.md`](12_Plan_de_Mejora.md) | **Cerrado.** Registro histórico de la auditoría de agosto de 2026 y de lo ejecutado entonces. |
+| 13 | [`13_Plan_Cierre_v1.md`](13_Plan_Cierre_v1.md) | **El plan vigente.** Vas a empezar cualquier tarea nueva: búscala ahí, lee su fase y registra lo hecho en su §18. |
 
 ---
 

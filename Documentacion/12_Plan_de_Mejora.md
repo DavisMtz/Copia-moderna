@@ -1,5 +1,12 @@
 # 12 · Plan de mejora por fases
 
+> **⛔ Este plan está CERRADO desde el 14 de agosto de 2026.** El plan vigente de todo el
+> repositorio es **[`13_Plan_Cierre_v1.md`](13_Plan_Cierre_v1.md)**. Este documento queda
+> como registro histórico: su §6 (registro de ejecución) sigue siendo la memoria de lo que
+> se hizo, y no se le añaden fases nuevas. De lo que dejó pendiente, lo que sigue vivo está
+> absorbido en el plan 13 (su §1 dice exactamente qué y dónde) y lo demás quedó descartado
+> con motivo. No trabajar contra este documento.
+
 Plan de trabajo derivado de la auditoría de agosto de 2026, y **registro de lo que se ha
 hecho de verdad**. Los dos usos van juntos a propósito: un plan sin registro se convierte
 en una lista de buenas intenciones, y un registro sin plan no dice hacia dónde iba nadie.

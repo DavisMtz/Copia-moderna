@@ -9,7 +9,7 @@ se publica en `main` de forma automática al terminar cada tarea.
 | --- | --- |
 | `Carpeta del proyecto/` | El proyecto de Google Apps Script: el portal, las cotizaciones, la consola y todas las vistas. Tiene su propio [README](Carpeta%20del%20proyecto/README.md) con el detalle. |
 | `Extencion para chrome/` | La extensión de Chrome que extrae datos de artículos y compras en Liverpool. Incluye `Mi Bolsa_files/`, una captura de la página real que sirve para probar el extractor sin abrir el navegador. |
-| `Documentacion/` | Manual técnico de soporte y mantenimiento, numerado del `00` al `11`. Empieza por [`00_README_Inicio.md`](Documentacion/00_README_Inicio.md). |
+| `Documentacion/` | Manual técnico de soporte y mantenimiento, numerado del `00` al `13`. Empieza por [`00_README_Inicio.md`](Documentacion/00_README_Inicio.md). El plan de trabajo vigente es [`13_Plan_Cierre_v1.md`](Documentacion/13_Plan_Cierre_v1.md). |
 | `.claude/skills/` | Instrucciones que Claude Code carga cuando hacen falta: las oficiales de GSAP más las reglas de animación de la casa. Tiene su propio [README](.claude/skills/README.md). |
 
 ## Publicación automática
