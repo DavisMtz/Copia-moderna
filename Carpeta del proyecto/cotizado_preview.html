@@ -713,8 +713,15 @@
            ya no espera a un clic: en cuanto hay documento, el panel lo abre. Quien llega
            aquí viene a comprobar la cotización, y dejar el resultado detrás de un botón
            después de haberle anunciado la espera dejaba el trabajo a medias —la escena
-           terminaba y no aparecía nada—. La espera del iframe la cubre la MISMA escena,
-           de modo que las dos esperas encadenadas se leen como una sola. */
+           terminaba y no aparecía nada—.
+
+           UNA SOLA ESPERA ANUNCIADA, NO DOS
+           ---------------------------------
+           La escena cubre la generación en el servidor y termina ahí. Cuando se abre el
+           marco NO se monta nada encima del iframe: ver el porqué en abrirMarco(). En
+           resumen, una capa atada al `load` del iframe puede sobrevivir al documento ya
+           pintado y taparlo, y encima se lee como un segundo loader después de haber
+           dado la espera por terminada. */
         const DocumentoCcl = (function () {
             let pedido = false;
             let urlDoc = '';
@@ -909,7 +916,11 @@
                     const f = document.createElement('iframe');
                     f.src = urlDoc;
                     f.title = 'Documento CCL de la cotización';
-                    f.loading = 'lazy';
+                    /* Sin `loading="lazy"`. El marco lo abre la propia pantalla en cuanto
+                       el documento está listo, y queda por debajo de la vista previa: con
+                       carga diferida el navegador esperaba a que alguien bajara hasta él
+                       para empezar a pedir la hoja, justo lo contrario de lo que se busca.
+                       El aplazamiento ya lo da crear el iframe tarde, no el atributo. */
                     // Sin permisos de descarga ni de portapapeles: este panel es
                     // para MIRAR el documento. Lo que hay que llevarse de esta
                     // pantalla es el PDF, que se genera aparte y con su formato.
@@ -924,21 +935,26 @@
                         force3D: true, clearProps: 'transform,opacity'
                     });
                 }
-                /* Sheets tarda entre 3 y 10 s en pintarse, y hasta que lo hace el marco
-                   es un rectángulo blanco grande. La MISMA escena lo tapa hasta el `load`
-                   de verdad del iframe: así las dos esperas encadenadas —la del servidor
-                   escribiendo la hoja y la de Sheets montándola— se leen como una sola y
-                   no hay un instante en blanco entre ellas. Solo la primera vez: en las
-                   siguientes aperturas el documento ya está cargado. */
-                if (recienCreado && window.VentelFX) {
-                    const fxMarco = VentelFX.section(m, 'hoja', {
-                        mode: 'cover', maxMs: 25000, width: 280,
-                        title: 'Abriendo el documento…',
-                        sub: 'Google Sheets está montando la hoja de este folio.'
-                    });
-                    recienCreado.addEventListener('load', function () { fxMarco.done(); });
+                /* AQUÍ NO VA OTRA ESCENA DE ESPERA, a propósito.
+                   Antes, al abrirse el marco se montaba una segunda escena encima del
+                   iframe ("Abriendo el documento…") hasta el `load`. Dos problemas, y el
+                   segundo es el grave:
+
+                   · Se leía como un segundo loader. La espera ya se había anunciado y
+                     dado por terminada; volver a empezar con otro título convierte un
+                     "ya está" en "todavía no".
+                   · Podía tapar un documento YA PINTADO. El `load` de un iframe de Sheets
+                     no llega cuando la hoja se ve, sino cuando termina de cargarse todo
+                     lo que arrastra —y a veces no llega—, así que la capa se quedaba
+                     encima hasta agotar su tope de 25 s. El documento estaba debajo,
+                     visible, y no se podía leer.
+
+                   Hay una espera real de unos segundos mientras Sheets se pinta, y ahora
+                   se ve como lo que es: el marco del documento montándose. Es preferible
+                   a una capa que puede mentir sobre cuándo termina. */
+                if (recienCreado) {
                     recienCreado.addEventListener('error', function () {
-                        fxMarco.fail('No pudimos mostrar el documento aquí. Ciérralo y vuelve a abrirlo.');
+                        if (sub()) sub().textContent = 'No pudimos mostrar el documento aquí. Ciérralo y vuelve a abrirlo, o descárgalo en PDF.';
                     });
                 }
                 sincronizar(true);
