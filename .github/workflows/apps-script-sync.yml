@@ -1,0 +1,113 @@
+name: Publicar en Apps Script
+
+# Cada push a `main` que toque `Carpeta del proyecto/` empuja ese codigo al
+# proyecto de Apps Script indicado en `.clasp.json`. Es el mismo `clasp push`
+# que se haria a mano, ejecutado por GitHub en lugar de por ti.
+#
+# Da igual de donde venga el push: el hook del escritorio y un commit escrito
+# en github.com desde el movil son lo mismo para este flujo. Ese es el punto:
+# publicar deja de depender de estar frente a la PC.
+#
+# Requisito: el secreto CLASPRC_JSON del repositorio.
+# Como generarlo: Documentacion/10_Sincronizacion_Apps_Script.md
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'Carpeta del proyecto/**'
+      - '.github/workflows/apps-script-sync.yml'
+  workflow_dispatch:
+
+# Solo lectura del repo: este flujo no escribe commits, solo lee y sube a Google.
+permissions:
+  contents: read
+
+# Dos pushes seguidos no deben empujar a la vez sobre el mismo proyecto. El
+# segundo espera; no se cancela, porque cancelar a media subida deja el
+# proyecto remoto con unos archivos nuevos y otros viejos.
+concurrency:
+  group: apps-script-sync
+  cancel-in-progress: false
+
+jobs:
+  publicar:
+    name: clasp push
+    runs-on: ubuntu-latest
+    steps:
+      - name: Descargar el repositorio
+        uses: actions/checkout@v4
+
+      - name: Preparar Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      # Version fija a proposito. clasp cambio el formato de credenciales y el
+      # nombre de varios comandos entre la 2.x y la 3.x; si esto flotara en
+      # `latest`, un dia el flujo se rompe solo sin que nadie haya tocado nada.
+      - name: Instalar clasp
+        run: npm install --global @google/clasp@3.3.0
+
+      - name: Escribir las credenciales
+        env:
+          CLASPRC_JSON: ${{ secrets.CLASPRC_JSON }}
+        run: |
+          if [ -z "${CLASPRC_JSON}" ]; then
+            echo "::error::Falta el secreto CLASPRC_JSON. Ver Documentacion/10_Sincronizacion_Apps_Script.md"
+            exit 1
+          fi
+          umask 077
+          printf '%s' "${CLASPRC_JSON}" > "${HOME}/.clasprc.json"
+          # Si el secreto se pego cortado, el error de clasp es incomprensible.
+          # Este parse falla aqui, con un mensaje que si dice que pasa.
+          node -e 'JSON.parse(require("fs").readFileSync(process.env.HOME + "/.clasprc.json", "utf8"))' \
+            || { echo "::error::CLASPRC_JSON no es un JSON valido: revisa que se pegara el archivo completo."; exit 1; }
+
+      - name: Comprobar la sesion de Google
+        run: clasp show-authorized-user
+
+      - name: Subir el codigo
+        working-directory: 'Carpeta del proyecto'
+        run: clasp push --force
+
+      # Opcional. `clasp push` deja el codigo nuevo en el proyecto y en la URL
+      # /dev al instante, pero la URL /exec de produccion sigue sirviendo la
+      # version congelada del despliegue. Si defines el secreto
+      # APPS_SCRIPT_DEPLOYMENT_ID, este paso crea una version nueva y apunta
+      # ese despliegue a ella. Si no lo defines, el paso se salta y lo dice.
+      - name: Actualizar el despliegue de produccion
+        working-directory: 'Carpeta del proyecto'
+        env:
+          DEPLOYMENT_ID: ${{ secrets.APPS_SCRIPT_DEPLOYMENT_ID }}
+        run: |
+          if [ -z "${DEPLOYMENT_ID}" ]; then
+            echo "Sin APPS_SCRIPT_DEPLOYMENT_ID: la URL /dev ya tiene el codigo nuevo;"
+            echo "la de produccion (/exec) sigue en su version anterior."
+            exit 0
+          fi
+          clasp deploy --deploymentId "${DEPLOYMENT_ID}" --description "main ${GITHUB_SHA:0:7}"
+
+      - name: Resumen
+        if: always()
+        env:
+          DEPLOYMENT_ID: ${{ secrets.APPS_SCRIPT_DEPLOYMENT_ID }}
+          ESTADO: ${{ job.status }}
+        run: |
+          {
+            echo "### Publicacion en Apps Script"
+            echo ""
+            echo "- Commit: \`${GITHUB_SHA:0:7}\`"
+            echo "- Resultado: **${ESTADO}**"
+            if [ -n "${DEPLOYMENT_ID}" ]; then
+              echo "- Despliegue de produccion: actualizado"
+            else
+              echo "- Despliegue de produccion: sin tocar (falta APPS_SCRIPT_DEPLOYMENT_ID)"
+            fi
+          } >> "${GITHUB_STEP_SUMMARY}"
+
+      # El runner es efimero, pero borrar el token igual es gratis y evita
+      # que quede en cualquier artefacto o cache que se anada despues.
+      - name: Borrar las credenciales
+        if: always()
+        run: rm -f "${HOME}/.clasprc.json"
