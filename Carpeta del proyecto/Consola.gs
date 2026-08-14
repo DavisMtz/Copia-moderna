@@ -863,6 +863,9 @@ function consolaEliminarMiembro(email, correoObjetivo, confirmacion) {
         if (secNormalizarCorreo_(correos[r][0]) !== objetivo) continue;
         sheet.deleteRow(r + 2);
         SEC_REGISTROS_CACHE = null;
+        // También la caché que sobrevive a esta ejecución: sin esto, alguien recién borrado
+        // seguiría entrando hasta que caducara la entrada.
+        if (typeof idcInvalidar_ === 'function') idcInvalidar_();
         // También su fila en la hoja oculta: si no, dar de alta ese mismo correo más
         // adelante lo resucitaría con los permisos que tenía antes de ser borrado.
         try { permBorrarPermisos_(objetivo); } catch (e) {
