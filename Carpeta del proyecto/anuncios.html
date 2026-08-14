@@ -1326,8 +1326,13 @@
         $('btnPublicar').disabled = true;
 
         leerImagen(file, function(dataUrl){
-          google.script.run
-            .withSuccessHandler(function(res){
+          // El chip de "Subiendo a Drive…" está en el propio recuadro de la imagen,
+          // que es donde se mira: `busy: 'Subiendo'` para que el disco de la esquina
+          // diga lo mismo y no un "consultando" que no describe nada.
+          AppRun.call('subirImagenAnuncio',
+                      [{ dataUrl: dataUrl, nombre: file.name, asesor: ADV_EMAIL }],
+                      { busy: 'Subiendo' })
+            .then(function(res){
               $('btnPublicar').disabled = false;
               if (res && res.status === 'ok'){
                 $('f-imagen').value = res.url;
@@ -1338,14 +1343,12 @@
                 $('imgHint').textContent = 'No se pudo subir la imagen. ' + ((res && res.error) || 'Inténtalo de nuevo.');
                 if (window.AppMotion) AppMotion.shake($('imgDrop'));
               }
-            })
-            .withFailureHandler(function(err){
+            }, function(err){
               $('btnPublicar').disabled = false;
               console.error('subirImagenAnuncio:', err);
               $('imgHint').textContent = 'No se pudo subir la imagen. Revisa tu conexión e inténtalo de nuevo.';
               if (window.AppMotion) AppMotion.shake($('imgDrop'));
-            })
-            .subirImagenAnuncio({ dataUrl: dataUrl, nombre: file.name, asesor: ADV_EMAIL });
+            });
         });
       }
 

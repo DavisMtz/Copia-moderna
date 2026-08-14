@@ -190,12 +190,39 @@ día que cambiara la forma del dato se habría roto solo para quien ya había en
 `google.script.run` como promesa, con **deduplicación** de llamadas idénticas en vuelo.
 
 ```js
-AppRun.call('nombreFuncion', arg1, arg2)   // promesa simple
-AppRun.swr('nombreFuncion', args, opts)    // pinta lo cacheado y revalida por detrás
+AppRun.call('nombreFuncion', args, opts)         // promesa simple
+AppRun.swr(clave, 'nombreFuncion', args, opts)   // pinta lo cacheado y revalida por detrás
 ```
 
+**`AppRun` es el ÚNICO camino al servidor.** Fuera de `app_core.html` no queda ni un
+`google.script.run` en el proyecto: ninguna pantalla arma el suyo, ningún partial lleva un
+envoltorio propio «por si acaso», y no hay atajos que lo rodeen. Esa exclusividad es lo que
+hace ciertas tres cosas que antes dependían de que cada pantalla se acordara:
+
+- **Deduplicación.** Dos peticiones idénticas en vuelo son un viaje. Sirve de red contra el
+  doble clic en cualquier botón que guarde: dos «Aprobar» seguidos son una decisión, no dos.
+- **Un solo indicador.** El disco de la esquina lo enciende y lo apaga `AppRun`. Con
+  `busy: false` se calla —para sondeos de fondo, o cuando ya hay un overlay tapando la
+  pantalla— y con `busy: 'Guardando'` se cambia el verbo.
+- **Un solo camino de error.** Incluido el caso que antes se parcheaba con `try/catch` en
+  seis pantallas: si el servidor desplegado todavía no expone la función, `AppRun` **rechaza
+  la promesa** en vez de no llamar a ningún manejador. Eso importa porque los esqueletos y
+  los chips en línea no tienen tope de seguridad: sin manejador se quedaban brillando para
+  siempre.
+
 **`AppRun.swr` es el patrón por defecto.** Úsalo salvo que tengas un motivo escrito para no
-hacerlo.
+hacerlo. Los motivos que ya están escritos en el código, para no volver a discutirlos:
+
+| Motivo | Dónde | Por qué |
+| --- | --- | --- |
+| El pintado no aguanta repetirse | `revision_cotizacion`, la política de `inicio_avanzado`, cargar una cotización en `cotizacion` | `onData` se llama DOS veces cuando hay copia, y la segunda tiraría las casillas marcadas o lo tecleado |
+| El dato no se puede enseñar con retraso | `consulta_cotizacion` | Es el documento que ve el cliente y la pantalla no tiene dónde decir «esto es de hace un rato» |
+| La clave es un contrato con otro módulo | `quotes-`, `pendientes-`, `sup-quotes-` | `app_precarga` las calienta guardando **el arreglo** y `app_comando` las lee así; `swr` guarda la respuesta entera. Ahí la llamada va por `AppRun.call` y el guardado se queda escrito en la pantalla |
+
+Esa última fila es la trampa que hay que conocer antes de migrar algo a `swr`: **`swr`
+guarda en la caché LA RESPUESTA ENTERA**. Si la clave ya la escribe o la lee alguien más
+—un calentador de `app_precarga`, el índice del buscador general—, cambiar a `swr` cambia
+la forma de lo guardado y el otro deja de reconocerlo, sin un solo error.
 
 ### Guardias
 

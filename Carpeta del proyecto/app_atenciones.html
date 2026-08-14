@@ -480,11 +480,25 @@
                t === 'error' ? 7000 : 4500);
   }
 
+  /**
+   * Llamada al servidor, siempre por `AppRun`. Se quitaron dos cosas de aquí, y
+   * las dos importan:
+   *
+   *  · **El respaldo a `google.script.run`.** Las 17 pantallas que incluyen este
+   *    partial cargan `app_core` antes, así que nunca se usaba; y cuando se
+   *    usara, invocaba el runner con `apply(null, …)`, que en la librería de
+   *    Apps Script se traga los manejadores en silencio.
+   *
+   *  · **La clave `'aten-' + fn`.** Deduplicaba por nombre de función SIN mirar
+   *    los argumentos, y por aquí pasan escrituras: registrar dos atenciones
+   *    seguidas, o marcar como llamados a dos clientes distintos, son la misma
+   *    función con argumentos distintos. La segunda se habría fusionado con la
+   *    primera y habría dado por buena una respuesta que no era la suya —un alta
+   *    perdida sin un solo mensaje de error—. Sin clave, `AppRun` la construye
+   *    con la función Y los argumentos, que es lo que hace segura la fusión.
+   */
   function llamar(fn, args) {
-    if (window.AppRun && AppRun.call) return AppRun.call(fn, args, { key: 'aten-' + fn });
-    return new Promise(function (res, rej) {
-      google.script.run.withSuccessHandler(res).withFailureHandler(rej)[fn].apply(null, args);
-    });
+    return AppRun.call(fn, args);
   }
 
   /* ── GUARDADO OPTIMISTA ──────────────────────────────────────────────────
@@ -1133,7 +1147,7 @@
      que montan este módulo sin incluirlo— queda el disco de siempre. */
   function prepararHueco() {
     if (!host) return;
-    var conEsqueleto = !!(window.VentelFX && window.AppRun && AppRun.swr);
+    var conEsqueleto = !!window.VentelFX;
     host.innerHTML = conEsqueleto
       ? ''
       : '<div class="atn-vacio"><div class="v-spinner"></div> Cargando tus atenciones…</div>';
@@ -1218,25 +1232,19 @@
       return r;
     };
 
-    if (window.AppRun && AppRun.swr) {
-      return AppRun.swr(clavePanorama(), 'atencionesPanorama', [correo()], {
-        ttl: TTL_PANORAMA,
-        fuerza: forzar === true,
-        accept: function (r) { return !!(r && r.success); },
-        // Esqueleto SOLO con el hueco vacío. Con la lista ya pintada —la
-        // revalidación de siempre, o «Actualizar», que salta la caché— se colgaría
-        // DEBAJO de lo que se está leyendo; ahí el acuse va en el botón que se pulsó.
-        fx: (host && !host.firstChild) ? { target: host, kind: 'tarjetas', rows: 3 } : null,
-        onData: function (r, deCache, at) {
-          if (r && r.success) { datos = r; datosAt = at || Date.now(); pintar(); }
-        },
-        onError: function () { mostrarError(); }
-      }).then(fin, fin);
-    }
-    return llamar('atencionesPanorama', [correo()]).then(function (r) {
-      if (r && r.success) { datos = r; datosAt = Date.now(); pintar(); }
-      return fin(r);
-    }, fin);
+    return AppRun.swr(clavePanorama(), 'atencionesPanorama', [correo()], {
+      ttl: TTL_PANORAMA,
+      fuerza: forzar === true,
+      accept: function (r) { return !!(r && r.success); },
+      // Esqueleto SOLO con el hueco vacío. Con la lista ya pintada —la
+      // revalidación de siempre, o «Actualizar», que salta la caché— se colgaría
+      // DEBAJO de lo que se está leyendo; ahí el acuse va en el botón que se pulsó.
+      fx: (host && !host.firstChild) ? { target: host, kind: 'tarjetas', rows: 3 } : null,
+      onData: function (r, deCache, at) {
+        if (r && r.success) { datos = r; datosAt = at || Date.now(); pintar(); }
+      },
+      onError: function () { mostrarError(); }
+    }).then(fin, fin);
   }
 
   function vacio(titulo, texto) {

@@ -1537,36 +1537,24 @@
       '</svg>';
     },
 
-    /**
-     * Azúcar para google.script.run: monta la escena, la cierra sola al
-     * responder y muestra el error en la propia escena si falla.
-     *
-     *   VentelFX.run('camion', {title:'…'})
-     *     .call(function(run){ run.miFuncion(param); })
-     *     .then(function(datos){ pintar(datos); });
-     */
-    run: function (theme, opts) {
-      opts = opts || {};
-      var fx = opts.target ? VentelFX.section(opts.target, theme, opts) : VentelFX.overlay(theme, opts);
-      var onOk = null, onErr = null;
-      var chain = {
-        fx: fx,
-        call: function (fn) {
-          try {
-            fn(google.script.run
-              .withSuccessHandler(function (res) { fx.done(function () { if (onOk) onOk(res); }); })
-              .withFailureHandler(function (err) {
-                var msg = (err && err.message) ? err.message : String(err || 'Error desconocido');
-                if (onErr) { fx.done(function () { onErr(err); }); } else { fx.fail(msg); }
-              }));
-          } catch (e) { fx.fail(e && e.message ? e.message : String(e)); }
-          return chain;
-        },
-        then: function (cb) { onOk = cb; return chain; },
-        catch: function (cb) { onErr = cb; return chain; }
-      };
-      return chain;
-    }
+    /* AQUÍ VIVÍA `VentelFX.run`, y se ha quitado a propósito.
+       Era azúcar para montar una escena alrededor de una llamada, pero entregaba el
+       runner de `google.script.run` pelado al llamador (`.call(function(run){…})`),
+       así que todo lo que pasara por ahí se saltaba `AppRun`: sin deduplicación, sin
+       el indicador de la esquina y con su propio camino de error. No lo usaba
+       ninguna pantalla —era la única puerta abierta que quedaba, y una puerta así es
+       justo lo que hace que un patrón por defecto deje de serlo—.
+
+       Lo que hacía se escribe hoy con lo que ya existe, y además deduplicado:
+
+         var fx = VentelFX.section('#panel', 'camion', { title: '…' });
+         AppRun.call('miFuncion', [param])
+           .then(function (r) { fx.done(); pintar(r); },
+                 function (e) { fx.fail(e && e.message ? e.message : String(e)); });
+
+       Y si lo que se pide es un dato que se pueda enseñar antes de revalidar, la
+       forma corta es `AppRun.swr(clave, 'miFuncion', [param], { fx: {…}, onData })`,
+       que monta la escena solo cuando no hay copia que pintar. */
   };
 
   /** Manejador inerte: la API nunca devuelve null, así el llamador no comprueba. */

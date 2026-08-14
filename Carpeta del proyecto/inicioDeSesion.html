@@ -314,8 +314,10 @@
             setPasswordButton.disabled = true;
             setPasswordButton.textContent = 'Guardando…';
 
-            google.script.run
-                .withSuccessHandler(response => {
+            // Misma regla que en el login: la clave lleva el correo, nunca la contraseña.
+            AppRun.call('establecerPasswordInicial', [pendiente.email, pendiente.vale, newPassword.value],
+                        { key: 'set-password:' + pendiente.email, busy: 'Guardando' })
+                .then(response => {
                     setPasswordButton.disabled = false;
                     setPasswordButton.textContent = 'Guardar y entrar';
                     if (response && response.success) {
@@ -346,14 +348,12 @@
                         return;
                     }
                     showSetMessage((response && response.message) || 'No pudimos guardar tu contraseña.');
-                })
-                .withFailureHandler(error => {
+                }, error => {
                     setPasswordButton.disabled = false;
                     setPasswordButton.textContent = 'Guardar y entrar';
                     console.error(error);
                     showSetMessage('No hay conexión con el sistema. Revisa tu internet e inténtalo de nuevo.');
-                })
-                .establecerPasswordInicial(pendiente.email, pendiente.vale, newPassword.value);
+                });
         });
 
         togglePassword.addEventListener('click', () => {
@@ -381,8 +381,18 @@
 
             showLoadingState();
 
-            google.script.run
-                .withSuccessHandler(response => {
+            /* La clave de deduplicación se escribe a mano y lleva SOLO el correo. Sin
+               ella, `AppRun` la arma con la función y todos los argumentos, y eso
+               metería la contraseña dentro del nombre de una entrada del mapa de
+               llamadas en vuelo. No se guarda en ningún sitio ni sobrevive a la
+               respuesta, pero una credencial no tiene por qué acabar en una clave
+               pudiendo evitarlo. Deduplicar por correo es además lo correcto aquí: el
+               botón queda bloqueado mientras la llamada viaja, así que no puede haber
+               dos intentos distintos a la vez. */
+            AppRun.call('loginUser', [emailInput.value, passwordInput.value],
+                        { key: 'login:' + emailInput.value, busy: 'Entrando' })
+                .then(response => {
+                    response = response || {};
                     if (response.success && response.debeCambiarPassword) {
                         // Credencial correcta, pero temporal: NO se guarda sesión todavía.
                         // Lo único que se conserva es el vale, y solo sirve para elegir
@@ -396,13 +406,11 @@
                         hideLoadingState();
                         showMessage(response.message || 'Correo o contraseña incorrectos.');
                     }
-                })
-                .withFailureHandler(error => {
+                }, error => {
                     hideLoadingState();
                     console.error(error);
                     showMessage('No hay conexión con el sistema. Revisa tu internet e inténtalo de nuevo.');
-                })
-                .loginUser(emailInput.value, passwordInput.value);
+                });
         });
 
         passwordInput.addEventListener('input', () => {

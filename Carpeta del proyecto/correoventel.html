@@ -146,7 +146,9 @@
 
         // Tolerancia a despliegues parciales: si el app_core cargado aún no trae
         // AppCache, la pantalla funciona igual, solo sin caché local.
-        const Cache = window.AppCache || { get: () => null, set: () => {}, remove: () => {}, ageLabel: () => '' };
+        /* Esta pantalla ya no toca `AppCache` a mano: sus dos copias locales —el
+           catálogo de formatos y el remitente— las lleva `AppRun.swr`, que es quien
+           lee, pinta, revalida y guarda. */
 
         // El folio y el formato pueden venir de otra pantalla por la URL; si no,
         // se usa lo que se guardó con la cotización.
@@ -169,11 +171,23 @@
         /**
          * Llena el selector con los formatos habilitados y preselecciona el indicado.
          */
-        let formatChangeWired = false;
         let quitarChipFormatos = () => {};
+        /* La lista pintada AHORA. El oyente de `change` se cablea una sola vez y lee de
+           aquí, no de la respuesta que le tocó en su render: con `swr` esto se pinta dos
+           veces —copia local y servidor— y también una vez por cada folio que se busque,
+           así que un oyente que se quedara con la primera respuesta describiría los
+           formatos de un catálogo viejo cada vez que se cambiara el selector. */
+        let formatosActuales = [];
+        const describirFormato = () => {
+            const match = formatosActuales.find(f => f.id === formatSelect.value);
+            formatHint.textContent = match ? match.description : '';
+        };
+        formatSelect.addEventListener('change', describirFormato);
+
         const renderFormats = (response, preferredId) => {
             quitarChipFormatos();
             if (!response || !response.success || !response.formats || response.formats.length === 0) {
+                formatosActuales = [];
                 formatSelect.innerHTML = '<option value="">Sin formatos disponibles</option>';
                 formatHint.textContent = 'No hay ningún formato disponible. Pide a un usuario avanzado que habilite al menos uno.';
                 return;
@@ -183,57 +197,59 @@
                 ? preferredId
                 : response.defaultId;
 
+            formatosActuales = response.formats;
             formatSelect.innerHTML = response.formats
                 .map(f => `<option value="${f.id}" ${f.id === chosen ? 'selected' : ''}>${f.name}</option>`)
                 .join('');
             formatSelect.disabled = false; // ya hay algo que elegir
-
-            const describe = () => {
-                const match = response.formats.find(f => f.id === formatSelect.value);
-                formatHint.textContent = match ? match.description : '';
-            };
-            describe();
-            if (!formatChangeWired) {
-                formatSelect.addEventListener('change', describe);
-                formatChangeWired = true;
-            }
+            describirFormato();
         };
 
         const loadEmailFormats = (preferredId) => {
-            // Los formatos casi no cambian: se pintan al instante desde la caché local
-            // y se revalidan en segundo plano contra el servidor.
-            const cached = Cache.get('formats');
-            if (cached && cached.data) {
-                renderFormats(cached.data, preferredId);
-            } else {
-                // Dentro de un <select> no cabe más que texto: el chip va en la pista
-                // de abajo y el selector se queda bloqueado hasta que haya opciones.
-                formatSelect.disabled = true;
-                quitarChipFormatos = chipEnEspera(formatHint, 'Cargando los formatos disponibles…');
-            }
+            /* Los formatos casi no cambian: se pintan al instante desde la caché local
+               y se revalidan en segundo plano contra el servidor. Es `AppRun.swr`, y la
+               clave es la MISMA que usan la pantalla de cotización, la vista previa y el
+               calentador de `app_precarga` —antes esta pantalla guardaba lo mismo bajo
+               'formats', su propia clave, así que llegar aquí desde una cotización
+               recién guardada volvía a pedir al servidor un catálogo que ya estaba en el
+               navegador—.
+
+               `AppRun` cubre además el caso que aquí estaba parcheado con un try/catch:
+               si el servidor desplegado no expone la función, rechaza la promesa en vez
+               de no llamar a ningún manejador, que dejaba el chip girando y el selector
+               bloqueado —y con él, el envío imposible—. */
+            let hayCopia = false;
 
             const alFallar = (error) => {
-                if (cached && cached.data) return; // Ya hay opciones pintadas desde caché.
+                if (hayCopia) return;   // ya hay opciones pintadas desde la caché
                 quitarChipFormatos();
                 console.error('getEnabledQuoteFormats:', error);
                 formatSelect.innerHTML = '<option value="">No se pudieron cargar</option>';
                 formatHint.textContent = 'No pudimos cargar los formatos. Revisa tu conexión y recarga la página.';
             };
 
-            const pedir = google.script.run
-                .withSuccessHandler(response => {
-                    if (response && response.success) Cache.set('formats', response);
+            const p = AppRun.swr('formatos-cotizacion', 'getEnabledQuoteFormats', [], {
+                ttl: 12 * 60 * 60 * 1000,
+                maxAge: 12 * 60 * 60 * 1000,
+                accept: (r) => !!(r && r.success),
+                onData: (response, deCache) => {
+                    if (deCache) { hayCopia = true; renderFormats(response, preferredId); return; }
+                    // En la revalidación manda lo que ya esté elegido: el catálogo llega
+                    // un segundo tarde y para entonces se puede haber tocado el selector.
                     renderFormats(response, formatSelect.value || preferredId);
-                })
-                .withFailureHandler(alFallar);
+                },
+                onError: alFallar
+            });
 
-            // Si la llamada no se puede ni lanzar, nadie retiraría el chip ni
-            // desbloquearía el selector: quedaría girando y el envío, imposible.
-            try {
-                pedir.getEnabledQuoteFormats();
-            } catch (error) {
-                alFallar(error);
+            /* Dentro de un <select> no cabe más que texto: el chip va en la pista de
+               abajo y el selector se queda bloqueado hasta que haya opciones. Se decide
+               después de llamar porque `swr` pinta lo guardado de forma síncrona, así
+               que aquí ya se sabe si hubo copia. */
+            if (!hayCopia) {
+                formatSelect.disabled = true;
+                quitarChipFormatos = chipEnEspera(formatHint, 'Cargando los formatos disponibles…');
             }
+            return p;
         };
 
         // --- Remitente visible: el asesor sabe desde qué correo saldrá el envío. ---
@@ -249,18 +265,8 @@
             };
             // Se pinta al instante con lo guardado (30 min) y se revalida detrás;
             // misma entrada de caché que usa la pantalla de correos a clientes.
-            if (!window.AppRun) {
-                const cached = Cache.get('sender-info', 30 * 60 * 1000);
-                if (cached) { paint(cached.data); return; }
-                google.script.run
-                    // paint() SIEMPRE, aunque el servidor no devuelva nada: es quien
-                    // retira el chip. Con `if (info)` envolviéndolo, una respuesta
-                    // vacía dejaba el chip girando para siempre.
-                    .withSuccessHandler(info => { if (info) Cache.set('sender-info', info); paint(info); })
-                    .withFailureHandler(() => { quitarChipRemitente(); if (senderInfoText) senderInfoText.textContent = ''; })
-                    .getMailSenderInfo();
-                return;
-            }
+            // paint() corre SIEMPRE, aunque el servidor no devuelva nada: es quien
+            // retira el chip, y una respuesta vacía lo dejaría girando para siempre.
             AppRun.swr('sender-info', 'getMailSenderInfo', [], {
                 ttl: 30 * 60 * 1000,
                 accept: (info) => !!(info && info.success && info.aliasAvailable),
@@ -330,8 +336,12 @@
                 ? VentelFX.skeleton(quoteDataStatus, 'formulario', { rows: 1 })
                 : null;
 
-            // Cierra los dos indicadores y devuelve el paso 1 a su sitio. Va con
-            // nombre porque lo usan el manejador de fallo Y el catch de abajo.
+            /* Cierra los dos indicadores y devuelve el paso 1 a su sitio. Cubre los dos
+               modos de fallo, y con `AppRun` son el mismo: se caiga la red o resulte que
+               el servidor desplegado no expone `getQuoteDetailsForEmail`, la promesa se
+               rechaza y esto corre. Importa porque el overlay tiene tope de seguridad
+               pero el esqueleto NO: sin manejador se quedaría brillando para siempre y
+               el botón, clavado en «Buscando…». */
             const alFallar = (error) => {
                 if (fx) fx.done();
                 if (fxDatos) fxDatos.done();
@@ -341,11 +351,12 @@
                 console.error("Error en getQuoteDetailsForEmail:", error);
             };
 
-            const buscar = google.script.run
-                .withSuccessHandler(response => {
+            AppRun.call('getQuoteDetailsForEmail', [folio], { busy: 'Buscando' })
+                .then(response => {
                     if (fx) fx.done();
                     if (fxDatos) fxDatos.done();
                     setButtonLoadingState(searchQuoteButton, false);
+                    response = response || {};
                     if (response.success) {
                         loadedQuoteData = response.data;
                         quoteDataStatus.innerHTML = `
@@ -403,18 +414,7 @@
                         showAlert(response.message, "error");
                         resetForm();
                     }
-                })
-                .withFailureHandler(alFallar);
-
-            /* Si la llamada ni siquiera se puede lanzar (despliegue sin
-               getQuoteDetailsForEmail) no se ejecuta NINGÚN manejador. El overlay
-               tiene tope de seguridad, pero el esqueleto NO: se quedaría brillando
-               para siempre y el botón, clavado en «Buscando…». */
-            try {
-                buscar.getQuoteDetailsForEmail(folio);
-            } catch (error) {
-                alFallar(error);
-            }
+                }, alFallar);
         };
 
         const handleSendEmail = (e) => {
@@ -455,10 +455,17 @@
                 });
             }
 
-            google.script.run
-                .withSuccessHandler(response => {
+            /* El loader de marca tapa la pantalla entera durante el envío, así que el
+               disco de la esquina no añadiría nada: `busy: false`. La deduplicación sí
+               importa —dos envíos idénticos serían dos correos al mismo cliente—, y la
+               clave que arma `AppRun` con la función y los argumentos hace que un
+               segundo envío con OTRO destinatario o formato siga siendo una llamada
+               aparte, que es justo la distinción que hay que respetar. */
+            AppRun.call('sendQuoteByEmail', [emailData], { busy: false })
+                .then(response => {
                     if (window.VentelLoader) VentelLoader.hide();
                     setButtonLoadingState(sendButton, false);
+                    response = response || {};
                     if (response.success) {
                         const from = response.sentFrom ? ` desde ${response.sentFrom}` : '';
                         showAlert(`Correo del folio ${emailData.folio} enviado${from}.`, "success");
@@ -466,14 +473,12 @@
                     } else {
                         showAlert(response.message, "error");
                     }
-                })
-                .withFailureHandler(error => {
+                }, error => {
                     if (window.VentelLoader) VentelLoader.hide();
                     setButtonLoadingState(sendButton, false);
                     showAlert("No pudimos enviar el correo. Revisa tu conexión e inténtalo de nuevo.", "error");
                     console.error("Error en sendQuoteByEmail:", error);
-                })
-                .sendQuoteByEmail(emailData);
+                });
         };
 
         // --- Event Listeners ---

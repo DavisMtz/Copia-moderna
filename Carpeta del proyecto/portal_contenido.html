@@ -1604,8 +1604,10 @@
         if (caja) caja.innerHTML = '';
         var sk = VentelFX.skeleton('#impPlan', 'tabla', { rows: 6, cols: 5 });
 
-        google.script.run
-          .withSuccessHandler(function (res) {
+        AppRun.call('portalContenidoAnalizarImport',
+                    [{ email: PC_EMAIL, coleccion: pcState.actual.id, filas: imp.filas }],
+                    { busy: 'Analizando' })
+          .then(function (res) {
             pcState.ocupado = false;
             b.disabled = false;
             sk.done();
@@ -1616,16 +1618,12 @@
             }
             imp.plan = res;
             pintarPlan();
-          })
-          .withFailureHandler(function (err) {
+          }, function (err) {
             pcState.ocupado = false;
             b.disabled = false;
             sk.done();
             pintarPlan();
             toast(err && err.message ? err.message : 'No pudimos conectar con el servidor.', 'error');
-          })
-          .portalContenidoAnalizarImport({
-            email: PC_EMAIL, coleccion: pcState.actual.id, filas: imp.filas
           });
       }
 
@@ -1657,8 +1655,15 @@
           maxMs: 120000
         });
 
-        google.script.run
-          .withSuccessHandler(function (res) {
+        /* La caja ya tapa el panel entero mientras dura la escritura, así que el disco
+           de la esquina sería un segundo aviso de lo mismo: `busy: false`. Lo que sí
+           aporta `AppRun` aquí es la deduplicación —publicar la misma importación dos
+           veces escribiría la campaña dos veces en la hoja—. */
+        AppRun.call('portalContenidoAplicarImport',
+                    [{ email: PC_EMAIL, coleccion: pcState.actual.id,
+                       filas: imp.filas, actualizar: imp.actualizar }],
+                    { busy: false })
+          .then(function (res) {
             pcState.ocupado = false;
             if (!res || res.status !== 'ok') {
               b.disabled = false;
@@ -1674,17 +1679,12 @@
             $('lista').innerHTML = esqueleto();
             cargarFilas(true);
             refrescarConteo(s.nuevas);
-          })
-          .withFailureHandler(function (err) {
+          }, function (err) {
             pcState.ocupado = false;
             b.disabled = false;
             var msg = err && err.message ? err.message : 'No pudimos conectar con el servidor.';
             fx.fail(msg);
             toast(msg, 'error');
-          })
-          .portalContenidoAplicarImport({
-            email: PC_EMAIL, coleccion: pcState.actual.id,
-            filas: imp.filas, actualizar: imp.actualizar
           });
       }
 
@@ -1701,8 +1701,8 @@
           sub: 'Solo se listan las pestañas visibles'
         });
 
-        google.script.run
-          .withSuccessHandler(function (res) {
+        AppRun.call('portalPromosHojas', [PC_EMAIL], { busy: 'Abriendo el archivo' })
+          .then(function (res) {
             fx.done();
             if (!res || res.status !== 'ok') {
               if (caja) caja.innerHTML = '<div class="pc-nota warn">' + svg('alerta') +
@@ -1712,13 +1712,11 @@
             imp.hojas = res;
             imp.hojaSel = imp.hojaSel || res.sugerida;
             pintarHojas();
-          })
-          .withFailureHandler(function () {
+          }, function () {
             fx.done();
             if (caja) caja.innerHTML = '<div class="pc-nota warn">' + svg('alerta') +
               '<span>No pudimos conectar con el servidor.</span></div>';
-          })
-          .portalPromosHojas(PC_EMAIL);
+          });
       }
 
       function pintarHojas() {
@@ -1765,8 +1763,9 @@
           sub: 'Buscando las tablas de promociones'
         });
 
-        google.script.run
-          .withSuccessHandler(function (res) {
+        AppRun.call('portalPromosLeer', [{ email: PC_EMAIL, hoja: imp.hojaSel }],
+                    { busy: 'Interpretando la hoja' })
+          .then(function (res) {
             pcState.ocupado = false;
             b.disabled = false;
             fx.done();
@@ -1803,16 +1802,14 @@
               toast('Esa campaña no trae filas para «' + pcState.actual.nombre + '».', 'warn');
             }
             pintarResto();
-          })
-          .withFailureHandler(function () {
+          }, function () {
             pcState.ocupado = false;
             b.disabled = false;
             // El error se enseña DONDE se estaba esperando: antes, un fallo de red
             // dejaba «Interpretando la hoja…» puesto para siempre.
             fx.fail('No pudimos conectar con el servidor.');
             toast('No pudimos conectar con el servidor.', 'error');
-          })
-          .portalPromosLeer({ email: PC_EMAIL, hoja: imp.hojaSel });
+          });
       }
 
       /* ══ CONFIRMACIÓN ═════════════════════════════════════════════════════ */

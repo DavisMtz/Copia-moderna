@@ -126,7 +126,8 @@ No mejora nada hoy. Evita perder el panel de supervisión un martes cualquiera.
 
 ## 4. Fase 3 · Consistencia del cliente
 
-- **Migrar a `AppRun.swr`** las 13 pantallas que llaman `google.script.run` directo.
+- ~~**Migrar a `AppRun.swr`** las 13 pantallas que llaman `google.script.run` directo.~~
+  **Hecho** — ver F3.1 en el §6.
   *Nota de la auditoría:* se verificó si esto rescataba precarga desperdiciada y **no es el
   caso** — el registro de calentadores es coherente y las 9 pantallas con calentador sí leen
   su caché. Lo que compra es deduplicación, un solo mensaje de «sin conexión» en toda la app,
@@ -158,6 +159,91 @@ Lo que se ha hecho de verdad, en orden. Cada entrada dice **qué se cambió, qu�
 qué se dejó fuera a propósito**.
 
 <!-- Las entradas nuevas van arriba, con la más reciente primero. -->
+
+### F3.1 · `AppRun` por defecto, y por único camino — *hecho*
+
+**Qué se cambió**
+
+1. **No queda ningún `google.script.run` fuera de `app_core.html`.** Eran **55 puntos de
+   llamada repartidos en 21 archivos** —54 cadenas de `withSuccessHandler` más el reporte
+   de enlace caído del Portal, que se lanzaba sin manejadores—. Todos pasan por
+   `AppRun.call` o `AppRun.swr`.
+
+2. **Cinco envoltorios `llamar(fn, args)` borrados** —`app_prefs`, `app_operacion`,
+   `app_estado_historial`, `app_atenciones` y `estado`—, cada uno con su respaldo a
+   `google.script.run` «por si `AppRun` no estuviera». No podía no estar: `app_core` se
+   incluye el primero en las 19 pantallas, antes que cualquier partial. Y el respaldo
+   escondía un fallo: **tres de los cinco invocaban el runner con `apply(null, …)`**, que
+   en la librería de Apps Script se traga los manejadores en silencio. El día que ese
+   camino se hubiera usado de verdad, guardar una preferencia se habría quedado colgado
+   sin decir nada. Es el mismo fallo que `consola.html` ya tenía documentado en un
+   comentario desde hace tiempo.
+
+3. **Tres reimplementaciones a mano de `swr`, ahora la de verdad:** el indicador de estado
+   de `app_operacion` (leer caché → pintar → llamar → pintar → guardar), las tres copias
+   locales del Portal y la del Monitor de promociones. Las cuatro leían y escribían
+   `localStorage` a pelo con su propio control de versión y caducidad.
+
+4. **`VentelFX.run` eliminado** (`app_loaders`). Era azúcar para envolver una llamada en
+   una escena, pero entregaba el runner pelado al llamador, así que todo lo que pasara por
+   ahí se saltaba `AppRun`. No lo usaba ninguna pantalla: era la única puerta abierta que
+   quedaba, y una puerta así es lo que hace que un patrón por defecto deje de serlo.
+
+**Dos fallos que aparecieron por el camino y se cierran aquí**
+
+- **Dos pantallas compartían una clave de `localStorage` con formas distintas dentro.** El
+  Portal guardaba su recuento de promociones en `ventel-promos-v1` y el Monitor de
+  promociones guardaba ahí **sus datos completos**. Abrir el Portal y pasar al Monitor le
+  dejaba a éste una copia con la forma equivocada, que se pintaba como un monitor vacío
+  hasta que contestaba el servidor. Ahora cada uno tiene su nombre dentro del namespace de
+  `AppCache`.
+- **La deduplicación de `app_atenciones` podía perder un alta.** Su envoltorio pasaba
+  `key: 'aten-' + fn`, que deduplica por nombre de función **sin mirar los argumentos**, y
+  por ahí pasan escrituras: registrar dos atenciones seguidas es la misma función con
+  argumentos distintos. La segunda se habría fusionado con la primera y habría dado por
+  buena una respuesta que no era la suya. Sin clave, `AppRun` la arma con la función Y los
+  argumentos, que es lo que hace segura la fusión.
+
+**Qué se comprobó**
+
+| Punto | Cómo | Estado |
+|---|---|---|
+| No queda ninguna llamada suelta | `grep` de `google.script.run` y de `withSuccessHandler` en los 40 `.html` | Solo quedan menciones en comentarios y los tres `if` que distinguen la vista de diseño |
+| Todo el JavaScript en línea compila | Se extraen los `<script>` de los 40 `.html` y se parsean con Node | 79 bloques, 0 errores. Los 17 saltados llevan plantilla `<?!= … ?>` y no son JavaScript hasta que el servidor los sustituye |
+| Ninguna promesa queda sin manejador de fallo | Barrido de los `AppRun.call` sin segundo argumento en `.then` ni `.catch` | Los 5 marcados eran falsos positivos del patrón; revisados uno a uno |
+| El contrato con `app_precarga` sigue en pie | Lectura del registro de calentadores contra cada pantalla migrada | `quotes-`, `pendientes-` y `sup-quotes-` guardan **el arreglo**: esas tres se quedan con su guardado escrito a mano y solo la llamada pasa a `AppRun` |
+| Sin regresiones en las pruebas | `ttl_cache.test.js` y `cache_identidad.test.js` | 44/44 y 40/40 |
+| El pintado doble no rompe nada donde ahora hay `swr` | Lectura de cada `onData` migrado | Donde el segundo pintado sí dolía —editores y formularios— se usa `call`, con el motivo escrito al lado |
+
+**Lo que NO se ha comprobado todavía**, y hace falta hacerlo en el proyecto real:
+
+- **La primera carga de cada pantalla con la caché vacía y con la caché llena.** Lo que se
+  comprueba a mano es que lo guardado aparece en el primer fotograma y que la revalidación
+  no da un tirón de maquetación al aterrizar.
+- **El Monitor de promociones en un navegador que traiga la copia vieja.** La clave cambió
+  de nombre, así que la primera visita después de desplegar pide al servidor como siempre
+  y a partir de ahí guarda en la nueva. La copia huérfana la purga `AppCache` sola.
+- **La ganancia en llamadas ahorradas.** Se sabe dónde deduplica; no cuántas llamadas
+  quita en un día de trabajo real. Eso lo dirá la instrumentación de la fase 2.
+
+**Qué se dejó fuera a propósito**
+
+- **`quotes-`, `pendientes-` y `sup-quotes-` NO pasan a `swr`.** `swr` guarda en la caché
+  la respuesta entera; esas tres claves las calienta `app_precarga` guardando **el arreglo**
+  y el buscador general las lee con esa forma. Cambiarlo obligaría a tocar cuatro módulos a
+  la vez y, mientras la copia vieja siguiera en el navegador de cada quien, la tabla se
+  pintaría vacía un instante en cada arranque. La llamada sí va por `AppRun` —que es de
+  donde salen la deduplicación y el indicador—; el guardado se queda escrito en la pantalla,
+  con el motivo al lado.
+- **`consulta_cotizacion` no gana copia local.** Es el documento que se le enseña al
+  cliente y la pantalla no tiene dónde poner el rótulo de antigüedad que el proyecto exige
+  siempre que cachea. Sin ese rótulo, una copia podría enseñar un total que ya cambió sin
+  que nadie pudiera notarlo.
+- **Los `if` que distinguen la vista de diseño se quedan.** Los tres que quedan —Portal,
+  Monitor y vista previa— no son respaldos defensivos: son el modo en que se trabaja la
+  maquetación con datos de muestra sin desplegar nada.
+- **No se ha tocado la política de reintentos ni la cola de `app_guardado`.** Esta tarea
+  cambia por dónde viaja una llamada, no qué se hace cuando falla.
 
 ### F1.1 · Identidad y permisos en CacheService — *hecho*
 

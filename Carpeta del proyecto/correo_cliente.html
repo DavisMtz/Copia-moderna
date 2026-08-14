@@ -717,14 +717,6 @@ function loadSender(){
     }
   };
 
-  if (!window.AppRun) {   // despliegue parcial: sin caché, pero funciona igual
-    google.script.run
-      .withSuccessHandler(pintar)
-      .withFailureHandler(() => { quitarChip(); $id('senderInfoText').textContent = 'No se pudo verificar el remitente.'; })
-      .getMailSenderInfo();
-    return;
-  }
-
   AppRun.swr('sender-info', 'getMailSenderInfo', [], {
     ttl: 30 * 60 * 1000,
     // Nunca se cachea un fallo, ni el estado "el alias todavía no existe".
@@ -839,8 +831,16 @@ function confirmarEnvio(){
     if (fxEnvio) fxEnvio.done(abrir); else abrir();
   };
 
-  const enviar = google.script.run
-    .withSuccessHandler(res => {
+  /* La escena tapa la pantalla entera durante el envío, así que el disco de la
+     esquina sobra: `busy: false`.
+
+     El try/catch que había aquí cubría el caso de que la llamada no se pudiera ni
+     lanzar —despliegue sin `enviarCorreoPlantilla`, o un argumento no serializable—,
+     que no ejecutaba NINGÚN manejador y dejaba la escena puesta hasta su tope de
+     180 s con el modal escondido. `AppRun` rechaza la promesa en ese caso, así que
+     el camino de fallo es uno solo y el error acaba en el modal de siempre. */
+  AppRun.call('enviarCorreoPlantilla', [payload], { busy: false })
+    .then(res => {
       enviando = false;
       if (res && res.status === 'ok') {
         $id('okDetail').innerHTML = 'Enviado a <b>'+esc(payload.to.join(', '))+'</b><br>desde '+esc(res.sentFrom||'')+'.';
@@ -849,24 +849,11 @@ function confirmarEnvio(){
         $id('errDetail').textContent = (res && res.error) ? res.error : 'Error desconocido.';
         resultado('mErr');
       }
-    })
-    .withFailureHandler(err => {
+    }, err => {
       enviando = false;
       $id('errDetail').textContent = err && err.message ? err.message : String(err);
       resultado('mErr');
     });
-
-  /* Si la llamada ni siquiera se puede lanzar (despliegue sin
-     enviarCorreoPlantilla, argumento no serializable) NINGÚN manejador se
-     ejecutaría: la escena se quedaría puesta hasta su tope de 180 s con el modal
-     escondido. Se cierra aquí mismo y el error se enseña en el modal de siempre. */
-  try {
-    enviar.enviarCorreoPlantilla(payload);
-  } catch (err) {
-    enviando = false;
-    $id('errDetail').textContent = 'No se pudo iniciar el envío: ' + (err && err.message ? err.message : String(err));
-    resultado('mErr');
-  }
 }
 
 function mostrarPaso(id){
