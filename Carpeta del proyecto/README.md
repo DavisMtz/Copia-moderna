@@ -13,7 +13,10 @@ el servidor renderiza con `include()`, y la lógica de servidor vive en los `.gs
 - **Guardado en segundo plano:** `app_guardado.html` (colas, reintentos y deshacer) con
   el indicador delegado a la isla de estado de `app_operacion.html`.
 - **Animación:** GSAP 3.13 desde `app_motion.html`, con `MorphSVGPlugin`. Todas las
-  pantallas respetan `prefers-reduced-motion`.
+  pantallas respetan `prefers-reduced-motion`. Las reglas completas —la versión
+  fijada, el contrato de degradación cuando el CDN no contesta y los patrones
+  avanzados— están en [`Documentacion/11_Animacion_GSAP.md`](../Documentacion/11_Animacion_GSAP.md)
+  y en la skill [`gsap-ventel`](../.claude/skills/gsap-ventel/SKILL.md).
 - **Esperas:** dos familias, y no hacen lo mismo. `LoaderPartial.html` (`VentelLoader`)
   tapa la pantalla entera mientras no hay *nada* que enseñar, y es además el dueño de la
   geometría del isotipo: la publica en `VentelLoader.marca` para que nadie vuelva a
