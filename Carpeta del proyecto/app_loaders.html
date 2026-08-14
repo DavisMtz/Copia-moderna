@@ -1,0 +1,472 @@
+<!-- ════════════════════════════════════════════════════════════════════════
+     LOADERS EN SITIO · la espera con cara de aplicación viva
+     ────────────────────────────────────────────────────────────────────────
+     Para el hueco que queda cuando el HTML ya está pintado y lo único que
+     falta son los datos de la hoja. El esqueleto gris solo dice "aquí no hay
+     nada"; esto dice "la app está lista, lo que tarda son los datos" — que es
+     exactamente la verdad y lo que conviene que se lea.
+
+     Cuatro variantes, para que ninguna pantalla repita la de al lado:
+
+       isotipo · los ocho puntos de la marca orbitan, se cierran en el logo de
+                 Liverpool, respiran y vuelven a abrirse. GSAP + MorphSVG.
+       cajas   · banda transportadora con cajas rosas que llegan y se apilan.
+       onda    · barras de marca en onda sinusoidal, para listas y tablas.
+       ruta    · el camión de reparto (vive en TruckLoaderPartial, 100 % CSS).
+
+     Las tres primeras van con GSAP porque el movimiento bueno está en la
+     interpolación: un morph, un stagger repartido y un ease de verdad no se
+     escriben con @keyframes. La cuarta es CSS a propósito, para que quede al
+     menos un loader completo aunque el CDN de GSAP no conteste.
+
+     API global: window.VentelLoaders
+       · markup(tipo, opts) -> cadena HTML lista para innerHTML
+       · mount(el, opts)    -> inserta y ARRANCA la variante en ese contenedor
+       · auto(root)         -> monta todo [data-vx-loader] que encuentre
+       · finish(el)         -> salida cinematográfica y limpieza de timelines
+
+     opts = { tipo, mensajes:[…], etiqueta, alto:'sm' }
+
+     Requiere LoaderPartial (le pide la geometría del isotipo) y, para animar,
+     GSAP con MorphSVGPlugin. Sin ellos degrada a una versión quieta y legible.
+     ════════════════════════════════════════════════════════════════════════ -->
+<style>
+  /* ── Marco común ──────────────────────────────────────────────────────
+     El mismo filo, el mismo radio y el mismo pie que el camión, para que las
+     cuatro variantes se lean como un solo sistema y no como cuatro parches.
+     grid-column:1/-1 porque los esqueletos del Portal son rejillas. */
+  .vx-strip{grid-column:1/-1;position:relative;display:block;margin:0 0 1.15rem;
+    border-radius:var(--rad,14px);overflow:hidden;
+    background:var(--surface,#fff);border:1px solid var(--line,#eadfe6);
+    box-shadow:inset 0 1px 0 rgba(255,255,255,.6),0 10px 26px -20px rgba(16,24,40,.4);
+    transition:opacity .34s ease,transform .34s ease}
+  [data-theme="carbon"] .vx-strip{
+    box-shadow:inset 0 1px 0 rgba(255,255,255,.06),0 12px 30px -20px rgba(0,0,0,.7)}
+
+  .vx-stage{position:relative;height:96px;overflow:hidden;display:grid;place-items:center;
+    background:var(--surface-2,#f7eef5);
+    background:linear-gradient(180deg,
+      color-mix(in srgb,var(--brand,#E10098) 6%,var(--surface,#fff)) 0%,
+      var(--surface-2,#f7eef5) 100%)}
+  .vx-strip.vx-sm .vx-stage{height:74px}
+  .vx-stage svg{overflow:visible}
+
+  /* Halo de marca detrás del isotipo. Lo enciende la línea de tiempo justo
+     cuando el logo termina de cerrarse: es el acento del ciclo. */
+  .vx-glow{position:absolute;width:132px;height:132px;border-radius:50%;pointer-events:none;
+    opacity:0;filter:blur(10px);
+    background:radial-gradient(circle at 50% 50%,
+      rgba(172,69,129,.3) 0%, rgba(238,125,0,.18) 34%, transparent 68%)}
+
+  /* ── Pie: avance + mensaje que se releva ─────────────────────────────── */
+  .vx-foot{display:flex;align-items:center;gap:.75rem;padding:.6rem .9rem .7rem}
+  .vx-bar{position:relative;flex:1;height:5px;border-radius:99px;overflow:hidden;
+    background:color-mix(in srgb,var(--ink,#3d2f38) 12%,transparent)}
+  .vx-fill{position:absolute;inset:0;border-radius:99px;transform-origin:left center;
+    transform:scaleX(.04);
+    background:linear-gradient(90deg,#AC4581,#E10098 55%,#EE7D00)}
+
+  .vx-msgs{position:relative;flex:none;max-width:min(58%,26rem);
+    font-family:var(--f-body,'Instrument Sans',system-ui,sans-serif);
+    font-size:.78rem;font-weight:600;line-height:1.3;color:var(--ink-soft,#7d6c76);
+    text-align:right;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .vx-msgs .vx-ghost{visibility:hidden}
+  .vx-msgs .vx-m{position:absolute;inset:0 0 auto 0;opacity:0;
+    overflow:hidden;text-overflow:ellipsis}
+  /* Sin GSAP no hay quien releve los mensajes: se deja el primero puesto y la
+     barra a media asta. Sigue diciendo lo que tiene que decir. */
+  .vx-msgs .vx-ghost + .vx-m{opacity:1}
+  .vx-strip.vx-live .vx-msgs .vx-ghost + .vx-m{opacity:0}
+
+  /* ── Degradado sin GSAP: nada se queda quieto del todo ────────────────── */
+  .vx-strip:not(.vx-live) .vx-fill{transform:scaleX(.38);
+    animation:vx-pulso 1.7s ease-in-out infinite alternate}
+  @keyframes vx-pulso{to{opacity:.55}}
+
+  @media (prefers-reduced-motion:reduce){
+    .vx-strip:not(.vx-live) .vx-fill{animation:none}
+  }
+  @media(max-width:560px){
+    .vx-msgs{display:none}
+    .vx-foot{padding:.55rem .8rem .6rem}
+  }
+</style>
+
+<script>
+(function(){
+  "use strict";
+  if (window.VentelLoaders) return;
+
+  var MENSAJES = [
+    'Conectando con la hoja de cálculo…',
+    'Trayendo la información…',
+    'Ya casi está aquí…',
+    'Acomodando todo en su lugar…'
+  ];
+
+  var NARANJA = '#EE7D00', MORADO = '#AC4581', ROSA = '#E10098';
+  var SVGNS = 'http://www.w3.org/2000/svg';
+  var uid = 0;
+
+  function reducido(){
+    return !!(window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches);
+  }
+  function hayGsap(){ return typeof window.gsap !== 'undefined' && !reducido(); }
+  function hayMorph(){ return typeof window.MorphSVGPlugin !== 'undefined'; }
+  function marca(){ return (window.VentelLoader && window.VentelLoader.marca) || null; }
+
+  /* Círculo como trazado de Béziers: MorphSVG necesita un <path>, no un <circle>. */
+  function circulo(cx, cy, r){
+    var k = 0.5522847498 * r;
+    return 'M' + cx + ' ' + (cy - r) +
+      'C' + (cx+k) + ' ' + (cy-r) + ' ' + (cx+r) + ' ' + (cy-k) + ' ' + (cx+r) + ' ' + cy +
+      'C' + (cx+r) + ' ' + (cy+k) + ' ' + (cx+k) + ' ' + (cy+r) + ' ' + cx + ' ' + (cy+r) +
+      'C' + (cx-k) + ' ' + (cy+r) + ' ' + (cx-r) + ' ' + (cy+k) + ' ' + (cx-r) + ' ' + cy +
+      'C' + (cx-r) + ' ' + (cy-k) + ' ' + (cx-k) + ' ' + (cy-r) + ' ' + cx + ' ' + (cy-r) + 'Z';
+  }
+
+  /* Anillo propio, en el MISMO orden que las islas del logo: es ese orden el que
+     hace que cada punto caiga en la pieza que le toca al cerrarse.
+     Los puntos de LoaderPartial (r=11 sobre un lienzo de 290) miden 6 px cuando
+     la escena son 88: se leen como polvo y el filtro "goo" no llega a fundirlos.
+     Aquí se generan más gruesos; a MorphSVG le da igual de dónde salga la forma
+     de partida mientras sea un trazado. */
+  var VX_R = 104, VX_PUNTO = 19;
+  function anilloPropio(m){
+    var a = [];
+    for (var i = 0; i < 8; i++){
+      var g = (-90 + i * 45) * Math.PI / 180;
+      a.push(circulo(m.cx + VX_R * Math.cos(g), m.cy + VX_R * Math.sin(g), VX_PUNTO));
+    }
+    return a;
+  }
+
+  function esc(s){
+    return String(s == null ? '' : s)
+      .replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+  }
+
+  /* ══════════════════════════════════════════════════════════════════════
+     VARIANTES
+     Cada una expone { escena(id), animar(strip, tl) }. `escena` devuelve el
+     HTML del área de dibujo; `animar` cuelga sus tweens de la línea de tiempo
+     compartida, que ya trae el pie (barra y mensajes) montado.
+     ══════════════════════════════════════════════════════════════════════ */
+  var VARIANTES = {};
+
+  /* ── isotipo ───────────────────────────────────────────────────────────
+     La misma idea que el loader de pantalla completa, reducida a 84 px: los
+     ocho puntos giran, se cierran sobre el logo de Liverpool, lo sostienen un
+     momento y se vuelven a abrir. El filtro "goo" es lo que hace que al
+     juntarse se lean como una masa y no como ocho círculos vecinos. */
+  VARIANTES.isotipo = {
+    escena: function (id) {
+      var m = marca();
+      if (!m) return '';   // sin LoaderPartial no hay isotipo que dibujar
+      var vb = m.viewBox, gooId = 'vxGoo' + id;
+      var puntos = anilloPropio(m).map(function (d, i) {
+        return '<path d="' + d + '" fill="' + m.colorPunto(i) + '"/>';
+      }).join('');
+      return '<div class="vx-glow" data-vx-glow></div>' +
+        '<svg viewBox="' + vb + '" width="88" height="88" aria-hidden="true" data-vx-svg>' +
+          '<defs><filter id="' + gooId + '" x="-60%" y="-60%" width="220%" height="220%" ' +
+            'color-interpolation-filters="sRGB">' +
+            '<feGaussianBlur in="SourceGraphic" stdDeviation="6" result="b"/>' +
+            '<feColorMatrix in="b" mode="matrix" ' +
+              'values="1 0 0 0 0  0 1 0 0 0  0 0 1 0 0  0 0 0 20 -8" result="g"/>' +
+            '<feBlend in="SourceGraphic" in2="g"/>' +
+          '</filter></defs>' +
+          '<g data-vx-dots filter="url(#' + gooId + ')">' + puntos + '</g>' +
+        '</svg>';
+    },
+
+    animar: function (strip, tl) {
+      var m = marca();
+      if (!m) return;
+      var g = strip.querySelector('[data-vx-dots]');
+      var anillo = anilloPropio(m);
+      var glow = strip.querySelector('[data-vx-glow]');
+      var blur = strip.querySelector('feGaussianBlur');
+      var puntos = g ? Array.prototype.slice.call(g.children) : [];
+      if (!puntos.length) return;
+
+      // Sin MorphSVG no hay cierre posible: se queda el anillo girando, que
+      // es un loader perfectamente digno, en vez de un logo congelado.
+      if (!hayMorph()) {
+        tl.to(g, { rotation: 360, svgOrigin: m.cx + ' ' + m.cy,
+                   duration: 1.9, ease: 'none', repeat: -1 }, 0);
+        tl.to(puntos, { opacity: .35, duration: .5, ease: 'sine.inOut',
+                        yoyo: true, repeat: -1, stagger: { each: .09, from: 'start' } }, 0);
+        return;
+      }
+
+      gsap.registerPlugin(MorphSVGPlugin);
+      var GIRO = 1.55, PAUSA = .18, CIERRE = .85, SOSTEN = .8, ABRE = .75;
+
+      tl.fromTo(g, { rotation: 0 },
+        { rotation: 540, svgOrigin: m.cx + ' ' + m.cy, duration: GIRO, ease: 'power2.inOut' }, 0);
+      tl.fromTo(blur, { attr: { stdDeviation: 6 } },
+        { attr: { stdDeviation: 9 }, duration: GIRO / 2, yoyo: true, repeat: 1, ease: 'sine.inOut' }, 0);
+
+      // Cierre: cada punto va a SU isla y vira al color real que tiene ahí.
+      var c = GIRO + PAUSA;
+      puntos.forEach(function (p, i) {
+        tl.to(p, { morphSVG: m.islas[i], duration: CIERRE, ease: 'power3.inOut' }, c + i * .02);
+        tl.to(p, { fill: m.colorIsla(i), duration: CIERRE * .6, ease: 'power2.inOut' }, c + i * .02);
+      });
+      tl.to(blur, { attr: { stdDeviation: .35 }, duration: CIERRE * .7, ease: 'power2.in' }, c + .1);
+      tl.to(glow, { opacity: 1, scale: 1.06, duration: .5, ease: 'power2.out' }, c + .2);
+
+      var s = c + CIERRE;
+      tl.to(glow, { opacity: .45, duration: SOSTEN / 2, yoyo: true, repeat: 1, ease: 'sine.inOut' }, s);
+
+      // Apertura: vuelve a punto y recupera el color de anillo, para que el
+      // siguiente giro salga otra vez balanceado naranja/morado.
+      var a = s + SOSTEN;
+      tl.to(blur, { attr: { stdDeviation: 7 }, duration: ABRE, ease: 'power2.out' }, a);
+      puntos.forEach(function (p, i) {
+        tl.to(p, { morphSVG: anillo[i], duration: ABRE, ease: 'power3.inOut' }, a + i * .018);
+        tl.to(p, { fill: m.colorPunto(i), duration: ABRE * .6, ease: 'power2.inOut' }, a + i * .018);
+      });
+      tl.to(glow, { opacity: 0, scale: 1, duration: ABRE * .7, ease: 'power2.in' }, a);
+      tl.to({}, { duration: .2 });
+    }
+  };
+
+  /* ── cajas ─────────────────────────────────────────────────────────────
+     Banda transportadora: llegan cajas rosas por la izquierda, se apilan a la
+     derecha y el lote sale hacia arriba. Es la metáfora literal de lo que está
+     pasando —están trayendo cosas— y encaja donde se listan envíos. */
+  VARIANTES.cajas = {
+    destino: [188, 156, 124],
+    escena: function () {
+      var D = VARIANTES.cajas.destino;
+      function caja(i) {
+        return '<g data-vx-caja transform="translate(' + D[i] + ',66)">' +
+          '<rect x="-15" y="-19" width="30" height="19" rx="2.5" fill="' + ROSA + '"/>' +
+          '<rect x="-15" y="-19" width="30" height="5" rx="2.5" fill="#fff" fill-opacity=".26"/>' +
+          '<rect x="-2.4" y="-19" width="4.8" height="19" fill="' + NARANJA + '"/>' +
+          '<rect x="-15" y="-4" width="30" height="4" fill="#000" fill-opacity=".12"/>' +
+        '</g>';
+      }
+      return '<svg viewBox="0 0 240 92" width="230" height="88" style="max-width:100%" ' +
+                  'preserveAspectRatio="xMidYMid meet" aria-hidden="true">' +
+        // Banda: cuerpo, rodillos y tacos que corren
+        '<rect x="10" y="66" width="220" height="9" rx="4.5" fill="#4a3f4c"/>' +
+        '<g data-vx-tacos>' +
+          [0,1,2,3,4,5,6,7,8,9,10,11].map(function (i) {
+            return '<rect x="' + (12 + i * 20) + '" y="68.5" width="9" height="4" rx="2" ' +
+                   'fill="#fff" fill-opacity=".38"/>';
+          }).join('') +
+        '</g>' +
+        '<circle cx="16" cy="70.5" r="7" fill="#3a3140"/><circle cx="16" cy="70.5" r="2.4" fill="#8b8189"/>' +
+        '<circle cx="224" cy="70.5" r="7" fill="#3a3140"/><circle cx="224" cy="70.5" r="2.4" fill="#8b8189"/>' +
+        caja(0) + caja(1) + caja(2) +
+      '</svg>';
+    },
+
+    animar: function (strip, tl) {
+      var cajas = strip.querySelectorAll('[data-vx-caja]');
+      var tacos = strip.querySelector('[data-vx-tacos]');
+      if (!cajas.length) return;
+
+      // Los tacos avanzan EXACTAMENTE un paso del patrón (20 px) por vuelta:
+      // con cualquier otro valor el bucle da un salto visible cada ciclo.
+      if (tacos) gsap.to(tacos, { x: -20, duration: .5, ease: 'none', repeat: -1 });
+
+      var PASO = .62;
+
+      cajas.forEach(function (c, i) {
+        var t = i * PASO;
+        tl.fromTo(c, { x: 4, y: 66, opacity: 0 },
+                     { opacity: 1, duration: .18, ease: 'none' }, t);
+        // Viaje sobre la banda, con el traqueteo del transporte encima.
+        tl.to(c, { x: VARIANTES.cajas.destino[i], duration: 1.15, ease: 'power1.inOut' }, t);
+        tl.to(c, { y: '-=2.5', duration: .13, ease: 'sine.inOut',
+                   yoyo: true, repeat: 7 }, t);
+        // Asiento al llegar: un rebote corto, no un frenazo.
+        tl.to(c, { y: 66, duration: .34, ease: 'bounce.out' }, t + 1.15);
+      });
+
+      // El lote completo se despacha y la banda queda lista para el siguiente.
+      var fin = (cajas.length - 1) * PASO + 1.5;
+      tl.to(cajas, { y: '-=44', opacity: 0, duration: .5, ease: 'power2.in',
+                     stagger: { amount: .16, from: 'end' } }, fin);
+      tl.to({}, { duration: .3 });
+    }
+  };
+
+  /* ── onda ──────────────────────────────────────────────────────────────
+     Siete barras de marca subiendo y bajando en onda. Para listas y tablas,
+     donde una escena con suelo y horizonte quedaría fuera de sitio: aquí lo
+     que hace falta es un latido discreto que ocupe poco alto. */
+  VARIANTES.onda = {
+    escena: function () {
+      var s = '<div style="display:flex;align-items:flex-end;gap:7px;height:46px" aria-hidden="true">';
+      for (var i = 0; i < 7; i++) {
+        var col = i % 3 === 0 ? ROSA : (i % 3 === 1 ? MORADO : NARANJA);
+        s += '<span data-vx-barra style="display:block;width:9px;height:46px;border-radius:99px;' +
+             'transform:scaleY(.3);transform-origin:50% 100%;background:linear-gradient(180deg,' +
+             col + ',color-mix(in srgb,' + col + ' 55%,transparent))"></span>';
+      }
+      return s + '</div>';
+    },
+
+    animar: function (strip, tl) {
+      var barras = strip.querySelectorAll('[data-vx-barra]');
+      if (!barras.length) return;
+      // `each` con yoyo propio y repeat infinito: la onda no depende del largo
+      // de la línea de tiempo compartida, así que no se descuadra con el pie.
+      gsap.to(barras, {
+        scaleY: 1, duration: .58, ease: 'sine.inOut',
+        yoyo: true, repeat: -1,
+        stagger: { each: .085, from: 'start' }
+      });
+      tl.to({}, { duration: 4.2 });   // solo marca el compás del pie
+    }
+  };
+
+  /* ══════════════════════════════════════════════════════════════════════
+     MARCO Y MONTAJE
+     ══════════════════════════════════════════════════════════════════════ */
+
+  function frame(tipo, opts, id) {
+    var v = VARIANTES[tipo];
+    var msgs = (opts.mensajes && opts.mensajes.length ? opts.mensajes : MENSAJES).slice(0, 6);
+    var largo = msgs.reduce(function (a, b) { return b.length > a.length ? b : a; }, '');
+    var lineas = msgs.map(function (t) { return '<span class="vx-m">' + esc(t) + '</span>'; }).join('');
+
+    return '<div class="vx-strip' + (opts.alto === 'sm' ? ' vx-sm' : '') + '" ' +
+                'data-vx-tipo="' + esc(tipo) + '" role="status" aria-live="polite" ' +
+                'aria-label="' + esc(opts.etiqueta || 'Cargando información') + '">' +
+             '<div class="vx-stage">' + v.escena(id) + '</div>' +
+             '<div class="vx-foot">' +
+               '<div class="vx-bar"><span class="vx-fill"></span></div>' +
+               '<div class="vx-msgs"><span class="vx-ghost">' + esc(largo) + '</span>' + lineas + '</div>' +
+             '</div>' +
+           '</div>';
+  }
+
+  /* El pie es común a las tres variantes: la barra crece con rendimientos
+     decrecientes (nunca miente diciendo "100 %" antes de tiempo) y los
+     mensajes se relevan repartiendo el ciclo entre los que haya —sin
+     fotogramas fijos que solo cuadren con una cantidad concreta. */
+  function animarPie(strip, tl) {
+    var fill = strip.querySelector('.vx-fill');
+    var msgs = strip.querySelectorAll('.vx-m');
+
+    if (fill) {
+      tl.fromTo(fill, { scaleX: .04 },
+        { scaleX: .93, duration: 5.2, ease: 'power3.out' }, 0);
+    }
+    if (msgs.length) {
+      var turno = 2.9, total = msgs.length * turno;
+      var mt = gsap.timeline({ repeat: -1 });
+      msgs.forEach(function (m, i) {
+        mt.fromTo(m, { opacity: 0, y: 5 },
+                     { opacity: 1, y: 0, duration: .34, ease: 'power2.out' }, i * turno)
+          .to(m, { opacity: 0, y: -5, duration: .34, ease: 'power2.in' }, i * turno + turno - .34);
+      });
+      mt.to({}, { duration: 0 }, total);
+      strip._vxMsgTl = mt;
+    }
+  }
+
+  /** Devuelve la variante como cadena. `ruta` la sirve el camión (CSS puro). */
+  function markup(tipo, opts) {
+    opts = opts || {};
+    tipo = tipo || opts.tipo || 'isotipo';
+    if (tipo === 'ruta' || !VARIANTES[tipo]) {
+      if (window.VentelTruck) return window.VentelTruck.markup(opts);
+      tipo = 'onda';
+    }
+    if (tipo === 'isotipo' && !marca()) tipo = 'onda';   // sin geometría, no hay logo
+    return frame(tipo, opts, ++uid);
+  }
+
+  /**
+   * Inserta la variante al principio del contenedor y la pone en marcha.
+   * Devuelve la tira, o null si ya había una.
+   */
+  function mount(el, opts) {
+    if (!el || el.querySelector('.vx-strip, .vt-strip')) return null;
+    opts = opts || {};
+    var caja = document.createElement('div');
+    caja.innerHTML = markup(opts.tipo, opts);
+    var strip = caja.firstChild;
+    if (!strip) return null;
+    el.insertBefore(strip, el.firstChild);
+
+    // El camión se anima solo: no hay nada que arrancar.
+    if (strip.classList.contains('vt-strip')) return strip;
+    if (!hayGsap()) return strip;                 // queda el degradado CSS
+
+    var v = VARIANTES[strip.getAttribute('data-vx-tipo')];
+    if (!v) return strip;
+
+    strip.classList.add('vx-live');
+    var tl = gsap.timeline({ repeat: -1 });
+    v.animar(strip, tl);
+    animarPie(strip, tl);
+    strip._vxTl = tl;
+    return strip;
+  }
+
+  /**
+   * Monta todo [data-vx-loader]. El valor del atributo es el tipo; el mensaje
+   * propio de esa sección va en [data-vx-msg] y encabeza la rotación, que es
+   * lo único que cambia de una a otra.
+   */
+  function auto(root) {
+    var nodos = (root || document).querySelectorAll('[data-vx-loader]');
+    Array.prototype.forEach.call(nodos, function (el) {
+      if (el.hasAttribute('data-vx-listo')) return;
+      el.setAttribute('data-vx-listo', '1');
+      var propio = el.getAttribute('data-vx-msg');
+      mount(el, {
+        tipo: el.getAttribute('data-vx-loader') || 'isotipo',
+        alto: el.getAttribute('data-vx-alto') || '',
+        etiqueta: propio || 'Cargando información',
+        mensajes: propio ? [propio].concat(MENSAJES.slice(1)) : null
+      });
+    });
+  }
+
+  /** Salida: la barra se completa, la tira se retira y se matan los bucles. */
+  function finish(el) {
+    if (!el) return;
+    if (window.VentelTruck) window.VentelTruck.finish(el);   // por si la tira es el camión
+
+    var strip = el.classList && el.classList.contains('vx-strip')
+      ? el : (el.querySelector && el.querySelector('.vx-strip'));
+    if (!strip || strip._vxDone) return;
+    strip._vxDone = true;
+
+    var quitar = function () {
+      if (strip._vxTl) strip._vxTl.kill();
+      if (strip._vxMsgTl) strip._vxMsgTl.kill();
+      // Los tweens sueltos (onda, tacos) cuelgan de nodos de esta tira.
+      if (window.gsap) gsap.killTweensOf(strip.querySelectorAll('*'));
+      if (strip.parentNode) strip.parentNode.removeChild(strip);
+    };
+
+    if (!hayGsap()) { quitar(); return; }
+    var fill = strip.querySelector('.vx-fill');
+    var tl = gsap.timeline({ onComplete: quitar });
+    if (fill) { gsap.killTweensOf(fill); tl.to(fill, { scaleX: 1, duration: .26, ease: 'power2.out' }, 0); }
+    tl.to(strip, { opacity: 0, y: -8, duration: .3, ease: 'power2.in' }, .12);
+  }
+
+  window.VentelLoaders = {
+    markup: markup, mount: mount, auto: auto, finish: finish,
+    tipos: Object.keys(VARIANTES).concat(['ruta']),
+    MENSAJES: MENSAJES
+  };
+
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', function () { auto(document); });
+  } else {
+    auto(document);
+  }
+})();
+</script>
