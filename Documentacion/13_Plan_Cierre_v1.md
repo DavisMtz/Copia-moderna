@@ -25,7 +25,7 @@ definición de alcance dictada por el creador del proyecto.
 | # | Frente | Fase |
 | --- | --- | --- |
 | R1 | URL dinámica y deep-linking en todo el sitio, con acceso según sesión | F1 |
-| R2 | Navegación: Cotizaciones por rol, separar Correo a clientes, hora en supervisión | F1 |
+| R2 | Navegación: Cotizaciones por rol, separar Correo a clientes, Gestión depurada, hora en supervisión | F1 |
 | R3 | Isla dinámica con notificaciones (contador de revisiones pendientes) | F2 |
 | R4 | Revisión: política contraída + refactor de claridad de la pantalla | F3 |
 | R5 | Loader animado GSAP del módulo «estado del servicio por fechas» | F4 |
@@ -51,23 +51,27 @@ definición de alcance dictada por el creador del proyecto.
   definición. Los anuncios se siguen administrando desde su constructor.
 - **La pantalla de inicio del asesor está bien como está** en contenido; solo la toca la
   fase F1 en navegación.
-- Del plan 12 quedan **descartados**: los loaders en las 15 pantallas que no los usan
-  (rendimiento decreciente) y Gemini para redactar correos. El «índice invertido para la
-  búsqueda de folios» (12 §5) queda fuera de la v1.0: es optimización, no función, y la
-  fusión de buscadores (F6) no depende de él.
+
+### NO entra, por decisión de ESTE plan (con motivo; el creador puede revertirlas)
+
+- Del plan 12: los loaders en las 15 pantallas que no los usan (rendimiento decreciente
+  sobre algo ya resuelto) y Gemini para redactar correos (más riesgo que ganancia) —
+  descartes que aquel plan ya había razonado y este confirma.
+- El «índice invertido para la búsqueda de folios» (12 §5) queda fuera de la v1.0: es
+  optimización, no función, y la fusión de buscadores (F6) no depende de él.
 
 ### Absorbido del plan 12
 
 | Pendiente del 12 | Dónde queda aquí |
 | --- | --- |
-| F1.2 `ViewPrefsPartial` donde falta | F13.4 (barrido final de consistencia) |
-| F1.3 Fijar versión de Chart.js | F13.4 |
-| Fase 2: instrumentación, `app_support`, accesibilidad en shell, esqueletos | F13.4 (lo que siga pendiente al llegar) |
+| F1.2 `ViewPrefsPartial` donde falta | T13.3 (barrido final de consistencia) |
+| F1.3 Fijar versión de Chart.js | T13.4 |
+| Fase 2: instrumentación, `app_support`, accesibilidad en shell, esqueletos | T13.4 (lo que siga pendiente al llegar) |
 | Fase 3: estado en la URL (3 de 19 pantallas) | **F1 entera** — ahora es el frente principal |
-| Fase 3: recorrido guiado en Consola/Revisión/Operación/Atenciones | F12.2 |
-| Fase 3: carga diferida de `app_comando` | F6.4 |
+| Fase 3: recorrido guiado en Consola/Revisión/Operación/Atenciones | T12.2 |
+| Fase 3: carga diferida de `app_comando` | T6.4 |
 | Fase 4: M3 (cotización al shell) | Fuera de v1.0 — riesgo sobre el PDF del cliente; se retoma en v1.x |
-| Fase 4: política de revisión que se mide sola | F5.2 comparte el patrón; la medición de la política queda para v1.x |
+| Fase 4: política de revisión que se mide sola | T5.2 comparte el patrón; la medición de la política queda para v1.x |
 
 ---
 
@@ -76,8 +80,8 @@ definición de alcance dictada por el creador del proyecto.
 Cada fase trae: **objetivo**, **tareas numeradas con anclajes** (`archivo:línea` del estado
 actual), **criterios de aceptación** (qué se comprueba antes de dar por hecha la fase),
 **perfil profesional** (los roles y aptitudes que exige hacerla con calidad — si una persona
-los reúne todos, la hace una persona), **esfuerzo** (S = horas, M = 1–3 días, L = una semana
-o más de trabajo efectivo) y **dependencias**.
+los reúne todos, la hace una persona), **esfuerzo** (S = horas, M = 1–3 días, L = una
+semana, XL = varias semanas de trabajo efectivo) y **dependencias**.
 
 El orden de las fases es de dependencia lógica, con dos reglas dictadas por el alcance:
 lo rápido y desbloqueante primero, **lo más pesado hacia el final** (F8 Artículos es la obra
@@ -142,7 +146,10 @@ portal_contenido); el resto solo lee al arrancar. El login pierde todos los par�
   escribe `?folio` cuando llega por localStorage (821-826); `correoventel` folio/formato
   (155-156); `correo_cliente` `?tpl` al elegir plantilla (943); `anuncios`, `operacion` y
   `atenciones` su sección/filtros (atenciones ya cumple: es el modelo a seguir,
-  `README.md` del proyecto, revisión de Atenciones §4).
+  `README.md` del proyecto, revisión de Atenciones §4). **Qué portal está abierto**
+  (Index o Promociones) ya persiste por `?page=` — lo que esta tarea añade es que
+  también persista **en qué punto** de ese portal estabas (pestaña, filtro, promoción),
+  que es lo que hoy se pierde.
 - **T1.3 — Estado profundo a través del login.** En `requireSession`
   (`app_core.html:1090-1095`) serializar `AppUrl.params()` junto al `next` (o en
   `sessionStorage`); en `goNextOrHome` (965-969) reponerlos. La lista blanca
@@ -175,11 +182,18 @@ portal_contenido); el resto solo lee al arrancar. El login pierde todos los par�
   el enlace del apartado Cotizaciones (`app_shell.html:363`) a un apartado propio (el
   conmutador de áreas ya lo trata como área aparte, `app_shell.html:295`). `apartado()`
   (322-328) colapsa rótulos sin enlaces, así que un apartado de un solo ítem es seguro.
+- **T1.8 — Gestión solo gestión.** El apartado Gestión ya se arma del catálogo `GESTION`
+  filtrado por bloques (`app_core.html:1841-1870`), que hoy cumple razonablemente el
+  requisito. La tarea es la depuración: revisar el catálogo entrada por entrada tras T1.7
+  (nada ajeno a gestión se queda; nada de gestión queda fuera), y dejar escrito que toda
+  pantalla nueva de este plan entra al menú **por ese catálogo** — las fases posteriores
+  lo alimentan y T13.1 lo verifica al consolidar bloques.
 
 ### Criterios de aceptación
 
-1. En cada pantalla: cambiar pestaña/filtro/elemento → la URL cambia; F5 → se restaura el
-   mismo estado; botón atrás → estado anterior (no solo la dirección).
+1. En cada pantalla — incluidas las dos públicas del Portal (Index y Promociones):
+   cambiar pestaña/filtro/elemento → la URL cambia; F5 → se restaura el mismo estado;
+   botón atrás → estado anterior (no solo la dirección).
 2. Copiar la URL en cualquier estado, abrirla en ventana privada → login → **aterrizas en
    ese estado exacto**.
 3. `?folio=` sin sesión ya no muestra datos de cliente; con sesión y bloque, sí.
@@ -259,7 +273,10 @@ pastilla; ingeniería backend Apps Script con cuidado de caché compartida (la p
 de `opEstadoSesion` se comparte entre usuarios: un dato por-permiso ahí sería una fuga);
 accesibilidad (táctil, reduced motion, tamaños de toque).
 
-**Dependencias:** F1 (deep-link con ancla a la cola). T2.1 puede empezar en paralelo.
+**Dependencias:** ninguna dura — el mecanismo de anclas que usa T2.3 **ya existe**
+(`?ancla=` en `PARAMS_VISTA` + `AppUrl.irAncla`, `app_core.html:1046-1063`, disparado al
+cargar en 2074-2077); solo hay que dar `id="pend-lista"` a la cola en `inicio_avanzado`.
+F1 conviene antes para heredar su convención de URL, pero no bloquea.
 
 ---
 
@@ -495,13 +512,18 @@ que la abre en grande, y la tarjeta puede ser una **encuesta** con resultados en
   `gate.nombre` hoy se descarta) y devolver autor/creado en las dos lecturas
   (`portalAnunciosCols_` 185-196 y `getAnunciosAdmin` 634-643, que hoy los omiten).
   En el Portal se pinta el **nombre**, no el correo.
-- **T7.2 — Principal y especiales + responsable.** En `renderAnuncios`
-  (`Index.html:3735-3790`): la primera tarjeta por orden es la **principal** (tamaño
-  destacado en la rejilla); las demás quedan como especiales. El responsable va pequeño en
-  la esquina inferior derecha de cada plantilla (tarjeta 3771-3781, destacado 3745-3753,
-  modal 3799-3808; CSS junto a `.anc-card` 879-894). La jerarquía se define **sobre** el
-  mecanismo de orden existente (columna Orden + regla «solo un modal»), sin un segundo
-  criterio que choque.
+- **T7.2 — Principal y especiales + responsable.** Lo pedido dice «la tarjeta queda como
+  publicación principal y las otras como especiales». **Interpretación elegida, declarada
+  aquí:** UNA publicación en formato tarjeta —la primera por columna Orden— se pinta como
+  **principal** (tamaño destacado en la rejilla de `renderAnuncios`,
+  `Index.html:3735-3790`); todas las demás publicaciones (tarjetas restantes, banners,
+  destacados) quedan como **especiales**. Es la lectura posicional sobre el mecanismo de
+  orden existente (columna Orden + regla «solo un modal»), elegida para no inventar un
+  segundo criterio de prioridad que choque con el que ya hay; **validar la maqueta con el
+  creador antes de cerrar la tarea** por si su intención era jerarquía por formato (todo
+  el formato tarjeta = principal). El responsable va pequeño en la esquina inferior
+  derecha de cada plantilla (tarjeta 3771-3781, destacado 3745-3753, modal 3799-3808;
+  CSS junto a `.anc-card` 879-894).
 - **T7.3 — ID compartible.** Parámetro nuevo `pub` en las tres listas espejo
   (`Code.gs:124`, `app_core.html:745`, `PASAN` Index:4719). Al abrir
   `?page=portal&pub=anc-xxx`, `restore()` (Index:3310-3362) llama a `expandTarjeta`
@@ -513,8 +535,9 @@ que la abre en grande, y la tarjeta puede ser una **encuesta** con resultados en
   requisito con una pantalla menos que mantener (decisión reversible en v1.x si el modal
   queda corto).
 - **T7.4 — Encuestas.** Subtipo de la tarjeta: en el constructor (`anuncios.html`), al
-  elegir tarjeta aparece la opción «encuesta» con: pregunta, 2–6 opciones, tiempo estimado
-  y cierre (fecha/duración). Cabe en `Datos (JSON)` sin tocar el esquema de columnas
+  elegir tarjeta aparece la opción «encuesta» con: pregunta, n opciones (tope 6 —
+  **decisión de este plan** para que la gráfica quepa en la tarjeta y en móvil;
+  ampliable si hace falta), tiempo estimado y cierre (fecha/duración). Cabe en `Datos (JSON)` sin tocar el esquema de columnas
   (`buildDatos` 819-837 / `cargarEnForm` 953-991 se extienden simétricamente, con vista
   previa). **Los votos NO van en la fila del anuncio** (`publicarAnuncio` reescribe la
   fila entera con `setValues`, `Portal.gs:596` — editar machacaría votos): hoja nueva
@@ -616,7 +639,7 @@ formulario por bloques — decisión de diseño técnico documentada antes de es
 backend Apps Script (modelo, locks, vistas); diseño UI de lectura (tipografía larga);
 QA con banco de contenido hostil.
 
-**Dependencias:** F1 (deep-links y sesión), F6 (indexación), F7.1 (patrones de ID/autor).
+**Dependencias:** F1 (deep-links y sesión), F6 (indexación), T7.1 (patrones de ID/autor).
 
 ---
 
@@ -639,11 +662,16 @@ quién?», bitácora exportable, salud al día, ajustes centralizados y el CCO g
 - **T9.2 — Copiar correos.** Botón en el grupo: `navigator.clipboard.writeText` con los
   correos separados por coma — el formato que Gmail pega directo en Para/CCO. La lista ya
   está en el cliente (`D.miembros`, `consola.html:732-743`).
-- **T9.3 — Difundir información.** Composición de correo interno: asunto, cuerpo con
-  párrafos/lista/botón/imágenes, vista previa, envío al grupo elegido. La plantilla base
-  **ya existe** y es la correcta: `cuentasPlantillaCorreo_` + helpers `cuentasMailP_`/
-  `cuentasMailDatos_`/`cuentasMailBoton_`/`cuentasMailNota_` (`Cuentas.gs:886-976, 1146` —
-  logo, profesional, sobria; distinta de la rosa de clientes, a propósito). Envío por
+- **T9.3 — Difundir información.** Composición de correo interno: asunto y cuerpo de
+  **redacción libre «casi como en Gmail»** —párrafos con negritas/listas, imágenes en
+  línea, algún botón— con vista previa y envío al grupo elegido. **Lectura elegida del
+  «editor tipo Gmail», declarada aquí:** la libertad es del cuerpo (contenteditable
+  acotado a ese repertorio); el marco —logo, cabecera, pie— lo pone el sistema y no se
+  edita, para que toda difusión salga formal sin depender del pulso de quien redacta.
+  La plantilla base **ya existe** y es la correcta: `cuentasPlantillaCorreo_` + helpers
+  `cuentasMailP_`/`cuentasMailDatos_`/`cuentasMailBoton_`/`cuentasMailNota_`
+  (`Cuentas.gs:886-976, 1146` — logo, profesional, sobria; distinta de la rosa de
+  clientes, a propósito). Envío por
   `cuentasEnviarCorreo_` (983) en CCO a los miembros (no exponer la lista en Para),
   imágenes con el patrón de adjuntos de `CorreoCliente.gs:81-90`, registro en
   `MetricasCorreos` (tipo `difusion`) y en la bitácora. Mismo gate de nivel que T9.1.
@@ -698,6 +726,12 @@ quién?», bitácora exportable, salud al día, ajustes centralizados y el CCO g
   con datos reales: módulo apagado hace >N días, errores de envío recientes
   (MetricasCorreos.Resultado), checks de salud fallando, cuota de correo cerca del tope,
   altas sin primer acceso. Cada recomendación con su acción («ir a Módulos»).
+- **T9.10 — Módulos, revisión acotada.** Lo pedido: «ver si hay que actualizar algo».
+  Comprobar que los bloques nuevos de este plan (`articulos`, `metricas`) aparecen en la
+  pestaña Módulos y se pueden apagar por mantenimiento (salen solos del catálogo
+  `PERM_BLOQUES` si nacen con `fijo:false` — verificar esa decisión por bloque en T13.1),
+  que las pantallas nuevas respetan el módulo apagado, y corregir lo que el barrido
+  encuentre. Si no hay nada, se anota «revisado, sin cambios» en el §18 y listo.
 
 ### Criterios de aceptación
 
@@ -718,7 +752,7 @@ hojas grandes); ingeniería frontend para la sección nueva; **seguridad** (gate
 exclusiones del CCO, no exponer listas de correo); diseño de plantillas HTML de email
 (compatibilidad de clientes de correo); analítica de producto para definir los informes.
 
-**Dependencias:** F13.1 define los bloques nuevos — se acuerdan aquí y se consolidan allá.
+**Dependencias:** T13.1 define los bloques nuevos — se acuerdan aquí y se consolidan allá.
 
 ---
 
@@ -735,7 +769,7 @@ viendo** (según sus permisos), la extensión y por qué importa, y quiénes lo 
 - **T10.2 — Contenido.** Secciones: propósito del sistema (con animación GSAP de entrada
   sobria, patrón de `estado.html` pero ligera); **qué puedes hacer tú** — las funciones se
   pintan filtradas por `AppSession` igual que el menú, con un instructivo corto por
-  función y enlace directo (reutilizar el catálogo unificado de F6.3: es la misma lista);
+  función y enlace directo (reutilizar el catálogo unificado de T6.3: es la misma lista);
   la extensión de Chrome — qué hace, por qué instalarla, enlace a la guía existente
   (`app_extension_guia`); créditos — las personas que participaron (lista mantenible en
   una hoja o constante, no hardcodeada en el markup) y la línea de soporte
@@ -754,7 +788,7 @@ viendo** (según sus permisos), la extensión y por qué importa, y quiénes lo 
 Redacción UX en español (es una pantalla de texto: el oficio principal aquí es escribir
 claro); diseño visual; ingeniería frontend ligera.
 
-**Dependencias:** F6.3 (catálogo unificado de funciones), F8 para el enlace a artículos.
+**Dependencias:** T6.3 (catálogo unificado de funciones), F8 para el enlace a artículos.
 
 ---
 
@@ -900,7 +934,8 @@ rol, y la pasada final de consistencia que convierte esto en la v1.0 de pruebas.
 Ingeniería de seguridad/permisos (modelo de autorización, pruebas por rol); QA de
 sistema (plan de pruebas, cuentas de rol, regresión); documentación técnica.
 
-**Dependencias:** todas las anteriores. Es el cierre a propósito.
+**Dependencias:** todas las anteriores; F12 corre en paralelo con esta fase, y la foto
+final T13.5 es lo último de todo — espera también a F12. Es el cierre a propósito.
 
 ---
 
@@ -909,13 +944,15 @@ sistema (plan de pruebas, cuentas de rol, regresión); documentación técnica.
 ```
 F1 URL y navegación ──┬─► F2 Isla ─────────────┐
                       ├─► F7 Publicaciones ────┤
-F3 Revisión ══════════╡                        ├─► F8 Artículos ─► F12 Onboarding ─► F13 Cierre
-F4 Loaders ═══════════╡  F5 Operación ─────────┤                      (F12 y F13 en paralelo)
-F11 Liverpool ════════╡  F6 Buscadores ────────┘
-F9 Consola (arranca tras F1; larga, corre en paralelo con F5–F8)
+F3 Revisión ══════════╡                        ├─► F8 Artículos ─► F10 Acerca de ─┐
+F4 Loaders ═══════════╡  F5 Operación ─────────┤                                  ├─► F12 ∥ F13
+F11 Liverpool ════════╡  F6 Buscadores ────────┘                                  │   (cierre)
+F9 Consola (arranca tras F1; larga, corre en paralelo con F5–F8) ─────────────────┘
 ```
 
 Las fases con `══` no dependen de nadie: son el frente paralelo mientras F1 avanza.
+F12 (onboardings) y F13 (permisos y v1.0) corren **en paralelo** al final; dentro de F13,
+la foto final T13.5 es lo último de todo y espera también a F12.
 La vía rápida del §2 puede despacharse en los primeros días.
 
 ---
