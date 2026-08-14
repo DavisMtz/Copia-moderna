@@ -685,10 +685,29 @@ var PERM_INDICE_CACHE = null;
 
 /**
  * Lee la hoja de permisos.
+ *
+ * @param {boolean=} desdeHoja  true = ignora TODA caché y va a la hoja.
+ *
+ *   Lo tienen que pasar los caminos que van a ESCRIBIR, porque usan el campo `.fila` de este
+ *   índice para decidir en qué renglón escriben (getRange(actual.fila…), deleteRow(actual.fila)).
+ *   Un número de fila cacheado que ya no corresponde —porque alguien borró una fila en la hoja a
+ *   mano— haría que se escribieran los permisos de una persona ENCIMA DE OTRA. Para leer, la
+ *   caché es una mejora; para escribir, sería una corrupción de datos.
+ *
  * @return {Object<string, {rol:string, permisos:string, activo:boolean, fila:number}>}
  */
-function permIndicePermisos_() {
-  if (PERM_INDICE_CACHE) return PERM_INDICE_CACHE;
+function permIndicePermisos_(desdeHoja) {
+  if (!desdeHoja && PERM_INDICE_CACHE) return PERM_INDICE_CACHE;
+
+  // Segunda capa, entre el memo y la hoja: CacheIdentidad.gs. Ver el porqué allí.
+  if (!desdeHoja && typeof idcLeer_ === 'function') {
+    const guardado = idcLeer_('permisos');
+    if (guardado) {
+      PERM_INDICE_CACHE = guardado;
+      return guardado;
+    }
+  }
+
   const indice = {};
   try {
     const sheet = permHoja_(false);
@@ -710,6 +729,10 @@ function permIndicePermisos_() {
   } catch (e) {
     Logger.log('permIndicePermisos_ error: ' + e);
   }
+  // Un índice vacío no se guarda: ver la nota de regla 3 en secIndiceRegistros_ y en
+  // CacheIdentidad.gs. Aquí además es más grave, porque sin filas de permisos nadie tendría
+  // bloques y la app entera se vería "apagada" sin que nada hubiera fallado.
+  if (typeof idcGuardar_ === 'function') idcGuardar_('permisos', indice);
   PERM_INDICE_CACHE = indice;
   return indice;
 }
@@ -728,7 +751,9 @@ function permGuardarPermisos_(correo, valores, quien) {
   if (!email) return false;
 
   const sheet = permHoja_();
-  const actual = permIndicePermisos_()[email] || null;
+  // DESDE LA HOJA, no desde la caché: de `actual` sale el número de fila en el que se va a
+  // escribir, y una fila cacheada que ya no corresponde pisaría los permisos de otra persona.
+  const actual = permIndicePermisos_(true)[email] || null;
 
   const rol = (valores.rol !== undefined && valores.rol !== null)
     ? (permNormalizarRol_(valores.rol) || 'normal')
@@ -746,6 +771,9 @@ function permGuardarPermisos_(correo, valores, quien) {
   else sheet.appendRow(fila);
 
   PERM_INDICE_CACHE = null;
+  // Después de escribir, nunca antes: si la escritura hubiera fallado, lo cacheado seguiría
+  // siendo la verdad. Sin esto, un cambio de rol tardaría hasta el TTL en notarse.
+  if (typeof idcInvalidar_ === 'function') idcInvalidar_();
   return true;
 }
 
@@ -756,13 +784,16 @@ function permGuardarPermisos_(correo, valores, quien) {
  */
 function permBorrarPermisos_(correo) {
   const email = secNormalizarCorreo_(correo);
-  const actual = email ? permIndicePermisos_()[email] : null;
+  // DESDE LA HOJA: de aquí sale la fila que se va a BORRAR. Con un número cacheado y obsoleto se
+  // borrarían los permisos de quien estuviera ahora en ese renglón.
+  const actual = email ? permIndicePermisos_(true)[email] : null;
   if (!actual) return false;
 
   const sheet = permHoja_(false);
   if (!sheet) return false;
   sheet.deleteRow(actual.fila);
   PERM_INDICE_CACHE = null;
+  if (typeof idcInvalidar_ === 'function') idcInvalidar_();
   return true;
 }
 
@@ -831,6 +862,7 @@ function permEscribirRegistros_(correo, campos) {
       if (listo.ok) celda.setValue(listo.valor);
     });
     SEC_REGISTROS_CACHE = null;
+    if (typeof idcInvalidar_ === 'function') idcInvalidar_();
     return true;
   }
   return false;
@@ -916,6 +948,10 @@ function REPARAR_MAESTRO() {
   SpreadsheetApp.flush();            // sin esto la relectura puede traer el valor viejo
   PERM_INDICE_CACHE = null;
   SEC_REGISTROS_CACHE = null;
+  // permGuardarPermisos_ ya subió la generación, pero esta función existe para PROBAR que lo
+  // escrito se lee, y esa prueba no vale si hay que rastrear otra función para saber que la
+  // caché quedó limpia. Aquí se dice en voz alta.
+  if (typeof idcInvalidar_ === 'function') idcInvalidar_();
 
   const u = permUsuario_(correo);
   Logger.log('  Rol leído ahora: ' + u.rol + ' (' + u.rolNombre + ')');

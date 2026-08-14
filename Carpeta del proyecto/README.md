@@ -10,6 +10,13 @@ el servidor renderiza con `include()`, y la lógica de servidor vive en los `.gs
   Lo que hace el cliente (`requireBlock`, filtros de menú) es cortesía, no seguridad.
 - **Caché y llamadas:** `AppCache` y `AppRun` en `app_core.html`. El patrón por defecto
   es `AppRun.swr`: se pinta lo guardado y se revalida siempre por detrás.
+- **Caché de identidad:** `CacheIdentidad.gs` guarda entre llamadas los dos índices que
+  resuelven quién eres y qué puedes (`Registros` y la hoja oculta de permisos). Antes vivían
+  solo en una variable global, que en Apps Script dura **una ejecución**, así que cada
+  `google.script.run` releía las dos hojas enteras antes de trabajar. Se invalida por
+  escritura, con el mismo patrón de generación de `Cache.gs`. **Los caminos que escriben
+  llaman a `permIndicePermisos_(true)` y leen la hoja siempre**: de ese índice sale el número
+  de fila donde se escribe, y uno cacheado y obsoleto pisaría los permisos de otra persona.
 - **Guardado en segundo plano:** `app_guardado.html` (colas, reintentos y deshacer) con
   el indicador delegado a la isla de estado de `app_operacion.html`.
 - **Animación:** GSAP 3.13 desde `app_motion.html`, con `MorphSVGPlugin`. Todas las

@@ -301,6 +301,10 @@ function cuentasAltaUsuario_(nombre, correo, passwordHash) {
 
     sheet.appendRow(fila);
     SEC_REGISTROS_CACHE = null;           // el índice en memoria quedó viejo
+    // Y el de CacheService, que sobrevive a esta ejecución: sin esto, quien se acaba de dar de
+    // alta no existiría para el sistema hasta que caducara la entrada, y su primer intento de
+    // entrar sería un "no estás registrado" imposible de explicar.
+    if (typeof idcInvalidar_ === 'function') idcInvalidar_();
     Logger.log('Usuario dado de alta: ' + correo);
     return { success: true, message: 'Usuario registrado exitosamente.' };
   } finally {

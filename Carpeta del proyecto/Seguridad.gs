@@ -125,6 +125,19 @@ var SEC_REGISTROS_CACHE = null;
 
 function secIndiceRegistros_() {
   if (SEC_REGISTROS_CACHE) return SEC_REGISTROS_CACHE;
+
+  // Segunda capa, entre el memo y la hoja: CacheIdentidad.gs. El memo de arriba solo vive lo que
+  // dura ESTA ejecución, y cada google.script.run es una ejecución nueva, así que sin esto toda
+  // llamada al servidor releía la hoja entera antes de hacer su trabajo. Con typeof porque el
+  // sistema tiene que seguir en pie si ese archivo no está desplegado todavía.
+  if (typeof idcLeer_ === 'function') {
+    const guardado = idcLeer_('registros');
+    if (guardado) {
+      SEC_REGISTROS_CACHE = guardado;
+      return guardado;
+    }
+  }
+
   const indice = {};
   try {
     const sheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName(REGISTROS_SHEET_NAME);
@@ -158,6 +171,10 @@ function secIndiceRegistros_() {
   } catch (e) {
     Logger.log('secIndiceRegistros_ error: ' + e);
   }
+  // Si la lectura falló, `indice` sigue vacío — y un índice vacío NO se guarda (regla 3 de
+  // CacheIdentidad.gs): "la hoja no se pudo leer" y "no hay nadie dado de alta" producen el mismo
+  // objeto, y cachear el segundo dejaría a todo el mundo fuera durante el TTL sin un solo error.
+  if (typeof idcGuardar_ === 'function') idcGuardar_('registros', indice);
   SEC_REGISTROS_CACHE = indice;
   return indice;
 }
