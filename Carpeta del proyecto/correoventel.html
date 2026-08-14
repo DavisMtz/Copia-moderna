@@ -106,6 +106,8 @@
     <?!= include('app_buscar'); ?>
     <?!= include('app_icons'); ?>
     <?!= include('app_motion'); ?>
+    <?!= include('app_loaders'); ?>
+    <script>if (window.VentelFX) VentelFX.pagina("correoventel");</script>
     <?!= include('app_shell'); ?>
     <?!= include('app_comando'); ?>
     <?!= include('app_precarga'); ?>
@@ -151,11 +153,26 @@
         const urlFolio = AppUrl.param('folio');
         const urlFormat = AppUrl.param('format');
 
+        /* Chip giratorio en línea. El giro NO se pone aquí: app_loaders ya trae
+           `[data-chipspin]{animation:vfx-spin .9s linear infinite}` —con su variante
+           para «menos movimiento»— y una animación CSS gana en la cascada a
+           cualquier transform en línea, así que un tween de GSAP encima no se vería
+           y solo dejaría un `repeat:-1` girando sobre un nodo ya desechado.
+           Devuelve la función que lo retira, para que el llamador la invoque en
+           TODAS sus salidas; si no repinta el texto, el chip se va igual. */
+        const chipEnEspera = (el, texto) => {
+            if (!el || !window.VentelFX) return () => {};
+            el.innerHTML = '<span class="vfx vfx-chip">' + VentelFX.chip() + '<span>' + texto + '</span></span>';
+            return () => { if (el.querySelector('[data-chipspin]')) el.textContent = ''; };
+        };
+
         /**
          * Llena el selector con los formatos habilitados y preselecciona el indicado.
          */
         let formatChangeWired = false;
+        let quitarChipFormatos = () => {};
         const renderFormats = (response, preferredId) => {
+            quitarChipFormatos();
             if (!response || !response.success || !response.formats || response.formats.length === 0) {
                 formatSelect.innerHTML = '<option value="">Sin formatos disponibles</option>';
                 formatHint.textContent = 'No hay ningún formato disponible. Pide a un usuario avanzado que habilite al menos uno.';
@@ -169,6 +186,7 @@
             formatSelect.innerHTML = response.formats
                 .map(f => `<option value="${f.id}" ${f.id === chosen ? 'selected' : ''}>${f.name}</option>`)
                 .join('');
+            formatSelect.disabled = false; // ya hay algo que elegir
 
             const describe = () => {
                 const match = response.formats.find(f => f.id === formatSelect.value);
@@ -185,26 +203,45 @@
             // Los formatos casi no cambian: se pintan al instante desde la caché local
             // y se revalidan en segundo plano contra el servidor.
             const cached = Cache.get('formats');
-            if (cached && cached.data) renderFormats(cached.data, preferredId);
+            if (cached && cached.data) {
+                renderFormats(cached.data, preferredId);
+            } else {
+                // Dentro de un <select> no cabe más que texto: el chip va en la pista
+                // de abajo y el selector se queda bloqueado hasta que haya opciones.
+                formatSelect.disabled = true;
+                quitarChipFormatos = chipEnEspera(formatHint, 'Cargando los formatos disponibles…');
+            }
 
-            google.script.run
+            const alFallar = (error) => {
+                if (cached && cached.data) return; // Ya hay opciones pintadas desde caché.
+                quitarChipFormatos();
+                console.error('getEnabledQuoteFormats:', error);
+                formatSelect.innerHTML = '<option value="">No se pudieron cargar</option>';
+                formatHint.textContent = 'No pudimos cargar los formatos. Revisa tu conexión y recarga la página.';
+            };
+
+            const pedir = google.script.run
                 .withSuccessHandler(response => {
                     if (response && response.success) Cache.set('formats', response);
                     renderFormats(response, formatSelect.value || preferredId);
                 })
-                .withFailureHandler(error => {
-                    if (cached && cached.data) return; // Ya hay opciones pintadas desde caché.
-                    console.error('getEnabledQuoteFormats:', error);
-                    formatSelect.innerHTML = '<option value="">No se pudieron cargar</option>';
-                    formatHint.textContent = 'No pudimos cargar los formatos. Revisa tu conexión y recarga la página.';
-                })
-                .getEnabledQuoteFormats();
+                .withFailureHandler(alFallar);
+
+            // Si la llamada no se puede ni lanzar, nadie retiraría el chip ni
+            // desbloquearía el selector: quedaría girando y el envío, imposible.
+            try {
+                pedir.getEnabledQuoteFormats();
+            } catch (error) {
+                alFallar(error);
+            }
         };
 
         // --- Remitente visible: el asesor sabe desde qué correo saldrá el envío. ---
         const senderInfoText = document.getElementById('senderInfoText');
         const loadSenderInfo = () => {
+            const quitarChipRemitente = chipEnEspera(senderInfoText, 'Verificando remitente…');
             const paint = (info) => {
+                quitarChipRemitente();
                 if (!info || !senderInfoText) { if (senderInfoText) senderInfoText.textContent = ''; return; }
                 senderInfoText.innerHTML = info.aliasAvailable
                     ? `El correo saldrá desde <strong>${info.alias}</strong> y las respuestas del cliente llegarán a tu correo.`
@@ -216,8 +253,11 @@
                 const cached = Cache.get('sender-info', 30 * 60 * 1000);
                 if (cached) { paint(cached.data); return; }
                 google.script.run
-                    .withSuccessHandler(info => { if (info) { Cache.set('sender-info', info); paint(info); } })
-                    .withFailureHandler(() => { if (senderInfoText) senderInfoText.textContent = ''; })
+                    // paint() SIEMPRE, aunque el servidor no devuelva nada: es quien
+                    // retira el chip. Con `if (info)` envolviéndolo, una respuesta
+                    // vacía dejaba el chip girando para siempre.
+                    .withSuccessHandler(info => { if (info) Cache.set('sender-info', info); paint(info); })
+                    .withFailureHandler(() => { quitarChipRemitente(); if (senderInfoText) senderInfoText.textContent = ''; })
                     .getMailSenderInfo();
                 return;
             }
@@ -225,7 +265,7 @@
                 ttl: 30 * 60 * 1000,
                 accept: (info) => !!(info && info.success && info.aliasAvailable),
                 onData: paint,
-                onError: (e, cached) => { if (!cached && senderInfoText) senderInfoText.textContent = ''; }
+                onError: (e, cached) => { quitarChipRemitente(); if (!cached && senderInfoText) senderInfoText.textContent = ''; }
             });
         };
         // Si el servidor aún no trae getMailSenderInfo (despliegue viejo), esto no debe
@@ -269,20 +309,42 @@
         };
 
         // --- Lógica Principal ---
-        const handleSearchQuote = (e) => {
+        // `fx` es la escena que abrió el llamador (la auto-búsqueda por ?folio=);
+        // esta función se encarga de cerrarla en todas sus salidas.
+        const handleSearchQuote = (e, fx) => {
             if (e && e.preventDefault) e.preventDefault();
             const folio = folioInput.value.trim();
             if (!folio) {
+                if (fx) fx.done();
                 showAlert("Por favor, ingresa un número de folio.", "error");
                 AppMotion.shake(folioInput);
                 return;
             }
 
             setButtonLoadingState(searchQuoteButton, true, 'Buscando...');
-            quoteDataStatus.classList.add('hidden');
+            // En vez de esconder la caja de estado, se deja con la forma del resumen
+            // que va a llegar: así el paso 1 no se queda mudo mientras responde.
+            quoteDataStatus.innerHTML = '';
+            quoteDataStatus.classList.remove('hidden');
+            const fxDatos = window.VentelFX
+                ? VentelFX.skeleton(quoteDataStatus, 'formulario', { rows: 1 })
+                : null;
 
-            google.script.run
+            // Cierra los dos indicadores y devuelve el paso 1 a su sitio. Va con
+            // nombre porque lo usan el manejador de fallo Y el catch de abajo.
+            const alFallar = (error) => {
+                if (fx) fx.done();
+                if (fxDatos) fxDatos.done();
+                quoteDataStatus.classList.add('hidden'); // sin datos que enseñar, la caja vuelve a su sitio
+                setButtonLoadingState(searchQuoteButton, false);
+                showAlert("No pudimos buscar la cotización. Revisa tu conexión e inténtalo de nuevo.", "error");
+                console.error("Error en getQuoteDetailsForEmail:", error);
+            };
+
+            const buscar = google.script.run
                 .withSuccessHandler(response => {
+                    if (fx) fx.done();
+                    if (fxDatos) fxDatos.done();
                     setButtonLoadingState(searchQuoteButton, false);
                     if (response.success) {
                         loadedQuoteData = response.data;
@@ -342,12 +404,17 @@
                         resetForm();
                     }
                 })
-                .withFailureHandler(error => {
-                    setButtonLoadingState(searchQuoteButton, false);
-                    showAlert("No pudimos buscar la cotización. Revisa tu conexión e inténtalo de nuevo.", "error");
-                    console.error("Error en getQuoteDetailsForEmail:", error);
-                })
-                .getQuoteDetailsForEmail(folio);
+                .withFailureHandler(alFallar);
+
+            /* Si la llamada ni siquiera se puede lanzar (despliegue sin
+               getQuoteDetailsForEmail) no se ejecuta NINGÚN manejador. El overlay
+               tiene tope de seguridad, pero el esqueleto NO: se quedaría brillando
+               para siempre y el botón, clavado en «Buscando…». */
+            try {
+                buscar.getQuoteDetailsForEmail(folio);
+            } catch (error) {
+                alFallar(error);
+            }
         };
 
         const handleSendEmail = (e) => {
@@ -374,10 +441,13 @@
                 asesor: (window.AppSession && AppSession.userEmail) || ''
             };
 
-            // El envío genera el PDF en el servidor y puede tardar: el loader de marca
+            // El envío genera el PDF en el servidor y puede tardar: la escena del sobre
             // acompaña la espera con datos de la empresa en lugar de una pantalla muda.
+            // El tema va explícito porque esta espera es un ENVÍO, no el arranque de la
+            // pantalla (que es lo que VentelLoader mostraría por su cuenta).
             if (window.VentelLoader) {
                 VentelLoader.show({
+                    tema: 'sobre',
                     title: 'Enviando el correo al cliente…',
                     sub: `Estamos generando el PDF del folio ${emailData.folio} y emitiendo el correo a ${emailData.to}. Espera un momento, por favor; no cierres esta ventana.`,
                     facts: true,
@@ -417,7 +487,13 @@
         // --- Auto-búsqueda si se proporciona Folio por la URL ---
         if (urlFolio) {
             folioInput.value = urlFolio;
-            handleSearchQuote();
+            // Llegar con ?folio= dejaba la pantalla VACÍA: el loader de marca ya se
+            // retiró y la consulta todavía no responde. La escena de escáner cubre
+            // justo ese hueco; handleSearchQuote la cierra en todas sus salidas.
+            handleSearchQuote(null, window.VentelFX ? VentelFX.overlay('escaner', {
+                title: 'Buscando el folio…',
+                sub: `Consultando la cotización ${urlFolio}`
+            }) : null);
         }
     });
     </script>

@@ -104,6 +104,8 @@
     <?!= include('app_icons'); ?>
     <?!= include('app_estatus'); ?>
     <?!= include('app_motion'); ?>
+    <?!= include('app_loaders'); ?>
+    <script>if (window.VentelFX) VentelFX.pagina("atenciones");</script>
     <?!= include('app_support'); ?>
     <?!= include('app_shell'); ?>
     <?!= include('app_comando'); ?>
@@ -181,8 +183,15 @@
         document.getElementById('atn-nueva').addEventListener('click', function () {
             AppAtenciones.registrar({});
         });
-        document.getElementById('atn-recargar').addEventListener('click', function () {
-            AppAtenciones.recargar();
+        /* El acuse va en el propio botón, no encima de la lista: la lista es lo que se
+           está leyendo y taparla para decir que se está comprobando sería quitarla justo
+           cuando hace falta. Hasta ahora pulsar Actualizar no tenía ninguna respuesta —los
+           datos volvían iguales— y se acababa pulsando tres veces. */
+        document.getElementById('atn-recargar').addEventListener('click', function (ev) {
+            var fx = window.VentelFX ? VentelFX.button(ev.currentTarget, 'Actualizando…') : null;
+            var soltar = function () { if (fx) fx.done(); };
+            var p = AppAtenciones.recargar();
+            if (p && p.then) p.then(soltar, soltar); else soltar();
         });
 
         document.getElementById('atn-compartir').addEventListener('click', function (ev) {

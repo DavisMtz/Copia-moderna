@@ -1110,6 +1110,11 @@
     disparador = quien || null;
     vista = modo === 'reporte' ? 'reporte' : 'estado';
     if (vista === 'reporte') prepararFormulario(sistema);
+
+    // La consulta se pide ANTES de pintar. pintarEstado distingue «cargando» de «no hay
+    // conexión» mirando `cargando`, así que al revés el panel abría con un error de red que
+    // no había ocurrido —y se corregía solo un segundo después, ya leído.
+    if (Date.now() - ultimaCarga > 20000) cargar(false);
     pintarPanel();
 
     abierto = true;
@@ -1134,8 +1139,6 @@
       var f = panel.querySelector('.op-cerrar');
       if (f) f.focus();
     }, 60);
-
-    if (Date.now() - ultimaCarga > 20000) cargar(false);
   }
 
   function cerrar() {
@@ -1651,6 +1654,20 @@
 
   /* ── Envío ──────────────────────────────────────────────────────────────── */
 
+  /**
+   * Cierra la escena de envío y devuelve el cuerpo a como estaba.
+   *
+   * `done()` NO es inmediato: funde la escena y solo entonces la desmonta, y es el
+   * desmontaje el que le quita a `.op-cuerpo` la clase `vfx-host` (position:relative) que
+   * el cover le puso para anclarse. Como justo después repintamos el cuerpo entero, el
+   * nodo de la escena ya no está en el documento cuando le toca desmontarse, la limpieza
+   * se salta y la clase se quedaba puesta para siempre. Se retira aquí a mano.
+   */
+  function cerrarEnvio(fx) {
+    fx.done();
+    if (cuerpo) cuerpo.classList.remove('vfx-host');
+  }
+
   function enviarReporte() {
     if (form.enviando) return;
 
@@ -1671,6 +1688,14 @@
     form.enviando = true;
     form.error = '';
     pintarFormulario();
+
+    /* La escena va SOBRE el cuerpo del panel, no en el pie: mientras el reporte sube, el
+       formulario sigue ahí y sus botones siguen respondiendo —cambiar de sistema a media
+       subida repinta el formulario por debajo del envío—. La caja es el tema de toda
+       escritura. Se monta después de pintarFormulario porque ése reescribe el cuerpo. */
+    var fxEnvio = window.VentelFX
+      ? VentelFX.section(cuerpo, 'caja', { mode: 'cover', title: 'Enviando tu reporte…' })
+      : null;
 
     var envio = {
       email: correo(),
@@ -1713,6 +1738,9 @@
       reintentos: 0,
       valida: function (r) { return !!(r && r.success); }
     }).then(function (r) {
+      // Antes de repintar: el cuerpo se reescribe entero y la escena se quedaría fuera del
+      // documento sin haber devuelto el contenedor a como estaba.
+      if (fxEnvio) cerrarEnvio(fxEnvio);
       form.enviando = false;
       if (r && r.success) {
         form.hecho = r;
@@ -1749,6 +1777,7 @@
 
          Lo escrito NO se pierde: el formulario sigue puesto tal cual, con el motivo
          encima y el botón listo para volver a intentarlo. */
+      if (fxEnvio) cerrarEnvio(fxEnvio);
       form.enviando = false;
       form.error = (motivo && motivo.message && !(motivo instanceof Error))
         ? motivo.message

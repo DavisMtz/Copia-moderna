@@ -118,7 +118,11 @@
   .opp-vacio b { display: block; font-size: 1rem; color: var(--ink); margin-bottom: 5px; font-weight: 650; }
   .opp-vacio p { margin: 0 auto; max-width: 46ch; font-size: .87rem; line-height: 1.6; }
 
-  .opp-sk { height: 96px; border-radius: 16px; background: var(--surface-2); margin-bottom: 12px; }
+  /* Esqueletos de espera (VentelFX). El de los KPIs entra como UN hijo de la rejilla y sin
+     esto se encogería a la primera columna con las cuatro cajas apiladas dentro; el de las
+     incidencias se pone a una columna porque lo que va a llegar son tarjetas a lo ancho. */
+  #opp-kpis > .vfx-sk { grid-column: 1 / -1; }
+  #opp-contenido > .vfx-sk-grid { grid-template-columns: 1fr; }
 
   /* ── Modal ── */
   .opp-modal-ov { position: fixed; inset: 0; z-index: 980; background: rgba(16,24,40,.5);
@@ -216,6 +220,8 @@
   <?!= include('app_buscar'); ?>
   <?!= include('app_icons'); ?>
   <?!= include('app_motion'); ?>
+  <?!= include('app_loaders'); ?>
+  <script>if (window.VentelFX) VentelFX.pagina("operacion");</script>
   <?!= include('app_shell'); ?>
   <?!= include('app_comando'); ?>
   <?!= include('app_precarga'); ?>
@@ -277,13 +283,25 @@
 
     function cargar(forzar) {
       var cont = document.getElementById('opp-contenido');
-      if (!datos) cont.innerHTML = '<div class="opp-sk"></div><div class="opp-sk"></div><div class="opp-sk"></div>';
+      var cajaKpis = document.getElementById('opp-kpis');
+      var skKpis = null;
+
+      // Sin nada en mano se vacía el panel y se dibuja la FORMA de lo que viene. El
+      // esqueleto de las incidencias lo monta AppRun con `fx` —él ya sabe no montarlo si
+      // hubiera caché que pintar—; los KPIs van aparte porque `fx` solo admite un destino.
+      if (!datos) {
+        cont.innerHTML = '';
+        cajaKpis.innerHTML = '';
+        if (window.VentelFX) skKpis = VentelFX.skeleton(cajaKpis, 'kpis', { rows: 4 });
+      }
 
       AppRun.swr('operacion-panel', 'opPanel', [correo()], {
         ttl: 45000,
         maxAge: forzar ? 0 : 45000,
+        fx: { target: '#opp-contenido', kind: 'tarjetas', rows: 3 },
         accept: function (r) { return !!(r && r.success); },
         onData: function (r) {
+          if (skKpis) { skKpis.done(); skKpis = null; }
           if (!r || !r.success) {
             if (!datos) {
               cont.innerHTML = '<div class="opp-vacio"><b>No pudimos cargar el panel</b><p>' +
@@ -295,6 +313,7 @@
           pintar();
         },
         onError: function () {
+          if (skKpis) { skKpis.done(); skKpis = null; }
           if (!datos) {
             cont.innerHTML = '<div class="opp-vacio"><b>No hay conexión con el sistema</b>' +
               '<p>Revisa tu internet e inténtalo de nuevo.</p></div>';
@@ -460,6 +479,12 @@
           visor.classList.add('abierto');
         });
       });
+
+      // Las capturas bajan de Drive una por una: brillo en el hueco hasta que llegan. Se
+      // retira solo al cargar o al fallar, así que no hay manejador que cerrar aquí.
+      if (window.VentelFX) {
+        cont.querySelectorAll('.opp-evi img').forEach(function (im) { VentelFX.image(im); });
+      }
     }
 
     /* ── Modal: actualizar una incidencia ── */
@@ -698,8 +723,12 @@
         var nombre = String(m.nombreEstado || '').trim();
         if (nombre.length < 3) { errorModal('Escribe cómo se va a llamar el estado.'); return; }
         m.guardando = true; pintarModal();
+        // El botón ya se pintó ocupado; esto le pone además el disco girando. Se cierra
+        // antes de repintar el modal: después el nodo ya está fuera del documento.
+        var fxEstado = window.VentelFX ? VentelFX.button('#opp-modal-guardar', 'Creando el estado…') : null;
         AppRun.call('opCrearEstado', [{ email: correo(), nombre: nombre, tono: m.tonoEstado }])
           .then(function (r) {
+            if (fxEstado) fxEstado.done();
             m.guardando = false;
             if (r && r.success) {
               // El catálogo local se actualiza para que el chip nuevo salga ya seleccionado.
@@ -721,6 +750,7 @@
               pintarModal();
             }
           }, function () {
+            if (fxEstado) fxEstado.done();
             m.guardando = false; m.error = 'No hay conexión con el sistema.'; pintarModal();
           });
         return;
@@ -795,7 +825,9 @@
       // La fila se va en cuanto se toca el botón: descartar un reporte es una decisión
       // ya tomada —se estaba leyendo—, y verla quedarse medio segundo con el botón
       // gris es lo que hace que la bandeja se sienta lenta cuando hay quince.
-      var fila = boton.closest ? boton.closest('[data-reporte], li, tr, article') : null;
+      // `.opp-rep` es la fila de verdad: los selectores que había aquí (li, tr, article) no
+      // existen en este bloque, así que `closest` devolvía null y no se ocultaba nada.
+      var fila = boton.closest ? boton.closest('.opp-rep') : null;
 
       AppGuardado.guardar({
         clave: 'reporte:' + repId,
