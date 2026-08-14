@@ -19,8 +19,8 @@
      (maxMs) para no dejar la pantalla tapada si el backend nunca contesta.
 
      TEMAS (uno por familia de espera, ver tabla al final del archivo):
-       camion · caja · percha · sobre · escaner · documento · radar ·
-       etiqueta · bolsa
+       camion · caja · percha · sobre · escaner · documento · hoja ·
+       radar · etiqueta · bolsa
 
      DEGRADACIÓN: si GSAP no cargó (CDN caído) o el usuario pide menos
      movimiento, las escenas se dibujan igual pero quietas, con un pulso CSS
@@ -41,6 +41,11 @@
   --vfx-surface2: var(--surface-2,#F4F7FA);
   --vfx-orange:#EE7D00;
   --vfx-purple:#AC4581;
+  /* Verde de Google Sheets. Es el ÚNICO color ajeno a la paleta de la casa que
+     entra aquí, y entra por una razón concreta: en la escena `hoja` el glifo
+     verde es lo que hace que se lea «Google Sheets» y no «una tabla cualquiera»,
+     que es justo lo que hay que comunicar mientras se escribe el documento. */
+  --vfx-sheets:#0F9D58;
   font-family: var(--f-ui, var(--f-body, system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif));
 }
 
@@ -181,6 +186,12 @@
 /* ── Sin GSAP o con «menos movimiento»: la escena se queda quieta y respira ── */
 .vfx-static .vfx-stage{ animation:vfx-breathe 2.4s ease-in-out infinite }
 .vfx-static .vfx-bar > i{ width:38%; animation:vfx-slide 1.6s ease-in-out infinite }
+/* Las piezas que la escena `hoja` estrena con la animación —la cabecera de marca
+   y la fila de totales— nacen invisibles en el marcado. Sin GSAP nadie las sube, y
+   la hoja quedaba reducida a una rejilla gris sin marca Liverpool y sin total: el
+   resultado final NO estaba a la vista, que es justo lo que la degradación tiene
+   que garantizar. Quietas, pero puestas. */
+.vfx-static [data-cabecera], .vfx-static [data-totales]{ opacity:1 }
 @keyframes vfx-breathe{ 0%,100%{opacity:.72} 50%{opacity:1} }
 @keyframes vfx-slide{ 0%{transform:translateX(-100%)} 100%{transform:translateX(310%)} }
 @media (prefers-reduced-motion:reduce){
@@ -542,6 +553,240 @@
     }
   };
 
+  /* ── 6b · HOJA · la hoja de cálculo oficial escribiéndose sola ──────────
+     Hermana de `documento`, para una espera distinta y muy concreta: la que
+     ocurre mientras GOOGLE SHEETS escribe el documento de verdad.
+
+     `documento` dibuja una hoja de papel con un sello: sirve para «se está
+     armando un PDF». Aquí lo que pasa al otro lado es otra cosa —se está
+     rellenando una hoja de cálculo, celda por celda, con la plantilla del
+     formato— y la escena lo cuenta literalmente: la ventana de Sheets, la
+     cabecera de marca Liverpool que lleva el formato, y las filas llenándose
+     de izquierda a derecha con el cursor por delante. El asesor reconoce lo
+     que ve porque es exactamente lo que abrirá después.
+
+     Tres detalles que hacen que se lea como una hoja de cálculo y no como una
+     tabla decorativa:
+       · Las celdas de texto crecen desde el margen IZQUIERDO y las de importe
+         desde el DERECHO, que es como se alinean los números de verdad.
+       · La banda de fila resaltada va por delante del cursor: primero se
+         «selecciona» la fila, después se escribe.
+       · La fila de totales llega al final, con su línea superior y el importe
+         en rosa de marca: es el remate que cierra el bucle. Sin él la escena
+         se repetiría sin haber terminado nada. */
+  SCENES.hoja = {
+    w: 244, box: '0 0 244 172',
+    svg: function () {
+      // ── Geometría de la rejilla. Todo lo demás se deriva de aquí, así que
+      //    mover una columna no obliga a recalcular la animación a mano.
+      var X0 = 30, ANCHOS = [66, 30, 32, 32, 36];
+      var vx = [X0], i, j;
+      for (i = 0; i < ANCHOS.length; i++) vx.push(vx[i] + ANCHOS[i]);   // 30…226
+      var XF = vx[vx.length - 1];
+      var YH = 46, HH = 12;              // banda de letras de columna
+      var YM = 58, HM = 18;              // fila de marca (la cabecera del formato)
+      var YD = 76, HD = 15, NF = 4;      // filas de producto
+      var YT = YD + HD * NF, HT = 17;    // fila de totales
+      var YE = YT + HT;                  // pie de la ventana
+
+      /* El isotipo se pide prestado a LoaderPartial en vez de volver a pegar los
+         4 KB del trazado. Va envuelto en un <g> propio para que la animación
+         pueda mover el de fuera sin pisar la transformación que encuadra el
+         dibujo. Si esta pantalla no incluye LoaderPartial, cae a un cuadro de
+         marca: la escena no depende del isotipo para tener sentido. */
+      function isotipo(x, y, s) {
+        var M = window.VentelLoader && window.VentelLoader.marca;
+        if (!M || !M.islas || !M.islas.length) {
+          return '<g data-marca><rect x="' + x + '" y="' + y + '" width="' + s +
+                 '" height="' + s + '" rx="3.5" fill="var(--vfx-brand)"/></g>';
+        }
+        var k = s / 290, p = '';
+        for (var n = 0; n < M.islas.length; n++) {
+          p += '<path d="' + M.islas[n] + '" fill="' + M.colorIsla(n) + '"/>';
+        }
+        return '<g data-marca><g transform="translate(' + (x - 142.3 * k).toFixed(2) + ' ' +
+               (y - 69.75 * k).toFixed(2) + ') scale(' + k.toFixed(5) + ')">' + p + '</g></g>';
+      }
+
+      // ── Rejilla: los filetes son lo que convierte cinco barras sueltas en
+      //    una hoja de cálculo. Van por debajo del contenido y no se animan.
+      var rejilla = '';
+      for (i = 0; i < vx.length; i++) {
+        rejilla += '<path d="M' + vx[i] + ' ' + YH + 'V' + YE + '" stroke="var(--vfx-line)" stroke-width="1"/>';
+      }
+      var ys = [YH, YM, YD, YD + HD, YD + HD * 2, YD + HD * 3, YT, YE];
+      for (i = 0; i < ys.length; i++) {
+        rejilla += '<path d="M18 ' + ys[i] + 'H' + XF + '" stroke="var(--vfx-line)" stroke-width="1"/>';
+      }
+
+      // ── Letras de columna y números de fila: pastillas diminutas. Con texto
+      //    real se leerían borrosas a este tamaño y habría que cargar la fuente.
+      var guias = '';
+      for (i = 0; i < ANCHOS.length; i++) {
+        guias += '<rect x="' + (vx[i] + ANCHOS[i] / 2 - 3) + '" y="' + (YH + 4) +
+                 '" width="6" height="4" rx="2" fill="var(--vfx-faint)" opacity=".55"/>';
+      }
+      for (i = 0; i < NF + 2; i++) {
+        var yr = (i === 0 ? YM + HM / 2 : (i === NF + 1 ? YT + HT / 2 : YD + HD * (i - 1) + HD / 2));
+        guias += '<rect x="21" y="' + (yr - 2) + '" width="6" height="4" rx="2" fill="var(--vfx-faint)" opacity=".55"/>';
+      }
+
+      /* ── Celdas. `data-org` guarda el punto de crecimiento de cada barra: el
+         borde izquierdo en la columna de descripción, el DERECHO en las de
+         importe. Es el mismo truco que usan las ruedas del camión, y aquí es lo
+         que hace que los números se escriban alineados a la derecha. */
+      var TEXTO = [[52, 20, 22, 20, 26], [44, 18, 24, 18, 28], [58, 22, 20, 22, 24], [40, 18, 22, 20, 30]];
+      var celdas = '';
+      for (i = 0; i < NF; i++) {
+        celdas += '<g data-fila>';
+        for (j = 0; j < ANCHOS.length; j++) {
+          var w = TEXTO[i][j];
+          var izq = (j === 0);
+          var bx = izq ? vx[j] + 4 : vx[j + 1] - 4 - w;
+          var by = YD + HD * i + HD / 2 - 2.25;
+          celdas += '<rect data-celda data-org="' + (izq ? bx : bx + w) + ' 0" x="' + bx + '" y="' + by +
+                    '" width="' + w + '" height="4.5" rx="2.25" fill="var(--vfx-line)"/>';
+        }
+        celdas += '</g>';
+      }
+
+      return '' +
+      /* El barrido de luz va recortado a la ventana: `.vfx-stage svg` lleva
+         overflow visible (lo necesitan otras escenas), así que sin el recorte la
+         banda se pasearía por fuera de la hoja, sobre el fondo de la tarjeta. */
+      '<defs><clipPath id="vfxHoja__UID__">' +
+        '<rect x="8" y="10" width="228" height="' + (YE + 9 - 10) + '" rx="11"/>' +
+      '</clipPath></defs>' +
+      // Ventana de Google Sheets
+      '<rect x="8" y="10" width="228" height="' + (YE + 9 - 10) + '" rx="11" fill="var(--vfx-surface)" stroke="var(--vfx-line)" stroke-width="2"/>' +
+      '<path d="M8 32h228M8 46h228" stroke="var(--vfx-line)" stroke-width="1.4"/>' +
+      // Glifo de Sheets: el verde es el que dice de qué aplicación hablamos.
+      '<rect x="17" y="14" width="14" height="14" rx="3.2" fill="var(--vfx-sheets)"/>' +
+      '<g fill="var(--vfx-surface)">' +
+        '<rect x="20" y="17.6" width="8" height="1.9" rx=".8"/>' +
+        '<rect x="20" y="20.6" width="8" height="1.9" rx=".8"/>' +
+        '<rect x="20" y="23.6" width="8" height="1.9" rx=".8"/>' +
+      '</g>' +
+      '<rect x="23.2" y="17.6" width="1.6" height="7.9" fill="var(--vfx-sheets)"/>' +
+      '<rect x="38" y="18.5" width="72" height="5" rx="2.5" fill="var(--vfx-line)"/>' +
+      '<rect x="196" y="17" width="28" height="9" rx="4.5" fill="var(--vfx-tint)"/>' +
+      // Barra de herramientas
+      '<g fill="var(--vfx-line)">' +
+        '<rect x="18" y="35" width="7" height="7" rx="1.8"/><rect x="29" y="35" width="7" height="7" rx="1.8"/>' +
+        '<rect x="40" y="35" width="7" height="7" rx="1.8"/><rect x="55" y="35" width="7" height="7" rx="1.8"/>' +
+        '<rect x="66" y="35" width="7" height="7" rx="1.8"/><rect x="81" y="35" width="26" height="7" rx="3.5"/>' +
+      '</g>' +
+      '<rect x="18" y="' + YH + '" width="' + (XF - 18) + '" height="' + HH + '" fill="var(--vfx-surface2)"/>' +
+      '<rect x="18" y="' + YH + '" width="12" height="' + (YE - YH) + '" fill="var(--vfx-surface2)"/>' +
+      rejilla + guias +
+      // Banda de fila activa: se «selecciona» la fila antes de escribirla.
+      '<rect data-fila-hl x="' + X0 + '" y="' + YD + '" width="' + (XF - X0) + '" height="' + HD + '" fill="var(--vfx-brand)" opacity="0"/>' +
+      // Cabecera de marca del formato: isotipo + título en rosa, como el CCL real.
+      '<g data-cabecera opacity="0">' +
+        isotipo(vx[0] + 5, YM + 3.5, 11.5) +
+        '<rect x="' + (vx[0] + 24) + '" y="' + (YM + 6) + '" width="58" height="5" rx="2.5" fill="var(--vfx-brand)"/>' +
+        '<rect x="' + (vx[0] + 24) + '" y="' + (YM + 13) + '" width="38" height="3" rx="1.5" fill="var(--vfx-faint)" opacity=".7"/>' +
+        '<rect x="' + (vx[3] + 4) + '" y="' + (YM + 6) + '" width="' + (XF - vx[3] - 8) + '" height="4" rx="2" fill="var(--vfx-soft)"/>' +
+      '</g>' +
+      celdas +
+      // Fila de totales: el remate. Línea, etiqueta e importe en rosa de marca.
+      '<g data-totales opacity="0">' +
+        '<rect x="' + X0 + '" y="' + YT + '" width="' + (XF - X0) + '" height="' + HT + '" fill="var(--vfx-tint)"/>' +
+        '<rect data-tot-linea x="' + X0 + '" y="' + (YT - 1) + '" width="' + (XF - X0) + '" height="2" fill="var(--vfx-brand)"/>' +
+        '<rect x="' + (vx[0] + 4) + '" y="' + (YT + HT / 2 - 2.5) + '" width="34" height="5" rx="2.5" fill="var(--vfx-deep)" opacity=".65"/>' +
+        '<rect data-tot-valor x="' + (XF - 36) + '" y="' + (YT + HT / 2 - 3) + '" width="32" height="6" rx="3" fill="var(--vfx-brand)"/>' +
+      '</g>' +
+      // Cursor de escritura: va por delante de las barras, como el punto del
+      // documento. Sin él las celdas simplemente aparecerían.
+      '<rect data-caret x="' + (X0 + 4) + '" y="' + (YD + 3) + '" width="2" height="9" rx="1" fill="var(--vfx-brand)" opacity="0"/>' +
+      /* Barrido de luz sobre el cristal, ya con la hoja escrita. En rosa de marca
+         y no en blanco: la hoja YA es blanca, así que un reflejo blanco sobre
+         blanco no se ve —costó un par de capturas darse cuenta— y además el
+         rosa remata el bucle con el color de la casa. */
+      /* El recorte va en un grupo APARTE del que se anima. Un `clip-path` se
+         interpreta en el espacio de coordenadas del elemento que lo lleva, así
+         que si se pone en el mismo grupo que GSAP traslada, el recorte viaja con
+         la banda y solo deja pasar una rendija: el barrido parecía no existir. */
+      '<g clip-path="url(#vfxHoja__UID__)">' +
+        '<g data-brillo opacity="0">' +
+          '<rect x="-38" y="-14" width="34" height="200" fill="var(--vfx-brand)" opacity=".14" transform="rotate(14 0 86)"/>' +
+          '<rect x="-18" y="-14" width="10" height="200" fill="var(--vfx-brand)" opacity=".26" transform="rotate(14 0 86)"/>' +
+        '</g>' +
+      '</g>';
+    },
+    build: function (root, gsap) {
+      var q = gsap.utils.selector(root);
+      var filas = q('[data-fila]');
+      var todas = q('[data-celda]');
+      var org = function (i, el) { return el.getAttribute('data-org'); };
+      var HD = 15, INICIO = .5, PASO = .46;
+
+      /* Los orígenes de escalado se declaran TODOS aquí, antes de construir la
+         línea de tiempo, y ningún tween vuelve a tocarlos.
+
+         El motivo cuesta una tarde encontrarlo: GSAP compensa con una traslación
+         cuando el origen de un elemento CAMBIA teniendo ya una transformación
+         encima (`smoothOrigin`, que existe para que no dé un salto). Si el origen
+         se estrena dentro del propio tween, esa compensación se cuela en la
+         animación —el importe del total salía disparado al otro extremo de la
+         hoja— y además solo se nota mientras la escala va por el medio, así que
+         en el fotograma final todo parece correcto. Declarados antes, los tweens
+         ya no cambian ningún origen: solo escalan.
+
+         El isotipo pivota sobre SU centro dentro de la celda, no sobre el de su
+         caja de dibujo; en SVG eso hay que decirlo en coordenadas del lienzo. */
+      gsap.set(todas, { scaleX: 0, svgOrigin: org });
+      gsap.set(q('[data-tot-linea]'), { scaleX: 0, svgOrigin: '30 0' });
+      gsap.set(q('[data-tot-valor]'), { scaleX: .25, svgOrigin: '222 0' });
+      gsap.set(q('[data-marca]'), { scale: .5, opacity: 0, svgOrigin: '40.75 67.25' });
+
+      var tl = gsap.timeline({ repeat: -1 });
+      tl.fromTo(q('[data-cabecera]'), { opacity: 0, y: -6 },
+            { opacity: 1, y: 0, duration: .34, ease: 'power2.out' }, 0)
+        .to(q('[data-marca]'), { scale: 1, opacity: 1, duration: .5, ease: 'back.out(2.6)' }, .06)
+        .to(q('[data-caret]'), { opacity: 1, duration: .16 }, INICIO - .1);
+
+      filas.forEach(function (fila, i) {
+        var at = INICIO + i * PASO;
+        var barras = fila.querySelectorAll('[data-celda]');
+        // 1 · se resalta la fila, 2 · el cursor la recorre, 3 · se escribe.
+        tl.to(q('[data-fila-hl]'), { y: i * HD, opacity: .1, duration: .18, ease: 'power2.out' }, at - .1)
+          // immediateRender:false — la lección del sobre: un fromTo aplica su
+          // estado inicial al CONSTRUIRSE, así que sin esto el cursor nacería
+          // colocado en la última fila en vez de en la que le toca.
+          .fromTo(q('[data-caret]'), { x: 0, y: i * HD },
+              { x: 186, y: i * HD, duration: PASO - .06, ease: 'power1.inOut', immediateRender: false }, at - .06)
+          .to(barras, { scaleX: 1, svgOrigin: org, duration: .26, ease: 'power2.out', stagger: .055 }, at)
+          .to(barras, { fill: 'var(--vfx-faint)', duration: .3, stagger: .055 }, at);
+      });
+
+      var finFilas = INICIO + filas.length * PASO;
+      tl.to(q('[data-caret]'), { opacity: 0, duration: .2 }, finFilas - .12)
+        .to(q('[data-fila-hl]'), { opacity: 0, duration: .28 }, finFilas - .12)
+        // El total entra desde su línea: se dibuja el filete y encima cae la cifra,
+        // que crece desde su borde derecho igual que las celdas de importe.
+        .to(q('[data-totales]'), { opacity: 1, duration: .26, ease: 'power2.out' }, finFilas)
+        .to(q('[data-tot-linea]'), { scaleX: 1, duration: .38, ease: 'power2.out' }, finFilas)
+        .to(q('[data-tot-valor]'), { scaleX: 1, duration: .42, ease: 'back.out(2.2)' }, finFilas + .12)
+        // Brillo final: la hoja ya está escrita y «se cierra» con un reflejo.
+        .fromTo(q('[data-brillo]'), { x: 0, opacity: 0 },
+            { x: 300, opacity: 1, duration: .95, ease: 'power2.inOut', immediateRender: false }, finFilas + .5)
+        .to(q('[data-brillo]'), { opacity: 0, duration: .2 }, finFilas + 1.3)
+        .to({}, { duration: .55 })
+        .to([todas, q('[data-totales]'), q('[data-cabecera]')],
+            { opacity: 0, duration: .34, ease: 'power1.in' })
+        // Vuelta al punto de partida: el bucle vuelve a escribir la hoja entera.
+        .set(todas, { scaleX: 0, opacity: 1, fill: 'var(--vfx-line)' })
+        .set(q('[data-totales]'), { opacity: 0 })
+        .set(q('[data-tot-linea]'), { scaleX: 0 })
+        .set(q('[data-tot-valor]'), { scaleX: .25 })
+        .set(q('[data-marca]'), { scale: .5, opacity: 0 })
+        .set(q('[data-fila-hl]'), { y: 0 })
+        .to({}, { duration: .25 });
+      return tl;
+    }
+  };
+
   /* ── 7 · RADAR · consola, métricas, monitoreo, operación ────────────────
      Barrido continuo + pulsos que se expanden. Los blips aparecen cuando el
      barrido los cruza; si aparecieran solos, el radar se vería decorativo. */
@@ -692,6 +937,7 @@
     sobre:     { title: 'Enviando el correo…',      steps: ['Armando el mensaje…', 'Adjuntando el formato…', 'Entregando al servidor…', 'Esto puede tardar un poco más…'] },
     escaner:   { title: 'Buscando…',                steps: ['Leyendo la clave…', 'Comparando contra la base…', 'Recuperando el registro…'] },
     documento: { title: 'Generando el documento…',  steps: ['Redactando el contenido…', 'Aplicando el formato…', 'Sellando el documento…'] },
+    hoja:      { title: 'Preparando el documento…', steps: ['Abriendo la plantilla oficial…', 'Escribiendo los productos en la hoja…', 'Aplicando el formato de la cotización…', 'Calculando los totales…', 'Google Sheets está terminando la hoja…'] },
     radar:     { title: 'Consultando el tablero…',  steps: ['Barriendo los registros…', 'Calculando indicadores…', 'Ordenando resultados…'] },
     etiqueta:  { title: 'Cargando promociones…',    steps: ['Revisando vigencias…', 'Calculando precios…', 'Aplicando descuentos…'] },
     bolsa:     { title: 'Preparando la atención…',  steps: ['Reuniendo los pendientes…', 'Agrupando por cliente…', 'Listo en un momento…'] }
@@ -1348,6 +1594,10 @@
        sobre      envío de correo (cliente y VENTEL)
        escaner    buscar por folio / SKU / clave, consultar cotización
        documento  generar PDF, armar cotización, formatos, revisión
+       hoja       escribir o abrir la hoja de cálculo REAL en Google Sheets
+                  · documento oficial de la cotización · vista previa incrustada
+                  Frente a `documento`: aquél es «se está armando un archivo»,
+                  éste es «Google Sheets está trabajando ahora mismo».
        radar      consola, métricas, tableros, operación, estado
        etiqueta   promociones, precios, descuentos
        bolsa      atenciones, pedidos, pendientes
