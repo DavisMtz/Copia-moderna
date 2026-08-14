@@ -9,7 +9,13 @@ el servidor renderiza con `include()`, y la lógica de servidor vive en los `.gs
   `secIdentidadConBloque_` en `Seguridad.gs`, que se vuelve a exigir en cada llamada.
   Lo que hace el cliente (`requireBlock`, filtros de menú) es cortesía, no seguridad.
 - **Caché y llamadas:** `AppCache` y `AppRun` en `app_core.html`. El patrón por defecto
-  es `AppRun.swr`: se pinta lo guardado y se revalida siempre por detrás.
+  es `AppRun.swr`: se pinta lo guardado y se revalida siempre por detrás. **`AppRun` es
+  además el único camino al servidor**: fuera de `app_core.html` no queda ni un
+  `google.script.run` en el proyecto, y ninguna pantalla arma el suyo. De ahí salen la
+  deduplicación de llamadas idénticas en vuelo, el indicador de la esquina y un solo
+  camino de error para toda la aplicación. Cuando una pantalla no pueda usar `swr` —un
+  formulario que se está editando y no aguanta un segundo pintado, o un dato que no se
+  puede enseñar con retraso—, se usa `AppRun.call` **y se escribe el motivo al lado**.
 - **Caché de identidad:** `CacheIdentidad.gs` guarda entre llamadas los dos índices que
   resuelven quién eres y qué puedes (`Registros` y la hoja oculta de permisos). Antes vivían
   solo en una variable global, que en Apps Script dura **una ejecución**, así que cada
@@ -253,10 +259,14 @@ La caja aparece y se va sola según cambia el estado, sin recargar nada: se susc
   —tolera erratas, entiende sinónimos y frases, y admite ámbitos por sección—, pero es una
   segunda implementación. Migrarlo es una tarea propia, con sus quince índices y su
   resaltado, y no cabe dentro de una revisión: queda anotado.
-- **Los datos siguen guardándose con `lsGet`/`lsSet` y no con `AppCache`.** Son tres copias
-  con su propia forma (versión, firma y antigüedad visible) y ya funcionan; pasarlas a
-  `AppCache` daría cuota y purga automáticas a cambio de tocar tres módulos que hoy están
-  bien. Anotado, no urgente.
+- ~~**Los datos siguen guardándose con `lsGet`/`lsSet` y no con `AppCache`.**~~ **Hecho.**
+  Las tres copias (Portal, Trazabilidad y el recuento de promociones) pasaron a `AppCache`
+  a través de `AppRun.swr`, que es quien las lee, las pinta, revalida y guarda. Se ganan
+  la cuota y la purga automáticas, el borrado al cerrar sesión, y se cierra un fallo que
+  no se había visto: el recuento de promociones del Portal y los datos del Monitor de
+  promociones compartían la clave `ventel-promos-v1` con formas distintas dentro, así que
+  abrir el Portal y pasar al Monitor dejaba a éste pintando un monitor vacío desde una
+  copia que no era suya, hasta que contestaba el servidor.
 - **La recomendación de atenciones enlaza en vez de abrir el formulario aquí.** El módulo
   `app_atenciones` usa los estilos del shell de Cotizaciones, que el Portal no carga: su
   formulario aparecería sin formato. El destino viaja por la URL, que funciona igual desde

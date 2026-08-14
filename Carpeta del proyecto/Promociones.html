@@ -1613,11 +1613,9 @@ document.addEventListener('DOMContentLoaded', () => {
   window.addEventListener('scroll', () => backTop.classList.toggle('show', window.scrollY > 600), { passive:true });
   backTop.addEventListener('click', () => window.scrollTo({ top:0, behavior: RM ? 'auto' : 'smooth' }));
 
-  // SWR: pinta al instante con el último dato local y revalida contra Apps Script
-  try {
-    const cached = JSON.parse(localStorage.getItem('ventel-promos-v1') || 'null');
-    if (cached && cached.data) { lastUpdated = cached.t || null; handleDataSuccess(cached.data, true); }
-  } catch(e){}
+  /* La lectura de la copia local ya no se hace aquí: la hace `AppRun.swr` dentro de
+     requestData(), que además revalida y guarda. Antes eran dos sitios —este leía y
+     pintaba, requestData revalidaba— y había que mantenerlos de acuerdo. */
   renderSyncStatus();
   if (syncTimer) clearInterval(syncTimer);
   syncTimer = setInterval(renderSyncStatus, 30000); // mantiene el "hace X" al día
@@ -1639,15 +1637,32 @@ function requestData(manual){
     VentelLoader.show({ title: 'Cargando promociones…', facts: true, maxMs: 30000 });
   }
   syncOcupado(manual ? 'Actualizando…' : (globalData ? 'Revisando vigencias…' : 'Cargando datos…'));
-  if (typeof google !== 'undefined' && google.script && google.script.run) {
-    google.script.run
-      .withSuccessHandler(d => { handleDataSuccess(d, false); finishRefresh(true); })
-      .withFailureHandler(e => { handleDataError(e); finishRefresh(false); })
-      .fetchApplicationData();
-  } else {
+
+  // Vista de diseño: el Monitor abierto fuera de Apps Script se pinta con datos de
+  // muestra y lo dice con su banner, en vez de quedarse en blanco.
+  if (!(typeof google !== 'undefined' && google.script && google.script.run)) {
     document.getElementById('previewBanner').style.display = 'block';
     setTimeout(() => { handleDataSuccess(buildMockData(), false); finishRefresh(true); }, manual ? 700 : 600);
+    return;
   }
+
+  /* `AppRun.swr`: pinta lo guardado y revalida. La copia vivía en localStorage a
+     pelo, bajo `ventel-promos-v1`, y esa clave la escribía TAMBIÉN el Portal con
+     otra cosa dentro —su recuento de promociones activas—: abrir el Portal y luego
+     el Monitor dejaba aquí un dato con la forma equivocada, que se pintaba como un
+     monitor vacío hasta que contestaba el servidor. Ahora cada uno guarda en el
+     namespace de `AppCache` con su propio nombre, y de paso las dos copias se
+     borran solas al cerrar sesión. */
+  AppRun.swr('promos-monitor-v1', 'fetchApplicationData', [], {
+    ttl: 7 * 24 * 3600 * 1000,
+    fuerza: manual === true,
+    accept: d => !!(d && d.status !== 'error'),
+    onData: (d, deCache, at) => {
+      handleDataSuccess(d, deCache, at);
+      if (!deCache) finishRefresh(true);
+    },
+    onError: e => { handleDataError(e); finishRefresh(false); }
+  });
 }
 
 /* Botón "Actualizar datos" del hero */
@@ -1745,15 +1760,14 @@ function switchTab(tabId, btn){
   if (window.gsap && !RM) gsap.fromTo(target, {opacity:0,y:12}, {opacity:1,y:0,duration:.3,ease:'power3.out'});
 }
 
-function handleDataSuccess(data, fromCache){
+function handleDataSuccess(data, fromCache, at){
   if (!data || data.status === 'error') { if (!fromCache) handleDataError(data && data.error); return; }
   if (fromCache && promosFresh) return; // ya están pintados los datos frescos
-  if (!fromCache) {
-    promosFresh = true;
-    lastUpdated = Date.now();
-    try { localStorage.setItem('ventel-promos-v1', JSON.stringify({ t: lastUpdated, data: data })); } catch(e){}
-    renderSyncStatus();
-  }
+  if (!fromCache) promosFresh = true;
+  // La hora que se enseña en "Actualizado hace X" es la de la copia, no la de
+  // ahora: con datos de la caché delante, decir "hace un momento" sería mentir.
+  lastUpdated = at || Date.now();
+  renderSyncStatus();
   globalData = data;
   refreshActiveData();
   document.getElementById('promos-loader').style.display = 'none';

@@ -621,12 +621,39 @@
                 return;
             }
 
-            google.script.run
-                .withSuccessHandler(function(response) {
+            /* El oyente se cablea UNA vez, fuera del pintado. Antes se añadía dentro de
+               la respuesta, donde solo había una; ahora `swr` pinta dos veces —caché y
+               servidor— y colgarlo ahí dejaría dos oyentes sobre el mismo `select`, que
+               aplicarían el formato dos veces por cada cambio. */
+            select.addEventListener('change', () => {
+                selectedFormatId = select.value;
+                applyPreviewFormat(selectedFormatId);
+            });
+
+            /* Misma clave y mismo TTL que usan `cotizacion.html` y el calentador de
+               `app_precarga`: se viene de guardar la cotización, así que el catálogo casi
+               siempre está recién guardado y el selector aparece puesto en vez de vacío. */
+            let pintado = false;
+            let huellaPintada = '';
+            const huella = function (r) {
+                try { return JSON.stringify([r.formats, r.defaultId]); } catch (e) { return ''; }
+            };
+
+            AppRun.swr('formatos-cotizacion', 'getEnabledQuoteFormats', [], {
+                ttl: 12 * 60 * 60 * 1000,
+                maxAge: 12 * 60 * 60 * 1000,
+                accept: function (r) { return !!(r && r.success); },
+                onData: function (response) {
                     if (!response || !response.success || !response.formats || response.formats.length === 0) {
-                        select.innerHTML = '<option value="">Sin formatos disponibles</option>';
+                        if (!pintado) select.innerHTML = '<option value="">Sin formatos disponibles</option>';
                         return;
                     }
+
+                    /* Catálogo idéntico al que ya está puesto: no se repinta. Repintar
+                       reconstruiría las opciones y volvería a marcar `preferredId`,
+                       deshaciendo el formato que se acabara de elegir a mano en el
+                       segundo que tarda la revalidación —y reaplicándolo al documento. */
+                    if (pintado && huella(response) === huellaPintada) return;
 
                     selectedFormatId = response.formats.some(f => f.id === preferredId)
                         ? preferredId
@@ -636,16 +663,14 @@
                         .map(f => `<option value="${f.id}" ${f.id === selectedFormatId ? 'selected' : ''}>${f.name}</option>`)
                         .join('');
                     select.disabled = false;
-                    select.addEventListener('change', () => {
-                        selectedFormatId = select.value;
-                        applyPreviewFormat(selectedFormatId);
-                    });
+                    pintado = true;
+                    huellaPintada = huella(response);
                     applyPreviewFormat(selectedFormatId);
-                })
-                .withFailureHandler(function() {
-                    select.innerHTML = '<option value="">Error al cargar formatos</option>';
-                })
-                .getEnabledQuoteFormats();
+                },
+                onError: function () {
+                    if (!pintado) select.innerHTML = '<option value="">Error al cargar formatos</option>';
+                }
+            });
         }
 
         /**
@@ -750,17 +775,20 @@
                 if (typeof google === 'undefined' || !google.script || !google.script.run) return;
                 pedido = true;
 
-                const token = window.AppBusy ? AppBusy.start('Generando el documento') : null;
-                const fin = function () { if (token && window.AppBusy) AppBusy.done(token); };
                 const fx = anunciarGeneracion();
                 // Tope propio del PANEL, aparte del de la escena: si el servidor no
                 // contesta nunca, el panel no puede quedarse con el título de "preparando"
                 // y nada debajo. Si la respuesta llega tarde, estadoListo() lo trae de vuelta.
                 setTimeout(function () { if (!urlDoc) retirarPanel(fx); }, 45000);
 
-                const pedirDoc = google.script.run
-                    .withSuccessHandler(function (r) {
-                        fin();
+                /* El indicador de la esquina lo lleva `AppRun`, y eso resuelve de paso el
+                   caso que aquí estaba parcheado a mano con un try/catch: si el servidor
+                   desplegado todavía no expone `previewSheetCcl`, `AppRun` rechaza la
+                   promesa —con lo que el manejador de fallo apaga el indicador y retira el
+                   panel— en vez de dejar el puntito encendido el resto de la sesión porque
+                   no llegó a correr ningún manejador. */
+                AppRun.call('previewSheetCcl', [folio], { busy: 'Generando el documento' })
+                    .then(function (r) {
                         if (!r || !r.success || !r.urlIncrustable) {
                             // Silencio deliberado. La vista previa de arriba funciona y la
                             // cotización ya está guardada: que el documento oficial no se
@@ -779,24 +807,10 @@
                            un tercio de segundo y el panel daba un tirón de alto justo en
                            el momento que se quiere leer como «ya está». */
                         fx.done(estadoListo);
-                    })
-                    .withFailureHandler(function (e) {
-                        fin();
+                    }, function (e) {
                         console.warn('Documento CCL:', e && e.message ? e.message : e);
                         retirarPanel(fx);
                     });
-
-                /* Si la llamada ni siquiera se puede lanzar (despliegue sin
-                   previewSheetCcl) no corre NINGÚN manejador: el panel se retiraría a los
-                   45 s por su tope, pero el puntito de AppBusy —que no tiene tope— se
-                   quedaría diciendo "hay algo en vuelo" para el resto de la sesión. */
-                try {
-                    pedirDoc.previewSheetCcl(folio);
-                } catch (e) {
-                    fin();
-                    console.warn('Documento CCL:', e && e.message ? e.message : e);
-                    retirarPanel(fx);
-                }
             }
 
             /**
@@ -1211,10 +1225,11 @@
                         : { done: function () {} };
 
                     if (typeof google !== 'undefined' && google.script && google.script.run) {
-                        google.script.run
-                            .withSuccessHandler(function(response) {
+                        AppRun.call('getQuoteDetails', [folioFromUrl], { busy: 'Buscando' })
+                            .then(function(response) {
                                 fxFolio.done();
                                 hideLoader();
+                                response = response || {};
                                 if (response.success && response.quote) {
                                     quoteDataForSave = response.quote;
                                     currentFolioForPreview = response.quote.folio;
@@ -1233,16 +1248,14 @@
                                     document.getElementById('pdf-preview-content').classList.add('hidden');
                                     document.getElementById('ccl-preview-content').classList.add('hidden');
                                 }
-                            })
-                            .withFailureHandler(function(error) {
+                            }, function(error) {
                                 fxFolio.done();
                                 hideLoader();
                                 console.error('getQuoteDetails:', error);
                                 showPreviewFailure('No hay conexión con el sistema. Revisa tu internet y recarga la página.');
                                 document.getElementById('pdf-preview-content').classList.add('hidden');
                                 document.getElementById('ccl-preview-content').classList.add('hidden');
-                            })
-                            .getQuoteDetails(folioFromUrl);
+                            });
                     } else {
                         fxFolio.done();
                         hideLoader();
@@ -1321,8 +1334,10 @@
 
                     // Se pide el PDF real al servidor en vez de imprimir la pantalla, porque
                     // el formato CCL se arma en Google Sheets y no existe en esta página.
-                    google.script.run
-                        .withSuccessHandler(function(response) {
+                    // El overlay ya es el indicador de esta espera —tapa la pantalla
+                    // entera—, así que el disco de la esquina sobra: `busy: false`.
+                    AppRun.call('downloadQuotePdf', [currentFolioForPreview, chosenFormat], { busy: false })
+                        .then(function(response) {
                             fxPdf.done();
                             restoreButton();
                             if (response && response.success) {
@@ -1330,14 +1345,12 @@
                             } else {
                                 showPreviewMessage((response && response.message) || 'No se pudo generar el PDF.', true);
                             }
-                        })
-                        .withFailureHandler(function(error) {
+                        }, function(error) {
                             fxPdf.done();
                             restoreButton();
                             console.error('downloadQuotePdf:', error);
                             showPreviewMessage('No pudimos generar el PDF. Inténtalo de nuevo en un momento.', true);
-                        })
-                        .downloadQuotePdf(currentFolioForPreview, chosenFormat);
+                        });
                 });
             }
 

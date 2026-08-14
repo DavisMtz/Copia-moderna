@@ -575,7 +575,6 @@
   var scrollPrevio = '';        // overflow que traía la pantalla antes de abrir el panel
   var presentada = false;       // la pastilla ya se presentó con su rótulo en esta carga
   var presentando = false;      // …y lo está enseñando ahora mismo
-  var memoria = null;           // respaldo si AppCache no existe
 
   /* ── Iconos en línea (no dependemos de app_icons: el Portal no lo incluye) ── */
   var IC = {
@@ -640,17 +639,14 @@
     return (window.AppSession && AppSession.userEmail) || '';
   }
 
-  /** google.script.run como promesa, reusando AppRun si la pantalla lo trae. */
+  /**
+   * Llamada al servidor. Siempre por `AppRun`, nunca por `google.script.run`
+   * directo: las 19 pantallas que incluyen este partial incluyen `app_core`
+   * antes, así que el respaldo que había aquí era código muerto que solo servía
+   * para que la deduplicación y el indicador de la esquina dependieran de un `if`.
+   */
   function llamar(fn, args) {
-    if (window.AppRun && AppRun.call) return AppRun.call(fn, args || []);
-    return new Promise(function (resolve, reject) {
-      if (!(window.google && google.script && google.script.run)) {
-        reject(new Error('sin backend'));
-        return;
-      }
-      var r = google.script.run.withSuccessHandler(resolve).withFailureHandler(reject);
-      r[fn].apply(r, args || []);
-    });
+    return AppRun.call(fn, args || []);
   }
 
   /**
@@ -689,22 +685,13 @@
     return 'hace ' + d + (d === 1 ? ' día' : ' días');
   }
 
-  /* ── Caché local ────────────────────────────────────────────────────────── */
-
-  function leerCache() {
-    if (window.AppCache && AppCache.get) {
-      var e = AppCache.get(CLAVE_CACHE, TTL_MS);
-      return e ? e.data : null;
-    }
-    if (memoria && Date.now() - memoria.at < TTL_MS) return memoria.data;
-    return null;
-  }
+  /* ── Caché local ──────────────────────────────────────────────────────────
+     La lectura la hace `AppRun.swr` en cargar(); aquí solo queda la escritura,
+     para el caso en que la pantalla nos entregue el estado que ya pidió ella
+     (`usarEstado`) y haya que dejarlo guardado sin haber llamado al servidor. */
 
   function guardarCache(datos) {
-    if (window.AppCache && AppCache.set) {
-      try { AppCache.set(CLAVE_CACHE, datos, { ttl: TTL_MS }); return; } catch (e) {}
-    }
-    memoria = { at: Date.now(), data: datos };
+    try { AppCache.set(CLAVE_CACHE, datos, { ttl: TTL_MS }); } catch (e) {}
   }
 
   /* ── Montaje ────────────────────────────────────────────────────────────── */
@@ -1845,37 +1832,44 @@
 
   /* ── Carga de datos ─────────────────────────────────────────────────────── */
 
+  /**
+   * Pinta lo guardado y revalida por detrás. Esto era una reimplementación a mano
+   * de `AppRun.swr` —leer caché, pintar, llamar, pintar otra vez, guardar— y ahora
+   * es la de verdad: se gana la deduplicación (dos pantallas del mismo módulo
+   * pidiendo el estado a la vez ya no son dos viajes) y se pierde una copia más
+   * del patrón que hay que mantener al día.
+   *
+   * El pintado es idempotente —repinta la pastilla y los avisos enteros—, que es
+   * la condición para poder usar `swr`: `onData` se llama DOS veces cuando había
+   * caché.
+   */
   function cargar(forzar) {
     if (cargando) return;
-
-    if (!forzar) {
-      var cache = leerCache();
-      if (cache) {
-        estado = cache;
-        pintarPastilla();
-        pintarAvisos();
-        if (abierto && vista === 'estado') pintarEstado();
-      }
-    }
-
     cargando = true;
-    var fn = haySesion() ? 'opEstadoSesion' : 'opEstadoPublico';
-    var args = haySesion() ? [correo()] : [];
 
-    llamar(fn, args).then(function (r) {
-      cargando = false;
-      ultimaCarga = Date.now();
-      if (!r || r.success === false) { if (!estado) pintarPastilla(); return; }
-      estado = r;
-      guardarCache(r);
-      pintarPastilla();
-      pintarAvisos();
-      if (abierto && vista === 'estado') pintarEstado();
-    }, function () {
-      cargando = false;
-      ultimaCarga = Date.now();
-      if (abierto && vista === 'estado' && !estado) pintarEstado();
-    });
+    var fin = function (r) { cargando = false; ultimaCarga = Date.now(); return r; };
+
+    return AppRun.swr(CLAVE_CACHE,
+      haySesion() ? 'opEstadoSesion' : 'opEstadoPublico',
+      haySesion() ? [correo()] : [],
+      {
+        ttl: TTL_MS,
+        maxAge: TTL_MS,
+        fuerza: forzar === true,
+        // Un "no" del servidor no se guarda: la pastilla se quedaría diciendo que
+        // no se sabe nada durante todo el TTL, en vez de volver a preguntar.
+        accept: function (r) { return !!(r && r.success !== false); },
+        onData: function (r) {
+          if (!r || r.success === false) { if (!estado) pintarPastilla(); return; }
+          estado = r;
+          pintarPastilla();
+          pintarAvisos();
+          if (abierto && vista === 'estado') pintarEstado();
+        },
+        onError: function () {
+          if (abierto && vista === 'estado' && !estado) pintarEstado();
+        }
+      }).then(fin, fin);
   }
 
   /* Revalidación discreta: solo con la pestaña a la vista. Un equipo que deja diez

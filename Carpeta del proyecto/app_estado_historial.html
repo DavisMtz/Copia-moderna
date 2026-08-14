@@ -211,12 +211,13 @@
   }
   function conGsap() { return typeof window.gsap !== 'undefined' && !reducido(); }
 
-  function llamar(fn, args) {
-    if (window.AppRun && AppRun.call) return AppRun.call(fn, args, { key: 'eh-' + fn + '-' + rango.id });
-    return new Promise(function (res, rej) {
-      google.script.run.withSuccessHandler(res).withFailureHandler(rej)[fn].apply(null, args);
-    });
-  }
+  /* Este módulo no tiene envoltorio de llamada propio: su única petición al
+     servidor es el historial, y va por `AppRun.swr` en cargar(). El envoltorio
+     que había aquí duplicaba `AppRun` y traía además un respaldo a
+     `google.script.run` que invocaba el runner con `apply(null, …)` —lo que en
+     Apps Script se traga los manejadores en silencio—. Las dos pantallas que
+     incluyen este partial, `estado` e `inicio_avanzado`, cargan `app_core`
+     antes, así que ese respaldo no cubría ningún caso real. */
 
   var NOMBRE_TONO = { ok: 'Sin reportes', warn: 'Algunos reportes', alert: 'Incidencia' };
 
@@ -599,27 +600,21 @@
     // cosas distintas al servidor y compartir caché mezclaría las dos escalas.
     var clave = 'estado-historial-' + rango.id;
 
-    if (window.AppRun && AppRun.swr) {
-      return AppRun.swr(clave, fn, [rango.n], {
-        ttl: deHoras ? TTL_HORAS : TTL_DIAS,
-        fuerza: usarCache === false,
-        accept: function (r) { return !!(r && r.success); },
-        onData: function (r) {
-          if (rango.id !== pedido) return;
-          if (r && r.success) { datos = r; pintar(); }
-        },
-        onError: function () {
-          if (rango.id !== pedido) return;
-          // También aquí se conservan los botones de periodo: es la única salida que le
-          // queda a quien acaba de tropezarse con el error.
-          if (!datos) cuerpoEspera('<div style="padding:2rem;text-align:center;' +
-            'color:var(--ink-soft,#5C6B7E)">No pudimos cargar el historial.</div>');
-        }
-      });
-    }
-    return llamar(fn, [rango.n]).then(function (r) {
-      if (rango.id === pedido && r && r.success) { datos = r; pintar(); }
-      return r;
+    return AppRun.swr(clave, fn, [rango.n], {
+      ttl: deHoras ? TTL_HORAS : TTL_DIAS,
+      fuerza: usarCache === false,
+      accept: function (r) { return !!(r && r.success); },
+      onData: function (r) {
+        if (rango.id !== pedido) return;
+        if (r && r.success) { datos = r; pintar(); }
+      },
+      onError: function () {
+        if (rango.id !== pedido) return;
+        // También aquí se conservan los botones de periodo: es la única salida que le
+        // queda a quien acaba de tropezarse con el error.
+        if (!datos) cuerpoEspera('<div style="padding:2rem;text-align:center;' +
+          'color:var(--ink-soft,#5C6B7E)">No pudimos cargar el historial.</div>');
+      }
     });
   }
 

@@ -1738,30 +1738,23 @@
             document.getElementById('rev-viewer-cerrar').focus();
             document.addEventListener('keydown', teclasVisor, true);
 
-            const pedirFicha = google.script.run
-                .withSuccessHandler(function (ficha) {
+            /* `AppRun` cubre de un golpe el caso que aquí estaba parcheado con un
+               try/catch: si el servidor desplegado no expone `revFichaArticulo`, rechaza
+               la promesa en vez de no llamar a ningún manejador. Eso importa porque el
+               esqueleto de la columna derecha no tiene tope de seguridad —las escenas sí,
+               los esqueletos no— y se quedaría brillando bajo "Leyendo la ficha en
+               liverpool.com.mx…" hasta que alguien cerrara el comparador. */
+            AppRun.call('revFichaArticulo', [url, p.sku || '', AppSession.userEmail], { busy: 'Leyendo' })
+                .then(function (ficha) {
                     // Si mientras tanto se cerró o se abrió otro artículo, esta respuesta
                     // ya no describe lo que hay en pantalla y se tira.
                     if (peticion !== visorPeticion) return;
                     pintarLadoLiverpool(ficha || {}, p);
-                })
-                .withFailureHandler(function (err) {
+                }, function (err) {
                     if (peticion !== visorPeticion) return;
                     pintarLadoLiverpool({ ok: false, motivo: 'error',
                         mensaje: 'No hay conexión con el sistema. Revisa tu internet e inténtalo de nuevo.' }, p);
                 });
-
-            /* Si la llamada ni siquiera se puede lanzar (despliegue sin revFichaArticulo)
-               no corre NINGÚN manejador. El esqueleto de la columna derecha no tiene tope
-               de seguridad —las escenas sí, los esqueletos no—, así que se quedaría
-               brillando bajo "Leyendo la ficha en liverpool.com.mx…" hasta que alguien
-               cerrara el comparador. */
-            try {
-                pedirFicha.revFichaArticulo(url, p.sku || '', AppSession.userEmail);
-            } catch (e) {
-                pintarLadoLiverpool({ ok: false, motivo: 'error',
-                    mensaje: 'Esta versión del portal no puede leer la ficha del sitio.' }, p);
-            }
         }
 
         /*
@@ -2025,19 +2018,21 @@
                 '<p>Trayendo la página desde liverpool.com.mx…</p>' +
                 '<p style="font-size:.75rem">La primera vez tarda unos segundos: se descarga la página y sus estilos.</p></div>';
 
-            google.script.run
-                .withSuccessHandler(function (res) {
+            /* Volver al mismo artículo es lo normal aquí —se salta entre productos de la
+               misma cotización comparándolos—, y traerse la página de liverpool.com.mx
+               son varios segundos cada vez. La deduplicación de `AppRun` sirve para el
+               caso real: dos clics seguidos sobre el mismo artículo son una descarga. */
+            AppRun.call('revPaginaArticulo', [url, p.sku || '', AppSession.userEmail], { busy: 'Trayendo la página' })
+                .then(function (res) {
                     // Si mientras tanto se cerró el visor o se abrió otro artículo, esta
                     // respuesta ya no describe lo que hay en pantalla.
                     if (peticion !== estado.paginaPeticion) return;
                     pintarPaginaArticulo(res || {}, url);
-                })
-                .withFailureHandler(function (err) {
+                }, function (err) {
                     if (peticion !== estado.paginaPeticion) return;
                     pintarPaginaArticulo({ ok: false,
                         mensaje: 'No hay conexión con el sistema. Revisa tu internet e inténtalo de nuevo.' }, url);
-                })
-                .revPaginaArticulo(url, p.sku || '', AppSession.userEmail);
+                });
         }
 
         function pintarPaginaArticulo(res, url) {
@@ -2184,12 +2179,10 @@
                              '<p>' + (recarga ? 'Volviendo a leer la hoja…' : 'Leyendo la hoja…') + '</p></div>';
             pie.textContent = '';
 
-            google.script.run
-                .withSuccessHandler(function (res) { pintarHoja(res || {}); })
-                .withFailureHandler(function (err) {
+            AppRun.call('revHojaCotizacion', [estado.folio, AppSession.userEmail], { busy: 'Leyendo la hoja' })
+                .then(function (res) { pintarHoja(res || {}); }, function (err) {
                     pintarHoja({ ok: false, mensaje: 'No hay conexión con el sistema. Revisa tu internet e inténtalo de nuevo.' });
-                })
-                .revHojaCotizacion(estado.folio, AppSession.userEmail);
+                });
         }
 
         function pintarHoja(res) {
@@ -2285,30 +2278,25 @@
                 pintarEsperaPrecio(i, urlSegura(p.productUrl, HOSTS_LIVERPOOL) ? 'Comparando…' : 'Comprobando…');
             });
 
-            const lote = google.script.run
-                .withSuccessHandler(function (res) {
+            /* Los discos de las filas los enciende esta función y los apaga la respuesta:
+               son chips en línea, no escenas, así que NO tienen tope de seguridad propio.
+               Por eso hace falta que SIEMPRE corra un manejador, también cuando el
+               servidor desplegado no expone `revVerificarPreciosLote`: antes eso no
+               llamaba a ninguno de los dos y las nueve filas se quedaban girando
+               «Comparando…» mientras durase la revisión entera. `AppRun` rechaza la
+               promesa en ese caso, así que el camino de fallo es uno solo. */
+            AppRun.call('revVerificarPreciosLote', [estado.folio, AppSession.userEmail], { busy: 'Comparando precios' })
+                .then(function (res) {
                     if (!res || !res.ok) {
                         marcarPreciosNoDisponibles((res && res.mensaje) || 'No se pudo consultar el sitio.');
                         return;
                     }
                     pintarEstadoPrecios(res.verificaciones || []);
                     if (res.auditoria) aplicarAuditoria(res.auditoria);
-                })
-                .withFailureHandler(function (err) {
+                }, function (err) {
+                    console.error('revVerificarPreciosLote:', err);
                     marcarPreciosNoDisponibles('No hay conexión con el sistema. Revisa tu internet e inténtalo de nuevo.');
                 });
-
-            /* Los discos de las filas los enciende esta función y los apaga la respuesta:
-               son chips en línea, no escenas, así que NO tienen tope de seguridad propio.
-               Si la llamada ni siquiera se puede lanzar (despliegue sin
-               revVerificarPreciosLote) no corre ningún manejador y las nueve filas se
-               quedan girando «Comparando…» mientras dure la revisión entera. */
-            try {
-                lote.revVerificarPreciosLote(estado.folio, AppSession.userEmail);
-            } catch (e) {
-                console.error('revVerificarPreciosLote:', e);
-                marcarPreciosNoDisponibles('Esta versión del portal no puede comparar los precios sola.');
-            }
         }
 
         function marcarPreciosNoDisponibles(motivo) {
@@ -2505,8 +2493,9 @@
             };
 
             /* Devuelve la pantalla a su sitio y falla EN la escena, con botón de
-               reintentar. Va con nombre porque lo usan el manejador de fallo Y el catch
-               de abajo: sin él, una llamada que ni se puede lanzar dejaría `enviando` en
+               reintentar. Cubre los dos modos de fallo, y con `AppRun` son el mismo: se
+               caiga la red o resulte que el servidor desplegado no expone la función,
+               la promesa se rechaza y esto corre. Sin ello, `enviando` se quedaría en
                true —Aprobar y Rechazar muertos hasta recargar— con la escena tapando la
                pantalla hasta su tope. */
             const alFallar = function (err) {
@@ -2524,8 +2513,11 @@
                     function () { cerrarRevision(decision); });
             };
 
-            const guardar = google.script.run
-                .withSuccessHandler(function (res) {
+            /* Escritura que cierra la revisión. La deduplicación por (función +
+               argumentos) es aquí una segunda cerradura sobre `estado.enviando`: dos
+               clics en Aprobar con la misma carga son una sola decisión guardada. */
+            AppRun.call('guardarRevisionCotizacion', [carga], { busy: 'Guardando la decisión' })
+                .then(function (res) {
                     estado.enviando = false;
                     if (!res || !res.success) {
                         // El servidor contestó y lo que falta hacer está en el campo de
@@ -2575,14 +2567,7 @@
                     pintarBanner(res.revision);
                     pintarCabecera(Object.assign({}, estado.datos, { revision: res.revision }));
                     bloquearFormulario();
-                })
-                .withFailureHandler(alFallar);
-
-            try {
-                guardar.guardarRevisionCotizacion(carga);
-            } catch (e) {
-                alFallar(e);
-            }
+                }, alFallar);
         }
 
         /** Tras decidir, la pantalla queda de solo lectura: no hay nada más que hacer aquí. */
@@ -2786,8 +2771,14 @@
                 return;
             }
 
-            google.script.run
-                .withSuccessHandler(function (res) {
+            /* `call` y no `swr`: esto abre una pantalla de decisión con casillas que se
+               marcan una a una y un campo de observaciones. Un segundo pintado —el de la
+               revalidación— tiraría las casillas ya marcadas y lo escrito. Además, una
+               revisión guardada de hace un rato podría enseñar como pendiente un folio
+               que otra persona ya resolvió, que es justo la confusión que esta pantalla
+               existe para evitar. */
+            AppRun.call('getRevisionCotizacion', [estado.folio, AppSession.userEmail], { busy: 'Abriendo la revisión' })
+                .then(function (res) {
                     if (!res || !res.success) {
                         mostrarBloqueo(
                             res && res.sinPermiso ? 'No tienes permiso para revisar' : 'No se pudo abrir la revisión',
@@ -2796,13 +2787,11 @@
                         return;
                     }
                     pintarTodo(res);
-                })
-                .withFailureHandler(function (err) {
+                }, function (err) {
                     console.error('getRevisionCotizacion:', err);
                     mostrarBloqueo('No se pudo abrir la revisión',
                         'No hay conexión con el sistema. Revisa tu internet y recarga la página.', 'warning');
-                })
-                .getRevisionCotizacion(estado.folio, AppSession.userEmail);
+                });
         });
     })();
     </script>

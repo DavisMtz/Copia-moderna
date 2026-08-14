@@ -301,8 +301,8 @@
         // ── Paso 1: pedir el código ──────────────────────────────────────────
         const pedirCodigo = (correo, btn, textoBoton) => {
             ocupado(btn, true, textoBoton);
-            google.script.run
-                .withSuccessHandler(res => {
+            AppRun.call('solicitarCodigoRecuperacion', [correo], { busy: 'Enviando el código' })
+                .then(res => {
                     ocupado(btn, false);
                     if (!res || !res.success) {
                         const msg = (res && res.message) || 'No se pudo enviar el código.';
@@ -326,13 +326,11 @@
                     arrancarReenvio(res.reenvioSegundos || 60);
                     if (estado.paso !== 1) irAPaso(1);
                     else { showMessage(res.message, false); otp.focus(); }
-                })
-                .withFailureHandler(err => {
+                }, err => {
                     ocupado(btn, false);
                     console.error(err);
                     showMessage('No hay conexión con el sistema. Revisa tu internet e inténtalo de nuevo.');
-                })
-                .solicitarCodigoRecuperacion(correo);
+                });
         };
 
         step1.addEventListener('submit', (e) => {
@@ -385,8 +383,8 @@
                 return;
             }
             ocupado(verifyBtn, true, 'Verificando…');
-            google.script.run
-                .withSuccessHandler(res => {
+            AppRun.call('confirmarCodigoRecuperacion', [estado.correo, codigo], { busy: 'Verificando' })
+                .then(res => {
                     ocupado(verifyBtn, false);
                     if (!res || !res.success) {
                         setError(otpError, null, (res && res.message) || 'Código incorrecto.');
@@ -401,13 +399,11 @@
                         onEnd: () => showMessage('La verificación caducó. Pide un código nuevo.')
                     });
                     irAPaso(2);
-                })
-                .withFailureHandler(err => {
+                }, err => {
                     ocupado(verifyBtn, false);
                     console.error(err);
                     showMessage('No hay conexión con el sistema. Revisa tu internet e inténtalo de nuevo.');
-                })
-                .confirmarCodigoRecuperacion(estado.correo, codigo);
+                });
         };
 
         step2.addEventListener('submit', (e) => { e.preventDefault(); verificarCodigo(); });
@@ -496,8 +492,11 @@
             const nueva = newPassword.value;
             mostrarCarga('Guardando tu contraseña…');
 
-            google.script.run
-                .withSuccessHandler(res => {
+            // La pantalla de carga tapa todo, así que el disco de la esquina sobra.
+            // La clave de deduplicación lleva el correo y no la contraseña nueva.
+            AppRun.call('restablecerContrasena', [estado.correo, estado.vale, nueva],
+                        { key: 'restablecer:' + estado.correo, busy: false })
+                .then(res => {
                     if (!res || !res.success) {
                         ocultarCarga();
                         const msg = (res && res.message) || 'No se pudo actualizar la contraseña.';
@@ -536,13 +535,11 @@
                             showMessage('Tu contraseña ya cambió, pero no pudimos abrir el inicio de sesión. Recarga la página.');
                         }
                     }, 1400);
-                })
-                .withFailureHandler(err => {
+                }, err => {
                     ocultarCarga();
                     console.error(err);
                     showMessage('No hay conexión con el sistema. Revisa tu internet e inténtalo de nuevo.');
-                })
-                .restablecerContrasena(estado.correo, estado.vale, nueva);
+                });
         });
 
         document.getElementById('backToLogin').addEventListener('click', () => AppUrl.go('login'));

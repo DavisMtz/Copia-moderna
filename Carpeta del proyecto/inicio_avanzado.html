@@ -785,8 +785,8 @@
                 title: 'Abriendo ' + window.escapeHtml(folio) + '…',
                 sub: 'Preparando el formato CCL en Google Sheets'
             });
-            google.script.run
-                .withSuccessHandler(response => {
+            AppRun.call('openQuoteInSheets', [folio], { busy: 'Abriendo' })
+                .then(response => {
                     if (response && response.success) {
                         if (tab) { fxTab.done(); tab.location.href = response.url; }
                         else AppMotion.toast('El navegador bloqueó la pestaña nueva. Permite las ventanas emergentes e intenta de nuevo.', 'warn');
@@ -794,13 +794,11 @@
                         fxTab.fail(window.escapeHtml((response && response.message) || 'No se pudo abrir el documento.'));
                         AppMotion.toast((response && response.message) || 'No se pudo abrir el documento.', 'error');
                     }
-                })
-                .withFailureHandler(error => {
+                }, error => {
                     fxTab.fail('No pudimos abrir el documento. Inténtalo de nuevo en un momento.');
                     console.error('openQuoteInSheets:', error);
                     AppMotion.toast('No pudimos abrir el documento. Inténtalo de nuevo en un momento.', 'error');
-                })
-                .openQuoteInSheets(folio);
+                });
         };
 
         document.addEventListener('DOMContentLoaded', () => {
@@ -1035,18 +1033,17 @@
                 // El mensaje de error se escribe con textContent sobre este mismo hueco,
                 // así que el esqueleto se cierra antes en las DOS salidas.
                 const cerrarStats = () => fxStats.forEach(f => f.done());
-                google.script.run
-                    .withSuccessHandler(response => {
+                AppRun.call('getDashboardStats')
+                    .then(response => {
                         cerrarStats();
+                        response = response || {};
                         if (response.success) renderDashboard(response.stats);
                         else loadingPlaceholder.textContent = response.message || 'No pudimos cargar el resumen.';
-                    })
-                    .withFailureHandler(error => {
+                    }, error => {
                         cerrarStats();
                         loadingPlaceholder.textContent = 'No hay conexión con el sistema. Revisa tu internet y recarga la página.';
                         console.error(error);
-                    })
-                    .getDashboardStats();
+                    });
             }
 
             // ==========================================================
@@ -1055,7 +1052,6 @@
             // caché local y revalida en segundo plano. Se dispara tras el primer
             // frame para no competir con el render del dashboard principal.
             // ==========================================================
-            const mcCache = window.AppCache || { get: () => null, set: () => {} };
             const MC_CACHE_KEY = 'metricas-correos-' + currentUserEmail;
             const mcEsc = s => String(s == null ? '' : s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
 
@@ -1110,19 +1106,10 @@
             };
 
             const cargarMetricasCorreos = () => {
-                const cached = mcCache.get(MC_CACHE_KEY);
-                const hayCopia = !!(cached && cached.data);
-                if (hayCopia) renderMetricasCorreos(cached.data);
-
-                // Sin copia local no hay nada que enseñar todavía: el esqueleto ocupa el
-                // sitio de las cuatro cifras hasta que llegan. Con copia no se monta nada:
-                // sustituir datos buenos por barras grises es perder información.
                 const mcLoading = document.getElementById('mc-loading');
+                let hayCopia = false;
                 let fxMc = null;
-                if (!hayCopia) {
-                    mcLoading.classList.remove('hidden');
-                    fxMc = VentelFX.skeleton(mcLoading, 'kpis', { rows: 4 });
-                }
+
                 const cerrarMc = () => {
                     mcLoading.classList.add('hidden');
                     if (fxMc) { fxMc.done(); fxMc = null; }
@@ -1136,18 +1123,32 @@
                     err.classList.remove('hidden');
                 };
 
-                google.script.run
-                    .withSuccessHandler(m => {
+                const p = AppRun.swr(MC_CACHE_KEY, 'getResumenMetricasCorreos', [currentUserEmail], {
+                    accept: m => !!(m && m.success),
+                    onData: (m, deCache) => {
+                        if (deCache) { hayCopia = true; renderMetricasCorreos(m); return; }
                         cerrarMc();
-                        if (m && m.success) { mcCache.set(MC_CACHE_KEY, m); renderMetricasCorreos(m); }
+                        if (m && m.success) renderMetricasCorreos(m);
                         else mcFallo((m && m.message) || 'No se pudieron leer las métricas de correos.');
-                    })
-                    .withFailureHandler(err => {
+                    },
+                    onError: err => {
                         cerrarMc();
                         console.error('getResumenMetricasCorreos:', err);
                         mcFallo('No hay conexión con el sistema: no pudimos leer las métricas de correos.');
-                    })
-                    .getResumenMetricasCorreos(currentUserEmail);
+                    }
+                });
+
+                /* El esqueleto se decide DESPUÉS de llamar, y no antes, porque quien sabe
+                   si había copia local es `swr`: pinta lo guardado de forma síncrona antes
+                   de devolver, así que al llegar aquí `hayCopia` ya está resuelto. Sin
+                   copia el esqueleto ocupa el sitio de las cuatro cifras hasta que llegan;
+                   con copia no se monta nada, porque sustituir datos buenos por barras
+                   grises es perder información. */
+                if (!hayCopia) {
+                    mcLoading.classList.remove('hidden');
+                    fxMc = VentelFX.skeleton(mcLoading, 'kpis', { rows: 4 });
+                }
+                return p;
             };
             // Diferido: deja que el dashboard principal pinte primero.
             // Va dentro del bloque de métricas, que está oculto sin el permiso: pedirlo
@@ -1363,10 +1364,12 @@
                 AppMotion.toast(`Reporte descargado: ${filteredQuotes.length} cotizaciones.`, 'ok');
             };
 
-            // Caché local (patrón del resto de la app): la tabla se pinta al instante con
-            // los últimos datos conocidos y SIEMPRE se revalida contra el servidor.
-            const AppCache = window.AppCache || { get: () => null, set: () => {}, remove: () => {}, ageLabel: () => '' };
-            const AppBusy = window.AppBusy || { start: () => 0, done: () => {}, until: () => () => {} };
+            /* Caché local (patrón del resto de la app): la tabla se pinta al instante con
+               los últimos datos conocidos y SIEMPRE se revalida contra el servidor. Se
+               usa `AppCache` directamente —el de `app_core`, que esta pantalla incluye
+               antes que su propio script—; el respaldo con métodos vacíos que había aquí
+               nunca llegaba a usarse. El indicador de la esquina lo lleva ahora `AppRun`
+               en cada llamada, así que el respaldo de `AppBusy` ya no hace falta. */
             const SUP_CACHE_KEY = 'sup-quotes-' + currentUserEmail;
 
             // ==========================================================
@@ -1545,8 +1548,16 @@
                 const polBody = document.getElementById('pol-body');
                 polBody.innerHTML = '';
                 const fxPol = VentelFX.skeleton(polBody, 'formulario', { rows: 4 });
-                google.script.run
-                    .withSuccessHandler(res => {
+                /* `call` y no `swr`, y el motivo es el que la propia documentación pone
+                   como condición para usar swr: aquí el pintado NO es idempetente en el
+                   sentido que importa. Lo que se pinta es un editor con borrador
+                   (`polBorrador`), y `swr` llamaría a onData dos veces: una con la copia
+                   guardada y otra al contestar el servidor. La segunda reiniciaría el
+                   borrador y `polEditando` cuando ya se está escribiendo dentro —los
+                   criterios de revisión se editan justo en ese segundo—, y el cambio a
+                   medias se perdería sin decir nada. */
+                AppRun.call('getPoliticaRevision', [currentUserEmail])
+                    .then(res => {
                         fxPol.done();
                         if (!res || !res.success) {
                             document.getElementById('pol-body').innerHTML =
@@ -1558,14 +1569,12 @@
                         polBorrador = polClonar(res.politica);
                         polEditando = null;
                         polPintar();
-                    })
-                    .withFailureHandler(err => {
+                    }, err => {
                         fxPol.done();
                         console.error('getPoliticaRevision:', err);
                         document.getElementById('pol-body').innerHTML =
                             '<div class="pol-vacio">No hay conexión con el sistema. Revisa tu internet y recarga la página.</div>';
-                    })
-                    .getPoliticaRevision(currentUserEmail);
+                    });
             };
 
             const polPintar = () => {
@@ -1976,8 +1985,13 @@
                 const caja = document.getElementById('pol-veredicto');
                 caja.innerHTML = '<div class="pol-veredicto"><div class="v-spinner"></div><span>Calculando el resultado…</span></div>';
 
-                google.script.run
-                    .withSuccessHandler(res => {
+                // Se manda el BORRADOR: la gracia es ver el efecto de lo que aún no se
+                // guarda. Por eso no se cachea nada —el resultado depende de un borrador
+                // que cambia con cada tecla— y por eso `busy: 'Simulando'`: el rótulo
+                // genérico de "consultando" no diría qué se está esperando.
+                AppRun.call('simularPoliticaRevision', [currentUserEmail, caso, polBorrador],
+                            { busy: 'Simulando' })
+                    .then(res => {
                         if (!res || !res.success) {
                             caja.innerHTML = '<div class="pol-veredicto pol-ver-revisar">' + Icons.svg('warning') +
                                 '<div><strong>No se pudo simular</strong><span>' +
@@ -1994,14 +2008,11 @@
                                     Evaluada como ${escapeHtml(res.contexto.hora)} (hora del sistema).</span>
                                 </div>
                             </div>`;
-                    })
-                    .withFailureHandler(err => {
+                    }, err => {
                         console.error('simularPoliticaRevision:', err);
                         caja.innerHTML = '<div class="pol-veredicto pol-ver-revisar">' + Icons.svg('warning') +
                             '<div><strong>Sin conexión</strong><span>No pudimos calcular la prueba. Revisa tu internet e inténtalo de nuevo.</span></div></div>';
-                    })
-                    // Se manda el BORRADOR: la gracia es ver el efecto de lo que aún no se guarda.
-                    .simularPoliticaRevision(currentUserEmail, caso, polBorrador);
+                    });
             };
 
             document.getElementById('pol-guardar').addEventListener('click', () => {
@@ -2363,10 +2374,14 @@
                 if (cached && Array.isArray(cached.data)) renderPendientes(cached.data);
                 else fxPend = skPendientes();
 
-                const finBusy = AppBusy.until('Consultando');
-                google.script.run
-                    .withSuccessHandler(r => {
-                        finBusy();
+                /* Igual que en el inicio del asesor: la llamada va por `AppRun` —que
+                   deduplica y lleva el indicador de la esquina— pero el guardado se
+                   queda escrito aquí. La clave `pendientes-` la calienta `app_precarga`
+                   guardando EL ARREGLO de folios, y el buscador general la lee con esa
+                   misma forma; `swr` guardaría la respuesta entera y dejaría a los dos
+                   leyendo algo que no reconocen. */
+                AppRun.call('revListaPendientes', [currentUserEmail])
+                    .then(r => {
                         if (fxPend) fxPend.done();
                         if (r && r.success) {
                             AppCache.set(PEND_CACHE_KEY, r.quotes || [], { ttl: PEND_TTL_MS });
@@ -2374,16 +2389,13 @@
                         } else if (!cached) {
                             pendientesEnError((r && r.message) || 'No se pudo leer la cola de revisión.');
                         }
-                    })
-                    .withFailureHandler(() => {
-                        finBusy();
+                    }, () => {
                         if (fxPend) fxPend.done();
                         // Con la cola ya en pantalla, un fallo de red no la borra: quien
                         // revisa sigue viendo qué tiene delante, y el servidor volverá a
                         // exigir el permiso cuando intente aprobar algo.
                         if (!cached) pendientesEnError('Sin conexión. Vuelve a intentarlo.');
-                    })
-                    .revListaPendientes(currentUserEmail);
+                    });
             };
 
             const loadSupervisionQuotes = (forzar) => {
@@ -2424,11 +2436,12 @@
                 }
                 const cerrarSup = () => cierres.forEach(c => c.done());
 
-                const finBusy = AppBusy.until('Consultando');
-                google.script.run
-                    .withSuccessHandler(response => {
-                        finBusy();
+                // Mismo motivo que en la cola: `sup-quotes-` es una clave compartida con
+                // el calentador y con el buscador general, y los dos esperan el arreglo.
+                AppRun.call('getSupervisionQuotes', [currentUserEmail])
+                    .then(response => {
                         cerrarSup();
+                        response = response || {};
                         if (response.success) {
                             AppCache.set(SUP_CACHE_KEY, response.quotes || []);
                             paintSupervision(response.quotes || []);
@@ -2436,9 +2449,7 @@
                             showSupPlaceholder(escapeHtml(response.message || 'No se pudieron cargar las cotizaciones.'));
                             pendientesEnError(response.message || 'No se pudieron cargar las cotizaciones.');
                         }
-                    })
-                    .withFailureHandler(error => {
-                        finBusy();
+                    }, error => {
                         cerrarSup();
                         if (cached) {
                             AppMotion.toast('No pudimos conectarnos: te mostramos la última información guardada.', 'warn');
@@ -2447,8 +2458,7 @@
                             showSupPlaceholder('No hay conexión con el sistema. Revisa tu internet y vuelve a intentarlo.');
                             pendientesEnError('Sin conexión. Vuelve a intentarlo.');
                         }
-                    })
-                    .getSupervisionQuotes(currentUserEmail);
+                    });
             };
 
             // "Actualizar" de la cola: tira la copia local y vuelve a preguntar. Es el botón
@@ -2534,16 +2544,15 @@
             // Los formatos viven dentro del bloque de métricas, que está oculto sin el
             // permiso de supervisión: no se piden si no se van a poder ver.
             if (PUEDE.metricas) {
-                google.script.run
-                    .withSuccessHandler(response => {
+                AppRun.call('getFormatSettings', [currentUserEmail])
+                    .then(response => {
+                        response = response || {};
                         if (response.success) renderFormatsAdmin(response.formats);
                         else formatsContainer.innerHTML = `<div class="p-6 text-sm text-slate-500">${response.message}</div>`;
-                    })
-                    .withFailureHandler(error => {
+                    }, error => {
                         console.error('getFormatSettings:', error);
                         formatsContainer.innerHTML = `<div class="p-6 text-sm text-red-600">No pudimos cargar los formatos. Revisa tu conexión y recarga la página.</div>`;
-                    })
-                    .getFormatSettings(currentUserEmail);
+                    });
             }
         });
     </script>

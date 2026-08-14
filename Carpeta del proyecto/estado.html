@@ -1444,13 +1444,12 @@
        DATOS
        ═══════════════════════════════════════════════════════════════════════ */
 
+    /* Llamada al servidor: `AppRun` y nada más. Esta pantalla incluye `app_core`
+       antes que su propio script, así que el respaldo a `google.script.run` que
+       había aquí era una segunda implementación del mismo patrón que solo servía
+       para que la deduplicación dejara de aplicarse si alguien tocaba el `if`. */
     function llamar(fn, args) {
-      if (window.AppRun && AppRun.call) return AppRun.call(fn, args || []);
-      return new Promise(function (resolve, reject) {
-        if (!(window.google && google.script && google.script.run)) { reject(new Error('sin backend')); return; }
-        var r = google.script.run.withSuccessHandler(resolve).withFailureHandler(reject);
-        r[fn].apply(r, args || []);
-      });
+      return AppRun.call(fn, args || []);
     }
 
     function cargar() {

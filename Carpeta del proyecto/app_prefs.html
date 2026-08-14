@@ -297,16 +297,21 @@
     });
   }
 
-  /** Envoltorio de llamada: usa AppRun si está, y si no, google.script.run pelado. */
+  /**
+   * Envoltorio de llamada. Va por `AppRun` y por nada más: `app_core` se incluye
+   * el primero en las 19 pantallas, antes que este partial, así que el respaldo a
+   * `google.script.run` que había aquí no protegía de ningún caso real —y sí
+   * escondía un fallo, porque invocaba el runner con `apply(null, …)`, que en la
+   * librería de Apps Script se traga los manejadores en silencio: el día que ese
+   * camino se hubiera usado de verdad, guardar una preferencia se habría quedado
+   * colgado para siempre sin decir nada.
+   *
+   * busy:false — guardar una preferencia no debe encender el indicador de
+   * "consultando": es trabajo de fondo y anunciarlo haría parecer lenta una acción
+   * que se sintió instantánea.
+   */
   function llamar(fn, args) {
-    if (window.AppRun && AppRun.call) {
-      // busy:false — guardar una preferencia no debe encender el indicador de "consultando":
-      // es trabajo de fondo y anunciarlo haría parecer lenta una acción que se sintió instantánea.
-      return AppRun.call(fn, args, { key: 'prefs-' + fn, busy: false });
-    }
-    return new Promise(function (res, rej) {
-      google.script.run.withSuccessHandler(res).withFailureHandler(rej)[fn].apply(null, args);
-    });
+    return AppRun.call(fn, args, { key: 'prefs-' + fn, busy: false });
   }
 
   // ── Arranque ───────────────────────────────────────────────────────────────

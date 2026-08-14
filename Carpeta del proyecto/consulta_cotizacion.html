@@ -899,8 +899,11 @@
                         })
                         : { done: function () {} };
 
-                    google.script.run
-                        .withSuccessHandler(response => {
+                    // `busy: false`: el overlay tapa la pantalla entera y ya es el
+                    // indicador de esta espera; el disco de la esquina sería un segundo
+                    // aviso de lo mismo.
+                    AppRun.call('downloadQuotePdf', [folioToView, null], { busy: false })
+                        .then(response => {
                             fxPdf.done();
                             restore();
                             if (response && response.success) {
@@ -909,14 +912,12 @@
                             } else {
                                 showViewMessage((response && response.message) || 'No se pudo generar el PDF.', true);
                             }
-                        })
-                        .withFailureHandler(error => {
+                        }, error => {
                             fxPdf.done();
                             restore();
                             console.error('downloadQuotePdf:', error);
                             showViewMessage('No pudimos generar el PDF. Inténtalo de nuevo en un momento.', true);
-                        })
-                        .downloadQuotePdf(folioToView, null);
+                        });
                 });
             }
 
@@ -958,8 +959,8 @@
                         sheetsButton.disabled = false;
                     };
 
-                    google.script.run
-                        .withSuccessHandler(response => {
+                    AppRun.call('openQuoteInSheets', [folioToView], { busy: 'Abriendo' })
+                        .then(response => {
                             restoreSheets();
                             fxTab.done();
                             if (response && response.success) {
@@ -972,8 +973,7 @@
                                 if (tab) tab.close();
                                 showViewMessage((response && response.message) || 'No se pudo abrir el documento en Sheets.', true);
                             }
-                        })
-                        .withFailureHandler(error => {
+                        }, error => {
                             restoreSheets();
                             // El aviso de la pestaña se cierra con ella: el error se explica
                             // en la pestaña de origen, que es a la que vuelve el navegador.
@@ -981,8 +981,7 @@
                             if (tab) tab.close();
                             console.error('openQuoteInSheets:', error);
                             showViewMessage('No pudimos abrir el documento. Inténtalo de nuevo en un momento.', true);
-                        })
-                        .openQuoteInSheets(folioToView);
+                        });
                 });
             }
 
@@ -1004,11 +1003,18 @@
                     })
                     : { done: function () {} };
 
-                google.script.run
-                    .withSuccessHandler(function(response) {
-                        console.log("Respuesta de getQuoteDetails:", response);
+                /* `call` y no `swr`, con motivo: lo que se pinta aquí es el documento que
+                   se le enseña al cliente —importes, descuentos, vigencia—, y esta
+                   pantalla no tiene dónde decir "esto es de hace un rato". Guardar una
+                   copia local significaría poder enseñar un total que ya cambió sin que
+                   nadie pueda notarlo. Donde el proyecto sí cachea listados, el rótulo de
+                   antigüedad va siempre delante; aquí no hay sitio para ese rótulo, así
+                   que no hay copia. */
+                AppRun.call('getQuoteDetails', [folioToView], { busy: 'Consultando' })
+                    .then(function(response) {
                         fxFolio.done();
                         hideLoader();
+                        response = response || {};
                         if (response.success && response.quote) {
                             populateView(response.quote);
                             const messageArea = document.getElementById('view-message-area');
@@ -1019,16 +1025,13 @@
                             showViewMessage(response.message || 'Error al cargar la cotización. Verifique el folio.', true);
                             if (quoteViewContentContainer) quoteViewContentContainer.innerHTML = '<div class="pdf-content-wrapper"><p class="text-center text-red-600 p-10">No se pudieron cargar los detalles de la cotización. Verifique el folio o inténtelo más tarde.</p></div>';
                         }
-                    })
-                    .withFailureHandler(function(error) {
+                    }, function(error) {
                         fxFolio.done();
                         hideLoader();
-                        console.error('getQuoteDetails:', error);
                         showViewMessage('No hay conexión con el sistema. Revisa tu internet y recarga la página.', true);
                         if (quoteViewContentContainer) quoteViewContentContainer.innerHTML = '<div class="pdf-content-wrapper"><p class="text-center text-red-600 p-10">No pudimos cargar esta cotización. Revisa tu conexión y recarga la página.</p></div>';
                         console.error("Error en llamada a getQuoteDetails:", error);
-                    })
-                    .getQuoteDetails(folioToView);
+                    });
             } else {
                 hideLoader(); 
                 showViewMessage('No se especificó un folio de cotización para mostrar.', true);

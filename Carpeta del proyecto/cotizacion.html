@@ -1143,9 +1143,11 @@
 
         function loadQuoteFormats(preferredId) {
             const container = document.getElementById('format-options');
-            const cache = window.AppCache;
 
-            /* Pintado inmediato desde lo guardado. El catálogo de formatos se toca un
+            /* Pintado inmediato desde lo guardado y revalidación por detrás: es
+               `AppRun.swr`, el patrón por defecto, y aquí encaja entero porque el
+               calentador de `app_precarga` guarda en esta clave LA RESPUESTA COMPLETA,
+               que es la misma forma que escribe swr. El catálogo de formatos se toca un
                par de veces al año, así que enseñar el de ayer mientras se comprueba no
                tiene ningún riesgo y quita la espera del arranque —que es el momento en
                que alguien está esperando para empezar a cotizar—. */
@@ -1154,21 +1156,22 @@
             const huella = function (r) {
                 try { return JSON.stringify([r.formats, r.defaultId]); } catch (e) { return ''; }
             };
-            try {
-                const guardado = cache ? cache.get(FORMATOS_CACHE_KEY, FORMATOS_TTL_MS) : null;
-                if (guardado && guardado.data && guardado.data.success) {
-                    renderFormatOptions(guardado.data.formats, guardado.data.defaultId);
-                    if (preferredId) setSelectedFormat(preferredId);
-                    pintadoDeCache = true;
-                    huellaPintada = huella(guardado.data);
-                }
-            } catch (e) {}
 
-            google.script.run
-                .withSuccessHandler(function(response) {
+            AppRun.swr(FORMATOS_CACHE_KEY, 'getEnabledQuoteFormats', [], {
+                ttl: FORMATOS_TTL_MS,
+                maxAge: FORMATOS_TTL_MS,
+                accept: function (r) { return !!(r && r.success); },
+                onData: function (response, deCache) {
+                    if (deCache) {
+                        if (!response || !response.success) return;
+                        renderFormatOptions(response.formats, response.defaultId);
+                        if (preferredId) setSelectedFormat(preferredId);
+                        pintadoDeCache = true;
+                        huellaPintada = huella(response);
+                        return;
+                    }
+
                     if (response && response.success) {
-                        try { if (cache) cache.set(FORMATOS_CACHE_KEY, response, { ttl: FORMATOS_TTL_MS }); } catch (e) {}
-
                         /* Si el catálogo es el mismo que ya está pintado —el caso normal,
                            porque esto cambia un par de veces al año— no se repinta. No es
                            una optimización: renderFormatOptions reconstruye los radios y
@@ -1189,16 +1192,16 @@
                     } else if (!pintadoDeCache) {
                         container.innerHTML = '<p class="text-sm text-red-600">No se pudieron cargar los formatos disponibles.</p>';
                     }
-                })
-                .withFailureHandler(function(error) {
+                },
+                onError: function (error) {
                     console.error('getEnabledQuoteFormats:', error);
                     // Con la lista ya pintada de la copia local, una caída de red no
                     // debe borrarla para poner un error: se puede seguir cotizando.
                     if (!pintadoDeCache) {
                         container.innerHTML = '<p class="text-sm text-red-600">No pudimos cargar los formatos. Revisa tu conexión y recarga la página.</p>';
                     }
-                })
-                .getEnabledQuoteFormats();
+                }
+            });
         }
 
         let pendingFormatFromQuote = null;
@@ -1208,9 +1211,13 @@
             // armando ningún formato, se está localizando un folio en la base.
             if (window.VentelLoader) VentelLoader.show({ tema: 'escaner', title: 'Cargando cotización…', sub: 'Recuperando los datos del folio ' + folio });
             else showGeneralMessage('Cargando cotización...', false, false);
-            google.script.run
-                .withSuccessHandler(function(response) {
+            /* `call` y no `swr`: lo que llega aquí rellena un formulario que se va a
+               editar. Un segundo pintado —el de la revalidación— machacaría lo que se
+               acabara de teclear en ese segundo, y encima reiniciaría el borrador. */
+            AppRun.call('getQuoteDetails', [folio], { busy: 'Cargando' })
+                .then(function(response) {
                     if (window.VentelLoader) VentelLoader.hide();
+                    response = response || {};
                     if (response.success && response.quote) {
                         populateQuoteForm(response.quote);
                         // Si el catálogo de formatos aún no llega, se recuerda cuál marcar.
@@ -1229,16 +1236,14 @@
                         else calculateTotals();
                         Borrador.iniciar({});   // se degradó a cotización nueva
                     }
-                })
-                .withFailureHandler(function(error) {
+                }, function(error) {
                     if (window.VentelLoader) VentelLoader.hide();
                     console.error('loadQuoteDetails:', error);
                     showGeneralMessage('No pudimos abrir esa cotización. Revisa tu conexión e inténtalo de nuevo.', true, false);
                     if (productRowsContainer.children.length === 0) addRow(false);
                      else calculateTotals();
                     Borrador.iniciar({});
-                })
-                .getQuoteDetails(folio);
+                });
         }
 
         /**
@@ -1802,9 +1807,16 @@
 
                 const quoteData = collectQuoteData();
 
-                google.script.run
-                    .withSuccessHandler(function(response) {
+                /* Escritura que CREA: guarda la cotización y devuelve el folio. Va por
+                   `AppRun.call` y no por la cola de guardado en segundo plano porque el
+                   folio que devuelve el servidor decide a dónde se navega, y eso no se
+                   puede adelantar. La deduplicación por (función + argumentos) es aquí
+                   una red útil: dos clics seguidos en "Ir a Vista Previa" con el mismo
+                   formulario son una sola alta, no dos folios para el mismo cliente. */
+                AppRun.call('saveQuoteAndGoToPreview', [quoteData], { busy: 'Guardando' })
+                    .then(function(response) {
                         setLoadingState(false, requestReviewButton, reviewButtonText, "Ir a Vista Previa", reviewSpinner);
+                        response = response || {};
                         if (response.success) {
                             showGeneralMessage(response.message, false);
                             currentQuoteFolioInput.value = response.folio;
@@ -1845,14 +1857,12 @@
                             showGeneralMessage(response.message || 'No se pudo guardar la cotización. Inténtalo de nuevo.', true, false);
                              if (requestReviewButton) requestReviewButton.disabled = false;
                         }
-                    })
-                    .withFailureHandler(function(error) {
+                    }, function(error) {
                         setLoadingState(false, requestReviewButton, reviewButtonText, "Ir a Vista Previa", reviewSpinner);
                         showGeneralMessage('No pudimos guardar la cotización. Revisa tu conexión e inténtalo de nuevo; lo que capturaste no se pierde.', true, false);
                         console.error("Error en llamada a saveQuoteAndGoToPreview:", error);
                          if (requestReviewButton) requestReviewButton.disabled = false;
-                    })
-                    .saveQuoteAndGoToPreview(quoteData);
+                    });
             });
         }
 

@@ -3171,34 +3171,37 @@ document.addEventListener('DOMContentLoaded', () => {
     if (i >= 0 && i !== sdIndex) { sdIndex = i; items.forEach((el, idx) => el.classList.toggle('sd-active', idx === i)); }
   });
 
-  // SWR: pinta al instante con el último dato guardado localmente…
-  const cached = leerCopiaPortal();
-  if (cached && cached.data) { lastUpdated = cached.t || null; onToolsData(cached.data, true); }
-
-  // …lo mismo para Trazabilidad: esqueletos, luego la última copia buena de la
-  // hoja de Homologación, y la revalidación va dentro de requestData().
+  // Los esqueletos de Trazabilidad se montan ANTES de pedir nada: si hay copia
+  // guardada, el primer onData de swr los retira en el mismo fotograma; si no la
+  // hay, se quedan puestos hasta que conteste la hoja de Homologación.
   trazSkeletons();
-  const trazCache = trazLeerLocal();
-  if (trazCache) onTrazData(trazCache, true);
-
-  // …y para el widget de promociones, que era el último hueco que se quedaba en
-  // blanco esperando al servidor.
-  const promoCache = promoLeerLocal();
-  if (promoCache) renderPromoStrip(promoCache);
 
   renderSyncStatus();
   if (syncTimer) clearInterval(syncTimer);
   syncTimer = setInterval(renderSyncStatus, 30000); // mantiene el "hace X" al día
 
-  // …y revalida contra Apps Script en segundo plano (lógica original intacta)
+  /* Un solo punto de entrada a los datos. Antes había dos —aquí se leían las tres
+     copias locales y se pintaban a mano, y requestData() revalidaba— y eso obligaba
+     a mantener sincronizados dos sitios que hacían lo mismo. Ahora las tres
+     llamadas son `AppRun.swr`: pintan lo guardado y revalidan ellas solas. */
   requestData(false);
 });
 
 /* ──────── CARGA / ACTUALIZACIÓN DE DATOS ────────
    Las tres llamadas salen a la vez y cada una pinta su trozo en cuanto llega: el
    Portal no espera a la más lenta para enseñar lo que ya tiene. El indicador de la
-   esquina se enciende una sola vez (lleva cuenta de las tres) y se apaga con la
-   última, así que dice la verdad sobre si queda algo por comprobar. */
+   esquina se enciende una sola vez por llamada y lo lleva `AppRun`, que además
+   deduplica: pulsar "Actualizar" dos veces seguidas ya no son seis viajes.
+
+   Las tres van por `AppRun.swr`, que es el patrón por defecto del proyecto y hace
+   entero lo que aquí se hacía a mano: leer la copia local, pintarla, revalidar y
+   guardar la respuesta buena. Lo único que se pide es que el pintado sea
+   idempotente —`onData` se llama DOS veces cuando había copia—, y lo es: las tres
+   entradas repintan su bloque completo.
+
+   `fuerza` es lo que distingue el arranque de "Actualizar": al entrar se enseña lo
+   guardado mientras llega el dato; al pulsar el botón se salta la copia, porque lo
+   que se está pidiendo es precisamente no verla. */
 function requestData(manual){
   const sync = document.getElementById('heroSync');
   if (manual && sync) { sync.classList.add('is-loading'); sync.classList.remove('is-stale'); setSyncText('Actualizando…'); }
@@ -3209,34 +3212,52 @@ function requestData(manual){
      manejador inerte, así que las llamadas de abajo son las mismas en los dos casos. */
   const fxQuick  = FX().section(manual ? '#qaGrid'     : null, 'camion',   { mode:'cover' });
   const fxPromos = FX().section(manual ? '#promoStrip' : null, 'etiqueta', { mode:'cover' });
-  const busy = window.AppBusy || { until: () => () => {} };
-  if (typeof google !== 'undefined' && google.script && google.script.run) {
-    const finTools = busy.until('Consultando');
-    google.script.run
-      .withSuccessHandler(d => { finTools(); fxQuick.done(); onToolsData(d, false); finishRefresh(true, manual); })
-      .withFailureHandler(e => { finTools(); fxQuick.done(); onToolsError(e); finishRefresh(false, manual); })
-      .fetchToolsData();
-    const finPromos = busy.until('Consultando');
-    google.script.run
-      .withSuccessHandler(d => { finPromos(); fxPromos.done(); onPromoCounts(d); })
-      .withFailureHandler(() => { finPromos(); fxPromos.done(); onPromoCounts(null); })
-      .fetchPromoCounts();
-    // Trazabilidad va en su propia llamada: si la hoja de Homologación falla,
-    // el resto del Portal (herramientas, formatos, plantillas) no se cae con ella.
-    const finTraz = busy.until('Consultando');
-    google.script.run
-      .withSuccessHandler(d => { finTraz(); onTrazData(d, false); })
-      .withFailureHandler(e => { finTraz(); onTrazError(e); })
-      .fetchTrazabilidadData();
-  } else {
+
+  // Vista de diseño: el Portal abierto fuera de Apps Script se pinta con datos de
+  // muestra en vez de quedarse en blanco. No es un respaldo defensivo, es el modo
+  // en el que se trabaja la maquetación sin desplegar.
+  if (!(typeof google !== 'undefined' && google.script && google.script.run)) {
     setTimeout(() => {
       fxQuick.done(); fxPromos.done();
       onToolsData(mockData(), false);
       onTrazData(trazMock(), false);
-      onPromoCounts({ status:'ok', activas:12, porTerminar:3 });
+      renderPromoStrip({ status:'ok', activas:12, porTerminar:3 });
       finishRefresh(true, manual);
     }, manual ? 700 : 380);
+    return;
   }
+
+  AppRun.swr(PORTAL_CACHE_CLAVE, 'fetchToolsData', [], {
+    ttl: PORTAL_CACHE_TTL,
+    fuerza: manual === true,
+    // Un `status:'error'` es una respuesta, no un dato: guardarlo dejaría el Portal
+    // enseñando el error durante los siete días del TTL.
+    accept: d => !!(d && d.status !== 'error'),
+    onData: (d, deCache, at) => {
+      fxQuick.done();
+      onToolsData(d, deCache, at);
+      if (!deCache) finishRefresh(true, manual);
+    },
+    onError: e => { fxQuick.done(); onToolsError(e); finishRefresh(false, manual); }
+  });
+
+  AppRun.swr(PROMO_CACHE_CLAVE, 'fetchPromoCounts', [], {
+    ttl: PROMO_CACHE_TTL,
+    fuerza: manual === true,
+    accept: c => !!(c && c.status === 'ok'),
+    onData: c => { fxPromos.done(); renderPromoStrip(c); },
+    onError: () => { fxPromos.done(); renderPromoStrip(null); }
+  });
+
+  // Trazabilidad va en su propia llamada: si la hoja de Homologación falla,
+  // el resto del Portal (herramientas, formatos, plantillas) no se cae con ella.
+  AppRun.swr(TRAZ_CACHE_CLAVE, 'fetchTrazabilidadData', [], {
+    ttl: TRAZ_CACHE_TTL,
+    fuerza: manual === true,
+    accept: d => !!(d && d.status !== 'error' && Array.isArray(d.secciones)),
+    onData: (d, deCache, at) => onTrazData(d, deCache, at),
+    onError: e => onTrazError(e)
+  });
 }
 
 /* Botón "Actualizar datos" del hero.
@@ -3525,36 +3546,32 @@ function jumpToFp(blockId){
        vez de llegar al render y romperlo. Guardarla sin versión significa que el día
        que se toque `fetchToolsData` el Portal se rompe SOLO para quien ya lo había
        abierto antes, que es justo a quien no se le puede pedir que borre su caché.
+       La versión va en el NOMBRE de la clave (`-v1`): subirla deja huérfana la copia
+       vieja, que `AppCache` purga sola al caducar.
      · CADUCIDAD. Siete días, igual que Trazabilidad, que es el módulo de al lado y ya
        lo hacía así. Una copia de hace tres meses no es un respaldo, es contenido
        equivocado enseñado con toda confianza mientras llega el bueno.
 
-   La antigüedad SIEMPRE se dice: el rótulo del hero ("Actualizado hace X") se pinta
-   con la fecha de esta copia y se marca en gris pasados quince minutos. */
-const PORTAL_LS_CLAVE = 'ventel-data-v1';
-const PORTAL_LS_VER   = 1;
-const PORTAL_LS_TTL   = 7 * 24 * 3600 * 1000;
+   Quien lee y escribe estas tres copias es `AppRun.swr`, en requestData(). Antes lo
+   hacía a mano cada una por su cuenta —tres parejas de leer/guardar con su propio
+   control de versión y caducidad—, que es exactamente el patrón que `AppCache` ya
+   trae hecho, con dos cosas que las copias a mano no tenían: se vacían al cerrar
+   sesión (`AppCache.clearAll`) y sobreviven a un localStorage lleno, porque el
+   almacén suelta las entradas más viejas en vez de perder la escritura en silencio.
 
-function guardarCopiaPortal(data){
-  lsSet(PORTAL_LS_CLAVE, { v: PORTAL_LS_VER, t: Date.now(), data: data });
-}
-function leerCopiaPortal(){
-  const c = lsGet(PORTAL_LS_CLAVE, null);
-  if (!c || !c.data) return null;
-  // Las copias escritas antes de que esto tuviera versión no la traen: se descartan una
-  // sola vez y la siguiente respuesta del servidor deja ya la nueva.
-  if (c.v !== PORTAL_LS_VER || !c.t || (Date.now() - c.t) > PORTAL_LS_TTL){
-    try { localStorage.removeItem(PORTAL_LS_CLAVE); } catch(e){}
-    return null;
-  }
-  return c;
-}
+   La antigüedad SIEMPRE se dice: el rótulo del hero ("Actualizado hace X") se pinta
+   con la fecha de esta copia —la que devuelve `swr` en `at`— y se marca en gris
+   pasados quince minutos. */
+const PORTAL_CACHE_CLAVE = 'portal-datos-v1';
+const PORTAL_CACHE_TTL   = 7 * 24 * 3600 * 1000;
 
 /* ──────── DATOS (Apps Script · stale-while-revalidate) ──────── */
-function onToolsData(data, fromCache){
+function onToolsData(data, fromCache, at){
   if (!data || data.status === 'error') { if (!fromCache) onToolsError(data && data.error); return; }
   if (fromCache && dataIsFresh) return; // ya están pintados los datos frescos
-  if (!fromCache){ dataIsFresh = true; lastUpdated = Date.now(); guardarCopiaPortal(data); renderSyncStatus(); }
+  if (!fromCache) dataIsFresh = true;
+  lastUpdated = at || Date.now();
+  renderSyncStatus();
   // Compat: cachés viejas solo traen "avisos" (texto). Se mapean a anuncios banner.
   const anuncios = data.anuncios || (data.avisos || []).map((a, i) => ({
     id: 'avi-' + i, formato: 'banner', tono: a.tipo || 'info', mensaje: a.mensaje || ''
@@ -4096,25 +4113,11 @@ function dismissAviso(btn){
    hueco se quedaba vacío hasta que respondía el servidor. Se guarda la última
    cuenta buena (media hora) para que el widget aparezca ya puesto; si al revalidar
    sale otra, se repinta sola. Un recuento de hace unos minutos en una tarjeta que
-   solo lleva al Monitor no engaña a nadie: el Monitor sí trae el dato exacto. */
-const PROMO_LS_CLAVE = 'ventel-promos-v1';
-const PROMO_LS_TTL   = 30 * 60 * 1000;
+   solo lleva al Monitor no engaña a nadie: el Monitor sí trae el dato exacto.
 
-function promoLeerLocal(){
-  const c = lsGet(PROMO_LS_CLAVE, null);
-  if (!c || !c.t || !c.data) return null;
-  if (Date.now() - c.t > PROMO_LS_TTL){
-    try { localStorage.removeItem(PROMO_LS_CLAVE); } catch(e){}
-    return null;
-  }
-  return c.data;
-}
-
-/** Punto único de entrada del recuento: pinta y, si es bueno, lo guarda. */
-function onPromoCounts(counts){
-  if (counts && counts.status === 'ok') lsSet(PROMO_LS_CLAVE, { t: Date.now(), data: counts });
-  renderPromoStrip(counts);
-}
+   Guardar y leer lo hace `AppRun.swr` en requestData(); aquí solo queda pintar. */
+const PROMO_CACHE_CLAVE = 'portal-promos-v1';
+const PROMO_CACHE_TTL   = 30 * 60 * 1000;
 
 function renderPromoStrip(counts){
   const strip = document.getElementById('promoStrip');
@@ -4149,7 +4152,17 @@ function reportLink(btn){
   btn.title = 'Reporte enviado';
   showToast(null, 'Reporte enviado · ¡gracias!');
   if (typeof google !== 'undefined' && google.script && google.script.run) {
-    google.script.run.reportBrokenLink(payload);
+    /* Escritura a fuego y olvido: el acuse ya está dado arriba porque reportar un
+       enlace roto no tiene nada que esperar. Va por `AppRun` igualmente, y con
+       `busy:false` para no encender el indicador de "consultando" por algo que a
+       quien pulsa no le hace esperar. La deduplicación aquí es la que evita que un
+       doble clic mande el mismo reporte dos veces: la clave lleva los argumentos,
+       así que reportar OTRO enlace sí sale como una llamada aparte.
+       El `catch` es obligado: sin él, un reporte que no llega deja una promesa
+       rechazada sin recoger en la consola de quien está trabajando, y el fallo no
+       es suyo ni puede hacer nada con él. */
+    AppRun.call('reportBrokenLink', [payload], { busy: false })
+      .catch(function(e){ console.warn('reportBrokenLink:', e); });
   }
 }
 function reportBtn(sec, nombre, enlace){
@@ -5582,28 +5595,15 @@ function trazFxCerrar(){
 }
 
 /* ── Copia local (última copia buena) ────────────────────────────────────────
-   Con versión y caducidad: si cambia la forma del dato se sube TRAZ_LS_VER y la
-   copia vieja se descarta sola, en vez de romper el render. */
-const TRAZ_LS_CLAVE = 'ventel-traz-v1';
-const TRAZ_LS_VER   = 1;
-const TRAZ_LS_TTL   = 7 * 24 * 3600 * 1000;   // 7 días: es un respaldo, no una caché de frescura
-
-function trazGuardarLocal(data){
-  lsSet(TRAZ_LS_CLAVE, { v: TRAZ_LS_VER, t: Date.now(), data: data });
-}
-function trazLeerLocal(){
-  const c = lsGet(TRAZ_LS_CLAVE, null);
-  if (!c || c.v !== TRAZ_LS_VER || !c.data || !Array.isArray(c.data.secciones)) return null;
-  if (!c.t || (Date.now() - c.t) > TRAZ_LS_TTL){
-    try { localStorage.removeItem(TRAZ_LS_CLAVE); } catch(e){}
-    return null;
-  }
-  trazGuardadoEn = c.t;
-  return c.data;
-}
+   Con versión y caducidad, y las dos las lleva `AppCache` a través de `AppRun.swr`
+   en requestData(): la versión va en el nombre de la clave —subirla deja huérfana
+   la copia vieja en vez de dejar que llegue al render y lo rompa— y la caducidad
+   son siete días, que es lo que dura un respaldo antes de dejar de serlo. */
+const TRAZ_CACHE_CLAVE = 'portal-trazabilidad-v1';
+const TRAZ_CACHE_TTL   = 7 * 24 * 3600 * 1000;   // 7 días: es un respaldo, no una caché de frescura
 
 /* ── Entrada de datos ── */
-function onTrazData(data, fromCache){
+function onTrazData(data, fromCache, at){
   if (!data || data.status === 'error' || !Array.isArray(data.secciones)){
     if (!fromCache) onTrazError(data && data.error);
     return;
@@ -5611,11 +5611,10 @@ function onTrazData(data, fromCache){
   if (fromCache && trazFresco) return;          // los frescos ya están pintados
   trazFxCerrar();                               // hay algo que pintar: fuera la escena
 
+  trazGuardadoEn = at || Date.now();
   if (!fromCache){
     trazFresco = true;
     trazAviso = null;
-    trazGuardadoEn = Date.now();
-    trazGuardarLocal(data);
   }
 
   const firma = JSON.stringify(data.secciones);
@@ -5669,15 +5668,23 @@ function trazReintentar(btn){
   });
   const cerrar = function(){ fxBtn.done(); trazFxCerrar(); trazPidiendo = false; };
 
-  if (typeof google !== 'undefined' && google.script && google.script.run){
-    google.script.run
-      .withSuccessHandler(function(d){ cerrar(); onTrazData(d, false); })
-      .withFailureHandler(function(e){ cerrar(); onTrazError(e); })
-      .fetchTrazabilidadData();
-  } else {
+  if (!(typeof google !== 'undefined' && google.script && google.script.run)){
     cerrar();
     onTrazData(trazMock(), false);
+    return;
   }
+
+  // `fuerza`: el reintento se pulsa precisamente porque lo guardado no sirve, así
+  // que se salta la copia y se va al servidor. Guardar la respuesta buena sigue
+  // siendo cosa de swr, de modo que este camino deja la caché igual de al día que
+  // la carga normal —antes no: el reintento pintaba y no guardaba nada.
+  AppRun.swr(TRAZ_CACHE_CLAVE, 'fetchTrazabilidadData', [], {
+    ttl: TRAZ_CACHE_TTL,
+    fuerza: true,
+    accept: function(d){ return !!(d && d.status !== 'error' && Array.isArray(d.secciones)); },
+    onData: function(d, deCache, at){ cerrar(); onTrazData(d, deCache, at); },
+    onError: function(e){ cerrar(); onTrazError(e); }
+  });
 }
 
 /* Escena mientras llega el primer dato: la sección nunca se ve vacía.
