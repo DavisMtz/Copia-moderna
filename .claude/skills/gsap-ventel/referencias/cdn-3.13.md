@@ -67,7 +67,7 @@ arranque, no se justifica nunca.
 | Archivo del proyecto | Carga | Origen |
 |---|---|---|
 | `app_motion.html` | gsap, MorphSVGPlugin | cdnjs + **jsDelivr** |
-| `Index.html` | gsap, ScrollTrigger, MorphSVGPlugin | cdnjs + **jsDelivr** |
+| `Index.html` | gsap, ScrollTrigger, SplitText, MorphSVGPlugin | cdnjs |
 | `Promociones.html` | gsap, ScrollTrigger, MorphSVGPlugin | cdnjs + **jsDelivr** |
 | `estado.html` | ScrollTrigger, SplitText | cdnjs |
 | `inicioDeSesion.html` | SplitText, DrawSVGPlugin | cdnjs |
@@ -76,11 +76,13 @@ arranque, no se justifica nunca.
 
 Dos cosas que leer en esta tabla:
 
-1. **MorphSVG viene de jsDelivr en tres archivos.** Es herencia de cuando el
-   plugin era de pago y no estaba en cdnjs; ya lo está. Mantenerlo así obliga al
-   navegador a resolver un dominio más y añade un segundo servicio que puede
-   caerse. Al tocar esos archivos, cámbialo a
+1. **MorphSVG viene de jsDelivr en dos archivos** —`app_motion.html` y
+   `Promociones.html`—. Es herencia de cuando el plugin era de pago y no estaba
+   en cdnjs; ya lo está. Mantenerlo así obliga al navegador a resolver un dominio
+   más y añade un segundo servicio que puede caerse. Al tocar esos archivos,
+   cámbialo a
    `https://cdnjs.cloudflare.com/ajax/libs/gsap/3.13.0/MorphSVGPlugin.min.js`.
+   `Index.html` ya está unificado en cdnjs: sirve de ejemplo del resultado.
 2. **`estado.html` y las pantallas de sesión no cargan `gsap.min.js`**, y está
    bien: lo trae `app_motion.html` por `include()`. Cargarlo otra vez no es solo
    peso duplicado — un segundo `gsap` global sobrescribiría el primero y los
