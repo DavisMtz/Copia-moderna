@@ -31,6 +31,7 @@ teléfono. Todo lo demás sale de ahí.
 | `VentelLoader` | `LoaderPartial.html` | Tapa la pantalla entera cuando no hay **nada** que enseñar |
 | `VentelLoaders` | `app_loaders.html` | El HTML ya está pintado y solo faltan los datos |
 | `VentelTruck` | `TruckLoaderPartial.html` | Lo mismo, **100 % CSS**: funciona aunque el CDN no conteste |
+| `VentelAura` | `app_aura.html` | El contorno vivo de los buscadores: filo de marca, cometa y destello |
 
 Las tres primeras familias usan GSAP porque el movimiento bueno está en la
 interpolación —un morph, un escalonado repartido y un *ease* de verdad no se

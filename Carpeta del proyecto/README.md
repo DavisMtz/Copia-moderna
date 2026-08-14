@@ -17,6 +17,12 @@ el servidor renderiza con `include()`, y la lógica de servidor vive en los `.gs
   fijada, el contrato de degradación cuando el CDN no contesta y los patrones
   avanzados— están en [`Documentacion/11_Animacion_GSAP.md`](../Documentacion/11_Animacion_GSAP.md)
   y en la skill [`gsap-ventel`](../.claude/skills/gsap-ventel/SKILL.md).
+- **Buscadores:** `app_aura.html` (`VentelAura`) le pone contorno vivo a los dos
+  campos de búsqueda —el general del Portal y el del Monitor de promociones—. Se
+  auto-monta en todo `[data-vx-aura]` y lee del propio campo su radio, así que
+  añadirlo a un tercero es escribir el atributo y nada más. Sin GSAP o con
+  movimiento reducido deja de girar y el campo conserva su anillo de foco de
+  siempre: la marca de foco no depende del CDN.
 - **Esperas:** dos familias, y no hacen lo mismo. `LoaderPartial.html` (`VentelLoader`)
   tapa la pantalla entera mientras no hay *nada* que enseñar, y es además el dueño de la
   geometría del isotipo: la publica en `VentelLoader.marca` para que nadie vuelva a
