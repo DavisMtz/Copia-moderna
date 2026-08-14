@@ -236,10 +236,18 @@
         /* Los estilos del formato CCL viven en app_ccl.html, junto a su marcado. */
 
         /* ══ DOCUMENTO CCL GENERADO ══════════════════════════════════════════
-           El panel que enseña la Google Sheet real. Nace oculto y GSAP lo trae cuando
-           el documento está listo. */
+           El panel que enseña la Google Sheet real. Nace oculto y GSAP lo trae en
+           cuanto se pide el documento: primero con la escena de la hoja
+           escribiéndose y, cuando llega, con el documento dentro. */
+        /* `width:100%` no es decorativo: el <body> de esta pantalla es un flex en
+           columna con `align-items:center`, así que un hijo sin ancho se encoge
+           hasta el tamaño de su contenido. El panel quedaba tan estrecho como su
+           propia cabecera —bastante menos que la vista previa de arriba— y el
+           documento incrustado heredaba ese ancho: por eso la hoja CCL, que es
+           apaisada, se veía recortada. Con el ancho declarado el panel ocupa la
+           fila entera y el documento se ve completo. */
         .doc-ccl {
-            max-width: 1100px; margin: 1.25rem auto 0;
+            width: 100%; max-width: 1400px; margin: 1.25rem auto 2rem;
             border: 1px solid var(--line, #e5e7eb); border-radius: 14px;
             background: var(--surface, #fff); overflow: hidden;
         }
@@ -261,12 +269,38 @@
         /* El marco del documento.
            `aspect-ratio` en vez de una altura fija: la hoja CCL es apaisada y con una
            altura en píxeles se veía con una franja muerta abajo en pantallas anchas y
-           recortada en las estrechas. */
+           recortada en las estrechas.
+
+           El `min-height` es el suelo para cuando la proporción no da de sí: en una
+           ventana baja (un portátil, el iPad en apaisado) 16/10 sobre un panel ancho
+           sigue siendo cómodo, pero en cuanto el panel se estrecha la altura caía y
+           la hoja volvía a verse por una rendija. `clamp` la ata al alto disponible
+           sin depender solo de él: si `vh` se queda corto —dentro del iframe de Apps
+           Script el alto no siempre es el de la ventana— el suelo en `rem` manda. */
         .doc-ccl-marco { border-top: 1px solid var(--line, #e5e7eb); background: var(--surface-2, #f8fafc); }
         .doc-ccl-marco iframe {
-            display: block; width: 100%; aspect-ratio: 16 / 10; min-height: 22rem; border: 0;
+            display: block; width: 100%; aspect-ratio: 16 / 10; border: 0;
+            min-height: clamp(26rem, 74vh, 52rem);
         }
         @media (max-width: 640px) { .doc-ccl-marco iframe { aspect-ratio: 4 / 5; } }
+
+        /* ── AMPLIADO ─────────────────────────────────────────────────────────
+           La hoja CCL tiene doce columnas de importes. Verla completa dentro de la
+           página sirve para comprobar que está bien; para revisarla celda a celda
+           antes de enviarla hace falta todo el alto, y abrir Sheets en otra pestaña
+           para eso rompe el trayecto «revisar → enviar» que es el de esta pantalla.
+           Ampliar es una clase: el mismo panel, el mismo iframe ya cargado. */
+        .doc-ccl.doc-ccl-amplio {
+            position: fixed; inset: 0; z-index: 4300;
+            width: auto; max-width: none; margin: 0;
+            border: 0; border-radius: 0;
+            display: flex; flex-direction: column;
+        }
+        .doc-ccl.doc-ccl-amplio .doc-ccl-head { flex: none; }
+        .doc-ccl.doc-ccl-amplio .doc-ccl-marco { flex: 1 1 auto; min-height: 0; }
+        .doc-ccl.doc-ccl-amplio .doc-ccl-marco iframe {
+            height: 100%; min-height: 0; aspect-ratio: auto;
+        }
 
         /* Ni el panel ni su documento salen impresos: lo que se imprime desde esta
            pantalla es la vista previa de arriba, no una captura de la interfaz de Sheets. */
@@ -426,14 +460,22 @@
                 </h2>
                 <p id="doc-ccl-sub">Este es el formato CCL tal como lo recibirá el cliente.</p>
             </div>
-            <button type="button" id="doc-ccl-toggle" class="v-btn v-btn-ghost v-btn-sm"
-                    aria-expanded="false" aria-controls="doc-ccl-marco">
-                Ver documento
-            </button>
+            <div class="flex items-center gap-2">
+                <button type="button" id="doc-ccl-ampliar" class="v-btn v-btn-ghost v-btn-sm"
+                        aria-pressed="false" hidden>
+                    Ampliar
+                </button>
+                <button type="button" id="doc-ccl-toggle" class="v-btn v-btn-ghost v-btn-sm"
+                        aria-expanded="false" aria-controls="doc-ccl-marco">
+                    Ver documento
+                </button>
+            </div>
         </div>
-        <!-- El iframe NO se crea hasta que se pulsa "Ver documento". Cargarlo con la
-             pantalla traería medio megabyte de la interfaz de Sheets a una vista previa
-             que la mayoría de las veces solo se mira por encima antes de enviar. -->
+        <!-- El iframe se crea la primera vez que se ABRE el marco, no con la pantalla:
+             son medio megabyte de interfaz de Sheets y no hay nada que enseñar hasta
+             que el servidor termina de escribir la hoja. Quien lo abre es la propia
+             pantalla en cuanto el documento está listo (ver DocumentoCcl.estadoListo);
+             el botón queda para volver a ocultarlo y para reabrirlo sin recargarlo. -->
         <div class="doc-ccl-marco" id="doc-ccl-marco" hidden></div>
     </section>
 
@@ -648,13 +690,31 @@
 
            EL INDICADOR
            ------------
-           El panel se enseña desde el primer momento con la escena del documento dentro:
-           el hueco reservado dice "la hoja oficial se está escribiendo" y la página deja
-           de dar un salto cuando llega. Sigue sin bloquear nada —se puede leer, editar y
-           descargar mientras—, y si la generación falla el panel se retira sin decir
-           nada, exactamente igual de silencioso que antes. AppBusy conserva su puntito
-           porque es el indicador de "hay algo en vuelo" de toda la aplicación, no el de
-           este panel. */
+           El panel se enseña desde el primer momento, ya con la escena `hoja` dentro:
+           una hoja de cálculo de Google escribiéndose sola, con el isotipo Liverpool en
+           su cabecera y las filas llenándose celda por celda. No es adorno: la escena
+           dibuja LO MISMO que está ocurriendo al otro lado, así que quien llega a esta
+           pantalla ve de un vistazo que hay un documento en camino.
+
+           Antes esto era invisible. La generación tarda entre cinco y veinte segundos y
+           el único rastro era el puntito de AppBusy en una esquina; se podía cerrar la
+           pantalla sin llegar a saber que había algo cargándose. Ahora el hueco del
+           documento está reservado desde el principio, dice qué se está haciendo y se
+           mueve mientras se hace.
+
+           Sigue sin bloquear nada —se puede leer, editar y descargar mientras—, y si la
+           generación falla el panel se retira sin decir nada, exactamente igual de
+           silencioso que antes. AppBusy conserva su puntito porque es el indicador de
+           "hay algo en vuelo" de toda la aplicación, no el de este panel.
+
+           POR QUÉ SE ABRE SOLO AL TERMINAR
+           --------------------------------
+           El iframe sigue creándose tarde (medio megabyte de interfaz de Sheets), pero
+           ya no espera a un clic: en cuanto hay documento, el panel lo abre. Quien llega
+           aquí viene a comprobar la cotización, y dejar el resultado detrás de un botón
+           después de haberle anunciado la espera dejaba el trabajo a medias —la escena
+           terminaba y no aparecía nada—. La espera del iframe la cubre la MISMA escena,
+           de modo que las dos esperas encadenadas se leen como una sola. */
         const DocumentoCcl = (function () {
             let pedido = false;
             let urlDoc = '';
@@ -663,6 +723,7 @@
             const panel  = () => document.getElementById('doc-ccl');
             const marco  = () => document.getElementById('doc-ccl-marco');
             const boton  = () => document.getElementById('doc-ccl-toggle');
+            const btnAmp = () => document.getElementById('doc-ccl-ampliar');
             const sub    = () => document.getElementById('doc-ccl-sub');
             const titulo = () => document.getElementById('doc-ccl-tit-tx');
             const palomita = () => document.querySelector('#doc-ccl .doc-ccl-ok');
@@ -704,9 +765,13 @@
                             return;
                         }
                         urlDoc = r.urlIncrustable;
-                        fx.done();
                         if (r.message && window.AppMotion) AppMotion.toast(r.message, 'warn');
-                        estadoListo();
+                        /* estadoListo va DENTRO del done: primero se retira la escena de
+                           la hoja escribiéndose y después entra el documento. Llamándolos
+                           en paralelo, el hueco de la escena y el del documento convivían
+                           un tercio de segundo y el panel daba un tirón de alto justo en
+                           el momento que se quiere leer como «ya está». */
+                        fx.done(estadoListo);
                     })
                     .withFailureHandler(function (e) {
                         fin();
@@ -728,29 +793,44 @@
             }
 
             /**
-             * Estado "escribiendo": el panel entra ya, vacío, con la escena del documento
-             * ocupando el hueco. Devuelve el manejador de la escena —inerte si app_loaders
-             * no cargó— para que quien lo cierra no tenga que comprobar nada.
+             * Estado "escribiendo": el panel entra ya, vacío, con la escena de la hoja
+             * de cálculo ocupando el hueco que después llenará el documento. Devuelve el
+             * manejador de la escena —inerte si app_loaders no cargó— para que quien lo
+             * cierra no tenga que comprobar nada.
              */
             function anunciarGeneracion() {
                 const p = panel();
                 if (!p) return { done: function (cb) { if (cb) cb(); } };
 
-                // La palomita y el botón afirman que hay documento; todavía no lo hay.
+                // La palomita y los botones afirman que hay documento; todavía no lo hay.
                 if (palomita()) palomita().hidden = true;
                 if (boton()) boton().hidden = true;
+                if (btnAmp()) btnAmp().hidden = true;
                 if (titulo()) titulo().textContent = 'Preparando el documento oficial…';
-                if (sub()) sub().textContent = 'Se está escribiendo la hoja CCL de este folio en Google Sheets.';
+                if (sub()) sub().textContent = 'Se está generando la vista previa de Google Sheets. Puedes seguir revisando la cotización mientras tanto.';
                 mostrarPanel();
 
-                // maxMs por encima del tope del panel: el que decide retirar esto es el
-                // panel, no la escena, para que no quede un hueco con un error dentro.
+                /* El hueco se reserva grande a propósito: es el sitio donde va a caer el
+                   documento, así que la página no da un salto al llegar y la escena se
+                   ve del tamaño de lo que anuncia. Sin `sub` en la escena para que rote
+                   sus propios mensajes —"escribiendo los productos", "calculando los
+                   totales"—: pasados diez segundos, un texto que cambia es la señal más
+                   barata de que aquello sigue vivo.
+
+                   maxMs por encima del tope del panel: el que decide retirar esto es el
+                   panel, no la escena, para que no quede un hueco con un error dentro. */
                 return window.VentelFX
-                    ? VentelFX.section(p, 'documento', { mode: 'fill', minHeight: '13rem', maxMs: 50000 })
+                    ? VentelFX.section(p, 'hoja', {
+                        mode: 'fill', minHeight: '20rem', width: 340, maxMs: 50000,
+                        // La cabecera del panel ya dice "Preparando el documento
+                        // oficial…"; la escena cuenta el paso concreto para que las
+                        // dos líneas sumen en vez de repetirse.
+                        title: 'Escribiendo la hoja en Google Sheets…'
+                      })
                     : { done: function (cb) { if (cb) cb(); } };
             }
 
-            /** Estado "listo": ya hay documento que enseñar. */
+            /** Estado "listo": ya hay documento que enseñar, y se enseña. */
             function estadoListo() {
                 if (palomita()) palomita().hidden = false;
                 if (boton()) boton().hidden = false;
@@ -758,6 +838,37 @@
                 if (sub()) sub().textContent = 'Este es el formato CCL tal como lo recibirá el cliente.';
                 mostrarPanel();
                 cablear();
+                // El documento se abre solo: la escena acaba de prometer un documento.
+                // Se abre ANTES de celebrar para que el botón «Ampliar», que nace con el
+                // marco, entre con el mismo gesto que la palomita y no aparezca después.
+                abrirMarco();
+                celebrarListo();
+            }
+
+            /**
+             * El paso de "preparando" a "listo" es el momento en que la promesa se
+             * cumple, y se nota: la palomita entra con un rebote y la cabecera hace un
+             * gesto mínimo hacia arriba. Es lo único que separa "el texto ha cambiado"
+             * de "ya está". Sin GSAP o con menos movimiento, el texto cambia y ya.
+             */
+            function celebrarListo() {
+                if (!conGsap()) return;
+                const cab = document.querySelector('#doc-ccl .doc-ccl-tx');
+                const tl = gsap.timeline({ defaults: { ease: 'power3.out' } });
+                if (cab) {
+                    tl.fromTo(cab, { opacity: .35, y: 6 },
+                        { opacity: 1, y: 0, duration: .38, clearProps: 'transform' }, 0);
+                }
+                if (palomita()) {
+                    tl.fromTo(palomita(), { scale: 0, rotation: -35 },
+                        { scale: 1, rotation: 0, duration: .5, ease: 'back.out(3)',
+                          transformOrigin: '50% 50%', clearProps: 'transform' }, .06);
+                }
+                const bts = [boton(), btnAmp()].filter(Boolean);
+                if (bts.length) {
+                    tl.fromTo(bts, { opacity: 0, y: 8 },
+                        { opacity: 1, y: 0, duration: .34, stagger: .06, clearProps: 'transform,opacity' }, .12);
+                }
             }
 
             /** No hubo documento: el panel se va como vino, sin gritarle a nadie. */
@@ -782,64 +893,122 @@
                 }
             }
 
+            /**
+             * Abre el marco. Idempotente y sin efecto si todavía no hay documento, así
+             * que da igual quién lo llame: la apertura automática o el botón.
+             */
+            function abrirMarco() {
+                const m = marco();
+                if (!m || !m.hidden || !urlDoc) return;
+
+                // El iframe se crea la PRIMERA vez que se abre y se conserva
+                // después: recrearlo en cada apertura volvería a descargar la
+                // interfaz de Sheets y a perder la posición de lectura.
+                let recienCreado = null;
+                if (!m.firstElementChild) {
+                    const f = document.createElement('iframe');
+                    f.src = urlDoc;
+                    f.title = 'Documento CCL de la cotización';
+                    f.loading = 'lazy';
+                    // Sin permisos de descarga ni de portapapeles: este panel es
+                    // para MIRAR el documento. Lo que hay que llevarse de esta
+                    // pantalla es el PDF, que se genera aparte y con su formato.
+                    f.setAttribute('referrerpolicy', 'no-referrer');
+                    m.appendChild(f);
+                    recienCreado = f;
+                }
+                m.hidden = false;
+                if (conGsap()) {
+                    gsap.from(m, {
+                        opacity: 0, y: 12, duration: .45, ease: 'power3.out',
+                        force3D: true, clearProps: 'transform,opacity'
+                    });
+                }
+                /* Sheets tarda entre 3 y 10 s en pintarse, y hasta que lo hace el marco
+                   es un rectángulo blanco grande. La MISMA escena lo tapa hasta el `load`
+                   de verdad del iframe: así las dos esperas encadenadas —la del servidor
+                   escribiendo la hoja y la de Sheets montándola— se leen como una sola y
+                   no hay un instante en blanco entre ellas. Solo la primera vez: en las
+                   siguientes aperturas el documento ya está cargado. */
+                if (recienCreado && window.VentelFX) {
+                    const fxMarco = VentelFX.section(m, 'hoja', {
+                        mode: 'cover', maxMs: 25000, width: 280,
+                        title: 'Abriendo el documento…',
+                        sub: 'Google Sheets está montando la hoja de este folio.'
+                    });
+                    recienCreado.addEventListener('load', function () { fxMarco.done(); });
+                    recienCreado.addEventListener('error', function () {
+                        fxMarco.fail('No pudimos mostrar el documento aquí. Ciérralo y vuelve a abrirlo.');
+                    });
+                }
+                sincronizar(true);
+            }
+
+            function cerrarMarco() {
+                const m = marco();
+                if (!m || m.hidden) return;
+                amplio(false);
+                m.hidden = true;
+                sincronizar(false);
+            }
+
+            /** Deja botones y subtítulo de acuerdo con si el marco está abierto. */
+            function sincronizar(abierto) {
+                const b = boton();
+                if (b) {
+                    b.setAttribute('aria-expanded', abierto ? 'true' : 'false');
+                    b.textContent = abierto ? 'Ocultar documento' : 'Ver documento';
+                }
+                if (btnAmp()) btnAmp().hidden = !abierto;
+                if (sub()) {
+                    sub().textContent = abierto
+                        ? 'Solo lectura. Para enviarlo al cliente usa "Enviar por Correo".'
+                        : 'Este es el formato CCL tal como lo recibirá el cliente.';
+                }
+            }
+
+            /**
+             * Ampliar / reducir. Es una CLASE sobre el mismo panel, no un modal aparte:
+             * el iframe no se vuelve a montar, así que ampliar no recarga la hoja ni
+             * pierde por dónde iba el asesor leyendo.
+             */
+            function amplio(activar) {
+                const p = panel();
+                if (!p) return;
+                if (p.classList.contains('doc-ccl-amplio') === !!activar) return;
+                p.classList.toggle('doc-ccl-amplio', !!activar);
+                const b = btnAmp();
+                if (b) {
+                    b.setAttribute('aria-pressed', activar ? 'true' : 'false');
+                    b.textContent = activar ? 'Reducir' : 'Ampliar';
+                }
+                if (conGsap()) {
+                    gsap.fromTo(p, { opacity: .55 },
+                        { opacity: 1, duration: .3, ease: 'power2.out', clearProps: 'opacity' });
+                }
+            }
+
             function cablear() {
                 if (montado) return;
                 montado = true;
+
                 const b = boton();
-                if (!b) return;
-
-                b.addEventListener('click', function () {
+                if (b) b.addEventListener('click', function () {
                     const m = marco();
-                    if (!m) return;
-                    const abrir = m.hidden;
+                    if (m && m.hidden) abrirMarco(); else cerrarMarco();
+                });
 
-                    if (abrir) {
-                        // El iframe se crea la PRIMERA vez que se abre y se conserva
-                        // después: recrearlo en cada apertura volvería a descargar la
-                        // interfaz de Sheets y a perder la posición de lectura.
-                        let recienCreado = null;
-                        if (!m.firstElementChild) {
-                            const f = document.createElement('iframe');
-                            f.src = urlDoc;
-                            f.title = 'Documento CCL de la cotización';
-                            f.loading = 'lazy';
-                            // Sin permisos de descarga ni de portapapeles: este panel es
-                            // para MIRAR el documento. Lo que hay que llevarse de esta
-                            // pantalla es el PDF, que se genera aparte y con su formato.
-                            f.setAttribute('referrerpolicy', 'no-referrer');
-                            m.appendChild(f);
-                            recienCreado = f;
-                        }
-                        m.hidden = false;
-                        if (conGsap()) {
-                            gsap.from(m, { opacity: 0, duration: .3, ease: 'power2.out' });
-                        }
-                        // Sheets tarda entre 3 y 10 s en pintarse, y hasta que lo hace el
-                        // marco es un rectángulo blanco de 22 rem. La escena lo tapa hasta
-                        // el `load` de verdad del iframe, y solo la primera vez: en las
-                        // siguientes aperturas el documento ya está cargado.
-                        if (recienCreado && window.VentelFX) {
-                            const fxMarco = VentelFX.section(m, 'documento', {
-                                mode: 'cover', maxMs: 25000,
-                                title: 'Abriendo el documento…',
-                                sub: 'Google Sheets está montando la hoja'
-                            });
-                            recienCreado.addEventListener('load', function () { fxMarco.done(); });
-                            recienCreado.addEventListener('error', function () {
-                                fxMarco.fail('No pudimos mostrar el documento aquí. Ciérralo y vuelve a abrirlo.');
-                            });
-                        }
-                    } else {
-                        m.hidden = true;
-                    }
+                const a = btnAmp();
+                if (a) a.addEventListener('click', function () {
+                    const p = panel();
+                    amplio(!(p && p.classList.contains('doc-ccl-amplio')));
+                });
 
-                    b.setAttribute('aria-expanded', abrir ? 'true' : 'false');
-                    b.textContent = abrir ? 'Ocultar documento' : 'Ver documento';
-                    if (sub()) {
-                        sub().textContent = abrir
-                            ? 'Solo lectura. Para enviarlo al cliente usa "Enviar por Correo".'
-                            : 'Este es el formato CCL tal como lo recibirá el cliente.';
-                    }
+                // Salir de la vista ampliada sin tener que buscar el botón. La vista
+                // ampliada tapa la pantalla entera, y Escape es por donde todo el mundo
+                // lo intenta primero.
+                document.addEventListener('keydown', function (e) {
+                    if (e.key === 'Escape') amplio(false);
                 });
             }
 
