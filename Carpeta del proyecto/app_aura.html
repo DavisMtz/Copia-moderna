@@ -7,7 +7,7 @@
      gritar: un filo de color que respira, un destello que lo recorre de vez en
      cuando y, al pasar el ratón, un barrido de luz.
 
-     Tres capas, y cada una hace una sola cosa:
+     Cuatro capas, y cada una hace una sola cosa:
 
        halo    · el suelo del contorno. Va bajísimo a propósito (.05 en reposo,
                  .16 con el cursor dentro): es lo que evita que el filo se corte
@@ -16,6 +16,11 @@
        onda    · un degradado cónico girando despacio. Es la que da la
                  variación —tramos claros y tramos apagados recorriendo el
                  contorno— y la que sube al enfocar.
+       energía · dientes finos girando al revés y parpadeando con tiempos
+                 irregulares. Cruzándose con la onda produce un batido que se
+                 lee como corriente. Va en el límite de lo perceptible (nivel 3
+                 de 10); no está para verse, está para que el filo no parezca
+                 pintado. Al enfocar no sube de brillo: acelera.
        cometa  · el punzante. Un arco corto y brillante que da una vuelta rápida
                  y desaparece varios segundos. Al enfocar deja de esperar y
                  orbita seguido, porque entonces sí hay algo ocurriendo.
@@ -41,7 +46,11 @@
        · auto(root)         -> monta todo [data-vx-aura] que encuentre
        · destroy(host)      -> mata las líneas de tiempo y quita el DOM
 
-     opts = { intensidad:'normal'|'sutil', destello:true, radio:null }
+     opts = { intensidad:'normal'|'sutil', energia:3, destello:true, radio:null }
+
+     `energia` va de 0 a 10 y sale de `data-vx-energia`. Es el chisporroteo del
+     filo: 0 lo apaga, 3 —el valor por omisión— lo deja en el límite de lo que
+     se percibe sin llegar a mirarlo, que es donde tiene que estar.
 
      No necesita ningún plugin: núcleo de GSAP y ya. Si no está, se queda quieto.
      ════════════════════════════════════════════════════════════════════════ -->
@@ -81,11 +90,12 @@
   }
   .vx-aura-sutil .vx-aura-halo{opacity:.035}
 
-  /* Las dos capas que giran. Centradas con `translate` —propiedad aparte— para
+  /* Las capas que giran. Centradas con `translate` —propiedad aparte— para
      que GSAP se quede con `transform` entero y no haya que reescribir el
      centrado en cada fotograma. Cuadradas y más anchas que el campo: así
      cubren las esquinas en cualquier ángulo. */
   .vx-aura-onda,
+  .vx-aura-energia,
   .vx-aura-cometa{
     position:absolute;left:50%;top:50%;
     width:170%;min-width:260px;aspect-ratio:1;
@@ -108,6 +118,42 @@
       color-mix(in srgb,var(--brand,#E10098) 70%,transparent) 246deg,
       var(--brand-bright,#EE2BAB) 268deg,
       transparent 330deg,
+      transparent 360deg);
+  }
+
+  /* Energía: nueve dientes estrechos y desiguales girando AL REVÉS que la onda.
+     Es la capa que da la sensación de corriente, y no lo hace por sí sola: lo
+     hace al cruzarse con la onda. Dos cónicos de distinto paso girando en
+     sentidos opuestos se refuerzan y se cancelan a lo largo del filo, y ese
+     batido —que nunca cae dos veces en el mismo sitio, porque 26 s y 9.5 s no
+     encajan— es lo que se lee como carga y no como "algo dando vueltas".
+
+     Los dientes van desiguales (7°, 5°, 9°, 4°…) a propósito: repartidos a
+     intervalos iguales el ojo los cuenta y el efecto se convierte en una rueda
+     dentada girando. La irregularidad es lo que lo mantiene en "chisporroteo".
+
+     Va bajísima —el nivel 3 por defecto la deja en .11 de opacidad— porque a
+     partir de ahí deja de ser una textura y empieza a ser un adorno. */
+  .vx-aura-energia{
+    background:conic-gradient(from 0deg,
+      transparent 0deg,
+      var(--brand-bright,#EE2BAB) 7deg,   transparent 14deg,
+      transparent 38deg,
+      #fff 43deg,                          transparent 48deg,
+      transparent 74deg,
+      var(--brand-bright,#EE2BAB) 83deg,  transparent 92deg,
+      transparent 121deg,
+      var(--brand,#E10098) 125deg,        transparent 130deg,
+      transparent 168deg,
+      #fff 175deg,                         transparent 181deg,
+      transparent 204deg,
+      var(--brand-bright,#EE2BAB) 212deg, transparent 219deg,
+      transparent 253deg,
+      var(--brand,#E10098) 261deg,        transparent 265deg,
+      transparent 296deg,
+      #fff 304deg,                         transparent 311deg,
+      transparent 335deg,
+      var(--brand-bright,#EE2BAB) 341deg, transparent 349deg,
       transparent 360deg);
   }
 
@@ -200,7 +246,7 @@
   .vx-aura-sutil:focus-within .vx-aura-halo{opacity:.12}
 
   @media (prefers-reduced-motion: reduce){
-    .vx-aura-onda,.vx-aura-cometa,.vx-aura-brillo{display:none}
+    .vx-aura-onda,.vx-aura-energia,.vx-aura-cometa,.vx-aura-brillo{display:none}
   }
 </style>
 <script>
@@ -271,6 +317,15 @@
     var escala = sutil ? HALO_SUTIL : HALO;
     var radio  = opts.radio || radioDe(campo, host);
 
+    /* Nivel de energía, de 0 a 10. El 10 no llega ni a .4 de opacidad: pasado
+       ese punto la textura se convierte en un adorno y el filo deja de leerse
+       como un borde. El 3 por omisión sale de ahí — es la mitad justa de lo
+       poco que admite el efecto. */
+    var nivel = opts.energia;
+    if (nivel === undefined || nivel === null || isNaN(nivel)) nivel = 3;
+    nivel = Math.max(0, Math.min(10, Number(nivel)));
+    var ENE = { reposo: nivel * .036, viva: nivel * .058 };
+
     /* ── DOM ──────────────────────────────────────────────────────────
        El marco va como PRIMER hijo: así queda por debajo del icono, del
        atajo de teclado y del botón de limpiar, que son absolutos y sin
@@ -278,10 +333,12 @@
     var marco  = crearCapa('vx-aura');
     var halo   = crearCapa('vx-aura-halo');
     var onda   = crearCapa('vx-aura-onda');
+    var energia = crearCapa('vx-aura-energia');
     var cometa = crearCapa('vx-aura-cometa');
     marco.style.borderRadius = radio;
     marco.appendChild(halo);
     marco.appendChild(onda);
+    marco.appendChild(energia);
     marco.appendChild(cometa);
     host.insertBefore(marco, host.firstChild);
 
@@ -296,8 +353,8 @@
 
     var api = {
       host: host, marco: marco, halo: halo,
-      onda: onda, cometa: cometa, brillo: brillo,
-      tls: [], oyentes: []
+      onda: onda, energia: energia, cometa: cometa, brillo: brillo,
+      nivel: nivel, tls: [], oyentes: []
     };
     host._vxAura = api;
 
@@ -313,13 +370,49 @@
 
     var ctx = gsap.context(function () {
 
-      gsap.set([onda, cometa], { opacity: 0, rotation: 0 });
+      gsap.set([onda, energia, cometa], { opacity: 0, rotation: 0 });
+
+      /* Los dos estados del componente. Se declaran arriba porque la energía
+         los consulta en cada parpadeo. */
+      var dentro = false, encima = false;
+      function eneTecho() {
+        if (dentro) return ENE.viva;
+        if (encima) return (ENE.reposo + ENE.viva) / 2;
+        return ENE.reposo;
+      }
 
       /* La onda gira siempre, muy despacio y muy tenue. Es transform sobre
          un elemento pequeño: la GPU ni se entera. */
       var tlOnda = gsap.timeline()
         .to(onda, { opacity: .38, duration: 1.2, ease: 'power1.out' })
         .to(onda, { rotation: 360, duration: 26, ease: 'none', repeat: -1 }, 0);
+
+      /* La energía: gira al revés y mucho más rápido, y encima parpadea con
+         valores distintos cada vez (`random()` + `repeatRefresh`). El parpadeo
+         es lo que separa "corriente" de "aro girando": una corriente no tiene
+         un brillo constante. Los tiempos también son irregulares —cada repetición
+         dura entre .28 y .6 s— porque un parpadeo a compás se oye como un
+         latido y vuelve a leerse como mecánico.
+
+         Nada de esto se paga caro: es opacidad y rotación sobre una capa que
+         ya está compuesta en la GPU. */
+      var tlEnergia = null;
+      if (nivel > 0) {
+        tlEnergia = gsap.timeline()
+          .to(energia, { opacity: ENE.reposo, duration: 1.4, ease: 'power1.out' })
+          .to(energia, { rotation: -360, duration: 9.5, ease: 'none', repeat: -1 }, 0)
+          .to(energia, {
+            /* Valores por función, no literales: con `repeatRefresh` GSAP los
+               vuelve a evaluar en cada repetición, así que el parpadeo lee el
+               estado actual él solo. Sin esto haría falta rehacer el tween cada
+               vez que el ratón entra o sale, o tendría que pelearse con él un
+               `gsap.to` de fuera —y el que escribe cada fotograma gana—. */
+            opacity: function () { var t = eneTecho(); return gsap.utils.random(t * .45, t); },
+            duration: function () { return gsap.utils.random(.28, .6); },
+            ease: 'power1.inOut', repeat: -1, repeatRefresh: true
+          }, 1.4);
+        api.tls.push(tlEnergia);
+      }
 
       /* El cometa: una vuelta rápida y a esperar. `power2.inOut` es lo que lo
          hace "controlado" en vez de mecánico —arranca, cruza y frena—, y el
@@ -357,9 +450,8 @@
         api.tls.push(tlBrillo);
       }
 
-      var dentro = false;
-
       function entra() {
+        encima = true;
         haloA(dentro ? escala.dentro : escala.encima);
         /* El cometa se adelanta a su turno: el destello y la vuelta salen
            juntos, y esa coincidencia es la que se lee como respuesta. */
@@ -370,6 +462,7 @@
       }
 
       function sale() {
+        encima = false;
         haloA(dentro ? escala.dentro : escala.reposo);
       }
 
@@ -383,6 +476,10 @@
         gsap.to(tlCometa, { timeScale: .8, duration: .5, ease: 'power2.out' });
         tlCometa.restart(true);
         gsap.to(onda, { opacity: .62, duration: .5, ease: 'power2.out', overwrite: 'auto' });
+        /* La energía no se sube por opacidad —de eso ya se encarga su propio
+           parpadeo al leer el estado—: se acelera. Más corriente es más rápido,
+           no más brillante. */
+        if (tlEnergia) gsap.to(tlEnergia, { timeScale: 1.35, duration: .6, ease: 'power2.out' });
       }
 
       function desenfoca() {
@@ -391,6 +488,7 @@
         tlCometa.repeatDelay(6.4);
         gsap.to(tlCometa, { timeScale: 1, duration: .5, ease: 'power2.out' });
         gsap.to(onda, { opacity: .38, duration: .6, ease: 'power2.out', overwrite: 'auto' });
+        if (tlEnergia) gsap.to(tlEnergia, { timeScale: 1, duration: .7, ease: 'power2.out' });
       }
 
       /* Al escribir, un pulso muy corto en la onda. Es opacidad sobre un
@@ -407,8 +505,8 @@
       /* Fuera de la vista no hay nada que animar. Una pestaña de fondo con un
          disco girando es batería que se va sin que nadie lo vea. */
       function visibilidad() {
-        if (document.hidden) { tlOnda.pause(); tlCometa.pause(); }
-        else { tlOnda.resume(); tlCometa.resume(); }
+        var todas = [tlOnda, tlCometa]; if (tlEnergia) todas.push(tlEnergia);
+        todas.forEach(function (tl) { document.hidden ? tl.pause() : tl.resume(); });
       }
 
       function on(el, ev, fn) {
@@ -438,6 +536,7 @@
       try {
         mount(nodos[i], {
           intensidad: nodos[i].getAttribute('data-vx-aura') === 'sutil' ? 'sutil' : 'normal',
+          energia: nodos[i].getAttribute('data-vx-energia'),
           destello: nodos[i].getAttribute('data-vx-destello') !== 'no'
         });
       } catch (e) { /* un buscador sin aura sigue buscando igual */ }
