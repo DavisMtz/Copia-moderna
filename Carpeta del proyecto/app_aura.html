@@ -7,7 +7,7 @@
      gritar: un filo de color que respira, un destello que lo recorre de vez en
      cuando y, al pasar el ratón, un barrido de luz.
 
-     Cuatro capas, y cada una hace una sola cosa:
+     Cinco capas, y cada una hace una sola cosa:
 
        halo    · el suelo del contorno. Va bajísimo a propósito (.05 en reposo,
                  .16 con el cursor dentro): es lo que evita que el filo se corte
@@ -21,9 +21,25 @@
                  lee como corriente. Va en el límite de lo perceptible (nivel 3
                  de 10); no está para verse, está para que el filo no parezca
                  pintado. Al enfocar no sube de brillo: acelera.
+       luz     · un foco redondo que SIGUE AL PUNTERO por dentro del marco.
+                 Como el campo tapa el centro, sólo se enciende el tramo de
+                 filo que queda junto al cursor. Es lo que convierte el borde
+                 de adorno que gira solo en superficie que responde, y es la
+                 pieza que más cambia la sensación del componente.
        cometa  · el punzante. Un arco corto y brillante que da una vuelta rápida
                  y desaparece varios segundos. Al enfocar deja de esperar y
                  orbita seguido, porque entonces sí hay algo ocurriendo.
+
+     Y tres gestos que no son capas:
+
+       entrada · una sola vez al cargar, el cometa da una vuelta y el halo sube
+                 detrás. El contorno no aparece: se dibuja.
+       foco    · el campo se levanta 1 px, el icono crece un 12 % con
+                 asentamiento y el chip del atajo se va hacia arriba. Un
+                 componente responde entero o no responde.
+       tecleo  · la onda pulsa y la energía acelera de golpe para frenar
+                 después. La subida y bajada del ritmo es lo que se lee como
+                 "está recibiendo".
 
      Quien manda en reposo no es el color, es el suceso: el campo se ve casi
      normal hasta que el cometa pasa. Un borde rosa permanente se convierte en
@@ -171,6 +187,29 @@
       transparent 360deg);
   }
 
+  /* Luz de puntero: un foco redondo que sigue al ratón por dentro del marco.
+     Como el campo tapa el centro, lo único que se enciende es el tramo de filo
+     que queda junto al cursor — el borde deja de ser un adorno que gira solo y
+     pasa a ser una superficie que reacciona a dónde estás.
+
+     Es la pieza que más cambia la sensación del componente, y la más barata:
+     dos `quickTo` sobre x/y, transform puro. El listener de movimiento sólo
+     existe mientras el ratón está encima; fuera de ahí no hay nada escuchando.
+
+     El margen negativo centra el círculo en (x,y) sin gastar el `transform`,
+     que es de GSAP. */
+  .vx-aura-luz{
+    position:absolute;top:0;left:0;
+    width:172px;height:172px;margin:-86px 0 0 -86px;
+    border-radius:50%;
+    background:radial-gradient(circle closest-side,
+      color-mix(in srgb,#fff 55%,var(--brand-bright,#EE2BAB)) 0%,
+      var(--brand-bright,#EE2BAB) 32%,
+      color-mix(in srgb,var(--brand,#E10098) 60%,transparent) 58%,
+      transparent 78%);
+    opacity:0;will-change:transform;pointer-events:none;
+  }
+
   /* Destello: va POR ENCIMA del campo, porque barre el ancho del campo y no
      su contorno. Banda estrecha, inclinada y con el filo delantero de marca.
      `mix-blend-mode` lo funde con lo que haya debajo en vez de pintar una
@@ -246,7 +285,8 @@
   .vx-aura-sutil:focus-within .vx-aura-halo{opacity:.12}
 
   @media (prefers-reduced-motion: reduce){
-    .vx-aura-onda,.vx-aura-energia,.vx-aura-cometa,.vx-aura-brillo{display:none}
+    .vx-aura-onda,.vx-aura-energia,.vx-aura-cometa,
+    .vx-aura-luz,.vx-aura-brillo{display:none}
   }
 </style>
 <script>
@@ -334,13 +374,20 @@
     var halo   = crearCapa('vx-aura-halo');
     var onda   = crearCapa('vx-aura-onda');
     var energia = crearCapa('vx-aura-energia');
+    var luz    = crearCapa('vx-aura-luz');
     var cometa = crearCapa('vx-aura-cometa');
     marco.style.borderRadius = radio;
     marco.appendChild(halo);
     marco.appendChild(onda);
     marco.appendChild(energia);
+    marco.appendChild(luz);
     marco.appendChild(cometa);
     host.insertBefore(marco, host.firstChild);
+
+    /* Los dos acompañantes del campo. Puede no haberlos —el buscador de
+       Promociones no tiene chip de atajo— y todo el módulo lo da por hecho. */
+    var icono = host.querySelector('.s-icon, .icon-search, [data-vx-icono]');
+    var atajo = host.querySelector('.s-kbd, [data-vx-atajo]');
 
     var brillo = null, barra = null;
     if (opts.destello !== false) {
@@ -353,7 +400,7 @@
 
     var api = {
       host: host, marco: marco, halo: halo,
-      onda: onda, energia: energia, cometa: cometa, brillo: brillo,
+      onda: onda, energia: energia, luz: luz, cometa: cometa, brillo: brillo,
       nivel: nivel, tls: [], oyentes: []
     };
     host._vxAura = api;
@@ -371,6 +418,14 @@
     var ctx = gsap.context(function () {
 
       gsap.set([onda, energia, cometa], { opacity: 0, rotation: 0 });
+
+      /* El icono y el atajo van centrados con `transform:translateY(-50%)` en
+         el CSS de cada pantalla. En cuanto GSAP les anime la escala reescribe
+         `transform` entero y ese centrado se pierde —el icono se iría al borde
+         de golpe—. Traducirlo a `yPercent` antes de tocar nada se lo entrega a
+         GSAP sin cambiar dónde se ve. */
+      if (icono) gsap.set(icono, { yPercent: -50 });
+      if (atajo) gsap.set(atajo, { yPercent: -50 });
 
       /* Los dos estados del componente. Se declaran arriba porque la energía
          los consulta en cada parpadeo. */
@@ -419,13 +474,31 @@
          retraso largo es lo que lo hace notar en vez de molestar: si diera
          vueltas sin parar sería un spinner, y un spinner dice "espera", que
          es justo lo contrario de lo que este campo tiene que decir. */
-      var tlCometa = gsap.timeline({ repeat: -1, repeatDelay: 6.4, delay: 1.6 })
+      var tlCometa = gsap.timeline({ repeat: -1, repeatDelay: 6.4, delay: 2.9 })
         .set(cometa, { rotation: -90 })
         .to(cometa, { opacity: 1, duration: .16, ease: 'power1.out' })
         .to(cometa, { rotation: 270, duration: 1.15, ease: 'power2.inOut' }, 0)
         .to(cometa, { opacity: 0, duration: .34, ease: 'power1.in' }, '-=.36');
 
       api.tls.push(tlOnda, tlCometa);
+
+      /* ── La entrada ───────────────────────────────────────────────────
+         La primera vez que se ve la pantalla, el contorno no aparece: se
+         DIBUJA. El cometa da una vuelta y el halo sube detrás de él, como si
+         el filo se encendiera a su paso. Dura poco más de un segundo y no se
+         repite nunca.
+
+         Es un gesto barato y es el que fija la lectura del componente: quien
+         ve esa vuelta entiende, sin que nadie se lo diga, que el borde de este
+         campo hace cosas. Sin ella el aura es un color más de la barra. */
+      var tlEntrada = gsap.timeline({ delay: .3 })
+        .fromTo(halo, { opacity: 0 },
+                      { opacity: escala.reposo, duration: 1.1, ease: 'power2.out' }, 0)
+        .fromTo(cometa, { rotation: -110, opacity: 0 },
+                        { opacity: 1, duration: .22, ease: 'power1.out' }, 0)
+        .to(cometa, { rotation: 250, duration: 1.15, ease: 'power3.inOut' }, 0)
+        .to(cometa, { opacity: 0, duration: .3, ease: 'power1.in' }, .95);
+      api.tls.push(tlEntrada);
 
       function haloA(valor, dur) {
         gsap.to(halo, {
@@ -438,32 +511,97 @@
          entre rápido y salga frenando: eso es lo que lo hace cinematográfico
          y no una barra cruzando. Se reutiliza pausada en vez de crear un
          tween por cada vez que el ratón entra. */
-      var tlBrillo = null;
+      var tlBrillo = null, sentido = 1;   /* 1 = hacia la derecha, -1 = hacia la izquierda */
       if (barra) {
         gsap.set(barra, { xPercent: -160, rotate: 8 });
         tlBrillo = gsap.timeline({ paused: true })
           .set(brillo, { opacity: 1 })
+          /* Valores por función para que `invalidate()` los relea: así el mismo
+             tween sirve para los dos sentidos sin construir uno de cada. */
           .fromTo(barra,
-            { xPercent: -160 },
-            { xPercent: 260, duration: .78, ease: 'power3.inOut' })
+            { xPercent: function () { return sentido > 0 ? -160 : 260; } },
+            { xPercent: function () { return sentido > 0 ? 260 : -160; },
+              duration: .78, ease: 'power3.inOut' })
           .to(brillo, { opacity: 0, duration: .2, ease: 'power1.in' }, '-=.18');
         api.tls.push(tlBrillo);
       }
 
-      function entra() {
+      /* ── La luz que sigue al puntero ──────────────────────────────────
+         `quickTo` reutiliza un tween en vez de crear uno por cada `mousemove`
+         —serían sesenta por segundo— y de paso le da inercia: la luz llega un
+         pelín después que el cursor. Ese retraso de 0.5 s es lo que la hace
+         sentirse material en lugar de pegada.
+
+         El rectángulo se mide UNA vez, al entrar. Leerlo en cada movimiento
+         obligaría al navegador a recalcular la disposición sesenta veces por
+         segundo para saber algo que no ha cambiado. */
+      var luzX = gsap.quickTo(luz, 'x', { duration: .5, ease: 'power3' });
+      var luzY = gsap.quickTo(luz, 'y', { duration: .5, ease: 'power3' });
+      var caja = null;
+
+      /* Se registra una sola vez y se apaga por estado: `caja` sólo tiene valor
+         mientras el cursor está encima. Añadir y quitar el oyente en cada
+         entrada era una fuente de fugas si el componente moría con el ratón
+         dentro, y `mousemove` sobre el propio campo no se dispara cuando el
+         cursor está en otra parte de la pantalla, así que no ahorraba nada. */
+      function mueveLuz(ev) {
+        if (!caja) return;
+        luzX(ev.clientX - caja.left);
+        luzY(ev.clientY - caja.top);
+      }
+
+      function entra(ev) {
         encima = true;
         haloA(dentro ? escala.dentro : escala.encima);
+
+        /* La luz aparece YA en el punto por el que ha entrado el cursor, no
+           viajando desde donde se quedó la última vez: si no, cada entrada
+           empieza con un barrido fantasma cruzando el campo. */
+        caja = marco.getBoundingClientRect();
+        if (ev && ev.clientX !== undefined) {
+          gsap.set(luz, { x: ev.clientX - caja.left, y: ev.clientY - caja.top });
+        }
+        gsap.to(luz, { opacity: .9, duration: .45, ease: 'power2.out', overwrite: 'auto' });
+
         /* El cometa se adelanta a su turno: el destello y la vuelta salen
            juntos, y esa coincidencia es la que se lee como respuesta. */
         tlCometa.restart(true);
-        /* El barrido, sólo si el campo está vacío. Con texto escrito sería
-           luz pasando por encima de lo que la persona está leyendo. */
-        if (tlBrillo && !campo.value) tlBrillo.restart();
+
+        /* El barrido sale hacia donde va la mirada: si el cursor entró por la
+           derecha, cruza hacia la derecha. Un destello que va siempre en el
+           mismo sentido delata que es una animación enlatada; que siga al
+           gesto es lo que lo hace parecer causado por ti.
+           Sólo con el campo vacío: con texto escrito sería luz pasando por
+           encima de lo que la persona está leyendo. */
+        if (tlBrillo && !campo.value) {
+          var porLaDerecha = !!(ev && caja && (ev.clientX - caja.left) > caja.width / 2);
+          sentido = porLaDerecha ? -1 : 1;
+          gsap.set(barra, { rotate: porLaDerecha ? -8 : 8 });
+          tlBrillo.invalidate().restart();
+        }
       }
 
       function sale() {
         encima = false;
         haloA(dentro ? escala.dentro : escala.reposo);
+        caja = null;
+        /* Se apaga más despacio de lo que se enciende. Encender rápido es
+           respuesta; apagar rápido es un corte. Si el campo sigue enfocado la
+           luz no se va del todo: se queda de guardia junto al cursor de texto. */
+        if (dentro) luzAlCursor(); else
+          gsap.to(luz, { opacity: 0, duration: .7, ease: 'power2.out', overwrite: 'auto' });
+      }
+
+      /* Con el teclado no hay puntero al que seguir, y quien entra con `/` o
+         con el tabulador se merece la misma luz que quien entra con el ratón.
+         Se aparca junto al principio del texto, que es donde va a estar
+         mirando. */
+      function luzAlCursor() {
+        var r = marco.getBoundingClientRect();
+        gsap.to(luz, {
+          x: Math.min(64, r.width * .16), y: r.height / 2,
+          opacity: .55, duration: .55, ease: 'power2.out', overwrite: 'auto'
+        });
       }
 
       function enfoca() {
@@ -480,6 +618,21 @@
            parpadeo al leer el estado—: se acelera. Más corriente es más rápido,
            no más brillante. */
         if (tlEnergia) gsap.to(tlEnergia, { timeScale: 1.35, duration: .6, ease: 'power2.out' });
+
+        /* El levantamiento. Un píxel: no se ve, se nota. `expo.out` frena casi
+           del todo en el primer tercio, que es lo que hace que un movimiento
+           tan corto se sienta asentado en vez de brusco. */
+        gsap.to(host, { y: -1, duration: .55, ease: 'expo.out', overwrite: 'auto' });
+
+        /* El icono y el atajo participan: un componente responde entero o no
+           responde. El `back.out` le da al icono un asentamiento mínimo —se
+           pasa un pelo y vuelve— y el atajo se va hacia arriba en vez de
+           desvanecerse en el sitio, porque desaparecer sin moverse parece un
+           fallo de pintado. */
+        if (icono) gsap.to(icono, { scale: 1.12, duration: .5, ease: 'back.out(2.4)', overwrite: 'auto' });
+        if (atajo) gsap.to(atajo, { opacity: 0, y: -6, duration: .3, ease: 'power2.in', overwrite: 'auto' });
+
+        if (!caja) luzAlCursor();
       }
 
       function desenfoca() {
@@ -489,16 +642,34 @@
         gsap.to(tlCometa, { timeScale: 1, duration: .5, ease: 'power2.out' });
         gsap.to(onda, { opacity: .38, duration: .6, ease: 'power2.out', overwrite: 'auto' });
         if (tlEnergia) gsap.to(tlEnergia, { timeScale: 1, duration: .7, ease: 'power2.out' });
+        gsap.to(host, { y: 0, duration: .6, ease: 'expo.out', overwrite: 'auto' });
+        if (icono) gsap.to(icono, { scale: 1, duration: .45, ease: 'power2.out', overwrite: 'auto' });
+        if (atajo) gsap.to(atajo, { opacity: 1, y: 0, duration: .35, ease: 'power2.out', overwrite: 'auto' });
+        if (!caja) gsap.to(luz, { opacity: 0, duration: .7, ease: 'power2.out', overwrite: 'auto' });
       }
 
-      /* Al escribir, un pulso muy corto en la onda. Es opacidad sobre un
-         elemento que ya existe: cuesta nada y confirma que la tecla entró. */
+      /* ── Al escribir ──────────────────────────────────────────────────
+         Dos cosas a la vez y ninguna de brillo plano: la onda da un pulso corto
+         y la energía SE ACELERA de golpe para frenar después. Esa subida y
+         bajada del ritmo es lo que se lee como "está recibiendo", igual que un
+         motor al que le entra gas.
+
+         El guardián no es un antirrebote por tiempo sino por estado: mientras
+         un pulso está en marcha, las teclas siguientes no encadenan otro. Con
+         antirrebote por tiempo, escribir deprisa deja el efecto siempre a
+         medias; así cada pulso se ve entero y la siguiente tecla arranca el
+         siguiente. */
       var pulso = gsap.quickTo(onda, 'opacity', { duration: .18, ease: 'power2.out' });
       var pulsando = false;
       function teclea() {
         if (!dentro || pulsando) return;
         pulsando = true;
         pulso(.9);
+        if (tlEnergia) {
+          gsap.timeline()
+            .to(tlEnergia, { timeScale: 2.6, duration: .1, ease: 'power2.out' })
+            .to(tlEnergia, { timeScale: 1.35, duration: .85, ease: 'power2.out' });
+        }
         gsap.delayedCall(.16, function () { pulso(.62); pulsando = false; });
       }
 
@@ -515,6 +686,7 @@
       }
       on(host, 'mouseenter', entra);
       on(host, 'mouseleave', sale);
+      on(host, 'mousemove', mueveLuz);
       on(campo, 'focus', enfoca);
       on(campo, 'blur', desenfoca);
       on(campo, 'input', teclea);
