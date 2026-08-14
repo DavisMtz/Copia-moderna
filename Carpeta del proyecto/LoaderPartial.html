@@ -232,7 +232,44 @@
    *   el tope de seguridad (p. ej. 90000 para envío de correo).
    */
   var fadeTimer = null;
+  var fxAbierto = null;
+
+  /**
+   * Reparto de papeles con VentelFX (app_loaders):
+   *   · El ISOTIPO es el arranque de la pantalla. Es la marca, y aparece una vez.
+   *   · A partir de ahí, cada espera enseña la ESCENA de lo que está pasando
+   *     (camión, sobre, documento…). Repetir el isotipo en cada operación no
+   *     dice nada: el asesor ya sabe dónde está, lo que no sabe es qué se está
+   *     haciendo ni cuánto falta.
+   *
+   * Esta delegación es la que hace que las ~20 llamadas a VentelLoader.show()
+   * repartidas por el proyecto hereden escena SIN tocarlas una por una.
+   * Con {isotipo:true} se fuerza el comportamiento antiguo.
+   */
   function show(opts){
+    opts = opts || {};
+    if (window.VentelFX && opts.isotipo !== true){
+      try {
+        var ficha = VentelFX.para(opts.pagina);
+        if (fxAbierto){ try { fxAbierto.done(); } catch(e){} }
+        // El overlay de arranque, si sigue puesto, sale sin transición: dos
+        // capas superpuestas se ven como un parpadeo.
+        if (overlay.classList.contains("show")){
+          overlay.classList.remove("show","vl-hiding","vl-has-msg");
+          stopFacts();
+          if (tl) tl.pause();
+        }
+        if (hideTimer){ clearTimeout(hideTimer); hideTimer = null; }
+        if (fadeTimer){ clearTimeout(fadeTimer); fadeTimer = null; }
+        fxAbierto = VentelFX.overlay(opts.tema || ficha.tema, {
+          title: opts.title || ficha.titulo,
+          sub:   opts.sub   || ficha.sub,
+          facts: !!opts.facts,
+          maxMs: opts.maxMs || 20000
+        });
+        return;
+      } catch (e){ /* si el motor falla, seguimos con el isotipo de siempre */ }
+    }
     if (hideTimer){ clearTimeout(hideTimer); hideTimer = null; }
     if (fadeTimer){ clearTimeout(fadeTimer); fadeTimer = null; } // cancela un ocultado en curso
     setMessage(opts);
@@ -243,6 +280,9 @@
     hideTimer = setTimeout(hide, (opts && opts.maxMs) || 12000);
   }
   function hide(){
+    // hide() cierra lo que haya: escena temática y/o overlay de isotipo. Las
+    // pantallas llaman a hide() sin saber cuál de los dos está puesto.
+    if (fxAbierto){ try { fxAbierto.done(); } catch(e){} fxAbierto = null; }
     if (hideTimer){ clearTimeout(hideTimer); hideTimer = null; }
     stopFacts();
     if (!overlay.classList.contains("show")) return;

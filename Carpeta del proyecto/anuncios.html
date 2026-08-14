@@ -262,6 +262,9 @@
       .anc-item-ac button:disabled{opacity:.4;cursor:not-allowed}
       .anc-item-ac button.icon{padding:5px;width:30px}
       .anc-item-ac button.icon .ic{width:15px;height:15px}
+      /* La flecha mide 30 px: el hueco que VentelFX deja para el rótulo del botón
+         ocupado sacaría el disco de carga fuera del cuadro. */
+      .anc-item-ac button.icon .vfx-chip{gap:0}
       .anc-item-ac button.danger:hover:not(:disabled){color:var(--alert);border-color:var(--alert)}
       .anc-item-ac .sep{flex:1}
 
@@ -273,6 +276,11 @@
       .anc-sk i+i{margin-top:var(--s2)}
       .anc-sk i:nth-child(1){width:45%} .anc-sk i:nth-child(2){width:80%} .anc-sk i:nth-child(3){width:60%}
       @keyframes anc-pulse{0%,100%{opacity:1}50%{opacity:.45}}
+      /* Fila fantasma de una publicación en vuelo (VentelFX.skeleton dentro de #lista):
+         toma la caja de .anc-item para que se lea como la tarjeta que va a aparecer, y
+         el trazo discontinuo dice que todavía no existe. */
+      #lista>.vfx-sk{border:1px dashed var(--line);border-radius:var(--rad-sm);
+        padding:var(--s3);margin-bottom:var(--s2)}
       .anc-empty{text-align:center;padding:var(--s5) var(--s3);color:var(--ink-faint)}
       .anc-empty .ic{width:28px;height:28px;margin:0 auto var(--s2);display:block;opacity:.5}
       .anc-empty-t{font-size:var(--fs-md);font-weight:600;color:var(--ink-soft);margin-bottom:var(--s1)}
@@ -284,6 +292,14 @@
       @media (prefers-reduced-motion: reduce){
         .anc-wrap *,.anc-wrap *::before,.anc-wrap *::after{
           animation-duration:.01ms!important;transition-duration:.01ms!important}
+        /* Excepción: el disco de VentelFX (flecha de reordenar, subida de imagen)
+           vive dentro de .anc-wrap, y la regla de arriba le deja UNA VUELTA CADA
+           .01 ms. Eso no es «menos movimiento»: a 60 fps el disco cae en un ángulo
+           distinto y aleatorio en cada fotograma, que es exactamente el parpadeo
+           que esta media query existe para evitar. VentelFX ya pide 2.4 s en
+           reduced-motion (giro lento y legible); aquí solo se le devuelve, con la
+           especificidad suficiente para ganarle al comodín. */
+        .anc-wrap [data-chipspin]{animation-duration:2.4s!important}
       }
     </style>
 <!-- Utilidades Tailwind compiladas: va al final del head, igual que la hoja que el CDN inyectaba. -->
@@ -499,6 +515,8 @@
     <?!= include('app_buscar'); ?>
     <?!= include('app_icons'); ?>
     <?!= include('app_motion'); ?>
+    <?!= include('app_loaders'); ?>
+    <script>if (window.VentelFX) VentelFX.pagina("anuncios");</script>
     <?!= include('app_shell'); ?>
     <?!= include('app_comando'); ?>
     <?!= include('app_precarga'); ?>
@@ -836,6 +854,38 @@
           asesor: ADV_EMAIL
         };
         /**
+         * Fila fantasma al inicio de la lista mientras sube. Como el formulario se
+         * vacía en el acto, sin ella el anuncio recién mandado no está en NINGUNA
+         * parte de la pantalla. Solo al crear: editando, su fila ya está en la lista.
+         */
+        var caja = $('lista');
+        var fantasma = (editando || !window.VentelFX) ? null
+          : VentelFX.skeleton(caja, 'lista', { rows: 1 });
+        var vacio = null, topeFantasma = null;
+        if (fantasma && fantasma.el){
+          caja.insertBefore(fantasma.el, caja.firstChild);   // skeleton() pega al final
+          // «Aún no hay publicaciones» encima de una fila que está subiendo se
+          // contradice a sí mismo; el cartel vuelve si el servidor rechaza.
+          vacio = caja.querySelector('.anc-empty');
+          if (vacio) vacio.classList.add('anc-hidden');
+        }
+        var cerrarFantasma = function(){
+          if (topeFantasma){ clearTimeout(topeFantasma); topeFantasma = null; }
+          if (!fantasma) return;
+          var h = fantasma; fantasma = null;
+          h.done(function(){ if (vacio) vacio.classList.remove('anc-hidden'); });
+        };
+        // Tope de seguridad. VentelFX.skeleton es el ÚNICO manejador de la familia
+        // sin uno propio (las escenas de mount() traen maxMs, y image() también), y
+        // aquí la fila fantasma cuelga por completo de que la promesa de AppGuardado
+        // llegue a resolverse o rechazarse. google.script.run no tiene tiempo límite:
+        // si no llama a ninguno de sus dos manejadores, la promesa no sale nunca de
+        // «pendiente» y la fila se queda brillando, jurando que algo sube cuando ya
+        // no sube nada. Mismo tope que usan las escenas; done() es idempotente, así
+        // que llegar tarde a un fantasma ya cerrado no hace nada.
+        if (fantasma) topeFantasma = setTimeout(cerrarFantasma, 45000);
+
+        /**
          * El formulario se vacía en cuanto se pulsa y la publicación sube por detrás.
          *
          * Vaciarlo es seguro porque el payload es exactamente la forma que sabe leer
@@ -857,7 +907,9 @@
           optimista: function(){ resetForm(); },
           revertir: function(){ cargarEnForm(payload); state.dirty = true; },
           alLograr: function(res){ cargarLista(res.id, true); }
-        });
+        // La promesa de AppGuardado resuelve al confirmar y rechaza al fallar: es el
+        // único sitio por el que salen las dos ramas, reintentos incluidos.
+        }).then(cerrarFantasma, cerrarFantasma);
       }
 
       /* ── Formulario ───────────────────────────────────────────────────────── */
@@ -1116,12 +1168,21 @@
       }
 
       /** Reordenar con animación: se mide antes, se repinta y se anima el salto (FLIP). */
-      function mover(id, dir){
+      function mover(id, dir, flecha){
         var box = $('lista');
         var previos = {};
         Array.prototype.forEach.call(box.querySelectorAll('.anc-item'), function(el){
           previos[el.dataset.id] = el.getBoundingClientRect().top;
         });
+        /**
+         * La flecha pulsada se queda ocupada hasta que la fila SALTA de sitio, no
+         * hasta que contesta moverAnuncio: entre las dos llamadas encadenadas —mover
+         * y la relectura— la lista sigue exactamente igual, y el guardado es
+         * silencioso, así que sin esto no hay nada en pantalla que diga que algo pasó.
+         * El botón mide 30 px, de ahí el rótulo vacío (ver .anc-item-ac button.icon).
+         */
+        var fxFlecha = window.VentelFX ? VentelFX.button(flecha, ' ') : null;
+        var soltarFlecha = function(){ if (fxFlecha) fxFlecha.done(); };
         // Una sola cola para el orden de la lista: los movimientos se escriben en el
         // mismo orden en que se pulsaron. En paralelo, dos clics rápidos sobre la
         // misma tarjeta se pisan y el orden guardado no es el que quedó en pantalla.
@@ -1137,6 +1198,7 @@
             // repintar sin el esqueleto de por medio: mide, repinta y anima el salto.
             AppRun.call('getAnunciosAdmin', [ADV_EMAIL], { key: 'anc-flip:' + Date.now(), busy: false })
               .then(function(res){
+                soltarFlecha();
                 // El orden acaba de cambiar: la copia local se queda con el nuevo, o la
                 // próxima visita pintaría la lista tal como estaba antes de moverla.
                 ancGuardarLista(res);
@@ -1150,9 +1212,9 @@
                   gsap.fromTo(el, { y: delta },
                     { y: 0, duration:.42, ease:'power3.out', clearProps:'transform' });
                 });
-              }, function(){ cargarLista(null, true); });
+              }, function(){ soltarFlecha(); cargarLista(null, true); });
           },
-          revertir: function(){ cargarLista(null, true); }
+          revertir: function(){ soltarFlecha(); cargarLista(null, true); }
         });
       }
 
@@ -1244,7 +1306,10 @@
         $('imgThumb').onload = function(){ URL.revokeObjectURL(objUrl); this.onload = null; };
         $('imgThumb').src = objUrl;
         $('imgTitle').textContent = file.name;
-        $('imgHint').innerHTML = '<span class="v-spinner"></span> Subiendo a Drive…';
+        // Mismo disco que marca cualquier otra espera del portal: éste era el único
+        // .v-spinner de la pantalla. Los textContent de abajo lo retiran al terminar.
+        $('imgHint').innerHTML = '<span class="vfx vfx-chip">'
+          + (window.VentelFX ? VentelFX.chip() : '') + '<span>Subiendo a Drive…</span></span>';
         $('btnPublicar').disabled = true;
 
         leerImagen(file, function(dataUrl){
@@ -1356,7 +1421,7 @@
           } else if (act === 'dup'){
             pedirDescartar(function(){ duplicar(id); });
           } else if (act === 'up' || act === 'down'){
-            mover(id, act);
+            mover(id, act, b);
           } else if (act === 'toggle'){
             // El interruptor cambia en la misma pulsación. Encender y apagar anuncios
             // es lo que más se toca en esta pantalla y lo que menos merece una espera:

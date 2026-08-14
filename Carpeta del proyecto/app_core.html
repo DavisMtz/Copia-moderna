@@ -596,7 +596,12 @@
       const variante = opts.variante || 'nav';
       estado = { url: url, page: page, variante: variante };
 
-      // El loader tapa la pantalla: si el aviso aparece, la espera terminó.
+      // El loader tapa la pantalla: si el aviso aparece, la espera terminó. Hay que
+      // bajar LOS DOS: AppUrl.go abre la escena de VentelFX cuando el motor está en
+      // la pantalla, y sin esta línea el camión seguía viajando sobre «Abriendo
+      // Promociones…» mientras el aviso, justo debajo, decía que la navegación no
+      // salió — y no se apagaba hasta el tope de seguridad, veinte segundos después.
+      try { if (window.VentelFX) VentelFX.hideOverlay(); } catch (e) {}
       try { if (window.VentelLoader) VentelLoader.hide(); } catch (e) {}
 
       const yaEstaba = !!anclaje;
@@ -859,9 +864,20 @@
         return true;
       }
 
-      // Continuidad visual: el loader de marca cubre la transición entre vistas
-      // (solo si la pantalla incluye LoaderPartial; si no, navegación normal).
-      try { if (window.VentelLoader) VentelLoader.show(); } catch (e) {}
+      // Continuidad visual: la transición entre vistas se cubre con la escena
+      // del DESTINO, no con una genérica. En Apps Script cambiar de pantalla
+      // recarga la webapp entera (2-5 s), así que ésta es la espera más
+      // frecuente del portal: que la animación diga a dónde vas —etiquetas si
+      // vas a Promociones, bolsa si vas a Atenciones— convierte esos segundos
+      // en confirmación de que el clic se registró.
+      try {
+        if (window.VentelFX) {
+          const ficha = VentelFX.para(page);
+          VentelFX.overlay(ficha.tema, { title: ficha.titulo, sub: ficha.sub, maxMs: 20000 });
+        } else if (window.VentelLoader) {
+          VentelLoader.show();
+        }
+      } catch (e) {}
       let fallo = null;
       try { window.top.location.href = url; } catch (e) { fallo = e; }
 
@@ -1613,13 +1629,47 @@
   const AppRun = (function () {
     const enVuelo = {};
 
+    /**
+     * Indicador DENTRO de la sección que está esperando (VentelFX, app_loaders).
+     * El disco de la esquina (AppBusy) dice «algo está pasando»; esto dice QUÉ y
+     * DÓNDE, y sobre todo dibuja la forma de lo que va a llegar, que es lo que
+     * evita el salto de maquetación cuando aterrizan los datos.
+     *
+     *   opts.fx = { target:'#tabla', kind:'tabla', rows:8 }   → esqueleto
+     *   opts.fx = { target:'#panel', tema:'radar' }           → escena temática
+     *
+     * Devuelve un manejador inerte si el motor no está incluido en la pantalla:
+     * ninguna llamada se rompe por no tener animación.
+     */
+    function abrirFx(fx) {
+      if (!fx || !fx.target || !window.VentelFX) return null;
+      try {
+        return fx.kind
+          ? VentelFX.skeleton(fx.target, fx.kind, fx)
+          : VentelFX.section(fx.target, fx.tema || VentelFX.temaActual(), fx);
+      } catch (e) { return null; }
+    }
+
+    /** Copia de opts sin `fx`, para que swr no lo monte dos veces al delegar en call. */
+    function sinFx(opts) {
+      const o = {};
+      Object.keys(opts).forEach(function (k) { if (k !== 'fx') o[k] = opts[k]; });
+      return o;
+    }
+
     function call(fnName, args, opts) {
       args = args || [];
       opts = opts || {};
+      const fx = abrirFx(opts.fx);
       const clave = opts.key || (fnName + ':' + JSON.stringify(args));
       // Una llamada fusionada con otra en vuelo no enciende un segundo indicador:
-      // ya hay uno encendido por la primera y es la misma espera.
-      if (enVuelo[clave]) return enVuelo[clave];
+      // ya hay uno encendido por la primera y es la misma espera. El indicador de
+      // sección sí se cierra al resolver la promesa compartida: quien se fusionó
+      // suele estar mirando OTRA sección, y ésa también tiene que despejarse.
+      if (enVuelo[clave]) {
+        if (fx) enVuelo[clave].then(function () { fx.done(); }, function () { fx.done(); });
+        return enVuelo[clave];
+      }
 
       const token = opts.busy === false ? 0 : AppBusy.start(typeof opts.busy === 'string' ? opts.busy : '');
 
@@ -1637,7 +1687,7 @@
         }
         runner[fnName].apply(runner, args);
       });
-      const limpiar = function () { delete enVuelo[clave]; AppBusy.done(token); };
+      const limpiar = function () { delete enVuelo[clave]; AppBusy.done(token); if (fx) fx.done(); };
       p.then(limpiar, limpiar);
       enVuelo[clave] = p;
       return p;
@@ -1668,8 +1718,13 @@
         try { opts.onData(cached.data, true, cached.at); pintado = true; } catch (e) { console.error(e); }
       }
 
+      // El indicador de sección solo tiene sentido cuando NO hay nada pintado.
+      // Con caché ya en pantalla, taparla con un esqueleto sería un paso atrás:
+      // el usuario pasaría de ver sus datos a ver cajas grises.
+      const optsCall = opts.fx ? sinFx(opts) : opts;
+
       const revalidar = function () {
-        return call(fnName, args, opts).then(function (respuesta) {
+        return call(fnName, args, optsCall).then(function (respuesta) {
           const guardar = opts.accept ? opts.accept(respuesta) : true;
           if (guardar) store.set(cacheName, respuesta, { ttl: opts.ttl });
           if (opts.onData) {
@@ -1683,8 +1738,16 @@
         });
       };
 
-      // Sin caché no hay nada que enseñar: se pide ya, cada ms cuenta.
-      if (!pintado) return revalidar();
+      // Sin caché no hay nada que enseñar: se pide ya, cada ms cuenta, y es aquí
+      // —y solo aquí— donde el esqueleto/escena de `opts.fx` gana su sitio.
+      if (!pintado) {
+        const fx = abrirFx(opts.fx);
+        if (!fx) return revalidar();
+        return revalidar().then(
+          function (r) { fx.done(); return r; },
+          function (e) { fx.fail(e && e.message ? e.message : String(e)); throw e; }
+        );
+      }
 
       // Con caché ya pintada, la revalidación espera al siguiente fotograma. Montar
       // la llamada de google.script.run no es gratis (crea su iframe y serializa los

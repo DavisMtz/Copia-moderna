@@ -1,0 +1,1360 @@
+<!-- ════════════════════════════════════════════════════════════════════════════
+     ESCENAS DE ESPERA · VentelFX
+     ────────────────────────────────────────────────────────────────────────
+     Una espera sin nada en pantalla se siente el doble de larga. Este archivo
+     da una escena ANIMADA DISTINTA para cada tipo de espera del portal, de modo
+     que la animación diga qué está pasando: si viene un camión, se están
+     trayendo datos; si se está escribiendo una hoja, se está generando el PDF.
+
+     No sustituye a LoaderPartial (el isotipo Liverpool): aquel es el arranque
+     de la página, éste es el trabajo intermedio.
+
+       VentelFX.overlay('camion', {title, sub})   → tapa la pantalla
+       VentelFX.section('#tabla', 'percha', {…})  → tapa una sección
+       VentelFX.skeleton('#tabla', 'tabla')       → esqueleto con brillo
+       VentelFX.button(btn, 'Enviando…')          → botón ocupado
+
+     Todas devuelven un MANEJADOR con .done() / .fail(msg) / .text(msg).
+     Llamar .done() es obligatorio: cada escena trae un tope de seguridad
+     (maxMs) para no dejar la pantalla tapada si el backend nunca contesta.
+
+     TEMAS (uno por familia de espera, ver tabla al final del archivo):
+       camion · caja · percha · sobre · escaner · documento · radar ·
+       etiqueta · bolsa
+
+     DEGRADACIÓN: si GSAP no cargó (CDN caído) o el usuario pide menos
+     movimiento, las escenas se dibujan igual pero quietas, con un pulso CSS
+     mínimo. Nunca se queda una pantalla en blanco por culpa de la animación.
+     ════════════════════════════════════════════════════════════════════════ -->
+<style>
+/* ── Variables de escena: se alimentan de los tokens del tema, con respaldo ── */
+.vfx{
+  --vfx-brand: var(--brand,#E10098);
+  --vfx-deep: var(--brand-deep,#A8006F);
+  --vfx-soft: var(--brand-soft,#FBD0E9);
+  --vfx-tint: var(--brand-tint,#FDE7F4);
+  --vfx-ink: var(--ink,#1B2330);
+  --vfx-soft-ink: var(--ink-soft,#5C6B7E);
+  --vfx-faint: var(--ink-faint,#94A1B2);
+  --vfx-line: var(--line,#E4E9F0);
+  --vfx-surface: var(--surface,#FFFFFF);
+  --vfx-surface2: var(--surface-2,#F4F7FA);
+  --vfx-orange:#EE7D00;
+  --vfx-purple:#AC4581;
+  font-family: var(--f-ui, var(--f-body, system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif));
+}
+
+/* ── Contenedor pantalla completa ───────────────────────────────────────── */
+.vfx-overlay{
+  position:fixed; inset:0; z-index:4200;
+  display:flex; align-items:center; justify-content:center;
+  background:radial-gradient(120% 90% at 50% 34%,
+    var(--vfx-surface) 0%, var(--vfx-surface2) 72%, var(--vfx-surface) 100%);
+  opacity:0;
+}
+/* ── Contenedor de sección: tapa el bloque que está cargando ────────────── */
+.vfx-cover{
+  position:absolute; inset:0; z-index:40;
+  display:flex; align-items:center; justify-content:center;
+  background:color-mix(in srgb, var(--vfx-surface) 78%, transparent);
+  -webkit-backdrop-filter:blur(3px); backdrop-filter:blur(3px);
+  border-radius:inherit; opacity:0;
+}
+/* Respaldo para navegadores sin color-mix */
+@supports not (background: color-mix(in srgb, red 50%, transparent)){
+  .vfx-cover{ background:rgba(255,255,255,.86) }
+}
+.vfx-fill{ display:flex; align-items:center; justify-content:center;
+  min-height:var(--vfx-min,260px); width:100%; opacity:0 }
+.vfx-host{ position:relative }
+
+/* ── Tarjeta interna (escena + textos) ──────────────────────────────────── */
+.vfx-card{
+  display:flex; flex-direction:column; align-items:center; text-align:center;
+  gap:.15rem; padding:1rem 1.25rem; max-width:min(90vw,26rem);
+}
+.vfx-stage{ width:var(--vfx-w,224px); max-width:78vw; line-height:0 }
+.vfx-stage svg{ width:100%; height:auto; overflow:visible; display:block }
+.vfx-title{
+  margin:.55rem 0 0; font-size:1rem; font-weight:650; letter-spacing:-.01em;
+  color:var(--vfx-ink);
+}
+.vfx-sub{
+  margin:.3rem 0 0; font-size:.83rem; line-height:1.5; color:var(--vfx-soft-ink);
+  min-height:1.25em;
+}
+.vfx-sub b{ color:var(--vfx-brand); font-weight:600 }
+
+/* ── Barra indeterminada: avanza rápido y desacelera; nunca miente con 100% ── */
+.vfx-bar{
+  margin-top:.85rem; width:min(220px,60vw); height:4px; border-radius:99px;
+  background:var(--vfx-line); overflow:hidden;
+}
+.vfx-bar > i{
+  display:block; height:100%; width:0%; border-radius:99px;
+  background:linear-gradient(90deg,var(--vfx-purple),var(--vfx-brand) 55%,var(--vfx-orange));
+}
+.vfx-compact .vfx-title{ font-size:.9rem }
+.vfx-compact .vfx-sub{ font-size:.78rem }
+
+/* ── Dato curioso (solo esperas largas) ─────────────────────────────────── */
+.vfx-fact{
+  margin-top:1rem; padding:.85rem 1.1rem; border-radius:14px; max-width:32rem;
+  background:var(--vfx-surface); border:1px solid var(--vfx-line);
+  box-shadow:var(--sh-md,0 10px 30px -18px rgba(27,35,48,.3));
+  font-size:.82rem; line-height:1.55; color:var(--vfx-ink); text-align:left;
+}
+.vfx-fact b{ color:var(--vfx-brand); font-weight:600 }
+.vfx-fact-tag{
+  display:block; font-size:.64rem; font-weight:700; letter-spacing:.14em;
+  text-transform:uppercase; color:var(--vfx-brand); margin-bottom:.3rem;
+}
+
+/* ── Estado de error dentro de la escena ────────────────────────────────── */
+.vfx-err .vfx-title{ color:var(--alert,#C81E3C) }
+.vfx-err .vfx-bar > i{ background:var(--alert,#C81E3C) }
+.vfx-err .vfx-stage{ opacity:.42; filter:grayscale(.75) }
+.vfx-retry{
+  margin-top:.9rem; font:inherit; font-size:.82rem; font-weight:600; cursor:pointer;
+  padding:.5rem 1.1rem; border-radius:99px; color:var(--vfx-surface);
+  background:var(--vfx-brand); border:0; box-shadow:var(--sh-sm,0 2px 8px -2px rgba(27,35,48,.18));
+}
+.vfx-retry:hover{ background:var(--vfx-deep) }
+.vfx-retry:focus-visible{ outline:none; box-shadow:var(--ring,0 0 0 4px rgba(225,0,152,.24)) }
+.vfx-retry[disabled]{ opacity:.6; cursor:default }
+
+
+/* ── Chip en línea (botones, celdas, títulos) ───────────────────────────── */
+.vfx-chip{ display:inline-flex; align-items:center; gap:.45rem; vertical-align:middle }
+.vfx-chip svg{ width:1.05em; height:1.05em; overflow:visible }
+.vfx-btn-busy{ position:relative; pointer-events:none; opacity:.82 }
+/* El chip gira SOLO, con CSS. chip() devuelve marcado que se pega en cualquier
+   sitio —una celda, un <option>, un título— y quien lo pega no tiene por qué
+   acordarse de animarlo: un disco de carga quieto se lee como «se colgó». */
+/* transform-box explícito: el valor por omisión para SVG cambió entre versiones
+   de la especificación, y con `border-box` el disco giraría descentrado. */
+[data-chipspin]{ transform-box:view-box; transform-origin:50% 50%;
+  animation:vfx-spin .9s linear infinite }
+@keyframes vfx-spin{ to{ transform:rotate(360deg) } }
+@media (prefers-reduced-motion:reduce){ [data-chipspin]{ animation-duration:2.4s } }
+
+/* ── Hueco de imagen: capa aparte, sin tocar el contenedor del sitio ────── */
+.vfx-imgwrap{ position:relative }
+.vfx-imgfx{
+  position:absolute; inset:0; z-index:1; pointer-events:none; overflow:hidden;
+  border-radius:inherit; background:var(--vfx-line,#E4E9F0);
+}
+.vfx-imgfx::after{
+  content:''; position:absolute; inset:0; transform:translateX(-100%);
+  background:linear-gradient(90deg,transparent,rgba(255,255,255,.72),transparent);
+  animation:vfx-shimmer 1.35s ease-in-out infinite;
+}
+@media (prefers-reduced-motion:reduce){ .vfx-imgfx::after{ animation:none } }
+
+/* ── Esqueletos con brillo ──────────────────────────────────────────────── */
+.vfx-sk{ display:flex; flex-direction:column; gap:.7rem; width:100% }
+.vfx-sk-row{ display:flex; align-items:center; gap:.75rem }
+/* display:block es obligatorio: las barras son <span> y, fuera de una fila flex
+   (el esqueleto de formulario no la usa), un elemento en línea ignora width y
+   height y el esqueleto salía completamente vacío. */
+.vfx-sk-b{
+  display:block; position:relative; overflow:hidden; border-radius:8px; flex:none;
+  background:var(--vfx-line); height:.85rem;
+}
+.vfx-sk-b::after{
+  content:''; position:absolute; inset:0; transform:translateX(-100%);
+  background:linear-gradient(90deg,transparent,
+    color-mix(in srgb, var(--vfx-surface) 85%, transparent),transparent);
+  animation:vfx-shimmer 1.35s ease-in-out infinite;
+}
+@supports not (background: color-mix(in srgb, red 50%, transparent)){
+  .vfx-sk-b::after{ background:linear-gradient(90deg,transparent,rgba(255,255,255,.75),transparent) }
+}
+@keyframes vfx-shimmer{ to{ transform:translateX(100%) } }
+.vfx-sk-card{
+  border:1px solid var(--vfx-line); border-radius:var(--rad-lg,14px);
+  padding:1rem; display:flex; flex-direction:column; gap:.7rem;
+  background:var(--vfx-surface);
+}
+.vfx-sk-grid{ display:grid; gap:1rem; grid-template-columns:repeat(auto-fill,minmax(220px,1fr)) }
+
+/* ── Sin GSAP o con «menos movimiento»: la escena se queda quieta y respira ── */
+.vfx-static .vfx-stage{ animation:vfx-breathe 2.4s ease-in-out infinite }
+.vfx-static .vfx-bar > i{ width:38%; animation:vfx-slide 1.6s ease-in-out infinite }
+@keyframes vfx-breathe{ 0%,100%{opacity:.72} 50%{opacity:1} }
+@keyframes vfx-slide{ 0%{transform:translateX(-100%)} 100%{transform:translateX(310%)} }
+@media (prefers-reduced-motion:reduce){
+  .vfx-static .vfx-stage{ animation:none; opacity:.9 }
+  .vfx-sk-b::after{ animation:none }
+}
+</style>
+
+<script>
+(function () {
+  "use strict";
+  if (window.VentelFX) return;
+
+  var D = document;
+  var reduced = !!(window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches);
+  function G() { return (typeof window.gsap !== 'undefined') ? window.gsap : null; }
+  function animOK() { return !!G() && !reduced; }
+
+  /* ─────────────────────────────────────────────────────────────────────────
+     ESCENAS
+     Cada tema declara: viewBox, el SVG, y build(root, gsap) que devuelve una
+     línea de tiempo en bucle. Los `data-*` son los únicos ganchos entre el
+     markup y la animación, así que se puede retocar el dibujo sin romperla.
+     ───────────────────────────────────────────────────────────────────────── */
+  var SCENES = {};
+
+  /* ── 1 · CAMIÓN · traer/importar datos en bloque ────────────────────────
+     El camión no avanza: avanza el mundo. Mover la carretera y la ciudad a
+     distinta velocidad da profundidad sin mover nada pesado, y la caja se va
+     llenando de bultos — que es literalmente lo que está pasando por debajo. */
+  SCENES.camion = {
+    w: 260, box: '0 0 260 150',
+    svg: function () {
+      var dashes = '', i;
+      for (i = 0; i < 9; i++) dashes += '<rect x="' + (i * 34) + '" y="130" width="20" height="3.5" rx="1.75" fill="var(--vfx-line)"/>';
+      // Fachadas de anchos y alturas distintas, apoyadas en la calle y con
+      // ventanas. Con todas iguales y flotando sobre el suelo, el fondo parecía
+      // una gráfica de barras y competía con el camión en vez de quedarse atrás.
+      var city = '', cx = 0;
+      var B = [[28, 44], [20, 62], [34, 34], [24, 54], [30, 72], [18, 40], [32, 58], [26, 46], [22, 66]];
+      for (i = 0; i < B.length; i++) {
+        var bw = B[i][0], bh = B[i][1], by = 118 - bh;
+        city += '<rect x="' + cx + '" y="' + by + '" width="' + bw + '" height="' + bh + '" rx="2" fill="var(--vfx-line)"/>';
+        for (var wy = by + 9; wy < 108; wy += 13) {
+          for (var wx = cx + 6; wx < cx + bw - 5; wx += 11) {
+            city += '<rect x="' + wx + '" y="' + wy + '" width="4.5" height="5.5" rx="1" fill="var(--vfx-surface)" opacity=".8"/>';
+          }
+        }
+        cx += bw + 7;
+      }
+      var parcels = '';
+      var PX = [50, 74, 98], PY = [64, 88];
+      for (var r = 0; r < 2; r++) for (var c = 0; c < 3; c++) {
+        parcels += '<g data-parcel opacity="0"><rect x="' + PX[c] + '" y="' + PY[r] + '" width="20" height="20" rx="3" fill="var(--vfx-tint)" stroke="var(--vfx-deep)" stroke-width="1.4"/>' +
+                   '<path d="M' + (PX[c] + 10) + ' ' + PY[r] + 'v20" stroke="var(--vfx-deep)" stroke-width="1.4" opacity=".7"/></g>';
+      }
+      function wheel(cx) {
+        return '<g data-wheelgrp>' +
+          '<circle cx="' + cx + '" cy="118" r="14" fill="var(--vfx-ink)"/>' +
+          '<circle cx="' + cx + '" cy="118" r="6.5" fill="var(--vfx-surface)"/>' +
+          '<g data-wheel data-org="' + cx + ' 118">' +
+            '<path d="M' + cx + ' 106v24M' + (cx - 12) + ' 118h24M' + (cx - 8.5) + ' 109.5l17 17M' + (cx + 8.5) + ' 109.5l-17 17" stroke="var(--vfx-faint)" stroke-width="1.6" stroke-linecap="round" opacity=".85"/>' +
+          '</g></g>';
+      }
+      // El mundo va recortado al encuadre: sin el clip, la segunda copia de la
+      // ciudad asomaba por la derecha y se veía la costura del bucle.
+      return '' +
+      '<defs><clipPath id="vfxRoad__UID__"><rect x="0" y="0" width="260" height="132"/></clipPath></defs>' +
+      '<g clip-path="url(#vfxRoad__UID__)">' +
+        '<g data-city opacity=".85">' + city + '<g transform="translate(297,0)">' + city + '</g></g>' +
+        '<line x1="0" y1="118" x2="260" y2="118" stroke="var(--vfx-line)" stroke-width="2"/>' +
+        '<g data-dashes>' + dashes + '<g transform="translate(306,0)">' + dashes + '</g></g>' +
+      '</g>' +
+      '<g data-speed opacity="0">' +
+        '<path d="M4 70h22M0 86h16M6 102h20" stroke="var(--vfx-brand)" stroke-width="2.6" stroke-linecap="round" opacity=".5"/>' +
+      '</g>' +
+      '<g data-truck>' +
+        '<rect x="34" y="52" width="96" height="56" rx="6" fill="var(--vfx-brand)"/>' +
+        '<rect x="42" y="58" width="80" height="44" rx="4" fill="var(--vfx-surface)" opacity=".92"/>' +
+        parcels +
+        '<path d="M130 108V64h26l22 22v22Z" fill="var(--vfx-deep)"/>' +
+        '<path d="M136 70h18l16 16h-34Z" fill="var(--vfx-surface)" opacity=".85"/>' +
+        '<rect x="178" y="96" width="9" height="8" rx="2" fill="var(--vfx-ink)" opacity=".55"/>' +
+        '<circle cx="40" cy="46" r="3" fill="var(--vfx-orange)"/>' +
+        '<circle cx="52" cy="46" r="3" fill="var(--vfx-purple)"/>' +
+        '<circle cx="64" cy="46" r="3" fill="var(--vfx-orange)"/>' +
+        wheel(62) + wheel(158) +
+      '</g>';
+    },
+    build: function (root, gsap) {
+      var q = gsap.utils.selector(root);
+      var tl = gsap.timeline({ repeat: -1 });
+      // Mundo en movimiento: dos velocidades = sensación de profundidad.
+      gsap.to(q('[data-dashes]'), { x: -306, duration: 1.5, ease: 'none', repeat: -1 });
+      gsap.to(q('[data-city]'), { x: -297, duration: 11, ease: 'none', repeat: -1 });
+      // Cada rueda gira sobre SU eje: el origen va en coordenadas del SVG
+      // (svgOrigin), no en CSS — GSAP no lee transform-origin de la hoja de
+      // estilos y, sin esto, ambas ruedas giraban sobre el centro de su caja.
+      gsap.to(q('[data-wheel]'), { rotation: 360, duration: .85, ease: 'none', repeat: -1,
+        svgOrigin: function (i, el) { return el.getAttribute('data-org'); } });
+      gsap.to(q('[data-truck]'), { y: -2.2, duration: .32, ease: 'sine.inOut', yoyo: true, repeat: -1 });
+      gsap.fromTo(q('[data-speed]'), { opacity: 0, x: 14 },
+        { opacity: 1, x: -10, duration: .5, ease: 'power1.in', repeat: -1, repeatDelay: .12 });
+      // La carga se llena, se asienta y se vacía: el bucle cuenta un viaje.
+      tl.to(q('[data-parcel]'), { opacity: 1, scale: 1, transformOrigin: '50% 50%', duration: .3,
+            ease: 'back.out(2.2)', stagger: { amount: 1.1, from: 'start' } }, 0)
+        .from(q('[data-parcel]'), { y: -14, duration: .3, ease: 'power2.out',
+            stagger: { amount: 1.1, from: 'start' } }, 0)
+        .to({}, { duration: .7 })
+        .to(q('[data-parcel]'), { opacity: 0, duration: .35, ease: 'power1.in',
+            stagger: { amount: .35, from: 'start' } });
+      return tl;
+    }
+  };
+
+  /* ── 2 · CAJA · guardar, registrar, enviar a la hoja ────────────────────
+     La tapa se abre, entra lo que se está guardando y se cierra. El «clac» de
+     la tapa al cerrar es lo que hace que se lea como guardado y no como adorno. */
+  SCENES.caja = {
+    w: 190, box: '0 0 190 158',
+    svg: function () {
+      var items =
+        '<g data-item opacity="0"><rect x="66" y="52" width="22" height="22" rx="4" fill="var(--vfx-orange)"/></g>' +
+        '<g data-item opacity="0"><circle cx="95" cy="60" r="11" fill="var(--vfx-purple)"/></g>' +
+        '<g data-item opacity="0"><path d="M104 52h22l-5 22h-12Z" rx="3" fill="var(--vfx-brand)"/></g>';
+      return '' +
+      '<ellipse cx="95" cy="142" rx="52" ry="7" fill="var(--vfx-ink)" opacity=".08" data-shadow/>' +
+      items +
+      '<g data-box>' +
+        '<path d="M48 84h94v50a6 6 0 0 1-6 6H54a6 6 0 0 1-6-6Z" fill="var(--vfx-brand)"/>' +
+        '<rect x="88" y="84" width="14" height="56" fill="var(--vfx-surface)" opacity=".9"/>' +
+      '</g>' +
+      '<g data-lid>' +
+        '<rect x="42" y="66" width="106" height="20" rx="5" fill="var(--vfx-deep)"/>' +
+        '<rect x="88" y="66" width="14" height="20" fill="var(--vfx-surface)" opacity=".9"/>' +
+        '<path d="M95 66c-9-14-26-10-22 0M95 66c9-14 26-10 22 0" fill="none" stroke="var(--vfx-deep)" stroke-width="4.5" stroke-linecap="round"/>' +
+        '<circle cx="95" cy="64" r="5" fill="var(--vfx-surface)" stroke="var(--vfx-deep)" stroke-width="3"/>' +
+      '</g>' +
+      '<g data-spark opacity="0">' +
+        '<path d="M32 60l3 8 8 3-8 3-3 8-3-8-8-3 8-3Z" fill="var(--vfx-orange)"/>' +
+        '<path d="M158 48l2.5 6 6 2.5-6 2.5-2.5 6-2.5-6-6-2.5 6-2.5Z" fill="var(--vfx-purple)"/>' +
+        '<path d="M150 104l2 5 5 2-5 2-2 5-2-5-5-2 5-2Z" fill="var(--vfx-brand)"/>' +
+      '</g>';
+    },
+    build: function (root, gsap) {
+      var q = gsap.utils.selector(root);
+      var tl = gsap.timeline({ repeat: -1, defaults: { ease: 'power2.out' } });
+      // La tapa bascula desde su esquina izquierda, como una bisagra.
+      tl.to(q('[data-lid]'), { y: -26, rotation: -9, svgOrigin: '48 86', duration: .45 }, 0)
+        .to(q('[data-spark]'), { opacity: 1, duration: .3 }, .1)
+        .fromTo(q('[data-item]'), { opacity: 0, y: 26, scale: .6 },
+          { opacity: 1, y: -10, scale: 1, duration: .5,
+            ease: 'back.out(2)', stagger: .12 }, .2)
+        .to(q('[data-item]'), { y: 16, opacity: 0, duration: .4, ease: 'power2.in', stagger: .08 }, 1.1)
+        .to(q('[data-lid]'), { y: 0, rotation: 0, svgOrigin: '48 86', duration: .32, ease: 'power3.in' }, 1.5)
+        .to(q('[data-box]'), { scaleY: .93, svgOrigin: '95 140', duration: .1, yoyo: true, repeat: 1 }, 1.82)
+        .to(q('[data-shadow]'), { scaleX: 1.1, opacity: .14, svgOrigin: '95 142', duration: .1, yoyo: true, repeat: 1 }, 1.82)
+        .to(q('[data-spark]'), { opacity: 0, duration: .3 }, 1.7)
+        .to({}, { duration: .45 });
+      return tl;
+    }
+  };
+
+  /* ── 3 · PERCHA · catálogo, artículos, inventario ───────────────────────
+     Cinco perchas balanceándose con un desfase mínimo. El desfase es lo único
+     que hay que acertar: iguales parecen un GIF, demasiado sueltas parecen un
+     error. Un `amount` corto reparte la ola por todo el riel. */
+  SCENES.percha = {
+    w: 260, box: '0 0 280 152',
+    svg: function () {
+      // Cuatro perchas, no cinco: con cinco las prendas se tocaban y el riel
+      // se leía como una mancha. El aire entre prendas es lo que deja ver que
+      // cada una se mueve por su cuenta.
+      var s = '', xs = [56, 112, 168, 224];
+      var tone = ['var(--vfx-brand)', 'var(--vfx-purple)', 'var(--vfx-orange)', 'var(--vfx-brand)'];
+      for (var i = 0; i < xs.length; i++) {
+        var x = xs[i];
+        // data-org guarda el punto del riel del que cuelga esta percha; la
+        // animación lo usa como eje de giro (ver build).
+        s += '<g data-hanger data-org="' + x + ' 30">' +
+          '<path d="M' + x + ' 46V34c0-6 7-6 7-10a3.6 3.6 0 0 0-7.2 0" fill="none" stroke="var(--vfx-faint)" stroke-width="2.6" stroke-linecap="round"/>' +
+          '<path d="M' + (x - 21) + ' 62 ' + x + ' 46 ' + (x + 21) + ' 62Z" fill="none" stroke="var(--vfx-faint)" stroke-width="2.6" stroke-linejoin="round"/>' +
+          '<path d="M' + (x - 10) + ' 60h20l12 11-6 8-5-4v33h-22V75l-5 4-6-8Z" fill="' + tone[i] + '" opacity="' + (i % 2 ? '.88' : '1') + '"/>' +
+          '<path d="M' + (x - 6) + ' 60h12l-6 8Z" fill="var(--vfx-surface)" opacity=".6"/>' +
+        '</g>';
+      }
+      return '' +
+      '<line x1="14" y1="30" x2="266" y2="30" stroke="var(--vfx-line)" stroke-width="4" stroke-linecap="round"/>' +
+      '<path d="M26 30V12M254 30V12" stroke="var(--vfx-line)" stroke-width="4" stroke-linecap="round"/>' +
+      '<rect data-shine x="-44" y="26" width="44" height="8" rx="4" fill="var(--vfx-surface)" opacity=".9"/>' +
+      s +
+      '<line x1="14" y1="144" x2="266" y2="144" stroke="var(--vfx-line)" stroke-width="2" opacity=".6"/>';
+    },
+    build: function (root, gsap) {
+      var q = gsap.utils.selector(root);
+      // Cada percha pivota sobre SU punto del riel: es por donde cuelga.
+      gsap.fromTo(q('[data-hanger]'), { rotation: -6.5 },
+        { rotation: 6.5, duration: 1.05, ease: 'sine.inOut', yoyo: true, repeat: -1,
+          svgOrigin: function (i, el) { return el.getAttribute('data-org'); },
+          stagger: { amount: .42, from: 'start' } });
+      var tl = gsap.timeline({ repeat: -1, repeatDelay: .9 });
+      tl.fromTo(q('[data-shine]'), { x: 0, opacity: 0 },
+        { x: 324, opacity: .9, duration: 1.1, ease: 'power2.inOut' })
+        .to(q('[data-shine]'), { opacity: 0, duration: .2 }, '-=.2');
+      return tl;
+    }
+  };
+
+  /* ── 4 · SOBRE · envío de correo ────────────────────────────────────────
+     La solapa se abre con scaleY de 1 a -1: al pasar por 0 el triángulo se ve
+     de canto, que es exactamente cómo se dobla el papel. No hace falta morphing
+     para esto, y así la escena funciona aunque MorphSVG no haya cargado. */
+  SCENES.sobre = {
+    w: 210, box: '0 0 210 150',
+    svg: function () {
+      return '' +
+      '<g data-trail opacity="0">' +
+        '<circle cx="150" cy="52" r="3.5" fill="var(--vfx-brand)"/>' +
+        '<circle cx="166" cy="40" r="2.6" fill="var(--vfx-purple)"/>' +
+        '<circle cx="180" cy="30" r="1.9" fill="var(--vfx-orange)"/>' +
+      '</g>' +
+      '<g data-fly>' +
+        '<g data-letter>' +
+          '<rect x="72" y="34" width="66" height="52" rx="4" fill="var(--vfx-surface)" stroke="var(--vfx-line)" stroke-width="2"/>' +
+          '<rect x="82" y="46" width="46" height="4.5" rx="2.25" fill="var(--vfx-brand)"/>' +
+          '<rect x="82" y="57" width="36" height="4" rx="2" fill="var(--vfx-line)"/>' +
+          '<rect x="82" y="66" width="42" height="4" rx="2" fill="var(--vfx-line)"/>' +
+          '<rect x="82" y="75" width="24" height="4" rx="2" fill="var(--vfx-line)"/>' +
+        '</g>' +
+        '<path d="M56 70h98v54a6 6 0 0 1-6 6H62a6 6 0 0 1-6-6Z" fill="var(--vfx-brand)"/>' +
+        '<path d="M56 130 105 96l49 34Z" fill="var(--vfx-deep)" opacity=".92"/>' +
+        '<path d="M56 70 105 104 154 70Z" fill="var(--vfx-deep)"/>' +
+        '<g data-flap>' +
+          '<path d="M56 70 105 104 154 70Z" fill="var(--vfx-brand)" stroke="var(--vfx-deep)" stroke-width="1.5" stroke-linejoin="round"/>' +
+        '</g>' +
+      '</g>';
+    },
+    build: function (root, gsap) {
+      var q = gsap.utils.selector(root);
+      var tl = gsap.timeline({ repeat: -1, defaults: { ease: 'power2.inOut' } });
+      gsap.set(q('[data-letter]'), { y: 34, opacity: 0 });
+      // La solapa se voltea sobre su borde superior (y=70). Al pasar scaleY por
+      // 0 el triángulo se ve de canto: es exactamente cómo se dobla el papel.
+      tl.to(q('[data-flap]'), { scaleY: -1, svgOrigin: '105 70', duration: .5 }, 0)
+        .to(q('[data-letter]'), { y: 0, opacity: 1, duration: .5, ease: 'power2.out' }, .3)
+        .to({}, { duration: .35 })
+        .to(q('[data-fly]'), { x: 46, y: -58, scale: .58, rotation: -12,
+          svgOrigin: '105 96', opacity: 0, duration: .75, ease: 'power2.in' }, 1.2)
+        .fromTo(q('[data-trail] circle'), { opacity: 0, scale: .3 },
+          { opacity: 1, scale: 1, duration: .3, stagger: .1 }, 1.35)
+        .to(q('[data-trail] circle'), { opacity: 0, duration: .3, stagger: .06 }, 1.85)
+        // El sobre vuelve a entrar en cuanto el rastro se apaga: dejarlo un
+        // segundo entero con el escenario vacío parecía que se había colgado.
+        .set(q('[data-flap]'), { scaleY: 1 }, 1.95)
+        .set(q('[data-letter]'), { y: 34, opacity: 0 }, 1.95)
+        // immediateRender:false es obligatorio aquí. Un fromTo aplica su estado
+        // INICIAL en cuanto se construye la línea de tiempo, no cuando le toca:
+        // sin esto el sobre nacía con opacity 0 y solo se veía medio segundo de
+        // cada bucle — el escenario pasaba vacío el 80% del tiempo.
+        .fromTo(q('[data-fly]'), { x: -18, y: 26, scale: .9, rotation: 0, opacity: 0 },
+          { x: 0, y: 0, scale: 1, opacity: 1, duration: .42, ease: 'power2.out',
+            immediateRender: false }, 1.95)
+        .to({}, { duration: .3 });
+      return tl;
+    }
+  };
+
+  /* ── 5 · ESCÁNER · buscar folio, SKU, artículo ──────────────────────────
+     Las barras se encienden AL PASO de la línea, no todas a la vez: el barrido
+     y el relleno comparten duración y desfase, así que la luz «lee» el código. */
+  SCENES.escaner = {
+    w: 230, box: '0 0 230 140',
+    svg: function () {
+      var bars = '', x = 34, W = [3, 6, 2, 4, 8, 3, 2, 6, 4, 3, 7, 2, 5, 3, 6, 2, 4, 7];
+      for (var i = 0; i < W.length; i++) {
+        bars += '<rect data-bar x="' + x + '" y="34" width="' + W[i] + '" height="62" rx="1" fill="var(--vfx-faint)"/>';
+        x += W[i] + 5;
+      }
+      return '' +
+      '<g data-frame stroke="var(--vfx-brand)" stroke-width="3" stroke-linecap="round" fill="none">' +
+        '<path d="M18 42V26h18M212 42V26h-18M18 98v16h18M212 98v16h-18"/>' +
+      '</g>' +
+      bars +
+      '<g data-scan>' +
+        '<rect x="24" y="-8" width="182" height="16" rx="8" fill="var(--vfx-brand)" opacity=".18"/>' +
+        '<rect x="24" y="-1.5" width="182" height="3" rx="1.5" fill="var(--vfx-brand)"/>' +
+      '</g>' +
+      '<g data-read opacity="0">' +
+        '<rect x="60" y="120" width="110" height="7" rx="3.5" fill="var(--vfx-brand)"/>' +
+      '</g>';
+    },
+    build: function (root, gsap) {
+      var q = gsap.utils.selector(root);
+      var bars = q('[data-bar]');
+      var tl = gsap.timeline({ repeat: -1 });
+      gsap.set(q('[data-scan]'), { y: 34 });
+      gsap.to(q('[data-frame]'), { opacity: .45, duration: .9, ease: 'sine.inOut', yoyo: true, repeat: -1 });
+      tl.to(q('[data-scan]'), { y: 96, duration: 1.1, ease: 'sine.inOut' }, 0)
+        .to(bars, { fill: 'var(--vfx-brand)', duration: .18, stagger: { amount: 1.0, from: 'start' } }, 0.02)
+        .fromTo(q('[data-read]'), { opacity: 0, scaleX: .2 },
+          { opacity: 1, scaleX: 1, svgOrigin: '60 123', duration: .35, ease: 'power2.out' }, 1.0)
+        .to({}, { duration: .3 })
+        .to(q('[data-scan]'), { y: 34, duration: .95, ease: 'sine.inOut' }, 1.7)
+        .to(bars, { fill: 'var(--vfx-faint)', duration: .18, stagger: { amount: .85, from: 'end' } }, 1.72)
+        .to(q('[data-read]'), { opacity: 0, duration: .3 }, 1.72)
+        .to({}, { duration: .25 });
+      return tl;
+    }
+  };
+
+  /* ── 6 · DOCUMENTO · generar PDF, armar la cotización, formatos ─────────
+     Las líneas se escriben con scaleX desde la izquierda y el sello cae al
+     final. El sello es el remate: sin él la escena no termina, solo se repite. */
+  SCENES.documento = {
+    w: 180, box: '0 0 180 158',
+    svg: function () {
+      var lines = '', W = [70, 58, 66, 44, 62, 36], y = 60;
+      for (var i = 0; i < W.length; i++) {
+        lines += '<rect data-line x="46" y="' + y + '" width="' + W[i] + '" height="5" rx="2.5" fill="var(--vfx-line)"/>';
+        y += 12;
+      }
+      return '' +
+      '<path d="M30 16h84l32 32v96a6 6 0 0 1-6 6H36a6 6 0 0 1-6-6Z" fill="var(--vfx-surface)" stroke="var(--vfx-line)" stroke-width="2.4"/>' +
+      '<path d="M114 16l32 32h-32Z" fill="var(--vfx-line)"/>' +
+      '<rect x="46" y="36" width="46" height="8" rx="4" fill="var(--vfx-brand)"/>' +
+      lines +
+      '<circle data-nib r="3.2" cx="46" cy="60" fill="var(--vfx-orange)" opacity="0"/>' +
+      '<g data-stamp opacity="0">' +
+        '<circle cx="120" cy="120" r="21" fill="none" stroke="var(--vfx-deep)" stroke-width="3.4" opacity=".9"/>' +
+        '<circle cx="120" cy="120" r="15" fill="none" stroke="var(--vfx-deep)" stroke-width="1.6" opacity=".55"/>' +
+        '<path d="M112 120l6 6 11-12" fill="none" stroke="var(--vfx-deep)" stroke-width="3.4" stroke-linecap="round" stroke-linejoin="round"/>' +
+      '</g>';
+    },
+    build: function (root, gsap) {
+      var q = gsap.utils.selector(root);
+      var lines = q('[data-line]');
+      var tl = gsap.timeline({ repeat: -1 });
+      // Las líneas se escriben de izquierda a derecha: el origen en x=46 es el
+      // margen del documento, así que crecen desde el margen y no desde el centro.
+      gsap.set(lines, { scaleX: 0, svgOrigin: '46 0' });
+      tl.to(q('[data-nib]'), { opacity: 1, duration: .15 }, 0)
+        .to(lines, { scaleX: 1, svgOrigin: '46 0', duration: .34, ease: 'power1.out', stagger: .16 }, 0)
+        .to(q('[data-line]'), { fill: 'var(--vfx-faint)', duration: .3, stagger: .16 }, 0);
+      // La punta recorre cada renglón mientras se escribe y salta al siguiente:
+      // es lo que ata la escena: sin ella las líneas simplemente aparecían.
+      lines.forEach(function (ln, i) {
+        var w = parseFloat(ln.getAttribute('width'));
+        tl.fromTo(q('[data-nib]'), { x: 0, y: i * 12 },
+          { x: w, y: i * 12, duration: .34, ease: 'power1.out' }, i * .16);
+      });
+      tl.to(q('[data-nib]'), { opacity: 0, duration: .2 }, 1.15)
+        .fromTo(q('[data-stamp]'), { opacity: 0, scale: 1.9, rotation: -34 },
+          { opacity: 1, scale: 1, rotation: -11, svgOrigin: '120 120', duration: .42, ease: 'back.out(2.4)' }, 1.2)
+        .to({}, { duration: .7 })
+        .to([q('[data-stamp]'), lines], { opacity: 0, duration: .32, ease: 'power1.in' })
+        .set(lines, { scaleX: 0, opacity: 1, fill: 'var(--vfx-line)' })
+        .to({}, { duration: .2 });
+      return tl;
+    }
+  };
+
+  /* ── 7 · RADAR · consola, métricas, monitoreo, operación ────────────────
+     Barrido continuo + pulsos que se expanden. Los blips aparecen cuando el
+     barrido los cruza; si aparecieran solos, el radar se vería decorativo. */
+  SCENES.radar = {
+    w: 190, box: '0 0 180 180',
+    svg: function () {
+      return '' +
+      '<defs><linearGradient id="vfxRadar__UID__" x1="0" y1="0" x2="1" y2="0">' +
+        '<stop offset="0%" stop-color="var(--vfx-brand)" stop-opacity=".38"/>' +
+        '<stop offset="100%" stop-color="var(--vfx-brand)" stop-opacity="0"/>' +
+      '</linearGradient></defs>' +
+      '<circle cx="90" cy="90" r="72" fill="none" stroke="var(--vfx-line)" stroke-width="2"/>' +
+      '<circle cx="90" cy="90" r="50" fill="none" stroke="var(--vfx-line)" stroke-width="2"/>' +
+      '<circle cx="90" cy="90" r="28" fill="none" stroke="var(--vfx-line)" stroke-width="2"/>' +
+      '<path d="M18 90h144M90 18v144" stroke="var(--vfx-line)" stroke-width="1.6" opacity=".7"/>' +
+      '<circle data-pulse cx="90" cy="90" r="12" fill="none" stroke="var(--vfx-brand)" stroke-width="2.4" opacity="0"/>' +
+      '<circle data-pulse cx="90" cy="90" r="12" fill="none" stroke="var(--vfx-purple)" stroke-width="2.4" opacity="0"/>' +
+      '<g data-sweep>' +
+        '<path d="M90 90V18A72 72 0 0 1 152 54Z" fill="url(#vfxRadar__UID__)"/>' +
+        '<path d="M90 90V18" stroke="var(--vfx-brand)" stroke-width="2.2" opacity=".8"/>' +
+      '</g>' +
+      '<circle data-blip cx="124" cy="62" r="5" fill="var(--vfx-orange)" opacity="0"/>' +
+      '<circle data-blip cx="58" cy="118" r="4.5" fill="var(--vfx-purple)" opacity="0"/>' +
+      '<circle data-blip cx="112" cy="126" r="4" fill="var(--vfx-brand)" opacity="0"/>' +
+      '<circle cx="90" cy="90" r="5.5" fill="var(--vfx-brand)"/>';
+    },
+    build: function (root, gsap) {
+      var q = gsap.utils.selector(root);
+      var SPIN = 2.4;
+      // El barrido gira sobre el centro del radar (90,90), no sobre el centro
+      // de la cuña: ahí está la antena.
+      gsap.to(q('[data-sweep]'), { rotation: 360, svgOrigin: '90 90', duration: SPIN, ease: 'none', repeat: -1 });
+      gsap.fromTo(q('[data-pulse]'), { attr: { r: 10 }, opacity: .55 },
+        { attr: { r: 72 }, opacity: 0, duration: 2, ease: 'power1.out', repeat: -1, stagger: 1 });
+      // Cada blip se enciende cuando el barrido pasa por su ángulo.
+      var at = [SPIN * 0.12, SPIN * 0.62, SPIN * 0.37];
+      var tl = gsap.timeline({ repeat: -1 });
+      q('[data-blip]').forEach(function (b, i) {
+        tl.fromTo(b, { opacity: 0, scale: .4, transformOrigin: '50% 50%' },
+          { opacity: 1, scale: 1, duration: .22, ease: 'power2.out' }, at[i])
+          .to(b, { opacity: 0, duration: 1.1, ease: 'power1.in' }, at[i] + .3);
+      });
+      tl.to({}, { duration: SPIN });
+      return tl;
+    }
+  };
+
+  /* ── 8 · ETIQUETA · promociones, precios, descuentos ────────────────────
+     La etiqueta cuelga y oscila desde el ojal — el mismo punto por el que
+     colgaría de verdad. Ese detalle es lo que la hace parecer física. */
+  SCENES.etiqueta = {
+    w: 210, box: '0 0 210 158',
+    svg: function () {
+      function tag(fill, stroke) {
+        return '<path d="M92 22h74a12 12 0 0 1 12 12v52a12 12 0 0 1-12 12H92L54 60Z" fill="' + fill + '" stroke="' + stroke + '" stroke-width="2" stroke-linejoin="round"/>' +
+               '<circle cx="76" cy="60" r="7" fill="var(--vfx-surface)" stroke="' + stroke + '" stroke-width="2"/>';
+      }
+      return '' +
+      '<path d="M76 60C76 32 96 14 122 12" fill="none" stroke="var(--vfx-line)" stroke-width="3" stroke-linecap="round"/>' +
+      '<g data-tag2 opacity=".38">' + tag('var(--vfx-purple)', 'var(--vfx-purple)') + '</g>' +
+      '<g data-tag>' +
+        tag('var(--vfx-brand)', 'var(--vfx-deep)') +
+        '<g data-pct stroke="var(--vfx-surface)" stroke-width="5" stroke-linecap="round" fill="none">' +
+          '<path d="M148 40 116 82"/>' +
+          '<circle cx="119" cy="43" r="7"/>' +
+          '<circle cx="146" cy="79" r="7"/>' +
+        '</g>' +
+      '</g>' +
+      '<g data-spark opacity="0">' +
+        '<path d="M40 108l3 8 8 3-8 3-3 8-3-8-8-3 8-3Z" fill="var(--vfx-orange)"/>' +
+        '<path d="M186 112l2.4 6 6 2.4-6 2.4-2.4 6-2.4-6-6-2.4 6-2.4Z" fill="var(--vfx-orange)"/>' +
+        '<path d="M30 40l2 5 5 2-5 2-2 5-2-5-5-2 5-2Z" fill="var(--vfx-purple)"/>' +
+      '</g>';
+    },
+    build: function (root, gsap) {
+      var q = gsap.utils.selector(root);
+      // Oscila desde el ojal (76,60) — el punto por el que colgaría de verdad.
+      // Ese detalle es todo lo que separa «etiqueta colgada» de «etiqueta flotando».
+      gsap.fromTo(q('[data-tag]'), { rotation: -9 },
+        { rotation: 9, svgOrigin: '76 60', duration: 1.25, ease: 'sine.inOut', yoyo: true, repeat: -1 });
+      gsap.fromTo(q('[data-tag2]'), { rotation: -6 },
+        { rotation: 12, svgOrigin: '76 60', duration: 1.25, ease: 'sine.inOut', yoyo: true, repeat: -1, delay: .12 });
+      gsap.fromTo(q('[data-pct]'), { opacity: .7 },
+        { opacity: 1, duration: .7, ease: 'sine.inOut', yoyo: true, repeat: -1 });
+      var tl = gsap.timeline({ repeat: -1 });
+      tl.fromTo(q('[data-spark] path'), { opacity: 0, scale: .3, transformOrigin: '50% 50%' },
+        { opacity: 1, scale: 1, duration: .35, ease: 'back.out(3)', stagger: .18 })
+        .to(q('[data-spark] path'), { opacity: 0, scale: .4, duration: .4, stagger: .14 }, '>-.2')
+        .set(q('[data-spark]'), { opacity: 1 }, 0)
+        .to({}, { duration: .5 });
+      return tl;
+    }
+  };
+
+  /* ── 9 · BOLSA · atenciones, pedidos, carrito ───────────────────────────
+     Los artículos caen dentro y la bolsa acusa el golpe. El clip es lo que
+     vende el truco: sin él los artículos flotan por encima en vez de entrar. */
+  SCENES.bolsa = {
+    w: 180, box: '0 0 180 160',
+    svg: function () {
+      return '' +
+      '<defs><clipPath id="vfxBag__UID__"><path d="M34 56h112l-9 88a8 8 0 0 1-8 7H51a8 8 0 0 1-8-7Z"/></clipPath></defs>' +
+      '<g data-drop clip-path="url(#vfxBag__UID__)">' +
+        '<rect data-it x="66" y="-26" width="24" height="24" rx="5" fill="var(--vfx-orange)"/>' +
+        '<circle data-it cx="104" cy="-34" r="12" fill="var(--vfx-purple)"/>' +
+        '<path data-it d="M78 -60h26l-6 26H84Z" fill="var(--vfx-deep)"/>' +
+      '</g>' +
+      '<path d="M62 58V42a28 28 0 0 1 56 0v16" fill="none" stroke="var(--vfx-deep)" stroke-width="6" stroke-linecap="round"/>' +
+      '<g data-bag>' +
+        '<path d="M34 56h112l-9 88a8 8 0 0 1-8 7H51a8 8 0 0 1-8-7Z" fill="var(--vfx-brand)"/>' +
+        '<path d="M34 56h112l-2 18H36Z" fill="var(--vfx-deep)" opacity=".35"/>' +
+        '<g opacity=".9"><circle cx="76" cy="112" r="5" fill="var(--vfx-surface)"/>' +
+        '<circle cx="90" cy="112" r="5" fill="var(--vfx-surface)"/>' +
+        '<circle cx="104" cy="112" r="5" fill="var(--vfx-surface)"/></g>' +
+      '</g>' +
+      '<ellipse cx="90" cy="154" rx="52" ry="6" fill="var(--vfx-ink)" opacity=".08" data-shadow/>';
+    },
+    build: function (root, gsap) {
+      var q = gsap.utils.selector(root);
+      // El recorte al contorno de la bolsa va en el propio markup (ver arriba):
+      // es lo que hace que los artículos ENTREN en vez de pasar por delante.
+      var items = q('[data-it]');
+      var tl = gsap.timeline({ repeat: -1 });
+      items.forEach(function (it, i) {
+        var at = i * .45;
+        tl.fromTo(it, { y: 0, rotation: -18, opacity: 0 },
+          { y: 128, rotation: 14, opacity: 1, duration: .55, ease: 'power2.in' }, at)
+          .to(it, { opacity: 0, duration: .18 }, at + .5)
+          // La bolsa se aplasta desde su base (y=151) al recibir el golpe.
+          .to(q('[data-bag]'), { scaleY: .95, scaleX: 1.04, svgOrigin: '90 151', duration: .11, ease: 'power2.out', yoyo: true, repeat: 1 }, at + .48)
+          .to(q('[data-shadow]'), { scaleX: 1.08, opacity: .13, svgOrigin: '90 154', duration: .11, yoyo: true, repeat: 1 }, at + .48);
+      });
+      tl.to({}, { duration: .6 });
+      return tl;
+    }
+  };
+
+  /* ─────────────────────────────────────────────────────────────────────────
+     COPIAS POR TEMA
+     El subtítulo rota mientras se espera. No es adorno: cambiar el texto cada
+     par de segundos es la señal más barata de «sigue vivo» cuando la barra ya
+     no avanza y el backend tarda más de lo normal.
+     ───────────────────────────────────────────────────────────────────────── */
+  var COPY = {
+    camion:    { title: 'Trayendo la información…', steps: ['Conectando con la hoja de datos…', 'Cargando registros…', 'Acomodando la mercancía…', 'Casi en la puerta…'] },
+    caja:      { title: 'Guardando…',               steps: ['Empaquetando los datos…', 'Escribiendo en la hoja…', 'Cerrando la caja…'] },
+    percha:    { title: 'Cargando el catálogo…',    steps: ['Revisando el inventario…', 'Ordenando los artículos…', 'Colgando las novedades…'] },
+    sobre:     { title: 'Enviando el correo…',      steps: ['Armando el mensaje…', 'Adjuntando el formato…', 'Entregando al servidor…', 'Esto puede tardar un poco más…'] },
+    escaner:   { title: 'Buscando…',                steps: ['Leyendo la clave…', 'Comparando contra la base…', 'Recuperando el registro…'] },
+    documento: { title: 'Generando el documento…',  steps: ['Redactando el contenido…', 'Aplicando el formato…', 'Sellando el documento…'] },
+    radar:     { title: 'Consultando el tablero…',  steps: ['Barriendo los registros…', 'Calculando indicadores…', 'Ordenando resultados…'] },
+    etiqueta:  { title: 'Cargando promociones…',    steps: ['Revisando vigencias…', 'Calculando precios…', 'Aplicando descuentos…'] },
+    bolsa:     { title: 'Preparando la atención…',  steps: ['Reuniendo los pendientes…', 'Agrupando por cliente…', 'Listo en un momento…'] }
+  };
+
+  /* ── Datos curiosos para esperas LARGAS (envío de correo, PDF grande) ──────
+     Los mismos que traía LoaderPartial. Una espera de treinta segundos con un
+     único mensaje fijo se siente colgada; con algo que leer, se siente lenta.
+     Solo se encienden con {facts:true}: en una espera de dos segundos nadie
+     alcanza a leerlos y solo añaden ruido. */
+  var FACTS = [
+    'Liverpool nació en <b>1847</b>, cuando el francés Jean-Baptiste Ebrard empezó vendiendo telas en un cajón del centro de la Ciudad de México.',
+    'El nombre viene del <b>puerto inglés de Liverpool</b>, de donde zarpaba buena parte de la mercancía importada que llegaba a México en el siglo XIX.',
+    'En <b>1965</b> la compañía adoptó oficialmente la razón social <b>El Puerto de Liverpool</b>, que conserva hasta hoy.',
+    'El Puerto de Liverpool cotiza en la <b>Bolsa Mexicana de Valores</b> y es uno de los grupos comerciales más grandes del país.',
+    'Además de las tiendas departamentales, el grupo opera <b>Suburbia</b> y los centros comerciales <b>Galerías</b>.',
+    'La icónica <b>caja rosa</b> de Liverpool es uno de los empaques más reconocibles del comercio mexicano.',
+    'Liverpool fue pionera de la <b>venta por catálogo</b> en México; hoy su tienda en línea y VENTEL llevan esa tradición a todo el país.',
+    'El emblemático almacén del <b>Centro Histórico</b> de la CDMX abrió en 1936 y sigue recibiendo clientes todos los días.'
+  ];
+
+  var THEMES = Object.keys(SCENES);
+  function pickTheme(t) { return SCENES[t] ? t : 'camion'; }
+
+  /* ─────────────────────────────────────────────────────────────────────────
+     TEMA POR PANTALLA
+     Navegar entre pantallas en Apps Script recarga la webapp entera (2-5 s), y
+     esa es la espera más frecuente de todas. En vez de la misma escena siempre,
+     cada destino trae la suya: al pulsar «Promociones» cuelgan etiquetas, al
+     pulsar «Atenciones» se llena la bolsa. Antes de que la pantalla exista, la
+     animación ya dice a dónde vas.
+
+     La pantalla actual se declara con VentelFX.pagina('clave') junto al include
+     (Apps Script no expone `?page=` al iframe, así que no se puede deducir).
+     ───────────────────────────────────────────────────────────────────────── */
+  var PANTALLAS = {
+    login:                { tema: 'escaner',   titulo: 'Entrando…',                 sub: 'Verificando tus credenciales' },
+    registro:             { tema: 'escaner',   titulo: 'Creando tu cuenta…',        sub: 'Validando los datos' },
+    recuperar:            { tema: 'escaner',   titulo: 'Recuperando el acceso…',    sub: 'Comprobando tu correo' },
+    portal:               { tema: 'camion',    titulo: 'Abriendo el Portal…',       sub: 'Trayendo herramientas y formatos' },
+    dashboard:            { tema: 'camion',    titulo: 'Abriendo el Portal…',       sub: 'Trayendo herramientas y formatos' },
+    portal_contenido:     { tema: 'camion',    titulo: 'Abriendo Contenido…',       sub: 'Cargando el catálogo del Portal' },
+    anuncios:             { tema: 'caja',      titulo: 'Abriendo Anuncios…',        sub: 'Recuperando los avisos del equipo' },
+    promociones:          { tema: 'etiqueta',  titulo: 'Abriendo Promociones…',     sub: 'Revisando vigencias y precios' },
+    atenciones:           { tema: 'bolsa',     titulo: 'Abriendo Atenciones…',      sub: 'Reuniendo los pendientes' },
+    correoventel:         { tema: 'sobre',     titulo: 'Abriendo Correo…',          sub: 'Preparando el envío' },
+    correo_cliente:       { tema: 'sobre',     titulo: 'Abriendo Correo…',          sub: 'Cargando plantillas y remitente' },
+    cotizacion:           { tema: 'documento', titulo: 'Abriendo la cotización…',   sub: 'Armando el formato' },
+    cotizado_preview:     { tema: 'documento', titulo: 'Abriendo la vista previa…', sub: 'Generando el documento' },
+    revision_cotizacion:  { tema: 'documento', titulo: 'Abriendo la revisión…',     sub: 'Recuperando la auditoría' },
+    consulta_cotizacion:  { tema: 'escaner',   titulo: 'Buscando el folio…',        sub: 'Consultando la cotización' },
+    consola:              { tema: 'radar',     titulo: 'Abriendo la Consola…',      sub: 'Consultando el panorama' },
+    operacion:            { tema: 'radar',     titulo: 'Abriendo Operación…',       sub: 'Revisando incidencias' },
+    estado:               { tema: 'radar',     titulo: 'Abriendo Estado…',          sub: 'Comprobando los sistemas' },
+    inicio_avanzado:      { tema: 'radar',     titulo: 'Abriendo Supervisión…',     sub: 'Calculando indicadores' }
+  };
+  var paginaActual = '';
+
+  /* ── Construcción del nodo de escena ──────────────────────────────────────
+     Los `id` internos del SVG (clips, degradados) llevan un sufijo único por
+     montaje: dos escenas del mismo tema en la misma página compartirían el id
+     y la segunda se recortaría con el clip de la primera. */
+  var uidSeq = 0;
+  function buildCard(theme, opts) {
+    opts = opts || {};
+    var scene = SCENES[theme];
+    var copy = COPY[theme] || {};
+    var card = D.createElement('div');
+    card.className = 'vfx-card' + (opts.compact ? ' vfx-compact' : '');
+    var w = opts.width || scene.w;
+    var uid = 'x' + (++uidSeq);
+    card.innerHTML =
+      '<div class="vfx-stage" style="--vfx-w:' + w + 'px">' +
+        '<svg viewBox="' + scene.box + '" role="img" aria-hidden="true">' +
+          scene.svg().split('__UID__').join(uid) +
+        '</svg>' +
+      '</div>' +
+      (opts.bare ? '' :
+        '<p class="vfx-title"></p>' +
+        '<p class="vfx-sub"></p>' +
+        (opts.bar === false ? '' : '<div class="vfx-bar"><i></i></div>') +
+        (opts.facts ? '<div class="vfx-fact"></div>' : ''));
+    if (!opts.bare) {
+      card.querySelector('.vfx-title').textContent = opts.title || copy.title || 'Un momento…';
+      card.querySelector('.vfx-sub').textContent = opts.sub || (copy.steps && copy.steps[0]) || '';
+    }
+    return card;
+  }
+
+  /* ── Ciclo de vida de una escena montada ───────────────────────────────── */
+  function mount(host, theme, opts) {
+    opts = opts || {};
+    theme = pickTheme(theme);
+    // Siempre G(), nunca una referencia guardada: si el CDN de GSAP llega tarde,
+    // una copia capturada al montar se queda a null para siempre mientras
+    // animOK() ya dice que sí, y la escena revienta al primer .done().
+    var card = buildCard(theme, opts);
+    host.appendChild(card);
+
+    var tweens = [], stepTimer = null, safety = null, ended = false;
+    var barFill = card.querySelector('.vfx-bar > i');
+    var subEl = card.querySelector('.vfx-sub');
+    // aria-busy en el anfitrión: un lector de pantalla anuncia «ocupado» en vez
+    // de leer el contenido a medio pintar que hay debajo.
+    host.setAttribute('aria-busy', 'true');
+
+    if (animOK()) {
+      var svgRoot = card.querySelector('.vfx-stage svg');
+      try {
+        var tl = SCENES[theme].build(svgRoot, G());
+        if (tl) tweens.push(tl);
+      } catch (e) { host.classList.add('vfx-static'); }
+      // La barra corre rápido al principio y se frena: sugiere avance sin prometer un final.
+      if (barFill) tweens.push(G().to(barFill, { width: '92%', duration: 18, ease: 'power4.out' }));
+      tweens.push(G().to(host, { opacity: 1, duration: .28, ease: 'power2.out' }));
+    } else {
+      host.classList.add('vfx-static');
+      host.style.opacity = 1;
+    }
+
+    // Rotación de mensajes: solo si el usuario no fijó un subtítulo propio.
+    var steps = opts.steps || (COPY[theme] && COPY[theme].steps);
+    if (subEl && !opts.sub && steps && steps.length > 1) {
+      var si = 0;
+      stepTimer = setInterval(function () {
+        si = (si + 1) % steps.length;
+        setSub(steps[si]);
+      }, opts.stepMs || 2600);
+    }
+
+    // Datos curiosos (solo esperas largas): rotan cada 6 s con un fundido.
+    var factEl = card.querySelector('.vfx-fact'), factTimer = null, fi = -1;
+    if (factEl) {
+      fi = Math.floor(Math.random() * FACTS.length) - 1;
+      var pintarFact = function () {
+        fi = (fi + 1) % FACTS.length;
+        factEl.innerHTML = '<span class="vfx-fact-tag">¿Sabías que…?</span>' + FACTS[fi];
+      };
+      pintarFact();
+      factTimer = setInterval(function () {
+        if (!animOK()) { pintarFact(); return; }
+        G().to(factEl, { opacity: 0, duration: .3, ease: 'power1.in',
+          onComplete: function () { pintarFact(); G().to(factEl, { opacity: 1, duration: .4 }); } });
+      }, opts.factMs || 6000);
+    }
+
+    function setSub(txt) {
+      if (!subEl) return;
+      if (!animOK()) { subEl.textContent = txt; return; }
+      G().to(subEl, { opacity: 0, y: -5, duration: .18, ease: 'power1.in',
+        onComplete: function () {
+          subEl.textContent = txt;
+          G().fromTo(subEl, { opacity: 0, y: 6 }, { opacity: 1, y: 0, duration: .28, ease: 'power2.out' });
+        } });
+    }
+
+    function stopAll() {
+      if (stepTimer) { clearInterval(stepTimer); stepTimer = null; }
+      if (factTimer) { clearInterval(factTimer); factTimer = null; }
+      if (safety) { clearTimeout(safety); safety = null; }
+      tweens.forEach(function (t) { try { t.kill(); } catch (e) {} });
+      tweens = [];
+    }
+
+    var api = {
+      el: card,
+      host: host,
+      theme: theme,
+      /** Cambia el mensaje secundario y detiene la rotación automática. */
+      text: function (txt) {
+        if (stepTimer) { clearInterval(stepTimer); stepTimer = null; }
+        setSub(txt || '');
+        return api;
+      },
+      title: function (txt) {
+        var t = card.querySelector('.vfx-title');
+        if (t) t.textContent = txt || '';
+        return api;
+      },
+      /** Cierra la escena. Idempotente: llamarla dos veces no rompe nada. */
+      done: function (cb) {
+        if (ended) { if (cb) cb(); return api; }
+        ended = true;
+        stopAll();
+        host.removeAttribute('aria-busy');
+        if (barFill && animOK()) G().to(barFill, { width: '100%', duration: .22, ease: 'power2.out' });
+        var finish = function () {
+          if (host.parentNode) opts.__remove(host);
+          if (cb) cb();
+        };
+        if (animOK()) G().to(host, { opacity: 0, duration: .3, delay: barFill ? .18 : 0, ease: 'power2.in', onComplete: finish });
+        else finish();
+        return api;
+      },
+      /**
+       * Deja la escena visible con el mensaje de error.
+       *   fail(msg)              → se cierra sola a los 4.2 s
+       *   fail(msg, false)       → se queda hasta que alguien llame a done()
+       *   fail(msg, onReintentar)→ muestra botón «Reintentar» y no se cierra sola
+       * Un error sin salida obliga a recargar la pantalla entera; con el botón,
+       * el reintento cuesta un clic.
+       */
+      fail: function (msg, autoMs) {
+        stopAll();
+        host.classList.add('vfx-err');
+        host.removeAttribute('aria-busy');
+        api.title('No se pudo completar');
+        setSub(msg || 'Vuelve a intentarlo en un momento.');
+        if (typeof autoMs === 'function') {
+          var reintentar = autoMs;
+          if (!card.querySelector('.vfx-retry')) {
+            var b = D.createElement('button');
+            b.type = 'button';
+            b.className = 'vfx-retry';
+            b.textContent = 'Reintentar';
+            b.addEventListener('click', function () {
+              b.disabled = true;
+              api.done(function () { try { reintentar(); } catch (e) {} });
+            });
+            card.appendChild(b);
+            if (animOK()) G().fromTo(b, { opacity: 0, y: 8 }, { opacity: 1, y: 0, duration: .3, ease: 'power2.out' });
+          }
+          return api;
+        }
+        if (autoMs !== false) setTimeout(function () { api.done(); }, autoMs || 4200);
+        return api;
+      },
+      isDone: function () { return ended; }
+    };
+
+    // Tope de seguridad: una escena jamás se queda tapando la pantalla para siempre.
+    safety = setTimeout(function () {
+      if (!ended) api.fail('El servidor está tardando más de lo normal.', 3000);
+    }, opts.maxMs || 45000);
+
+    return api;
+  }
+
+  /* ─────────────────────────────────────────────────────────────────────────
+     API PÚBLICA
+     ───────────────────────────────────────────────────────────────────────── */
+  var openOverlay = null;
+
+  function resolve(target) {
+    if (!target) return null;
+    if (typeof target === 'string') return D.querySelector(target);
+    if (target.nodeType === 1) return target;
+    if (target.jquery) return target[0];
+    return null;
+  }
+
+  var VentelFX = {
+    themes: THEMES,
+    pantallas: PANTALLAS,
+
+    /**
+     * Declara qué pantalla es ésta (junto al include).  VentelFX.pagina('consola')
+     * Sin argumento devuelve la clave declarada.
+     */
+    pagina: function (clave) {
+      if (clave === undefined) return paginaActual;
+      paginaActual = String(clave || '');
+      return VentelFX;
+    },
+
+    /**
+     * Ficha {tema, titulo, sub} de una pantalla. Sin argumento, la de la pantalla
+     * actual. Es lo que permite que AppUrl.go elija escena por destino sin que
+     * cada uno de los ~30 llamadores tenga que saber de temas.
+     */
+    para: function (page) {
+      var k = String(page || paginaActual || '');
+      return PANTALLAS[k] || { tema: 'camion', titulo: 'Un momento…', sub: 'Abriendo la pantalla' };
+    },
+
+    /** Tema de la pantalla actual (respaldo para el overlay de arranque). */
+    temaActual: function () { return VentelFX.para().tema; },
+
+    /**
+     * Escena a pantalla completa. Devuelve el manejador; SIEMPRE hay que
+     * llamar .done() al terminar (o .fail() si el backend devolvió error).
+     */
+    overlay: function (theme, opts) {
+      opts = opts || {};
+      if (openOverlay && !openOverlay.isDone()) openOverlay.done();
+      var host = D.createElement('div');
+      host.className = 'vfx vfx-overlay';
+      host.setAttribute('role', 'status');
+      host.setAttribute('aria-live', 'polite');
+      host.setAttribute('aria-label', opts.title || 'Cargando');
+      D.body.appendChild(host);
+      opts.__remove = function (h) { if (h.parentNode) h.parentNode.removeChild(h); };
+      openOverlay = mount(host, theme, opts);
+      return openOverlay;
+    },
+
+    /** Cierra la escena de pantalla completa si hay alguna abierta. */
+    hideOverlay: function () { if (openOverlay) openOverlay.done(); return this; },
+
+    /**
+     * Escena dentro de un contenedor.
+     *   mode 'cover' → se superpone al contenido actual (recargas)
+     *   mode 'fill'  → ocupa el hueco vacío (primera carga)
+     *   mode 'auto'  → decide según la altura del contenedor
+     */
+    section: function (target, theme, opts) {
+      opts = opts || {};
+      var el = resolve(target);
+      if (!el) return mountNoop();
+      var mode = opts.mode || 'auto';
+      if (mode === 'auto') mode = (el.offsetHeight > 120 && el.children.length) ? 'cover' : 'fill';
+
+      var host = D.createElement('div');
+      host.className = 'vfx ' + (mode === 'cover' ? 'vfx-cover' : 'vfx-fill');
+      host.setAttribute('role', 'status');
+      host.setAttribute('aria-live', 'polite');
+      if (opts.minHeight) host.style.setProperty('--vfx-min', opts.minHeight);
+
+      var scrollPrev = null, overflowPrev = null;
+      if (mode === 'cover') {
+        var cs = window.getComputedStyle(el);
+        if (cs.position === 'static') { el.classList.add('vfx-host'); host.dataset.unhost = '1'; }
+        // Contenedor con scroll propio (cuerpo de modal, panel largo): una capa
+        // `absolute; inset:0` se dimensiona contra el CONTENIDO, no contra lo que
+        // se ve, así que la escena quedaba centrada a mitad del contenido —fuera
+        // de pantalla— y el formulario seguía a la vista y pulsable. Congelando el
+        // scroll arriba, la caja de posicionamiento pasa a ser el recuadro visible
+        // y la escena cae donde el usuario está mirando. Se restaura al cerrar.
+        var conScroll = el.scrollHeight > el.clientHeight + 4 &&
+                        /auto|scroll|overlay/.test(cs.overflowY + ' ' + cs.overflow);
+        if (conScroll) {
+          scrollPrev = el.scrollTop;
+          overflowPrev = el.style.overflow;
+          el.scrollTop = 0;
+          el.style.overflow = 'hidden';
+        }
+      }
+      el.appendChild(host);
+      // El anfitrión se guarda en una variable, no se busca por h.parentNode: si
+      // la pantalla repinta el contenedor con innerHTML, la escena se queda
+      // huérfana y `.vfx-host` (position:relative) se quedaría pegada al
+      // contenedor para siempre, descolocando lo que se posicione dentro.
+      var anfitrion = el;
+      opts.__remove = function (h) {
+        if (h.dataset.unhost) anfitrion.classList.remove('vfx-host');
+        if (overflowPrev !== null) {
+          anfitrion.style.overflow = overflowPrev;
+          anfitrion.scrollTop = scrollPrev;
+        }
+        if (h.parentNode) h.parentNode.removeChild(h);
+      };
+      if (opts.compact === undefined) opts.compact = true;
+      if (opts.width === undefined) opts.width = Math.min(SCENES[pickTheme(theme)].w, 190);
+      return mount(host, theme, opts);
+    },
+
+    /** Alias corto: VentelFX.at('#tabla','percha') */
+    at: function (target, theme, opts) { return this.section(target, theme, opts); },
+
+    /**
+     * Esqueleto con brillo. Para listas y tablas es mejor que una escena:
+     * dibuja la forma de lo que va a llegar, así que la página no da un salto
+     * cuando el contenido aterriza.
+     *   kind: 'tabla' | 'tarjetas' | 'lista' | 'formulario' | 'kpis'
+     */
+    skeleton: function (target, kind, opts) {
+      opts = opts || {};
+      var el = resolve(target);
+      if (!el) return mountNoop();
+      var n = opts.rows || 6;
+      var wrap = D.createElement('div');
+      wrap.className = 'vfx vfx-sk';
+      var html = '', i;
+      function bar(w, h, r) { return '<span class="vfx-sk-b" style="width:' + w + ';height:' + (h || '.85rem') + (r ? ';border-radius:' + r : '') + '"></span>'; }
+      if (kind === 'tarjetas') {
+        wrap.classList.add('vfx-sk-grid');
+        for (i = 0; i < (opts.rows || 6); i++) {
+          html += '<div class="vfx-sk-card">' + bar('62%', '1rem') + bar('100%', '.7rem') + bar('84%', '.7rem') +
+                  '<div class="vfx-sk-row" style="margin-top:.4rem">' + bar('4.5rem', '1.7rem', '999px') + bar('3.5rem', '1.7rem', '999px') + '</div></div>';
+        }
+      } else if (kind === 'kpis') {
+        wrap.classList.add('vfx-sk-grid');
+        for (i = 0; i < (opts.rows || 4); i++) {
+          html += '<div class="vfx-sk-card">' + bar('45%', '.7rem') + bar('70%', '1.7rem') + bar('55%', '.65rem') + '</div>';
+        }
+      } else if (kind === 'formulario') {
+        for (i = 0; i < n; i++) html += '<div>' + bar('28%', '.7rem') + '<div style="height:.4rem"></div>' + bar('100%', '2.4rem', 'var(--rad,12px)') + '</div>';
+      } else if (kind === 'lista') {
+        for (i = 0; i < n; i++) {
+          html += '<div class="vfx-sk-row">' + bar('2.4rem', '2.4rem', '50%') +
+                  '<div style="flex:1;display:flex;flex-direction:column;gap:.4rem">' + bar((55 + (i % 4) * 10) + '%', '.8rem') + bar((30 + (i % 3) * 12) + '%', '.65rem') + '</div></div>';
+        }
+      } else { // tabla
+        var cols = opts.cols || 5;
+        var row = function (h, op) {
+          var s = '<div class="vfx-sk-row"' + (op ? ' style="opacity:' + op + '"' : '') + '>';
+          for (var c = 0; c < cols; c++) s += bar(c === 0 ? '22%' : (c === cols - 1 ? '10%' : '16%'), h);
+          return s + '</div>';
+        };
+        html += row('.9rem');
+        for (i = 0; i < n; i++) html += row('.75rem', (1 - i * 0.09).toFixed(2));
+      }
+      wrap.innerHTML = html;
+      el.appendChild(wrap);
+
+      var ended = false;
+      // Mismo tope de seguridad que las escenas. Un esqueleto olvidado no tapa la
+      // pantalla, pero deja la sección con cajas grises que se leen como «esto
+      // está cargando» para siempre, que es peor que un hueco vacío honesto.
+      var tope = setTimeout(function () { api.done(); }, opts.maxMs || 45000);
+      var api = {
+        el: wrap,
+        done: function (cb) {
+          if (ended) { if (cb) cb(); return api; }
+          ended = true;
+          clearTimeout(tope);
+          var rm = function () { if (wrap.parentNode) wrap.parentNode.removeChild(wrap); if (cb) cb(); };
+          if (animOK()) G().to(wrap, { opacity: 0, duration: .25, ease: 'power1.in', onComplete: rm });
+          else rm();
+          return api;
+        },
+        fail: function () { return api.done(); },
+        text: function () { return api; },
+        title: function () { return api; },
+        isDone: function () { return ended; }
+      };
+      return api;
+    },
+
+    /**
+     * Botón ocupado: chip girando + texto temporal. Devuelve el manejador que
+     * lo restaura. Evita el doble clic sin tener que tocar `disabled` a mano.
+     *
+     * OJO: sustituye el innerHTML del botón y lo repone tal cual al terminar, así
+     * que cualquier oyente atado a un HIJO del botón (no al botón) se pierde. Si
+     * el botón lleva un icono con su propio listener, ata el listener al botón.
+     */
+    button: function (btn, label, opts) {
+      opts = opts || {};
+      var el = resolve(btn);
+      if (!el) return mountNoop();
+      if (el.dataset.vfxBusy === '1') return mountNoop();
+      var prevHTML = el.innerHTML, prevDisabled = el.disabled;
+      // `vfx` solo se retira si la puso este manejador: si el botón ya la traía
+      // de fábrica, quitarla al terminar le cambiaría la tipografía para siempre.
+      var puseVfx = !el.classList.contains('vfx');
+      el.dataset.vfxBusy = '1';
+      el.classList.add('vfx-btn-busy');
+      if (puseVfx) el.classList.add('vfx');
+      el.disabled = true;
+      el.innerHTML = '<span class="vfx-chip">' + VentelFX.chip() + '<span>' + (label || 'Procesando…') + '</span></span>';
+      var ended = false;
+      // Tope de seguridad: un botón que se queda «Enviando…» para siempre es una
+      // acción que el usuario ya no puede repetir ni abandonar.
+      var tope = setTimeout(function () { api.done(); }, opts.maxMs || 45000);
+      var api = {
+        el: el,
+        done: function (cb) {
+          if (ended) { if (cb) cb(); return api; }
+          ended = true;
+          clearTimeout(tope);
+          el.innerHTML = prevHTML;
+          el.disabled = prevDisabled;
+          el.classList.remove('vfx-btn-busy');
+          if (puseVfx) el.classList.remove('vfx');
+          delete el.dataset.vfxBusy;
+          if (animOK()) G().fromTo(el, { scale: .97 }, { scale: 1, duration: .3, ease: 'back.out(3)', clearProps: 'transform' });
+          if (cb) cb();
+          return api;
+        },
+        fail: function () { return api.done(); },
+        text: function (t) { var s = el.querySelector('.vfx-chip span'); if (s) s.textContent = t; return api; },
+        title: function () { return api; },
+        isDone: function () { return ended; }
+      };
+      return api;
+    },
+
+    /**
+     * Hueco con brillo mientras baja una imagen remota (logos de tienda, fotos
+     * de artículo, evidencias). Se retira en `load` Y en `error`: una imagen rota
+     * dejaba el brillo latiendo para siempre, que se lee como «sigue cargando».
+     *
+     *   VentelFX.image(img)                      → sobre la propia <img>
+     *   VentelFX.image(img, {wrap: contenedor})  → el brillo va en el contenedor
+     *
+     * Si la imagen ya está en caché del navegador (complete && naturalWidth) no
+     * se monta nada: un parpadeo de 16 ms es peor que no poner nada.
+     */
+    image: function (img, opts) {
+      opts = opts || {};
+      var el = resolve(img);
+      if (!el) return mountNoop();
+      if (el.complete && el.naturalWidth > 0) return mountNoop();
+      var host = resolve(opts.wrap) || el.parentElement || el;
+      // El brillo va en una CAPA APARTE, no en clases sobre el contenedor del
+      // sitio: poner overflow/background al padre para animar una foto es la
+      // clase de cambio que recorta un menú o borra un fondo tres pantallas más
+      // allá. Aquí solo se añade `position:relative` si el padre era estático.
+      var capa = D.createElement('span');
+      capa.className = 'vfx vfx-imgfx';
+      capa.setAttribute('aria-hidden', 'true');
+      var estatico = window.getComputedStyle(host).position === 'static';
+      if (estatico) host.classList.add('vfx-imgwrap');
+      host.appendChild(capa);
+      var ended = false;
+      var quitar = function () {
+        if (ended) return;
+        ended = true;
+        if (capa.parentNode) capa.parentNode.removeChild(capa);
+        if (estatico) host.classList.remove('vfx-imgwrap');
+        el.removeEventListener('load', quitar);
+        el.removeEventListener('error', quitar);
+        if (animOK() && el.naturalWidth > 0) {
+          G().fromTo(el, { opacity: 0 }, { opacity: 1, duration: .35, ease: 'power2.out', clearProps: 'opacity' });
+        }
+      };
+      el.addEventListener('load', quitar);
+      el.addEventListener('error', quitar);
+      // Tope: si la petición se queda colgada, el brillo no se eterniza.
+      setTimeout(quitar, opts.maxMs || 20000);
+      var api = {
+        el: host,
+        done: function (cb) { quitar(); if (cb) cb(); return api; },
+        fail: function () { quitar(); return api; },
+        text: function () { return api; },
+        title: function () { return api; },
+        isDone: function () { return ended; }
+      };
+      return api;
+    },
+
+    /**
+     * Loader dentro de una pestaña recién abierta con window.open(). Sin esto,
+     * abrir una cotización en Google Sheets deja al asesor mirando una pestaña
+     * EN BLANCO entre 3 y 15 s, que es donde más gente cree que se rompió algo.
+     * La pestaña se sustituye sola cuando el destino termina de cargar.
+     */
+    tab: function (win, opts) {
+      opts = opts || {};
+      if (!win || !win.document) return mountNoop();
+      var titulo = opts.title || 'Abriendo…';
+      var sub = opts.sub || 'Preparando el documento en Google Sheets';
+      try {
+        win.document.open();
+        win.document.write(
+          '<!doctype html><html lang="es"><head><meta charset="utf-8">' +
+          '<title>' + titulo + '</title><style>' +
+          'html,body{height:100%;margin:0}' +
+          'body{display:flex;align-items:center;justify-content:center;background:#F7F9FB;' +
+          "font-family:'Inter',system-ui,-apple-system,'Segoe UI',Roboto,sans-serif;color:#1B2330}" +
+          '.b{text-align:center;padding:2rem}' +
+          '.r{width:54px;height:54px;margin:0 auto 1.1rem;border-radius:50%;' +
+          'border:5px solid #E4E9F0;border-top-color:#E10098;animation:s .9s linear infinite}' +
+          '@keyframes s{to{transform:rotate(360deg)}}' +
+          'h1{font-size:1rem;font-weight:600;margin:0}' +
+          'p{font-size:.85rem;color:#5C6B7E;margin:.4rem 0 0}' +
+          '@media (prefers-reduced-motion:reduce){.r{animation:none}}' +
+          '</style></head><body><div class="b"><div class="r"></div>' +
+          '<h1>' + titulo + '</h1><p>' + sub + '</p></div></body></html>');
+        win.document.close();
+      } catch (e) { return mountNoop(); }
+      var ended = false;
+      var api = {
+        el: null,
+        /** Manda la pestaña al destino real. */
+        done: function (cb) {
+          if (ended) { if (cb) cb(); return api; }
+          ended = true;
+          if (opts.url) { try { win.location.href = opts.url; } catch (e) {} }
+          if (cb) cb();
+          return api;
+        },
+        /** Escribe el error EN la pestaña: cerrarla sin más parece un fallo del navegador. */
+        fail: function (msg) {
+          if (ended) return api;
+          ended = true;
+          try {
+            var b = win.document.querySelector('.b');
+            if (b) b.innerHTML = '<h1>No se pudo abrir</h1><p>' +
+              String(msg || 'Vuelve a intentarlo desde el Portal.') + '</p>';
+          } catch (e) {}
+          return api;
+        },
+        text: function () { return api; },
+        title: function () { return api; },
+        isDone: function () { return ended; }
+      };
+      return api;
+    },
+
+    /** Marcado del chip giratorio (para inyectar en cualquier texto). */
+    chip: function (size) {
+      return '<svg data-chipspin viewBox="0 0 24 24" style="width:' + (size || '1.05em') + ';height:' + (size || '1.05em') + '" aria-hidden="true">' +
+        '<circle cx="12" cy="12" r="9" fill="none" stroke="var(--vfx-line,#E4E9F0)" stroke-width="3"/>' +
+        '<path d="M21 12a9 9 0 0 0-9-9" fill="none" stroke="var(--vfx-brand,#E10098)" stroke-width="3" stroke-linecap="round"/>' +
+      '</svg>';
+    },
+
+    /**
+     * Azúcar para google.script.run: monta la escena, la cierra sola al
+     * responder y muestra el error en la propia escena si falla.
+     *
+     *   VentelFX.run('camion', {title:'…'})
+     *     .call(function(run){ run.miFuncion(param); })
+     *     .then(function(datos){ pintar(datos); });
+     */
+    run: function (theme, opts) {
+      opts = opts || {};
+      var fx = opts.target ? VentelFX.section(opts.target, theme, opts) : VentelFX.overlay(theme, opts);
+      var onOk = null, onErr = null;
+      var chain = {
+        fx: fx,
+        call: function (fn) {
+          try {
+            fn(google.script.run
+              .withSuccessHandler(function (res) { fx.done(function () { if (onOk) onOk(res); }); })
+              .withFailureHandler(function (err) {
+                var msg = (err && err.message) ? err.message : String(err || 'Error desconocido');
+                if (onErr) { fx.done(function () { onErr(err); }); } else { fx.fail(msg); }
+              }));
+          } catch (e) { fx.fail(e && e.message ? e.message : String(e)); }
+          return chain;
+        },
+        then: function (cb) { onOk = cb; return chain; },
+        catch: function (cb) { onErr = cb; return chain; }
+      };
+      return chain;
+    }
+  };
+
+  /** Manejador inerte: la API nunca devuelve null, así el llamador no comprueba. */
+  function mountNoop() {
+    var api = {
+      el: null,
+      done: function (cb) { if (cb) cb(); return api; },
+      fail: function () { return api; },
+      text: function () { return api; },
+      title: function () { return api; },
+      isDone: function () { return true; }
+    };
+    return api;
+  }
+
+  window.VentelFX = VentelFX;
+
+  /* ══════════════════════════════════════════════════════════════════════════
+     QUÉ TEMA USAR DÓNDE (para que la escena signifique algo y no sea adorno)
+
+       camion     importar/refrescar bloques grandes de datos
+                  · Herramientas de contenido · precarga del portal · catálogos
+       caja       guardar, registrar, dar de alta
+       percha     catálogo de artículos, inventario, inspector de producto
+       sobre      envío de correo (cliente y VENTEL)
+       escaner    buscar por folio / SKU / clave, consultar cotización
+       documento  generar PDF, armar cotización, formatos, revisión
+       radar      consola, métricas, tableros, operación, estado
+       etiqueta   promociones, precios, descuentos
+       bolsa      atenciones, pedidos, pendientes
+
+     La regla es una sola: dos esperas del MISMO tipo usan el MISMO tema. Es lo
+     que convierte las escenas en un lenguaje —«ah, viene el camión, esto tarda
+     lo de siempre»— en vez de en nueve animaciones sueltas.
+     ══════════════════════════════════════════════════════════════════════════ */
+})();
+</script>

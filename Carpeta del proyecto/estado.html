@@ -451,6 +451,14 @@
   }
   @keyframes est-brillo { from { transform: translateX(-100%); } to { transform: translateX(100%); } }
 
+  /* El esqueleto de los sistemas (VentelFX) ocupa el hueco de una sección entera: sin el
+     margen nacería pegado al historial y la página daría un salto al llegar los datos. */
+  #est-sistemas > .vfx-sk { margin-top: var(--e-s8); }
+  /* El brillo de espera de una imagen cubre TODO su anfitrión, y el del visor es la pantalla
+     completa: se ciñe a un recuadro centrado del tamaño aproximado de una captura. */
+  #est-visor > .vfx-imgfx { inset: auto; border-radius: var(--e-rad);
+    width: min(60vw, 460px); height: min(60vh, 460px); }
+
   /* ═══════════════════════════════════════════════════════════════════════════
      HOJA LATERAL (detalle)
      ═══════════════════════════════════════════════════════════════════════════ */
@@ -679,6 +687,8 @@
   <!-- Sin shell: declara ella misma su pantalla (ver app_precarga.aqui). -->
   <script>if (window.AppPrecarga) AppPrecarga.aqui('estado');</script>
   <?!= include('app_motion'); ?>
+  <?!= include('app_loaders'); ?>
+  <script>if (window.VentelFX) VentelFX.pagina("estado");</script>
   <!-- ScrollTrigger y SplitText solo los necesita ESTA pantalla (app_motion carga el
        núcleo de GSAP para todas). Si el CDN no responde, el script de abajo comprueba
        cada plugin antes de usarlo y la página se pinta sin animar. -->
@@ -721,6 +731,7 @@
     var visorImg = document.getElementById('est-visor-img');
     var disparador = null;
     var incAbierto = '';
+    var skSistemas = null;      // esqueleto de la rejilla de sistemas, hasta el primer pintado
 
     var primerPintado = true;   // la entrada cinematográfica se corre UNA vez
     var firma = '';             // qué había en pantalla, para no re-animar lo que no cambió
@@ -773,6 +784,10 @@
        ═══════════════════════════════════════════════════════════════════════ */
 
     function pintar() {
+      // El esqueleto de los sistemas se retira aquí y no en cada rama: pintar() es el único
+      // camino por el que esta pantalla deja de estar vacía, con datos o con error.
+      if (skSistemas) { skSistemas.done(); skSistemas = null; }
+
       var e = (datos && datos.estado) ? datos.estado : datos;
       var portada = document.getElementById('est-portada');
       var sistemas = document.getElementById('est-sistemas');
@@ -1232,16 +1247,24 @@
       hojaHead.innerHTML =
         '<span style="flex:1"><h2 id="est-hoja-titulo">Cargando…</h2><p>Buscando los reportes</p></span>' +
         '<button type="button" class="est-x" id="est-hoja-x" aria-label="Cerrar">' + IC.cerrar + '</button>';
-      hojaCuerpo.innerHTML = '<div class="est-sk"></div><div class="est-sk"></div>';
+      // El esqueleto de lista tiene la forma de lo que llega —autor, fecha y párrafo por
+      // reporte—, así que la hoja no se reordena cuando aterriza. El manejador es local:
+      // abrir otra incidencia antes de que ésta conteste monta el suyo, y cada cierre debe
+      // apagar el suyo y no el del vecino.
+      hojaCuerpo.innerHTML = '';
+      var skDetalle = window.VentelFX
+        ? VentelFX.skeleton(hojaCuerpo, 'lista', { rows: 3 })
+        : null;
       cablearCierre();
       setTimeout(function () {
         var x = document.getElementById('est-hoja-x');
         if (x) x.focus();
       }, 60);
 
-      if (!haySesion()) { pintarPuerta(id); return; }
+      if (!haySesion()) { if (skDetalle) skDetalle.done(); pintarPuerta(id); return; }
 
       llamar('opIncidenteDetalle', [id, AppSession.userEmail]).then(function (r) {
+        if (skDetalle) skDetalle.done();
         if (incAbierto !== id) return;
         if (!r || !r.success) {
           hojaCuerpo.innerHTML = '<div class="est-vacio"><b>No pudimos abrir este reporte</b>' +
@@ -1250,6 +1273,7 @@
         }
         pintarDetalle(r);
       }, function () {
+        if (skDetalle) skDetalle.done();
         if (incAbierto !== id) return;
         hojaCuerpo.innerHTML = '<div class="est-vacio"><b>No hay conexión con el sistema</b>' +
           '<p>Revisa tu internet e inténtalo de nuevo.</p></div>';
@@ -1358,10 +1382,19 @@
       hojaCuerpo.innerHTML = html;
       cablearCierre();
 
+      // Las capturas bajan de Drive: brillo en el hueco hasta que llegan. Se retira solo al
+      // cargar o al fallar, así que no hay manejador que cerrar.
+      if (window.VentelFX) {
+        hojaCuerpo.querySelectorAll('.est-evi img').forEach(function (im) { VentelFX.image(im); });
+      }
+
       hojaCuerpo.querySelectorAll('[data-ver]').forEach(function (b) {
         b.addEventListener('click', function () {
           visorImg.src = b.getAttribute('data-ver');
           visor.classList.add('abierto');
+          // Después de asignar el src: si la miniatura ya la trajo el navegador —es la misma
+          // URL—, image() lo detecta y no monta nada.
+          if (window.VentelFX) VentelFX.image(visorImg);
           if (conGsap()) {
             gsap.fromTo(visorImg, { scale: .92, opacity: 0 },
               { scale: 1, opacity: 1, duration: .4, ease: 'power3.out', clearProps: 'transform' });
@@ -1442,6 +1475,9 @@
         '<div class="est-sk" style="height:220px;border-radius:28px"></div>';
       document.getElementById('est-incidencias').innerHTML =
         '<div class="est-seccion"><div class="est-sk"></div><div class="est-sk"></div></div>';
+      // La rejilla de sistemas es el bloque más alto de la página y hasta ahora abría en
+      // blanco: el esqueleto reserva su sitio para que nada salte cuando lleguen los datos.
+      if (window.VentelFX) skSistemas = VentelFX.skeleton('#est-sistemas', 'tarjetas', { rows: 4 });
 
       cargar().then(function () {
         // Enlace directo desde el aviso de Chat: ?page=estado&inc=<id> abre la incidencia.
