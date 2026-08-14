@@ -1342,6 +1342,17 @@ table.ds-matrix{width:100%;border-collapse:separate;border-spacing:0;min-width:5
 <?!= include('app_onboarding') ?>
 <?!= include('app_operacion') ?>
 <?!= include('app_precarga') ?>
+<!-- Atenciones, aquí dentro. El Portal es de donde más se sale a mirar quién está
+     esperando, y hasta ahora ese enlace costaba una carga completa de Apps Script para
+     una consulta de cinco segundos —y otra para volver—. Con el módulo cargado, pedir
+     "atenciones" abre el panel encima del Portal: el módulo desvía él solo todo lo que
+     pasa por AppUrl.go, que es por donde ya iba este enlace.
+
+     Va DESPUÉS de app_guardado (así el desvío envuelve su guardia de salida, no al
+     revés) y trae su propio CSS, así que no hace falta app_theme en esta landing.
+     La pantalla completa sigue existiendo: es el destino de un enlace compartido y está
+     a un botón dentro del propio panel. -->
+<?!= include('app_atenciones') ?>
 <!-- El Portal es la landing: de aquí sale buena parte de los trayectos del día, así que
      declararlo es lo que permite aprender "entra al Portal y se va a cotizar". Va con
      `aqui()` y no por el shell porque este archivo tiene el suyo propio. -->
@@ -3379,10 +3390,15 @@ function handlePromoNav(e, link){
    un onclick escrito en el HTML solo alcanza funciones globales, y dentro de aquel
    IIFE esto habría sido un ReferenceError en el primer clic. */
 function handleAtencionesNav(e, link){
-  if (window.VentelLoader) VentelLoader.show();
   closeSidebar();
   if (!(window.AppUrl && AppUrl.base)) return;   // sin URL base, que el href haga su trabajo
   e.preventDefault();
+  /* El loader solo cuando de verdad se va a ir a otra pantalla. Con el módulo cargado
+     esto abre el panel aquí mismo —AppUrl.go está desviado— y no hay carga que esperar:
+     enseñar la rueda dejaría el Portal tapado por algo que nadie va a quitar, porque
+     quien la esconde es la pantalla siguiente y no va a haber pantalla siguiente. */
+  var abreAqui = !!(window.AppAtenciones && AppAtenciones.abrirPanel);
+  if (!abreAqui && window.VentelLoader) VentelLoader.show();
   AppUrl.go('atenciones');
 }
 
@@ -6927,6 +6943,22 @@ function mockData(){
       if (e.exigeSesion && !conSesion) ok = false;
       el.hidden = !ok;
     });
+    marcarAtencionesComoPanel();
+  }
+
+  /* La flecha de "esto te saca del Portal" deja de ser verdad cuando el módulo está
+     cargado: Atenciones se abre como panel encima y no se pierde nada de lo que se
+     estuviera mirando. Se quita en cuanto se sabe, y no se toca el marcado cuando el
+     módulo no está —porque entonces el enlace SÍ navega y la flecha dice la verdad—.
+     El href se queda como está a propósito: es lo que hace que "abrir en otra pestaña"
+     siga llevando a la pantalla completa. */
+  function marcarAtencionesComoPanel() {
+    var el = document.getElementById('atencionesNavLink');
+    if (!el || !window.AppAtenciones || !AppAtenciones.abrirPanel) return;
+    el.classList.remove('ext');
+    var flecha = el.querySelector('.ext-arrow');
+    if (flecha) flecha.remove();
+    el.title = 'Se abre aquí mismo, sin salir del Portal';
   }
 
 
