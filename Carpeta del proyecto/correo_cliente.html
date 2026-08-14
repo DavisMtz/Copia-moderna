@@ -297,6 +297,8 @@
     <?!= include('app_buscar'); ?>
     <?!= include('app_icons'); ?>
     <?!= include('app_motion'); ?>
+    <?!= include('app_loaders'); ?>
+    <script>if (window.VentelFX) VentelFX.pagina("correo_cliente");</script>
     <?!= include('app_shell'); ?>
     <?!= include('app_comando'); ?>
     <?!= include('app_precarga'); ?>
@@ -634,19 +636,36 @@ function fitPreview(){
 /* ── Adjuntos ── */
 function initAdjuntos(){
   $id('inpFiles').addEventListener('change', async e => {
-    for (const file of Array.from(e.target.files)) {
-      const total = adjuntos.reduce((s,a)=>s+a.size,0) + file.size;
-      if (total > 20*1024*1024) { toast('⚠️ Se superan los 20 MB de adjuntos; "'+file.name+'" no se agregó.'); continue; }
-      const base64 = await new Promise((res,rej)=>{
-        const r = new FileReader();
-        r.onload = () => res(String(r.result).split(',')[1] || '');
-        r.onerror = rej;
-        r.readAsDataURL(file);
-      });
-      adjuntos.push({ nombre:file.name, mime:file.type||'application/octet-stream', size:file.size, base64 });
+    const archivos = Array.from(e.target.files);
+    /* Leer un archivo grande a base64 tarda —hasta 20 MB— y hasta ahora no se veía
+       NADA: la gente volvía a adjuntarlo creyendo que no se había agregado. Cada
+       archivo pendiente reserva desde ya su fila en la lista. */
+    const filas = archivos.map(() => window.VentelFX ? VentelFX.skeleton('#attList', 'lista', { rows:1 }) : null);
+    const cerrarFila = i => { if (filas[i]) filas[i].done(); };
+    try {
+      for (let i = 0; i < archivos.length; i++) {
+        const file = archivos[i];
+        const total = adjuntos.reduce((s,a)=>s+a.size,0) + file.size;
+        if (total > 20*1024*1024) { cerrarFila(i); toast('⚠️ Se superan los 20 MB de adjuntos; "'+file.name+'" no se agregó.'); continue; }
+        const base64 = await new Promise((res,rej)=>{
+          const r = new FileReader();
+          r.onload = () => res(String(r.result).split(',')[1] || '');
+          r.onerror = rej;
+          r.readAsDataURL(file);
+        });
+        adjuntos.push({ nombre:file.name, mime:file.type||'application/octet-stream', size:file.size, base64 });
+        cerrarFila(i);
+      }
+    } finally {
+      // Si la lectura de un archivo revienta, ninguna fila se queda brillando…
+      for (let i = 0; i < filas.length; i++) cerrarFila(i);
+      // …y la lista se repinta igual: si la excepción salta con archivos ya
+      // metidos en `adjuntos`, sin esto se enviaban SIN aparecer en pantalla.
+      // Limpiar el input es igual de obligatorio: con el valor puesto, volver a
+      // elegir EL MISMO archivo no dispara 'change' y parece que el botón murió.
+      e.target.value = '';
+      renderAdjuntos();
     }
-    e.target.value = '';
-    renderAdjuntos();
   });
 }
 function renderAdjuntos(){
@@ -663,6 +682,19 @@ function renderAdjuntos(){
 function quitarAdjunto(i){ adjuntos.splice(i,1); renderAdjuntos(); }
 function fmtSize(b){ return b < 1024*1024 ? Math.max(1,Math.round(b/1024))+' KB' : (b/1024/1024).toFixed(1)+' MB'; }
 
+/* Chip giratorio en línea. El giro NO se pone aquí: app_loaders ya trae
+   `[data-chipspin]{animation:vfx-spin .9s linear infinite}` —con su variante para
+   «menos movimiento»— y una animación CSS gana en la cascada a cualquier
+   transform en línea, así que un tween de GSAP encima no se vería y solo dejaría
+   un `repeat:-1` girando sobre un nodo ya desechado.
+   Devuelve la función que lo retira, para que quien lo pone la llame en TODAS
+   sus salidas; si el llamador no repinta el texto, el chip se va igual. */
+function chipEnEspera(el, texto){
+  if (!el || !window.VentelFX) return function(){};
+  el.innerHTML = '<span class="vfx vfx-chip">' + VentelFX.chip() + '<span>' + esc(texto) + '</span></span>';
+  return function(){ if (el.querySelector('[data-chipspin]')) el.textContent = ''; };
+}
+
 /* ── Remitente (mismo criterio que la pantalla de cotizaciones) ──
    El alias institucional casi nunca cambia y la consulta cuesta una llamada a
    Gmail: se pinta al instante desde la caché local (30 min) y se revalida detrás.
@@ -672,7 +704,9 @@ function loadSender(){
     $id('senderInfoText').textContent = 'Vista de ejemplo: para enviar correos entra al sistema desde el portal.';
     return;
   }
+  const quitarChip = chipEnEspera($id('senderInfoText'), 'Verificando remitente…');
   const pintar = (info) => {
+    quitarChip();
     senderInfo = info;
     if (info && info.success) {
       $id('senderInfoText').innerHTML = 'Se enviará desde <b>'+esc(info.effectiveSender || info.alias)+'</b>'
@@ -686,7 +720,7 @@ function loadSender(){
   if (!window.AppRun) {   // despliegue parcial: sin caché, pero funciona igual
     google.script.run
       .withSuccessHandler(pintar)
-      .withFailureHandler(() => { $id('senderInfoText').textContent = 'No se pudo verificar el remitente.'; })
+      .withFailureHandler(() => { quitarChip(); $id('senderInfoText').textContent = 'No se pudo verificar el remitente.'; })
       .getMailSenderInfo();
     return;
   }
@@ -696,7 +730,7 @@ function loadSender(){
     // Nunca se cachea un fallo, ni el estado "el alias todavía no existe".
     accept: (info) => !!(info && info.success && info.aliasAvailable),
     onData: pintar,
-    onError: (e, cached) => { if (!cached) $id('senderInfoText').textContent = 'No se pudo verificar el remitente.'; }
+    onError: (e, cached) => { quitarChip(); if (!cached) $id('senderInfoText').textContent = 'No se pudo verificar el remitente.'; }
   });
 }
 
@@ -758,11 +792,16 @@ function revisarEnvio(){
 }
 
 function confirmarEnvio(){
-  if (enviando) return;
+  // La bandera es la protección contra doble envío; con la escena a pantalla
+  // completa el modal ya no está a la vista, así que un botón que no hace NADA
+  // se lee como roto. Se dice en voz alta qué pasa y qué hacer.
+  if (enviando) { toast('Ya hay un envío en curso. Si no responde, recarga la pantalla y revisa tus enviados antes de reintentar.'); return; }
   if (typeof google === 'undefined' || !google.script) { toast('Para enviar correos entra al sistema desde el portal.'); return; }
-  enviando = true;
-  mostrarPaso('mSending');
 
+  /* El correo se arma ANTES de levantar la bandera y de abrir la escena:
+     buildEmailHtml() puede reventar con una plantilla a medias, y hacerlo con la
+     escena ya puesta dejaría la pantalla tapada 180 s con el modal escondido
+     detrás y el botón de enviar muerto por la bandera. */
   const payload = {
     plantilla: tplId,
     to:  parseEmails($id('inpTo').value),
@@ -773,24 +812,61 @@ function confirmarEnvio(){
     adjuntos: adjuntos.map(a => ({ nombre:a.nombre, mime:a.mime, base64:a.base64 })),
     asesor: (window.AppSession && AppSession.userEmail) || ''
   };
+  enviando = true;
 
-  google.script.run
+  /* Ésta es la espera larga de la pantalla: el servidor arma el correo, sube los
+     adjuntos (hasta 20 MB) y se los entrega a Gmail. La escena del sobre sustituye
+     al disco del modal —que no tenía tope y dejaba el modal sin salida— y trae dato
+     curioso mientras tanto. El modal se retira: dos indicadores para la misma
+     espera sobran, y la escena tapa la pantalla entera. */
+  const fxEnvio = window.VentelFX ? VentelFX.overlay('sobre', {
+    title: 'Enviando el correo al cliente…',
+    facts: true,
+    maxMs: 180000,
+    steps: [
+      'Armando el mensaje…',
+      adjuntos.length ? 'Subiendo los adjuntos…' : 'Preparando el envío…',
+      'Entregando al servidor de correo…',
+      'No cierres esta ventana; puede tardar un poco más…'
+    ]
+  }) : null;
+  if (fxEnvio) $id('overlay').classList.remove('show');
+  else mostrarPaso('mSending');   // respaldo si el motor de escenas no está en este despliegue
+
+  // El resultado se enseña en el modal de siempre, ya retirada la escena.
+  const resultado = (paso) => {
+    const abrir = () => { mostrarPaso(paso); $id('overlay').classList.add('show'); };
+    if (fxEnvio) fxEnvio.done(abrir); else abrir();
+  };
+
+  const enviar = google.script.run
     .withSuccessHandler(res => {
       enviando = false;
       if (res && res.status === 'ok') {
         $id('okDetail').innerHTML = 'Enviado a <b>'+esc(payload.to.join(', '))+'</b><br>desde '+esc(res.sentFrom||'')+'.';
-        mostrarPaso('mOk');
+        resultado('mOk');
       } else {
         $id('errDetail').textContent = (res && res.error) ? res.error : 'Error desconocido.';
-        mostrarPaso('mErr');
+        resultado('mErr');
       }
     })
     .withFailureHandler(err => {
       enviando = false;
       $id('errDetail').textContent = err && err.message ? err.message : String(err);
-      mostrarPaso('mErr');
-    })
-    .enviarCorreoPlantilla(payload);
+      resultado('mErr');
+    });
+
+  /* Si la llamada ni siquiera se puede lanzar (despliegue sin
+     enviarCorreoPlantilla, argumento no serializable) NINGÚN manejador se
+     ejecutaría: la escena se quedaría puesta hasta su tope de 180 s con el modal
+     escondido. Se cierra aquí mismo y el error se enseña en el modal de siempre. */
+  try {
+    enviar.enviarCorreoPlantilla(payload);
+  } catch (err) {
+    enviando = false;
+    $id('errDetail').textContent = 'No se pudo iniciar el envío: ' + (err && err.message ? err.message : String(err));
+    resultado('mErr');
+  }
 }
 
 function mostrarPaso(id){

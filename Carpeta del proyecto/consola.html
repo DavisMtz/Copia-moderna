@@ -411,10 +411,12 @@
         </div>
     </header>
 
-    <!-- Cargando -->
-    <div id="cns-cargando" class="cns-estado">
-        <div class="v-spinner"></div>
-        <p>Leyendo miembros, ajustes y estado del sistema…</p>
+    <!-- Cargando: el esqueleto dibuja lo que va a aterrizar —las cifras del resumen y
+         la tabla de gente— en vez de un disco que no anticipa nada, así la consola no
+         da un salto al pintarse. Los huecos los rellena cargar() con VentelFX. -->
+    <div id="cns-cargando">
+        <div id="cns-sk-kpis" style="margin-bottom:1.25rem"></div>
+        <div class="cns-bloque"><div class="cns-bloque-cuerpo" id="cns-sk-tabla"></div></div>
     </div>
 
     <!-- Sin permiso / error -->
@@ -703,6 +705,8 @@
 <?!= include('app_buscar'); ?>
 <?!= include('app_icons'); ?>
 <?!= include('app_motion'); ?>
+<?!= include('app_loaders'); ?>
+<script>if (window.VentelFX) VentelFX.pagina("consola");</script>
 <?!= include('app_support'); ?>
 <?!= include('app_shell'); ?>
 <?!= include('app_comando'); ?>
@@ -861,11 +865,23 @@
     var CNS_CACHE_TTL = 15 * 60 * 1000;
     function cnsClave() { return 'consola-panorama-' + AppSession.userEmail; }
 
+    /* Indicadores de espera del panorama. Viven fuera de cargar() porque negar()
+       —que es otra salida de la misma lectura— también tiene que poder cerrarlos. */
+    var fxPanorama = [];
+    function cerrarFxPanorama() {
+        fxPanorama.forEach(function (f) { f.done(); });
+        fxPanorama = [];
+    }
+
     function cargar(forzar) {
         if (forzar && window.AppCache) { try { AppCache.remove(cnsClave()); } catch (e) {} }
         $('cns-negado').hidden = true;
+        cerrarFxPanorama();
 
         var pintadoAlguna = false;
+        // Si la consola ya está en pantalla, esta lectura es una recarga y no una
+        // primera carga: cambia dónde se avisa de la espera (ver más abajo).
+        var yaPintada = !$('cns-app').hidden;
 
         var aplicar = function (r) {
             // Se exige también `yo` y `catalogo`: una respuesta a medias reventaría al
@@ -881,6 +897,7 @@
             // y cada acción se vuelve a comprobar allí de todos modos.
             D.secciones = (r.secciones && r.secciones.length) ? r.secciones : CNS_PANELES.slice();
 
+            cerrarFxPanorama();
             $('cns-cargando').hidden = true;
             $('cns-app').hidden = false;
             $('cns-rol-tx').textContent = (rolDef(D.yo.rol) || {}).nombre ||
@@ -901,9 +918,19 @@
             // Ya hay consola en pantalla: el "cargando" sobra y el indicador de la
             // esquina se encarga de decir que esto se está comprobando.
             $('cns-cargando').hidden = true;
+        } else if (yaPintada) {
+            // Recarga con la consola delante (botón "Actualizar", o vuelta de una
+            // escritura): esconderla para enseñar el esqueleto borraría durante dos
+            // segundos unos permisos que son correctos. Se deja a la vista y la espera
+            // se dice en el botón que la pidió.
+            fxPanorama = [VentelFX.button('#cns-recargar', 'Actualizando…')];
         } else {
             $('cns-cargando').hidden = false;
             $('cns-app').hidden = true;
+            fxPanorama = [
+                VentelFX.skeleton('#cns-sk-kpis', 'kpis', { rows: 4 }),
+                VentelFX.skeleton('#cns-sk-tabla', 'tabla', { rows: 7, cols: 5 })
+            ];
         }
 
         llamar('consolaPanorama', [AppSession.userEmail]).then(function (r) {
@@ -928,6 +955,7 @@
     }
 
     function negar(mensaje) {
+        cerrarFxPanorama();
         $('cns-cargando').hidden = true;
         $('cns-app').hidden = true;
         $('cns-negado').hidden = false;
@@ -1388,9 +1416,17 @@
     function correrSalud() {
         var boton = $('cns-correr-salud');
         boton.disabled = true;
-        $('cns-salud').innerHTML = '<div class="cns-vacio"><div class="v-spinner"></div>Revisando hojas, formatos, correo y calendario…</div>';
+        // Radar y no otra escena: esto es monitoreo del sistema, la misma familia que
+        // el resto de la consola. Ocupa el hueco (fill) porque el panel queda vacío.
+        $('cns-salud').innerHTML = '';
+        var fx = VentelFX.section('#cns-salud', 'radar', {
+            mode: 'fill',
+            title: 'Revisando el sistema…',
+            sub: 'Hojas, formatos, correo y calendario, una por una'
+        });
 
         llamar('consolaSalud', [AppSession.userEmail]).then(function (r) {
+            fx.done();
             boton.disabled = false;
             if (!r || !r.success) {
                 $('cns-salud').innerHTML = '<div class="cns-check mal"><span class="cns-check-ic">' + ic('warning') +
@@ -1400,6 +1436,7 @@
             }
             pintarSalud(r.reporte);
         }).catch(function (e) {
+            fx.done();
             boton.disabled = false;
             console.error('consolaSalud:', e);
             $('cns-salud').innerHTML = '<div class="cns-check mal"><span class="cns-check-ic">' + ic('warning') +
@@ -1468,12 +1505,38 @@
     }
 
     function recargarBitacora() {
+        var tbody = $('cns-bitacora-tbody');
+        /* Con la bitácora delante, la espera se dice SOLO en el botón que la pidió: es la
+           misma regla que sigue el panorama al recargar con la consola puesta. Cambiar
+           hasta 150 filas correctas por ocho barras grises borra lo que se está leyendo,
+           encoge el panel de golpe —justo el salto que un esqueleto viene a evitar— y deja
+           dos indicadores para una sola espera. El esqueleto se guarda para cuando no hay
+           nada que borrar: la primera vez, o después de una lectura que falló. */
+        var sk = null;
+        if (!tbody.children.length) {
+            // El esqueleto va DENTRO de una celda: un <div> colgado del <tbody> el
+            // navegador lo saca de la tabla y el brillo aparece fuera del recuadro.
+            tbody.innerHTML = '<tr><td colspan="5" id="cns-sk-bitacora"></td></tr>';
+            $('cns-bitacora-vacio').hidden = true;
+            sk = VentelFX.skeleton('#cns-sk-bitacora', 'tabla', { rows: 8, cols: 5 });
+        }
+        var btn = VentelFX.button('#cns-recargar-bitacora', 'Actualizando…');
+
         llamar('consolaBitacora', [AppSession.userEmail, 150]).then(function (r) {
-            if (!r || !r.success) return toast((r && r.message) || 'No se pudo leer la bitácora.', 'error');
+            if (sk) sk.done();
+            btn.done();
+            // Si la relectura falla se repinta lo que ya había: dejar la tabla en
+            // blanco haría creer que la bitácora se vació.
+            if (!r || !r.success) { pintarBitacora(); return toast((r && r.message) || 'No se pudo leer la bitácora.', 'error'); }
             D.bitacora = r.bitacora || [];
             pintarBitacora();
             toast('Bitácora actualizada.', 'ok');
-        }).catch(function (e) { toast('Error: ' + e.message, 'error'); });
+        }).catch(function (e) {
+            if (sk) sk.done();
+            btn.done();
+            pintarBitacora();
+            toast('Error: ' + e.message, 'error');
+        });
     }
 
     // ── Cajón: ficha del miembro ─────────────────────────────────────────────
@@ -1728,6 +1791,12 @@
         si.textContent = textoBoton || 'Confirmar';
         si.className = 'v-btn v-btn-sm ' + (claseBoton || 'v-btn-primary');
         si.disabled = false;
+        /* El botón de confirmar es UNO para todos los modales. Si el anterior se cerró
+           con la escritura todavía en vuelo —Cancelar, Escape o clic fuera están vivos
+           mientras se da de alta o se borra—, la marca de ocupado se queda pegada y
+           VentelFX.button devolvería un manejador inerte en la siguiente confirmación:
+           ese "Borrar" no se desactivaría y aceptaría un segundo clic. */
+        delete si.dataset.vfxBusy;
         modalAlAceptar = alAceptar;
 
         var overlay = $('cns-modal-fondo');
@@ -1748,6 +1817,18 @@
 
         var primero = $('cns-modal-cuerpo').querySelector('input, select, textarea');
         if (primero) primero.focus(); else si.focus();
+    }
+
+    /**
+     * Bloquea los campos del modal mientras la escritura viaja. No es cosmética: si a
+     * medio alta se cambia el correo, el error que vuelve del servidor se leería sobre
+     * unos datos que ya no son los que se mandaron.
+     */
+    function camposModal(bloquear) {
+        Array.prototype.forEach.call(
+            $('cns-modal-cuerpo').querySelectorAll('input, select, textarea'), function (c) {
+                c.disabled = !!bloquear;
+            });
     }
 
     function cerrarModal() {
@@ -1842,14 +1923,16 @@
                     });
 
                 var si = $('cns-modal-si');
-                si.disabled = true;
-                si.textContent = 'Dando de alta…';
+                var fx = VentelFX.button(si, 'Dando de alta…');
+                camposModal(true);
 
                 llamar('consolaAltaMiembro', [AppSession.userEmail,
                         { nombre: nombre, email: correo, rol: rol, mas: mas, menos: menos, avisar: true }])
                     .then(function (r) {
-                        si.disabled = false;
-                        si.textContent = 'Dar de alta';
+                        // Antes de cerrarModal/abrirModal: los dos reescriben este mismo
+                        // botón, y restaurarlo después dejaría el texto de la espera.
+                        fx.done();
+                        camposModal(false);
                         if (!r || !r.success) {
                             err.hidden = false;
                             err.textContent = (r && r.message) || 'No se pudo dar de alta.';
@@ -1875,8 +1958,8 @@
                         }
                     })
                     .catch(function (e) {
-                        si.disabled = false;
-                        si.textContent = 'Dar de alta';
+                        fx.done();
+                        camposModal(false);
                         err.hidden = false;
                         err.textContent = 'Error: ' + (e && e.message ? e.message : e);
                     });
@@ -1892,9 +1975,10 @@
             '<p class="cns-confirm-tx">Se le generará una contraseña temporal a <strong>' + esc(m.nombre || m.email) +
             '</strong> y se le mandará a <strong>' + esc(m.email) + '</strong>. La actual dejará de servir enseguida.</p>',
             'Restablecer', 'v-btn-dark', function () {
-                var si = $('cns-modal-si');
-                si.disabled = true; si.textContent = 'Restableciendo…';
+                var fx = VentelFX.button($('cns-modal-si'), 'Restableciendo…');
                 llamar('consolaResetPassword', [AppSession.userEmail, m.email]).then(function (r) {
+                    // Antes de cerrarModal: el modal reescribe este mismo botón.
+                    fx.done();
                     cerrarModal();
                     if (!r || !r.success) return toast((r && r.message) || 'No se pudo restablecer.', 'error');
                     if (r.passwordTemporal) {
@@ -1908,6 +1992,7 @@
                         toast(r.message, 'ok');
                     }
                 }).catch(function (e) {
+                    fx.done();
                     cerrarModal();
                     toast('Error: ' + (e && e.message ? e.message : e), 'error');
                 });
@@ -1932,9 +2017,12 @@
                     if (window.AppMotion) AppMotion.shake($('borrar-conf'));
                     return;
                 }
-                var si = $('cns-modal-si');
-                si.disabled = true; si.textContent = 'Borrando…';
+                var fx = VentelFX.button($('cns-modal-si'), 'Borrando…');
+                camposModal(true);
                 llamar('consolaEliminarMiembro', [AppSession.userEmail, m.email, conf]).then(function (r) {
+                    // Antes de cerrarModal: el modal reescribe este mismo botón.
+                    fx.done();
+                    camposModal(false);
                     cerrarModal();
                     if (!r || !r.success) return toast((r && r.message) || 'No se pudo borrar.', 'error');
                     D.miembros = r.miembros || D.miembros;
@@ -1943,6 +2031,8 @@
                     pintarMiembros(); pintarResumen(); pintarExcepciones();
                     toast(r.message, 'ok');
                 }).catch(function (e) {
+                    fx.done();
+                    camposModal(false);
                     cerrarModal();
                     toast('Error: ' + (e && e.message ? e.message : e), 'error');
                 });

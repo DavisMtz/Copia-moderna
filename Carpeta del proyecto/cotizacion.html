@@ -480,6 +480,8 @@
     <?!= include('app_buscar'); ?>
     <?!= include('app_icons'); ?>
     <?!= include('app_motion'); ?>
+    <?!= include('app_loaders'); ?>
+    <script>if (window.VentelFX) VentelFX.pagina("cotizacion");</script>
     <?!= include('app_onboarding'); ?>
     <?!= include('app_extension_guia'); ?>
     <?!= include('LoaderPartial'); ?>
@@ -909,6 +911,16 @@
                 lista.innerHTML = conDatos.map(tarjeta).join('');
                 animarBolsas();
 
+                /* Las fotos las sirve un CDN externo y pueden tardar: hasta que llegan, el
+                   hueco de 3.2 rem es un cuadro gris idéntico al de una imagen rota. El
+                   brillo lo distingue. No hay nada que cerrar aquí: VentelFX.image se retira
+                   solo en `load`, en `error` —donde entra la bolsa— y por su propio tope. */
+                if (window.VentelFX) {
+                    lista.querySelectorAll('.cot-art-img img').forEach(function (im) {
+                        VentelFX.image(im);
+                    });
+                }
+
                 // Pasar por una tarjeta resalta su fila, y al revés. Es lo que convierte la
                 // galería en una ayuda para cotejar en vez de un adorno: se ve la foto, se
                 // sabe qué renglón de la tabla es.
@@ -1192,7 +1204,9 @@
         let pendingFormatFromQuote = null;
 
         function loadQuoteDetails(folio) {
-            if (window.VentelLoader) VentelLoader.show({ title: 'Cargando cotización…', sub: 'Recuperando los datos del folio ' + folio });
+            // Escáner y no el tema de la pantalla (documento): aquí todavía no se está
+            // armando ningún formato, se está localizando un folio en la base.
+            if (window.VentelLoader) VentelLoader.show({ tema: 'escaner', title: 'Cargando cotización…', sub: 'Recuperando los datos del folio ' + folio });
             else showGeneralMessage('Cargando cotización...', false, false);
             google.script.run
                 .withSuccessHandler(function(response) {

@@ -1363,12 +1363,8 @@ table.ds-matrix{width:100%;border-collapse:separate;border-spacing:0;min-width:5
      de pintar para evitar parpadeo; expone window.VentelPrefs. Ver ViewPrefsPartial.html -->
 <?!= include('ViewPrefsPartial') ?>
 <?!= include('LoaderPartial') ?>
-<!-- Loader de ruta: el camión de Liverpool que se ve en cada sección mientras
-     la hoja de cálculo contesta. Se auto-monta en todo [data-vt-loader]. -->
-<?!= include('TruckLoaderPartial') ?>
-<!-- Familia de loaders en sitio (isotipo con MorphSVG, banda de cajas, onda).
-     Se auto-montan en todo [data-vx-loader]; el tipo lo elige cada seccion. -->
-<?!= include('app_loaders') ?>
+<?!= include('app_loaders'); ?>
+<script>if (window.VentelFX) VentelFX.pagina("portal");</script>
 <!-- Núcleo compartido con el sistema de cotizaciones: AppUrl / AppSession.
      El Portal es público, pero si el asesor ya inició sesión en Cotizaciones
      el acceso del sidebar y el control del topbar lo llevan directo a su panel. -->
@@ -3151,17 +3147,24 @@ document.addEventListener('DOMContentLoaded', () => {
 function requestData(manual){
   const sync = document.getElementById('heroSync');
   if (manual && sync) { sync.classList.add('is-loading'); sync.classList.remove('is-stale'); setSyncText('Actualizando…'); }
+  /* Al actualizar A MANO la espera se enseña sobre los dos bloques que de verdad
+     se rehacen —accesos rápidos y promociones—, y no sobre la pantalla entera: lo
+     demás que hay delante sigue siendo válido mientras llega el dato nuevo.
+     En la revalidación de fondo el destino va en null y VentelFX devuelve un
+     manejador inerte, así que las llamadas de abajo son las mismas en los dos casos. */
+  const fxQuick  = VentelFX.section(manual ? '#qaGrid'     : null, 'camion',   { mode:'cover' });
+  const fxPromos = VentelFX.section(manual ? '#promoStrip' : null, 'etiqueta', { mode:'cover' });
   const busy = window.AppBusy || { until: () => () => {} };
   if (typeof google !== 'undefined' && google.script && google.script.run) {
     const finTools = busy.until('Consultando');
     google.script.run
-      .withSuccessHandler(d => { finTools(); onToolsData(d, false); finishRefresh(true, manual); })
-      .withFailureHandler(e => { finTools(); onToolsError(e); finishRefresh(false, manual); })
+      .withSuccessHandler(d => { finTools(); fxQuick.done(); onToolsData(d, false); finishRefresh(true, manual); })
+      .withFailureHandler(e => { finTools(); fxQuick.done(); onToolsError(e); finishRefresh(false, manual); })
       .fetchToolsData();
     const finPromos = busy.until('Consultando');
     google.script.run
-      .withSuccessHandler(d => { finPromos(); onPromoCounts(d); })
-      .withFailureHandler(() => { finPromos(); onPromoCounts(null); })
+      .withSuccessHandler(d => { finPromos(); fxPromos.done(); onPromoCounts(d); })
+      .withFailureHandler(() => { finPromos(); fxPromos.done(); onPromoCounts(null); })
       .fetchPromoCounts();
     // Trazabilidad va en su propia llamada: si la hoja de Homologación falla,
     // el resto del Portal (herramientas, formatos, plantillas) no se cae con ella.
@@ -3172,6 +3175,7 @@ function requestData(manual){
       .fetchTrazabilidadData();
   } else {
     setTimeout(() => {
+      fxQuick.done(); fxPromos.done();
       onToolsData(mockData(), false);
       onTrazData(trazMock(), false);
       onPromoCounts({ status:'ok', activas:12, porTerminar:3 });
@@ -3180,11 +3184,15 @@ function requestData(manual){
   }
 }
 
-/* Botón "Actualizar datos" del hero */
+/* Botón "Actualizar datos" del hero.
+   Ya no tapa la pantalla con el loader de marca: lo que se está rehaciendo son
+   unos contadores que el asesor tiene delante, y esconderle el Portal entero para
+   eso costaba más de lo que informaba. El estado vive donde vive el dato: el
+   rótulo "Actualizando…" del propio indicador (que ya existía y ya frena el doble
+   clic) y las escenas por bloque que monta requestData(). */
 function refreshData(btn){
   const sync = document.getElementById('heroSync');
   if (sync && sync.classList.contains('is-loading')) return; // evita dobles clics
-  if (window.VentelLoader) VentelLoader.show();
   requestData(true);
 }
 
@@ -3387,7 +3395,7 @@ function switchSec(id, btn){
   if (target){ target.classList.add('active'); sectionEnter(target); }
   const topClock = document.querySelector('.topbar .clock');
   if (topClock) topClock.style.display = (id === 'inicio') ? 'none' : 'flex';
-  if (id === 'formaspago') initFpReveals();
+  if (id === 'formaspago'){ initFpReveals(); logosTiendaFX(); }
   if (id === 'bigticket') initBtReveals();
   if (id === 'softline') initSlReveals();
   if (id === 'slmensajerias') initSlmReveals();
@@ -3817,6 +3825,14 @@ function closeAnuncioModal(id, permanente){
   let dragging = false, dragX = 0, dragY = 0;
   const MIN_SCALE = 0.25, MAX_SCALE = 8;
 
+  /* La foto a tamaño completo de una publicación pesa lo que pesa, y hasta que
+     baja el visor es un rectángulo negro: se abría el zoom y no había forma de
+     saber si estaba cargando o se había roto. La escena va `bare` —solo el
+     dibujo, sin textos— porque los rótulos de VentelFX son tinta oscura y sobre
+     este fondo no se leerían. */
+  let fxZoom = null;
+  function fxZoomCerrar(){ if (fxZoom){ fxZoom.done(); fxZoom = null; } }
+
   function applyTransform(smooth){
     zoomImg.style.transition = smooth ? 'transform .18s cubic-bezier(.22,.61,.36,1)' : 'none';
     zoomImg.style.transform = `translate(${tx}px,${ty}px) scale(${scale})`;
@@ -3847,6 +3863,7 @@ function closeAnuncioModal(id, permanente){
     // Resetear estado
     scale = 1; tx = 0; ty = 0;
     dragging = false;
+    fxZoomCerrar();   // por si se abre otra foto con la anterior aún cargando
     zoomImg.classList.remove('is-ready');
     zoomImg.style.transform = 'translate(0px,0px) scale(1)';
     overlay.classList.remove('is-dragging');
@@ -3859,22 +3876,30 @@ function closeAnuncioModal(id, permanente){
       natW = zoomImg.naturalWidth;
       natH = zoomImg.naturalHeight;
       if (!natW || !natH) return; // imagen no lista aún
+      fxZoomCerrar();
       fitToView();
       // Mostrar la imagen ya centrada en el siguiente frame
       requestAnimationFrame(function(){ zoomImg.classList.add('is-ready'); });
     }
 
     zoomImg.onload = function(){ requestAnimationFrame(centerAndShow); };
-    zoomImg.onerror = function(){ zoomImg.classList.add('is-ready'); };
+    zoomImg.onerror = function(){ fxZoomCerrar(); zoomImg.classList.add('is-ready'); };
     zoomImg.src = src;
 
     // Si la imagen ya estaba en caché, onload puede no dispararse
     if (zoomImg.complete && zoomImg.naturalWidth > 0) {
       requestAnimationFrame(centerAndShow);
+    } else {
+      // Solo si hay espera de verdad: un destello de 16 ms molesta más que nada.
+      fxZoom = VentelFX.section(overlay, 'percha', { mode:'fill', bare:true, minHeight:'240px' });
+      // La escena no puede robar el clic: el fondo cierra el visor, y mientras
+      // carga es justo cuando más gente se arrepiente y quiere salir.
+      if (fxZoom.host) fxZoom.host.style.pointerEvents = 'none';
     }
   };
 
   function closeZoom(){
+    fxZoomCerrar();   // cerrar antes de que baje la foto no debe dejar la escena viva
     overlay.classList.remove('open');
     overlay.classList.remove('is-dragging');
     zoomImg.classList.remove('is-ready');
@@ -4605,9 +4630,14 @@ function goAppAction(entrada){
     return;                                    // acción desconocida: no se finge nada
   }
 
-  if (window.VentelLoader) VentelLoader.show();
   if (typeof closeSidebar === 'function') closeSidebar();
+  /* La escena SOLO si de verdad se va a navegar. Aquí no se llega desde un enlace
+     —esto sale de un resultado del buscador, que es un <div>—, así que sin AppUrl
+     no hay href que recoja el relevo: encender el overlay antes de comprobarlo
+     dejaba la pantalla entera tapada, sin navegar a ninguna parte, hasta el tope
+     de seguridad de la escena. */
   if (!(window.AppUrl && AppUrl.base)) return; // vista previa fuera de Apps Script
+  if (window.VentelLoader) VentelLoader.show();
   const logged = window.AppSession && AppSession.isLoggedIn();
   if (!logged) { AppUrl.go('login'); return; }
   if (act.page === '__home') { AppUrl.go(AppUrl.homePage()); return; }
@@ -5136,6 +5166,20 @@ function initCopyables(){
   });
 }
 
+/* ──────── TIENDAS AFILIADAS · logos remotos ────────
+   Son dieciséis imágenes de dieciséis dominios ajenos, así que la sección abre con
+   dieciséis huecos vacíos hasta que bajan (y con los que no bajan, vacíos para
+   siempre). El brillo se monta al ENTRAR a la sección y no al arrancar: con
+   `loading="lazy"` dentro de un bloque oculto el navegador ni siquiera pide el
+   archivo hasta que se ve, y el brillo se habría gastado sin espera que acompañar.
+   Cada manejador se cierra solo en el load o en el error de SU imagen. */
+let logosTiendaListos = false;
+function logosTiendaFX(){
+  if (logosTiendaListos || !window.VentelFX) return;
+  logosTiendaListos = true;
+  document.querySelectorAll('.store-logo img').forEach(img => VentelFX.image(img));
+}
+
 /* ──────── TIENDAS AFILIADAS · ver más / menos ──────── */
 function toggleStores(){
   const grid = document.getElementById('storeGrid');
@@ -5470,7 +5514,17 @@ let trazFresco     = false;  // true en cuanto responde Apps Script (no el cach�
 let trazFirma      = '';     // evita repintar (y cerrar tarjetas abiertas) si nada cambió
 let trazGuardadoEn = null;   // timestamp de la copia local, para el aviso "datos de hace X"
 let trazAviso      = null;   // {tipo:'warn'|'alert', texto}
+let trazPidiendo   = false;  // hay una llamada a la hoja en vuelo (ver trazReintentar)
+let trazFx         = [];     // escenas de espera abiertas, una por sección
 const trazTimers   = {};     // debounce del buscador, por sección
+
+/* Cierra las escenas de espera de las seis secciones. Lo llaman TODAS las salidas
+   de la llamada (dato bueno, dato de caché y error): una escena sin cerrar deja la
+   sección tapada hasta el tope de seguridad de VentelFX. */
+function trazFxCerrar(){
+  trazFx.forEach(function(fx){ fx.done(); });
+  trazFx = [];
+}
 
 /* ── Copia local (última copia buena) ────────────────────────────────────────
    Con versión y caducidad: si cambia la forma del dato se sube TRAZ_LS_VER y la
@@ -5500,6 +5554,7 @@ function onTrazData(data, fromCache){
     return;
   }
   if (fromCache && trazFresco) return;          // los frescos ya están pintados
+  trazFxCerrar();                               // hay algo que pintar: fuera la escena
 
   if (!fromCache){
     trazFresco = true;
@@ -5523,6 +5578,7 @@ function onTrazData(data, fromCache){
 }
 
 function onTrazError(err){
+  trazFxCerrar();   // el aviso de abajo es ahora quien habla; dos cosas a la vez, no
   console.error('fetchTrazabilidadData:', err);
   if (trazData){
     trazAviso = { tipo:'warn', texto:'No pudimos buscar los procesos más recientes. Estás viendo la copia guardada' +
@@ -5537,27 +5593,50 @@ function onTrazError(err){
   });
 }
 
-/* Reintento manual desde el aviso. */
-function trazReintentar(){
+/* Reintento manual desde el aviso.
+   Dos cosas que faltaban aquí:
+   · El aviso —y con él su botón— se repite arriba de las SEIS secciones. Sin
+     bandera, seis pulsaciones eran seis lecturas simultáneas de la misma hoja.
+   · El aviso ya no se borra al pulsar. Borrarlo dejaba la sección literalmente en
+     blanco durante toda la espera; ahora se queda el mensaje con el botón ocupado
+     y, si no había nada que enseñar, la escena del camión debajo. El aviso lo
+     retira quien corresponde: onTrazData al pintar, u onTrazError al reescribirlo. */
+function trazReintentar(btn){
+  if (trazPidiendo) return;
+  trazPidiendo = true;
   trazFresco = false;
-  trazAviso = null;
-  trazPintarAvisos();
+
+  const fxBtn = VentelFX.button(btn, 'Reintentando…');
+  // La escena solo donde no hay nada debajo: con la copia guardada delante,
+  // taparla para revalidar sería quitarle al asesor lo que ya está leyendo.
+  if (!trazData) TRAZ_CFG.forEach(function(cfg){
+    trazFx.push(VentelFX.section('#traz-' + cfg.id, 'camion', { mode:'fill', minHeight:'240px' }));
+  });
+  const cerrar = function(){ fxBtn.done(); trazFxCerrar(); trazPidiendo = false; };
+
   if (typeof google !== 'undefined' && google.script && google.script.run){
     google.script.run
-      .withSuccessHandler(function(d){ onTrazData(d, false); })
-      .withFailureHandler(onTrazError)
+      .withSuccessHandler(function(d){ cerrar(); onTrazData(d, false); })
+      .withFailureHandler(function(e){ cerrar(); onTrazError(e); })
       .fetchTrazabilidadData();
   } else {
+    cerrar();
     onTrazData(trazMock(), false);
   }
 }
 
-/* Esqueletos mientras llega el primer dato: la sección nunca se ve vacía. */
+/* Escena mientras llega el primer dato: la sección nunca se ve vacía.
+   Es el camión y no tres huesos grises porque lo que se está esperando es
+   exactamente eso —traer la hoja de Homologación entera—, y así la espera de
+   Trazabilidad se lee igual que las demás importaciones del Portal. Los huesos
+   quedan de respaldo por si el motor de escenas no hubiera cargado. */
 function trazSkeletons(){
   const hueso = '<div class="traz-skel"><i style="width:38%"></i><i style="width:74%"></i><i style="width:56%"></i></div>';
   TRAZ_CFG.forEach(function(cfg){
     const host = document.getElementById('traz-' + cfg.id);
-    if (host && !host.innerHTML.trim()) host.innerHTML = hueso + hueso + hueso;
+    if (!host || host.innerHTML.trim()) return;
+    if (window.VentelFX) trazFx.push(VentelFX.section(host, 'camion', { mode:'fill', minHeight:'240px' }));
+    else host.innerHTML = hueso + hueso + hueso;
   });
 }
 
@@ -5646,7 +5725,7 @@ function trazAvisoHTML(){
   return '<div class="traz-state ' + trazAviso.tipo + '" role="status">' +
     (trazAviso.tipo === 'warn' ? TRAZ_IC.reloj : TRAZ_IC.alerta) +
     '<span>' + esc(trazAviso.texto) + '</span>' +
-    '<button type="button" class="traz-btn" onclick="trazReintentar()">' +
+    '<button type="button" class="traz-btn" onclick="trazReintentar(this)">' +
       TRAZ_IC.recargar + '<span>Reintentar</span></button>' +
     '</div>';
 }
@@ -7232,8 +7311,12 @@ function mockData(){
          El Portal no carga el módulo de atenciones —sus diálogos usan los estilos del
          shell de Cotizaciones, que aquí no existen—, así que el destino viaja por la
          URL, que es lo que funciona igual desde cualquier parte. */
+      /* Igual que en el buscador: esto es un <button>, no un enlace, así que sin
+         AppUrl no se navega y el overlay se quedaría tapando el Portal sin que
+         pasara nada. Primero se comprueba el destino, después se enciende. */
+      if (!(window.AppUrl && AppUrl.base)) return;
       if (window.VentelLoader) VentelLoader.show();
-      if (window.AppUrl && AppUrl.base) AppUrl.go('atenciones', { action: 'nueva' });
+      AppUrl.go('atenciones', { action: 'nueva' });
     });
 
     caja.querySelector('[data-atn-tip="no"]').addEventListener('click', function () {

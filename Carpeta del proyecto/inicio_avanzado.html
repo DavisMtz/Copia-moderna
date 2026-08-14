@@ -524,7 +524,13 @@
         <!-- ══════════ Panel 3: Métricas ══════════ -->
         <div id="panel-metricas" class="sv-panel" role="tabpanel">
 
-        <div id="loading-placeholder" class="text-center p-12 text-slate-500"><div class="flex items-center justify-center gap-3"><div class="v-spinner w-6 h-6"></div> Cargando estadísticas...</div></div>
+        <!-- Espera de las estadísticas. El esqueleto dibuja las cuatro cifras y la tabla
+             de actividad que van a aterrizar aquí, así el panel no da un salto al pintarse.
+             Los huecos los rellena VentelFX al pedir getDashboardStats. -->
+        <div id="loading-placeholder" class="text-center p-6 text-slate-500">
+            <div id="stats-sk-kpis" class="mb-6"></div>
+            <div id="stats-sk-tabla"></div>
+        </div>
 
         <div id="dashboard-content" class="hidden">
             <!-- KPIs -->
@@ -582,7 +588,10 @@
                     <span id="mc-updated" class="text-xs text-slate-400"></span>
                 </div>
 
-                <div id="mc-body">
+                <!-- Nace oculto: los ceros de estas tarjetas son marcadores de posición, y
+                     enseñarlos mientras el servidor cuenta es publicar una cifra falsa.
+                     renderMetricasCorreos() lo destapa cuando hay datos de verdad. -->
+                <div id="mc-body" class="hidden">
                     <div class="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
                         <div class="v-card p-5" data-animate><h4 class="text-sm font-medium text-slate-500">Correos enviados</h4><p id="mc-total" class="v-kpi-value mt-1">0</p></div>
                         <div class="v-card p-5" data-animate><h4 class="text-sm font-medium text-slate-500">Exitosos</h4><p id="mc-ok" class="v-kpi-value mt-1 text-emerald-600">0</p></div>
@@ -616,6 +625,11 @@
                     </div>
                 </div>
                 <div id="mc-empty" class="hidden v-card p-8 text-center text-slate-500">Aún no hay correos registrados. Cuando el equipo envíe correos aparecerán aquí.</div>
+                <!-- Espera y fallo de las métricas de correos, cada uno en su hueco. Antes
+                     esta tarjeta enseñaba un 0 mientras el servidor contaba —que es un dato
+                     falso, no una espera— y el fallo no se contaba en ninguna parte. -->
+                <div id="mc-loading" class="hidden"></div>
+                <div id="mc-error" class="hidden v-card p-8 text-center text-slate-500"></div>
             </section>
         </div><!-- /dashboard-content -->
 
@@ -719,6 +733,8 @@
     <?!= include('app_icons'); ?>
     <?!= include('app_estatus'); ?>
     <?!= include('app_motion'); ?>
+    <?!= include('app_loaders'); ?>
+    <script>if (window.VentelFX) VentelFX.pagina("inicio_avanzado");</script>
     <?!= include('app_support'); ?>
     <?!= include('app_shell'); ?>
     <?!= include('app_comando'); ?>
@@ -759,18 +775,28 @@
             if (!folio) return AppMotion.toast('No pudimos identificar esa cotización. Actualiza la lista e inténtalo de nuevo.', 'error');
             // La pestaña se abre durante el clic para que el navegador no la trate como popup.
             const tab = window.open('', '_blank');
+            /* Y se le escribe algo dentro mientras el servidor prepara el enlace: la
+               pestaña en blanco de 3-15 s es justo donde la gente cree que se rompió algo.
+               Si falla, el aviso se queda EN esa pestaña —que es donde está mirando quien
+               pulsó— además del toast de aquí; cerrarla sin más parece un fallo del navegador.
+               El folio va escapado: estos textos se escriben como HTML en una pestaña que
+               hereda NUESTRO origen. */
+            const fxTab = VentelFX.tab(tab, {
+                title: 'Abriendo ' + window.escapeHtml(folio) + '…',
+                sub: 'Preparando el formato CCL en Google Sheets'
+            });
             google.script.run
                 .withSuccessHandler(response => {
                     if (response && response.success) {
-                        if (tab) tab.location.href = response.url;
+                        if (tab) { fxTab.done(); tab.location.href = response.url; }
                         else AppMotion.toast('El navegador bloqueó la pestaña nueva. Permite las ventanas emergentes e intenta de nuevo.', 'warn');
                     } else {
-                        if (tab) tab.close();
+                        fxTab.fail(window.escapeHtml((response && response.message) || 'No se pudo abrir el documento.'));
                         AppMotion.toast((response && response.message) || 'No se pudo abrir el documento.', 'error');
                     }
                 })
                 .withFailureHandler(error => {
-                    if (tab) tab.close();
+                    fxTab.fail('No pudimos abrir el documento. Inténtalo de nuevo en un momento.');
                     console.error('openQuoteInSheets:', error);
                     AppMotion.toast('No pudimos abrir el documento. Inténtalo de nuevo en un momento.', 'error');
                 })
@@ -1002,12 +1028,21 @@
             // rechaza la llamada y lo único que se consigue es un error en consola y una
             // espera inútil en una zona de la pantalla que además está oculta.
             if (PUEDE.metricas) {
+                const fxStats = [
+                    VentelFX.skeleton('#stats-sk-kpis', 'kpis', { rows: 4 }),
+                    VentelFX.skeleton('#stats-sk-tabla', 'tabla', { rows: 6, cols: 4 })
+                ];
+                // El mensaje de error se escribe con textContent sobre este mismo hueco,
+                // así que el esqueleto se cierra antes en las DOS salidas.
+                const cerrarStats = () => fxStats.forEach(f => f.done());
                 google.script.run
                     .withSuccessHandler(response => {
+                        cerrarStats();
                         if (response.success) renderDashboard(response.stats);
                         else loadingPlaceholder.textContent = response.message || 'No pudimos cargar el resumen.';
                     })
                     .withFailureHandler(error => {
+                        cerrarStats();
                         loadingPlaceholder.textContent = 'No hay conexión con el sistema. Revisa tu internet y recarga la página.';
                         console.error(error);
                     })
@@ -1076,10 +1111,42 @@
 
             const cargarMetricasCorreos = () => {
                 const cached = mcCache.get(MC_CACHE_KEY);
-                if (cached && cached.data) renderMetricasCorreos(cached.data);
+                const hayCopia = !!(cached && cached.data);
+                if (hayCopia) renderMetricasCorreos(cached.data);
+
+                // Sin copia local no hay nada que enseñar todavía: el esqueleto ocupa el
+                // sitio de las cuatro cifras hasta que llegan. Con copia no se monta nada:
+                // sustituir datos buenos por barras grises es perder información.
+                const mcLoading = document.getElementById('mc-loading');
+                let fxMc = null;
+                if (!hayCopia) {
+                    mcLoading.classList.remove('hidden');
+                    fxMc = VentelFX.skeleton(mcLoading, 'kpis', { rows: 4 });
+                }
+                const cerrarMc = () => {
+                    mcLoading.classList.add('hidden');
+                    if (fxMc) { fxMc.done(); fxMc = null; }
+                };
+                /* Un fallo aquí dejaba la tarjeta en ceros sin decir nada: el asesor leía
+                   "cero correos enviados" cuando lo cierto era "no se pudo preguntar". */
+                const mcFallo = (msg) => {
+                    if (hayCopia) return AppMotion.toast(msg, 'warn');
+                    const err = document.getElementById('mc-error');
+                    err.textContent = msg;
+                    err.classList.remove('hidden');
+                };
+
                 google.script.run
-                    .withSuccessHandler(m => { if (m && m.success) { mcCache.set(MC_CACHE_KEY, m); renderMetricasCorreos(m); } })
-                    .withFailureHandler(() => {})
+                    .withSuccessHandler(m => {
+                        cerrarMc();
+                        if (m && m.success) { mcCache.set(MC_CACHE_KEY, m); renderMetricasCorreos(m); }
+                        else mcFallo((m && m.message) || 'No se pudieron leer las métricas de correos.');
+                    })
+                    .withFailureHandler(err => {
+                        cerrarMc();
+                        console.error('getResumenMetricasCorreos:', err);
+                        mcFallo('No hay conexión con el sistema: no pudimos leer las métricas de correos.');
+                    })
                     .getResumenMetricasCorreos(currentUserEmail);
             };
             // Diferido: deja que el dashboard principal pinte primero.
@@ -1473,8 +1540,14 @@
             };
 
             const polCargar = () => {
+                // Formulario y no lista: lo que aterriza aquí es el editor de la política
+                // (interruptores y criterios), y el esqueleto dibuja esa misma forma.
+                const polBody = document.getElementById('pol-body');
+                polBody.innerHTML = '';
+                const fxPol = VentelFX.skeleton(polBody, 'formulario', { rows: 4 });
                 google.script.run
                     .withSuccessHandler(res => {
+                        fxPol.done();
                         if (!res || !res.success) {
                             document.getElementById('pol-body').innerHTML =
                                 '<div class="pol-vacio">' + escapeHtml((res && res.message) || 'No se pudo leer la política.') + '</div>';
@@ -1487,6 +1560,7 @@
                         polPintar();
                     })
                     .withFailureHandler(err => {
+                        fxPol.done();
                         console.error('getPoliticaRevision:', err);
                         document.getElementById('pol-body').innerHTML =
                             '<div class="pol-vacio">No hay conexión con el sistema. Revisa tu internet y recarga la página.</div>';
@@ -1971,10 +2045,9 @@
                 });
             });
 
-            document.getElementById('pol-recargar').addEventListener('click', () => {
-                document.getElementById('pol-body').innerHTML = '<div class="pol-vacio"><div class="v-spinner"></div> Releyendo…</div>';
-                polCargar();
-            });
+            // El aviso de espera ya lo pone polCargar (esqueleto del editor); repetirlo
+            // aquí serían dos indicadores para la misma lectura.
+            document.getElementById('pol-recargar').addEventListener('click', polCargar);
 
             // Mismo criterio que con las métricas: sin el bloque de política, su apartado
             // está oculto y pedirlo solo produce un rechazo del servidor.
@@ -2276,17 +2349,25 @@
             const PEND_CACHE_KEY = 'pendientes-' + currentUserEmail;
             const PEND_TTL_MS = 5 * 60 * 1000;
 
+            /** Esqueleto de la cola: cuatro filas con la forma que va a aterrizar. */
+            const skPendientes = () => {
+                const lista = document.getElementById('pend-lista');
+                lista.innerHTML = '';
+                return VentelFX.skeleton(lista, 'lista', { rows: 4 });
+            };
+
             const loadPendientesSolo = (forzar) => {
                 if (forzar) { try { AppCache.remove(PEND_CACHE_KEY); } catch (e) {} }
                 const cached = forzar ? null : AppCache.get(PEND_CACHE_KEY, PEND_TTL_MS);
+                let fxPend = null;
                 if (cached && Array.isArray(cached.data)) renderPendientes(cached.data);
-                else document.getElementById('pend-lista').innerHTML =
-                    '<div class="pend-vacio"><div class="v-spinner"></div> Cargando la cola…</div>';
+                else fxPend = skPendientes();
 
                 const finBusy = AppBusy.until('Consultando');
                 google.script.run
                     .withSuccessHandler(r => {
                         finBusy();
+                        if (fxPend) fxPend.done();
                         if (r && r.success) {
                             AppCache.set(PEND_CACHE_KEY, r.quotes || [], { ttl: PEND_TTL_MS });
                             renderPendientes(r.quotes || []);
@@ -2296,6 +2377,7 @@
                     })
                     .withFailureHandler(() => {
                         finBusy();
+                        if (fxPend) fxPend.done();
                         // Con la cola ya en pantalla, un fallo de red no la borra: quien
                         // revisa sigue viendo qué tiene delante, y el servidor volverá a
                         // exigir el permiso cuando intente aprobar algo.
@@ -2311,16 +2393,42 @@
 
                 if (forzar) { try { AppCache.remove(SUP_CACHE_KEY); } catch (e) {} }
                 const cached = forzar ? null : AppCache.get(SUP_CACHE_KEY);
+                const cierres = [];
                 if (cached && Array.isArray(cached.data)) {
                     paintSupervision(cached.data);
                 } else {
-                    showSupPlaceholder('<div class="flex items-center justify-center gap-3 text-slate-500"><div class="v-spinner"></div> Cargando todas las cotizaciones...</div>');
+                    /* Una sola lectura alimenta la cola de arriba y la tabla de abajo, así
+                       que las dos enseñan la misma espera en vez de una con disco y la otra
+                       en blanco. La tabla solo se sustituye si estaba vacía: en una recarga
+                       con filas correctas delante, taparlas con barras grises es perder
+                       información a cambio de nada. La cola sí se relee entera —son ocho
+                       filas y es lo que ya hacía su botón "Actualizar"—. */
+                    if (!supBody.children.length) {
+                        showSupPlaceholder('');
+                        supBody.innerHTML = '<tr><td colspan="8" id="sup-sk"></td></tr>';
+                        const filaSk = supBody.firstElementChild;
+                        const skSup = VentelFX.skeleton('#sup-sk', 'tabla', { rows: 8, cols: 8 });
+                        /* La fila que hospeda el esqueleto se retira CON él. Si la lectura
+                           falla, nadie repinta la tabla: la fila se quedaría suelta como un
+                           renglón vacío bajo la cabecera y —peor— la siguiente recarga la
+                           contaría como fila buena, así que ya no montaría esqueleto ni
+                           limpiaría el aviso viejo de "sin conexión" que sigue en pantalla. */
+                        cierres.push({
+                            done: () => {
+                                skSup.done();
+                                if (filaSk.parentNode === supBody) supBody.removeChild(filaSk);
+                            }
+                        });
+                    }
+                    cierres.push(skPendientes());
                 }
+                const cerrarSup = () => cierres.forEach(c => c.done());
 
                 const finBusy = AppBusy.until('Consultando');
                 google.script.run
                     .withSuccessHandler(response => {
                         finBusy();
+                        cerrarSup();
                         if (response.success) {
                             AppCache.set(SUP_CACHE_KEY, response.quotes || []);
                             paintSupervision(response.quotes || []);
@@ -2331,6 +2439,7 @@
                     })
                     .withFailureHandler(error => {
                         finBusy();
+                        cerrarSup();
                         if (cached) {
                             AppMotion.toast('No pudimos conectarnos: te mostramos la última información guardada.', 'warn');
                         } else {
@@ -2345,8 +2454,8 @@
             // "Actualizar" de la cola: tira la copia local y vuelve a preguntar. Es el botón
             // que se pulsa después de aprobar un folio en otra pestaña.
             document.getElementById('pend-refrescar').addEventListener('click', (ev) => {
-                document.getElementById('pend-lista').innerHTML =
-                    '<div class="pend-vacio"><div class="v-spinner"></div> Actualizando…</div>';
+                // La espera la pone la propia lectura (esqueleto de la cola): con forzar
+                // no hay caché que pintar, así que siempre se monta.
                 loadSupervisionQuotes(true);
                 AppMotion.pop(ev.currentTarget);
             });

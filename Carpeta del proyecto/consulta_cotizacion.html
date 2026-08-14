@@ -458,6 +458,8 @@
     <?!= include('app_icons'); ?>
     <?!= include('app_estatus'); ?>
     <?!= include('app_motion'); ?>
+    <?!= include('app_loaders'); ?>
+    <script>if (window.VentelFX) VentelFX.pagina("consulta_cotizacion");</script>
     <?!= include('app_onboarding'); ?>
     <?!= include('LoaderPartial'); ?>
     <?!= include('app_comando'); ?>
@@ -885,8 +887,21 @@
                         printButton.disabled = false;
                     };
 
+                    /* El PDF oficial tarda entre 5 y 20 s —si es CCL lo exporta Google
+                       Sheets— y el disco de 16 px del botón era todo lo que había. El
+                       overlay lo tapa y queda como único indicador; el botón sigue ocupado
+                       por debajo para que no se pulse dos veces. Sin `sub` para que rote
+                       sola la copia del tema documento. */
+                    const fxPdf = window.VentelFX
+                        ? VentelFX.overlay('documento', {
+                            title: 'Generando el PDF del folio ' + folioToView,
+                            facts: true
+                        })
+                        : { done: function () {} };
+
                     google.script.run
                         .withSuccessHandler(response => {
+                            fxPdf.done();
                             restore();
                             if (response && response.success) {
                                 triggerPdfDownload(response);
@@ -896,6 +911,7 @@
                             }
                         })
                         .withFailureHandler(error => {
+                            fxPdf.done();
                             restore();
                             console.error('downloadQuotePdf:', error);
                             showViewMessage('No pudimos generar el PDF. Inténtalo de nuevo en un momento.', true);
@@ -922,6 +938,16 @@
                     // respuesta del servidor, el navegador la bloquearía por ser un popup
                     // sin interacción del usuario.
                     const tab = window.open('', '_blank');
+                    // El navegador salta a la pestaña nueva en cuanto se abre, así que el
+                    // asesor pasa los 3-15 s que tarda el servidor mirando una pestaña EN
+                    // BLANCO. El aviso se escribe DENTRO de ella, que es donde está mirando;
+                    // el estado del botón se queda para la pestaña de origen.
+                    const fxTab = window.VentelFX
+                        ? VentelFX.tab(tab, {
+                            title: 'Abriendo la cotización ' + folioToView + '…',
+                            sub: 'Preparando el formato CCL en Google Sheets'
+                        })
+                        : { done: function () {} };
                     sheetsSpinner.classList.remove('hidden');
                     sheetsButtonText.textContent = 'Abriendo...';
                     sheetsButton.disabled = true;
@@ -935,6 +961,7 @@
                     google.script.run
                         .withSuccessHandler(response => {
                             restoreSheets();
+                            fxTab.done();
                             if (response && response.success) {
                                 if (tab) {
                                     tab.location.href = response.url;
@@ -948,6 +975,9 @@
                         })
                         .withFailureHandler(error => {
                             restoreSheets();
+                            // El aviso de la pestaña se cierra con ella: el error se explica
+                            // en la pestaña de origen, que es a la que vuelve el navegador.
+                            fxTab.done();
                             if (tab) tab.close();
                             console.error('openQuoteInSheets:', error);
                             showViewMessage('No pudimos abrir el documento. Inténtalo de nuevo en un momento.', true);
@@ -959,12 +989,26 @@
             const quoteViewContentContainer = document.getElementById('quote-view-content');
 
             if (folioToView) {
-                if (quoteViewContentContainer) quoteViewContentContainer.classList.remove('hidden'); 
+                if (quoteViewContentContainer) quoteViewContentContainer.classList.remove('hidden');
+
+                /* Una sola capa de espera: se retiran el overlay de marca del arranque y el
+                   disco de #loading-overlay, y sobre la hoja todavía vacía se queda la
+                   escena del escáner, que es literalmente lo que se está haciendo: leer una
+                   clave en la base. */
+                hideLoader();
+                const fxFolio = window.VentelFX
+                    ? VentelFX.section('#quote-view-content', 'escaner', {
+                        mode: 'cover', maxMs: 30000,
+                        title: 'Consultando el folio ' + folioToView,
+                        sub: 'Trayendo los datos de la cotización'
+                    })
+                    : { done: function () {} };
 
                 google.script.run
                     .withSuccessHandler(function(response) {
-                        console.log("Respuesta de getQuoteDetails:", response); 
-                        hideLoader(); 
+                        console.log("Respuesta de getQuoteDetails:", response);
+                        fxFolio.done();
+                        hideLoader();
                         if (response.success && response.quote) {
                             populateView(response.quote);
                             const messageArea = document.getElementById('view-message-area');
@@ -977,7 +1021,8 @@
                         }
                     })
                     .withFailureHandler(function(error) {
-                        hideLoader(); 
+                        fxFolio.done();
+                        hideLoader();
                         console.error('getQuoteDetails:', error);
                         showViewMessage('No hay conexión con el sistema. Revisa tu internet y recarga la página.', true);
                         if (quoteViewContentContainer) quoteViewContentContainer.innerHTML = '<div class="pdf-content-wrapper"><p class="text-center text-red-600 p-10">No pudimos cargar esta cotización. Revisa tu conexión y recarga la página.</p></div>';

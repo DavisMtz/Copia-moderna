@@ -477,9 +477,14 @@
     });
 
     var btnTabla = host.querySelector('[data-eh-tabla]');
-    var caja = host.querySelector('[data-eh-tabla-vista]');
-    if (btnTabla && caja) {
+    if (btnTabla) {
       btnTabla.addEventListener('click', function () {
+        // La caja se busca AL PULSAR, no al cablear. Mientras se espera otro periodo, la
+        // cabecera sobrevive (es lo que deja volver a elegir) pero su panel de tabla ya no
+        // está en el documento: con una referencia guardada, el botón cambiaba a «Ocultar
+        // la tabla» sin enseñar ninguna tabla.
+        var caja = host.querySelector('[data-eh-tabla-vista]');
+        if (!caja || !datos) return;
         var abrir = caja.hidden;
         if (abrir) pintarTabla();
         caja.hidden = !abrir;
@@ -521,12 +526,72 @@
 
   // ── Carga ──────────────────────────────────────────────────────────────────
 
-  function cargar(usarCache) {
-    if (!host) return;
-    if (!datos) {
-      host.innerHTML = '<div style="padding:2rem;text-align:center;color:var(--ink-soft,#5C6B7E)">' +
+  /* ── La espera ────────────────────────────────────────────────────────────
+     Cambiar de periodo borraba el gráfico ENTERO, botones incluidos: el clic se quedaba sin
+     acuse y había que esperar al servidor para volver a elegir. Ahora la cabecera se
+     conserva —es el mismo nodo, con sus escuchas— y solo se sustituye lo que ya no es
+     cierto: las cifras y las tiras son del periodo anterior. */
+
+  /** Sustituye todo menos la cabecera de periodos; si aún no hay cabecera, ocupa el hueco. */
+  function cuerpoEspera(html) {
+    var wrap = host.querySelector('.eh-wrap');
+    var top = wrap ? wrap.querySelector('.eh-top') : null;
+    if (!wrap || !top) { host.innerHTML = '<div class="eh-wrap">' + html + '</div>'; return; }
+    wrap.innerHTML = '';
+    wrap.appendChild(top);
+    wrap.insertAdjacentHTML('beforeend', html);
+  }
+
+  /**
+   * Esqueleto con la rejilla de .eh-fila (nombre · tira · reportes): dibuja la forma exacta
+   * de lo que va a llegar, así que al aterrizar los datos no se mueve nada de sitio. Usa la
+   * barra de brillo de VentelFX porque el motor no trae un esqueleto con esta forma; sin el
+   * motor en la pantalla, se cae al aviso de siempre.
+   */
+  function esqueleto(n) {
+    if (!window.VentelFX) {
+      return '<div style="padding:2rem;text-align:center;color:var(--ink-soft,#5C6B7E)">' +
         '<div class="v-spinner"></div> Cargando el historial…</div>';
     }
+    var fila = '<div class="eh-fila">' +
+      '<span class="vfx-sk-b" style="width:75%"></span>' +
+      '<div class="eh-tira"><span class="vfx-sk-b" style="width:100%;height:100%"></span></div>' +
+      '<span class="vfx-sk-b" style="width:3.2rem;height:1.5rem"></span>' +
+    '</div>';
+    var s = '';
+    for (var i = 0; i < n; i++) s += fila;
+    return '<div class="vfx vfx-sk" style="gap:0">' + s + '</div>';
+  }
+
+  function esperar() {
+    // Tantas filas como había: cambiar de periodo no cambia cuántos sistemas hay.
+    var n = host.querySelectorAll('.eh-fila').length || 4;
+    // El pulsado se mueve YA al periodo pedido, y la tabla vuelve a su rótulo cerrado: el
+    // panel que abría desaparece con el resto del cuerpo.
+    var tabla = host.querySelector('[data-eh-tabla]');
+    if (tabla) {
+      tabla.setAttribute('aria-expanded', 'false');
+      tabla.textContent = 'Ver como tabla';
+      // No hay cifras que enseñar hasta que conteste el periodo pedido: el botón se apaga
+      // en vez de quedarse ofreciendo una tabla que no existe. pintar() lo repone entero.
+      tabla.disabled = true;
+    }
+    host.querySelectorAll('[data-eh-rango]').forEach(function (b) {
+      b.setAttribute('aria-pressed', String(b.getAttribute('data-eh-rango') === rango.id));
+    });
+    cuerpoEspera(esqueleto(n));
+  }
+
+  function cargar(usarCache) {
+    if (!host) return;
+    if (!datos) esperar();
+
+    /* Qué periodo se está pidiendo AQUÍ. Antes, cambiar de periodo borraba los botones
+       hasta que contestaba el servidor, así que no había forma de tener dos peticiones en
+       vuelo. Ahora los botones se quedan puestos —que es el punto—, y sin esta marca la
+       respuesta lenta del periodo anterior pintaba sus cifras encima del que se acaba de
+       pedir, con los rótulos de la escala nueva: horas rotuladas como días. */
+    var pedido = rango.id;
 
     var deHoras = porHoras();
     var fn = deHoras ? 'opHistorialHorasPublico' : 'opHistorialPublico';
@@ -539,15 +604,21 @@
         ttl: deHoras ? TTL_HORAS : TTL_DIAS,
         fuerza: usarCache === false,
         accept: function (r) { return !!(r && r.success); },
-        onData: function (r) { if (r && r.success) { datos = r; pintar(); } },
+        onData: function (r) {
+          if (rango.id !== pedido) return;
+          if (r && r.success) { datos = r; pintar(); }
+        },
         onError: function () {
-          if (!datos) host.innerHTML = '<div style="padding:2rem;text-align:center;' +
-            'color:var(--ink-soft,#5C6B7E)">No pudimos cargar el historial.</div>';
+          if (rango.id !== pedido) return;
+          // También aquí se conservan los botones de periodo: es la única salida que le
+          // queda a quien acaba de tropezarse con el error.
+          if (!datos) cuerpoEspera('<div style="padding:2rem;text-align:center;' +
+            'color:var(--ink-soft,#5C6B7E)">No pudimos cargar el historial.</div>');
         }
       });
     }
     return llamar(fn, [rango.n]).then(function (r) {
-      if (r && r.success) { datos = r; pintar(); }
+      if (rango.id === pedido && r && r.success) { datos = r; pintar(); }
       return r;
     });
   }

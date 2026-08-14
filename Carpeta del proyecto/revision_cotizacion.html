@@ -347,10 +347,6 @@
         .rev-cmp-duda { border-left-color: var(--warn);  background: var(--warn-bg); }
         .rev-cmp-duda svg { color: var(--warn); }
 
-        .rev-cmp-cargando {
-            display: flex; align-items: center; justify-content: center; gap: var(--rs3);
-            padding: var(--rs6) var(--rs4); font-size: .875rem; color: var(--ink-soft);
-        }
         .rev-cmp-fuente { font-size: .7rem; color: var(--ink-faint); text-align: center; margin: 0; }
 
         [data-theme="carbon"] .rev-cmp-viva h3 { color: #93B4FF; }
@@ -950,11 +946,6 @@
                 </div>
 
                 <div id="rev-panel-cmp" class="rev-tabpanel rev-cmp" role="tabpanel" aria-labelledby="rev-tab-cmp">
-                    <div class="rev-cmp-cargando" id="rev-cmp-cargando" role="status">
-                        <span class="v-spinner" aria-hidden="true"></span>
-                        <span>Consultando la ficha en liverpool.com.mx…</span>
-                    </div>
-
                     <div class="rev-cmp-veredicto hidden" id="rev-cmp-veredicto" role="status">
                         <span id="rev-cmp-veredicto-ico" aria-hidden="true"></span>
                         <div style="min-width:0">
@@ -1007,6 +998,8 @@
     <?!= include('app_icons'); ?>
     <?!= include('app_estatus'); ?>
     <?!= include('app_motion'); ?>
+    <?!= include('app_loaders'); ?>
+    <script>if (window.VentelFX) VentelFX.pagina("revision_cotizacion");</script>
     <?!= include('app_shell'); ?>
     <?!= include('app_comando'); ?>
     <?!= include('app_precarga'); ?>
@@ -1302,6 +1295,28 @@
             }).join('');
 
             Icons.render(cont);
+            // Las miniaturas bajan del CDN de Liverpool una por una: el hueco brilla hasta
+            // que la imagen llega o falla, en vez de quedarse en blanco toda la descarga.
+            //
+            // Pero llevan loading="lazy": el navegador NO empieza a bajar la miniatura de
+            // una fila que está fuera de la pantalla. Montar el brillo en todas de golpe
+            // pondría un bloque gris opaco sobre veinte filas que nadie está descargando,
+            // y el tope de 20 s de la propia API lo apagaría justo antes de que la
+            // descarga de verdad empiece. Se monta cuando la fila se asoma, que es
+            // exactamente cuando el navegador pide la imagen.
+            const miniaturas = cont.querySelectorAll('.rev-thumb img');
+            if (!('IntersectionObserver' in window)) {
+                miniaturas.forEach(function (im) { VentelFX.image(im); });
+            } else {
+                const vigia = new IntersectionObserver(function (entradas) {
+                    entradas.forEach(function (e) {
+                        if (!e.isIntersecting) return;
+                        vigia.unobserve(e.target);
+                        VentelFX.image(e.target);
+                    });
+                }, { rootMargin: '300px' });
+                miniaturas.forEach(function (im) { vigia.observe(im); });
+            }
             AppMotion.staggerRows(cont.querySelectorAll('.rev-item'));
 
             cont.addEventListener('change', function (ev) {
@@ -1684,6 +1699,10 @@
             // necesite mirar la ficha entera.
             seleccionarPestanaVisor('cmp');
             estado.paginaPeticion++;      // invalida cualquier página en vuelo del artículo anterior
+            // Se vacía el hueco de la página: si había una escena montada sobre el marco
+            // anterior hay que cerrarla ANTES, o su setInterval de mensajes y su temporizador
+            // de seguridad se quedan corriendo sobre nodos que ya no están en el documento.
+            if (fxPagina) { fxPagina.done(); fxPagina = null; }
             document.getElementById('rev-pag-host').innerHTML =
                 '<div class="rev-pag-estado"><p>Abre esta pestaña para ver la página del artículo.</p></div>';
             document.getElementById('rev-viewer-foot-txt').textContent =
@@ -1692,10 +1711,12 @@
             // Columna izquierda: lo que se está autorizando. Se pinta ya, sin esperar red.
             pintarLadoCotizacion(p);
 
-            document.getElementById('rev-cmp-cargando').classList.remove('hidden');
-            document.getElementById('rev-cmp-grid').classList.add('hidden');
+            // Y se enseña ya: antes la rejilla entera esperaba a Liverpool, así que la
+            // mitad que NO depende de la red se quedaba oculta detrás de un disco.
+            document.getElementById('rev-cmp-grid').classList.remove('hidden');
             document.getElementById('rev-cmp-veredicto').classList.add('hidden');
             document.getElementById('rev-cmp-fuente').textContent = '';
+            esperarLadoLiverpool();
 
             const abrirFuera = function () {
                 // noopener/noreferrer siempre: la pestaña nueva no debe poder tocar esta.
@@ -1717,7 +1738,7 @@
             document.getElementById('rev-viewer-cerrar').focus();
             document.addEventListener('keydown', teclasVisor, true);
 
-            google.script.run
+            const pedirFicha = google.script.run
                 .withSuccessHandler(function (ficha) {
                     // Si mientras tanto se cerró o se abrió otro artículo, esta respuesta
                     // ya no describe lo que hay en pantalla y se tira.
@@ -1728,18 +1749,45 @@
                     if (peticion !== visorPeticion) return;
                     pintarLadoLiverpool({ ok: false, motivo: 'error',
                         mensaje: 'No hay conexión con el sistema. Revisa tu internet e inténtalo de nuevo.' }, p);
-                })
-                .revFichaArticulo(url, p.sku || '', AppSession.userEmail);
+                });
+
+            /* Si la llamada ni siquiera se puede lanzar (despliegue sin revFichaArticulo)
+               no corre NINGÚN manejador. El esqueleto de la columna derecha no tiene tope
+               de seguridad —las escenas sí, los esqueletos no—, así que se quedaría
+               brillando bajo "Leyendo la ficha en liverpool.com.mx…" hasta que alguien
+               cerrara el comparador. */
+            try {
+                pedirFicha.revFichaArticulo(url, p.sku || '', AppSession.userEmail);
+            } catch (e) {
+                pintarLadoLiverpool({ ok: false, motivo: 'error',
+                    mensaje: 'Esta versión del portal no puede leer la ficha del sitio.' }, p);
+            }
         }
+
+        /*
+         * Los dos huecos de foto del comparador son elementos FIJOS del DOM que se
+         * reaprovechan artículo tras artículo, así que su brillo hay que cerrarlo a mano
+         * al cambiar de artículo. Si no: la capa del artículo anterior se queda con
+         * ended=false, su tope de 20 s dispara más tarde y le quita el `vfx-imgwrap`
+         * (position:relative) al hueco que para entonces ya es del artículo NUEVO. La capa
+         * nueva —position:absolute, inset:0, fondo opaco— pasa entonces a colgar de
+         * .rev-viewer-body (el primer ancestro posicionado) y tapa el comparador entero
+         * con un rectángulo gris.
+         */
+        let fxFotoCot = null, fxFotoViva = null;
 
         /** Columna izquierda: exactamente lo que dice la cotización que se va a autorizar. */
         function pintarLadoCotizacion(p) {
             const c = calcularLinea(p);
             const img = urlSegura(p.imageUrl);
 
+            if (fxFotoCot) { fxFotoCot.done(); fxFotoCot = null; }
             document.getElementById('rev-cmp-foto-cot').innerHTML = img
                 ? '<img src="' + esc(img) + '" alt="" referrerpolicy="no-referrer">'
                 : '<span class="rev-thumb-empty">La cotización no guardó imagen</span>';
+            // La foto viene del CDN de Liverpool: el hueco brilla hasta que llega o falla.
+            const imCot = document.querySelector('#rev-cmp-foto-cot img');
+            if (imCot) fxFotoCot = VentelFX.image(imCot);
             document.getElementById('rev-cmp-nom-cot').textContent = p.description || 'Sin descripción';
 
             const filas = [
@@ -1759,10 +1807,35 @@
                 '<strong>' + esc(money(c.unitarioPromo)) + '</strong></div>';
         }
 
+        let fxFicha = null;   // esqueleto de la columna derecha mientras se lee la ficha
+
+        /**
+         * Hueco de la columna derecha mientras el servidor consulta liverpool.com.mx
+         * (familia PERCHA: ficha de artículo). Se dibuja la FORMA de lo que va a llegar
+         * —foto, nombre y renglones de precio— para que la ventana no dé un salto cuando
+         * aterrice, en vez del disco centrado que además tapaba la columna izquierda.
+         */
+        function esperarLadoLiverpool() {
+            if (fxFicha) { fxFicha.done(); fxFicha = null; }
+            if (fxFotoViva) { fxFotoViva.done(); fxFotoViva = null; }
+            const col = document.querySelector('.rev-cmp-viva');
+            if (col) col.setAttribute('aria-busy', 'true');
+            document.getElementById('rev-cmp-foto-viva').innerHTML =
+                '<div class="rev-skel" style="width:100%;height:100%"></div>';
+            document.getElementById('rev-cmp-nom-viva').textContent = 'Leyendo la ficha en liverpool.com.mx…';
+            document.getElementById('rev-cmp-dl-viva').innerHTML = '';
+            fxFicha = VentelFX.skeleton('#rev-cmp-dl-viva', 'tabla', { rows: 2, cols: 2 });
+        }
+
         /** Columna derecha + veredicto: lo que Liverpool publica en este momento. */
         function pintarLadoLiverpool(ficha, p) {
             const c = calcularLinea(p);
-            document.getElementById('rev-cmp-cargando').classList.add('hidden');
+            // El hueco de la foto es fijo y se reaprovecha: una descarga del artículo
+            // anterior que termine tarde no puede escribir en la columna de éste.
+            const pet = visorPeticion;
+            if (fxFicha) { fxFicha.done(); fxFicha = null; }
+            const col = document.querySelector('.rev-cmp-viva');
+            if (col) col.removeAttribute('aria-busy');
             document.getElementById('rev-cmp-grid').classList.remove('hidden');
 
             const foto = document.getElementById('rev-cmp-foto-viva');
@@ -1770,16 +1843,32 @@
             const dl   = document.getElementById('rev-cmp-dl-viva');
             const imagen = urlSegura(ficha.imagen || ficha.imagenRespaldo || '', HOSTS_LIVERPOOL);
 
-            foto.innerHTML = '<span class="rev-thumb-empty">Sin imagen disponible</span>';
             if (imagen) {
                 // El respaldo por SKU adivina el subdominio de la imagen y a veces da 404:
                 // se monta el <img> desde JS para poder caer al texto sin dejar el icono
                 // de imagen rota, que parece un fallo de la app y no lo es.
+                //
+                // El "Sin imagen disponible" va SOLO en el error: antes se escribía antes
+                // de intentar la descarga, así que el hueco decía «no hay foto» durante el
+                // segundo largo en el que la foto venía en camino.
+                if (fxFotoViva) { fxFotoViva.done(); fxFotoViva = null; }
+                foto.innerHTML = '';
                 const im = new Image();
                 im.referrerPolicy = 'no-referrer';
                 im.alt = '';
-                im.onload = function () { foto.innerHTML = ''; foto.appendChild(im); };
+                fxFotoViva = VentelFX.image(im, { wrap: foto });   // brillo en el hueco, aún sin el <img> dentro
+                im.onload = function () {
+                    if (pet !== visorPeticion) return;
+                    foto.innerHTML = ''; foto.appendChild(im);
+                };
+                im.onerror = function () {
+                    if (pet !== visorPeticion) return;
+                    foto.innerHTML = '<span class="rev-thumb-empty">Sin imagen disponible</span>';
+                };
                 im.src = imagen;
+            } else {
+                if (fxFotoViva) { fxFotoViva.done(); fxFotoViva = null; }
+                foto.innerHTML = '<span class="rev-thumb-empty">Sin imagen disponible</span>';
             }
 
             if (!ficha.ok) {
@@ -1867,8 +1956,18 @@
             if (!visor.classList.contains('active')) return;
             visorPeticion++;            // invalida cualquier respuesta en vuelo
             estado.paginaPeticion++;
+            // Una respuesta invalidada ya no pinta la columna, así que el esqueleto se
+            // retira aquí: si no, el siguiente artículo lo encontraría todavía montado.
+            if (fxFicha) { fxFicha.done(); fxFicha = null; }
+            // Los huecos de foto sobreviven al cierre (son elementos fijos): su brillo
+            // se cierra aquí para que no le quiten el `vfx-imgwrap` al siguiente artículo.
+            if (fxFotoCot)  { fxFotoCot.done();  fxFotoCot = null; }
+            if (fxFotoViva) { fxFotoViva.done(); fxFotoViva = null; }
+            const colViva = document.querySelector('.rev-cmp-viva');
+            if (colViva) colViva.removeAttribute('aria-busy');
             // El iframe de la página se destruye al cerrar: media docena de artículos abiertos
             // dejarían medio mega de documento cada uno colgando en memoria.
+            if (fxPagina) { fxPagina.done(); fxPagina = null; }
             document.getElementById('rev-pag-host').innerHTML = '';
             visor.classList.remove('active');
             visorArticulo = -1;
@@ -1913,12 +2012,15 @@
             });
         }
 
+        let fxPagina = null;   // escena mientras el navegador pinta el srcdoc
+
         function cargarPaginaArticulo(p) {
             const host = document.getElementById('rev-pag-host');
             const url = urlSegura(p.productUrl, HOSTS_LIVERPOOL);
             if (!url) return;
 
             const peticion = ++estado.paginaPeticion;
+            if (fxPagina) { fxPagina.done(); fxPagina = null; }
             host.innerHTML = '<div class="rev-pag-estado"><span class="v-spinner" aria-hidden="true"></span>' +
                 '<p>Trayendo la página desde liverpool.com.mx…</p>' +
                 '<p style="font-size:.75rem">La primera vez tarda unos segundos: se descarga la página y sus estilos.</p></div>';
@@ -1940,6 +2042,7 @@
 
         function pintarPaginaArticulo(res, url) {
             const host = document.getElementById('rev-pag-host');
+            if (fxPagina) { fxPagina.done(); fxPagina = null; }
 
             if (!res.ok || !res.html) {
                 host.innerHTML = '<div class="rev-pag-estado">' +
@@ -1965,6 +2068,20 @@
 
             host.innerHTML = '';
             host.appendChild(marco);
+
+            // El marco tarda todavía en pintarse: es media docena de hojas de estilo de
+            // Liverpool sobre un documento entero, y hasta que termina se ve BLANCO. La
+            // escena se retira en el `load` del marco, no al insertarlo (familia PERCHA:
+            // se está mirando la ficha de un artículo).
+            fxPagina = VentelFX.section(host, 'percha', {
+                mode: 'cover',
+                maxMs: 20000,
+                title: 'Pintando la página…',
+                sub: 'Copia de liverpool.com.mx servida por el portal.'
+            });
+            marco.addEventListener('load', function () {
+                if (fxPagina) { fxPagina.done(); fxPagina = null; }
+            });
 
             const cuando = res.capturada
                 ? new Date(res.capturada).toLocaleTimeString('es-MX', { hour: '2-digit', minute: '2-digit' })
@@ -2030,6 +2147,23 @@
                         fr.title = 'Documento de la cotización en Google Sheets';
                         fr.setAttribute('referrerpolicy', 'no-referrer');
                         host.appendChild(fr);
+                        /*
+                         * Un marco de Google en blanco significa dos cosas distintas —«está
+                         * cargando» y «tu cuenta no tiene acceso»— y hasta ahora se veían
+                         * idénticas. La escena de DOCUMENTO (formatos, hojas, PDF) ocupa el
+                         * marco mientras carga, así que el blanco que quede después de que
+                         * se retire ya solo puede ser lo segundo, que es lo que explica la
+                         * barra de abajo.
+                         */
+                        const fxHoja = VentelFX.section(host, 'documento', {
+                            mode: 'cover',
+                            title: 'Abriendo la hoja en Google…',
+                            sub: 'La sirve Google, no el portal: puede tardar unos segundos.'
+                        });
+                        fr.addEventListener('load', function () { fxHoja.done(); });
+                        fr.addEventListener('error', function () {
+                            fxHoja.fail('Google no pudo mostrar el documento. Usa «Vista en el portal».');
+                        });
                     }
                 });
             });
@@ -2144,12 +2278,14 @@
                 return;
             }
 
+            // La espera se marca en TODAS las filas, también en las que no traen enlace:
+            // su veredicto ("Capturado a mano") también llega con esta respuesta, y hasta
+            // ahora se quedaban en blanco los 5-30 s que tarda el lote, como olvidadas.
             (estado.datos.products || []).forEach(function (p, i) {
-                if (!urlSegura(p.productUrl, HOSTS_LIVERPOOL)) return;
-                pintarChipPrecio(i, 'wait', 'refresh', 'Comparando…', '');
+                pintarEsperaPrecio(i, urlSegura(p.productUrl, HOSTS_LIVERPOOL) ? 'Comparando…' : 'Comprobando…');
             });
 
-            google.script.run
+            const lote = google.script.run
                 .withSuccessHandler(function (res) {
                     if (!res || !res.ok) {
                         marcarPreciosNoDisponibles((res && res.mensaje) || 'No se pudo consultar el sitio.');
@@ -2160,15 +2296,35 @@
                 })
                 .withFailureHandler(function (err) {
                     marcarPreciosNoDisponibles('No hay conexión con el sistema. Revisa tu internet e inténtalo de nuevo.');
-                })
-                .revVerificarPreciosLote(estado.folio, AppSession.userEmail);
+                });
+
+            /* Los discos de las filas los enciende esta función y los apaga la respuesta:
+               son chips en línea, no escenas, así que NO tienen tope de seguridad propio.
+               Si la llamada ni siquiera se puede lanzar (despliegue sin
+               revVerificarPreciosLote) no corre ningún manejador y las nueve filas se
+               quedan girando «Comparando…» mientras dure la revisión entera. */
+            try {
+                lote.revVerificarPreciosLote(estado.folio, AppSession.userEmail);
+            } catch (e) {
+                console.error('revVerificarPreciosLote:', e);
+                marcarPreciosNoDisponibles('Esta versión del portal no puede comparar los precios sola.');
+            }
         }
 
         function marcarPreciosNoDisponibles(motivo) {
             (estado.datos.products || []).forEach(function (p, i) {
-                if (!urlSegura(p.productUrl, HOSTS_LIVERPOOL)) return;
+                // Las filas sin enlace también quedaron esperando, así que también reciben
+                // respuesta: su veredicto no depende del lote —nunca se pudo comparar solo—
+                // y dejarlas en blanco convertiría el disco que giró 30 s en una promesa
+                // incumplida. Es el mismo texto que da la rama de éxito.
+                if (!urlSegura(p.productUrl, HOSTS_LIVERPOOL)) {
+                    pintarChipPrecio(i, 'manual', 'eye', 'Capturado a mano',
+                        'Este artículo no trae enlace: el sistema no puede compararlo solo.');
+                    return;
+                }
                 pintarChipPrecio(i, 'manual', 'eye', 'Compruébalo tú', motivo);
             });
+            cerrarEsperasPrecio();
             const punto = (estado.datos.checklistGeneral || []).filter(function (x) { return x.id === 'precios'; })[0];
             if (punto && punto.estado === 'pendiente') {
                 punto.estado = 'manual';
@@ -2220,6 +2376,7 @@
                 }
             });
 
+            cerrarEsperasPrecio();
             actualizarAvance();
             guardarBorrador();
 
@@ -2235,8 +2392,34 @@
         function pintarChipPrecio(i, clase, icono, texto, titulo) {
             const caja = document.getElementById('rev-precio-estado-' + i);
             if (!caja) return;
+            delete caja.dataset.esperando;
             caja.innerHTML = chipHTML(clase, icono, texto, titulo) +
                 (titulo ? '<span class="rev-precio-nota">' + esc(titulo) + '</span>' : '');
+        }
+
+        /**
+         * Fila esperando el veredicto del lote. El disco es el de VentelFX —el mismo que
+         * el resto del portal usa para «esto está en marcha»— dentro del chip de siempre:
+         * la regla .rev-chip-wait ya lo hace girar y ya respeta «menos movimiento».
+         */
+        function pintarEsperaPrecio(i, texto) {
+            const caja = document.getElementById('rev-precio-estado-' + i);
+            if (!caja) return;
+            caja.dataset.esperando = '1';
+            caja.innerHTML = '<span class="rev-chip rev-chip-wait">' + VentelFX.chip('.82rem') +
+                '<span>' + esc(texto) + '</span></span>';
+        }
+
+        /**
+         * Cierra las esperas que ninguna respuesta llegó a resolver (una fila con enlace
+         * que el lote no devolvió, o las que no lo tienen cuando falla). Un disco girando
+         * para siempre dice «sigue trabajando» cuando ya no hay nada trabajando.
+         */
+        function cerrarEsperasPrecio() {
+            document.querySelectorAll('#rev-items [data-esperando]').forEach(function (caja) {
+                delete caja.dataset.esperando;
+                caja.innerHTML = '';
+            });
         }
 
         /** Aplica un dictamen recalculado por el servidor (llega con los precios ya comprobados). */
@@ -2274,6 +2457,28 @@
             estado.enviando = true;
             actualizarBotones();
 
+            /*
+             * Cerrar la revisión no es "guardar": el servidor escribe la decisión en la
+             * hoja, REHACE la auditoría contra el sitio y manda el correo al asesor. Son
+             * entre 5 y 20 s en los que la pantalla se queda igual que estaba, y la única
+             * señal era la frase gris del riel. Escena de CAJA (familia de la escritura al
+             * servidor) a pantalla completa, con datos curiosos porque la espera es larga.
+             */
+            // Sin `sub`: la escena solo rota los `steps` cuando NADIE le fijó un subtítulo
+            // propio (app_loaders: `if (subEl && !opts.sub && steps…)`). Pasar los dos dejaba
+            // la frase congelada los 5-20 s y los tres pasos como adorno muerto.
+            const fx = VentelFX.overlay('caja', {
+                title: decision === 'aprobada' ? 'Aprobando la cotización…' : 'Registrando el rechazo…',
+                facts: true,
+                maxMs: 60000,
+                steps: [
+                    'Escribiendo la decisión en la hoja…',
+                    'Volviendo a auditar la cotización…',
+                    'Avisando al asesor por correo…',
+                    'Esto puede tardar un poco más…'
+                ]
+            });
+
             const carga = {
                 folio: estado.folio,
                 email: AppSession.userEmail,
@@ -2299,10 +2504,34 @@
                 verificaciones: estado.verificaciones || null
             };
 
-            google.script.run
+            /* Devuelve la pantalla a su sitio y falla EN la escena, con botón de
+               reintentar. Va con nombre porque lo usan el manejador de fallo Y el catch
+               de abajo: sin él, una llamada que ni se puede lanzar dejaría `enviando` en
+               true —Aprobar y Rechazar muertos hasta recargar— con la escena tapando la
+               pantalla hasta su tope. */
+            const alFallar = function (err) {
+                estado.enviando = false;
+                actualizarBotones();
+                console.error('guardarRevisionCotizacion:', err);
+                // Se falla EN la escena, con botón de reintentar: sin él, un corte de red
+                // obliga a volver a pulsar Aprobar/Rechazar a ciegas.
+                //
+                // Y SIN toast: el aviso vive en #v-toast-region, que va a z-index 10000,
+                // por encima del 4200 de .vfx-overlay. Los dos se verían a la vez diciendo
+                // exactamente lo mismo, uno tapando al otro. El mensaje lo da la escena,
+                // que además es la que ofrece el reintento.
+                fx.fail('No pudimos guardar tu decisión. Revisa tu conexión e inténtalo de nuevo.',
+                    function () { cerrarRevision(decision); });
+            };
+
+            const guardar = google.script.run
                 .withSuccessHandler(function (res) {
                     estado.enviando = false;
                     if (!res || !res.success) {
+                        // El servidor contestó y lo que falta hacer está en el campo de
+                        // observaciones: la escena se retira en vez de quedarse encima del
+                        // aviso y del foco que se lleva ahí abajo.
+                        fx.done();
                         actualizarBotones();
                         const msg = (res && res.message) || 'No se pudo guardar la revisión.';
                         AppMotion.toast(msg, 'error');
@@ -2319,6 +2548,8 @@
                         }
                         return;
                     }
+                    fx.done();
+
                     // La decisión ya está en la hoja: el borrador local pierde sentido y
                     // se borra (lleva observaciones sobre el trabajo de otra persona).
                     olvidarBorrador();
@@ -2345,13 +2576,13 @@
                     pintarCabecera(Object.assign({}, estado.datos, { revision: res.revision }));
                     bloquearFormulario();
                 })
-                .withFailureHandler(function (err) {
-                    estado.enviando = false;
-                    actualizarBotones();
-                    console.error('guardarRevisionCotizacion:', err);
-                    AppMotion.toast('No pudimos guardar tu decisión. Revisa tu conexión e inténtalo de nuevo.', 'error');
-                })
-                .guardarRevisionCotizacion(carga);
+                .withFailureHandler(alFallar);
+
+            try {
+                guardar.guardarRevisionCotizacion(carga);
+            } catch (e) {
+                alFallar(e);
+            }
         }
 
         /** Tras decidir, la pantalla queda de solo lectura: no hay nada más que hacer aquí. */
@@ -2446,6 +2677,13 @@
             if (!requireBlock('revisar', 'revision_cotizacion')) return;
 
             AppShell.mount({ active: 'revision_cotizacion', title: 'Revisión de cotización' });
+
+            // El isotipo de arranque se retira en cuanto la pantalla está montada: de aquí
+            // en adelante quien cuenta la espera de getRevisionCotizacion es el esqueleto de
+            // #rev-cargando, que además tiene la forma de la ficha que va a llegar. Los dos
+            // a la vez tapaban la misma espera, y el overlay se apaga solo a los 12 s aunque
+            // el servidor siga sin contestar.
+            if (window.VentelLoader) VentelLoader.hide();
 
             estado.folio = AppUrl.param('folio') || AppSession.selectedFolio || '';
 

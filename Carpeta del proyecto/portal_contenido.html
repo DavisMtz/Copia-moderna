@@ -381,6 +381,8 @@
     <?!= include('app_buscar'); ?>
     <?!= include('app_icons'); ?>
     <?!= include('app_motion'); ?>
+    <?!= include('app_loaders'); ?>
+    <script>if (window.VentelFX) VentelFX.pagina("portal_contenido");</script>
     <?!= include('app_shell'); ?>
     <?!= include('app_comando'); ?>
     <?!= include('app_precarga'); ?>
@@ -769,7 +771,7 @@
           b.addEventListener('click', function () { abrirEditor(b.getAttribute('data-editar')); });
         });
         Array.prototype.forEach.call(lista.querySelectorAll('[data-duplicar]'), function (b) {
-          b.addEventListener('click', function () { duplicar(b.getAttribute('data-duplicar')); });
+          b.addEventListener('click', function () { duplicar(b.getAttribute('data-duplicar'), b); });
         });
         Array.prototype.forEach.call(lista.querySelectorAll('[data-borrar]'), function (b) {
           b.addEventListener('click', function () { pedirBorrado(b.getAttribute('data-borrar')); });
@@ -1124,10 +1126,16 @@
        * cuál borrar. Tampoco se pinta antes de tiempo —el identificador lo inventa el
        * servidor—, pero la pantalla ya no se bloquea mientras tanto.
        */
-      function duplicar(id) {
+      function duplicar(id, boton) {
         var col = pcState.actual;
         if (!col) return;
         var fila = filaPorId(id);
+
+        // Es la única acción de fila que no pinta nada por adelantado, así que hasta
+        // que el servidor contesta la lista se queda idéntica. El disco va en el
+        // botón pulsado: acusa el clic y de paso impide el segundo, que dejaría dos
+        // copias. La etiqueta va vacía porque en 32 px no cabe texto.
+        var fxBtn = VentelFX.button(boton, ' ');
 
         AppGuardado.guardar({
           clave: 'pc:' + col.id,
@@ -1138,10 +1146,13 @@
           reintentos: 0,
           valida: function (res) { return !!(res && res.status === 'ok'); },
           alLograr: function () {
+            fxBtn.done();
             $('lista').innerHTML = esqueleto();
             cargarFilas(true);
             refrescarConteo(1);
-          }
+          },
+          // El aviso del error lo da AppGuardado; esto solo devuelve el botón.
+          alFallar: function () { fxBtn.done(); }
         });
       }
 
@@ -1431,7 +1442,14 @@
           });
         }
 
-        if (imp.modo === 'comercial') { pintarHojas(); if (!imp.hojas) cargarHojasComercial(); }
+        // Solo se REPINTA lo que ya hubiera en memoria. La lectura la dispara quien
+        // cambia de origen (el oyente de arriba), y una sola vez: pedirla también
+        // desde aquí hacía DOS viajes a portalPromosHojas en el mismo clic —y, desde
+        // que la espera tiene escena, dos escenas montadas en #impHojas, la primera
+        // de ellas desprendida del DOM con su rotación de mensajes y su tope de
+        // seguridad todavía corriendo, y con un pintarHojas() tardío que borraba la
+        // lectura que el asesor ya estuviera mirando.
+        if (imp.modo === 'comercial') pintarHojas();
         pintarResto();
       }
 
@@ -1577,19 +1595,33 @@
         if (!imp.filas.length) { toast('Todavía no hay filas que analizar.', 'warn'); return; }
         if (pcState.ocupado) return;
         pcState.ocupado = true;
-        var b = $('impAnalizar'); b.disabled = true; b.textContent = 'Analizando…';
+        var b = $('impAnalizar'); b.disabled = true;
+
+        // El esqueleto sustituye a la etiqueta del botón: el análisis devuelve una
+        // fila de contadores y una línea por fila leída, y dibujar esa forma en el
+        // hueco donde va a caer evita que el panel pegue el salto al aterrizar.
+        var caja = $('impPlan');
+        if (caja) caja.innerHTML = '';
+        var sk = VentelFX.skeleton('#impPlan', 'tabla', { rows: 6, cols: 5 });
 
         google.script.run
           .withSuccessHandler(function (res) {
             pcState.ocupado = false;
-            b.disabled = false; b.textContent = 'Analizar';
-            if (!res || res.status !== 'ok') { toast((res && res.error) || 'No pudimos analizar.', 'error'); return; }
+            b.disabled = false;
+            sk.done();
+            if (!res || res.status !== 'ok') {
+              pintarPlan();   // devuelve el «pulsa Analizar» que tapaba el esqueleto
+              toast((res && res.error) || 'No pudimos analizar.', 'error');
+              return;
+            }
             imp.plan = res;
             pintarPlan();
           })
           .withFailureHandler(function (err) {
             pcState.ocupado = false;
-            b.disabled = false; b.textContent = 'Analizar';
+            b.disabled = false;
+            sk.done();
+            pintarPlan();
             toast(err && err.message ? err.message : 'No pudimos conectar con el servidor.', 'error');
           })
           .portalContenidoAnalizarImport({
@@ -1612,17 +1644,29 @@
 
       function aplicarImportYa() {
         pcState.ocupado = true;
-        var b = $('impAplicar'); b.disabled = true; b.textContent = 'Publicando…';
+        var b = $('impAplicar'); b.disabled = true;
+
+        // Escribir la campaña entera son de 5 a 20 s, y hasta ahora lo único que
+        // cambiaba era la etiqueta del botón: el panel seguía pulsable y se podía
+        // remapear una columna o desmarcar «actualizar» a mitad de la escritura. La
+        // caja tapa el panel completo mientras dura —es una escritura a la hoja— y
+        // el tope se sube porque una importación grande pasa del minuto.
+        var fx = VentelFX.section('#drawer .pc-wrap', 'caja', {
+          mode: 'cover',
+          title: 'Publicando en el Portal…',
+          maxMs: 120000
+        });
 
         google.script.run
           .withSuccessHandler(function (res) {
             pcState.ocupado = false;
-            b.textContent = 'Aplicar';
             if (!res || res.status !== 'ok') {
               b.disabled = false;
+              fx.fail((res && res.error) || 'No pudimos publicar.');
               toast((res && res.error) || 'No pudimos publicar.', 'error');
               return;
             }
+            fx.done();
             var s = res.resumen;
             toast(s.nuevas + ' nuevas · ' + s.actualiza + ' actualizadas · ' +
                   s.iguales + ' sin cambios.', 'ok');
@@ -1633,8 +1677,10 @@
           })
           .withFailureHandler(function (err) {
             pcState.ocupado = false;
-            b.disabled = false; b.textContent = 'Aplicar';
-            toast(err && err.message ? err.message : 'No pudimos conectar con el servidor.', 'error');
+            b.disabled = false;
+            var msg = err && err.message ? err.message : 'No pudimos conectar con el servidor.';
+            fx.fail(msg);
+            toast(msg, 'error');
           })
           .portalContenidoAplicarImport({
             email: PC_EMAIL, coleccion: pcState.actual.id,
@@ -1646,10 +1692,18 @@
 
       function cargarHojasComercial() {
         var caja = $('impHojas');
-        if (caja) caja.innerHTML = '<p class="pc-help">Abriendo el archivo de comercial…</p>';
+        // Abrir el archivo de comercial son de 3 a 10 s y hasta ahora era un párrafo
+        // quieto. Etiqueta porque lo que se está abriendo son campañas de promociones.
+        if (caja) caja.innerHTML = '';
+        var fx = VentelFX.section('#impHojas', 'etiqueta', {
+          mode: 'fill', minHeight: '210px',
+          title: 'Abriendo el archivo de comercial…',
+          sub: 'Solo se listan las pestañas visibles'
+        });
 
         google.script.run
           .withSuccessHandler(function (res) {
+            fx.done();
             if (!res || res.status !== 'ok') {
               if (caja) caja.innerHTML = '<div class="pc-nota warn">' + svg('alerta') +
                 '<span>' + esc((res && res.error) || 'No pudimos abrir el archivo de comercial.') + '</span></div>';
@@ -1660,6 +1714,7 @@
             pintarHojas();
           })
           .withFailureHandler(function () {
+            fx.done();
             if (caja) caja.innerHTML = '<div class="pc-nota warn">' + svg('alerta') +
               '<span>No pudimos conectar con el servidor.</span></div>';
           })
@@ -1698,13 +1753,23 @@
         if (!imp.hojaSel) { toast('Elige primero una campaña.', 'warn'); return; }
         if (pcState.ocupado) return;
         pcState.ocupado = true;
-        var b = $('impLeer'); b.disabled = true; b.textContent = 'Leyendo…';
-        $('impLectura').innerHTML = '<p class="pc-help">Interpretando la hoja…</p>';
+        var b = $('impLeer'); b.disabled = true;
+
+        // Interpretar la campaña son otros 3 a 10 s. La escena sustituye al párrafo
+        // quieto y a la etiqueta del botón: va en el hueco donde caerá el resumen de
+        // lo leído, que es a donde se mira después de pulsar.
+        $('impLectura').innerHTML = '';
+        var fx = VentelFX.section('#impLectura', 'etiqueta', {
+          mode: 'fill', minHeight: '210px',
+          title: 'Interpretando la hoja…',
+          sub: 'Buscando las tablas de promociones'
+        });
 
         google.script.run
           .withSuccessHandler(function (res) {
             pcState.ocupado = false;
-            b.disabled = false; b.textContent = 'Leer esta campaña';
+            b.disabled = false;
+            fx.done();
             if (!res || res.status !== 'ok') {
               $('impLectura').innerHTML = '<div class="pc-nota warn">' + svg('alerta') +
                 '<span>' + esc((res && res.error) || 'No pudimos leer la hoja.') + '</span></div>';
@@ -1741,7 +1806,10 @@
           })
           .withFailureHandler(function () {
             pcState.ocupado = false;
-            b.disabled = false; b.textContent = 'Leer esta campaña';
+            b.disabled = false;
+            // El error se enseña DONDE se estaba esperando: antes, un fallo de red
+            // dejaba «Interpretando la hoja…» puesto para siempre.
+            fx.fail('No pudimos conectar con el servidor.');
             toast('No pudimos conectar con el servidor.', 'error');
           })
           .portalPromosLeer({ email: PC_EMAIL, hoja: imp.hojaSel });
@@ -1782,6 +1850,12 @@
         AppRun.swr('pc-catalogo-' + PC_EMAIL, 'portalContenidoCatalogo', [PC_EMAIL], {
           ttl: 24 * 60 * 60 * 1000,
           accept: function (res) { return !!(res && res.status === 'ok' && (res.colecciones || []).length); },
+          // Camión: esto es traer datos en bloque. Va sobre #panel porque es la
+          // tarjeta que se va a rellenar entera —conmutador, cabecera y lista—, y
+          // en modo cover para no empujar la maquetación. Con el catálogo ya en
+          // caché no se monta nada: lo decide swr, la pantalla sale pintada.
+          fx: { target: '#panel', tema: 'camion', mode: 'cover',
+                title: 'Trayendo el catálogo del Portal…' },
           onData: function (res, deCache) {
             if (!res || res.status !== 'ok') {
               if (abierta) return;   // ya hay pantalla pintada desde la caché: no la tiramos

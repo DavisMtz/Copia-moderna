@@ -98,6 +98,12 @@
   background: var(--surface-2, #F4F7FA); }
 .atn-tab[aria-selected="true"] .atn-tab-num { background: rgba(255,255,255,.6); }
 
+/* "Comprobando con el sistema…" fuera del panel. El panel lo dice en su cabecera;
+   montada como pantalla o como tarjeta no hay cabecera donde decirlo, y la lista
+   sale pintada desde la caché sin que nada cuente que se está revalidando. */
+.atn-comprobando { display: flex; align-items: center; gap: .4rem;
+  margin: -.5rem 0 .8rem; font-size: .78rem; color: var(--ink-soft, #5C6B7E); }
+
 .atn-vacio { padding: 2rem 1rem; text-align: center; color: var(--ink-soft, #5C6B7E); font-size: .86rem; }
 .atn-vacio b { display: block; color: var(--ink, #1B2330); font-size: .95rem; margin-bottom: .25rem; }
 
@@ -330,6 +336,7 @@
   var datos = null;                   // último panorama
   var datosAt = 0;                    // cuándo se leyó lo que hay pintado (caché o servidor)
   var cargando = false;               // ¿se está revalidando contra el servidor ahora mismo?
+  var revalidando = false;            // …y sin que nadie lo haya pedido (ver marcarRevalidacion)
   var pestana = 'mias';
   var abiertas = {};                  // { id: true } tarjetas desplegadas
   var filtro = '';                    // texto del buscador del panel
@@ -1116,6 +1123,69 @@
 
   function clavePanorama() { return 'atenciones-' + correo(); }
 
+  /* ── EL HUECO MIENTRAS SE PIDE EL PANORAMA ───────────────────────────────
+     Tres estados en el mismo sitio: el esqueleto de tarjetas mientras se pide, la
+     lista cuando llega, y la escena de la bolsa con «Reintentar» si no llegó.
+
+     El hueco se deja VACÍO a propósito cuando el motor de escenas está en la
+     pantalla: lo llena `cargar` con el esqueleto, que dibuja la forma de lo que va a
+     aterrizar y evita que la lista dé un salto al hacerlo. Sin motor —hay pantallas
+     que montan este módulo sin incluirlo— queda el disco de siempre. */
+  function prepararHueco() {
+    if (!host) return;
+    var conEsqueleto = !!(window.VentelFX && window.AppRun && AppRun.swr);
+    host.innerHTML = conEsqueleto
+      ? ''
+      : '<div class="atn-vacio"><div class="v-spinner"></div> Cargando tus atenciones…</div>';
+  }
+
+  var fxError = null;
+
+  function limpiarError() {
+    if (!fxError) return;
+    var fx = fxError;
+    fxError = null;
+    fx.done();
+    // `done` retira el nodo al FINAL del fundido (medio segundo con GSAP en la
+    // pantalla). Hasta entonces el hueco sigue teniendo un hijo, y la comprobación
+    // `!host.firstChild` de dos líneas más abajo decidiría que no cabe el esqueleto:
+    // quien pulsa "Actualizar" sobre el aviso de error se quedaba mirando un hueco
+    // vacío durante toda la llamada. Se retira YA, que además es lo que hace la
+    // salida por "Reintentar" (ahí el nodo se va antes de volver a cargar).
+    var nodo = fx.host;
+    if (nodo && nodo.parentNode) nodo.parentNode.removeChild(nodo);
+  }
+
+  /**
+   * El panorama no llegó. Antes esto era un aviso sin salida: para volver a
+   * intentarlo había que encontrar el botón de Actualizar o recargar la pantalla
+   * entera, que en Apps Script son varios segundos. La escena dice lo mismo y trae
+   * el reintento dentro.
+   */
+  function mostrarError() {
+    if (!host || datos) return;
+    if (fxError && !fxError.isDone()) return;
+    if (!window.VentelFX) {
+      host.innerHTML = vacio('Sin conexión', 'No pudimos leer tus atenciones. Vuelve a intentarlo.');
+      return;
+    }
+    host.innerHTML = '';
+    fxError = VentelFX.section(host, 'bolsa', { mode: 'fill', minHeight: '15rem' });
+    // El fallo se pinta un instante DESPUÉS de montar la escena: `fail` detiene las
+    // animaciones en curso y una de ellas es la de aparecer, así que hacerlo en el
+    // mismo fotograma dejaría el aviso invisible.
+    var fx = fxError;
+    setTimeout(function () {
+      // El aviso puede haberse quedado sin destinatario: si en estos 260 ms arrancó
+      // otra carga, `limpiarError` ya cerró esta escena. Pintar el fallo encima
+      // resucitaría un nodo que se está yendo —`fail` mata el fundido de salida— y
+      // dejaría un "Reintentar" que ya no manda sobre nada.
+      if (fx.isDone() || fx !== fxError) return;
+      fx.fail('No pudimos leer tus atenciones. Puede ser la conexión.',
+              function () { cargar(true); });
+    }, 260);
+  }
+
   /**
    * Trae el panorama. Con caché: pinta lo guardado YA y revalida por detrás.
    *
@@ -1134,20 +1204,33 @@
     if (!haySesion() || !puede()) return Promise.resolve(null);
 
     cargando = true;
+    revalidando = forzar !== true;
+    limpiarError();
     pintarCabecera();
-    var fin = function (r) { cargando = false; pintarCabecera(); return r; };
+    var fin = function (r) {
+      cargando = false;
+      revalidando = false;
+      pintarCabecera();
+      // El servidor también puede contestar «no» sin caerse. Sin esto, el hueco se
+      // quedaría vacío al retirarse el esqueleto, y un hueco vacío se lee como «no
+      // tienes atenciones», que es una cosa muy distinta de «no pudimos preguntar».
+      if (!datos) mostrarError();
+      return r;
+    };
 
     if (window.AppRun && AppRun.swr) {
       return AppRun.swr(clavePanorama(), 'atencionesPanorama', [correo()], {
         ttl: TTL_PANORAMA,
         fuerza: forzar === true,
         accept: function (r) { return !!(r && r.success); },
+        // Esqueleto SOLO con el hueco vacío. Con la lista ya pintada —la
+        // revalidación de siempre, o «Actualizar», que salta la caché— se colgaría
+        // DEBAJO de lo que se está leyendo; ahí el acuse va en el botón que se pulsó.
+        fx: (host && !host.firstChild) ? { target: host, kind: 'tarjetas', rows: 3 } : null,
         onData: function (r, deCache, at) {
           if (r && r.success) { datos = r; datosAt = at || Date.now(); pintar(); }
         },
-        onError: function () {
-          if (!datos && host) host.innerHTML = vacio('Sin conexión', 'No pudimos leer tus atenciones. Vuelve a intentarlo.');
-        }
+        onError: function () { mostrarError(); }
       }).then(fin, fin);
     }
     return llamar('atencionesPanorama', [correo()]).then(function (r) {
@@ -1194,8 +1277,12 @@
     // prudencia decorativa: su `id` todavía es provisional —el de verdad lo asigna el
     // servidor— y "Finalizar" sobre un id que no existe daría un error que parecería un
     // fallo del sistema en vez de lo que es, una carrera de medio segundo.
+    //
+    // El disco del chip GIRA: un reloj quieto junto a un "Guardando…" que lleva medio
+    // segundo ahí se lee como que se colgó, que es justo lo contrario de lo que pasa.
     var chipSubiendo = a._subiendo
-      ? '<span class="atn-chip subiendo">' + svg(IC.reloj, 'w-3 h-3') + 'Guardando…</span>'
+      ? '<span class="atn-chip subiendo">' +
+        (window.VentelFX ? VentelFX.chip('.75rem') : svg(IC.reloj, 'w-3 h-3')) + 'Guardando…</span>'
       : '';
 
     var acciones = '';
@@ -1489,6 +1576,9 @@
 
     host.innerHTML = html;
     cablear();
+    // Va DESPUÉS de pintar: `pintarCabecera` corre al principio de esta función, cuando
+    // las pestañas junto a las que se cuelga el aviso todavía no existen.
+    marcarRevalidacion();
 
     // Las tarjetas entran en cascada con `amount`: con tres o con treinta, la entrada
     // termina a la vez. Es el mismo criterio de AppMotion.staggerRows.
@@ -1650,6 +1740,13 @@
     var a = (datos && datos.mias || []).filter(function (x) { return x.id === id; })[0];
     var antes = a ? a.notas : '';
 
+    // Aquí el botón NO desaparece —guardar una anotación no repinta la lista—, así que
+    // es el sitio donde se ve la espera: se queda ocupado hasta que el servidor
+    // contesta. Decir "Guardado" en el mismo clic era prometer algo que todavía podía
+    // fallar, y el aviso del fallo llegaba cuando la persona ya estaba en otra cosa.
+    var fxBtn = window.VentelFX ? VentelFX.button(btn, 'Guardando…') : null;
+    var soltar = function () { if (fxBtn) fxBtn.done(); };
+
     guardarFondo({
       clave: 'atencion:' + id,
       etiqueta: 'Guardando las anotaciones',
@@ -1668,8 +1765,9 @@
         // viejo, y la caché se tira para que la siguiente pantalla no lo resucite.
         if (a) a.notas = texto;
         if (window.AppCache) AppCache.remove(clavePanorama());
-        acuse(btn, 'Guardado');
       },
+      alLograr: function () { soltar(); acuse(btn, 'Guardado'); },
+      alFallar: soltar,
       revertir: function () {
         if (a) a.notas = antes;
         pintar();
@@ -1931,8 +2029,32 @@
     return cargar(false);
   }
 
+  /**
+   * Aviso de revalidación cuando NO hay panel (la pantalla completa, la tarjeta del
+   * inicio del asesor). Ahí no existe el rótulo que en el panel dice "comprobando con
+   * el sistema", así que la lista aparecía pintada desde la caché y la comprobación
+   * que va por detrás no se veía en ninguna parte.
+   *
+   * Solo para las revalidaciones que NADIE pidió: cuando se pulsa Actualizar el acuse
+   * va en el botón que se pulsó, y decirlo dos veces a la vez es ruido.
+   */
+  function marcarRevalidacion() {
+    if (!host) return;
+    var puesto = host.querySelector('.atn-comprobando');
+    var tabs = host.querySelector('.atn-tabs');
+    var toca = revalidando && !panel && !!tabs;
+    if (toca === !!puesto) return;
+    if (!toca) { if (puesto.parentNode) puesto.parentNode.removeChild(puesto); return; }
+    var s = document.createElement('span');
+    s.className = 'atn-comprobando';
+    s.innerHTML = (window.VentelFX ? VentelFX.chip('.9rem') : '') +
+      '<span>Comprobando con el sistema…</span>';
+    tabs.insertAdjacentElement('afterend', s);
+  }
+
   /** Rótulo del panel: cuántas hay, y de cuándo son los datos que se están viendo. */
   function pintarCabecera() {
+    marcarRevalidacion();
     if (!panel) return;
 
     var btn = panel.querySelector('#atn-panel-recargar');
@@ -2047,7 +2169,7 @@
     // cerrar, con los datos ya frescos que trajo el panel.
     hostPrevio = host;
     host = panel.querySelector('#atn-panel-cuerpo');
-    host.innerHTML = '<div class="atn-vacio"><div class="v-spinner"></div> Cargando tus atenciones…</div>';
+    prepararHueco();
 
     cablearPanel();
     pintarCabecera();
@@ -2283,7 +2405,7 @@
       }
       if (typeof opts.alCambiar === 'function') alCambiarEstado = opts.alCambiar;
 
-      host.innerHTML = '<div class="atn-vacio"><div class="v-spinner"></div> Cargando tus atenciones…</div>';
+      prepararHueco();
       cargar(false);
       return true;
     },

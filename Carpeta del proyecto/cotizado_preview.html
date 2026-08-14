@@ -413,13 +413,16 @@
          primera deja la duda de "¿saldrá así de verdad?", y esperar por la segunda
          congelaría la pantalla en cada carga.
 
-         El panel nace oculto y solo aparece cuando el documento está listo. -->
+         El panel nace oculto y aparece en cuanto se pide el documento: primero con la
+         escena de "escribiendo la hoja" y después con el documento de verdad. De ahí que
+         el título y la palomita vivan en sus propios elementos: los dos estados usan el
+         mismo panel. -->
     <section id="doc-ccl" class="doc-ccl no-print" hidden aria-labelledby="doc-ccl-tit">
         <div class="doc-ccl-head">
             <div class="doc-ccl-tx">
                 <h2 id="doc-ccl-tit">
                     <span class="doc-ccl-ok" data-icon="check" aria-hidden="true"></span>
-                    Documento oficial listo
+                    <span id="doc-ccl-tit-tx">Documento oficial listo</span>
                 </h2>
                 <p id="doc-ccl-sub">Este es el formato CCL tal como lo recibirá el cliente.</p>
             </div>
@@ -467,6 +470,8 @@
     <?!= include('app_buscar'); ?>
     <?!= include('app_icons'); ?>
     <?!= include('app_motion'); ?>
+    <?!= include('app_loaders'); ?>
+    <script>if (window.VentelFX) VentelFX.pagina("cotizado_preview");</script>
     <?!= include('LoaderPartial'); ?>
     <?!= include('app_comando'); ?>
     <?!= include('app_precarga'); ?>
@@ -643,10 +648,13 @@
 
            EL INDICADOR
            ------------
-           Se usa AppBusy, el mismo puntito de la esquina superior que enciende cualquier
-           consulta al servidor. No se pone un spinner propio a propósito: esto es trabajo
-           de fondo que no impide hacer nada, y un indicador grande lo anunciaría como si
-           hubiera que esperarlo. */
+           El panel se enseña desde el primer momento con la escena del documento dentro:
+           el hueco reservado dice "la hoja oficial se está escribiendo" y la página deja
+           de dar un salto cuando llega. Sigue sin bloquear nada —se puede leer, editar y
+           descargar mientras—, y si la generación falla el panel se retira sin decir
+           nada, exactamente igual de silencioso que antes. AppBusy conserva su puntito
+           porque es el indicador de "hay algo en vuelo" de toda la aplicación, no el de
+           este panel. */
         const DocumentoCcl = (function () {
             let pedido = false;
             let urlDoc = '';
@@ -656,6 +664,8 @@
             const marco  = () => document.getElementById('doc-ccl-marco');
             const boton  = () => document.getElementById('doc-ccl-toggle');
             const sub    = () => document.getElementById('doc-ccl-sub');
+            const titulo = () => document.getElementById('doc-ccl-tit-tx');
+            const palomita = () => document.querySelector('#doc-ccl .doc-ccl-ok');
 
             function conGsap() {
                 return typeof gsap !== 'undefined' &&
@@ -674,8 +684,13 @@
 
                 const token = window.AppBusy ? AppBusy.start('Generando el documento') : null;
                 const fin = function () { if (token && window.AppBusy) AppBusy.done(token); };
+                const fx = anunciarGeneracion();
+                // Tope propio del PANEL, aparte del de la escena: si el servidor no
+                // contesta nunca, el panel no puede quedarse con el título de "preparando"
+                // y nada debajo. Si la respuesta llega tarde, estadoListo() lo trae de vuelta.
+                setTimeout(function () { if (!urlDoc) retirarPanel(fx); }, 45000);
 
-                google.script.run
+                const pedirDoc = google.script.run
                     .withSuccessHandler(function (r) {
                         fin();
                         if (!r || !r.success || !r.urlIncrustable) {
@@ -685,20 +700,75 @@
                             // ni que le impida enviar. Se registra para quien mantenga
                             // esto y no se le grita a quien está trabajando.
                             console.warn('Documento CCL:', (r && r.message) || 'sin respuesta');
+                            retirarPanel(fx);
                             return;
                         }
                         urlDoc = r.urlIncrustable;
+                        fx.done();
                         if (r.message && window.AppMotion) AppMotion.toast(r.message, 'warn');
-                        mostrarPanel();
+                        estadoListo();
                     })
                     .withFailureHandler(function (e) {
                         fin();
                         console.warn('Documento CCL:', e && e.message ? e.message : e);
-                    })
-                    .previewSheetCcl(folio);
+                        retirarPanel(fx);
+                    });
+
+                /* Si la llamada ni siquiera se puede lanzar (despliegue sin
+                   previewSheetCcl) no corre NINGÚN manejador: el panel se retiraría a los
+                   45 s por su tope, pero el puntito de AppBusy —que no tiene tope— se
+                   quedaría diciendo "hay algo en vuelo" para el resto de la sesión. */
+                try {
+                    pedirDoc.previewSheetCcl(folio);
+                } catch (e) {
+                    fin();
+                    console.warn('Documento CCL:', e && e.message ? e.message : e);
+                    retirarPanel(fx);
+                }
             }
 
-            /** Enseña el panel. Solo aparece cuando hay algo que enseñar. */
+            /**
+             * Estado "escribiendo": el panel entra ya, vacío, con la escena del documento
+             * ocupando el hueco. Devuelve el manejador de la escena —inerte si app_loaders
+             * no cargó— para que quien lo cierra no tenga que comprobar nada.
+             */
+            function anunciarGeneracion() {
+                const p = panel();
+                if (!p) return { done: function (cb) { if (cb) cb(); } };
+
+                // La palomita y el botón afirman que hay documento; todavía no lo hay.
+                if (palomita()) palomita().hidden = true;
+                if (boton()) boton().hidden = true;
+                if (titulo()) titulo().textContent = 'Preparando el documento oficial…';
+                if (sub()) sub().textContent = 'Se está escribiendo la hoja CCL de este folio en Google Sheets.';
+                mostrarPanel();
+
+                // maxMs por encima del tope del panel: el que decide retirar esto es el
+                // panel, no la escena, para que no quede un hueco con un error dentro.
+                return window.VentelFX
+                    ? VentelFX.section(p, 'documento', { mode: 'fill', minHeight: '13rem', maxMs: 50000 })
+                    : { done: function (cb) { if (cb) cb(); } };
+            }
+
+            /** Estado "listo": ya hay documento que enseñar. */
+            function estadoListo() {
+                if (palomita()) palomita().hidden = false;
+                if (boton()) boton().hidden = false;
+                if (titulo()) titulo().textContent = 'Documento oficial listo';
+                if (sub()) sub().textContent = 'Este es el formato CCL tal como lo recibirá el cliente.';
+                mostrarPanel();
+                cablear();
+            }
+
+            /** No hubo documento: el panel se va como vino, sin gritarle a nadie. */
+            function retirarPanel(fx) {
+                fx.done(function () {
+                    const p = panel();
+                    if (p) p.hidden = true;
+                });
+            }
+
+            /** Enseña el panel. Solo aparece cuando hay algo que enseñar (o que esperar). */
             function mostrarPanel() {
                 const p = panel();
                 if (!p || !p.hidden) return;
@@ -710,7 +780,6 @@
                         force3D: true, clearProps: 'transform'
                     });
                 }
-                cablear();
             }
 
             function cablear() {
@@ -728,6 +797,7 @@
                         // El iframe se crea la PRIMERA vez que se abre y se conserva
                         // después: recrearlo en cada apertura volvería a descargar la
                         // interfaz de Sheets y a perder la posición de lectura.
+                        let recienCreado = null;
                         if (!m.firstElementChild) {
                             const f = document.createElement('iframe');
                             f.src = urlDoc;
@@ -738,10 +808,26 @@
                             // pantalla es el PDF, que se genera aparte y con su formato.
                             f.setAttribute('referrerpolicy', 'no-referrer');
                             m.appendChild(f);
+                            recienCreado = f;
                         }
                         m.hidden = false;
                         if (conGsap()) {
                             gsap.from(m, { opacity: 0, duration: .3, ease: 'power2.out' });
+                        }
+                        // Sheets tarda entre 3 y 10 s en pintarse, y hasta que lo hace el
+                        // marco es un rectángulo blanco de 22 rem. La escena lo tapa hasta
+                        // el `load` de verdad del iframe, y solo la primera vez: en las
+                        // siguientes aperturas el documento ya está cargado.
+                        if (recienCreado && window.VentelFX) {
+                            const fxMarco = VentelFX.section(m, 'documento', {
+                                mode: 'cover', maxMs: 25000,
+                                title: 'Abriendo el documento…',
+                                sub: 'Google Sheets está montando la hoja'
+                            });
+                            recienCreado.addEventListener('load', function () { fxMarco.done(); });
+                            recienCreado.addEventListener('error', function () {
+                                fxMarco.fail('No pudimos mostrar el documento aquí. Ciérralo y vuelve a abrirlo.');
+                            });
                         }
                     } else {
                         m.hidden = true;
@@ -925,11 +1011,24 @@
                 
                 // 2. Fallback: Si no había caché válida para este folio, descargar desde Sheets
                 if (!loadedFromCache) {
-                    showPreviewMessage('Buscando la versión más reciente de la cotización…', false);
-                    
+                    /* UNA sola capa de espera. Aquí se encendían tres a la vez: el overlay
+                       de marca del arranque, el disco de #loading-overlay y una franja de
+                       aviso. Los dos primeros se retiran en cuanto se sabe que hay que ir a
+                       buscar el folio, y la escena del escáner —que es lo que se está
+                       haciendo: leer una clave— se queda sola sobre la hoja todavía vacía. */
+                    hideLoader();
+                    const fxFolio = window.VentelFX
+                        ? VentelFX.section('#pdf-preview-content', 'escaner', {
+                            mode: 'cover', maxMs: 30000,
+                            title: 'Buscando la cotización…',
+                            sub: 'Recuperando el folio ' + folioFromUrl
+                        })
+                        : { done: function () {} };
+
                     if (typeof google !== 'undefined' && google.script && google.script.run) {
                         google.script.run
                             .withSuccessHandler(function(response) {
+                                fxFolio.done();
                                 hideLoader();
                                 if (response.success && response.quote) {
                                     quoteDataForSave = response.quote;
@@ -951,6 +1050,7 @@
                                 }
                             })
                             .withFailureHandler(function(error) {
+                                fxFolio.done();
                                 hideLoader();
                                 console.error('getQuoteDetails:', error);
                                 showPreviewFailure('No hay conexión con el sistema. Revisa tu internet y recarga la página.');
@@ -959,6 +1059,7 @@
                             })
                             .getQuoteDetails(folioFromUrl);
                     } else {
+                        fxFolio.done();
                         hideLoader();
                         showPreviewFailure('No pudimos mostrar el folio ' + folioFromUrl + '. Ábrelo desde "Mis cotizaciones" en el portal.');
                         document.getElementById('pdf-preview-content').classList.add('hidden');
@@ -1020,10 +1121,24 @@
                     text.textContent = 'Generando...';
                     downloadPdfButton.disabled = true;
 
+                    /* El PDF tarda entre 5 y 20 s —el CCL lo exporta Google Sheets— y el
+                       disco de 16 px del botón es todo lo que había para esa espera. El
+                       overlay lo tapa y se queda como único indicador; el botón sigue
+                       marcado como ocupado por debajo para que no se pulse dos veces.
+                       Sin `sub`: así rota sola la copia del tema documento, que es la
+                       señal más barata de "sigue vivo" pasados diez segundos. */
+                    const fxPdf = window.VentelFX
+                        ? VentelFX.overlay('documento', {
+                            title: 'Generando el PDF del folio ' + currentFolioForPreview,
+                            facts: true
+                        })
+                        : { done: function () {} };
+
                     // Se pide el PDF real al servidor en vez de imprimir la pantalla, porque
                     // el formato CCL se arma en Google Sheets y no existe en esta página.
                     google.script.run
                         .withSuccessHandler(function(response) {
+                            fxPdf.done();
                             restoreButton();
                             if (response && response.success) {
                                 triggerPdfDownload(response);
@@ -1032,6 +1147,7 @@
                             }
                         })
                         .withFailureHandler(function(error) {
+                            fxPdf.done();
                             restoreButton();
                             console.error('downloadQuotePdf:', error);
                             showPreviewMessage('No pudimos generar el PDF. Inténtalo de nuevo en un momento.', true);
