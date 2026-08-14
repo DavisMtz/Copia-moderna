@@ -310,6 +310,19 @@
     return '<span class="vl-spin' + (cls ? " " + cls : "") + '" aria-hidden="true">' + s + '</span>';
   }
 
-  window.VentelLoader = { show: show, hide: hide, spinner: spinner };
+  /* La geometría de la marca se publica para que otros loaders la reutilicen en vez
+     de volver a pegar los 4 KB del trazado. Este archivo es el dueño del isotipo: si
+     algún día se corrige una isla, se corrige aquí y lo hereda todo lo demás.
+     `anillo` son los ocho puntos de partida e `islas` las ocho piezas del logo, en
+     el mismo orden, que es lo que hace que el morph uno a uno tenga sentido. */
+  var MARCA = {
+    islas: ISLANDS, anillo: seeds,
+    cx: CX, cy: CY, r: R, punto: DOT,
+    naranja: ORANGE, morado: PURPLE,
+    colorIsla: islandColor, colorPunto: dotColor,
+    viewBox: "142.3 69.75 290 290"
+  };
+
+  window.VentelLoader = { show: show, hide: hide, spinner: spinner, marca: MARCA };
 })();
 </script>

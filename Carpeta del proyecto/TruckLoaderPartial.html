@@ -1,0 +1,388 @@
+<!-- ════════════════════════════════════════════════════════════════════════
+     LOADER DE RUTA · el camión de Liverpool avanzando mientras llega la hoja
+     ────────────────────────────────────────────────────────────────────────
+     Para las esperas EN SITIO: el HTML ya está pintado y lo único que falta
+     son los datos del Google Sheets. El esqueleto gris solo dice "no hay nada
+     todavía"; esto dice "va en camino", que es la verdad y además se deja ver.
+
+     Es 100 % CSS: no depende de GSAP ni de que el CDN responda. Se puede
+     insertar como cadena dentro de un innerHTML (portal_contenido lo hace en
+     su esqueleto) o dejar que el auto-montaje lo coloque en cualquier
+     contenedor marcado con [data-vt-loader] (el Portal lo hace así en sus
+     seis secciones).
+
+     API global: window.VentelTruck
+       · markup(opts)   -> cadena HTML lista para innerHTML
+       · fill(el, opts)  -> inserta el camión al principio de ese contenedor
+       · auto(root)      -> rellena todos los [data-vt-loader] que encuentre
+       · finish(el)      -> "entregado": el camión acelera y sale de cuadro
+
+     opts = { titulo, mensajes:[…], alto:'sm'|'md', pista:false }
+     ════════════════════════════════════════════════════════════════════════ -->
+<style>
+  /* ── Contenedor ────────────────────────────────────────────────────────
+     grid-column:1/-1 porque los esqueletos del Portal son rejillas: sin esto
+     el camión se metería en una celda de 300 px como si fuera otra tarjeta. */
+  .vt-strip{grid-column:1/-1;position:relative;display:block;margin:0 0 1.15rem;
+    border-radius:var(--rad,14px);overflow:hidden;
+    background:var(--surface,#fff);border:1px solid var(--line,#eadfe6);
+    box-shadow:inset 0 1px 0 rgba(255,255,255,.6),0 10px 26px -20px rgba(16,24,40,.4);
+    opacity:1;transform:none;
+    transition:opacity .34s ease,transform .34s ease}
+  [data-theme="carbon"] .vt-strip{box-shadow:inset 0 1px 0 rgba(255,255,255,.06),0 12px 30px -20px rgba(0,0,0,.7)}
+
+  /* ── Escena: cielo, ciudad, camino ───────────────────────────────────── */
+  .vt-scene{position:relative;height:96px;overflow:hidden;
+    background:var(--surface-2,#f7eef5);
+    background:linear-gradient(180deg,
+      color-mix(in srgb,var(--brand,#E10098) 6%,var(--surface,#fff)) 0%,
+      var(--surface-2,#f7eef5) 62%,
+      var(--surface-2,#f7eef5) 100%)}
+  .vt-strip.vt-sm .vt-scene{height:74px}
+
+  /* Dos capas de silueta urbana en parallax. Son degradados repetidos, no
+     imágenes: pesan cero y se adaptan al tema porque heredan las variables.
+     El desplazamiento va en PÍXELES y vale exactamente un periodo del patrón
+     (150 px la ciudad, 168 px los postes): con un porcentaje del contenedor
+     el bucle daría un salto visible en cuanto el ancho no fuera múltiplo. */
+  .vt-far,.vt-near{position:absolute;left:0;bottom:24px;pointer-events:none;
+    will-change:transform}
+  .vt-far{height:38px;width:calc(100% + 160px);opacity:.5;
+    background:
+      repeating-linear-gradient(90deg,
+        transparent 0 18px,
+        rgba(105,70,98,.4) 18px 34px,
+        transparent 34px 52px,
+        rgba(105,70,98,.4) 52px 76px,
+        transparent 76px 104px,
+        rgba(105,70,98,.4) 104px 118px,
+        transparent 118px 150px);
+    -webkit-mask-image:linear-gradient(180deg,transparent 0,#000 42%,#000 100%);
+    mask-image:linear-gradient(180deg,transparent 0,#000 42%,#000 100%);
+    animation:vt-far 4.5s linear infinite}
+  [data-theme="carbon"] .vt-far{opacity:.5;
+    background:
+      repeating-linear-gradient(90deg,
+        transparent 0 18px, rgba(255,255,255,.3) 18px 34px,
+        transparent 34px 52px, rgba(255,255,255,.3) 52px 76px,
+        transparent 76px 104px, rgba(255,255,255,.3) 104px 118px,
+        transparent 118px 150px)}
+  .vt-near{height:20px;bottom:22px;width:calc(100% + 180px);opacity:.6;
+    background:
+      repeating-linear-gradient(90deg,
+        transparent 0 46px,
+        rgba(225,0,152,.42) 46px 49px,
+        transparent 49px 96px,
+        rgba(238,125,0,.34) 96px 100px,
+        transparent 100px 168px);
+    animation:vt-near 1.15s linear infinite}
+  @keyframes vt-far {to{transform:translateX(-150px)}}
+  @keyframes vt-near{to{transform:translateX(-168px)}}
+
+  /* El asfalto lleva color PROPIO, no derivado de --ink. En el tema carbon --ink es
+     casi blanco, así que un color-mix sobre él pintaba una carretera gris clara con
+     rayas blancas encima: invisibles. Una carretera es oscura en los dos temas. */
+  .vt-road{position:absolute;left:0;right:0;bottom:0;height:24px;
+    background:linear-gradient(180deg,#524553 0%,#372f3a 100%)}
+  [data-theme="carbon"] .vt-road{background:linear-gradient(180deg,#2c2532 0%,#191520 100%)}
+  .vt-road::before{content:"";position:absolute;left:0;right:0;top:0;height:1px;
+    background:rgba(255,255,255,.32)}
+  /* La raya discontinua del asfalto: lo que de verdad transmite la velocidad.
+     Periodo del patrón = 58 px, y eso es justo lo que recorre por vuelta. */
+  .vt-dash{position:absolute;left:0;bottom:8px;width:calc(100% + 60px);height:3px;
+    border-radius:2px;will-change:transform;
+    background:repeating-linear-gradient(90deg,
+      rgba(255,255,255,.82) 0 26px, transparent 26px 58px);
+    animation:vt-dash .36s linear infinite}
+  @keyframes vt-dash{to{transform:translateX(-58px)}}
+
+  /* ── El camión ────────────────────────────────────────────────────────
+     Entra por la izquierda, cruza la tira a ritmo de carretera y sale
+     acelerando por la derecha antes de volver a empezar. El recorrido va en
+     `left` y no en `translateX` a propósito: los porcentajes de translate se
+     miden sobre el propio camión (132 px), así que un 60 % lo movería 79 px
+     y no seis décimos de la tira. Con `left` el porcentaje sí es del
+     contenedor, que es lo que hace falta para que cruce de verdad. */
+  .vt-truck{position:absolute;bottom:10px;left:-20%;width:132px;height:66px;
+    animation:vt-drive 6.4s linear infinite}
+  .vt-strip.vt-sm .vt-truck{width:108px;height:54px;bottom:9px}
+  .vt-truck svg{width:100%;height:100%;overflow:visible;
+    animation:vt-bob .46s ease-in-out infinite alternate}
+  @keyframes vt-drive{
+    0%   {left:-20%; animation-timing-function:cubic-bezier(.2,.7,.4,1)}
+    18%  {left:14%;  animation-timing-function:linear}
+    72%  {left:58%;  animation-timing-function:cubic-bezier(.6,0,.85,.3)}
+    100% {left:108%}
+  }
+  @keyframes vt-bob{from{transform:translateY(0)}to{transform:translateY(-1.6px)}}
+
+  .vt-wheel{transform-box:fill-box;transform-origin:50% 50%;
+    animation:vt-roll .5s linear infinite}
+  @keyframes vt-roll{to{transform:rotate(360deg)}}
+
+  /* Humo del escape: tres soplos con desfase, salen por detrás del camión. */
+  .vt-puff{transform-box:fill-box;transform-origin:50% 50%;opacity:0;
+    animation:vt-puff 1.35s ease-out infinite}
+  .vt-puff:nth-of-type(2){animation-delay:.45s}
+  .vt-puff:nth-of-type(3){animation-delay:.9s}
+  @keyframes vt-puff{
+    0%{opacity:.5;transform:translate(0,0) scale(.45)}
+    100%{opacity:0;transform:translate(-22px,-9px) scale(1.9)}
+  }
+
+  /* Rayas de velocidad detrás de la cabina. */
+  .vt-speed{stroke-dasharray:14 26;animation:vt-speed .5s linear infinite}
+  @keyframes vt-speed{to{stroke-dashoffset:-40}}
+
+  /* Barrido de luz sobre toda la escena: el toque cinematográfico. */
+  .vt-shine{position:absolute;inset:0;pointer-events:none;
+    background:linear-gradient(105deg,transparent 38%,rgba(255,255,255,.22) 50%,transparent 62%);
+    background-size:260% 100%;animation:vt-shine 3.2s ease-in-out infinite}
+  @keyframes vt-shine{0%{background-position:150% 0}60%,100%{background-position:-150% 0}}
+  [data-theme="carbon"] .vt-shine{
+    background:linear-gradient(105deg,transparent 38%,rgba(255,255,255,.07) 50%,transparent 62%);
+    background-size:260% 100%}
+
+  /* ── Pie: barra de avance + mensaje que va cambiando ─────────────────── */
+  .vt-foot{display:flex;align-items:center;gap:.75rem;padding:.6rem .9rem .7rem}
+  .vt-bar{position:relative;flex:1;height:5px;border-radius:99px;overflow:hidden;
+    background:color-mix(in srgb,var(--ink,#3d2f38) 12%,transparent)}
+  .vt-fill{position:absolute;inset:0;border-radius:99px;transform-origin:left center;
+    background:linear-gradient(90deg,#AC4581,#E10098 55%,#EE7D00);
+    animation:vt-fill 6.4s cubic-bezier(.45,0,.55,1) infinite}
+  @keyframes vt-fill{
+    0%{transform:scaleX(.02)}20%{transform:scaleX(.22)}
+    74%{transform:scaleX(.78)}92%,100%{transform:scaleX(1)}
+  }
+
+  /* Los mensajes se apilan en el mismo hueco y se turnan con puro CSS: el
+     desfase negativo hace que cada uno entre cuando le toca sin un solo
+     setInterval. Se mide el hueco con el más largo (.vt-ghost, invisible). */
+  .vt-msgs{position:relative;flex:none;max-width:min(58%,26rem);
+    font-family:var(--f-body,'Instrument Sans',system-ui,sans-serif);
+    font-size:.78rem;font-weight:600;line-height:1.3;color:var(--ink-soft,#7d6c76);
+    text-align:right;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .vt-msgs .vt-ghost{visibility:hidden}
+  .vt-msgs .vt-m{position:absolute;right:0;top:0;left:0;opacity:0;
+    overflow:hidden;text-overflow:ellipsis;
+    animation:vt-msg4 linear infinite}
+
+  /* Un juego de fotogramas POR CANTIDAD de mensajes. El turno de cada uno dura
+     100/N del ciclo, así que unos fotogramas fijos al 25 % solo cuadran con
+     cuatro: con dos, el pie se quedaba en blanco media vuelta (visto en la
+     variante compacta, que solo pasa dos). El markup pone la clase vt-nN. */
+  .vt-msgs.vt-n1 .vt-m{animation-name:vt-msg1}
+  .vt-msgs.vt-n2 .vt-m{animation-name:vt-msg2}
+  .vt-msgs.vt-n3 .vt-m{animation-name:vt-msg3}
+  .vt-msgs.vt-n5 .vt-m{animation-name:vt-msg5}
+  .vt-msgs.vt-n6 .vt-m{animation-name:vt-msg6}
+  @keyframes vt-msg1{0%,100%{opacity:1;transform:none}}
+  @keyframes vt-msg2{
+    0%{opacity:0;transform:translateY(5px)} 4%,45%{opacity:1;transform:none}
+    50%,100%{opacity:0;transform:translateY(-5px)}}
+  @keyframes vt-msg3{
+    0%{opacity:0;transform:translateY(5px)} 4%,29%{opacity:1;transform:none}
+    33.33%,100%{opacity:0;transform:translateY(-5px)}}
+  @keyframes vt-msg4{
+    0%{opacity:0;transform:translateY(5px)} 4%,21%{opacity:1;transform:none}
+    25%,100%{opacity:0;transform:translateY(-5px)}}
+  @keyframes vt-msg5{
+    0%{opacity:0;transform:translateY(5px)} 3%,17%{opacity:1;transform:none}
+    20%,100%{opacity:0;transform:translateY(-5px)}}
+  @keyframes vt-msg6{
+    0%{opacity:0;transform:translateY(5px)} 2.5%,14%{opacity:1;transform:none}
+    16.67%,100%{opacity:0;transform:translateY(-5px)}}
+
+  /* ── "Entregado": el camión acelera, la barra se llena y la tira se va ──
+     El remate importa tanto como la espera: el camión no desaparece de golpe,
+     sale de cuadro y la tira se retira hacia arriba mientras las tarjetas de
+     verdad entran por debajo. */
+  .vt-strip.vt-done .vt-truck{animation:vt-out .5s cubic-bezier(.5,0,.75,.3) forwards}
+  .vt-strip.vt-done .vt-fill{animation:none;transform:scaleX(1);transition:transform .3s ease-out}
+  .vt-strip.vt-done{opacity:0;transform:translateY(-8px)}
+  @keyframes vt-out{to{left:120%}}
+
+  /* ── Menos movimiento: el camión se queda quieto y la escena también.
+     Sigue diciendo "esto está cargando", que es lo que tiene que decir. ── */
+  @media (prefers-reduced-motion:reduce){
+    .vt-far,.vt-near,.vt-dash,.vt-shine,.vt-puff,.vt-speed,
+    .vt-truck,.vt-truck svg,.vt-wheel,.vt-strip.vt-done .vt-truck{animation:none!important}
+    .vt-truck{left:20%}
+    .vt-fill{animation:none;transform:scaleX(.4)}
+    .vt-msgs .vt-m{animation:none;opacity:0}
+    /* Hermano inmediato del hueco fantasma = el primer mensaje. No vale
+       `:first-of-type`: el fantasma también es un <span> y se lo quedaba él,
+       así que en modo sin movimiento no se veía ningún texto. */
+    .vt-msgs .vt-ghost + .vt-m{opacity:1;transform:none}
+  }
+
+  @media(max-width:560px){
+    .vt-msgs{display:none}
+    .vt-foot{padding:.55rem .8rem .6rem}
+  }
+</style>
+
+<script>
+(function(){
+  "use strict";
+  if (window.VentelTruck) return;
+
+  var MENSAJES = [
+    'Conectando con la hoja de cálculo…',
+    'Cargando la mercancía del Sheets…',
+    'El camión ya viene en camino…',
+    'Acomodando todo en su lugar…'
+  ];
+
+  /* El camión, dibujado a mano en un viewBox de 132×66 y mirando a la
+     derecha. Colores de marca: caja rosa Liverpool, franja naranja y cabina
+     morada — los mismos tres del isotipo del loader grande. */
+  function truckSvg(){
+    return '' +
+    '<svg viewBox="0 0 132 66" fill="none" aria-hidden="true">' +
+      // Sombra: pegada a las ruedas (que apoyan en y≈57.5) y estrecha. Una elipse
+      // ancha y opaca aquí no se lee como sombra, sino como una mancha en el asfalto.
+      '<ellipse cx="68" cy="57.5" rx="42" ry="2.8" fill="#000000" fill-opacity=".22"/>' +
+
+      // Humo del escape: sale a ras de suelo por detrás del eje trasero.
+      '<circle class="vt-puff" cx="14" cy="52" r="3.4" fill="#cfc4cb"/>' +
+      '<circle class="vt-puff" cx="14" cy="52" r="3.4" fill="#cfc4cb"/>' +
+      '<circle class="vt-puff" cx="14" cy="52" r="3.4" fill="#cfc4cb"/>' +
+
+      // Rayas de velocidad. Van en morado de marca y no en blanco: sobre el cielo
+      // claro del tema por omisión, unas rayas blancas sencillamente no existen.
+      '<g stroke="#AC4581" stroke-opacity=".5" stroke-width="2" stroke-linecap="round">' +
+        '<line class="vt-speed" x1="-16" y1="18" x2="10" y2="18"/>' +
+        '<line class="vt-speed" x1="-11" y1="29" x2="7" y2="29"/>' +
+      '</g>' +
+
+      // caja de carga (la caja rosa) + franja + remaches
+      '<rect x="16" y="8" width="66" height="36" rx="4" fill="#E10098"/>' +
+      '<rect x="16" y="8" width="66" height="7" rx="4" fill="#ffffff" fill-opacity=".22"/>' +
+      '<rect x="16" y="27" width="66" height="6" fill="#EE7D00"/>' +
+      '<rect x="16" y="36" width="66" height="8" fill="#000000" fill-opacity=".12"/>' +
+      '<rect x="21" y="13" width="24" height="11" rx="2" fill="#ffffff" fill-opacity=".28"/>' +
+
+      // cabina: capó inclinado, parabrisas y parrilla
+      '<path d="M82 14h16l12 13h8a4 4 0 0 1 4 4v13H82z" fill="#AC4581"/>' +
+      '<path d="M99 17h2l10 10h-12z" fill="#ffffff" fill-opacity=".62"/>' +
+      '<rect x="116" y="30" width="6" height="8" rx="2" fill="#EE7D00"/>' +
+      '<rect x="82" y="40" width="40" height="4" fill="#000000" fill-opacity=".18"/>' +
+      // faro
+      '<circle cx="120" cy="42" r="2.6" fill="#FFE9A8"/>' +
+
+      // chasis
+      '<rect x="14" y="44" width="110" height="4" rx="2" fill="#3A2F38"/>' +
+
+      // ruedas (giran de verdad: el eje es el centro del propio grupo)
+      '<g class="vt-wheel">' +
+        '<circle cx="34" cy="49" r="8.5" fill="#2A2230"/>' +
+        '<circle cx="34" cy="49" r="3.6" fill="#D9D2D6"/>' +
+        '<rect x="33.2" y="41.5" width="1.6" height="15" rx=".8" fill="#8b8189"/>' +
+        '<rect x="26.5" y="48.2" width="15" height="1.6" rx=".8" fill="#8b8189"/>' +
+      '</g>' +
+      '<g class="vt-wheel">' +
+        '<circle cx="100" cy="49" r="8.5" fill="#2A2230"/>' +
+        '<circle cx="100" cy="49" r="3.6" fill="#D9D2D6"/>' +
+        '<rect x="99.2" y="41.5" width="1.6" height="15" rx=".8" fill="#8b8189"/>' +
+        '<rect x="92.5" y="48.2" width="15" height="1.6" rx=".8" fill="#8b8189"/>' +
+      '</g>' +
+    '</svg>';
+  }
+
+  function esc(s){
+    return String(s == null ? '' : s)
+      .replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')
+      .replace(/"/g,'&quot;');
+  }
+
+  /**
+   * Devuelve la tira completa como cadena, lista para innerHTML.
+   * opts.mensajes  lista de textos que se turnan (por omisión, los de arriba)
+   * opts.alto      'sm' para la variante compacta (listas, cajones)
+   * opts.etiqueta  texto de accesibilidad del role="status"
+   */
+  function markup(opts){
+    opts = opts || {};
+    var msgs = (opts.mensajes && opts.mensajes.length) ? opts.mensajes : MENSAJES;
+    msgs = msgs.slice(0, 6);            // hay fotogramas de relevo hasta seis
+    var paso = 2.9;                     // segundos que dura cada mensaje
+    var total = (msgs.length * paso).toFixed(2) + 's';
+
+    // El hueco lo marca el mensaje más largo: así el pie no cambia de ancho
+    // cada vez que el texto se releva.
+    var largo = msgs.reduce(function(a,b){ return b.length > a.length ? b : a; }, '');
+
+    var lineas = msgs.map(function(m, i){
+      return '<span class="vt-m" style="animation-duration:' + total +
+             ';animation-delay:' + (-(i * paso).toFixed(2)) + 's">' + esc(m) + '</span>';
+    }).join('');
+
+    return '' +
+      '<div class="vt-strip' + (opts.alto === 'sm' ? ' vt-sm' : '') + '" role="status" aria-live="polite" ' +
+           'aria-label="' + esc(opts.etiqueta || 'Cargando información') + '">' +
+        '<div class="vt-scene" aria-hidden="true">' +
+          '<div class="vt-far"></div>' +
+          '<div class="vt-near"></div>' +
+          '<div class="vt-road"><div class="vt-dash"></div></div>' +
+          '<div class="vt-truck">' + truckSvg() + '</div>' +
+          '<div class="vt-shine"></div>' +
+        '</div>' +
+        '<div class="vt-foot">' +
+          '<div class="vt-bar"><span class="vt-fill"></span></div>' +
+          '<div class="vt-msgs vt-n' + msgs.length + '">' +
+            '<span class="vt-ghost">' + esc(largo) + '</span>' + lineas +
+          '</div>' +
+        '</div>' +
+      '</div>';
+  }
+
+  /** Coloca el camión al principio del contenedor (una sola vez). */
+  function fill(el, opts){
+    if (!el || el.querySelector('.vt-strip')) return null;
+    var wrap = document.createElement('div');
+    wrap.innerHTML = markup(opts);
+    var strip = wrap.firstChild;
+    el.insertBefore(strip, el.firstChild);
+    return strip;
+  }
+
+  /**
+   * Rellena todos los contenedores marcados con [data-vt-loader]. El valor del
+   * atributo, si lo trae, se usa como el primer mensaje ("Cargando tus
+   * herramientas…"), que es lo único que cambia entre una sección y otra.
+   */
+  function auto(root){
+    var nodos = (root || document).querySelectorAll('[data-vt-loader]');
+    Array.prototype.forEach.call(nodos, function(el){
+      var propio = el.getAttribute('data-vt-loader');
+      var alto = el.getAttribute('data-vt-alto') || '';
+      fill(el, {
+        alto: alto,
+        etiqueta: propio || 'Cargando información',
+        mensajes: propio ? [propio].concat(MENSAJES.slice(1)) : null
+      });
+    });
+  }
+
+  /** "Entregado": el camión sale de cuadro y la tira se desvanece. */
+  function finish(el){
+    if (!el) return;
+    var strip = el.classList && el.classList.contains('vt-strip')
+      ? el : el.querySelector && el.querySelector('.vt-strip');
+    if (!strip || strip.classList.contains('vt-done')) return;
+    strip.classList.add('vt-done');
+    setTimeout(function(){ if (strip.parentNode) strip.parentNode.removeChild(strip); }, 600);
+  }
+
+  window.VentelTruck = {
+    markup: markup, fill: fill, auto: auto, finish: finish, MENSAJES: MENSAJES
+  };
+
+  if (document.readyState === 'loading'){
+    document.addEventListener('DOMContentLoaded', function(){ auto(document); });
+  } else {
+    auto(document);
+  }
+})();
+</script>

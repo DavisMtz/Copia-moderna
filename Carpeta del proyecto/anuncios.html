@@ -270,6 +270,7 @@
 
       /* Estados: cargando (skeleton) · vacío · error */
       .anc-sk{border:1px solid var(--line-soft);border-radius:var(--rad-sm);padding:var(--s3)}
+      #lista .vt-strip{margin-bottom:var(--s3)}
       .anc-sk+.anc-sk{margin-top:var(--s2)}
       .anc-sk i{display:block;height:9px;border-radius:999px;background:var(--surface-2);
         animation:anc-pulse 1.4s ease-in-out infinite}
@@ -521,6 +522,7 @@
     <?!= include('app_comando'); ?>
     <?!= include('app_precarga'); ?>
     <?!= include('LoaderPartial'); ?>
+    <?!= include('TruckLoaderPartial'); ?>
     <?!= include('app_operacion'); ?>
     <?!= include('app_atenciones'); ?>
     <script>
@@ -1023,8 +1025,19 @@
         { k:'inactivo',   t:'Ocultos' }
       ];
 
+      /* Mismo criterio que en el Portal: mientras la hoja contesta, el camión de
+         reparto en ruta encabeza el esqueleto. Es 100 % CSS, así que aguanta que
+         #lista se rellene con innerHTML sin tener que montarlo después. */
       function skeleton(){
-        return '<div class="anc-sk"><i></i><i></i><i></i></div>'.repeat(3);
+        return (window.VentelTruck ? window.VentelTruck.markup({
+          alto: 'sm',
+          etiqueta: 'Cargando los anuncios',
+          mensajes: [
+            'Abriendo la hoja de anuncios…',
+            'Cargando la mercancía del Sheets…',
+            'El camión ya viene en camino…'
+          ]
+        }) : '') + '<div class="anc-sk"><i></i><i></i><i></i></div>'.repeat(3);
       }
 
       /* La lista de anuncios se guarda en local para que entrar a esta pantalla la

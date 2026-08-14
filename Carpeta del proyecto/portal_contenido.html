@@ -126,6 +126,8 @@
       .pc-estado .big .ic{width:22px;height:22px}
       .pc-estado h3{font-size:var(--fs-md);font-weight:700;color:var(--ink);margin:0 0 var(--s1)}
       .pc-estado p{font-size:var(--fs-sm);color:var(--ink-soft);margin:0 0 var(--s4);line-height:1.55}
+      /* El camión de ruta, encajado en el ancho de la lista. */
+      .pc-list .vt-strip{margin:0 var(--s5) var(--s3)}
       .pc-sk{height:52px;border-bottom:1px solid var(--line-soft);
         background:linear-gradient(90deg,var(--surface-2) 25%,var(--line-soft) 50%,var(--surface-2) 75%);
         background-size:200% 100%;animation:pcSk 1.4s linear infinite}
@@ -385,6 +387,7 @@
     <?!= include('app_comando'); ?>
     <?!= include('app_precarga'); ?>
     <?!= include('LoaderPartial'); ?>
+    <?!= include('TruckLoaderPartial'); ?>
     <?!= include('app_operacion'); ?>
     <?!= include('app_atenciones'); ?>
     <script>
@@ -543,9 +546,22 @@
         cargarFilas();
       }
 
+      /* El esqueleto no es solo relleno gris: encabeza el camión de reparto, que
+         es lo que dice "la hoja está contestando" en vez de "aquí no hay nada".
+         Va como cadena porque #lista se rellena con innerHTML desde ocho sitios
+         distintos; el camión es 100 % CSS, así que no necesita montarse. */
       function esqueleto() {
-        var s = '';
-        for (var i = 0; i < 6; i++) s += '<div class="pc-sk"></div>';
+        var s = (window.VentelTruck ? window.VentelTruck.markup({
+          alto: 'sm',
+          etiqueta: 'Cargando esta sección',
+          mensajes: [
+            'Abriendo la hoja de esta sección…',
+            'Cargando la mercancía del Sheets…',
+            'El camión ya viene en camino…',
+            'Acomodando las entradas…'
+          ]
+        }) : '');
+        for (var i = 0; i < 6; i++) s += '<div class="pc-sk" style="animation-delay:' + (-i * 0.11).toFixed(2) + 's"></div>';
         return s;
       }
 

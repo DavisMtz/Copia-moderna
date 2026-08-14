@@ -778,7 +778,38 @@ a:focus-visible,button:focus-visible,input:focus-visible,[tabindex]:focus-visibl
 .sk-btn{height:38px;width:100%;border-radius:11px;margin-top:.3rem}
 .sk-row{height:46px;border-radius:12px}
 .sk-qa{height:74px;border-radius:var(--rad)}
-@media(prefers-reduced-motion:reduce){.sk-line{animation:none}}
+
+/* El brillo de todas las tarjetas iba EN FASE: seis rectángulos parpadeando a la
+   vez leen como un error de pintado, no como algo cargando. Con un desfase por
+   posición el destello recorre la rejilla en diagonal y el bloque entero respira. */
+.sk-grid>*:nth-child(2) .sk-line{animation-delay:-.10s}
+.sk-grid>*:nth-child(3) .sk-line{animation-delay:-.20s}
+.sk-grid>*:nth-child(4) .sk-line{animation-delay:-.30s}
+.sk-grid>*:nth-child(5) .sk-line{animation-delay:-.40s}
+.sk-grid>*:nth-child(6) .sk-line{animation-delay:-.50s}
+.sk-grid>*:nth-child(7) .sk-line{animation-delay:-.60s}
+
+/* Y entran en cascada en vez de aparecer de golpe: la misma entrada que luego
+   usan las tarjetas de verdad (animateGrid), para que el relevo no se note. */
+@keyframes skIn{from{opacity:0;transform:translateY(12px)}to{opacity:1;transform:none}}
+.sk-card:not(.sk-line){animation:skIn .5s cubic-bezier(.2,.8,.2,1) backwards}
+.sk-grid>.sk-card:nth-child(2){animation-delay:.05s}
+.sk-grid>.sk-card:nth-child(3){animation-delay:.10s}
+.sk-grid>.sk-card:nth-child(4){animation-delay:.15s}
+.sk-grid>.sk-card:nth-child(5){animation-delay:.20s}
+.sk-grid>.sk-card:nth-child(6){animation-delay:.25s}
+.sk-grid>.sk-card:nth-child(7){animation-delay:.30s}
+
+/* Salida del esqueleto: se retira colapsando su alto mientras las tarjetas
+   reales entran por debajo. Ver hideLoader(). */
+.sk-out{overflow:hidden;
+  transition:max-height .4s cubic-bezier(.4,0,.2,1),opacity .4s ease,transform .4s ease}
+.sk-gone{display:none!important}
+
+@media(prefers-reduced-motion:reduce){
+  .sk-line,.sk-card:not(.sk-line){animation:none}
+  .sk-out{transition:none}
+}
 
 /* ════════════════════════════════════════════════════════════
    AVISOS DEL EQUIPO (hoja "Avisos" — banner descartable)
@@ -1344,6 +1375,17 @@ table.ds-matrix{width:100%;border-collapse:separate;border-spacing:0;min-width:5
 <?!= include('app_onboarding') ?>
 <?!= include('app_operacion') ?>
 <?!= include('app_precarga') ?>
+<!-- Atenciones, aquí dentro. El Portal es de donde más se sale a mirar quién está
+     esperando, y hasta ahora ese enlace costaba una carga completa de Apps Script para
+     una consulta de cinco segundos —y otra para volver—. Con el módulo cargado, pedir
+     "atenciones" abre el panel encima del Portal: el módulo desvía él solo todo lo que
+     pasa por AppUrl.go, que es por donde ya iba este enlace.
+
+     Va DESPUÉS de app_guardado (así el desvío envuelve su guardia de salida, no al
+     revés) y trae su propio CSS, así que no hace falta app_theme en esta landing.
+     La pantalla completa sigue existiendo: es el destino de un enlace compartido y está
+     a un botón dentro del propio panel. -->
+<?!= include('app_atenciones') ?>
 <!-- El Portal es la landing: de aquí sale buena parte de los trayectos del día, así que
      declararlo es lo que permite aprender "entra al Portal y se va a cotizar". Va con
      `aqui()` y no por el shell porque este archivo tiene el suyo propio. -->
@@ -1534,7 +1576,7 @@ table.ds-matrix{width:100%;border-collapse:separate;border-spacing:0;min-width:5
     </div>
 
     <div class="dash-label"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M13 2 4 14h7l-2 8 9-12h-7l2-8Z"/></svg> Tus accesos rápidos <span class="qa-hint">se ordenan según tu uso · fíjalos con el pin</span><span class="dl-line"></span></div>
-    <div class="qa-grid" id="qaGrid">
+    <div class="qa-grid" id="qaGrid" data-vx-loader="isotipo" data-vx-msg="Buscando tus accesos rápidos…">
       <div class="sk-line sk-qa"></div><div class="sk-line sk-qa"></div><div class="sk-line sk-qa"></div><div class="sk-line sk-qa"></div>
     </div>
 
@@ -1584,7 +1626,7 @@ table.ds-matrix{width:100%;border-collapse:separate;border-spacing:0;min-width:5
       </div>
       <span class="result-count-badge" id="rc-herramientas"></span>
     </div>
-    <div id="ld-herramientas" class="sk-grid" aria-hidden="true">
+    <div id="ld-herramientas" class="sk-grid" data-vx-loader="ruta" data-vx-msg="Cargando tus herramientas…">
       <div class="sk-card"><div class="sk-line sk-ic"></div><div class="sk-line sk-t"></div><div class="sk-line sk-s"></div><div class="sk-line sk-s short"></div><div class="sk-line sk-btn"></div></div>
       <div class="sk-card"><div class="sk-line sk-ic"></div><div class="sk-line sk-t"></div><div class="sk-line sk-s"></div><div class="sk-line sk-s short"></div><div class="sk-line sk-btn"></div></div>
       <div class="sk-card"><div class="sk-line sk-ic"></div><div class="sk-line sk-t"></div><div class="sk-line sk-s"></div><div class="sk-line sk-s short"></div><div class="sk-line sk-btn"></div></div>
@@ -1609,7 +1651,7 @@ table.ds-matrix{width:100%;border-collapse:separate;border-spacing:0;min-width:5
       </div>
       <span class="result-count-badge" id="rc-paqueterias"></span>
     </div>
-    <div id="ld-paqueterias" aria-hidden="true" style="display:flex;flex-direction:column;gap:.7rem;">
+    <div id="ld-paqueterias" data-vx-loader="cajas" data-vx-msg="Cargando las paqueterías…" style="display:flex;flex-direction:column;gap:.7rem;">
       <div class="sk-line sk-row"></div><div class="sk-line sk-row"></div><div class="sk-line sk-row"></div><div class="sk-line sk-row"></div><div class="sk-line sk-row"></div><div class="sk-line sk-row"></div>
     </div>
     <div id="gr-paqueterias"></div>
@@ -2022,7 +2064,7 @@ table.ds-matrix{width:100%;border-collapse:separate;border-spacing:0;min-width:5
       </div>
       <span class="result-count-badge" id="rc-pdepago"></span>
     </div>
-    <div id="ld-pdepago" class="sk-grid" aria-hidden="true">
+    <div id="ld-pdepago" class="sk-grid" data-vx-loader="isotipo" data-vx-msg="Cargando las promociones de pago…">
       <div class="sk-card"><div class="sk-line sk-ic"></div><div class="sk-line sk-t"></div><div class="sk-line sk-s"></div><div class="sk-line sk-s short"></div></div>
       <div class="sk-card"><div class="sk-line sk-ic"></div><div class="sk-line sk-t"></div><div class="sk-line sk-s"></div><div class="sk-line sk-s short"></div></div>
       <div class="sk-card"><div class="sk-line sk-ic"></div><div class="sk-line sk-t"></div><div class="sk-line sk-s"></div><div class="sk-line sk-s short"></div></div>
@@ -2044,7 +2086,7 @@ table.ds-matrix{width:100%;border-collapse:separate;border-spacing:0;min-width:5
       </div>
       <span class="result-count-badge" id="rc-formatos"></span>
     </div>
-    <div id="ld-formatos" class="sk-grid" aria-hidden="true">
+    <div id="ld-formatos" class="sk-grid" data-vx-loader="onda" data-vx-msg="Cargando los formatos…">
       <div class="sk-card"><div class="sk-line sk-ic"></div><div class="sk-line sk-t"></div><div class="sk-line sk-s"></div><div class="sk-line sk-btn"></div></div>
       <div class="sk-card"><div class="sk-line sk-ic"></div><div class="sk-line sk-t"></div><div class="sk-line sk-s"></div><div class="sk-line sk-btn"></div></div>
       <div class="sk-card"><div class="sk-line sk-ic"></div><div class="sk-line sk-t"></div><div class="sk-line sk-s"></div><div class="sk-line sk-btn"></div></div>
@@ -2066,7 +2108,7 @@ table.ds-matrix{width:100%;border-collapse:separate;border-spacing:0;min-width:5
       </div>
       <span class="result-count-badge" id="rc-presentaciones"></span>
     </div>
-    <div id="ld-presentaciones" class="sk-grid" aria-hidden="true">
+    <div id="ld-presentaciones" class="sk-grid" data-vx-loader="ruta" data-vx-msg="Cargando las presentaciones…">
       <div class="sk-card"><div class="sk-line sk-ic"></div><div class="sk-line sk-t"></div><div class="sk-line sk-s"></div><div class="sk-line sk-btn"></div></div>
       <div class="sk-card"><div class="sk-line sk-ic"></div><div class="sk-line sk-t"></div><div class="sk-line sk-s"></div><div class="sk-line sk-btn"></div></div>
       <div class="sk-card"><div class="sk-line sk-ic"></div><div class="sk-line sk-t"></div><div class="sk-line sk-s"></div><div class="sk-line sk-btn"></div></div>
@@ -2093,7 +2135,7 @@ table.ds-matrix{width:100%;border-collapse:separate;border-spacing:0;min-width:5
       </div>
       <span class="result-count-badge" id="rc-plantillas"></span>
     </div>
-    <div id="ld-plantillas" class="sk-grid" aria-hidden="true">
+    <div id="ld-plantillas" class="sk-grid" data-vx-loader="cajas" data-vx-msg="Cargando las plantillas…">
       <div class="sk-card"><div class="sk-line sk-ic"></div><div class="sk-line sk-t"></div><div class="sk-line sk-s"></div><div class="sk-line sk-btn"></div></div>
       <div class="sk-card"><div class="sk-line sk-ic"></div><div class="sk-line sk-t"></div><div class="sk-line sk-s"></div><div class="sk-line sk-btn"></div></div>
       <div class="sk-card"><div class="sk-line sk-ic"></div><div class="sk-line sk-t"></div><div class="sk-line sk-s"></div><div class="sk-line sk-btn"></div></div>
@@ -3393,10 +3435,15 @@ function handlePromoNav(e, link){
    un onclick escrito en el HTML solo alcanza funciones globales, y dentro de aquel
    IIFE esto habría sido un ReferenceError en el primer clic. */
 function handleAtencionesNav(e, link){
-  if (window.VentelLoader) VentelLoader.show();
   closeSidebar();
   if (!(window.AppUrl && AppUrl.base)) return;   // sin URL base, que el href haga su trabajo
   e.preventDefault();
+  /* El loader solo cuando de verdad se va a ir a otra pantalla. Con el módulo cargado
+     esto abre el panel aquí mismo —AppUrl.go está desviado— y no hay carga que esperar:
+     enseñar la rueda dejaría el Portal tapado por algo que nadie va a quitar, porque
+     quien la esconde es la pantalla siguiente y no va a haber pantalla siguiente. */
+  var abreAqui = !!(window.AppAtenciones && AppAtenciones.abrirPanel);
+  if (!abreAqui && window.VentelLoader) VentelLoader.show();
   AppUrl.go('atenciones');
 }
 
@@ -3489,7 +3536,9 @@ function onToolsError(err){
   if (store.herramientas.length || store.formatos.length || store.paqueterias.length) return;
   ['herramientas','presentaciones','paqueterias','formatos','pdepago','plantillas'].forEach(id => {
     const el = document.getElementById(`ld-${id}`);
-    if (el) el.innerHTML = `<div class="empty-card"><span class="big">${icon('chat')}</span><h3>Sin conexión</h3><p>No pudimos cargar la información. Revisa tu conexión y recarga la página.</p></div>`;
+    if (!el) return;
+    showLoader(id);   // por si el relevo animado ya lo había retirado
+    el.innerHTML = `<div class="empty-card"><span class="big">${icon('chat')}</span><h3>Sin conexión</h3><p>No pudimos cargar la información. Revisa tu conexión y recarga la página.</p></div>`;
   });
   const qa = document.getElementById('qaGrid');
   if (qa) qa.innerHTML = `<div class="empty-card"><span class="big">${icon('chat')}</span><h3>Sin conexión</h3><p>No pudimos cargar la información. Revisa tu conexión y recarga la página.</p></div>`;
@@ -3502,7 +3551,49 @@ function setCount(id, n){
     gsap.to(obj, { v:n, duration:.5, ease:'power2.out', snap:{ v:1 }, onUpdate:() => el.textContent = obj.v });
   } else { el.textContent = n; }
 }
-function hideLoader(id){ const el = document.getElementById(`ld-${id}`); if (el) el.style.display = 'none'; }
+/* ──────── RELEVO ESQUELETO → DATOS ────────
+   El esqueleto desaparecía de golpe (display:none) en el mismo cuadro en que
+   entraban las tarjetas: la página pegaba un salto seco justo cuando la persona
+   empezaba a leer. Ahora el camión "entrega" —sale de cuadro— y el bloque se
+   retira colapsando su altura mientras las tarjetas reales suben por debajo.
+   Es medio segundo, no se espera a nada: el contenido ya está pintado. */
+function hideLoader(id){
+  const el = document.getElementById(`ld-${id}`);
+  if (!el || el.classList.contains('sk-gone') || el.dataset.skOut === '1') return;
+  if (window.VentelLoaders) VentelLoaders.finish(el);   // el loader se despide antes que la tira
+  else if (window.VentelTruck) VentelTruck.finish(el);
+
+  const reduce = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+  if (reduce) { el.classList.add('sk-gone'); return; }
+
+  el.dataset.skOut = '1';
+  const alto = el.scrollHeight;
+  el.classList.add('sk-out');
+  el.style.maxHeight = alto + 'px';
+  // Dos cuadros: uno para que el navegador acepte la altura de partida y otro
+  // para que la transición tenga de dónde salir. Con uno solo, a veces no anima.
+  requestAnimationFrame(() => requestAnimationFrame(() => {
+    el.style.maxHeight = '0px';
+    el.style.opacity = '0';
+    el.style.transform = 'translateY(-6px)';
+  }));
+  setTimeout(() => {
+    el.classList.add('sk-gone');
+    el.classList.remove('sk-out');
+    el.style.maxHeight = el.style.opacity = el.style.transform = '';
+    delete el.dataset.skOut;
+  }, 440);
+}
+
+/* Reversa de hideLoader: la usa el camino de error, que vuelve a escribir dentro
+   del contenedor y necesita que se vea. */
+function showLoader(id){
+  const el = document.getElementById(`ld-${id}`);
+  if (!el) return;
+  el.classList.remove('sk-gone', 'sk-out');
+  el.style.maxHeight = el.style.opacity = el.style.transform = '';
+  delete el.dataset.skOut;
+}
 
 /* ──────── DASHBOARD ──────── */
 function renderDashboard(){
@@ -3529,6 +3620,7 @@ function renderDashboard(){
       </a>`;
     }).join('');
   }
+  animateGrid('#qaGrid > *');
 }
 function goSec(id){ const b = document.querySelector(`.side-link[data-sec="${id}"]`); switchSec(id, b); }
 
@@ -3979,7 +4071,7 @@ function renderPromoStrip(counts){
       <div class="stat-top"><span class="go">${icon('arrow')}</span></div>
       <div class="stat-name">Abrir Monitor de Promociones</div>
     </a>`;
-  if (!counts || counts.status !== 'ok') { strip.innerHTML = cta; return; }
+  if (!counts || counts.status !== 'ok') { strip.innerHTML = cta; animateGrid('#promoStrip > *'); return; }
   strip.innerHTML = `
     <div class="stat-card" style="--accent:#E10098;cursor:default">
       <div class="stat-top"><span class="stat-ic">${icon('sparkle')}</span></div>
@@ -3991,6 +4083,7 @@ function renderPromoStrip(counts){
       <div class="stat-num">${counts.porTerminar}</div>
       <div class="stat-name">Terminan en ≤ 3 días</div>
     </div>` + cta;
+  animateGrid('#promoStrip > *');
 }
 
 /* ── Reporte de enlace caído → hoja "Reportes" ── */
@@ -7012,6 +7105,22 @@ function mockData(){
       if (e.exigeSesion && !conSesion) ok = false;
       el.hidden = !ok;
     });
+    marcarAtencionesComoPanel();
+  }
+
+  /* La flecha de "esto te saca del Portal" deja de ser verdad cuando el módulo está
+     cargado: Atenciones se abre como panel encima y no se pierde nada de lo que se
+     estuviera mirando. Se quita en cuanto se sabe, y no se toca el marcado cuando el
+     módulo no está —porque entonces el enlace SÍ navega y la flecha dice la verdad—.
+     El href se queda como está a propósito: es lo que hace que "abrir en otra pestaña"
+     siga llevando a la pantalla completa. */
+  function marcarAtencionesComoPanel() {
+    var el = document.getElementById('atencionesNavLink');
+    if (!el || !window.AppAtenciones || !AppAtenciones.abrirPanel) return;
+    el.classList.remove('ext');
+    var flecha = el.querySelector('.ext-arrow');
+    if (flecha) flecha.remove();
+    el.title = 'Se abre aquí mismo, sin salir del Portal';
   }
 
 
