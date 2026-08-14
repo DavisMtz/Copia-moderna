@@ -86,7 +86,7 @@ Cifras clave del modelo, también verificadas contra el código:
 | 07 | [`07_Guia_de_Mantenimiento_y_Operacion.md`](07_Guia_de_Mantenimiento_y_Operacion.md) | Vas a desplegar, o algo está roto en producción. **Runbook.** |
 | 08 | [`08_Tareas_Frecuentes.md`](08_Tareas_Frecuentes.md) | Tienes que hacer un cambio concreto y quieres la receta exacta. |
 | 09 | [`09_Solucion_de_Problemas.md`](09_Solucion_de_Problemas.md) | Tienes un síntoma y no sabes de dónde viene. **Búscalo por síntoma.** |
-| 10 | [`10_Sincronizacion_Apps_Script.md`](10_Sincronizacion_Apps_Script.md) | Vas a montar (o se te rompió) la publicación automática de `main` hacia Apps Script. |
+| 10 | [`10_Sincronizacion_Apps_Script.md`](10_Sincronizacion_Apps_Script.md) | Vas a montar (o se te rompió) la publicación automática de `main` hacia Apps Script, o necesitas publicar un cambio sin tener la PC delante. |
 
 ---
 

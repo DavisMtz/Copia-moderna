@@ -34,6 +34,12 @@ La cadena no se detiene en GitHub. Cada push a `main` que toque
 resultado: lo que se edita en el escritorio acaba en el proyecto de Apps Script
 sin copiar y pegar nada.
 
+**Y sin escritorio también.** Al workflow le da igual de dónde venga el push. Un
+archivo editado en github.com desde el móvil llega a Apps Script igual que uno
+del hook: publicar deja de depender de estar frente a la PC. La contrapartida es
+que entonces la copia local se queda atrás, y el hook `Stop` no lo sabe — hay que
+hacer `git pull` al volver a la PC. Está explicado en el §3 del documento 10.
+
 Necesita un secreto de repositorio, `CLASPRC_JSON`. Cómo generarlo, qué hace
 exactamente y qué revisar cuando falla está en
 [`Documentacion/10_Sincronizacion_Apps_Script.md`](Documentacion/10_Sincronizacion_Apps_Script.md).

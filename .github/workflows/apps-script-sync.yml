@@ -4,6 +4,10 @@ name: Publicar en Apps Script
 # proyecto de Apps Script indicado en `.clasp.json`. Es el mismo `clasp push`
 # que se haria a mano, ejecutado por GitHub en lugar de por ti.
 #
+# Da igual de donde venga el push: el hook del escritorio y un commit escrito
+# en github.com desde el movil son lo mismo para este flujo. Ese es el punto:
+# publicar deja de depender de estar frente a la PC.
+#
 # Requisito: el secreto CLASPRC_JSON del repositorio.
 # Como generarlo: Documentacion/10_Sincronizacion_Apps_Script.md
 
