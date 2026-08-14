@@ -14,6 +14,13 @@ el servidor renderiza con `include()`, y la lógica de servidor vive en los `.gs
   el indicador delegado a la isla de estado de `app_operacion.html`.
 - **Animación:** GSAP 3.13 desde `app_motion.html`, con `MorphSVGPlugin`. Todas las
   pantallas respetan `prefers-reduced-motion`.
+- **Esperas:** dos loaders, y no hacen lo mismo. `LoaderPartial.html` (`VentelLoader`)
+  tapa la pantalla entera mientras no hay nada que enseñar. `TruckLoaderPartial.html`
+  (`VentelTruck`) es para lo contrario: el HTML ya está pintado y solo falta que
+  conteste la hoja de cálculo — pinta el camión de reparto en ruta al frente del
+  esqueleto. Es 100 % CSS, así que sobrevive a que el CDN de GSAP no cargue y a que
+  el contenedor se rellene con `innerHTML`. Se coloca solo en todo `[data-vt-loader]`,
+  o como cadena con `VentelTruck.markup()`.
 - **Precarga:** `app_precarga.html` calienta la caché de la pantalla a la que se va a ir,
   por intención (apuntar un enlace) y por predicción (cadena de Markov de los trayectos
   de cada persona). El registro de calentadores es la única lista de qué llamada
