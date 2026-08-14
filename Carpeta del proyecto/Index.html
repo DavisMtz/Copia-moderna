@@ -2727,6 +2727,41 @@ const MESES = ['enero','febrero','marzo','abril','mayo','junio','julio','agosto'
 const DIAS = ['domingo','lunes','martes','miércoles','jueves','viernes','sábado'];
 const RM = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
 const GS = () => window.gsap && !RM;
+
+/* ── VentelFX, con suplente ──────────────────────────────────────────────────
+ *
+ * Las escenas de carga viven en app_loaders, que es un partial aparte. Todo el
+ * repositorio las consume a la defensiva —`window.VentelFX ? … : …`, veintitantas
+ * veces— menos el Portal, que las llamaba a pelo. Y una de esas llamadas está en
+ * la PRIMERA línea útil de requestData(), por delante de las tres peticiones al
+ * servidor.
+ *
+ * Ahí la diferencia no es "con animación o sin ella". Si VentelFX no existe, esa
+ * línea lanza un ReferenceError que se lleva por delante requestData() entero:
+ * fetchToolsData, fetchPromoCounts y fetchTrazabilidadData no se llegan a pedir,
+ * y como no se piden tampoco existen sus manejadores de error, así que nadie
+ * enseña el "No pudimos actualizar". El Portal se queda en esqueletos grises para
+ * siempre, en silencio, que es el peor fallo posible: el que no se explica.
+ *
+ * Este suplente tiene la misma forma que el mountNoop del propio módulo —lo que
+ * devuelve VentelFX cuando el destino es null—, así que el llamador nunca
+ * comprueba nada y las dos ramas se leen igual. La escena es adorno; los datos no.
+ */
+function FX(){
+  if (window.VentelFX) return window.VentelFX;
+  const inerte = {
+    el: null, host: null,
+    done: cb => { if (cb) cb(); return inerte; },
+    fail: () => inerte,
+    text: () => inerte,
+    title: () => inerte,
+    isDone: () => true
+  };
+  return {
+    section: () => inerte, button: () => inerte, image: () => inerte,
+    skeleton: () => inerte, chip: () => '', pagina: () => {}
+  };
+}
 const ACCENT_PALETTE = ['#E10098','#5B21B6','#1D4ED8','#0E7A4F','#B45309','#0E7490','#BE185D','#4338CA','#15803D','#9F1239'];
 
 /* ── ICONOS SVG de línea ── */
@@ -3172,8 +3207,8 @@ function requestData(manual){
      demás que hay delante sigue siendo válido mientras llega el dato nuevo.
      En la revalidación de fondo el destino va en null y VentelFX devuelve un
      manejador inerte, así que las llamadas de abajo son las mismas en los dos casos. */
-  const fxQuick  = VentelFX.section(manual ? '#qaGrid'     : null, 'camion',   { mode:'cover' });
-  const fxPromos = VentelFX.section(manual ? '#promoStrip' : null, 'etiqueta', { mode:'cover' });
+  const fxQuick  = FX().section(manual ? '#qaGrid'     : null, 'camion',   { mode:'cover' });
+  const fxPromos = FX().section(manual ? '#promoStrip' : null, 'etiqueta', { mode:'cover' });
   const busy = window.AppBusy || { until: () => () => {} };
   if (typeof google !== 'undefined' && google.script && google.script.run) {
     const finTools = busy.until('Consultando');
@@ -3911,7 +3946,7 @@ function closeAnuncioModal(id, permanente){
       requestAnimationFrame(centerAndShow);
     } else {
       // Solo si hay espera de verdad: un destello de 16 ms molesta más que nada.
-      fxZoom = VentelFX.section(overlay, 'percha', { mode:'fill', bare:true, minHeight:'240px' });
+      fxZoom = FX().section(overlay, 'percha', { mode:'fill', bare:true, minHeight:'240px' });
       // La escena no puede robar el clic: el fondo cierra el visor, y mientras
       // carga es justo cuando más gente se arrepiente y quiere salir.
       if (fxZoom.host) fxZoom.host.style.pointerEvents = 'none';
@@ -5626,11 +5661,11 @@ function trazReintentar(btn){
   trazPidiendo = true;
   trazFresco = false;
 
-  const fxBtn = VentelFX.button(btn, 'Reintentando…');
+  const fxBtn = FX().button(btn, 'Reintentando…');
   // La escena solo donde no hay nada debajo: con la copia guardada delante,
   // taparla para revalidar sería quitarle al asesor lo que ya está leyendo.
   if (!trazData) TRAZ_CFG.forEach(function(cfg){
-    trazFx.push(VentelFX.section('#traz-' + cfg.id, 'camion', { mode:'fill', minHeight:'240px' }));
+    trazFx.push(FX().section('#traz-' + cfg.id, 'camion', { mode:'fill', minHeight:'240px' }));
   });
   const cerrar = function(){ fxBtn.done(); trazFxCerrar(); trazPidiendo = false; };
 

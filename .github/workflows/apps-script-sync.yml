@@ -10,6 +10,11 @@ name: Publicar en Apps Script
 #
 # Requisito: el secreto CLASPRC_JSON del repositorio.
 # Como generarlo: Documentacion/10_Sincronizacion_Apps_Script.md
+#
+# SIN ese secreto el flujo FALLA en rojo, y es intencionado. Hasta ahora se
+# saltaba la publicacion y terminaba en verde, asi que siete merges seguidos
+# lucieron su tick verde sin haber subido una sola linea a Google. Verde tiene
+# que significar "esto ya esta en Apps Script"; si no puede publicar, lo dice.
 
 on:
   push:
@@ -56,10 +61,19 @@ jobs:
         run: |
           if [ -z "${CLASPRC_JSON}" ]; then
             echo "hay=no" >> "${GITHUB_OUTPUT}"
-            echo "::warning::Sin CLASPRC_JSON: este merge NO se publico en Apps Script."
-            echo "Publica desde tu equipo con ./scripts/publicar.sh (no necesita secretos),"
-            echo "o da de alta el secreto segun Documentacion/10_Sincronizacion_Apps_Script.md"
-            exit 0
+            # ROJO, no verde. Antes esto era `exit 0` con un ::warning:: y el job
+            # terminaba en success: `clasp push` salia SKIPPED y el check quedaba
+            # en verde igual. Un tick verde que significa "no se publico nada" es
+            # peor que no tener flujo, porque se lee como "ya esta en produccion"
+            # y solo se descubre lo contrario cuando alguien nota que la pantalla
+            # no cambio. Fallar aqui es ruidoso a proposito: mientras el secreto
+            # no exista, cada merge recuerda que hay que publicar a mano.
+            echo "::error::Sin CLASPRC_JSON: este merge NO se ha publicado en Apps Script."
+            echo "El codigo esta en main pero NO ha llegado a Google. Dos salidas:"
+            echo "  1. Publicar a mano, sin secretos:  ./scripts/publicar.sh"
+            echo "  2. Dar de alta el secreto CLASPRC_JSON y que esto lo haga solo:"
+            echo "     Documentacion/10_Sincronizacion_Apps_Script.md §2"
+            exit 1
           fi
           echo "hay=si" >> "${GITHUB_OUTPUT}"
           umask 077
