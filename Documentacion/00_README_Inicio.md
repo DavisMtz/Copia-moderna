@@ -87,6 +87,7 @@ Cifras clave del modelo, también verificadas contra el código:
 | 08 | [`08_Tareas_Frecuentes.md`](08_Tareas_Frecuentes.md) | Tienes que hacer un cambio concreto y quieres la receta exacta. |
 | 09 | [`09_Solucion_de_Problemas.md`](09_Solucion_de_Problemas.md) | Tienes un síntoma y no sabes de dónde viene. **Búscalo por síntoma.** |
 | 10 | [`10_Sincronizacion_Apps_Script.md`](10_Sincronizacion_Apps_Script.md) | Vas a montar (o se te rompió) la publicación automática de `main` hacia Apps Script, o necesitas publicar un cambio sin tener la PC delante. |
+| 11 | [`11_Animacion_GSAP.md`](11_Animacion_GSAP.md) | Vas a tocar una animación, un loader o una transición, o algo «parpadea», «salta» o se queda oculto al animar. |
 
 ---
 
