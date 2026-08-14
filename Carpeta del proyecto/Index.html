@@ -1366,6 +1366,9 @@ table.ds-matrix{width:100%;border-collapse:separate;border-spacing:0;min-width:5
 <!-- Loader de ruta: el camión de Liverpool que se ve en cada sección mientras
      la hoja de cálculo contesta. Se auto-monta en todo [data-vt-loader]. -->
 <?!= include('TruckLoaderPartial') ?>
+<!-- Familia de loaders en sitio (isotipo con MorphSVG, banda de cajas, onda).
+     Se auto-montan en todo [data-vx-loader]; el tipo lo elige cada seccion. -->
+<?!= include('app_loaders') ?>
 <!-- Núcleo compartido con el sistema de cotizaciones: AppUrl / AppSession.
      El Portal es público, pero si el asesor ya inició sesión en Cotizaciones
      el acceso del sidebar y el control del topbar lo llevan directo a su panel. -->
@@ -1577,7 +1580,7 @@ table.ds-matrix{width:100%;border-collapse:separate;border-spacing:0;min-width:5
     </div>
 
     <div class="dash-label"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M13 2 4 14h7l-2 8 9-12h-7l2-8Z"/></svg> Tus accesos rápidos <span class="qa-hint">se ordenan según tu uso · fíjalos con el pin</span><span class="dl-line"></span></div>
-    <div class="qa-grid" id="qaGrid" data-vt-loader="Buscando tus accesos rápidos…">
+    <div class="qa-grid" id="qaGrid" data-vx-loader="isotipo" data-vx-msg="Buscando tus accesos rápidos…">
       <div class="sk-line sk-qa"></div><div class="sk-line sk-qa"></div><div class="sk-line sk-qa"></div><div class="sk-line sk-qa"></div>
     </div>
 
@@ -1627,7 +1630,7 @@ table.ds-matrix{width:100%;border-collapse:separate;border-spacing:0;min-width:5
       </div>
       <span class="result-count-badge" id="rc-herramientas"></span>
     </div>
-    <div id="ld-herramientas" class="sk-grid" data-vt-loader="Cargando tus herramientas…">
+    <div id="ld-herramientas" class="sk-grid" data-vx-loader="ruta" data-vx-msg="Cargando tus herramientas…">
       <div class="sk-card"><div class="sk-line sk-ic"></div><div class="sk-line sk-t"></div><div class="sk-line sk-s"></div><div class="sk-line sk-s short"></div><div class="sk-line sk-btn"></div></div>
       <div class="sk-card"><div class="sk-line sk-ic"></div><div class="sk-line sk-t"></div><div class="sk-line sk-s"></div><div class="sk-line sk-s short"></div><div class="sk-line sk-btn"></div></div>
       <div class="sk-card"><div class="sk-line sk-ic"></div><div class="sk-line sk-t"></div><div class="sk-line sk-s"></div><div class="sk-line sk-s short"></div><div class="sk-line sk-btn"></div></div>
@@ -1652,7 +1655,7 @@ table.ds-matrix{width:100%;border-collapse:separate;border-spacing:0;min-width:5
       </div>
       <span class="result-count-badge" id="rc-paqueterias"></span>
     </div>
-    <div id="ld-paqueterias" data-vt-loader="Cargando las paqueterías…" style="display:flex;flex-direction:column;gap:.7rem;">
+    <div id="ld-paqueterias" data-vx-loader="cajas" data-vx-msg="Cargando las paqueterías…" style="display:flex;flex-direction:column;gap:.7rem;">
       <div class="sk-line sk-row"></div><div class="sk-line sk-row"></div><div class="sk-line sk-row"></div><div class="sk-line sk-row"></div><div class="sk-line sk-row"></div><div class="sk-line sk-row"></div>
     </div>
     <div id="gr-paqueterias"></div>
@@ -2065,7 +2068,7 @@ table.ds-matrix{width:100%;border-collapse:separate;border-spacing:0;min-width:5
       </div>
       <span class="result-count-badge" id="rc-pdepago"></span>
     </div>
-    <div id="ld-pdepago" class="sk-grid" data-vt-loader="Cargando las promociones de pago…">
+    <div id="ld-pdepago" class="sk-grid" data-vx-loader="isotipo" data-vx-msg="Cargando las promociones de pago…">
       <div class="sk-card"><div class="sk-line sk-ic"></div><div class="sk-line sk-t"></div><div class="sk-line sk-s"></div><div class="sk-line sk-s short"></div></div>
       <div class="sk-card"><div class="sk-line sk-ic"></div><div class="sk-line sk-t"></div><div class="sk-line sk-s"></div><div class="sk-line sk-s short"></div></div>
       <div class="sk-card"><div class="sk-line sk-ic"></div><div class="sk-line sk-t"></div><div class="sk-line sk-s"></div><div class="sk-line sk-s short"></div></div>
@@ -2087,7 +2090,7 @@ table.ds-matrix{width:100%;border-collapse:separate;border-spacing:0;min-width:5
       </div>
       <span class="result-count-badge" id="rc-formatos"></span>
     </div>
-    <div id="ld-formatos" class="sk-grid" data-vt-loader="Cargando los formatos…">
+    <div id="ld-formatos" class="sk-grid" data-vx-loader="onda" data-vx-msg="Cargando los formatos…">
       <div class="sk-card"><div class="sk-line sk-ic"></div><div class="sk-line sk-t"></div><div class="sk-line sk-s"></div><div class="sk-line sk-btn"></div></div>
       <div class="sk-card"><div class="sk-line sk-ic"></div><div class="sk-line sk-t"></div><div class="sk-line sk-s"></div><div class="sk-line sk-btn"></div></div>
       <div class="sk-card"><div class="sk-line sk-ic"></div><div class="sk-line sk-t"></div><div class="sk-line sk-s"></div><div class="sk-line sk-btn"></div></div>
@@ -2109,7 +2112,7 @@ table.ds-matrix{width:100%;border-collapse:separate;border-spacing:0;min-width:5
       </div>
       <span class="result-count-badge" id="rc-presentaciones"></span>
     </div>
-    <div id="ld-presentaciones" class="sk-grid" data-vt-loader="Cargando las presentaciones…">
+    <div id="ld-presentaciones" class="sk-grid" data-vx-loader="ruta" data-vx-msg="Cargando las presentaciones…">
       <div class="sk-card"><div class="sk-line sk-ic"></div><div class="sk-line sk-t"></div><div class="sk-line sk-s"></div><div class="sk-line sk-btn"></div></div>
       <div class="sk-card"><div class="sk-line sk-ic"></div><div class="sk-line sk-t"></div><div class="sk-line sk-s"></div><div class="sk-line sk-btn"></div></div>
       <div class="sk-card"><div class="sk-line sk-ic"></div><div class="sk-line sk-t"></div><div class="sk-line sk-s"></div><div class="sk-line sk-btn"></div></div>
@@ -2136,7 +2139,7 @@ table.ds-matrix{width:100%;border-collapse:separate;border-spacing:0;min-width:5
       </div>
       <span class="result-count-badge" id="rc-plantillas"></span>
     </div>
-    <div id="ld-plantillas" class="sk-grid" data-vt-loader="Cargando las plantillas…">
+    <div id="ld-plantillas" class="sk-grid" data-vx-loader="cajas" data-vx-msg="Cargando las plantillas…">
       <div class="sk-card"><div class="sk-line sk-ic"></div><div class="sk-line sk-t"></div><div class="sk-line sk-s"></div><div class="sk-line sk-btn"></div></div>
       <div class="sk-card"><div class="sk-line sk-ic"></div><div class="sk-line sk-t"></div><div class="sk-line sk-s"></div><div class="sk-line sk-btn"></div></div>
       <div class="sk-card"><div class="sk-line sk-ic"></div><div class="sk-line sk-t"></div><div class="sk-line sk-s"></div><div class="sk-line sk-btn"></div></div>
@@ -3549,7 +3552,8 @@ function setCount(id, n){
 function hideLoader(id){
   const el = document.getElementById(`ld-${id}`);
   if (!el || el.classList.contains('sk-gone') || el.dataset.skOut === '1') return;
-  if (window.VentelTruck) VentelTruck.finish(el);   // el camión se va antes que la tira
+  if (window.VentelLoaders) VentelLoaders.finish(el);   // el loader se despide antes que la tira
+  else if (window.VentelTruck) VentelTruck.finish(el);
 
   const reduce = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
   if (reduce) { el.classList.add('sk-gone'); return; }

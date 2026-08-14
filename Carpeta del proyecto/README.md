@@ -14,13 +14,18 @@ el servidor renderiza con `include()`, y la lógica de servidor vive en los `.gs
   el indicador delegado a la isla de estado de `app_operacion.html`.
 - **Animación:** GSAP 3.13 desde `app_motion.html`, con `MorphSVGPlugin`. Todas las
   pantallas respetan `prefers-reduced-motion`.
-- **Esperas:** dos loaders, y no hacen lo mismo. `LoaderPartial.html` (`VentelLoader`)
-  tapa la pantalla entera mientras no hay nada que enseñar. `TruckLoaderPartial.html`
-  (`VentelTruck`) es para lo contrario: el HTML ya está pintado y solo falta que
-  conteste la hoja de cálculo — pinta el camión de reparto en ruta al frente del
-  esqueleto. Es 100 % CSS, así que sobrevive a que el CDN de GSAP no cargue y a que
-  el contenedor se rellene con `innerHTML`. Se coloca solo en todo `[data-vt-loader]`,
-  o como cadena con `VentelTruck.markup()`.
+- **Esperas:** dos familias, y no hacen lo mismo. `LoaderPartial.html` (`VentelLoader`)
+  tapa la pantalla entera mientras no hay *nada* que enseñar, y es además el dueño de la
+  geometría del isotipo: la publica en `VentelLoader.marca` para que nadie vuelva a
+  pegar los 4 KB del trazado. `app_loaders.html` (`VentelLoaders`) es para lo contrario
+  —el HTML ya está pintado y solo falta que conteste la hoja— y trae cuatro variantes
+  que se reparten entre secciones para que ninguna repita la de al lado:
+  `isotipo` (los ocho puntos se cierran en el logo, GSAP + MorphSVG), `cajas` (banda
+  transportadora), `onda` (barras, para listas) y `ruta`, que vive aparte en
+  `TruckLoaderPartial.html` (`VentelTruck`) y es **100 % CSS a propósito**: así queda un
+  loader completo aunque el CDN de GSAP no conteste. Se auto-montan en todo
+  `[data-vx-loader="<tipo>"]`; sin GSAP o con `prefers-reduced-motion` degradan a una
+  versión quieta y legible en lugar de desaparecer.
 - **Precarga:** `app_precarga.html` calienta la caché de la pantalla a la que se va a ir,
   por intención (apuntar un enlace) y por predicción (cadena de Markov de los trayectos
   de cada persona). El registro de calentadores es la única lista de qué llamada

@@ -112,6 +112,65 @@ Con `CLASPRC_JSON` puesto, el flujo ya funciona. Pruébalo sin esperar a un camb
 
 ---
 
+## 2 bis. Publicar sin ningún secreto (desde tu equipo)
+
+Si no quieres dar de alta `CLASPRC_JSON`, **puedes publicar igual** — pero no desde
+GitHub. Conviene entender por qué, porque no es una limitación de este repositorio:
+
+> `clasp push` habla con la API de Apps Script de Google, y esa API exige un token OAuth
+> de la cuenta dueña del script. El runner de GitHub arranca limpio: sin navegador y sin
+> sesión de Google. Para que publique desde ahí, alguien tiene que dejarle la credencial
+> guardada, y eso es exactamente lo que es un secreto. **No existe una forma de publicar
+> desde GitHub sin credencial**; lo único que se puede elegir es dónde vive.
+
+La alternativa real es publicar desde una máquina que **ya** tenga la sesión iniciada —la
+tuya—. Ahí la credencial ya está (`~/.clasprc.json`, que te dejó `clasp login`), así que
+no hay nada que guardar en ningún lado.
+
+### A mano, cuando quieras
+
+```bash
+./scripts/publicar.sh
+```
+
+Comprueba que clasp está instalado, que hay sesión y que estás en el repositorio, y sube
+exactamente lo mismo que subiría el flujo de GitHub (las reglas de qué sube y qué no
+salen del mismo `.claspignore`, para que local y CI no puedan divergir).
+
+Para actualizar además la URL de producción (`/exec`):
+
+```bash
+./scripts/publicar.sh <deploymentId>     # el id sale de: clasp list-deployments
+```
+
+### Que ocurra solo
+
+```bash
+./scripts/instalar-hook.sh
+```
+
+Instala un hook `post-merge`: cada `git pull` o merge **en `main`** que traiga cambios de
+`Carpeta del proyecto/` publica solo. En otras ramas no hace nada —publicar desde una
+rama de trabajo pisaría el proyecto con código a medio revisar— y si la publicación
+falla, avisa pero no rompe el `pull`.
+
+Es opt-in porque los hooks no se versionan: nadie se encuentra con que su equipo publica
+solo sin haberlo pedido. Para quitarlo, `rm .git/hooks/post-merge`.
+
+### Qué pasa mientras tanto en GitHub
+
+El flujo de Actions **ya no se pone en rojo** cuando falta el secreto. Se salta la
+publicación, deja un aviso y escribe en el resumen del job que ese merge *no* llegó a
+Apps Script, con las dos formas de publicarlo. Un rojo permanente que no depende del
+commit no es una señal: es ruido que enseña a ignorar CI.
+
+Lo que **no** desaparece es el hecho de fondo: si publicas solo desde tu equipo, `main` y
+el proyecto de Apps Script están sincronizados únicamente cuando tú lo hagas. Ese es el
+precio de no tener el secreto, y es una decisión legítima —solo conviene tomarla a
+sabiendas—.
+
+---
+
 ## 3. Editar desde GitHub, sin tocar la PC
 
 Este es el caso que justifica el flujo. El hook `Stop` del escritorio solo funciona cuando
