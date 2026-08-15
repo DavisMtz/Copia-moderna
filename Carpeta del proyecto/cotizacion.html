@@ -1214,7 +1214,7 @@
             /* `call` y no `swr`: lo que llega aquí rellena un formulario que se va a
                editar. Un segundo pintado —el de la revalidación— machacaría lo que se
                acabara de teclear en ese segundo, y encima reiniciaría el borrador. */
-            AppRun.call('getQuoteDetails', [folio], { busy: 'Cargando' })
+            AppRun.call('getQuoteDetails', [folio, AppSession.userEmail], { busy: 'Cargando' })
                 .then(function(response) {
                     if (window.VentelLoader) VentelLoader.hide();
                     response = response || {};

@@ -168,7 +168,26 @@
     </div>
 
     <script>
-        window.__APP__ = { baseUrl: <?!= JSON.stringify(baseUrl) ?>, next: <?!= JSON.stringify(next) ?> };
+        /* El login expone TODOS los parámetros de vista, no solo `next`: son el estado
+           profundo que viene arrastrando la pantalla que exigió sesión (T1.3 del plan
+           de cierre), y goNextOrHome los repone al entrar. Dentro del iframe de Apps
+           Script location.search no los trae: o llegan inyectados aquí, o se pierden. */
+        window.__APP__ = {
+            baseUrl: <?!= JSON.stringify(baseUrl) ?>,
+            next:    <?!= JSON.stringify(next) ?>,
+            folio:   <?!= JSON.stringify(folio) ?>,
+            action:  <?!= JSON.stringify(action) ?>,
+            format:  <?!= JSON.stringify(format) ?>,
+            q:       <?!= JSON.stringify(q) ?>,
+            buscar:  <?!= JSON.stringify(buscar) ?>,
+            tpl:     <?!= JSON.stringify(tpl) ?>,
+            sec:     <?!= JSON.stringify(sec) ?>,
+            ancla:   <?!= JSON.stringify(ancla) ?>,
+            inc:     <?!= JSON.stringify(inc) ?>,
+            promo:   <?!= JSON.stringify(promo) ?>,
+            item:    <?!= JSON.stringify(item) ?>,
+            rango:   <?!= JSON.stringify(rango) ?>
+        };
     </script>
     <?!= include('app_core'); ?>
     <?!= include('app_prefs'); ?>

@@ -4706,9 +4706,6 @@ function goAppAction(entrada){
      de seguridad de la escena. */
   if (!(window.AppUrl && AppUrl.base)) return; // vista previa fuera de Apps Script
   if (window.VentelLoader) VentelLoader.show();
-  const logged = window.AppSession && AppSession.isLoggedIn();
-  if (!logged) { AppUrl.go('login'); return; }
-  if (act.page === '__home') { AppUrl.go(AppUrl.homePage()); return; }
 
   /* Se pasan TODOS los parámetros de vista que traiga la acción, no solo `tpl`.
      Cuando esto solo entendía `tpl`, una entrada nueva del catálogo podía declarar
@@ -4719,6 +4716,22 @@ function goAppAction(entrada){
   const PASAN = ['tpl', 'sec', 'action', 'folio', 'q', 'buscar', 'ancla', 'inc', 'promo', 'item'];
   const params = {};
   PASAN.forEach(function (k) { if (act[k]) params[k] = act[k]; });
+
+  const logged = window.AppSession && AppSession.isLoggedIn();
+  if (!logged) {
+    /* T1.3: el login recibe el destino Y sus parámetros, no solo la orden de entrar.
+       Antes esto era AppUrl.go('login') a secas: quien elegía "Nueva cotización" sin
+       sesión tecleaba su contraseña y aterrizaba en el panel, no en lo que pidió.
+       `next` sigue siendo una CLAVE de página validada por la lista blanca al volver. */
+    if (act.page && act.page !== '__home' && AppUrl.PAGINAS_TRAS_LOGIN.indexOf(act.page) !== -1) {
+      AppUrl.go('login', Object.assign({ next: act.page }, params));
+    } else {
+      AppUrl.go('login');
+    }
+    return;
+  }
+  if (act.page === '__home') { AppUrl.go(AppUrl.homePage()); return; }
+
   AppUrl.go(act.page, params);
 }
 

@@ -81,7 +81,8 @@ La lista de miembros. **La edita gente**, tiene validaciones de datos y formatos
 | Columna | Qué guarda | La escribe |
 | --- | --- | --- |
 | `Folio` | `LVP-…`. **Clave primaria** | `Code.gs` (con `LockService`) |
-| `Timestamp` | Fecha y hora | `Code.gs` |
+| `Timestamp` | Fecha y hora del **último guardado** (se pisa al editar) | `Code.gs` |
+| `FechaEnvio` | Fecha y hora del **último envío por correo**. No cambia al editar: es la que el panel de supervisión enseña para las enviadas. Auto-reparable (se crea sola si falta) | `Correos.gs` (`sendQuoteByEmail`) |
 | `AsesorCorreo` | **El de la sesión del Portal**, no la cuenta de Google | `Code.gs` |
 | `AsesorNombre`, `Extencion` | Datos del asesor | `Code.gs` |
 | `ClienteNombre`, `CorreoCliente`, `Numero` | Datos del cliente | `Code.gs` |

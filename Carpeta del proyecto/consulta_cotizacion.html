@@ -819,6 +819,15 @@
         }
 
         document.addEventListener('DOMContentLoaded', () => {
+            /* T1.4: esta pantalla enseña la cotización COMPLETA (cliente, correo,
+               importes) y era la única de la app sin guardia: un enlace profundo con
+               ?folio= la abría sin sesión. El login devuelve aquí con el folio intacto
+               (T1.3), así que el enlace compartido sigue funcionando: solo que ahora
+               pasa por la puerta. El candado de verdad está en el servidor
+               (getQuoteDetails exige identidad); esto es la cortesía de no dejar a
+               nadie ante una pantalla que va a rechazarle cada llamada. */
+            if (!requireSession('consulta_cotizacion')) return;
+
             let folioToView = AppUrl.param('folio');
             if (!folioToView) {
                 try { folioToView = localStorage.getItem('selectedQuoteFolio') || ''; } catch (e) {}
@@ -902,7 +911,7 @@
                     // `busy: false`: el overlay tapa la pantalla entera y ya es el
                     // indicador de esta espera; el disco de la esquina sería un segundo
                     // aviso de lo mismo.
-                    AppRun.call('downloadQuotePdf', [folioToView, null], { busy: false })
+                    AppRun.call('downloadQuotePdf', [folioToView, null, AppSession.userEmail], { busy: false })
                         .then(response => {
                             fxPdf.done();
                             restore();
@@ -959,7 +968,7 @@
                         sheetsButton.disabled = false;
                     };
 
-                    AppRun.call('openQuoteInSheets', [folioToView], { busy: 'Abriendo' })
+                    AppRun.call('openQuoteInSheets', [folioToView, AppSession.userEmail], { busy: 'Abriendo' })
                         .then(response => {
                             restoreSheets();
                             fxTab.done();
@@ -1010,7 +1019,7 @@
                    nadie pueda notarlo. Donde el proyecto sí cachea listados, el rótulo de
                    antigüedad va siempre delante; aquí no hay sitio para ese rótulo, así
                    que no hay copia. */
-                AppRun.call('getQuoteDetails', [folioToView], { busy: 'Consultando' })
+                AppRun.call('getQuoteDetails', [folioToView, AppSession.userEmail], { busy: 'Consultando' })
                     .then(function(response) {
                         fxFolio.done();
                         hideLoader();

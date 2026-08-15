@@ -506,12 +506,15 @@
         if (ext) ext.addEventListener('click', function () { AppShell.nav('anuncios'); });
       }
 
-      function abrirSeccion(id) {
+      /* `sinUrl` = la llamada viene del botón atrás/adelante: la barra de direcciones
+         ya dice esta sección y reescribirla apilaría una entrada de historial de más. */
+      function abrirSeccion(id, sinUrl) {
         var col = null;
         for (var i = 0; i < pcState.colecciones.length; i++) {
           if (pcState.colecciones[i].id === id) col = pcState.colecciones[i];
         }
         if (!col) return;
+        if (pcState.actual && pcState.actual.id === col.id) return;
 
         pcState.actual = col;
         pcState.filtro = '';
@@ -538,9 +541,10 @@
         // que recargar no devuelva siempre a la primera. Pasa por AppUrl —que sabe
         // limpiar los parámetros vacíos y hablar con la ventana de arriba— en vez de
         // llamar a google.script.history a pelo, para que todas las pantallas escriban
-        // la URL de la misma manera.
-        if (window.AppUrl && AppUrl.actualizar) {
-          AppUrl.actualizar({ page: 'portal_contenido', sec: col.id }, null, true);
+        // la URL de la misma manera. Cambiar de sección APILA historial (convención
+        // del plan de cierre): el botón atrás vuelve a la sección anterior.
+        if (!sinUrl && window.AppUrl && AppUrl.reflejar) {
+          AppUrl.reflejar({ sec: col.id }, { apilar: true });
         }
 
         cargarFilas();
@@ -1886,9 +1890,11 @@
             // ?sec=plantillas abre esa sección directamente (enlaces compartibles).
             // El valor lo inyecta el servidor: dentro del iframe de Apps Script,
             // location.search no trae los parámetros de la app.
+            // `sinUrl`: la barra ya dice (o no dice) esta sección; apilar una entrada
+            // de historial nada más llegar dejaba un "atrás" que no iba a ninguna parte.
             var pedida = (window.__APP__ && window.__APP__.sec) || '';
             var existe = pcState.colecciones.filter(function (c) { return c.id === pedida; }).length > 0;
-            abrirSeccion(existe ? pedida : pcState.colecciones[0].id);
+            abrirSeccion(existe ? pedida : pcState.colecciones[0].id, true);
           },
           onError: function (err) {
             if (abierta) return;
@@ -1898,6 +1904,18 @@
       }
 
       function enganchar() {
+        /* Atrás/adelante del navegador entre secciones. La regla del plan de cierre:
+           quien APILA historial (abrirSeccion) tiene que escuchar el botón atrás, o
+           la dirección cambia y la vista se queda donde estaba. */
+        if (window.AppUrl && AppUrl.alCambiarUrl) {
+          AppUrl.alCambiarUrl(function (loc) {
+            if (!pcState.colecciones.length) return;
+            var sec = (loc && loc.parameter && loc.parameter.sec) || '';
+            var hay = pcState.colecciones.filter(function (c) { return c.id === sec; }).length > 0;
+            abrirSeccion(hay ? sec : pcState.colecciones[0].id, true);
+          });
+        }
+
         $('btnNuevo').addEventListener('click', function () { abrirEditor(null); });
         $('btnRapido').addEventListener('click', abrirImport);
         $('impAnalizar').addEventListener('click', analizarImport);

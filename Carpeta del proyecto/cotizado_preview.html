@@ -1225,7 +1225,7 @@
                         : { done: function () {} };
 
                     if (typeof google !== 'undefined' && google.script && google.script.run) {
-                        AppRun.call('getQuoteDetails', [folioFromUrl], { busy: 'Buscando' })
+                        AppRun.call('getQuoteDetails', [folioFromUrl, AppSession.userEmail], { busy: 'Buscando' })
                             .then(function(response) {
                                 fxFolio.done();
                                 hideLoader();
@@ -1336,7 +1336,7 @@
                     // el formato CCL se arma en Google Sheets y no existe en esta página.
                     // El overlay ya es el indicador de esta espera —tapa la pantalla
                     // entera—, así que el disco de la esquina sobra: `busy: false`.
-                    AppRun.call('downloadQuotePdf', [currentFolioForPreview, chosenFormat], { busy: false })
+                    AppRun.call('downloadQuotePdf', [currentFolioForPreview, chosenFormat, AppSession.userEmail], { busy: false })
                         .then(function(response) {
                             fxPdf.done();
                             restoreButton();
