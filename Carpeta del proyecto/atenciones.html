@@ -89,13 +89,7 @@
            direcciones, que dentro del iframe de Apps Script es la del sandbox y no la
            del enlace, así que ni ?action=nueva ni ?sec= ni ?q= llegaban nunca.
            Va ANTES de app_core, que es quien lo lee al cargarse. */
-        window.__APP__ = {
-            baseUrl: <?!= JSON.stringify(baseUrl) ?>,
-            action:  <?!= JSON.stringify(action) ?>,
-            sec:     <?!= JSON.stringify(sec) ?>,
-            q:       <?!= JSON.stringify(q) ?>,
-            buscar:  <?!= JSON.stringify(buscar) ?>
-        };
+        window.__APP__ = <?!= APP_JSON ?>;
     </script>
     <?!= include('app_core'); ?>
     <?!= include('app_prefs'); ?>
@@ -149,14 +143,31 @@
         var ultimaPestana = null;
         var alCambiar = function (e) {
             if (aspa) aspa.hidden = !e.buscar;
-            if (!url || !url.actualizar) return;
-            var apilar = ultimaPestana !== null && e.pestana !== ultimaPestana;
+            if (!url || !url.reflejar) return;
+            /* El módulo avisa por aquí tanto al cambiar de pestaña como al teclear, pero
+               nunca por las dos cosas a la vez —cada aviso sale de irAPestana o de
+               buscar, no de ambas—, así que comparar con la última pestaña conocida
+               basta para saber cuál de las dos se movió y darle el trato que le toca.
+
+               Las dos escrituras pasan ahora por `reflejar` y no por `actualizar`, por
+               dos averías concretas de este callback: `actualizar` escribe SIN espera y
+               esto corre en CADA tecla, o sea una entrada de historial por pulsación —el
+               botón atrás recorriendo la palabra letra a letra—; y REEMPLAZA la query
+               entera, así que cualquier otro parámetro vigente de la barra (el ?action=
+               con el que se entró, un ?ancla=) se borraba en la primera escritura.
+               `reflejar` agrupa los reemplazos a 300 ms y parte de la URL viva, pisando
+               solo lo que se le pasa; `page` ya no hace falta, lo declaró AppShell.mount(). */
+            var cambioDePestana = ultimaPestana !== null && e.pestana !== ultimaPestana;
             ultimaPestana = e.pestana;
-            url.actualizar({
-                page: 'atenciones',
-                sec: e.pestana === 'mias' ? '' : e.pestana,
-                q: e.buscar || ''
-            }, null, apilar);
+            if (cambioDePestana) {
+                url.reflejar({ sec: e.pestana === 'mias' ? '' : e.pestana }, { apilar: true });
+                return;
+            }
+            // `buscar` se vacía junto con `q`: es el alias por el que entran los enlaces
+            // del buscador general, y ahora que reflejar conserva lo que no se pisa, al
+            // limpiar la búsqueda el término viejo se quedaría en la barra y volvería con
+            // un F5 —antes no pasaba porque actualizar arrasaba con la query entera—.
+            url.reflejar({ q: e.buscar || '', buscar: '' });
         };
 
         // `pantallaPropia` desactiva el desvío al panel: aquí la gestión ES la pantalla,
@@ -228,7 +239,16 @@
         // ?action=nueva abre el formulario directo. Es por donde entra el buscador general
         // ("registrar cliente") y el enlace del aviso cuando la pantalla del reporte no
         // tenía el módulo cargado.
-        if (param('action') === 'nueva') AppAtenciones.registrar({});
+        if (param('action') === 'nueva') {
+            AppAtenciones.registrar({});
+            /* Y se consume: `action` es una orden de entrada de un solo uso, no parte
+               del estado de la vista. Antes se borraba de rebote —`actualizar` arrasaba
+               la query entera en la primera escritura—, pero `reflejar` conserva lo que
+               no se le pasa, así que sin esta línea el ?action=nueva se quedaba pegado
+               para siempre: el asesor cerraba el formulario, cambiaba de pestaña, y un
+               F5 se lo volvía a abrir en blanco. Igual que se vacía `buscar` arriba. */
+            if (url && url.reflejar) url.reflejar({ action: '' });
+        }
 
         if (window.Icons) Icons.render(document);
     });

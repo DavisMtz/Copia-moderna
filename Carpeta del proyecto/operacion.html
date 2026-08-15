@@ -212,7 +212,7 @@
   </div>
 
   <script>
-    window.__APP__ = { baseUrl: <?!= JSON.stringify(baseUrl) ?> };
+    window.__APP__ = <?!= APP_JSON ?>;
   </script>
   <?!= include('app_core'); ?>
   <?!= include('app_prefs'); ?>
@@ -255,6 +255,11 @@
     var visor = document.getElementById('opp-visor');
     var visorImg = document.getElementById('opp-visor-img');
     var disparador = null;
+
+    /* El modal que pide la URL se abre UNA sola vez, y con los datos ya pintados (ver el
+       final de pintar): antes no hay incidencia que enseñar, y sin el "una vez" cada
+       recarga del panel —guardar recarga— volvería a abrir lo que se acaba de cerrar. */
+    var urlAplicada = false;
 
     function esc(s) { return window.escapeHtml(s); }
     function correo() { return AppSession.userEmail; }
@@ -371,6 +376,11 @@
 
       document.getElementById('opp-contenido').innerHTML = html;
       cablear();
+
+      if (!urlAplicada) {
+        urlAplicada = true;
+        if (window.AppUrl && AppUrl.params) aplicarUrl(AppUrl.params());
+      }
     }
 
     function kpi(n, texto, urge) {
@@ -491,18 +501,29 @@
 
     var estadoModal = null;
 
-    function abrirModalActualizar(inc, preset) {
+    /**
+     * @param {boolean=} sinUrl true cuando quien abre es la propia URL (el arranque o el
+     *   botón atrás). Sin esto se contestaría al navegador con la dirección que él acaba
+     *   de poner: una entrada nueva por cada vez que se pulsa atrás, y atrás sin avanzar.
+     */
+    function abrirModalActualizar(inc, preset, sinUrl) {
       estadoModal = {
         tipo: 'actualizar', id: inc.id, inc: inc,
+        // Qué botón trae aquí. Solo sirve para el enlace: reabrir una cerrada y actualizar
+        // una viva abren el mismo modal en blanco, pero no son la misma decisión y quien
+        // reciba el enlace tiene que caer en la que se le estaba enseñando.
+        accion: preset || (inc.cierra ? 'reabrir' : 'actualizar'),
         estado: preset || inc.estado,
         nota: '', avisar: !!preset && preset !== 'descartado',
         nuevoEstado: false, nombreEstado: '', tonoEstado: 'warn',
         error: '', guardando: false
       };
       pintarModal();
+      if (!sinUrl) reflejarModal(true);
     }
 
-    function abrirModalElevar(repId) {
+    /** @param {boolean=} sinUrl Ver abrirModalActualizar. */
+    function abrirModalElevar(repId, sinUrl) {
       var rep = (datos.sueltos || []).filter(function (r) { return r.id === repId; })[0];
       if (!rep) return;
       estadoModal = {
@@ -512,9 +533,11 @@
         error: '', guardando: false
       };
       pintarModal();
+      if (!sinUrl) reflejarModal(true);
     }
 
-    function abrirModalNueva() {
+    /** @param {boolean=} sinUrl Ver abrirModalActualizar. */
+    function abrirModalNueva(sinUrl) {
       estadoModal = {
         tipo: 'nueva', sistema: '', sistemaNuevo: '', sistemaOtro: false,
         submotivo: '', titulo: '', detalle: '',
@@ -523,6 +546,7 @@
         error: '', guardando: false
       };
       pintarModal();
+      if (!sinUrl) reflejarModal(true);
     }
 
     function estadosDisponibles() {
@@ -682,7 +706,10 @@
       var av = modal.querySelector('#opp-avisar');
       if (av) av.addEventListener('change', function () { m.avisar = av.checked; });
 
-      modal.querySelector('#opp-modal-cancelar').addEventListener('click', cerrarModal);
+      // Envuelto y no `cerrarModal` a pelo: el manejador recibiría el MouseEvent como
+      // primer argumento, cerrarModal lo leería como `sinUrl` y cancelar dejaría la
+      // incidencia colgada en la barra —un F5 la resucitaría.
+      modal.querySelector('#opp-modal-cancelar').addEventListener('click', function () { cerrarModal(); });
       modal.querySelector('#opp-modal-guardar').addEventListener('click', guardarModal);
     }
 
@@ -695,12 +722,16 @@
       if (window.AppMotion) AppMotion.shake(caja);
     }
 
-    function cerrarModal() {
+    /** @param {boolean=} sinUrl true cuando cierra el botón atrás. Ver abrirModalActualizar. */
+    function cerrarModal(sinUrl) {
       modalOv.classList.remove('abierto');
       document.body.style.overflow = '';
       estadoModal = null;
       if (disparador && disparador.focus) { try { disparador.focus(); } catch (e) {} }
       disparador = null;
+      // Cerrar también se escribe. Es la puerta común de las cuatro salidas (cancelar,
+      // fondo, Escape y el cierre optimista al guardar), así que basta con quitarlo aquí.
+      if (!sinUrl) reflejarModal(false);
     }
 
     modalOv.addEventListener('click', function (e) { if (e.target === modalOv) cerrarModal(); });
@@ -709,6 +740,83 @@
       if (visor.classList.contains('abierto')) { visor.classList.remove('abierto'); return; }
       if (modalOv.classList.contains('abierto')) cerrarModal();
     });
+
+    /* ── Memoria de estado en la URL ────────────────────────────────────────────────
+       Los modales de aquí no son ventanitas: son la decisión que se está tomando sobre una
+       falla, y se pasan por chat («mira esta, ¿la confirmo?»). Abrirlos APILA —atrás cierra
+       el modal y deja el panel debajo, en vez de sacar de la pantalla a quien solo quería
+       cerrarlo— y cerrarlos limpia la barra, porque si no un F5 resucita el modal que el
+       usuario acaba de cancelar. */
+
+    /** Valores de ?action que esta pantalla sabe abrir sobre una incidencia, y el estado que
+        dejan preseleccionado. `actualizar` y `reabrir` no preseleccionan ninguno —son el
+        mismo modal en blanco— y se distinguen solo para que el enlace diga cuál se enseñaba. */
+    var ACCIONES = {
+      actualizar: '', reabrir: '', confirmado: 'confirmado',
+      intermitencia: 'intermitencia', descartado: 'descartado', resuelto: 'resuelto'
+    };
+
+    /** Lo que la barra tiene que decir con este modal delante. Los tres parámetros se
+        escriben SIEMPRE juntos: dejar colgado el `inc` de la incidencia anterior al abrir un
+        reporte suelto haría que el enlace compartido abriera otra cosa distinta. */
+    function urlDelModal(m) {
+      if (!m) return { action: '', inc: '', item: '' };
+      if (m.tipo === 'nueva') return { action: 'nueva', inc: '', item: '' };
+      if (m.tipo === 'elevar') return { action: 'elevar', inc: '', item: m.repId };
+      return { action: m.accion, inc: m.id, item: '' };
+    }
+
+    /** @param {boolean} apilar true al abrir (atrás vuelve al panel); al cerrar se reemplaza,
+        que cerrar no es ir a ningún sitio nuevo. */
+    function reflejarModal(apilar) {
+      if (!window.AppUrl || !AppUrl.reflejar) return;
+      AppUrl.reflejar(urlDelModal(estadoModal), apilar ? { apilar: true } : null);
+    }
+
+    /**
+     * Pone en pantalla lo que pida la URL. La usan el arranque y atrás/adelante, y las dos
+     * abren con `sinUrl`: lo que llega ES la barra de direcciones y contestarle escribiendo
+     * lo mismo apilaría una entrada por cada pulsación de atrás.
+     */
+    function aplicarUrl(p) {
+      p = p || {};
+      var pide = { action: String(p.action || ''), inc: String(p.inc || ''), item: String(p.item || '') };
+      var hay = urlDelModal(estadoModal);
+      // Ya está delante lo que se pide: repintarlo borraría la nota a medio escribir.
+      if (pide.action === String(hay.action || '') &&
+          pide.inc === String(hay.inc || '') &&
+          pide.item === String(hay.item || '')) return;
+
+      var esNuestra = pide.action === 'nueva' || pide.action === 'elevar' ||
+                      Object.prototype.hasOwnProperty.call(ACCIONES, pide.action);
+
+      // La ausencia también dice algo: volver a una URL sin acción es «el panel a secas».
+      // El cierre pasa por cerrarModal y no por quitar la clase, porque es quien devuelve
+      // el scroll al body y el foco al botón; a mano, la página se quedaba sin poder rodar.
+      if (!esNuestra) { if (estadoModal) cerrarModal(true); return; }
+
+      // Los tres modales necesitan los datos delante —la incidencia, el reporte, el catálogo
+      // de estados—. Si todavía no han llegado no se pierde: pintar() lo aplica al terminar.
+      if (!datos) return;
+
+      if (pide.action === 'nueva') { abrirModalNueva(true); return; }
+
+      if (pide.action === 'elevar') {
+        var rep = (datos.sueltos || []).filter(function (r) { return r.id === pide.item; })[0];
+        if (rep) abrirModalElevar(rep.id, true); else olvidarUrl();
+        return;
+      }
+
+      var inc = (datos.incidentes || []).filter(function (x) { return x.id === pide.inc; })[0];
+      if (inc) abrirModalActualizar(inc, ACCIONES[pide.action], true); else olvidarUrl();
+    }
+
+    /** El enlace pide algo que ya no está: la incidencia salió de la semana, el reporte se
+        descartó. No es motivo para enseñarle un error a nadie —se llega aquí por un enlace
+        de hace días—; se quita de la barra para que el siguiente atrás no vuelva a intentarlo. */
+    function olvidarUrl() {
+      if (window.AppUrl && AppUrl.reflejar) AppUrl.reflejar({ action: '', inc: '', item: '' });
+    }
 
     /**
      * Un estado nuevo se crea ANTES de usarlo, en su propia llamada. Si se creara junto con
@@ -810,6 +918,10 @@
           modalOv.classList.add('abierto');
           document.body.style.overflow = 'hidden';
           pintarModal();
+          // El modal vuelve a estar delante, y la barra dice que no hay nada abierto desde
+          // que el cierre optimista la limpió. Reemplaza y no apila: al usuario no lo ha
+          // llevado nadie a otro sitio, es el servidor el que le devuelve lo que escribió.
+          reflejarModal(false);
         },
         alLograr: function () {
           AppCache.remove('operacion-panel');
@@ -866,6 +978,12 @@
 
     document.getElementById('opp-visor-x').addEventListener('click', function () { visor.classList.remove('abierto'); });
     visor.addEventListener('click', function (e) { if (e.target === visor) visor.classList.remove('abierto'); });
+
+    // Atrás y adelante del navegador. Se registra antes de cargar para que una pulsación
+    // temprana no se pierda: aplicarUrl aguanta sin datos y pintar() la repone al llegar.
+    if (window.AppUrl && AppUrl.alCambiarUrl) {
+      AppUrl.alCambiarUrl(function (loc) { aplicarUrl((loc && loc.parameter) || {}); });
+    }
 
     cargar(false);
   });

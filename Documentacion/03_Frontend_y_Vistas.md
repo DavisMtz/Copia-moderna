@@ -19,6 +19,11 @@ Consecuencias que hay que tener presentes siempre:
   comprobar su existencia.
 - **Una plantilla revienta si usa una variable que no se le pasó.** De ahí que `PARAMS_VISTA`
   se inyecte entero en todas las pantallas.
+- **`window.__APP__` es una línea fija, no una decisión de cada pantalla.** Se escribe
+  `window.__APP__ = <?!= APP_JSON ?>;` y ya trae los 16 parámetros. Cuando cada pantalla
+  elegía a mano cuáles copiar, la mitad se quedaba solo con `baseUrl` y sus enlaces
+  profundos morían en silencio: la consola declaraba soportar `?sec=` y `?q=`, los leía en
+  dos sitios, y no le llegaban nunca.
 - **Si una pantalla no incluye un módulo, sus funciones no existen ahí.** Ya provocó un fallo
   real: el reporte de falla funcionaba en dieciocho pantallas y habría fallado en la
   decimonovena, porque el Monitor de promociones carga `app_operacion` pero no
@@ -37,7 +42,7 @@ Este es el patrón de una pantalla de app completa. Cópialo tal cual al crear u
   <?!= include('app_theme'); ?>          <!-- 2. tokens de diseño + tipografía -->
   <?!= include('app_tailwind'); ?>       <!-- 3. preflight + utilidades -->
   <script>
-    window.__APP__ = { baseUrl: '<?= baseUrl ?>', folio: '<?= folio ?>' /* … */ };
+    window.__APP__ = <?!= APP_JSON ?>;   <!-- igual en TODAS: no se compone a mano -->
   </script>
   <?!= include('app_core'); ?>           <!-- 4. AppUrl · AppSession · AppCache · AppRun -->
   <?!= include('app_prefs'); ?>          <!-- 5. preferencias local + nube -->
@@ -146,9 +151,53 @@ al Portal en silencio.
 | --- | --- |
 | `AppUrl.build(pagina, params)` | Arma la URL. Devuelve `null` si no hay `baseUrl` |
 | `AppUrl.go(pagina, params)` | Navega |
-| `AppUrl.param(nombre)` | Lee un parámetro de vista |
+| `AppUrl.param(nombre)` | Lee un parámetro de vista. Contesta el estado **vivo**, no el del render |
 | `AppUrl.params()` | Todos los parámetros |
+| `AppUrl.reflejar(params, opts)` | **Escribe** el estado de la pantalla en la barra (ver abajo) |
+| `AppUrl.alCambiarUrl(cb)` | Avisa de atrás/adelante. Admite varios oyentes |
+| `AppUrl.declararPagina(clave)` | Qué pantalla está abierta. Sin esto `reflejar` no escribe |
+| `AppUrl.irAncla(nombre)` | Baja al apartado, reintentando mientras se pinta |
 | `AppUrl.PAGINAS_TRAS_LOGIN` | **Lista blanca** de destinos válidos para `next` |
+
+#### La URL como estado: `reflejar` y su convención
+
+La regla del sistema es que **la URL siempre dice dónde estás y qué estás viendo**, y que un
+enlace compartido reproduce ese estado exacto. `AppUrl.reflejar` es la única puerta:
+
+```js
+AppUrl.reflejar({ sec: 'bitacora' }, { apilar: true });  // pestaña/sección/abrir algo
+AppUrl.reflejar({ q: termino });                         // filtro/búsqueda
+AppUrl.reflejar({ inc: '' });                            // quitar el parámetro
+```
+
+- **Apila** lo que se lee como ir a otro sitio: pestaña, sección, abrir un elemento o un
+  modal. Atrás vuelve al estado anterior.
+- **Reemplaza** —con espera interna de 300 ms— lo que solo acota lo que ya hay delante:
+  filtros y búsquedas. Apilar un filtro deja una entrada de historial por pulsación y el
+  botón atrás inservible.
+- Recibe **solo lo que cambió**: conserva el resto de la URL vigente. Es lo que evita
+  «cambié el periodo y se me cerró la incidencia abierta».
+- Un valor vacío **quita** el parámetro.
+
+Cuatro trampas, las cuatro con cicatriz en este repositorio:
+
+1. **El bucle.** El oyente de atrás repinta; si ese repintado vuelve a escribir la URL, se
+   realimenta. El patrón de la casa es un argumento `sinUrl` que el oyente pasa en `true`.
+2. **La ausencia significa algo.** Volver a una URL sin el parámetro tiene que restaurar el
+   valor por omisión, no dejar la pantalla como estaba. Un `if (p.sec)` sin `else` es el error.
+3. **Cerrar también escribe.** Si abrir pone el parámetro, cerrar lo quita —por *todas* las
+   vías: botón, Escape, clic fuera, cancelar, guardado optimista—. Si no, F5 resucita lo que
+   la persona acababa de cerrar.
+4. **Foco y scroll.** El cierre que venga del botón atrás debe pasar por la misma función de
+   cierre que restaura el scroll del `body` y devuelve el foco.
+
+Los parámetros de **entrada de un solo uso** (`action`, `ancla`) se consumen al aplicarlos:
+`reflejar` conserva lo que no se le pasa, así que uno que no se limpie se queda pegado a la
+barra para siempre y contradice al resto del estado.
+
+> **El Portal (`Index.html`) es la excepción deliberada**: tiene maquinaria propia
+> (`navUrl`/`restore`/`setChangeHandler`) que ya cumple esta convención. No se migró porque
+> funciona y reescribirla es riesgo sin ganancia.
 
 ### `AppSession`
 
@@ -339,15 +388,19 @@ del proyecto precisamente para no ser la tercera.
 
 ## 11. Reglas para una pantalla nueva
 
-1. Define `window.__APP__` **antes** de `app_core`.
+1. Define `window.__APP__ = <?!= APP_JSON ?>;` **antes** de `app_core`. Tal cual, sin
+   componerlo a mano.
 2. Registra la página en `PAGES` (servidor) **y** en `AppUrl` (cliente). Son espejo.
-3. Monta el shell: `AppShell.mount({ active: 'clave', title: 'Título' })`.
+3. Monta el shell: `AppShell.mount({ active: 'clave', title: 'Título' })` — que además
+   declara la página ante `AppUrl`. Una pantalla sin shell la declara ella misma con
+   `AppPrecarga.aqui('clave')` o `AppUrl.declararPagina('clave')`, o `reflejar` no escribirá.
 4. Pide datos con `AppRun.swr`, no con `AppRun.call`, salvo motivo escrito.
 5. Incluye `app_operacion`: la pastilla de estado va en **todas** las pantallas.
 6. Si la pantalla escribe, pasa por `AppGuardado` y **declara los reintentos con su motivo**.
-7. Da entrada por URL a su estado (`?sec=`, `?q=`) y **escríbelo de vuelta** en la barra de
-   direcciones: la pestaña apila historial, la búsqueda lo reemplaza (una entrada por tecla
-   dejaría el botón atrás inservible).
+7. Da entrada por URL a su estado (`?sec=`, `?q=`) y **escríbelo de vuelta** con
+   `AppUrl.reflejar` (§5): la pestaña apila historial, la búsqueda lo reemplaza. Si apilas
+   algo, registra `AppUrl.alCambiarUrl` para que el botón atrás cambie la **vista** y no
+   solo la dirección, y repasa las cuatro trampas del §5 antes de darlo por hecho.
 8. Añade la pantalla al catálogo del buscador general con sus bloques declarados.
 9. Usa tokens del tema y `icon()` de `app_icons`. Si pides un icono que no existe, `icon()`
    cae a la llave inglesa: **parece una decisión y manda a buscar al sitio equivocado.**

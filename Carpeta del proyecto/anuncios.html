@@ -508,7 +508,7 @@
     </div>
 
     <script>
-        window.__APP__ = { baseUrl: <?!= JSON.stringify(baseUrl) ?> };
+        window.__APP__ = <?!= APP_JSON ?>;
     </script>
     <?!= include('app_core'); ?>
     <?!= include('app_prefs'); ?>
@@ -618,6 +618,37 @@
       var anuncios = {};        // id → anuncio
       var listaActual = [];     // orden con el que se pintó (para el filtro y el FLIP)
 
+      /* ── Lo que la barra de direcciones cuenta ─────────────────────────────
+         Tres cosas de esta pantalla se pueden compartir y recordar: el formato que
+         se está redactando (?format), el filtro de la lista (?sec) y el anuncio
+         abierto en el formulario (?item). Todo pasa por AppUrl, que conserva el
+         resto de la URL vigente y sabe hablar con la ventana de arriba —dentro del
+         iframe de Apps Script, escribir location a pelo cambia una dirección que
+         nadie ve—. Si el core desplegado aún no lo trae, la pantalla funciona
+         igual, solo sin memoria de estado. */
+      function reflejarVista(params, apilar){
+        if (!window.AppUrl || !AppUrl.reflejar) return;
+        AppUrl.reflejar(params, apilar ? { apilar:true } : null);
+      }
+
+      /* AppUrl.param() contesta el estado VIVO de la barra —incluida la ausencia de
+         un parámetro que se acaba de quitar—, no el del render. __APP__ es el
+         respaldo: trae los mismos parámetros que inyectó el servidor al abrir. */
+      function urlParam(n){
+        if (window.AppUrl && AppUrl.param) return AppUrl.param(n) || '';
+        return String((window.__APP__ && window.__APP__[n]) || '');
+      }
+
+      /* Lo que llega por la URL lo escribe cualquiera. Un formato inventado dejaría
+         el formulario sin un solo grupo de campos visible, y un filtro inventado,
+         una lista vacía sin explicación: en los dos casos manda el valor por
+         omisión, que es también lo que significa la AUSENCIA del parámetro. */
+      function formatoValido(f){ return FIELDS[f] ? f : 'banner'; }
+      function filtroValido(k){
+        for (var i = 0; i < FILTROS.length; i++) if (FILTROS[i].k === k) return k;
+        return 'todos';
+      }
+
       /* ── Vigencia legible ─────────────────────────────────────────────────── */
       function renderSched(){
         var box = $('schedInfo'); if (!box) return;
@@ -663,7 +694,11 @@
         modal:     'Se abre solo al entrar al portal, una vez por sesión. Solo se muestra UN modal: si hay varios, gana el de menor orden.'
       };
 
-      function applyFormato(f, animar){
+      /* `sinUrl` = esta llamada no la ha decidido el usuario en el conmutador (cargar
+         un anuncio, vaciar el formulario, entrar por un enlace, volver con «atrás»):
+         la barra ya lo dice o la escribe quien llama, y contestarle apilaría una
+         entrada de historial de más. */
+      function applyFormato(f, animar, sinUrl){
         var previo = state.formato;
         state.formato = f;
         Array.prototype.forEach.call($('formatos').children, function(b){
@@ -685,6 +720,11 @@
         $('pvWhere').textContent = DONDE[f] || '';
         limpiarErrores();
         renderPreview(true);
+        // El formato es el conmutador de sección real de esta pantalla: cambia los
+        // campos, la vista previa y lo que se va a publicar. Por eso APILA historial,
+        // que es la convención del plan de cierre para cambiar de vista: atrás vuelve
+        // al formato anterior en vez de sacarte de la pantalla.
+        if (!sinUrl) reflejarVista({ format: f }, true);
       }
 
       function applyTono(t, animar){
@@ -907,7 +947,13 @@
           reintentos: payload.id ? 2 : 0,
           valida: function(res){ return !!(res && res.status === 'ok'); },
           optimista: function(){ resetForm(); },
-          revertir: function(){ cargarEnForm(payload); state.dirty = true; },
+          // El rescate repone la barra, pero REEMPLAZANDO: un guardado que falló no es
+          // un sitio al que se pueda volver con «atrás», y apilarlo dejaría una entrada
+          // que devuelve al formulario vacío que el optimista acaba de deshacer.
+          revertir: function(){
+            cargarEnForm(payload, true); state.dirty = true;
+            reflejarVista({ item: payload.id || '', format: payload.formato });
+          },
           alLograr: function(res){ cargarLista(res.id, true); }
         // La promesa de AppGuardado resuelve al confirmar y rechaza al fallar: es el
         // único sitio por el que salen las dos ramas, reintentos incluidos.
@@ -915,7 +961,9 @@
       }
 
       /* ── Formulario ───────────────────────────────────────────────────────── */
-      function resetForm(){
+      /* `sinUrl` = lo pide el botón atrás; la barra ya está donde el navegador la
+         acaba de poner (ver el oyente de wireUrl). */
+      function resetForm(sinUrl){
         ['f-id','f-mensaje','f-titulo','f-cuerpo','f-desc','f-imagen','f-vigencia',
          'f-ctaTexto','f-ctaUrl','f-cta2Texto','f-cta2Url','f-desde','f-hasta','f-imagenFile']
           .forEach(function(id){ $(id).value = ''; });
@@ -926,9 +974,14 @@
         $('btnCancelar').classList.add('anc-hidden');
         $('btnPublicar').textContent = 'Publicar anuncio';
         state.dirty = false; state.editando = '';
-        applyFormato('banner', false); applyTono('info', false);
+        applyFormato('banner', false, true); applyTono('info', false);
         renderSched();
         marcarEditando();
+        // Salir del modo edición también se escribe: si ?item se quedara puesto, F5
+        // resucitaría el anuncio que se acaba de cerrar, y la siguiente escritura de
+        // la barra —que conserva lo que ya había— lo arrastraría consigo. El formato
+        // vuelve a decir «banner» porque es a lo que acaba de volver el formulario.
+        if (!sinUrl) reflejarVista({ item:'', format:'banner' });
       }
 
       function resetImagenUI(){
@@ -939,21 +992,25 @@
         $('imgHint').textContent = 'Se sube a Drive (carpeta «Portal Ventel»). JPG o PNG, máx. 8 MB.';
       }
 
-      /** Guardia de cambios sin guardar: antes el formulario se sobrescribía sin avisar. */
-      function pedirDescartar(cb){
+      /** Guardia de cambios sin guardar: antes el formulario se sobrescribía sin avisar.
+          `alConservar` corre cuando se decide NO descartar. Lo necesita el botón atrás:
+          si el borrador se queda, la dirección tiene que volver a describirlo. */
+      function pedirDescartar(cb, alConservar){
         if (!state.dirty) { cb(); return; }
         abrirConfirm({
           titulo: 'Tienes cambios sin guardar',
           texto: 'Si continúas se perderá lo que escribiste en el formulario.',
           ok: 'Descartar cambios',
           okClase: 'v-btn-danger'
-        }, cb);
+        }, cb, alConservar);
       }
 
-      function cargarEnForm(a){
+      /* `sinUrl` = la barra ya señala a este anuncio (enlace de entrada, botón atrás)
+         o quien llama la escribe a su manera. */
+      function cargarEnForm(a, sinUrl){
         var d = a.datos || {};
         $('f-id').value = a.id || '';
-        applyFormato(a.formato, false);
+        applyFormato(a.formato, false, true);   // la barra se escribe abajo, de una vez
         applyTono(d.tono || 'info', false);
         $('f-mensaje').value = d.mensaje || '';
         $('f-titulo').value = d.titulo || '';
@@ -988,6 +1045,13 @@
         form.scrollIntoView({ behavior: motionOK() ? 'smooth' : 'auto', block:'start' });
         if (motionOK()) gsap.fromTo(form, { boxShadow:'0 0 0 0 rgba(225,0,152,.45)' },
           { boxShadow:'0 0 0 0 rgba(225,0,152,0)', duration:.9, ease:'power2.out', clearProps:'boxShadow' });
+        /* Abrir un anuncio para editarlo APILA historial: atrás devuelve a lo que se
+           estaba haciendo antes de abrirlo, y el enlace abre a quien lo reciba el mismo
+           anuncio en el formulario. Sin id no hay anuncio que señalar —es la copia de
+           «Duplicar» o el rescate de un guardado fallido—: entonces solo se corrige la
+           barra (se quita el ?item que ya no corresponde y se pone el formato que se ve)
+           y no se apila, porque un borrador sin guardar no es un sitio al que volver. */
+        if (!sinUrl) reflejarVista({ item: a.id || '', format: a.formato }, !!a.id);
       }
 
       function marcarEditando(){
@@ -997,6 +1061,13 @@
         });
       }
 
+      /* La copia NO viaja en la URL. Es un borrador sin guardar y con state.dirty
+         puesto: un enlace que lo reprodujera entregaría un formulario relleno que
+         nadie ha publicado, y recargar la página lo rehidrataría en silencio —con el
+         riesgo de acabar publicando el mismo anuncio dos veces, que es justo lo que
+         avisa el toast de abajo—. Lo que sí se corrige es la barra: deja de señalar
+         al original (lo hace cargarEnForm al ver el id vacío), porque lo que está en
+         el formulario ya no es ese anuncio. */
       function duplicar(id){
         var a = anuncios[id]; if (!a) return;
         var copy = JSON.parse(JSON.stringify(a));
@@ -1053,6 +1124,31 @@
         try { AppCache.set(ancClaveLista(), res, { ttl: ANC_CACHE_TTL }); } catch (e) {}
       }
 
+      /* ?item=<id> deja ese anuncio cargado en el formulario en cuanto la lista llega:
+         es lo que hace que el enlace abra a quien lo recibe exactamente lo que veía
+         quien lo mandó. Se consume UNA vez —la lista se vuelve a leer después de cada
+         guardado, y volver a cargarlo pisaría lo que se estuviera escribiendo—, y no
+         se da por perdido mientras solo haya contestado la copia local: el anuncio
+         puede ser más nuevo que ella. */
+      var itemPendiente = '';
+      function abrirPendiente(deCache){
+        if (!itemPendiente) return;
+        var a = anuncios[itemPendiente];
+        if (!a){
+          if (deCache) return;
+          itemPendiente = '';
+          if (window.AppMotion) AppMotion.toast('El anuncio de ese enlace ya no existe.', 'warn');
+          reflejarVista({ item:'' });   // la barra no puede seguir señalando a lo que no está
+          return;
+        }
+        itemPendiente = '';
+        cargarEnForm(a, true);          // la barra ya dice el anuncio: escribirla apilaría de más
+        // El formato sí puede desmentirla: el enlace pudo llegar con uno distinto del
+        // que tiene el anuncio, y manda lo que se ve. Se reemplaza, nunca se apila:
+        // entrar por un enlace no es un viaje que «atrás» tenga que deshacer.
+        if (formatoValido(urlParam('format')) !== a.formato) reflejarVista({ format: a.formato });
+      }
+
       function cargarLista(destacarId, forzar){
         if (forzar && window.AppCache) { try { AppCache.remove(ancClaveLista()); } catch (e) {} }
         if (!listaActual.length) $('lista').innerHTML = skeleton();
@@ -1067,6 +1163,7 @@
             // Destacar es una animación de "esto es lo que acabas de tocar": tiene
             // sentido sobre el dato fresco, no sobre la copia guardada.
             renderLista(res, deCache ? null : destacarId);
+            abrirPendiente(deCache);
           },
           onError: function(err, cached){
             if (cached){
@@ -1093,6 +1190,18 @@
             return '<button type="button" class="anc-filter" data-k="' + f.k + '" aria-pressed="'
               + (state.filtro === f.k ? 'true' : 'false') + '">' + f.t + ' ' + (cuenta[f.k] || 0) + '</button>';
           }).join('');
+      }
+
+      /* El filtro de la lista viaja en ?sec para poder mandar «mira los que ya
+         expiraron» sin explicar dónde pulsar. REEMPLAZA la entrada del historial: es
+         mirar lo mismo de otra forma, no ir a otro sitio, y apilarlo obligaría a
+         pulsar atrás una vez por cada botón que se probara. «Todos» no es un filtro,
+         es no filtrar: se escribe como ausencia del parámetro. */
+      function aplicarFiltro(k, sinUrl){
+        state.filtro = k;
+        renderFiltros();
+        pintarLista();
+        if (!sinUrl) reflejarVista({ sec: k === 'todos' ? '' : k });
       }
 
       function itemHtml(a, i, n){
@@ -1232,15 +1341,34 @@
       }
 
       /* ── Modal de confirmación (sustituye a confirm()) ────────────────────── */
-      var confirmCb = null, confirmPrevFocus = null;
-      function abrirConfirm(opts, cb){
+      /* `cbNo` es opcional y corre al cerrar SIN confirmar —botón, fondo o Esc—.
+         Solo lo usa el botón atrás, que necesita enterarse de que la respuesta fue
+         «no» para dejar la dirección describiendo lo que sigue en pantalla. */
+      var confirmCb = null, confirmNoCb = null, confirmPrevFocus = null;
+      function abrirConfirm(opts, cb, cbNo){
         var ov = $('ancConfirm');
+        /* Un cierre en curso deja viva una línea de tiempo de GSAP cuyo onComplete
+           quita `.active` a los .22 s. Si entre medias se vuelve a abrir el diálogo,
+           ese onComplete apaga el diálogo NUEVO: queda oculto con su pregunta hecha y
+           sin nadie que pueda contestarla. No es hipotético — el botón atrás con una
+           pregunta a medio contestar hace justo eso, cerrar y volver a preguntar en la
+           misma vuelta síncrona (ver el oyente de wireUrl) —, y solo se ve con las
+           animaciones puestas: sin GSAP o con prefers-reduced-motion, modalOut termina
+           al momento y el orden sale bien. Matar los tweens pendientes y devolver la
+           opacidad cierra el hueco para cualquier camino que cierre y reabra seguido. */
+        if (window.gsap) {
+          var card = $('ancConfirmCard');
+          gsap.killTweensOf(ov); gsap.killTweensOf(card);
+          gsap.set(ov, { clearProps: 'opacity' });
+          gsap.set(card, { clearProps: 'opacity,transform' });
+        }
         $('ancConfirmT').textContent = opts.titulo;
         $('ancConfirmD').innerHTML = esc(opts.texto);
         var si = $('ancConfirmYes');
         si.textContent = opts.ok || 'Confirmar';
         si.className = 'v-btn ' + (opts.okClase || 'v-btn-danger');
         confirmCb = cb;
+        confirmNoCb = cbNo || null;
         confirmPrevFocus = document.activeElement;
         if (window.AppMotion) AppMotion.modalIn(ov, $('ancConfirmCard'));
         else ov.classList.add('active');
@@ -1260,11 +1388,12 @@
       }
 
       function cerrarConfirm(ejecutar){
-        var ov = $('ancConfirm'), cb = confirmCb;
-        confirmCb = null;
+        var ov = $('ancConfirm'), cb = confirmCb, no = confirmNoCb;
+        confirmCb = null; confirmNoCb = null;
         var fin = function(){
           if (confirmPrevFocus && confirmPrevFocus.focus) confirmPrevFocus.focus();
-          if (ejecutar && cb) cb();
+          if (ejecutar){ if (cb) cb(); }
+          else if (no) no();
         };
         if (window.AppMotion) AppMotion.modalOut(ov, $('ancConfirmCard'), fin);
         else { ov.classList.remove('active'); fin(); }
@@ -1423,9 +1552,7 @@
 
         $('filtros').addEventListener('click', function(e){
           var b = e.target.closest('.anc-filter'); if (!b) return;
-          state.filtro = b.dataset.k;
-          renderFiltros();
-          pintarLista();
+          aplicarFiltro(b.dataset.k);
         });
 
         $('lista').addEventListener('click', function(e){
@@ -1510,6 +1637,73 @@
         });
       }
 
+      /* ── Atrás y adelante del navegador ────────────────────────────────────
+         Quien apila historial tiene que escuchar el botón atrás, o la dirección
+         cambia y la pantalla se queda donde estaba. Aquí hay un agravante que las
+         demás pantallas no tienen: esto es un formulario. Volver atrás no puede
+         tirar a la basura lo que alguien lleva media hora redactando, así que la
+         restauración va partida según lo que cada cosa se lleve por delante:
+
+           · el filtro de la lista no toca el formulario → se restaura siempre, y su
+             ausencia significa «Todos» (atrás tiene que DESHACER el filtro, no
+             dejarlo puesto);
+           · el formato lo cambia, pero no lo vacía: los campos que esconde conservan
+             su texto → también se restaura siempre;
+           · cargar otro anuncio, o vaciar el formulario al salir del modo edición, sí
+             sobrescribe lo escrito → pasa por la MISMA guardia que el botón
+             «Cancelar». Si se decide conservar el borrador no se restaura nada, y la
+             barra vuelve a describir lo que hay en pantalla.
+
+         Nada de lo que hace este oyente vuelve a escribir la URL por su cuenta
+         (applyFormato, cargarEnForm y resetForm reciben `sinUrl`): contestarle al
+         navegador es el bucle clásico de repintar → escribir → repintar. */
+      function wireUrl(){
+        if (!window.AppUrl || !AppUrl.alCambiarUrl) return;
+        AppUrl.alCambiarUrl(function(loc){
+          var p = (loc && loc.parameter) || {};
+
+          // Una pregunta a medio contestar la anula la navegación: se cierra por su
+          // camino normal —cerrarConfirm es quien devuelve el foco a donde estaba— y
+          // se descarta su respuesta, incluida la de conservar, que reescribiría la
+          // barra que el navegador acaba de poner.
+          if ($('ancConfirm').classList.contains('active')){ confirmNoCb = null; cerrarConfirm(false); }
+
+          var filtro = filtroValido(p.sec || 'todos');
+          if (filtro !== state.filtro) aplicarFiltro(filtro, true);
+
+          var pedido = p.item || '';
+          var formato = formatoValido(p.format);
+
+          if (pedido === (state.editando || '')){
+            // Solo cambió el formato, y eso no tira nada de lo escrito: los grupos que
+            // se ocultan conservan su texto y volver al formato anterior lo enseña
+            // igual. Preguntar aquí sería alarmar con «se perderá lo que escribiste»
+            // por algo que no se pierde, así que se restaura sin guardia.
+            if (formato !== state.formato) applyFormato(formato, true, true);
+            return;
+          }
+
+          // Cambiar el anuncio cargado —o vaciar el formulario al salir del modo
+          // edición— SÍ sobrescribe lo escrito: eso pasa por la guardia.
+          var aplicar = function(){
+            var a = pedido ? anuncios[pedido] : null;
+            // La lista todavía no ha llegado: se abre en cuanto conteste el servidor.
+            if (pedido && !a){ itemPendiente = pedido; return; }
+            if (a){ cargarEnForm(a, true); return; }     // el anuncio trae su propio formato
+            resetForm(true);                             // sin ?item, formulario vacío
+            if (formato !== state.formato) applyFormato(formato, true, true);
+          };
+
+          // Con el formulario limpio, pedirDescartar ejecuta al momento; solo pregunta
+          // cuando de verdad hay algo escrito que perder.
+          pedirDescartar(aplicar, function(){
+            // Se conserva el borrador: la dirección tiene que volver a decir lo que se
+            // está viendo. REEMPLAZANDO, no apilando: el viaje no llegó a hacerse.
+            reflejarVista({ item: state.editando, format: state.formato });
+          });
+        });
+      }
+
       // ── Arranque: sesión + bloque "anuncios" + shell, luego el constructor ──
       // El bloque sustituye a la comprobación de "rol avanzado" que había aquí: ahora
       // publicar anuncios se puede conceder por separado, sin dar de paso las métricas
@@ -1524,7 +1718,15 @@
 
         ancRenderIcons(document);
         wireConstructor();
-        applyFormato('banner', false); applyTono('info', false);
+        wireUrl();
+
+        /* El estado de partida lo manda la URL: un enlace compartido —o un F5— tiene
+           que abrir el mismo formato, el mismo filtro y el mismo anuncio que veía
+           quien lo mandó. Se aplica con `sinUrl`: apilar una entrada de historial
+           nada más entrar deja un «atrás» que no lleva a ninguna parte. */
+        state.filtro = filtroValido(urlParam('sec'));
+        itemPendiente = urlParam('item');   // lo abre abrirPendiente cuando llegue la lista
+        applyFormato(formatoValido(urlParam('format')), false, true); applyTono('info', false);
         renderPreview(false); renderSched();
         $('lista').innerHTML = skeleton();
         cargarLista();

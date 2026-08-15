@@ -84,16 +84,21 @@ Qué pasa exactamente cuando alguien abre `…/exec?page=cotizacion&folio=LVP-00
    - Si está en `PAGES` (16 pantallas) → página **de app**, y recibe `baseUrl`.
    - **Si no está en ninguna → cae al Portal.** Esta es la razón número uno de que un enlace
      roto «parezca funcionar»: la pantalla parpadea y acabas en el Portal.
-3. Se inyectan **los 13 parámetros de vista** (`PARAMS_VISTA`) en la plantilla, **todos**,
+3. Se inyectan **los 16 parámetros de vista** (`PARAMS_VISTA`) en la plantilla, **todos**,
    aunque esa pantalla use uno solo. No es desperdicio: una plantilla de Apps Script revienta
    al evaluar una variable que no se le pasó, y así añadir un parámetro es una línea en una
-   lista en vez de una cacería por 40 archivos.
+   lista en vez de una cacería por 40 archivos. Además se inyecta el juego entero ya
+   serializado (`APP_JSON`, de `appEstadoInicialJson_`), que es lo que las pantallas pegan
+   en `window.__APP__`.
 4. La plantilla se evalúa. Cada `<?!= include('app_core'); ?>` inserta el contenido de otro
    archivo HTML **en el momento del render**, en el servidor. No son módulos: es
    concatenación de texto. Por eso el orden de los `include` importa y por eso todo el
    JavaScript del cliente comparte un único ámbito global.
 5. En el navegador, `app_core.html` construye `AppUrl`, `AppSession`, `AppCache` y `AppRun`
-   a partir de `window.__APP__`, que la pantalla definió **antes** del include.
+   a partir de `window.__APP__`, que la pantalla definió **antes** del include con la línea
+   `window.__APP__ = <?!= APP_JSON ?>;` — idéntica en las diecinueve. Antes cada pantalla
+   componía ese objeto a mano eligiendo qué copiar, y la mitad se quedaba solo con
+   `baseUrl`: sus enlaces profundos estaban muertos sin que nada lo dijera.
 6. A partir de ahí, cada dato se pide con `AppRun.swr(...)`: se pinta al instante lo que
    haya en `AppCache` y se revalida contra el servidor por detrás.
 

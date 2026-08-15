@@ -120,8 +120,53 @@ const PORTAL_PAGES = {
  *   next    a dónde volver tras el login. Es una CLAVE de página, jamás una URL: el
  *           cliente solo acepta las de su lista blanca (AppUrl.PAGINAS_TRAS_LOGIN), de
  *           modo que este parámetro no puede sacar a nadie fuera del sistema.
+ *   promo   IDENTIDAD de una promoción del Monitor. Es una clave derivada del
+ *           contenido de la fila (dirección + categoría + promoción), no su posición:
+ *           insertar una fila arriba no debe romper un enlace ya compartido.
+ *   item    el elemento concreto que se eligió (ver el espejo en app_core).
+ *   rango   periodo de una gráfica o de una tabla con fechas ('24h', '7d'…).
+ *   estatus filtro por estatus de la tabla de supervisión.
+ *   dir     filtro por dirección (departamento) del Monitor de promociones.
+ *   origen  filtro por origen del Monitor de promociones ('Promociones', 'Marketplace').
  */
-const PARAMS_VISTA = ['folio', 'action', 'format', 'q', 'buscar', 'tpl', 'sec', 'ancla', 'inc', 'next', 'promo', 'item', 'rango'];
+const PARAMS_VISTA = ['folio', 'action', 'format', 'q', 'buscar', 'tpl', 'sec', 'ancla', 'inc', 'next', 'promo', 'item', 'rango', 'estatus', 'dir', 'origen'];
+
+/**
+ * El estado inicial que recibe el navegador, serializado y listo para pegarse dentro de
+ * un <script>: la URL base y TODOS los parámetros de vista de esta petición.
+ *
+ * Existe por dos motivos, y los dos se pagaban caros:
+ *
+ * 1. DENTRO DEL IFRAME de Apps Script, `window.location.search` es la URL del sandbox,
+ *    no la del enlace que abrió el usuario. La única forma de que el cliente sepa con
+ *    qué parámetros lo llamaron es que el servidor se los deje escritos. Hasta ahora
+ *    cada pantalla componía su `window.__APP__` a mano y elegía qué parámetros copiar,
+ *    así que la mitad de las pantallas solo llevaba `baseUrl`: sus enlaces profundos
+ *    estaban muertos sin que nada lo dijera (consola declaraba soportar ?sec= y ?q=,
+ *    los leía, y nunca le llegaban). Con una sola línea igual en todas, añadir un
+ *    parámetro a PARAMS_VISTA lo pone en el acto en las diecinueve pantallas.
+ *
+ * 2. Esos valores vienen de la URL, es decir, DE FUERA. Escribirlos con `<?!= ?>` los
+ *    imprime tal cual dentro del <script>, así que un enlace con
+ *    `?folio=</script><script>…` cerraba la etiqueta y ejecutaba lo que quisiera en la
+ *    sesión de quien lo abriera. Escapar aquí `<`, `>` y `&` a su forma \\uXXXX cierra
+ *    esa puerta para todos los parámetros a la vez: dentro de una cadena JSON esas
+ *    secuencias vuelven a ser los mismos caracteres al parsear, pero ya no forman una
+ *    etiqueta que el analizador de HTML pueda ver. U+2028/U+2029 van con ellos porque
+ *    son saltos de línea para JavaScript aunque JSON los deje pasar crudos.
+ */
+function appEstadoInicialJson_(baseUrl, e) {
+  const datos = { baseUrl: baseUrl || '' };
+  PARAMS_VISTA.forEach(function (nombre) {
+    datos[nombre] = (e && e.parameter && e.parameter[nombre]) || '';
+  });
+  return JSON.stringify(datos)
+    .replace(/</g, '\\u003c')
+    .replace(/>/g, '\\u003e')
+    .replace(/&/g, '\\u0026')
+    .replace(/\u2028/g, '\\u2028')
+    .replace(/\u2029/g, '\\u2029');
+}
 
 function doGet(e) {
   try {
@@ -159,6 +204,8 @@ function servirPagina_(e) {
     PARAMS_VISTA.forEach(function (nombre) {
       pTemplate[nombre] = (e && e.parameter && e.parameter[nombre]) || '';
     });
+    // …y el mismo juego ya serializado, que es lo que la plantilla pega en __APP__.
+    pTemplate.APP_JSON = appEstadoInicialJson_(pTemplate.APP_URL, e);
     return pTemplate.evaluate()
       .setTitle(pConfig.title)
       .setXFrameOptionsMode(HtmlService.XFrameOptionsMode.ALLOWALL)
@@ -176,6 +223,8 @@ function servirPagina_(e) {
   PARAMS_VISTA.forEach(function (nombre) {
     template[nombre] = (e && e.parameter && e.parameter[nombre]) || '';
   });
+  // …y el mismo juego ya serializado, que es lo que la plantilla pega en __APP__.
+  template.APP_JSON = appEstadoInicialJson_(template.baseUrl, e);
 
   return template.evaluate()
     .setTitle(config.title)

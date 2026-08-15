@@ -472,7 +472,7 @@
     </div>
 
     <script>
-        window.__APP__ = { baseUrl: <?!= JSON.stringify(baseUrl) ?>, folio: <?!= JSON.stringify(folio) ?>, action: <?!= JSON.stringify(action) ?> };
+        window.__APP__ = <?!= APP_JSON ?>;
     </script>
     <?!= include('app_core'); ?>
     <?!= include('app_prefs'); ?>
@@ -1090,6 +1090,13 @@
 
         let selectedFormatId = null;
 
+        /* El formato que esta pantalla enseñaría si nadie hubiera tocado nada: el
+           predeterminado del catálogo. Se apunta porque volver ATRÁS a una dirección
+           SIN ?format tiene que devolver justo ese —la ausencia del parámetro también
+           es un estado, no un "deja marcado lo último"—, y renderFormatOptions es el
+           único sitio donde se sabe cuál es. */
+        let formatoPorOmision = '';
+
         /**
          * Dibuja las tarjetas de selección de formato. Los textos vienen del catálogo
          * del servidor, así que agregar un formato nuevo no requiere tocar esta pantalla.
@@ -1105,6 +1112,7 @@
             }
 
             selectedFormatId = defaultId || formats[0].id;
+            formatoPorOmision = selectedFormatId;
             container.innerHTML = formats.map(f => `
                 <label class="flex items-start gap-3 p-4 bg-white border border-gray-300 rounded-xl cursor-pointer hover:border-pink-400 hover:shadow-md transition-all">
                     <input type="radio" name="quote-format" value="${f.id}" class="mt-1 accent-pink-600" ${f.id === selectedFormatId ? 'checked' : ''}>
@@ -1118,13 +1126,28 @@
             AppMotion.staggerRows(container.querySelectorAll('label'));
 
             container.querySelectorAll('input[name="quote-format"]').forEach(input => {
-                input.addEventListener('change', () => { selectedFormatId = input.value; });
+                input.addEventListener('change', () => {
+                    selectedFormatId = input.value;
+                    /* El formato decide el PDF que verá el cliente y hasta ahora solo
+                       vivía en esta variable: un F5 lo devolvía al predeterminado y no
+                       había forma de mandar "míralo con este formato" a nadie. Va sin
+                       apilar —es una preferencia de la vista, no un cambio de pantalla—
+                       y reflejar ya junta las pulsaciones y reemplaza a los 300 ms.
+                       Escribe SOLO la elección de la persona: setSelectedFormat marca el
+                       radio sin tocar la barra, que es lo que deja al oyente de atrás
+                       repintar sin contestarle al navegador. */
+                    if (window.AppUrl && AppUrl.reflejar) AppUrl.reflejar({ format: input.value });
+                });
             });
 
             // Si la cotización en edición llegó antes que el catálogo, ahora sí se marca su formato.
             if (pendingFormatFromQuote) setSelectedFormat(pendingFormatFromQuote);
         }
 
+        /* Marca un radio DESDE DENTRO: la cotización que devolvió el servidor, el
+           borrador recuperado, lo que pedía la URL al entrar o lo que pide el botón
+           atrás. No refleja a propósito —por aquí pasa el navegador—: responderle con
+           otra escritura es exactamente lo que convierte "volver" en un bucle. */
         function setSelectedFormat(formatId) {
             if (!formatId) return;
             const input = document.querySelector(`input[name="quote-format"][value="${formatId}"]`);
@@ -1232,6 +1255,16 @@
                         showGeneralMessage(response.message || 'No encontramos esa cotización. Empezamos una nueva.', true, false);
                         currentQuoteFolioInput.value = '';
                         quoteFolioDisplay.textContent = 'NUEVO';
+                        /* La barra sigue diciendo ?folio=…&action=edit de algo que el
+                           servidor no reconoce (o que no es de este asesor) mientras la
+                           pantalla ya es una cotización nueva. Si se quedara, el arranque
+                           —que abre la edición cuando ve folio Y action=edit— volvería a
+                           pedir el mismo folio en cada recarga y a caer aquí otra vez: un
+                           bucle de "no encontramos esa cotización" sobre un formulario en
+                           blanco. Se quitan los dos SIN apilar: no se ha cambiado de vista,
+                           se está corrigiendo una dirección que dejó de ser cierta, y
+                           apilarla dejaría el folio muerto a un botón atrás de distancia. */
+                        if (window.AppUrl && AppUrl.reflejar) AppUrl.reflejar({ folio: '', action: '' });
                         if (productRowsContainer.children.length === 0) addRow(false);
                         else calculateTotals();
                         Borrador.iniciar({});   // se degradó a cotización nueva
@@ -1657,7 +1690,17 @@
             // llega desde la extensión con su bolsa no puede acabar en el panel.
             if (!requireBlock('cotizar', 'cotizacion')) return;
 
-            loadQuoteFormats();
+            /* Esta pantalla no monta el shell —es un documento a pantalla completa—, así
+               que nadie había dicho de quién es la URL. AppUrl.reflejar se niega a
+               escribir sin página declarada (dejaría una dirección sin ?page, que al
+               recargar cae en el Portal), de modo que sin esta línea todo lo que esta
+               pantalla refleja abajo sería silencio. */
+            if (window.AppUrl && AppUrl.declararPagina) AppUrl.declararPagina('cotizacion');
+
+            /* El formato que trae la URL manda sobre el predeterminado del catálogo: es
+               lo que hace que un enlace compartido —o un F5— abra el mismo PDF que veía
+               quien lo mandó. Vacío se comporta como siempre. */
+            loadQuoteFormats(AppUrl.param('format'));
 
             const today = new Date();
             const options = { year: 'numeric', month: 'long', day: 'numeric' };
@@ -1713,6 +1756,29 @@
                 // bolsa? (Solo en cotizaciones nuevas: en una edición los artículos
                 // son los que ya están guardados en el sistema.)
                 Borrador.iniciar({ alResolver: BolsaExtension.pedir });
+            }
+
+            /* Atrás y adelante del navegador, con mucha cabeza: aquí abajo hay un
+               formulario a medio teclear y un borrador vivo. Repintar la pantalla entera
+               desde la URL —recargar el folio, vaciar los campos— tiraría trabajo que
+               nadie pidió tirar, así que el oyente restaura UNA sola cosa, la única que
+               no cuesta nada devolver: el formato elegido.
+
+               `folio` y `action` NO se atienden a propósito. La identidad de lo que se
+               está editando se decide al arrancar; cambiarla en caliente metería el
+               cliente que se acaba de teclear dentro de otro folio, y la vuelta atrás
+               desde la vista previa ya recarga la pantalla de verdad.
+
+               Sin ?format se vuelve al de partida —el de la cotización cargada, o el
+               predeterminado del catálogo—: si no, atrás cambiaría la dirección y
+               dejaría marcado el formato que se acababa de deshacer. Y se repinta por
+               setSelectedFormat, que no escribe la barra: nadie le contesta al
+               navegador y no hay bucle. */
+            if (window.AppUrl && AppUrl.alCambiarUrl) {
+                AppUrl.alCambiarUrl(function (loc) {
+                    const p = (loc && loc.parameter) || {};
+                    setSelectedFormat(p.format || pendingFormatFromQuote || formatoPorOmision);
+                });
             }
 
             /* Recorrido guiado de la pantalla de cotización.
@@ -1821,6 +1887,28 @@
                             showGeneralMessage(response.message, false);
                             currentQuoteFolioInput.value = response.folio;
                             quoteData.folio = response.folio;
+
+                            /* Desde este instante la pantalla ya no es "una cotización
+                               nueva": es la edición del folio que acaba de nacer, y la
+                               dirección tiene que decirlo. Importa cuando la navegación a
+                               la vista previa NO llega a ocurrir —AppUrl.go sin URL, la
+                               activación del sandbox vencida, el aviso del enlace manual,
+                               la red de seguridad de los 6 s—: ahí el asesor se queda aquí
+                               con una barra que sigue diciendo "formulario en blanco", y
+                               un F5 le borra de la vista una cotización que YA está en
+                               Sheets. El siguiente intento da de alta un folio duplicado
+                               del mismo cliente.
+
+                               Se escribe AQUÍ, antes de tocar window.top.location, y
+                               apilando: `reflejar` sin apilar espera 300 ms y esos 300 ms
+                               caen ya con la navegación en marcha —la escritura se pierde
+                               o se pelea con ella—, mientras que apilando entra en el
+                               acto. La entrada de historial de más no estorba: volver
+                               desde la vista previa cae en la edición de este folio, que
+                               es justo donde estaba el asesor. */
+                            if (window.AppUrl && AppUrl.reflejar) {
+                                AppUrl.reflejar({ folio: response.folio, action: 'edit' }, { apilar: true });
+                            }
                             // El servidor valida el formato contra los habilitados y puede
                             // caer al predeterminado. Se adopta el que quedó realmente
                             // guardado: si no, la caché local lleva el formato del

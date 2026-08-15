@@ -972,6 +972,93 @@ y qué se dejó fuera a propósito**. Mismo formato que el registro del document
 
 <!-- Las entradas nuevas van arriba, con la más reciente primero. -->
 
+### 2026-08-15 — T1.2 y **F1 completa**: la URL viva en todo el sitio
+
+**Qué se cambió.**
+
+- **Cimiento que el plan no anotaba y que T1.2 necesitaba antes de nada.**
+  `window.__APP__` se componía a mano en cada pantalla eligiendo qué parámetros
+  copiar, y la mitad se quedaba solo con `baseUrl`. Como dentro del iframe de Apps
+  Script la barra de direcciones es la del sandbox y no la del enlace, esas
+  pantallas tenían los enlaces profundos **muertos sin que nada lo dijera**: la
+  consola declara soportar `?sec=` y `?q=`, los lee en dos sitios, y no le llegaban
+  nunca. Ahora el servidor arma el objeto entero (`appEstadoInicialJson_`, `Code.gs`)
+  y las diecinueve pantallas escriben la misma línea, así que añadir un parámetro a
+  `PARAMS_VISTA` lo pone en todas de una vez.
+  De regalo se cerró un **agujero de seguridad real**: esos valores salen de la URL
+  y se imprimían con `<?!= ?>`, que no escapa, así que un enlace con
+  `?folio=</script><script>…` cerraba la etiqueta y ejecutaba código en la sesión de
+  quien lo abriera. El serializador escapa `<`, `>`, `&` y los dos separadores de
+  línea que JSON deja pasar crudos.
+- **Tres parámetros nuevos** en las tres listas espejo (`Code.gs`, `app_core`, la
+  lista `PASAN` del Index): `estatus` para la tabla de supervisión, `dir` y `origen`
+  para el Monitor de promociones.
+- **T1.2 · Write-back en las trece pantallas** que faltaban, con la convención de
+  T1.1: pestaña/sección/abrir un elemento **apilan**, filtro/búsqueda **reemplazan**,
+  valor vacío **quita**, y toda pantalla que apila registra su oyente de atrás — que
+  restaura la VISTA, no solo la dirección.
+  `Promociones` estrena las cinco (pestaña, búsqueda, dirección, origen y la tarjeta
+  enfocada); su clave `promo` se deriva del **contenido** de la fila y no de su
+  posición, porque el Monitor no tiene ids en la hoja y un índice posicional deja el
+  enlace apuntando a otra promoción en cuanto alguien inserta una fila (la misma
+  lección que T7.1). `inicio` y `consola` leían `q` y no lo escribían nunca — la
+  asimetría inversa. `cotizacion` fija su folio en cuanto el servidor se lo da y lo
+  suelta al degradarse a nueva. `operacion` y `estado` recuerdan qué modal o qué
+  incidencia hay abierta y, sobre todo, lo quitan al cerrar; de paso se cerró el
+  defecto vivo que el plan anotaba en `estado` (el `?inc` cerrado revivía al cambiar
+  de periodo). `anuncios` recuerda formato, filtro y qué publicación se edita, sin
+  pisar un formulario sucio. `atenciones` y `consola` migran las **dos últimas**
+  llamadas directas a `actualizar()` que quedaban en el proyecto. El **Portal
+  conserva a propósito su maquinaria propia** —ya cumple la convención, migrarla es
+  riesgo sin ganancia— y solo se le cerró el hueco de Trazabilidad, cuyo buscador
+  filtraba sin reflejar.
+
+**Qué se comprobó.** Los 26 `.gs` y los bloques `<script>` de los 20 HTML tocados
+pasan comprobación de sintaxis (extractor con neutralización de `<?!= ?>`); las dos
+suites previas de `pruebas/` siguen en verde y la nueva
+`pruebas/estado_inicial.test.js` cubre el escape y el contrato con 28 comprobaciones,
+incluidos los casos hostiles. Verificado por barrido: ninguna llamada a `reflejar()`
+usa un nombre fuera de los 16 del contrato, no queda ni un `actualizar()` directo
+fuera de `app_core`, y toda pantalla que apila tiene oyente de atrás.
+
+Revisión adversarial en seis lentes con refutación por escéptico. **Corrieron cuatro
+lentes** (trampas, convención, corrección JS, privacidad) y **cayeron por límite de
+sesión las otras dos (regresión y alcance) junto con TODOS los refutadores**, así
+que los hallazgos se verificaron **a mano contra el código**, uno por uno, antes de
+tocar nada. La lente de privacidad no encontró nada: ningún dato personal viaja
+ahora en una URL. Los otros cinco eran reales y van corregidos en el mismo commit:
+en `Promociones` cada flecha del teclado apilaba una entrada —tres lentes lo
+encontraron por separado—, así que salir del Monitor pedía un «atrás» por tecla; en
+`Promociones` y `consola`, pulsar la pestaña ya abierta apilaba entradas gemelas y
+el botón atrás parecía averiado; en `atenciones` el `?action=nueva` dejó de borrarse
+de rebote al migrar a `reflejar` y un F5 reabría el formulario que el asesor había
+cerrado; en el panel avanzado el `?ancla` no se consumía y contradecía al `?sec` que
+esta misma tarea empezó a escribir; y en `anuncios`, el botón atrás con la pregunta
+de «cambios sin guardar» delante la cerraba y la reabría en la misma vuelta
+síncrona, dejándola invisible y sin nadie que pudiera contestarla.
+
+**Qué se dejó fuera a propósito.**
+
+- **La cobertura de la revisión quedó incompleta**: las lentes de *regresión* y
+  *alcance* no llegaron a reportar. Se cubrieron a mano solo sus partes mecánicas
+  (contrato de parámetros, `actualizar()` residuales, correspondencia apila↔oyente).
+  Queda pendiente pasarlas cuando haya cuota; se anota aquí para que no se dé por
+  revisado lo que no se revisó.
+- El filtro de **Asesor** de la tabla de supervisión no viaja en la URL: compara por
+  nombre para mostrar, y un nombre propio en un enlace compartido es dato de más.
+- Fuera del alcance de T1.2 y anotados: la casilla «ver bajas» y el cajón de ficha de
+  la consola; el filtro por plataforma de Trazabilidad (pediría un parámetro nuevo);
+  el botón «Ver tablero público» de Operación, que **rehará la F5** y no conviene
+  escribirle un estado ahora.
+- Dos huecos que viven en `app_atenciones.html`, **intocable** por decisión de
+  alcance: el `?action` no se limpia al cerrar el modal desde dentro del módulo, y el
+  módulo cambia de pestaña por su cuenta en dos sitios sin avisar, así que la URL se
+  queda atrás hasta el siguiente cambio. Se arreglan cuando esa fase toque el módulo.
+- **Los criterios de aceptación 1, 2 y 4 de F1 siguen pendientes de comprobación
+  manual sobre el despliegue real**: `google.script.history` no existe fuera del
+  iframe de Apps Script, así que apilado, restauración por F5 y botón atrás solo se
+  pueden verificar publicando. Es la comprobación que cierra formalmente la fase.
+
 ### 2026-08-15 — F3 completa: la política se abre cuando se va a mirar, y la revisión se lee de un vistazo
 
 **Qué se cambió.**
@@ -1157,9 +1244,10 @@ estado sí es redundante pero el conteo no).
   criterios que exigen `google.script.*`.
 
 <!-- Esta entrada se quedó sin su encabezado y quedaban dos «Qué se cambió»
-     seguidos sin saber dónde empezaba cada uno. Se le pone título; sin fecha,
-     porque el registro no la traía y no se inventa. -->
-### F1 · URL viva y navegación por rol (T1.2 queda pendiente)
+     seguidos sin saber dónde empezaba cada uno. Se le pone título; la fecha sale
+     del commit que la trajo (a4c69fd), no de una suposición. Lo que aquí quedó
+     pendiente —T1.2— está resuelto en la entrada de más arriba. -->
+### 2026-08-15 — F1, primera tanda: la URL viva, el login que devuelve y el folio con candado
 
 **Qué se cambió.**
 

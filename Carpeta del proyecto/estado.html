@@ -669,14 +669,12 @@
   </div>
 
   <script>
-    window.__APP__ = {
-      baseUrl: <?!= JSON.stringify(APP_URL) ?>,
-      inc: <?!= JSON.stringify(inc) ?>,
-      // Periodo del gráfico ('24h', '7d'…). Va inyectado como los demás parámetros de
-      // vista: dentro del iframe de Apps Script, leer la barra de direcciones da la del
-      // sandbox y no la del enlace que alguien compartió.
-      rango: <?!= JSON.stringify(rango) ?>
-    };
+    /* La URL base y TODOS los parámetros de vista, inyectados por el servidor y ya
+       escapados (appEstadoInicialJson_ en Code.gs). Dentro del iframe de Apps Script,
+       leer la barra de direcciones da la del sandbox y no la del enlace que alguien
+       compartió: `inc` y `rango` —y cualquiera que se añada mañana— solo llegan por
+       aquí. Va ANTES de app_core, que es quien lo lee al cargarse. */
+    window.__APP__ = <?!= APP_JSON ?>;
   </script>
   <?!= include('app_core'); ?>
   <?!= include('app_prefs'); ?>
@@ -1236,13 +1234,27 @@
        DETALLE
        ═══════════════════════════════════════════════════════════════════════ */
 
-    function abrirDetalle(id, quien) {
+    /**
+     * @param {string} id
+     * @param {Element=} quien  el botón que la abrió, para devolverle el foco al cerrar.
+     * @param {boolean=} sinUrl true cuando la hoja se abre PORQUE lo pide la dirección
+     *   (enlace compartido, atrás/adelante): volver a escribirla apilaría una entrada
+     *   gemela de la que el navegador acaba de poner, y el botón atrás se quedaría dando
+     *   vueltas sobre la misma incidencia sin salir nunca de ella.
+     */
+    function abrirDetalle(id, quien, sinUrl) {
       incAbierto = id;
       disparador = quien || null;
       hoja.classList.add('abierto');
       scrim.classList.add('abierto');
       hoja.setAttribute('aria-hidden', 'false');
       document.body.style.overflow = 'hidden';
+
+      // Abrir una incidencia APILA: dentro del tablero es ir a otro sitio, y atrás tiene
+      // que devolver a la lista en vez de sacar de la pantalla. Con esto ?inc= deja de ser
+      // solo la puerta de entrada del aviso de Chat y pasa a poderse copiar de la barra
+      // con la hoja delante.
+      if (!sinUrl && window.AppUrl && AppUrl.reflejar) AppUrl.reflejar({ inc: id }, { apilar: true });
 
       hojaHead.innerHTML =
         '<span style="flex:1"><h2 id="est-hoja-titulo">Cargando…</h2><p>Buscando los reportes</p></span>' +
@@ -1417,10 +1429,17 @@
 
     function cablearCierre() {
       var x = document.getElementById('est-hoja-x');
-      if (x) x.addEventListener('click', cerrarDetalle);
+      // Envuelto, y no `cerrarDetalle` a pelo: como manejador recibiría el evento del clic
+      // en el primer argumento y lo tomaría por `sinUrl`, así que el aspa dejaría de
+      // limpiar la dirección justo en el camino de cierre más usado.
+      if (x) x.addEventListener('click', function () { cerrarDetalle(); });
     }
 
-    function cerrarDetalle() {
+    /**
+     * @param {boolean=} sinUrl true cuando el cierre lo ordena atrás/adelante: la dirección
+     *   ya no trae `inc` y reescribirla sería contestarle al navegador.
+     */
+    function cerrarDetalle(sinUrl) {
       incAbierto = '';
       hoja.classList.remove('abierto');
       scrim.classList.remove('abierto');
@@ -1428,9 +1447,15 @@
       document.body.style.overflow = '';
       if (disparador && disparador.focus) { try { disparador.focus(); } catch (e) {} }
       disparador = null;
+      // Cerrar QUITA el parámetro, y no es simetría de adorno: el `inc` con el que se entró
+      // se quedaba dentro del estado que conserva reflejar(), así que el siguiente cambio
+      // de periodo lo devolvía a la barra —cerrar la hoja, elegir otro rango y verla
+      // reaparecer en la URL— y F5 resucitaba lo que el usuario acababa de cerrar.
+      if (!sinUrl && window.AppUrl && AppUrl.reflejar) AppUrl.reflejar({ inc: '' });
     }
 
-    scrim.addEventListener('click', cerrarDetalle);
+    // Igual que el aspa: envuelto para que el evento del clic no llegue como `sinUrl`.
+    scrim.addEventListener('click', function () { cerrarDetalle(); });
     document.getElementById('est-visor-x').addEventListener('click', function () { visor.classList.remove('abierto'); });
     visor.addEventListener('click', function (e) { if (e.target === visor) visor.classList.remove('abierto'); });
 
@@ -1479,10 +1504,21 @@
       if (window.VentelFX) skSistemas = VentelFX.skeleton('#est-sistemas', 'tarjetas', { rows: 4 });
 
       cargar().then(function () {
-        // Enlace directo desde el aviso de Chat: ?page=estado&inc=<id> abre la incidencia.
+        // Enlace directo desde el aviso de Chat —o pegado por quien copió la barra con la
+        // hoja delante—: ?page=estado&inc=<id> abre la incidencia. Sin sesión esto acaba en
+        // pintarPuerta, que es lo correcto: el enlace sigue enseñando de qué va y ofrece
+        // iniciar sesión, en vez de morir en un error.
+        // Se abre en callado: la dirección ya lo dice, y apilarla aquí metería una entrada
+        // gemela que dejaría el primer atrás sin efecto visible.
         var inc = (window.AppUrl && AppUrl.param('inc')) || '';
-        if (inc) abrirDetalle(inc, null);
+        if (inc) abrirDetalle(inc, null, true);
       });
+
+      /* El periodo que enseña una dirección SIN ?rango, preguntado ANTES de montar (montar
+         ya aplica el de la URL si viene). Es a lo que hay que volver cuando atrás lleva a
+         una dirección que no lo trae; se pregunta en vez de escribir aquí '24h' para que el
+         día que el módulo cambie su periodo de arranque no queden dos verdades. */
+      var rangoInicial = (window.AppEstadoHistorial && AppEstadoHistorial.rango()) || '';
 
       /* El historial se monta DESPUÉS del estado actual y sin esperarlo. Son dos llamadas
          independientes, y encadenarlas retrasaría el titular —lo que la gente viene a
@@ -1508,15 +1544,35 @@
             AppUrl.reflejar({ rango: id });
           }
         });
+      }
 
-        // Atrás/adelante del navegador. `callado` porque lo que llega es lo que el
-        // navegador acaba de poner en la dirección: reescribirla sería contestarle.
-        if (window.AppUrl && AppUrl.alCambiarUrl) {
-          AppUrl.alCambiarUrl(function (loc) {
-            var p = (loc && loc.parameter) || {};
-            if (p.rango) AppEstadoHistorial.irARango(p.rango, true);
-          });
-        }
+      /* Atrás/adelante del navegador. Va FUERA del `if` de arriba a propósito: aquí no se
+         restaura solo el periodo del historial, también la hoja de detalle, y anidado
+         dentro de él la pantalla se quedaba sin oyente para NADA el día que ese include no
+         cargara —el tablero es lo primero que se mira cuando algo va mal, y es justo el
+         día en que no puede perder el botón atrás—.
+
+         Todo se restaura en callado/`sinUrl`: lo que llega es lo que el navegador acaba de
+         poner en la dirección, y reescribirla sería contestarle; el repintado volvería a
+         escribir, y de ahí al bucle. */
+      if (window.AppUrl && AppUrl.alCambiarUrl) {
+        AppUrl.alCambiarUrl(function (loc) {
+          var p = (loc && loc.parameter) || {};
+
+          // La AUSENCIA de `inc` significa "hoja cerrada", no "deja lo que hubiera": sin
+          // el else, atrás cambiaba la barra de direcciones y dejaba la incidencia abierta
+          // encima, contando una cosa distinta de la que decía la URL. El cierre pasa por
+          // cerrarDetalle y no por quitar la clase a mano porque es quien devuelve el
+          // scroll al body y el foco al botón que abrió la hoja.
+          var inc = p.inc || '';
+          if (inc && inc !== incAbierto) abrirDetalle(inc, null, true);
+          else if (!inc && incAbierto) cerrarDetalle(true);
+
+          // Y lo mismo con el periodo: una dirección sin `rango` es el periodo inicial. Con
+          // `if (p.rango)` a secas, volver atrás desde ?rango=30d dejaba en pantalla los 30
+          // días de la entrada anterior, que esa dirección ya no describe.
+          if (window.AppEstadoHistorial) AppEstadoHistorial.irARango(p.rango || rangoInicial, true);
+        });
       }
 
       // El tablero se mira mientras algo está roto: tiene que refrescarse solo.

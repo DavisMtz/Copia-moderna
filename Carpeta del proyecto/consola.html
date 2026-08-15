@@ -697,7 +697,7 @@
 </div>
 
 <script>
-    window.__APP__ = { baseUrl: <?!= JSON.stringify(baseUrl) ?> };
+    window.__APP__ = <?!= APP_JSON ?>;
 </script>
 <?!= include('app_core'); ?>
 <?!= include('app_prefs'); ?>
@@ -997,10 +997,28 @@
             if (visibles.indexOf(nombre) === -1) p.hidden = true;
         });
 
+        /* Hasta esta línea no se sabía qué pestañas existen para esta persona, y el
+           arranque en frío lee el ?sec= ANTES de que llegue el panorama: en ese momento
+           todas las pestañas siguen a la vista, así que se acepta cualquier valor. Por eso
+           se vuelve a aplicar aquí, cuando el filtro de pestaña escondida ya sabe decir que
+           no; es lo que hace que un ?sec= imposible se borre de la barra en vez de quedarse
+           prometiendo un panel que nunca se abre.
+           Se lee la URL VIVA y no el valor que se leyó al entrar: entre la petición y la
+           respuesta el usuario ha podido cambiar de pestaña o darle a atrás, y reponerle el
+           sec del arranque sería quitarle de las manos lo que acaba de elegir.
+           Solo se toca si lo que dice la barra no es lo que ya está abierto: esta función
+           corre también en cada recarga y después de cada guardado, y reaplicar la misma
+           pestaña repetiría su animación de entrada encima de una consola que el usuario
+           está leyendo —el mismo parpadeo que evita AppMotion.enter más arriba—. */
+        var actual = document.querySelector('.cns-tab[aria-selected="true"]:not([hidden])');
+        var secUrl = (window.AppUrl && AppUrl.param('sec')) || 'resumen';
+        if (!actual || actual.getAttribute('data-panel') !== secUrl) irAPanel(secUrl, true);
+
         // Si la pestaña abierta ya no existe para esta persona —llegó por un ?sec= de
         // un enlace compartido por un maestro—, se cae a la primera que sí tenga en vez
-        // de dejar la pantalla sin ningún panel visible.
-        var actual = document.querySelector('.cns-tab[aria-selected="true"]:not([hidden])');
+        // de dejar la pantalla sin ningún panel visible. Se vuelve a preguntar porque la
+        // reaplicación de arriba pudo cambiar cuál está seleccionada.
+        actual = document.querySelector('.cns-tab[aria-selected="true"]:not([hidden])');
         if (!actual && visibles.length) irAPanel(visibles[0], true);
 
         // El buscador general ofrece secciones de la consola; que no ofrezca las que
@@ -2055,7 +2073,24 @@
         // enlace que compartió un maestro le dejaba a un supervisor un panel vacío en
         // pantalla —el servidor no le mandó esos datos— con toda la pinta de avería.
         var pedida = document.querySelector('.cns-tab[data-panel="' + nombre + '"]');
-        if (pedida && pedida.hidden) return;
+        if (pedida && pedida.hidden) {
+            /* Y el ?sec= se borra aunque la petición venga de la propia URL (sinUrl): esto
+               no es contestarle al navegador lo que acaba de decir, es corregir una barra
+               que promete una pestaña que aquí no existe. Sin esta línea el supervisor se
+               queda mirando el resumen con ?sec=ajustes escrito, y al recargar —o al
+               reenviarle el enlace a otro— se repite el mismo desconcierto. Reemplaza, no
+               apila: una pestaña que no se puede abrir no es un sitio al que volver. */
+            if (window.AppUrl && AppUrl.reflejar) AppUrl.reflejar({ sec: '' });
+            return;
+        }
+        /* ANTES del bucle que reparte aria-selected, porque después ya no se puede
+           preguntar. Volver a pulsar la pestaña abierta —o recorrer la barra con las
+           flechas, que activan al pasar— no es ir a ningún sitio: apilarlo dejaba una
+           entrada de historial por clic repetido y por tecla, y el botón atrás dejaba
+           de sacar de la pantalla. Solo se calla la ESCRITURA: el repintado sigue
+           igual que siempre para no cambiar de paso nada que ya funcionaba. */
+        var yaActiva = pedida && pedida.getAttribute('aria-selected') === 'true';
+
         var tabs = document.querySelectorAll('.cns-tab');
         Array.prototype.forEach.call(tabs, function (t) {
             var activa = t.getAttribute('data-panel') === nombre;
@@ -2076,8 +2111,13 @@
         // bitácora, no en el resumen teniendo que buscar la pestaña. Y el botón atrás
         // del navegador vuelve a la pestaña anterior, que es lo que la gente espera de
         // unas pestañas que se ven como páginas.
-        if (!sinUrl && window.AppUrl && AppUrl.actualizar) {
-            AppUrl.actualizar({ page: 'consola', sec: nombre === 'resumen' ? '' : nombre }, null, true);
+        // Se refleja en vez de reescribir la query entera: actualizar() escribe SOLO lo
+        // que se le pasa, así que llegar con un ?q=ana y cambiar de pestaña borraba ese q
+        // de la barra y el enlace dejaba de ser el de lo que se estaba mirando. reflejar
+        // parte de la URL viva y solo pisa el sec. La página tampoco hace falta mandarla:
+        // la conserva de la que declaró el shell.
+        if (!sinUrl && !yaActiva && window.AppUrl && AppUrl.reflejar) {
+            AppUrl.reflejar({ sec: nombre === 'resumen' ? '' : nombre }, { apilar: true });
         }
     }
 
@@ -2113,7 +2153,19 @@
         // Atrás/adelante del navegador entre pestañas.
         if (window.AppUrl && AppUrl.alCambiarUrl) {
             AppUrl.alCambiarUrl(function (loc) {
-                irAPanel(((loc && loc.parameter && loc.parameter.sec) || 'resumen'), true);
+                var p = (loc && loc.parameter) || {};
+                irAPanel(p.sec || 'resumen', true);
+
+                /* La AUSENCIA de ?q= también significa algo: significa "la lista entera".
+                   Al volver atrás a una URL sin q hay que VACIAR el buscador, no dejarlo
+                   como estaba, o la tabla sigue filtrada por un término que la barra ya no
+                   menciona. Se repinta a mano en vez de disparar un 'input': ese oyente
+                   escribe la URL, y contestarle así al navegador realimenta el atrás. */
+                var campo = $('cns-buscar-miembro');
+                if (campo && campo.value !== (p.q || '')) {
+                    campo.value = p.q || '';
+                    pintarMiembros();
+                }
             });
         }
 
@@ -2141,7 +2193,16 @@
         $('cns-correr-salud').addEventListener('click', correrSalud);
         $('cns-alta').addEventListener('click', abrirAlta);
 
-        $('cns-buscar-miembro').addEventListener('input', pintarMiembros);
+        $('cns-buscar-miembro').addEventListener('input', function () {
+            pintarMiembros();
+            /* Lo buscado pasa a la barra para que "estoy mirando a fulano" se pueda pegar
+               en un chat: hasta ahora el ?q= se leía al entrar pero no se escribía nunca,
+               así que el enlace solo servía si alguien lo tecleaba a mano. Reemplaza y con
+               la espera que ya trae reflejar —no otra encima—: es un filtro, no un sitio
+               nuevo, y una entrada de historial por tecla dejaría el atrás inservible.
+               Vaciar el campo quita el parámetro: la lista completa no lleva ?q= colgando. */
+            if (window.AppUrl && AppUrl.reflejar) AppUrl.reflejar({ q: (this.value || '').trim() });
+        });
         $('cns-ver-bajas').addEventListener('change', pintarMiembros);
 
         // Un solo oyente para toda la pantalla: las tablas se repintan enteras y volver
