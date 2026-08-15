@@ -750,6 +750,45 @@
   /** Quien quiere enterarse de que se está navegando (ver AppUrl.alNavegar). */
   const oyentesNav = [];
 
+  /* ── Estado VIVO de la URL ──────────────────────────────────────────────────
+     Lo que la barra de direcciones dice AHORA, no lo que decía al renderizar.
+     `actualizar()` lo apunta al escribir y atrás/adelante lo repone. Sin esto,
+     AppUrl.param() contestaba el valor del render aunque la URL ya hubiera
+     cambiado, y una pantalla que reescribía un parámetro arrastraba el valor
+     viejo de los demás (estado.html reescribía `inc` así al cambiar de rango). */
+  let urlViva = null;
+
+  /** Pantalla declarada por el shell o por la propia página (ver declararPagina). */
+  let paginaDeclarada = '';
+
+  /* reflejar() junta los reemplazos que llegan en ráfaga (teclear en un filtro)
+     y los escribe una sola vez. */
+  let reflejoPendiente = null;
+  let relojReflejo = null;
+
+  /* Oyentes de atrás/adelante. google.script.history solo admite UN manejador
+     —setChangeHandler pisa al anterior—, así que el módulo registra el suyo una
+     única vez y reparte el aviso: si dos módulos escuchan, ya no gana el último. */
+  const oyentesUrl = [];
+  let manejadorUrlPuesto = false;
+
+  function ponerManejadorUrl() {
+    if (manejadorUrlPuesto) return true;
+    try {
+      if (!(window.google && google.script && google.script.history)) return false;
+      google.script.history.setChangeHandler(function (e) {
+        const loc = (e && e.location) || {};
+        // La barra manda: lo que el navegador acaba de poner ES el estado vigente.
+        urlViva = Object.assign({}, loc.parameter || {});
+        oyentesUrl.forEach(function (cb) {
+          try { cb(loc); } catch (err) { console.error(err); }
+        });
+      });
+      manejadorUrlPuesto = true;
+      return true;
+    } catch (e) { return false; }
+  }
+
   const AppUrl = {
     base: cfg.baseUrl || '',
 
@@ -964,15 +1003,34 @@
      */
     goNextOrHome: function () {
       const next = this.param('next');
-      if (next && this.PAGINAS_TRAS_LOGIN.indexOf(next) !== -1) return this.go(next);
+      if (next && this.PAGINAS_TRAS_LOGIN.indexOf(next) !== -1) {
+        /* Se reponen los parámetros de vista que viajaron junto al next (ver
+           requireSession), SANEADOS: solo claves de PARAMS_VISTA —params() no
+           devuelve otras—, valores acotados a texto corto, y jamás `next` de
+           vuelta, que encadenaría login → login. La página ya la validó la lista
+           blanca de arriba; con esto, el enlace compartido sobrevive al login
+           entero: página + pestaña + filtro + elemento. */
+        const repuestos = {};
+        const params = this.params();
+        Object.keys(params).forEach(function (k) {
+          if (k === 'next') return;
+          const v = String(params[k]).slice(0, 200);
+          if (v) repuestos[k] = v;
+        });
+        return this.go(next, repuestos);
+      }
       return this.goHome();
     },
 
     /**
-     * Lee un parámetro: primero el inyectado por el servidor al renderizar
-     * (fuente más confiable dentro del sandbox), luego la URL del iframe.
+     * Lee un parámetro VIGENTE: si la pantalla ya reescribió la URL (actualizar/
+     * reflejar) o el usuario usó atrás/adelante, manda ese último estado —incluida
+     * la ausencia: un parámetro que se quitó de la barra responde vacío aunque el
+     * render lo hubiera traído—. Solo antes de la primera escritura se cae a las
+     * fuentes del render: lo inyectado por el servidor y la URL del iframe.
      */
     param: function (name) {
+      if (urlViva) return (name in urlViva) ? String(urlViva[name] || '') : '';
       if (cfg[name]) return String(cfg[name]);
       try { return new URLSearchParams(window.location.search).get(name) || ''; } catch (e) { return ''; }
     },
@@ -1017,22 +1075,86 @@
         const hash = ancla ? String(ancla).replace(/^#/, '') : null;
         const metodo = apilar ? google.script.history.push : google.script.history.replace;
         metodo.call(google.script.history, limpio, limpio, hash);
+        // Lo recién escrito pasa a ser el estado vigente que param() contesta, y el
+        // manejador queda puesto para que atrás/adelante también lo mantenga al día.
+        urlViva = Object.assign({}, limpio);
+        ponerManejadorUrl();
         return true;
       } catch (e) { return false; }
     },
 
     /**
+     * La pantalla (o el shell) declara qué página está abierta. reflejar() lo
+     * necesita porque google.script.history REEMPLAZA la query completa: escribir
+     * sin `page` dejaría una URL que al recargar cae en el Portal.
+     */
+    declararPagina: function (clave) {
+      if (this.existe(clave)) paginaDeclarada = String(clave);
+    },
+
+    /**
+     * La puerta ÚNICA para reflejar el estado de la pantalla en la URL, con la
+     * convención del plan de cierre: cambiar de pestaña/sección APILA historial
+     * (atrás vuelve a la anterior); un filtro o búsqueda REEMPLAZA, con espera de
+     * 300 ms para que teclear no escriba la barra letra por letra (como ya hacía
+     * el buscador del Index con 350 ms).
+     *
+     * Recibe solo lo que CAMBIÓ: el resto de la URL vigente se conserva —es lo
+     * que evita "cambié el periodo y se me cerró la incidencia abierta"—. Un
+     * valor vacío o nulo QUITA ese parámetro de la barra.
+     *
+     *   AppUrl.reflejar({ sec: 'plantillas' }, { apilar: true });
+     *   AppUrl.reflejar({ q: termino });               // espera y reemplaza
+     *   AppUrl.reflejar({ inc: '' });                  // quita ?inc
+     */
+    reflejar: function (params, opts) {
+      opts = opts || {};
+      const self = this;
+
+      // El estado sobre el que se aplica el cambio: la URL vigente, o —antes de la
+      // primera escritura— lo que trajo el render, sin `next` (ya cumplió al entrar).
+      let base;
+      if (urlViva) {
+        base = Object.assign({}, urlViva);
+      } else {
+        base = this.params();
+        delete base.next;
+        const pg = this.param('page') || paginaDeclarada;
+        if (pg) base.page = pg;
+      }
+      if (!base.page) return false;   // sin página conocida no se escribe: ver declararPagina
+
+      const fusion = Object.assign(base, reflejoPendiente || {}, params || {});
+      reflejoPendiente = null;
+
+      if (opts.apilar) {
+        if (relojReflejo) { clearTimeout(relojReflejo); relojReflejo = null; }
+        return this.actualizar(fusion, opts.ancla, true);
+      }
+
+      reflejoPendiente = fusion;
+      if (relojReflejo) clearTimeout(relojReflejo);
+      relojReflejo = setTimeout(function () {
+        relojReflejo = null;
+        const p = reflejoPendiente;
+        reflejoPendiente = null;
+        if (p) self.actualizar(p, opts.ancla, false);
+      }, 300);
+      return true;
+    },
+
+    /**
      * Avisa cuando el usuario usa atrás/adelante. El callback recibe
      * {parameter, parameters, hash} tal como los da Apps Script.
+     *
+     * Admite VARIOS oyentes: por debajo hay un solo setChangeHandler (es lo único
+     * que Apps Script permite) que además mantiene al día el estado vivo de la URL,
+     * de modo que registrarse aquí nunca le quita el aviso a otro módulo.
      */
     alCambiarUrl: function (cb) {
-      try {
-        if (!(window.google && google.script && google.script.history)) return false;
-        google.script.history.setChangeHandler(function (e) {
-          try { cb((e && e.location) || {}); } catch (err) { console.error(err); }
-        });
-        return true;
-      } catch (e) { return false; }
+      if (typeof cb !== 'function') return false;
+      oyentesUrl.push(cb);
+      return ponerManejadorUrl();
     },
 
     /**
@@ -1090,7 +1212,19 @@
   function requireSession(paginaActual) {
     sesionExigida = true;
     if (AppSession.isLoggedIn()) return true;
-    AppUrl.go('login', paginaActual ? { next: paginaActual } : null);
+    if (!paginaActual) {
+      AppUrl.go('login');
+      return false;
+    }
+    /* El estado profundo viaja COMPLETO a través del login: junto al `next` van los
+       parámetros de vista con los que se abrió esta pantalla (folio, sec, q…), para
+       que quien recibió un enlace teclee su contraseña y aterrice en LO QUE LE
+       COMPARTIERON, no en la pantalla pelona. `next` sigue siendo solo una clave de
+       página; los parámetros los sanea goNextOrHome al reponerlos. */
+    const arrastre = AppUrl.params();
+    delete arrastre.next;
+    arrastre.next = paginaActual;
+    AppUrl.go('login', arrastre);
     return false;
   }
 
@@ -1829,6 +1963,13 @@
 
     /* Destinos del área de Gestión, en orden de preferencia al entrar: el área se
        abre por la primera pantalla que ESA persona sí puede abrir. */
+    /* REGLA DEL PLAN DE CIERRE (T1.8): toda pantalla de gestión NUEVA entra al menú
+       POR ESTE CATÁLOGO —una entrada con su bloque, su página y sus rótulos—, nunca
+       con un enlace suelto en app_shell. Es lo que mantiene «Gestión solo gestión»:
+       el apartado del menú, el conmutador de áreas y el buscador se arman de esta
+       lista, así que lo que no está aquí no existe para el menú, y lo que está se
+       filtra solo por bloques. Depurado el 14-08-2026 (F1): las nueve entradas son
+       de gestión; «Enviar correo a clientes» quedó fuera como área propia (T1.7). */
     /* VARIOS BLOQUES PUEDEN LLEVAR A LA MISMA PANTALLA, y es a propósito. El panel
        avanzado es la casa de tres facultades —métricas, cola de revisión y política de
        revisión— que se conceden por separado. Antes aquí solo figuraba 'supervision',

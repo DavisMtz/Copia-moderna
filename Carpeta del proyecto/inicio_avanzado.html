@@ -785,7 +785,7 @@
                 title: 'Abriendo ' + window.escapeHtml(folio) + '…',
                 sub: 'Preparando el formato CCL en Google Sheets'
             });
-            AppRun.call('openQuoteInSheets', [folio], { busy: 'Abriendo' })
+            AppRun.call('openQuoteInSheets', [folio, AppSession.userEmail], { busy: 'Abriendo' })
                 .then(response => {
                     if (response && response.success) {
                         if (tab) { fxTab.done(); tab.location.href = response.url; }
@@ -1289,11 +1289,26 @@
                     if (est.pendiente) row.className = 'v-fila-pendiente';
                     else if (est.clave === 'rechazada') row.className = 'v-fila-rechazada';
                     const folioJs = escapeFolio(q.folio);
-                    const fecha = q.timestamp ? new Date(q.timestamp).toLocaleDateString('es-MX', { day: '2-digit', month: 'short', year: 'numeric' }) : 'N/A';
+                    // T1.6a: fecha Y hora. El ISO del servidor siempre trajo la hora;
+                    // aquí se tiraba. Con solo el día no se distinguía la cotización de
+                    // las 9:00 de la de las 18:40 al revisar la jornada.
+                    const fmtFH = { day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' };
+                    const fecha = q.timestamp ? new Date(q.timestamp).toLocaleDateString('es-MX', fmtFH) : 'N/A';
+                    /* T1.6b: para las enviadas, la fecha que se enseña es la del ENVÍO
+                       —la que no cambia aunque se edite después—. El último guardado
+                       queda debajo, más pequeño, solo cuando difiere del envío. */
+                    const envioTxt = q.fechaEnvio ? new Date(q.fechaEnvio).toLocaleDateString('es-MX', fmtFH) : '';
+                    // La línea "Guardada" solo cuando el guardado es posterior al envío
+                    // (se editó después de enviar); si coinciden al minuto sería ruido.
+                    const editadaTras = envioTxt && fecha !== 'N/A' && envioTxt !== fecha &&
+                        (new Date(q.timestamp).getTime() > new Date(q.fechaEnvio).getTime());
+                    const celdaFecha = envioTxt
+                        ? `${envioTxt}${editadaTras ? `<div class="text-xs text-slate-500" title="Última edición guardada">Guardada: ${fecha}</div>` : ''}`
+                        : fecha;
 
                     row.innerHTML = `
                         <td class="font-medium text-slate-900">${marcaSup(q.folio, term)}</td>
-                        <td>${fecha}</td>
+                        <td>${celdaFecha}</td>
                         <td>${marcaSup(q.advisorName, term)}</td>
                         <td>${marcaSup(q.clientName, term)}${q.clientEmail ? `<div class="text-xs text-slate-500">${marcaSup(q.clientEmail, term)}</div>` : ''}</td>
                         <td class="font-medium">${formatMoney(q.total)}</td>
@@ -1328,7 +1343,7 @@
                     return;
                 }
 
-                const headers = ['Folio', 'Fecha', 'Asesor', 'CorreoAsesor', 'Cliente', 'CorreoCliente', 'Subtotal', 'IVA', 'Total', 'Estatus', 'Formato', 'Observaciones'];
+                const headers = ['Folio', 'Fecha', 'FechaEnvio', 'Asesor', 'CorreoAsesor', 'Cliente', 'CorreoCliente', 'Subtotal', 'IVA', 'Total', 'Estatus', 'Formato', 'Observaciones'];
                 const csvCell = (v) => {
                     const s = String(v == null ? '' : v).replace(/"/g, '""');
                     return /[",\n]/.test(s) ? `"${s}"` : s;
@@ -1336,6 +1351,7 @@
                 const rows = filteredQuotes.map(q => [
                     q.folio,
                     q.timestamp ? new Date(q.timestamp).toLocaleString('es-MX') : '',
+                    q.fechaEnvio ? new Date(q.fechaEnvio).toLocaleString('es-MX') : '',
                     q.advisorName, q.advisorEmail,
                     q.clientName, q.clientEmail,
                     (q.subtotal || 0).toFixed(2), (q.vat || 0).toFixed(2), (q.total || 0).toFixed(2),

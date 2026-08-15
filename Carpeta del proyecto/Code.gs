@@ -862,9 +862,28 @@ function buscarCotizaciones(callingUserEmail, termino, limite) {
 /**
  * Obtiene todos los detalles de una cotización específica (datos principales y lista de productos).
  * Lee DOS hojas completas, así que pasa por la caché de lectura; cualquier guardado la invalida.
+ *
+ * CON CANDADO DE SESIÓN (T1.4 del plan de cierre): esta función es la que llama el
+ * navegador, y antes no exigía identidad — un enlace profundo con ?folio= mostraba la
+ * cotización completa (cliente, correo, importes) sin iniciar sesión, y cualquiera
+ * podía llamarla por google.script.run desde la consola. Ahora pide una sesión
+ * registrada. Las lecturas INTERNAS del servidor (correos, revisión, formatos) no
+ * pasan por aquí: usan cotDetalleFolio_, porque cada una de esas rutas ya tiene su
+ * propio gate y volver a pedir identidad aquí las rompería.
+ *
  * @param {string} folio - El folio de la cotización a buscar.
+ * @param {string} emailCliente - AppSession.userEmail de quien consulta.
  */
-function getQuoteDetails(folio) {
+function getQuoteDetails(folio, emailCliente) {
+  const id = secIdentidad_(emailCliente);
+  if (!id.ok) {
+    return { success: false, sinSesion: true, message: id.error || 'Inicia sesión para consultar esta cotización.' };
+  }
+  return cotDetalleFolio_(folio);
+}
+
+/** Lectura interna del detalle (caché incluida), SIN candado: solo para el servidor. */
+function cotDetalleFolio_(folio) {
   if (typeof cotCacheado_ === 'function' && folio) {
     return cotCacheado_('folio_' + cotHash_(folio), COT_TTL.listaAsesor, function () {
       return leerDetalleCotizacion_(folio);
@@ -1190,6 +1209,17 @@ function leerSupervision_() {
           ? String(row[col["RevisionEstado"]] || '') : '',
         revisionPor: (col["RevisadoNombre"] !== undefined)
           ? String(row[col["RevisadoNombre"]] || '') : '',
+        // T1.6b: la fecha REAL del envío (Correos.gs la escribe al enviar). Va aparte
+        // del Timestamp porque este se pisa con cada guardado: sin esta columna, una
+        // cotización editada después de enviada "cambiaba" su fecha en el panel.
+        // Columna auto-creada: las hojas viejas no la tienen y ahí va vacía.
+        fechaEnvio: (function () {
+          if (col["FechaEnvio"] === undefined) return '';
+          const fe = row[col["FechaEnvio"]];
+          if (!fe) return '';
+          const d = fe instanceof Date ? fe : new Date(fe);
+          return isNaN(d.getTime()) ? '' : d.toISOString();
+        })(),
         format: (col["Formato"] !== undefined && row[col["Formato"]]) ? String(row[col["Formato"]]) : DEFAULT_FORMAT_ID,
         observations: String(row[col["Observaciones"]] || '')
       };

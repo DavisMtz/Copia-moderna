@@ -972,7 +972,88 @@ y qué se dejó fuera a propósito**. Mismo formato que el registro del document
 
 <!-- Las entradas nuevas van arriba, con la más reciente primero. -->
 
-*(Sin entradas todavía: el plan se acaba de fijar.)*
+### 2026-08-14 — F1, primera tanda: 7 de 8 tareas (falta T1.2)
+
+**Qué se cambió.**
+
+- **T1.1 · Helper central de estado en URL** (`app_core.html`). Nace
+  `AppUrl.reflejar(params, {apilar, ancla})`: recibe solo lo que cambió, conserva el
+  resto de la URL vigente, apila para pestaña/sección y reemplaza con debounce de
+  300 ms para filtros. `AppUrl.param()` ahora contesta el estado VIVO (caché
+  `urlViva` que escriben `actualizar()` y el botón atrás), no el del render.
+  `alCambiarUrl` admite varios oyentes sobre un único `setChangeHandler` (antes el
+  segundo oyente dejaba sordo al primero). Nuevo `AppUrl.declararPagina()`, alimentado
+  por `AppShell.mount` y `AppPrecarga.aqui`, para que `reflejar()` nunca escriba una
+  URL sin `page`. Corregidos los dos defectos anotados en el plan: `estado.html`
+  ya no reescribe `inc` con el valor viejo al cambiar de rango (usa `reflejar`), y
+  `portal_contenido` —que apilaba sin oyente— registra `alCambiarUrl`: el botón
+  atrás ahora SÍ cambia de sección, la carga inicial ya no apila una entrada
+  fantasma, y abrir la sección ya abierta no duplica historial.
+- **T1.3 · Estado profundo a través del login.** `requireSession(pagina)` manda al
+  login el `next` MÁS todos los parámetros de vista de la pantalla; `goNextOrHome`
+  los repone saneados (solo claves de `PARAMS_VISTA`, valores acotados a 200
+  caracteres, jamás `next` de vuelta). La lista blanca `PAGINAS_TRAS_LOGIN` sigue
+  mandando y `next` sigue siendo clave, nunca URL. El `__APP__` del login expone
+  ahora los 13 parámetros de vista (el servidor ya los inyectaba; el login los
+  tiraba). Cerrados los dos huecos que iban a login sin `next`: `inicio.html`
+  (ahora `requireSession('dashboard')`) y el buscador del Portal (`goAppAction` en
+  `Index.html` pasa `next` + parámetros de la acción cuando el destino está en la
+  lista blanca).
+- **T1.4 · Acceso según sesión, también en el servidor.** `consulta_cotizacion.html`
+  estrena `requireSession('consulta_cotizacion')` (con T1.3, el enlace profundo
+  sobrevive al login con su folio). En servidor, `getQuoteDetails(folio, email)`
+  exige identidad registrada (`secIdentidad_`); la lectura interna con caché se
+  mudó a `cotDetalleFolio_` (privada) y a ella pasaron los llamadores internos de
+  `Correos.gs`, `Revision.gs` y `Formatos.gs`, que ya traen su propio gate. El
+  barrido de la misma superficie tapó tres puertas hermanas que el plan no
+  enumeraba pero el criterio 3 sí exige: `getQuoteDetailsForEmail`,
+  `downloadQuotePdf` (el PDF ES la cotización) y `openQuoteInSheets`, todas con el
+  mismo candado; y `generateQuoteHtml` pasó a `generateQuoteHtml_` (era interna y
+  quedaba expuesta a `google.script.run` entregando la cotización completa). Los 9
+  puntos de llamada en 7 pantallas pasan ahora `AppSession.userEmail`.
+- **T1.5 · «Cotizaciones» por rol.** El conmutador del shell y el enlace «Inicio»
+  del panel usan `AppUrl.homePage()` (asesor → inicio de cotizar; supervisión o
+  mayor → panel avanzado); `data-precarga` calienta la página resuelta y ya no se
+  precarga la pantalla en la que se está parado.
+- **T1.6 · Fecha Y hora en supervisión.** a) La tabla muestra fecha + `HH:mm`.
+  b) Columna nueva `FechaEnvio` (auto-reparable, patrón de `Formato`), escrita solo
+  en `sendQuoteByEmail` vía `setQuoteColumnValue_`; `leerSupervision_` la sirve en
+  ISO; el panel enseña la fecha de ENVÍO para las enviadas —con la línea
+  «Guardada:» debajo solo si se editó después de enviar— y el CSV ganó la columna.
+  Documentada en el documento 04 junto a la aclaración de que `Timestamp` es del
+  último guardado.
+- **T1.7 · Correos separados.** «Enviar correo a clientes» salió del apartado
+  Cotizaciones a un apartado propio «Correos» en la barra lateral.
+- **T1.8 · Gestión solo gestión.** Catálogo `GESTION` revisado entrada por entrada
+  tras T1.7: las nueve entradas son de gestión, nada ajeno ni faltante. Quedó
+  escrita EN el catálogo la regla de que toda pantalla nueva del plan entra al menú
+  por él.
+
+**Qué se comprobó.** `node --check` en verde sobre los 26 `.gs`; los bloques
+`<script>` de los 13 HTML tocados pasan comprobación de sintaxis (extractor con
+neutralización de `<?!= ?>`); las dos suites de `pruebas/` en verde (40 + 44
+comprobaciones). Verificado en código que la extensión de Chrome NO llama a
+`getQuoteDetails` (solo valida la URL del web app) y que la vista previa exige el
+bloque `cotizar`, así que el candado de T1.4 no les quita nada; las tres páginas
+públicas (portal, promociones, estado) siguen públicas y sin cambios de acceso.
+`saveQuoteDataToSheets` parte de la fila existente al actualizar, así que
+`FechaEnvio` sobrevive a las ediciones (criterio 5).
+
+**Qué se dejó fuera a propósito.**
+
+- **T1.2 (write-back pantalla por pantalla) es la siguiente acción**: ya tiene el
+  helper listo y los puntos de enganche anotados en el plan. Con ella deben migrar
+  a `reflejar()` los `actualizar()` directos que quedan (consola) y declararse
+  `AppPrecarga.aqui`/`AppUrl.declararPagina` en las pantallas sin shell que
+  empiecen a escribir (Index, Promociones).
+- `FechaEnvio` se REESCRIBE al reenviar: refleja el último envío real. Editar no
+  la toca, que es lo que pide el criterio.
+- `registro.html` y `recuperar.html` no arrastran el estado profundo (solo el
+  login, que es la puerta que usan los enlaces compartidos); si se quiere que
+  «crear cuenta» también lo conserve, es una tarea nueva.
+- Los criterios de aceptación 1, 2 y 4 de F1 requieren el despliegue real de Apps
+  Script (google.script.history no corre fuera): la comprobación manual queda para
+  el cierre de la fase, después de T1.2.
 
 ---
 

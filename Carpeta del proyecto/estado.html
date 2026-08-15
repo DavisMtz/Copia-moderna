@@ -1499,11 +1499,13 @@
         AppEstadoHistorial.montar('est-historial-host', {
           rango: pedido,
           alCambiar: function (id) {
-            if (!window.AppUrl || !AppUrl.actualizar) return;
+            if (!window.AppUrl || !AppUrl.reflejar) return;
             // Se reemplaza la entrada del historial: cambiar de periodo es mirar lo mismo
             // de otra forma, no ir a otro sitio, y apilarlo obligaría a pulsar atrás una
-            // vez por cada botón que se probara.
-            AppUrl.actualizar({ page: 'estado', inc: AppUrl.param('inc') || '', rango: id }, null, false);
+            // vez por cada botón que se probara. reflejar() conserva solo el resto de la
+            // URL vigente: antes esto reescribía `inc` con el valor del render, y cerrar
+            // una incidencia y cambiar de periodo la devolvía a la barra de direcciones.
+            AppUrl.reflejar({ rango: id });
           }
         });
 

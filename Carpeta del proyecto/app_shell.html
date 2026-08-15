@@ -270,7 +270,10 @@
       // el rótulo de la pantalla abierta deja al asesor sin saber dónde está.
       if (area !== a && !areaVisible(a)) return '';
       var cls = 'app-switch-item' + (area === a ? ' active' : '');
-      var pre = (area === a) ? '' : ' data-precarga="' + page + '"';
+      // Tampoco se precarga la pantalla ABIERTA aunque el área sea otra: con
+      // "Cotizaciones" resuelto por rol, un supervisor parado en el panel avanzado
+      // (área Gestión) tendría un enlace de Cotizaciones apuntando a donde ya está.
+      var pre = (area === a || page === active) ? '' : ' data-precarga="' + page + '"';
       return '<a class="' + cls + '" href="#"' + pre + ' onclick="AppShell.nav(\'' + page + '\');return false;">' +
         '<span class="asw-ic">' + icon + '</span>' +
         '<span class="asw-tx"><b>' + name + '</b><small>' + sub + '</small></span></a>';
@@ -288,10 +291,16 @@
         '<span class="asw-tx"><b>Gestión</b><small>' + esc(AppFunciones.subtituloGestion(gestion)) + '</small></span></a>';
     }
 
+    /* T1.5: «Cotizaciones» lleva a cada quien a SU inicio —asesor al inicio de
+       cotizar, supervisión o mayor al panel avanzado—. El resolutor por rol ya
+       existía (AppUrl.homePage, el mismo que usan login, Portal y buscador); aquí
+       estaba clavado a 'dashboard' y era la única puerta que se comportaba distinto. */
+    var homeCotiza = (window.AppUrl && AppUrl.homePage) ? AppUrl.homePage() : 'dashboard';
+
     return '<nav class="app-switch" aria-label="Funciones">' +
       '<span class="app-switch-lbl">Funciones</span>' +
       it('portal', 'portal', IC_GLOBE, 'Portal', 'Información y procesos') +
-      it('cotizaciones', 'dashboard', IC_DOC, 'Cotizaciones', 'Crear, consultar y enviar') +
+      it('cotizaciones', homeCotiza, IC_DOC, 'Cotizaciones', 'Crear, consultar y enviar') +
       it('correos', 'correo_cliente', IC_MAILP, 'Enviar un Correo', 'Plantillas y envíos') +
       bloqueGestion +
       '</nav>';
@@ -335,6 +344,12 @@
          gestion.map(function (p) { return link(p.page, p.nombre, ICONO_GESTION[p.page] || IC_GEAR); }).join(''))
       : '';
 
+    /* T1.5: «Inicio» respeta el rol, igual que el conmutador de arriba. Antes
+       apuntaba fijo a 'dashboard' y a un supervisor este botón lo bajaba al inicio
+       de asesor mientras las otras tres puertas (login, Portal, buscador) lo
+       mandaban al panel avanzado. */
+    var homeRol = (window.AppUrl && AppUrl.homePage) ? AppUrl.homePage() : 'dashboard';
+
     return '' +
       '<div class="side-brand">' +
         '<img src="' + LOGO + '" alt="Liverpool" onerror="this.onerror=null;this.outerHTML=\'<span style=&quot;color:#fff;font-weight:900;font-size:16px&quot;>Liverpool</span>\'">' +
@@ -343,7 +358,7 @@
       '</div>' +
       appSwitchHTML(active) +
       '<span class="side-label">Panel</span>' +
-      link('dashboard', 'Inicio', IC_HOME) +
+      link(homeRol, 'Inicio', IC_HOME) +
       /* Atenciones va JUSTO debajo de Inicio y fuera del apartado de Cotizaciones, a
          propósito. No es una cotización: es un cliente esperando una llamada, y el
          orden de la barra es el orden de urgencia. Si estuviera agrupado con "Nueva
@@ -359,7 +374,14 @@
         : '') +
       apartado('Cotizaciones', [
         ['cotizar',           'cotizacion',       'Nueva cotización',         IC_DOC],
-        ['enviar_cotizacion', 'correoventel',     'Enviar cotización',        IC_MAIL],
+        ['enviar_cotizacion', 'correoventel',     'Enviar cotización',        IC_MAIL]
+      ]) +
+      /* T1.7: «Enviar correo a clientes» ya no vive dentro de Cotizaciones: son
+         plantillas de correo al cliente, no parte del flujo de cotizar, y el
+         conmutador de áreas de arriba ya lo trataba como área aparte. Un apartado
+         de un solo enlace es seguro: apartado() colapsa el rótulo si el bloque no
+         está concedido. */
+      apartado('Correos', [
         ['correos_cliente',   'correo_cliente',   'Enviar correo a clientes', IC_MAILP]
       ]) +
       bloqueGestion +
@@ -477,6 +499,10 @@
       var main = document.getElementById('main-content');
       if (!main) { console.warn('AppShell: no se encontró #main-content'); return; }
       mounted = true;
+
+      // La pantalla queda declarada para AppUrl.reflejar(): escribir la URL sin
+      // `page` la dejaría cayendo en el Portal al recargar.
+      if (opts.active && window.AppUrl && AppUrl.declararPagina) AppUrl.declararPagina(opts.active);
 
       var root = document.createElement('div'); root.className = 'app';
       var aside = document.createElement('aside'); aside.className = 'sidebar'; aside.id = 'appSidebar';

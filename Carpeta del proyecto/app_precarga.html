@@ -639,6 +639,9 @@
     aqui: function (page) {
       if (!page || aquiEstoy === page) return;
       aquiEstoy = String(page);
+      // Las pantallas sin shell (estado, Index) declaran aquí quiénes son: se
+      // aprovecha para que AppUrl.reflejar() también lo sepa.
+      if (window.AppUrl && AppUrl.declararPagina) AppUrl.declararPagina(aquiEstoy);
       programarApuesta();
     },
 

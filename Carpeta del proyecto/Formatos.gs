@@ -4,7 +4,7 @@
  * =================================================================================================
  * Gestiona los distintos formatos con los que se puede imprimir/enviar una cotización:
  *
- *  1. 'actual'        -> El PDF que se arma desde HTML (generateQuoteHtml en Correos.gs).
+ *  1. 'actual'        -> El PDF que se arma desde HTML (generateQuoteHtml_ en Correos.gs).
  *  2. 'ccl_liverpool' -> El formato oficial CCL. Se genera copiando la Google Sheet plantilla,
  *                        llenándola y exportándola a PDF, que es el mismo camino que se hacía
  *                        a mano y por eso conserva la fidelidad del formato.
@@ -271,7 +271,7 @@ function generateQuotePdfBlob(folio, formatId) {
 
   let format = formatId;
   if (!format) {
-    const stored = getQuoteDetails(folio);
+    const stored = cotDetalleFolio_(folio);
     format = (stored.success && stored.quote.format) ? stored.quote.format : DEFAULT_FORMAT_ID;
     Logger.log(`generateQuotePdfBlob: no llegó formato, se usa el guardado '${format}' (folio ${folio}).`);
   }
@@ -287,7 +287,7 @@ function generateQuotePdfBlob(folio, formatId) {
   if (format === "ccl_liverpool") return generateCclPdfBlob_(folio);
 
   // Formato 'actual': el PDF que ya se armaba desde HTML.
-  const htmlResponse = generateQuoteHtml(folio);
+  const htmlResponse = generateQuoteHtml_(folio);
   if (!htmlResponse.success) throw new Error(htmlResponse.message);
 
   return Utilities.newBlob(htmlResponse.html, "text/html", `Cotizacion_${folio}.html`)
@@ -305,7 +305,7 @@ function generateCclPdfBlob_(folio) {
   const availability = checkFormatAvailability_("ccl_liverpool");
   if (!availability.available) throw new Error(availability.reason);
 
-  const quoteResponse = getQuoteDetails(folio);
+  const quoteResponse = cotDetalleFolio_(folio);
   if (!quoteResponse.success) throw new Error(quoteResponse.message);
   const quote = quoteResponse.quote;
 
@@ -660,14 +660,20 @@ function setQuoteColumnValue_(folio, columnName, value) {
  * @param {string} folio - Folio de la cotización.
  * @return {object} { success, url } o { success: false, message }
  */
-function openQuoteInSheets(folio) {
+function openQuoteInSheets(folio, emailCliente) {
   try {
+    // Candado de sesión (T1.4): devuelve la URL de un documento con los datos del
+    // cliente, así que exige identidad registrada como getQuoteDetails.
+    const gate = secIdentidad_(emailCliente);
+    if (!gate.ok) {
+      return { success: false, sinSesion: true, message: gate.error || 'Inicia sesión para abrir esta cotización.' };
+    }
     if (!folio) throw new Error("El folio es requerido.");
 
     const availability = checkFormatAvailability_("ccl_liverpool");
     if (!availability.available) throw new Error(availability.reason);
 
-    const quoteResponse = getQuoteDetails(folio);
+    const quoteResponse = cotDetalleFolio_(folio);
     if (!quoteResponse.success) throw new Error(quoteResponse.message);
 
     // Si ya se generó antes, se reutiliza el archivo; si lo borraron, se crea de nuevo.
@@ -820,8 +826,14 @@ function probarAccesoCcl() {
  * @param {string} formatId - Formato a usar.
  * @return {object} { success, fileName, mimeType, base64 } o { success: false, message }
  */
-function downloadQuotePdf(folio, formatId) {
+function downloadQuotePdf(folio, formatId, emailCliente) {
   try {
+    // Candado de sesión (T1.4): el PDF ES la cotización completa. Sin esto, el gate
+    // de getQuoteDetails se rodeaba pidiendo el documento en vez de los datos.
+    const gate = secIdentidad_(emailCliente);
+    if (!gate.ok) {
+      return { success: false, sinSesion: true, message: gate.error || 'Inicia sesión para descargar esta cotización.' };
+    }
     const blob = generateQuotePdfBlob(folio, formatId);
     return {
       success: true,

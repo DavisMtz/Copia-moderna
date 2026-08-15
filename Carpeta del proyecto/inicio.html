@@ -121,7 +121,10 @@
     <?!= include('app_atenciones'); ?>
     <script>
     document.addEventListener('DOMContentLoaded', () => {
-        if (!requireSession()) return;
+        // Con la clave de página: sin ella, el login no sabía a dónde devolver y un
+        // enlace a ?page=dashboard&q=… que caía sin sesión terminaba en el panel
+        // del rol, perdiendo la búsqueda que venía en el enlace.
+        if (!requireSession('dashboard')) return;
 
         // Marco lateral compartido con el Portal (envuelve el <main> y aporta sesión/tema).
         AppShell.mount({ active: 'dashboard', title: 'Panel' });
@@ -271,7 +274,7 @@
 
             // `busy: 'Abriendo'` en vez del rótulo genérico: lo que se está esperando
             // no es una consulta, es que se arme el documento en Sheets.
-            AppRun.call('openQuoteInSheets', [folio], { busy: 'Abriendo' })
+            AppRun.call('openQuoteInSheets', [folio, AppSession.userEmail], { busy: 'Abriendo' })
                 .then(response => {
                     setButtonLoadingState(button, false);
                     button.disabled = false;

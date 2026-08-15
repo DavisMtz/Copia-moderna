@@ -62,12 +62,15 @@ function formatCurrencyGS(amount) {
 
 /**
  * Genera el cuerpo HTML completo de una cotización para ser incrustado en un correo.
+ * PRIVADA (termina en _): la usan solo el envío de correos y el PDF 'actual'. Sin el
+ * guion bajo quedaba expuesta a google.script.run y entregaba la cotización completa
+ * sin sesión — el mismo agujero que se cerró en getQuoteDetails (T1.4).
  * @param {string} folio - El folio de la cotización.
  * @return {object} - Objeto con { success: true, html: '...' } o { success: false, message: '...' }.
  */
-function generateQuoteHtml(folio) {
+function generateQuoteHtml_(folio) {
   try {
-    const quoteResponse = getQuoteDetails(folio);
+    const quoteResponse = cotDetalleFolio_(folio);
     if (!quoteResponse.success) {
       return { success: false, message: "No pudimos leer los datos de la cotización para armar el correo." };
     }
@@ -235,18 +238,25 @@ function generateQuoteHtml(folio) {
     `;
     return { success: true, html: fullHtml };
   } catch (error) {
-    Logger.log(`Error en generateQuoteHtml para folio ${folio}: ${error.message}`);
+    Logger.log(`Error en generateQuoteHtml_ para folio ${folio}: ${error.message}`);
     return { success: false, message: "No pudimos preparar el documento de la cotización. Inténtalo de nuevo en un momento." };
   }
 }
 
 /**
  * Obtiene los detalles básicos de una cotización para rellenar el formulario de correo.
+ * Con candado de sesión (T1.4): entrega nombre y correo del cliente, así que exige
+ * identidad registrada igual que getQuoteDetails.
  * @param {string} folio - El folio de la cotización a buscar.
+ * @param {string} emailCliente - AppSession.userEmail de quien consulta.
  * @return {object} Un objeto con los datos del cliente.
  */
-function getQuoteDetailsForEmail(folio) {
+function getQuoteDetailsForEmail(folio, emailCliente) {
   try {
+    const gate = secIdentidad_(emailCliente);
+    if (!gate.ok) {
+      return { success: false, sinSesion: true, message: gate.error || 'Inicia sesión para consultar esta cotización.' };
+    }
     if (!folio) throw new Error("El folio es requerido.");
 
     const ss = SpreadsheetApp.getActiveSpreadsheet();
@@ -337,7 +347,7 @@ function sendQuoteByEmail(emailData) {
     const pdfBlob = generateQuotePdfBlob(emailData.folio, emailData.format);
 
     // 2. Obtener los detalles completos de la cotización para armar la plantilla HTML del correo
-    const quoteResponse = getQuoteDetails(emailData.folio);
+    const quoteResponse = cotDetalleFolio_(emailData.folio);
     if (!quoteResponse.success) {
       throw new Error("No se pudieron obtener los detalles de la cotización para armar la plantilla.");
     }
@@ -730,6 +740,17 @@ function sendQuoteByEmail(emailData) {
       for (let i = 1; i < cotDataValues.length; i++) {
           if (cotDataValues[i][folioColIdx] == emailData.folio) {
               cotizacionesSheet.getRange(i + 1, statusColIdx + 1).setValue("Enviada por Correo");
+              /* T1.6b: la fecha REAL del envío, en su propia columna. El Timestamp se
+                 pisa con cada guardado (Code.gs), así que editar una cotización ya
+                 enviada le cambiaba "su fecha" en el panel. FechaEnvio solo se escribe
+                 aquí: reenviar la actualiza (es un envío de verdad), editar no la toca
+                 (saveQuoteDataToSheets conserva las columnas que no maneja). La columna
+                 se auto-crea si la hoja no la tiene (patrón de 'Formato'). */
+              try {
+                setQuoteColumnValue_(emailData.folio, "FechaEnvio", new Date());
+              } catch (e) {
+                Logger.log('No se pudo escribir FechaEnvio para ' + emailData.folio + ': ' + e.message);
+              }
               // El estatus cambió: sin esto, el panel seguiría mostrando "Folio Generado"
               // hasta que caducara la caché (Cache.gs).
               if (typeof cotInvalidarCache_ === 'function') cotInvalidarCache_();

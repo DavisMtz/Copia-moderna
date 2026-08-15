@@ -378,7 +378,7 @@ function getRevisionCotizacion(folio, email) {
     // es exactamente lo que este flujo existe para impedir. Se lee la hoja directamente.
     const det = (typeof leerDetalleCotizacion_ === 'function')
       ? leerDetalleCotizacion_(folio)
-      : getQuoteDetails(folio);
+      : cotDetalleFolio_(folio);
     if (!det.success) return { success: false, message: det.message || 'Cotización no encontrada.' };
 
     const quote = det.quote;
@@ -505,7 +505,7 @@ function guardarRevisionCotizacion(payload) {
     let auditoria = null;
     try {
       const previo = (typeof leerDetalleCotizacion_ === 'function')
-        ? leerDetalleCotizacion_(folio) : getQuoteDetails(folio);
+        ? leerDetalleCotizacion_(folio) : cotDetalleFolio_(folio);
       if (previo.success) {
         auditoria = revAuditar_(previo.quote, previo.quote.products || []);
         if (p.verificaciones && typeof audAplicarPreciosEnVivo_ === 'function') {
@@ -580,7 +580,7 @@ function guardarRevisionCotizacion(payload) {
     // si Gmail falla, la revisión no se pierde, solo el correo.
     let avisoCorreo = '';
     try {
-      const det = getQuoteDetails(folio);
+      const det = cotDetalleFolio_(folio);
       quote = det.success ? det.quote : null;
       avisoCorreo = revNotificarAsesor_(quote, folio, nuevoEstado, id, notas, ahora);
     } catch (e) {
@@ -1093,7 +1093,7 @@ function revVerificarPreciosLote(folio, email) {
     if (!folio) return { ok: false, mensaje: 'Falta el folio.' };
 
     const det = (typeof leerDetalleCotizacion_ === 'function')
-      ? leerDetalleCotizacion_(folio) : getQuoteDetails(folio);
+      ? leerDetalleCotizacion_(folio) : cotDetalleFolio_(folio);
     if (!det.success) return { ok: false, mensaje: det.message || 'Cotización no encontrada.' };
 
     const productos = det.quote.products || [];
@@ -1272,7 +1272,7 @@ function revHojaCotizacion(folio, email) {
     if (!folio) return { ok: false, mensaje: 'Falta el folio.' };
 
     const det = (typeof leerDetalleCotizacion_ === 'function')
-      ? leerDetalleCotizacion_(folio) : getQuoteDetails(folio);
+      ? leerDetalleCotizacion_(folio) : cotDetalleFolio_(folio);
     if (!det.success) return { ok: false, mensaje: det.message || 'Cotización no encontrada.' };
 
     const ref = revSheetId_(det.quote.cclSheetLink || '');

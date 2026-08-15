@@ -351,7 +351,7 @@
                 console.error("Error en getQuoteDetailsForEmail:", error);
             };
 
-            AppRun.call('getQuoteDetailsForEmail', [folio], { busy: 'Buscando' })
+            AppRun.call('getQuoteDetailsForEmail', [folio, AppSession.userEmail], { busy: 'Buscando' })
                 .then(response => {
                     if (fx) fx.done();
                     if (fxDatos) fxDatos.done();
