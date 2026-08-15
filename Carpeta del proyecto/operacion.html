@@ -388,6 +388,9 @@
   <?!= include('app_loaders'); ?>
   <script>if (window.VentelFX) VentelFX.pagina("operacion");</script>
   <?!= include('app_shell'); ?>
+  <!-- Contorno vivo del buscador general: el filo que recorre el panel de
+       Ctrl+K. app_comando lo monta solo si este archivo esta presente. -->
+  <?!= include('app_aura'); ?>
   <?!= include('app_comando'); ?>
   <?!= include('app_precarga'); ?>
   <?!= include('app_operacion'); ?>

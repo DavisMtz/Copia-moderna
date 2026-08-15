@@ -451,6 +451,9 @@
     <script>if (window.VentelFX) VentelFX.pagina("consulta_cotizacion");</script>
     <?!= include('app_onboarding'); ?>
     <?!= include('LoaderPartial'); ?>
+    <!-- Contorno vivo del buscador general: el filo que recorre el panel de
+         Ctrl+K. app_comando lo monta solo si este archivo esta presente. -->
+    <?!= include('app_aura'); ?>
     <?!= include('app_comando'); ?>
     <?!= include('app_precarga'); ?>
     <!-- Sin shell: declara ella misma su pantalla (ver app_precarga.aqui). -->

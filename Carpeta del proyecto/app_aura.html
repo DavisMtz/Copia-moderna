@@ -4,51 +4,77 @@
      El buscador general llega a casi cualquier sitio de la aplicación —una
      herramienta, una paquetería, un proceso, un cliente que espera llamada— y
      aun así se lee como un campo de texto más. Esto es lo que lo distingue sin
-     gritar: un filo de color que respira, un destello que lo recorre de vez en
-     cuando y, al pasar el ratón, un barrido de luz.
+     gritar: un cono de luz que recorre el filo por su cuenta, se engancha al
+     puntero cuando hay puntero, y se enciende de verdad al acercarse al borde.
 
-     Cinco capas, y cada una hace una sola cosa:
+     QUÉ CAMBIÓ respecto de la primera versión. Antes el contorno era un anillo
+     de color girando: bonito, pero siempre igual de brillante en toda la vuelta
+     y ajeno a dónde estabas. Ahora el filo se pinta con una MALLA de color
+     —siete manchas rosas de distinta profundidad— y sobre ella una VENTANA
+     CÓNICA que sólo deja ver un sector. Eso cambia dos cosas:
+
+       · el color ya no es plano: según por dónde pase la ventana asoma el rosa
+         claro, el de marca o el profundo, y nunca dos vueltas iguales;
+       · la ventana tiene dirección, así que puede APUNTAR. En reposo gira sola;
+         con el ratón encima persigue al cursor; y su fuerza sube conforme el
+         cursor se acerca al borde —en el centro del campo apenas se nota, sobre
+         el filo se enciende del todo—.
+
+     Esa es la diferencia entre un adorno que gira y una superficie que responde.
+
+     Seis capas, y cada una hace una sola cosa:
 
        halo    · el suelo del contorno. Va bajísimo a propósito (.05 en reposo,
                  .16 con el cursor dentro): es lo que evita que el filo se corte
-                 en los tramos donde la onda no llega, no el protagonista. Un
+                 en los tramos donde el cono no llega, no el protagonista. Un
                  anillo macizo al 60 % se lee como un aviso de error.
-       onda    · un degradado cónico girando despacio. Es la que da la
-                 variación —tramos claros y tramos apagados recorriendo el
-                 contorno— y la que sube al enfocar.
-       energía · dientes finos girando al revés y parpadeando con tiempos
-                 irregulares. Cruzándose con la onda produce un batido que se
+       malla   · el corazón. Mesh de rosas de marca + ventana cónica. Gira sola
+                 en reposo, apunta al cursor cuando lo hay.
+       chispa  · dientes finos girando al revés y parpadeando con tiempos
+                 irregulares. Cruzándose con la malla produce un batido que se
                  lee como corriente. Va en el límite de lo perceptible (nivel 3
                  de 10); no está para verse, está para que el filo no parezca
                  pintado. Al enfocar no sube de brillo: acelera.
        luz     · un foco redondo que SIGUE AL PUNTERO por dentro del marco.
                  Como el campo tapa el centro, sólo se enciende el tramo de
-                 filo que queda junto al cursor. Es lo que convierte el borde
-                 de adorno que gira solo en superficie que responde, y es la
-                 pieza que más cambia la sensación del componente.
+                 filo que queda junto al cursor. Es el punto caliente dentro del
+                 arco largo que dibuja la malla.
        cometa  · el punzante. Un arco corto y brillante que da una vuelta rápida
                  y desaparece varios segundos. Al enfocar deja de esperar y
                  orbita seguido, porque entonces sí hay algo ocurriendo.
+       arco    · el resplandor de FUERA. Un anillo de sombras rosas al que se le
+                 aplica la misma ventana cónica, así que sólo resplandece el
+                 tramo hacia el que mira la malla. Es lo que hace que el campo
+                 parezca encenderse en lugar de cambiar de color.
 
      Y tres gestos que no son capas:
 
-       entrada · una sola vez al cargar, el cometa da una vuelta y el halo sube
-                 detrás. El contorno no aparece: se dibuja.
+       entrada · una sola vez al cargar, el cono da una vuelta completa —rápido
+                 al principio, frenando al final— y el halo sube detrás. El
+                 contorno no aparece: se dibuja.
        foco    · el campo se levanta 1 px, el icono crece un 12 % con
                  asentamiento y el chip del atajo se va hacia arriba. Un
                  componente responde entero o no responde.
-       tecleo  · la onda pulsa y la energía acelera de golpe para frenar
+       tecleo  · la malla pulsa y la chispa acelera de golpe para frenar
                  después. La subida y bajada del ritmo es lo que se lee como
                  "está recibiendo".
 
      Quien manda en reposo no es el color, es el suceso: el campo se ve casi
-     normal hasta que el cometa pasa. Un borde rosa permanente se convierte en
-     parte del mobiliario a los dos días; una vuelta cada siete segundos, no.
+     normal hasta que el cono pasa. Un borde rosa permanente se convierte en
+     parte del mobiliario a los dos días; una vuelta lenta con respiración, no.
 
-     Por qué giro y no gradiente animado: rotar un elemento es transform puro y
-     lo resuelve la GPU. Animar los grados de un `conic-gradient` obliga a
-     repintar el degradado entero en cada fotograma, y esto vive en la barra
+     POR QUÉ SE GIRA UN ELEMENTO Y NO EL ÁNGULO DEL DEGRADADO. La forma corta de
+     escribir esto es `conic-gradient(from var(--angulo))` y animar la variable.
+     Se ve igual y cuesta muchísimo más: cada fotograma obliga a rasterizar de
+     nuevo el degradado entero. Aquí la ventana cónica se declara UNA vez desde
+     0° y lo que gira es la capa que la lleva puesta —la máscara vive en el
+     espacio local del elemento, así que rota con él—. Resultado idéntico,
+     transform puro, lo resuelve el compositor. Importa: esto vive en la barra
      superior, que está fija en pantalla todo el día.
+
+     El resplandor exterior usa el mismo truco al revés: el contenedor rota para
+     llevarse la ventana cónica, y el anillo de sombras de dentro CONTRARROTA la
+     misma cantidad, así que se queda quieto mientras la ventana pasa por encima.
 
      Degradación (el contrato de la casa): sin GSAP o con `prefers-reduced-motion`
      no gira nada. Queda el halo, que responde al ratón y al foco con
@@ -62,7 +88,22 @@
        · auto(root)         -> monta todo [data-vx-aura] que encuentre
        · destroy(host)      -> mata las líneas de tiempo y quita el DOM
 
-     opts = { intensidad:'normal'|'sutil', energia:3, destello:true, radio:null }
+     opts = {
+       intensidad : 'normal' | 'sutil',
+       modo       : 'campo' | 'panel',   // 'panel' = el filo va por dentro
+       energia    : 3,                   // 0..10, el chisporroteo
+       destello   : true,                // el barrido al entrar el ratón
+       sigue      : true,                // el cono persigue al puntero
+       radio      : null                 // se lee del propio elemento
+     }
+
+     MODO PANEL. `campo` da por hecho lo de siempre: un `input` dentro de un
+     contenedor que no recorta, así que el marco puede salirse 1.5 px y el
+     resplandor 34 px más. La paleta de comandos no es eso —es una caja con
+     `overflow:hidden`, y ahí cualquier cosa que se salga desaparece—, así que
+     en `panel` el marco va por DENTRO (inset 0) y el contenido, con su fondo
+     opaco, deja asomar el filo por los cuatro lados. Sin arco exterior: lo
+     recortaría el propio panel. Ese resplandor lo pone el panel con su sombra.
 
      `energia` va de 0 a 10 y sale de `data-vx-energia`. Es el chisporroteo del
      filo: 0 lo apaga, 3 —el valor por omisión— lo deja en el límite de lo que
@@ -71,6 +112,30 @@
      No necesita ningún plugin: núcleo de GSAP y ya. Si no está, se queda quieto.
      ════════════════════════════════════════════════════════════════════════ -->
 <style>
+  /* ── Paleta y fuerza ──────────────────────────────────────────────────
+     Los colores son los de siempre —el rosa de marca y sus dos vecinos— y se
+     leen de los tokens del tema, así que el aura hereda aurora, slate y carbón
+     sin una sola regla por tema.
+
+     `--vx-fuerza` es el multiplicador global de todas las opacidades. En claro
+     va a 1; en carbón el mismo brillo se lee más flojo contra un fondo casi
+     negro, así que sube. Lo lee el JS UNA vez al montar. */
+  .vx-aura-host{
+    --vx-fuerza:1;
+    --vx-c1:var(--brand-bright,#EE2BAB);   /* el rosa que canta   */
+    --vx-c2:var(--brand,#E10098);          /* el rosa de marca    */
+    --vx-c3:var(--brand-deep,#A8006F);     /* la sombra del rosa  */
+    --vx-c4:#FFC2E8;                       /* el destello, casi blanco */
+    --vx-cono:22;                           /* medio ancho de la ventana, en % de la vuelta */
+    /* Cuánto se sale el resplandor. Treinta píxeles no es un número redondo por
+       gusto: el buscador vive en una barra superior con 13.6 px de aire arriba,
+       y todo lo que pase de ahí se derrama fuera de la barra. Treinta deja que
+       el halo se note sin que parezca que la barra gotea. */
+    --vx-glow:30px;
+  }
+  [data-theme="carbon"] .vx-aura-host{--vx-fuerza:1.3}
+  [data-theme="slate"]  .vx-aura-host{--vx-fuerza:1.06}
+
   /* ── El marco recortado ───────────────────────────────────────────────
      Se sale 1.5px del campo por los cuatro lados y recorta con el mismo radio,
      así lo único que asoma del disco que gira dentro es ese filo. El campo se
@@ -81,15 +146,20 @@
     border-radius:15px;                       /* lo ajusta el JS al del campo */
     overflow:hidden;
     pointer-events:none;
-    /* El resplandor exterior: lo que da profundidad y hace que el campo
-       parezca encenderse en vez de cambiar de color. Va por transición de CSS
-       y no por fotogramas —una sombra difuminada es de las cosas más caras de
-       repintar—, así que se paga sólo durante los 400 ms del cambio. */
+    /* Una sombra de apoyo, corta y difusa. El resplandor con dirección lo pone
+       el arco; ésta sólo da cuerpo, y va por transición de CSS —una sombra
+       difuminada es de las cosas más caras de repintar— para que se pague sólo
+       durante los 420 ms del cambio. */
     box-shadow:0 0 0 0 rgba(225,0,152,0);
     transition:box-shadow .42s cubic-bezier(.22,1,.36,1);
   }
-  .vx-aura-host:hover .vx-aura{box-shadow:0 5px 20px -9px rgba(225,0,152,.5)}
-  .vx-aura-host:focus-within .vx-aura{box-shadow:0 8px 28px -9px rgba(225,0,152,.66)}
+  .vx-aura-host:hover .vx-aura{box-shadow:0 5px 18px -10px rgba(225,0,152,.45)}
+  .vx-aura-host:focus-within .vx-aura{box-shadow:0 8px 26px -10px rgba(225,0,152,.6)}
+  /* En panel el filo va por dentro: el marco cubre la caja entera y es el
+     contenido, con su fondo opaco, el que deja asomar el borde. */
+  .vx-aura-panel > .vx-aura{inset:0}
+  .vx-aura-panel:hover .vx-aura,
+  .vx-aura-panel:focus-within .vx-aura{box-shadow:none}
 
   /* El filo de marca. Es la capa que se ve siempre, también sin GSAP.
      Su opacidad se declara AQUÍ y no desde JavaScript a propósito: un
@@ -110,8 +180,8 @@
      que GSAP se quede con `transform` entero y no haya que reescribir el
      centrado en cada fotograma. Cuadradas y más anchas que el campo: así
      cubren las esquinas en cualquier ángulo. */
-  .vx-aura-onda,
-  .vx-aura-energia,
+  .vx-aura-malla,
+  .vx-aura-chispa,
   .vx-aura-cometa{
     position:absolute;left:50%;top:50%;
     width:170%;min-width:260px;aspect-ratio:1;
@@ -120,26 +190,56 @@
     will-change:transform;
     opacity:0;                                /* las enciende el JS */
   }
+  /* El panel es ancho y bajo; con 170 % el disco no llega a las esquinas y el
+     filo se corta justo en los redondeos. Un disco que cubra la diagonal
+     entera resuelve cualquier proporción. */
+  .vx-aura-panel .vx-aura-malla,
+  .vx-aura-panel .vx-aura-chispa,
+  .vx-aura-panel .vx-aura-cometa{width:145%;min-width:0;aspect-ratio:auto;height:340%}
 
-  /* Onda: dos brazos opuestos con núcleo claro y caída larga. Los tramos
-     transparentes entre ellos son tan importantes como los brazos: son los que
-     hacen que se vea PASAR algo en vez de un anillo encendido. */
-  .vx-aura-onda{
-    background:conic-gradient(from 0deg,
-      transparent 0deg,
-      var(--brand-bright,#EE2BAB) 48deg,
-      color-mix(in srgb,var(--brand,#E10098) 55%,transparent) 78deg,
-      transparent 140deg,
-      transparent 190deg,
-      color-mix(in srgb,var(--brand,#E10098) 70%,transparent) 246deg,
-      var(--brand-bright,#EE2BAB) 268deg,
-      transparent 330deg,
-      transparent 360deg);
+  /* ── La malla ─────────────────────────────────────────────────────────
+     Siete manchas de rosa a distinta profundidad sobre una base de marca. No
+     es decoración: es lo que hace que el filo tenga COLOR variable en vez de
+     un tono plano. Al girar, la ventana cónica va descubriendo unas y tapando
+     otras, y por eso ninguna vuelta se parece a la anterior.
+
+     Las posiciones están repartidas a ojo y desiguales a propósito. En una
+     rejilla regular el ojo encuentra el patrón en dos vueltas y el efecto se
+     convierte en una rueda de colores girando. */
+  .vx-aura-malla{
+    background:
+      radial-gradient(at 80% 55%, var(--vx-c1) 0px, transparent 50%),
+      radial-gradient(at 69% 34%, var(--vx-c4) 0px, transparent 50%),
+      radial-gradient(at  8%  6%, var(--vx-c3) 0px, transparent 50%),
+      radial-gradient(at 41% 38%, var(--vx-c2) 0px, transparent 50%),
+      radial-gradient(at 86% 85%, var(--vx-c3) 0px, transparent 50%),
+      radial-gradient(at 82% 18%, var(--vx-c1) 0px, transparent 50%),
+      radial-gradient(at 51%  4%, var(--vx-c4) 0px, transparent 50%),
+      linear-gradient(var(--vx-c2) 0 100%);
+
+    /* La ventana. Se declara desde 0° y NO se anima nunca: lo que gira es el
+       elemento, y la máscara —que vive en su espacio local— gira con él.
+       Los tramos de transparencia a los lados son los que hacen que el cono
+       tenga filos suaves en vez de dos cortes rectos. */
+    -webkit-mask-image:conic-gradient(from 0deg at center,
+      #000 0%,
+      #000 calc(var(--vx-cono) * 1%),
+      transparent calc((var(--vx-cono) + 14) * 1%),
+      transparent calc((86 - var(--vx-cono)) * 1%),
+      #000 calc((100 - var(--vx-cono)) * 1%),
+      #000 100%);
+            mask-image:conic-gradient(from 0deg at center,
+      #000 0%,
+      #000 calc(var(--vx-cono) * 1%),
+      transparent calc((var(--vx-cono) + 14) * 1%),
+      transparent calc((86 - var(--vx-cono)) * 1%),
+      #000 calc((100 - var(--vx-cono)) * 1%),
+      #000 100%);
   }
 
-  /* Energía: nueve dientes estrechos y desiguales girando AL REVÉS que la onda.
+  /* Chispa: nueve dientes estrechos y desiguales girando AL REVÉS que la malla.
      Es la capa que da la sensación de corriente, y no lo hace por sí sola: lo
-     hace al cruzarse con la onda. Dos cónicos de distinto paso girando en
+     hace al cruzarse con la malla. Dos cónicos de distinto paso girando en
      sentidos opuestos se refuerzan y se cancelan a lo largo del filo, y ese
      batido —que nunca cae dos veces en el mismo sitio, porque 26 s y 9.5 s no
      encajan— es lo que se lee como carga y no como "algo dando vueltas".
@@ -150,26 +250,26 @@
 
      Va bajísima —el nivel 3 por defecto la deja en .11 de opacidad— porque a
      partir de ahí deja de ser una textura y empieza a ser un adorno. */
-  .vx-aura-energia{
+  .vx-aura-chispa{
     background:conic-gradient(from 0deg,
       transparent 0deg,
-      var(--brand-bright,#EE2BAB) 7deg,   transparent 14deg,
+      var(--vx-c1)  7deg,  transparent 14deg,
       transparent 38deg,
-      #fff 43deg,                          transparent 48deg,
+      var(--vx-c4) 43deg,  transparent 48deg,
       transparent 74deg,
-      var(--brand-bright,#EE2BAB) 83deg,  transparent 92deg,
+      var(--vx-c1) 83deg,  transparent 92deg,
       transparent 121deg,
-      var(--brand,#E10098) 125deg,        transparent 130deg,
+      var(--vx-c2) 125deg, transparent 130deg,
       transparent 168deg,
-      #fff 175deg,                         transparent 181deg,
+      var(--vx-c4) 175deg, transparent 181deg,
       transparent 204deg,
-      var(--brand-bright,#EE2BAB) 212deg, transparent 219deg,
+      var(--vx-c1) 212deg, transparent 219deg,
       transparent 253deg,
-      var(--brand,#E10098) 261deg,        transparent 265deg,
+      var(--vx-c2) 261deg, transparent 265deg,
       transparent 296deg,
-      #fff 304deg,                         transparent 311deg,
+      var(--vx-c4) 304deg, transparent 311deg,
       transparent 335deg,
-      var(--brand-bright,#EE2BAB) 341deg, transparent 349deg,
+      var(--vx-c1) 341deg, transparent 349deg,
       transparent 360deg);
   }
 
@@ -180,22 +280,19 @@
     background:conic-gradient(from 0deg,
       transparent 0deg,
       transparent 292deg,
-      color-mix(in srgb,var(--brand,#E10098) 45%,transparent) 320deg,
-      var(--brand-bright,#EE2BAB) 340deg,
+      color-mix(in srgb,var(--vx-c2) 45%,transparent) 320deg,
+      var(--vx-c1) 340deg,
       #fff 347deg,
-      var(--brand-bright,#EE2BAB) 352deg,
+      var(--vx-c1) 352deg,
       transparent 360deg);
   }
 
   /* Luz de puntero: un foco redondo que sigue al ratón por dentro del marco.
      Como el campo tapa el centro, lo único que se enciende es el tramo de filo
-     que queda junto al cursor — el borde deja de ser un adorno que gira solo y
-     pasa a ser una superficie que reacciona a dónde estás.
+     que queda junto al cursor. La malla dibuja el arco largo; esto pone el
+     punto caliente exactamente donde está la mano.
 
-     Es la pieza que más cambia la sensación del componente, y la más barata:
-     dos `quickTo` sobre x/y, transform puro. El listener de movimiento sólo
-     existe mientras el ratón está encima; fuera de ahí no hay nada escuchando.
-
+     Es la pieza más barata de todas: dos `quickTo` sobre x/y, transform puro.
      El margen negativo centra el círculo en (x,y) sin gastar el `transform`,
      que es de GSAP. */
   .vx-aura-luz{
@@ -203,12 +300,64 @@
     width:172px;height:172px;margin:-86px 0 0 -86px;
     border-radius:50%;
     background:radial-gradient(circle closest-side,
-      color-mix(in srgb,#fff 55%,var(--brand-bright,#EE2BAB)) 0%,
-      var(--brand-bright,#EE2BAB) 32%,
-      color-mix(in srgb,var(--brand,#E10098) 60%,transparent) 58%,
+      color-mix(in srgb,#fff 55%,var(--vx-c1)) 0%,
+      var(--vx-c1) 32%,
+      color-mix(in srgb,var(--vx-c2) 60%,transparent) 58%,
       transparent 78%);
     opacity:0;will-change:transform;pointer-events:none;
   }
+
+  /* ── El resplandor de fuera ───────────────────────────────────────────
+     Un anillo de seis sombras rosas que envuelve el campo. Lo interesante no es
+     el anillo: es que va dentro de un contenedor con la MISMA ventana cónica que
+     la malla, así que sólo resplandece el tramo hacia el que mira el cono.
+
+     El contenedor rota para llevarse la ventana; el anillo contrarrota lo
+     mismo y por tanto se queda quieto. Las dos son `transform` sobre capas ya
+     compuestas: el anillo se rasteriza una vez y después sólo se compone.
+
+     Se sale 30 px por los cuatro lados, así que el host no puede recortar. En
+     `modo:'panel'` esta capa ni se crea. */
+  .vx-aura-arco{
+    position:absolute;inset:calc(var(--vx-glow) * -1);z-index:0;
+    pointer-events:none;opacity:0;will-change:transform;
+    -webkit-mask-image:conic-gradient(from 0deg at center,
+      #000 0%,
+      #000 calc(var(--vx-cono) * 1%),
+      transparent calc((var(--vx-cono) + 16) * 1%),
+      transparent calc((84 - var(--vx-cono)) * 1%),
+      #000 calc((100 - var(--vx-cono)) * 1%),
+      #000 100%);
+            mask-image:conic-gradient(from 0deg at center,
+      #000 0%,
+      #000 calc(var(--vx-cono) * 1%),
+      transparent calc((var(--vx-cono) + 16) * 1%),
+      transparent calc((84 - var(--vx-cono)) * 1%),
+      #000 calc((100 - var(--vx-cono)) * 1%),
+      #000 100%);
+  }
+  /* Seis sombras y ninguna `inset`: el anillo cae justo debajo del campo, que es
+     opaco y del mismo tamaño, así que todo lo que pintara hacia dentro quedaría
+     tapado —coste de pintado a cambio de nada—. Lo que se ve es sólo lo que se
+     derrama hacia fuera, y por eso el desenfoque mayor (24 + 3) se queda por
+     debajo de los 30 px del contenedor: la máscara recorta en su borde, y una
+     sombra que llegue hasta el filo se corta en seco en vez de desvanecerse. */
+  .vx-aura-arco > i{
+    position:absolute;inset:var(--vx-glow);
+    border-radius:15px;                        /* lo ajusta el JS */
+    will-change:transform;
+    box-shadow:
+      0 0 1px 0    color-mix(in srgb,var(--vx-c1) 60%,transparent),
+      0 0 3px 0    color-mix(in srgb,var(--vx-c1) 50%,transparent),
+      0 0 6px 0    color-mix(in srgb,var(--vx-c1) 40%,transparent),
+      0 0 12px 0   color-mix(in srgb,var(--vx-c2) 32%,transparent),
+      0 0 18px 2px color-mix(in srgb,var(--vx-c2) 22%,transparent),
+      0 0 24px 3px color-mix(in srgb,var(--vx-c2) 14%,transparent);
+  }
+  /* Sobre fondo casi negro el resplandor sólo suma: `plus-lighter` es lo que
+     hace que se vea como luz de verdad y no como pintura rosa. En claro suma
+     hacia el blanco y desaparece, así que ahí va normal. */
+  [data-theme="carbon"] .vx-aura-arco{mix-blend-mode:plus-lighter}
 
   /* Destello: va POR ENCIMA del campo, porque barre el ancho del campo y no
      su contorno. Banda estrecha, inclinada y con el filo delantero de marca.
@@ -224,9 +373,9 @@
     display:block;
     background:linear-gradient(100deg,
       transparent 0%,
-      color-mix(in srgb,var(--brand,#E10098) 30%,transparent) 38%,
-      color-mix(in srgb,#fff 88%,var(--brand-bright,#EE2BAB)) 50%,
-      color-mix(in srgb,var(--brand,#E10098) 22%,transparent) 62%,
+      color-mix(in srgb,var(--vx-c2) 30%,transparent) 38%,
+      color-mix(in srgb,#fff 88%,var(--vx-c1)) 50%,
+      color-mix(in srgb,var(--vx-c2) 22%,transparent) 62%,
       transparent 100%);
     mix-blend-mode:soft-light;
     will-change:transform;
@@ -237,6 +386,30 @@
      para que valga desde el primer fotograma y no haya un parpadeo. */
   .vx-aura-host > input,
   .vx-aura-host > textarea{position:relative;z-index:1}
+
+  /* Y los acompañantes por encima del campo. Esto NO es un detalle de estilo,
+     es lo que arregla que la lupa y el chip del atajo desaparecieran en cuanto
+     el aura se montaba:
+
+     el icono, el chip y el botón de limpiar van `position:absolute` sin z-index
+     propio, y el orden de pintado deja para el final todo lo que tenga z-index
+     positivo. El campo, al subir a 1 para tapar el disco que gira, pasaba a
+     pintarse DESPUÉS que ellos — y con su fondo opaco encima, los borraba.
+
+     Se sube a 2, que es la capa del destello: el brillo va después en el árbol,
+     así que sigue barriendo por encima de todos. */
+  .vx-aura-host > .s-icon,
+  .vx-aura-host > .s-kbd,
+  .vx-aura-host > .s-clear,
+  .vx-aura-host > .icon-search,
+  .vx-aura-host > .search-clear,
+  .vx-aura-host > [data-vx-icono],
+  .vx-aura-host > [data-vx-atajo]{z-index:2}
+  /* En panel el contenido es un bloque cualquiera, no un campo: lo que suba por
+     encima del marco es todo lo que no sea una capa del aura. */
+  .vx-aura-panel > :not(.vx-aura):not(.vx-aura-brillo):not(.vx-aura-arco){
+    position:relative;z-index:1;
+  }
 
   /* El borde propio del campo se templa hacia el color de marca. Sin esto se
      leen DOS anillos —el filete gris de siempre y el filo rosa por fuera— y
@@ -285,8 +458,8 @@
   .vx-aura-sutil:focus-within .vx-aura-halo{opacity:.12}
 
   @media (prefers-reduced-motion: reduce){
-    .vx-aura-onda,.vx-aura-energia,.vx-aura-cometa,
-    .vx-aura-luz,.vx-aura-brillo{display:none}
+    .vx-aura-malla,.vx-aura-chispa,.vx-aura-cometa,
+    .vx-aura-luz,.vx-aura-brillo,.vx-aura-arco{display:none}
   }
 </style>
 <script>
@@ -300,36 +473,58 @@
     && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
   function anima() { return typeof window.gsap !== 'undefined' && !reducido; }
 
-  /* Opacidades del halo por estado. Todo el componente habla con esta escala:
-     reposo casi invisible, encima presente, dentro encendido. */
   /* Opacidades del halo. Son bajas a propósito: el halo es el suelo del
-     contorno, no su protagonista. Lo que se ve moverse es la onda, y lo que
+     contorno, no su protagonista. Lo que se ve moverse es la malla, y lo que
      llama es el cometa; un anillo macizo al 60 % se lee como un aviso de
      error, no como un campo vivo. */
   var HALO = { reposo: .05, encima: .14, dentro: .16 };
   var HALO_SUTIL = { reposo: .035, encima: .1, dentro: .12 };
 
+  /* Opacidades de la malla y del arco por estado. La malla nunca baja del .3
+     —es la que sostiene el color del filo— y el arco sí, porque un resplandor
+     exterior permanente convierte la barra superior en un letrero. */
+  var MALLA = { reposo: .34, encima: .58, dentro: .74 };
+  var ARCO  = { reposo: .20, encima: .52, dentro: .78 };
+
+  /* Cuánto respira en reposo: la malla sube y baja un 12 % cada cinco segundos
+     y pico. Sin esto la vuelta es de una regularidad de reloj, y un reloj se
+     deja de mirar; con esto el contorno parece que está pensando. */
+  var RESPIRA = 5.6;
+
   function campoDe(host) {
     return host.querySelector('input, textarea');
   }
 
-  /* El radio se lee del campo real en vez de escribirse aquí: el buscador del
-     Portal usa 13px y el de Promociones `--rad-md` (12px), y mañana serán
-     otros. Se le suma el 1.5 que el marco se sale por fuera, que es lo que
-     mantiene las dos curvas concéntricas; con cualquier otro número las
-     esquinas se separan y el filo engorda justo en los redondeos. Es una sola
-     lectura de estilo al montar, no una por fotograma. */
-  function radioDe(campo, host) {
-    try {
-      var r = getComputedStyle(campo).borderTopLeftRadius;
-      var n = parseFloat(r);
-      if (!isNaN(n) && n > 0) return (n + 1.5) + 'px';
-    } catch (e) {}
+  /* El radio se lee del elemento real en vez de escribirse aquí: el buscador
+     del Portal usa 13px, el de Promociones `--rad-md` (12px) y el panel de
+     comandos 18px. En modo campo se le suma el 1.5 que el marco se sale por
+     fuera, que es lo que mantiene las dos curvas concéntricas; con cualquier
+     otro número las esquinas se separan y el filo engorda justo en los
+     redondeos. Es una sola lectura de estilo al montar, no una por fotograma. */
+  function radioDe(campo, host, fuera) {
+    var extra = fuera ? 1.5 : 0;
+    if (campo) {
+      try {
+        var n = parseFloat(getComputedStyle(campo).borderTopLeftRadius);
+        if (!isNaN(n) && n > 0) return (n + extra) + 'px';
+      } catch (e) {}
+    }
     try {
       var rh = parseFloat(getComputedStyle(host).borderTopLeftRadius);
-      if (!isNaN(rh) && rh > 0) return (rh + 1.5) + 'px';
+      if (!isNaN(rh) && rh > 0) return (rh + extra) + 'px';
     } catch (e) {}
-    return '15px';
+    return (13 + extra) + 'px';
+  }
+
+  /* El multiplicador del tema. Una lectura de estilo al montar; si el tema
+     cambia en caliente el aura se queda con el valor con el que nació, que es
+     una diferencia de brillo que nadie va a notar y ahorra un observador. */
+  function fuerzaDe(host) {
+    try {
+      var v = parseFloat(getComputedStyle(host).getPropertyValue('--vx-fuerza'));
+      if (!isNaN(v) && v > 0) return Math.min(1.6, v);
+    } catch (e) {}
+    return 1;
   }
 
   function crearCapa(clase) {
@@ -340,22 +535,26 @@
   }
 
   /**
-   * Monta el aura en un contenedor que ya envuelve a un campo de texto.
-   * El contenedor tiene que ser `position:relative` (los dos buscadores ya lo son).
+   * Monta el aura en un contenedor `position:relative`.
+   * En modo campo tiene que envolver a un input/textarea; en modo panel vale
+   * cualquier caja con fondo propio (la paleta de comandos, por ejemplo).
    */
   function mount(host, opts) {
     if (!host || host.hasAttribute('data-vx-listo')) return null;
-    var campo = campoDe(host);
-    if (!campo) return null;
     opts = opts || {};
+    var panel = opts.modo === 'panel';
+    var campo = campoDe(host);
+    if (!campo && !panel) return null;
 
     var sutil = opts.intensidad === 'sutil';
     host.setAttribute('data-vx-listo', '1');
     host.classList.add('vx-aura-host');
     if (sutil) host.classList.add('vx-aura-sutil');
+    if (panel) host.classList.add('vx-aura-panel');
 
     var escala = sutil ? HALO_SUTIL : HALO;
-    var radio  = opts.radio || radioDe(campo, host);
+    var fuerza = fuerzaDe(host) * (sutil ? .78 : 1);
+    var radio  = opts.radio || radioDe(panel ? null : campo, host, !panel);
 
     /* Nivel de energía, de 0 a 10. El 10 no llega ni a .4 de opacidad: pasado
        ese punto la textura se convierte en un adorno y el filo deja de leerse
@@ -364,7 +563,7 @@
     var nivel = opts.energia;
     if (nivel === undefined || nivel === null || isNaN(nivel)) nivel = 3;
     nivel = Math.max(0, Math.min(10, Number(nivel)));
-    var ENE = { reposo: nivel * .036, viva: nivel * .058 };
+    var ENE = { reposo: nivel * .036 * fuerza, viva: nivel * .058 * fuerza };
 
     /* ── DOM ──────────────────────────────────────────────────────────
        El marco va como PRIMER hijo: así queda por debajo del icono, del
@@ -372,17 +571,33 @@
        z-index propio, y por debajo del desplegable de resultados. */
     var marco  = crearCapa('vx-aura');
     var halo   = crearCapa('vx-aura-halo');
-    var onda   = crearCapa('vx-aura-onda');
-    var energia = crearCapa('vx-aura-energia');
+    var malla  = crearCapa('vx-aura-malla');
+    var chispa = crearCapa('vx-aura-chispa');
     var luz    = crearCapa('vx-aura-luz');
     var cometa = crearCapa('vx-aura-cometa');
     marco.style.borderRadius = radio;
     marco.appendChild(halo);
-    marco.appendChild(onda);
-    marco.appendChild(energia);
+    marco.appendChild(malla);
+    marco.appendChild(chispa);
     marco.appendChild(luz);
     marco.appendChild(cometa);
     host.insertBefore(marco, host.firstChild);
+
+    /* El resplandor exterior. Sólo en modo campo: en un contenedor que recorta
+       se perdería entero, y peor aún, obligaría a quitarle el recorte al panel
+       para nada. */
+    var arco = null, anillo = null;
+    if (!panel) {
+      arco = crearCapa('vx-aura-arco');
+      anillo = document.createElement('i');
+      /* El anillo cae exactamente sobre el host —no sobre el marco, que se sale
+         1.5 px—, así que lleva el radio del campo tal cual: con el del marco,
+         el resplandor saldría de una esquina más abierta que la del campo y en
+         los redondeos se vería despegado. */
+      anillo.style.borderRadius = radioDe(campo, host, false);
+      arco.appendChild(anillo);
+      host.insertBefore(arco, host.firstChild);
+    }
 
     /* Los dos acompañantes del campo. Puede no haberlos —el buscador de
        Promociones no tiene chip de atajo— y todo el módulo lo da por hecho. */
@@ -399,9 +614,9 @@
     }
 
     var api = {
-      host: host, marco: marco, halo: halo,
-      onda: onda, energia: energia, luz: luz, cometa: cometa, brillo: brillo,
-      nivel: nivel, tls: [], oyentes: []
+      host: host, marco: marco, halo: halo, malla: malla, chispa: chispa,
+      luz: luz, cometa: cometa, arco: arco, brillo: brillo,
+      nivel: nivel, panel: panel, tls: [], oyentes: []
     };
     host._vxAura = api;
 
@@ -417,7 +632,13 @@
 
     var ctx = gsap.context(function () {
 
-      gsap.set([onda, energia, cometa], { opacity: 0, rotation: 0 });
+      gsap.set([malla, chispa, cometa], { opacity: 0, rotation: 0 });
+      /* Quien se enciende y se apaga es el CONTENEDOR del resplandor. El anillo
+         de dentro va siempre a opacidad plena: sólo se le toca la rotación, que
+         es la que lo mantiene quieto mientras la ventana cónica pasa por encima.
+         Apagarlo aquí junto al contenedor —que es lo que parece natural al
+         escribirlo— deja el resplandor invisible para siempre. */
+      if (arco) { gsap.set(arco, { opacity: 0, rotation: 0 }); gsap.set(anillo, { rotation: 0 }); }
 
       /* El icono y el atajo van centrados con `transform:translateY(-50%)` en
          el CSS de cada pantalla. En cuanto GSAP les anime la escala reescribe
@@ -427,7 +648,7 @@
       if (icono) gsap.set(icono, { yPercent: -50 });
       if (atajo) gsap.set(atajo, { yPercent: -50 });
 
-      /* Los dos estados del componente. Se declaran arriba porque la energía
+      /* Los dos estados del componente. Se declaran arriba porque la chispa
          los consulta en cada parpadeo. */
       var dentro = false, encima = false;
       function eneTecho() {
@@ -436,27 +657,85 @@
         return ENE.reposo;
       }
 
-      /* La onda gira siempre, muy despacio y muy tenue. Es transform sobre
-         un elemento pequeño: la GPU ni se entera. */
-      var tlOnda = gsap.timeline()
-        .to(onda, { opacity: .38, duration: 1.2, ease: 'power1.out' })
-        .to(onda, { rotation: 360, duration: 26, ease: 'none', repeat: -1 }, 0);
+      /* ── EL CONO ──────────────────────────────────────────────────────
+         Un solo número —`giro.a`, grados— manda sobre las tres capas que
+         llevan la ventana cónica. Se escribe con `quickSetter`, que salta la
+         maquinaria de tweens y va directo al transform; y se escriben las tres
+         en el MISMO paso, que es lo que mantiene el anillo contrarrotado
+         clavado en su sitio. Con tres tweens separados bastaría un fotograma
+         de desfase para que el resplandor temblara. */
+      var giro = { a: 0 };
+      var ponMalla  = gsap.quickSetter(malla, 'rotation', 'deg');
+      var ponArco   = arco ? gsap.quickSetter(arco, 'rotation', 'deg') : null;
+      var ponAnillo = arco ? gsap.quickSetter(anillo, 'rotation', 'deg') : null;
+      function aplicaGiro() {
+        ponMalla(giro.a);
+        if (ponArco) { ponArco(giro.a); ponAnillo(-giro.a); }
+      }
 
-      /* La energía: gira al revés y mucho más rápido, y encima parpadea con
+      /* En reposo el cono da una vuelta cada 26 segundos. Es lento a propósito:
+         a esa velocidad no se mira, se percibe. `'+=360'` con `repeat:-1` deja
+         el ángulo donde estaba al final de cada vuelta, así que la reanudación
+         después de una persecución no da ningún salto — basta con `invalidate()`
+         para que relea el valor de partida. */
+      var tlGiro = gsap.to(giro, {
+        a: '+=360', duration: 26, ease: 'none', repeat: -1, onUpdate: aplicaGiro
+      });
+
+      /* Perseguir al puntero es mover ese mismo número, no otro camino de
+         código: `quickTo` reutiliza un tween en lugar de crear sesenta por
+         segundo, y su medio segundo de retraso es lo que hace que el cono
+         parezca tener peso en vez de ir pegado al cursor.
+
+         `overwrite:'auto'` —aquí y en los dos seguidores de opacidad de abajo—
+         está por un caso concreto: si el ratón llega mientras la ENTRADA todavía
+         dibuja el contorno, hay dos animaciones escribiendo el mismo ángulo y la
+         misma opacidad, y gana la que renderice última, o sea la enlatada. Con
+         esto, en cuanto hay una mano de por medio la entrada suelta lo que
+         estuviera llevando. Mata sólo tweens ACTIVOS, así que el giro lento, que
+         para entonces está pausado, sobrevive intacto. */
+      var giroA = gsap.quickTo(giro, 'a', {
+        duration: .55, ease: 'power3', onUpdate: aplicaGiro, overwrite: 'auto'
+      });
+
+      /* La intensidad. Sale de la CERCANÍA AL BORDE, no de "hay un ratón
+         encima": en el centro del campo el aura apenas se mueve y sobre el filo
+         se enciende. Es lo que convierte el efecto en algo que se puede
+         provocar a voluntad, que es de donde sale la sensación de superficie. */
+      var mallaA = gsap.quickTo(malla, 'opacity', { duration: .35, ease: 'power2', overwrite: 'auto' });
+      var arcoA  = arco ? gsap.quickTo(arco, 'opacity', { duration: .4, ease: 'power2', overwrite: 'auto' }) : null;
+
+      /* La respiración de reposo. Va aparte del giro para poder pausarla en
+         cuanto hay una mano de por medio: cuando el usuario manda, el
+         componente deja de hacer sus cosas. */
+      var tlRespira = gsap.timeline({ repeat: -1, yoyo: true, paused: true })
+        .to(malla, { opacity: MALLA.reposo * fuerza * 1.28, duration: RESPIRA, ease: 'sine.inOut' }, 0);
+      if (arco) tlRespira.to(arco, { opacity: ARCO.reposo * fuerza * 1.4, duration: RESPIRA, ease: 'sine.inOut' }, 0);
+      api.tls.push(tlRespira);
+
+      /* Siempre por aquí, nunca `tlRespira.play(0)` a pelo. Un timeline recuerda
+         el valor con el que EMPEZÓ la primera vez —aquí, opacidad 0, porque se
+         construye antes de la entrada—, así que reanudarlo sin invalidar haría
+         parpadear el filo hasta apagarlo. `invalidate()` le hace releer dónde
+         está la capa ahora, que es justo el nivel de reposo al que la acaba de
+         dejar quien llama. */
+      function respiraOtraVez() {
+        if (dentro || encima || document.hidden) return;
+        tlRespira.invalidate().play(0);
+      }
+
+      /* La chispa: gira al revés y mucho más rápido, y encima parpadea con
          valores distintos cada vez (`random()` + `repeatRefresh`). El parpadeo
          es lo que separa "corriente" de "aro girando": una corriente no tiene
          un brillo constante. Los tiempos también son irregulares —cada repetición
          dura entre .28 y .6 s— porque un parpadeo a compás se oye como un
-         latido y vuelve a leerse como mecánico.
-
-         Nada de esto se paga caro: es opacidad y rotación sobre una capa que
-         ya está compuesta en la GPU. */
-      var tlEnergia = null;
+         latido y vuelve a leerse como mecánico. */
+      var tlChispa = null;
       if (nivel > 0) {
-        tlEnergia = gsap.timeline()
-          .to(energia, { opacity: ENE.reposo, duration: 1.4, ease: 'power1.out' })
-          .to(energia, { rotation: -360, duration: 9.5, ease: 'none', repeat: -1 }, 0)
-          .to(energia, {
+        tlChispa = gsap.timeline()
+          .to(chispa, { opacity: ENE.reposo, duration: 1.4, ease: 'power1.out' })
+          .to(chispa, { rotation: -360, duration: 9.5, ease: 'none', repeat: -1 }, 0)
+          .to(chispa, {
             /* Valores por función, no literales: con `repeatRefresh` GSAP los
                vuelve a evaluar en cada repetición, así que el parpadeo lee el
                estado actual él solo. Sin esto haría falta rehacer el tween cada
@@ -466,7 +745,7 @@
             duration: function () { return gsap.utils.random(.28, .6); },
             ease: 'power1.inOut', repeat: -1, repeatRefresh: true
           }, 1.4);
-        api.tls.push(tlEnergia);
+        api.tls.push(tlChispa);
       }
 
       /* El cometa: una vuelta rápida y a esperar. `power2.inOut` es lo que lo
@@ -480,24 +759,39 @@
         .to(cometa, { rotation: 270, duration: 1.15, ease: 'power2.inOut' }, 0)
         .to(cometa, { opacity: 0, duration: .34, ease: 'power1.in' }, '-=.36');
 
-      api.tls.push(tlOnda, tlCometa);
+      api.tls.push(tlGiro, tlCometa);
 
       /* ── La entrada ───────────────────────────────────────────────────
          La primera vez que se ve la pantalla, el contorno no aparece: se
-         DIBUJA. El cometa da una vuelta y el halo sube detrás de él, como si
-         el filo se encendiera a su paso. Dura poco más de un segundo y no se
-         repite nunca.
+         DIBUJA. El cono sale disparado y frena, el halo sube detrás y el
+         cometa cruza con él. Dura poco más de dos segundos y no se repite.
 
-         Es un gesto barato y es el que fija la lectura del componente: quien
-         ve esa vuelta entiende, sin que nadie se lo diga, que el borde de este
-         campo hace cosas. Sin ella el aura es un color más de la barra. */
-      var tlEntrada = gsap.timeline({ delay: .3 })
+         El ease es lo que cuenta la historia: `power4.out` gasta la mitad de
+         la vuelta en el primer 15 % del tiempo, así que se lee como un barrido
+         que arranca fuerte y se posa, no como un giro constante. */
+      var tlEntrada = gsap.timeline({ delay: .25 })
         .fromTo(halo, { opacity: 0 },
                       { opacity: escala.reposo, duration: 1.1, ease: 'power2.out' }, 0)
+        .fromTo(giro, { a: -150 }, {
+          a: 210, duration: 2.1, ease: 'power4.out', onUpdate: aplicaGiro,
+          /* La rotación libre no debe empezar hasta que la entrada termina, y
+             tiene que arrancar DESDE donde la entrada dejó el cono. */
+          onComplete: function () { tlGiro.invalidate().restart(); }
+        }, 0)
+        .fromTo(malla, { opacity: 0 },
+                       { opacity: MALLA.reposo * fuerza, duration: 1.3, ease: 'power2.out' }, 0)
         .fromTo(cometa, { rotation: -110, opacity: 0 },
-                        { opacity: 1, duration: .22, ease: 'power1.out' }, 0)
-        .to(cometa, { rotation: 250, duration: 1.15, ease: 'power3.inOut' }, 0)
-        .to(cometa, { opacity: 0, duration: .3, ease: 'power1.in' }, .95);
+                        { opacity: 1, duration: .22, ease: 'power1.out' }, .1)
+        .to(cometa, { rotation: 250, duration: 1.15, ease: 'power3.inOut' }, .1)
+        .to(cometa, { opacity: 0, duration: .3, ease: 'power1.in' }, 1.05)
+        .add(function () { respiraOtraVez(); }, 2.1);
+      if (arco) {
+        tlEntrada.fromTo(arco, { opacity: 0 },
+                               { opacity: ARCO.reposo * fuerza, duration: 1.5, ease: 'power2.out' }, .2);
+      }
+      /* La rotación libre espera a que el barrido de entrada acabe; si las dos
+         escribieran el ángulo a la vez el cono iría a tirones. */
+      tlGiro.pause(0);
       api.tls.push(tlEntrada);
 
       function haloA(valor, dur) {
@@ -527,17 +821,25 @@
       }
 
       /* ── La luz que sigue al puntero ──────────────────────────────────
-         `quickTo` reutiliza un tween en vez de crear uno por cada `mousemove`
-         —serían sesenta por segundo— y de paso le da inercia: la luz llega un
-         pelín después que el cursor. Ese retraso de 0.5 s es lo que la hace
-         sentirse material en lugar de pegada.
-
          El rectángulo se mide UNA vez, al entrar. Leerlo en cada movimiento
          obligaría al navegador a recalcular la disposición sesenta veces por
          segundo para saber algo que no ha cambiado. */
       var luzX = gsap.quickTo(luz, 'x', { duration: .5, ease: 'power3' });
       var luzY = gsap.quickTo(luz, 'y', { duration: .5, ease: 'power3' });
       var caja = null;
+
+      /* Cercanía al borde, de 0 (justo en el centro) a 1 (tocando el filo).
+         Es el mismo cálculo del efecto original: se compara cuánto queda para
+         salirse por el eje que antes se agote, así que la diagonal y el lado
+         largo dan el mismo 1 en el borde. Sin esto, un campo de 560×44 daría
+         casi siempre 1 por arriba y nunca por los lados. */
+      function cercania(x, y) {
+        var cx = caja.width / 2, cy = caja.height / 2;
+        var dx = Math.abs(x - cx), dy = Math.abs(y - cy);
+        var kx = dx === 0 ? Infinity : cx / dx;
+        var ky = dy === 0 ? Infinity : cy / dy;
+        return Math.min(Math.max(1 / Math.min(kx, ky), 0), 1);
+      }
 
       /* Se registra una sola vez y se apaga por estado: `caja` sólo tiene valor
          mientras el cursor está encima. Añadir y quitar el oyente en cada
@@ -546,13 +848,40 @@
          cursor está en otra parte de la pantalla, así que no ahorraba nada. */
       function mueveLuz(ev) {
         if (!caja) return;
-        luzX(ev.clientX - caja.left);
-        luzY(ev.clientY - caja.top);
+        var x = ev.clientX - caja.left, y = ev.clientY - caja.top;
+        luzX(x); luzY(y);
+
+        /* El ángulo del cursor respecto al centro, con el 0 arriba para que
+           coincida con el origen del cono. */
+        var dx = x - caja.width / 2, dy = y - caja.height / 2;
+        if (dx || dy) {
+          var objetivo = Math.atan2(dy, dx) * 180 / Math.PI + 90;
+          /* Camino corto: sin esto, pasar de 359° a 1° manda al cono a dar la
+             vuelta entera por el lado largo. */
+          var delta = ((objetivo - giro.a) % 360 + 540) % 360 - 180;
+          giroA(giro.a + delta);
+        }
+
+        /* La cercanía manda sobre malla y arco. `dentro` levanta el suelo: con
+           el cursor de texto puesto, el aura no debe apagarse porque el ratón
+           se haya quedado quieto en mitad del campo. */
+        var c = cercania(x, y);
+        var base  = dentro ? MALLA.dentro : MALLA.encima;
+        var suelo = dentro ? MALLA.encima : MALLA.reposo;
+        mallaA(gsap.utils.clamp(0, 1, (suelo + (base - suelo) * c) * fuerza));
+        if (arcoA) {
+          var baseA  = dentro ? ARCO.dentro : ARCO.encima;
+          var sueloA = dentro ? ARCO.encima : ARCO.reposo;
+          arcoA(gsap.utils.clamp(0, 1, (sueloA + (baseA - sueloA) * c) * fuerza));
+        }
       }
 
       function entra(ev) {
         encima = true;
         haloA(dentro ? escala.dentro : escala.encima);
+        tlRespira.pause();
+        /* Mientras hay mano, el cono no gira solo: obedece. */
+        tlGiro.pause();
 
         /* La luz aparece YA en el punto por el que ha entrado el cursor, no
            viajando desde donde se quedó la última vez: si no, cada entrada
@@ -562,6 +891,7 @@
           gsap.set(luz, { x: ev.clientX - caja.left, y: ev.clientY - caja.top });
         }
         gsap.to(luz, { opacity: .9, duration: .45, ease: 'power2.out', overwrite: 'auto' });
+        if (ev) mueveLuz(ev);
 
         /* El cometa se adelanta a su turno: el destello y la vuelta salen
            juntos, y esa coincidencia es la que se lee como respuesta. */
@@ -573,7 +903,7 @@
            gesto es lo que lo hace parecer causado por ti.
            Sólo con el campo vacío: con texto escrito sería luz pasando por
            encima de lo que la persona está leyendo. */
-        if (tlBrillo && !campo.value) {
+        if (tlBrillo && !(campo && campo.value)) {
           var porLaDerecha = !!(ev && caja && (ev.clientX - caja.left) > caja.width / 2);
           sentido = porLaDerecha ? -1 : 1;
           gsap.set(barra, { rotate: porLaDerecha ? -8 : 8 });
@@ -585,11 +915,43 @@
         encima = false;
         haloA(dentro ? escala.dentro : escala.reposo);
         caja = null;
+        reanudaGiro();
         /* Se apaga más despacio de lo que se enciende. Encender rápido es
            respuesta; apagar rápido es un corte. Si el campo sigue enfocado la
            luz no se va del todo: se queda de guardia junto al cursor de texto. */
-        if (dentro) luzAlCursor(); else
+        if (dentro) { luzAlCursor(); aEstado(true, .6); }
+        else {
           gsap.to(luz, { opacity: 0, duration: .7, ease: 'power2.out', overwrite: 'auto' });
+          aEstado(false, .7);
+        }
+      }
+
+      /* Devuelve el cono a su vuelta lenta desde el ángulo en el que lo dejó la
+         mano. Dos cuidados:
+           · la persecución se PAUSA, no se mata: el tween interno de `quickTo`
+             es el mismo siempre, y matarlo dejaría manco al seguidor la próxima
+             vez que entre el ratón. Pausado, la siguiente llamada lo revive;
+           · `invalidate()` hace que el giro lento relea `giro.a` en vez de
+             volver al valor con el que nació el tween, que sería un salto. */
+      function reanudaGiro() {
+        if (giroA.tween) giroA.tween.pause();
+        tlGiro.invalidate().restart();
+      }
+
+      /* Lleva malla y arco al nivel que toca cuando NO hay cursor que seguir.
+         La respiración vuelve sola al terminar, y sólo si el campo está en
+         reposo: enfocado no respira, está atento. */
+      function aEstado(enfocado, dur) {
+        var d = dur || .5;
+        gsap.to(malla, {
+          opacity: (enfocado ? MALLA.dentro : MALLA.reposo) * fuerza,
+          duration: d, ease: 'power2.out', overwrite: 'auto',
+          onComplete: enfocado ? null : respiraOtraVez
+        });
+        if (arco) gsap.to(arco, {
+          opacity: (enfocado ? ARCO.dentro : ARCO.reposo) * fuerza,
+          duration: d, ease: 'power2.out', overwrite: 'auto'
+        });
       }
 
       /* Con el teclado no hay puntero al que seguir, y quien entra con `/` o
@@ -607,22 +969,28 @@
       function enfoca() {
         dentro = true;
         haloA(escala.dentro, .28);
+        tlRespira.pause();
         /* Con el cursor dentro el cometa deja de esperar: órbita seguida y un
            poco más lenta. Ya no tiene que llamar la atención —ya la tiene—,
            tiene que acompañar. */
         tlCometa.repeatDelay(0);
         gsap.to(tlCometa, { timeScale: .8, duration: .5, ease: 'power2.out' });
         tlCometa.restart(true);
-        gsap.to(onda, { opacity: .62, duration: .5, ease: 'power2.out', overwrite: 'auto' });
-        /* La energía no se sube por opacidad —de eso ya se encarga su propio
+        /* Enfocado el cono gira algo más deprisa: no es más brillo, es más
+           actividad. Si no hay mano encima, se sube el nivel a mano. */
+        gsap.to(tlGiro, { timeScale: 1.45, duration: .6, ease: 'power2.out' });
+        if (!caja) aEstado(true, .5);
+        /* La chispa no se sube por opacidad —de eso ya se encarga su propio
            parpadeo al leer el estado—: se acelera. Más corriente es más rápido,
            no más brillante. */
-        if (tlEnergia) gsap.to(tlEnergia, { timeScale: 1.35, duration: .6, ease: 'power2.out' });
+        if (tlChispa) gsap.to(tlChispa, { timeScale: 1.35, duration: .6, ease: 'power2.out' });
 
         /* El levantamiento. Un píxel: no se ve, se nota. `expo.out` frena casi
            del todo en el primer tercio, que es lo que hace que un movimiento
-           tan corto se sienta asentado en vez de brusco. */
-        gsap.to(host, { y: -1, duration: .55, ease: 'expo.out', overwrite: 'auto' });
+           tan corto se sienta asentado en vez de brusco. En panel no: una caja
+           de 44 rem levantándose un píxel no se lee como respuesta, se lee como
+           que la ventana se ha movido. */
+        if (!panel) gsap.to(host, { y: -1, duration: .55, ease: 'expo.out', overwrite: 'auto' });
 
         /* El icono y el atajo participan: un componente responde entero o no
            responde. El `back.out` le da al icono un asentamiento mínimo —se
@@ -640,17 +1008,20 @@
         haloA(escala.reposo, .5);
         tlCometa.repeatDelay(6.4);
         gsap.to(tlCometa, { timeScale: 1, duration: .5, ease: 'power2.out' });
-        gsap.to(onda, { opacity: .38, duration: .6, ease: 'power2.out', overwrite: 'auto' });
-        if (tlEnergia) gsap.to(tlEnergia, { timeScale: 1, duration: .7, ease: 'power2.out' });
-        gsap.to(host, { y: 0, duration: .6, ease: 'expo.out', overwrite: 'auto' });
+        gsap.to(tlGiro, { timeScale: 1, duration: .6, ease: 'power2.out' });
+        if (tlChispa) gsap.to(tlChispa, { timeScale: 1, duration: .7, ease: 'power2.out' });
+        if (!panel) gsap.to(host, { y: 0, duration: .6, ease: 'expo.out', overwrite: 'auto' });
         if (icono) gsap.to(icono, { scale: 1, duration: .45, ease: 'power2.out', overwrite: 'auto' });
         if (atajo) gsap.to(atajo, { opacity: 1, y: 0, duration: .35, ease: 'power2.out', overwrite: 'auto' });
-        if (!caja) gsap.to(luz, { opacity: 0, duration: .7, ease: 'power2.out', overwrite: 'auto' });
+        if (!caja) {
+          gsap.to(luz, { opacity: 0, duration: .7, ease: 'power2.out', overwrite: 'auto' });
+          aEstado(false, .7);
+        }
       }
 
       /* ── Al escribir ──────────────────────────────────────────────────
-         Dos cosas a la vez y ninguna de brillo plano: la onda da un pulso corto
-         y la energía SE ACELERA de golpe para frenar después. Esa subida y
+         Dos cosas a la vez y ninguna de brillo plano: la malla da un pulso corto
+         y la chispa SE ACELERA de golpe para frenar después. Esa subida y
          bajada del ritmo es lo que se lee como "está recibiendo", igual que un
          motor al que le entra gas.
 
@@ -659,25 +1030,58 @@
          antirrebote por tiempo, escribir deprisa deja el efecto siempre a
          medias; así cada pulso se ve entero y la siguiente tecla arranca el
          siguiente. */
-      var pulso = gsap.quickTo(onda, 'opacity', { duration: .18, ease: 'power2.out' });
+      var pulso = gsap.quickTo(malla, 'opacity', { duration: .18, ease: 'power2.out' });
       var pulsando = false;
       function teclea() {
         if (!dentro || pulsando) return;
         pulsando = true;
-        pulso(.9);
-        if (tlEnergia) {
-          gsap.timeline()
-            .to(tlEnergia, { timeScale: 2.6, duration: .1, ease: 'power2.out' })
-            .to(tlEnergia, { timeScale: 1.35, duration: .85, ease: 'power2.out' });
+        pulso(Math.min(1, .95 * fuerza));
+
+        /* Un empujón al cono en el sentido en el que ya iba: la tecla no sólo
+           enciende, mueve. Sólo cuando no hay ratón encima —si lo hay, el cono
+           está obedeciendo al cursor y no se le interrumpe— y con el giro lento
+           parado mientras dura, porque dos cosas escribiendo el mismo ángulo se
+           ven como un tirón al terminar la de arriba. */
+        if (!encima) {
+          tlGiro.pause();
+          gsap.to(giro, {
+            a: giro.a + 26, duration: .5, ease: 'power2.out',
+            onUpdate: aplicaGiro, overwrite: 'auto',
+            onComplete: function () { if (!encima) reanudaGiro(); }
+          });
         }
-        gsap.delayedCall(.16, function () { pulso(.62); pulsando = false; });
+
+        if (tlChispa) {
+          gsap.timeline()
+            .to(tlChispa, { timeScale: 2.6, duration: .1, ease: 'power2.out' })
+            .to(tlChispa, { timeScale: 1.35, duration: .85, ease: 'power2.out' });
+        }
+        gsap.delayedCall(.16, function () {
+          pulso(MALLA.dentro * fuerza);
+          pulsando = false;
+        });
       }
 
       /* Fuera de la vista no hay nada que animar. Una pestaña de fondo con un
          disco girando es batería que se va sin que nadie lo vea. */
       function visibilidad() {
-        var todas = [tlOnda, tlCometa]; if (tlEnergia) todas.push(tlEnergia);
-        todas.forEach(function (tl) { document.hidden ? tl.pause() : tl.resume(); });
+        if (document.hidden) {
+          [tlGiro, tlCometa, tlRespira].forEach(function (tl) { tl.pause(); });
+          if (tlChispa) tlChispa.pause();
+          return;
+        }
+        tlCometa.resume();
+        if (tlChispa) tlChispa.resume();
+        /* Al volver, cada línea arranca sólo si le TOCABA estar corriendo. El
+           giro lento no vuelve con el ratón encima —ahí manda el cursor— ni
+           mientras la entrada sigue dibujando el contorno, y la respiración no
+           vuelve con el campo enfocado: entonces no respira, está atento. */
+        /* `reanudaGiro` y no `resume`: el giro lento puede llevar pausado desde
+           antes de que la persecución le moviera el ángulo, y despertarlo tal
+           cual lo devolvería de golpe al que tenía guardado. Reanudar releyendo
+           dónde está es lo mismo que hace `sale()`. */
+        if (!encima && tlEntrada.progress() === 1) reanudaGiro();
+        if (!encima && !dentro) tlRespira.resume();
       }
 
       function on(el, ev, fn) {
@@ -687,14 +1091,17 @@
       on(host, 'mouseenter', entra);
       on(host, 'mouseleave', sale);
       on(host, 'mousemove', mueveLuz);
-      on(campo, 'focus', enfoca);
-      on(campo, 'blur', desenfoca);
-      on(campo, 'input', teclea);
+      if (campo) {
+        on(campo, 'focus', enfoca);
+        on(campo, 'blur', desenfoca);
+        on(campo, 'input', teclea);
+      }
       on(document, 'visibilitychange', visibilidad);
 
-      /* Si el campo ya venía enfocado (atajo `/`, deep-link con ?q=), el
-         estado correcto es el de dentro, no el de reposo. */
-      if (document.activeElement === campo) enfoca();
+      /* Si el campo ya venía enfocado (atajo `/`, deep-link con ?q=, o el panel
+         de comandos que se abre con el foco puesto), el estado correcto es el
+         de dentro, no el de reposo. */
+      if (campo && document.activeElement === campo) enfoca();
     }, host);
 
     api.ctx = ctx;
@@ -706,8 +1113,10 @@
     var nodos = (root || document).querySelectorAll('[data-vx-aura]');
     for (var i = 0; i < nodos.length; i++) {
       try {
+        var v = nodos[i].getAttribute('data-vx-aura');
         mount(nodos[i], {
-          intensidad: nodos[i].getAttribute('data-vx-aura') === 'sutil' ? 'sutil' : 'normal',
+          intensidad: v === 'sutil' ? 'sutil' : 'normal',
+          modo: nodos[i].getAttribute('data-vx-modo') === 'panel' ? 'panel' : 'campo',
           energia: nodos[i].getAttribute('data-vx-energia'),
           destello: nodos[i].getAttribute('data-vx-destello') !== 'no'
         });
@@ -721,9 +1130,10 @@
     if (!api) return;
     if (api.ctx) api.ctx.revert();
     api.oyentes.forEach(function (o) { o[0].removeEventListener(o[1], o[2]); });
-    if (api.marco && api.marco.parentNode) api.marco.parentNode.removeChild(api.marco);
-    if (api.brillo && api.brillo.parentNode) api.brillo.parentNode.removeChild(api.brillo);
-    host.classList.remove('vx-aura-host', 'vx-aura-sutil', 'vx-aura-vivo');
+    [api.marco, api.brillo, api.arco].forEach(function (el) {
+      if (el && el.parentNode) el.parentNode.removeChild(el);
+    });
+    host.classList.remove('vx-aura-host', 'vx-aura-sutil', 'vx-aura-vivo', 'vx-aura-panel');
     host.removeAttribute('data-vx-listo');
     delete host._vxAura;
   }

@@ -45,14 +45,46 @@
 
 .cmdk-panel {
   width: min(44rem, 100%); margin: 0 auto;
+  /* Relativo por el aura: sus capas van absolutas contra el panel, y sin esto
+     se anclarían al fondo modal —que es `fixed`— y aparecerían recorriendo el
+     contorno de la pantalla entera en lugar del panel. */
+  position: relative;
   background: var(--surface, #fff); color: var(--ink, #1B2330);
   border: 1px solid var(--line, #E4E9F0); border-radius: 18px;
   box-shadow: var(--sh-lg, 0 30px 60px -24px rgba(27,35,48,.3));
   font-family: var(--f-ui, var(--f-body, system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif));
   overflow: hidden; box-sizing: border-box;
+  /* El milímetro y medio de aire por los cuatro lados es donde vive el contorno
+     vivo (ver app_aura, modo panel): el aura llena el panel entero y el cuerpo,
+     con su fondo opaco, sólo deja asomar ese filo.
+
+     Va SIEMPRE, también cuando no hay aura montada, y esa es la gracia: el aura
+     se monta al terminar la apertura y se quita al cerrar, así que si el hueco
+     apareciera con ella, el contenido daría un salto de 3 px justo cuando el
+     panel acaba de posarse. Sin aura no se nota, porque el cuerpo lleva el
+     mismo fondo que el panel. */
+  padding: 1.5px;
 }
 .cmdk-panel *, .cmdk-panel *::before, .cmdk-panel *::after { box-sizing: border-box; }
-.cmdk-cuerpo { width: 100%; }
+/* 15.5 = 18 del panel − 1 del borde − 1.5 del hueco. Con cualquier otro número
+   las dos curvas dejan de ser concéntricas y el filo engorda en las esquinas. */
+.cmdk-cuerpo {
+  width: 100%; border-radius: 15.5px; overflow: hidden;
+  background: var(--surface, #fff);
+}
+
+/* Con el aura animando, el borde gris del panel se templa hacia el rosa: si no,
+   se leen dos anillos —el filete de siempre y el filo vivo— compitiendo a 1 px
+   uno del otro. Y el resplandor exterior lo pone el panel con su propia sombra,
+   porque el que trae el aura se saldría de una caja que recorta.
+
+   `vx-aura-vivo` sólo aparece cuando GSAP cargó y no hay movimiento reducido:
+   sin animación el panel se queda con su borde de siempre. */
+.cmdk-panel.vx-aura-vivo {
+  border-color: color-mix(in srgb, var(--brand, #E10098) 30%, var(--line, #E4E9F0));
+  box-shadow: var(--sh-lg, 0 30px 60px -24px rgba(27,35,48,.3)),
+              0 0 34px -12px rgba(225, 0, 152, .55);
+}
 
 /* Durante la transformación se avisa al compositor de que estas dos capas van a
    moverse. Solo mientras dura: `will-change` permanente reserva memoria de vídeo por
@@ -1931,6 +1963,41 @@
     };
   }
 
+  /* ── El contorno vivo del panel ─────────────────────────────────────────────
+     El mismo componente que lleva el buscador de la barra superior (app_aura),
+     en su modo `panel`: el filo va por dentro porque esta caja recorta, y sin
+     destello, que aquí barrería por encima de la lista de resultados.
+
+     Se monta al ABRIR y se quita al CERRAR, no una vez para siempre. Dos
+     razones: con el panel cerrado (`display:none`) las líneas de tiempo
+     seguirían corriendo para nadie, y montándolo cada vez se vuelve a ver el
+     barrido de entrada —el gesto que enseña que este borde hace cosas—.
+
+     Si app_aura no está incluido en la pantalla, no pasa nada: el panel se abre
+     igual que siempre. Es la misma degradación de toda la casa. */
+  function ponAura() {
+    /* `abierto` no es redundante con la llamada: quien pulsa Esc durante las
+       cuatro décimas de la apertura deja la línea de tiempo en marcha, y su
+       `onComplete` llegaría con el panel ya cerrándose. Montar ahí dejaría el
+       aura girando dentro de un `display:none` para nadie. */
+    if (!abierto || !panel || !window.VentelAura) return;
+    try {
+      window.VentelAura.mount(panel, {
+        modo: 'panel',
+        destello: false,
+        /* 17 = 18 del panel − 1 del borde. El marco se posiciona contra la caja
+           de relleno, no contra el borde, así que leer el radio del panel tal
+           cual dejaría las esquinas un píxel abiertas. */
+        radio: '17px'
+      });
+    } catch (e) { /* el buscador funciona igual sin contorno */ }
+  }
+
+  function quitaAura() {
+    if (!panel || !window.VentelAura) return;
+    try { window.VentelAura.destroy(panel); } catch (e) {}
+  }
+
   function abrir(termino) {
     construye();
     if (abierto) { caja.focus(); caja.select(); return; }
@@ -1949,10 +2016,12 @@
     caja.focus();
     if (termino) { caja.select(); alTeclear(); }
 
-    if (!conGsap()) return;
+    /* Sin GSAP el aura se monta ya: no hay apertura a la que esperar, y el halo
+       —que es CSS puro— es parte del diseño, no del movimiento. */
+    if (!conGsap()) { ponAura(); return; }
     var origen = rectDisparador();
     var destino = panel.getBoundingClientRect();
-    if (!destino.width) return;
+    if (!destino.width) { ponAura(); return; }
 
     animando = true;
     fondo.classList.add('cmdk-anima');
@@ -1964,6 +2033,10 @@
         fondo.classList.remove('cmdk-anima');
         gsap.set([panel, cuerpo], { clearProps: 'transform,transformOrigin,borderRadius' });
         gsap.set([cabeza].concat([].slice.call(resto)), { clearProps: 'opacity,y' });
+        /* El contorno entra cuando el panel ya está quieto y a su tamaño real.
+           Montado antes, el aura mediría un panel a mitad de escala y el filo
+           saldría deformado durante la apertura. */
+        ponAura();
       }
     });
 
@@ -2015,6 +2088,10 @@
     abierto = false;
     clearTimeout(relojTecleo);
     caja.removeAttribute('aria-activedescendant');
+    /* Lo primero, antes de medir nada: el aura deja el panel como estaba y mata
+       sus líneas de tiempo. Si se quitara después, el salto de cierre partiría
+       de un panel con estilos en línea puestos por otro módulo. */
+    quitaAura();
 
     var terminar = function () {
       animando = false;
