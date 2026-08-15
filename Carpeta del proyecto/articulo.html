@@ -98,38 +98,264 @@
   border-top:1px solid var(--line);background:var(--surface)}
 .art-doc-nota a{color:var(--brand-deep);font-weight:700}
 
-/* ── Editor ── */
-.art-editor{display:grid;grid-template-columns:minmax(0,1fr) 300px;gap:var(--s4);align-items:start}
-@media (max-width:1000px){ .art-editor{grid-template-columns:minmax(0,1fr)} }
-.art-bloques{display:flex;flex-direction:column;gap:var(--s2)}
-.art-bloque{border:1px solid var(--line);border-radius:var(--rad-sm);background:var(--surface);
-  padding:var(--s2) var(--s3);position:relative}
-.art-bloque.is-arrastre{opacity:.5}
-.art-bloque-hd{display:flex;align-items:center;gap:.4rem;margin-bottom:.4rem}
-.art-bloque-tipo{font-size:var(--fs-xs);font-weight:800;text-transform:uppercase;letter-spacing:.03em;
-  color:var(--brand-deep);flex:1}
-.art-bloque-ac{display:flex;gap:.25rem}
-.art-bloque-ac button{width:28px;height:28px;display:flex;align-items:center;justify-content:center;
-  border:1px solid var(--line);background:var(--surface);border-radius:6px;cursor:pointer;color:var(--ink-faint)}
-.art-bloque-ac button:hover:not(:disabled){border-color:var(--brand-soft);color:var(--brand-deep)}
-.art-bloque-ac button:disabled{opacity:.35;cursor:default}
-.art-bloque-ac .ic{width:14px;height:14px}
-.art-bloque textarea,.art-bloque input[type=text]{width:100%;font:inherit;font-size:.95rem;
-  line-height:1.6;color:var(--ink);background:var(--surface);border:1px solid var(--line);
-  border-radius:var(--rad-sm);padding:.5rem .65rem;resize:vertical}
-.art-bloque textarea:focus,.art-bloque input:focus{outline:none;border-color:var(--brand);box-shadow:var(--ring)}
-.art-ayuda{font-size:var(--fs-xs);color:var(--ink-faint);margin:.35rem 0 0;line-height:1.5}
+/* ── VISOR: progreso, índice, zoom ────────────────────────────────────────── */
 
-.art-panel{position:sticky;top:var(--s3);display:flex;flex-direction:column;gap:var(--s3)}
+/* La barra de progreso nace en scaleX(0)… pero solo si GSAP la va a mover: sin él,
+   `transform` no se toca y una barra al 0 % es invisible igual. Nunca esconde
+   contenido, que es la regla de la casa para el movimiento. */
+.art-progreso{position:sticky;top:0;z-index:15;height:3px;background:transparent;margin:0 0 var(--s2)}
+.art-progreso i{display:block;height:100%;background:var(--brand);border-radius:0 2px 2px 0;
+  transform:scaleX(0);transform-origin:left center}
+.art-lee-barra{margin-bottom:var(--s4);flex-wrap:wrap}
+
+/* Lectura con índice: el artículo manda y el índice acompaña. Por debajo de 1100px
+   desaparece —no se colapsa ni se convierte en un desplegable— porque en esa anchura
+   el artículo ya cabe de una pasada y un índice pegado arriba solo roba altura. */
+.art-lectura{display:grid;grid-template-columns:minmax(0,1fr) 200px;gap:var(--s5);align-items:start}
+@media (max-width:1100px){
+  .art-lectura{grid-template-columns:minmax(0,1fr)}
+  .art-indice{display:none}
+}
+.art-indice{position:sticky;top:var(--s5);border-left:1px solid var(--line);padding-left:var(--s3)}
+.art-indice-lista{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:.15rem}
+.art-indice a{display:block;font-size:var(--fs-xs);line-height:1.45;color:var(--ink-faint);
+  text-decoration:none;padding:.25rem .3rem;border-radius:6px;border-left:2px solid transparent;
+  margin-left:-.3rem;transition:color .15s,border-color .15s,background .15s}
+.art-indice a:hover{color:var(--ink-soft);background:var(--surface-2)}
+.art-indice a.es-hijo{padding-left:.9rem}
+.art-indice a.es-aqui{color:var(--brand-deep);border-left-color:var(--brand);font-weight:700}
+.art-indice a:focus-visible{outline:none;box-shadow:var(--ring)}
+
+.art-fig img.es-ampliable{cursor:zoom-in}
+.art-zoom{position:fixed;inset:0;z-index:1300;display:flex;align-items:center;justify-content:center;
+  padding:var(--s4);background:rgba(12,14,20,.86);backdrop-filter:blur(3px)}
+.art-zoom img{max-width:100%;max-height:92vh;border-radius:var(--rad-sm);box-shadow:0 24px 60px rgba(0,0,0,.5)}
+.art-zoom-x{position:absolute;top:var(--s3);right:var(--s3);width:38px;height:38px;border-radius:999px;
+  border:0;background:rgba(255,255,255,.92);color:#111;font-size:22px;line-height:1;cursor:pointer}
+.art-zoom-x:focus-visible{outline:none;box-shadow:var(--ring)}
+
+/* ── DIAGRAMAS (draw.io) ──────────────────────────────────────────────────── */
+.art-diag{position:relative;background:var(--surface-2)}
+.art-diag-frame{display:block;width:100%;border:0;background:var(--surface-2)}
+.art-diag.es-full{flex:1;min-height:0}
+.art-diag.es-full .art-diag-frame{height:100%}
+/* Mientras diagrams.net no ha dicho «init» se ve el fondo del lienzo, no un hueco
+   blanco: el marco tarda lo suyo y un rectángulo en blanco parece un fallo. */
+.art-diag:not(.is-listo)::after{content:'Cargando el diagrama…';position:absolute;inset:0;
+  display:flex;align-items:center;justify-content:center;font-size:var(--fs-xs);
+  color:var(--ink-faint);pointer-events:none}
+.art-diag.sin-red::after{content:none}
+.art-diag-nota{padding:var(--s3);font-size:var(--fs-xs);line-height:1.55;color:var(--warn);
+  background:var(--warn-bg)}
+.art-diag-ampliar{font:inherit;font-size:var(--fs-xs);font-weight:700;color:var(--brand-deep);
+  background:none;border:0;cursor:pointer;padding:.1rem .2rem;border-radius:4px}
+.art-diag-ampliar:hover{text-decoration:underline}
+.art-diag-ampliar:focus-visible{outline:none;box-shadow:var(--ring)}
+
+.art-diag-full{position:fixed;inset:0;z-index:1300;display:flex;flex-direction:column;
+  background:rgba(12,14,20,.9);backdrop-filter:blur(3px);padding:var(--s3)}
+.art-diag-full-bar{display:flex;align-items:center;gap:var(--s3);flex-wrap:wrap;
+  padding:0 0 var(--s2);color:#fff}
+.art-diag-full-tt{font-family:Archivo,inherit;font-weight:800;font-size:1.05rem;color:#fff;flex:1;min-width:0}
+.art-diag-full-bar .art-ayuda{color:rgba(255,255,255,.72);margin:0}
+.art-diag-full-bar .v-btn-ghost{color:#fff;border-color:rgba(255,255,255,.35)}
+.art-diag-full-bar .v-btn-ghost:hover{background:rgba(255,255,255,.12);color:#fff}
+.art-diag-full .art-diag{border-radius:var(--rad);overflow:hidden;background:var(--surface)}
+
+.art-diag-hueco{margin-bottom:.2rem}
+.art-diag-vacio{display:flex;flex-direction:column;align-items:center;text-align:center;
+  gap:.2rem;padding:var(--s5) var(--s3);border:1px dashed var(--line);border-radius:var(--rad);
+  background:var(--surface-2);color:var(--ink-faint)}
+.art-diag-vacio .ic{width:26px;height:26px;opacity:.6;margin-bottom:.2rem}
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   EDITOR
+   ───────────────────────────────────────────────────────────────────────────
+   La idea que ordena todo el rediseño: EL EDITOR SE PARECE AL ARTÍCULO.
+
+   La primera versión pintaba cada bloque en una caja gris idéntica con su
+   rótulo encima —un párrafo, un subtítulo y una tabla se veían igual—, así que
+   para saber cómo iba a quedar el artículo había que imaginárselo. Aquí cada
+   bloque se escribe con LA MISMA tipografía con la que se va a leer: el
+   subtítulo se teclea grande y en Archivo, el párrafo con su medida y su
+   interlineado de lectura. No es adorno; es lo que quita el paso de imaginar.
+
+   El «chrome» del bloque —el rótulo del tipo y los botones de mover y quitar—
+   aparece al pasar el ratón o al enfocar, y desaparece el resto del tiempo. Con
+   el chrome siempre visible, el lienzo se lee como un formulario; sin él, se lee
+   como lo que es: un artículo a medio escribir.
+═══════════════════════════════════════════════════════════════════════════ */
+
+/* Barra de trabajo: lo que hay que saber SIEMPRE (dónde estoy, si está guardado)
+   y la única acción primaria. Se queda pegada arriba porque en un artículo largo
+   se escribe lejos del principio, y bajar a buscar «Guardar» rompe la escritura. */
+.art-barra{position:sticky;top:0;z-index:20;display:flex;align-items:center;gap:var(--s3);
+  flex-wrap:wrap;padding:var(--s2) 0;margin-bottom:var(--s4);
+  background:var(--content-bg,var(--app-bg));border-bottom:1px solid var(--line)}
+.art-barra-izq{display:flex;align-items:center;gap:var(--s2);min-width:0}
+.art-barra-der{display:flex;align-items:center;gap:var(--s2);margin-left:auto}
+.art-estado{display:inline-flex;align-items:center;gap:.35rem;font-size:var(--fs-xs);
+  font-weight:600;color:var(--ink-faint);white-space:nowrap}
+.art-estado::before{content:'';width:7px;height:7px;border-radius:999px;background:currentColor;flex:none}
+.art-estado.guardado{color:var(--ok)}
+.art-estado.sucio{color:var(--warn)}
+
+.art-editor{display:grid;grid-template-columns:minmax(0,1fr) 260px;gap:var(--s5);align-items:start}
+@media (max-width:1040px){ .art-editor{grid-template-columns:minmax(0,1fr)} }
+
+/* El lienzo: mismo ancho de lectura que el artículo publicado, y centrado en su
+   columna. Pegado a la izquierda dejaba un vacío raro a la derecha en pantallas
+   anchas y el texto se leía descolgado del panel. */
+.art-lienzo{max-width:68ch;margin-inline:auto}
+
+/* Cabecera: el título del artículo se escribe con el tamaño del título. */
+.art-campo-titulo{width:100%;font-family:Archivo,inherit;
+  font-size:clamp(1.6rem,1.2rem + 1.4vw,2.2rem);font-weight:800;line-height:1.15;
+  letter-spacing:-.02em;color:var(--ink);background:transparent;border:0;padding:0;margin:0}
+.art-campo-titulo::placeholder{color:var(--ink-faint);opacity:.55}
+.art-campo-resumen{width:100%;font:inherit;font-size:1.05rem;line-height:1.6;color:var(--ink-soft);
+  background:transparent;border:0;padding:0;margin:.6rem 0 0;resize:none;overflow:hidden}
+.art-campo-resumen::placeholder{color:var(--ink-faint);opacity:.7}
+.art-campo-titulo:focus,.art-campo-resumen:focus{outline:none}
+.art-cabecera{padding-bottom:var(--s3);border-bottom:1px solid var(--line);margin-bottom:var(--s2)}
+/* El foco se marca con una guía a la izquierda y no con un recuadro: un recuadro
+   alrededor del título convierte el lienzo en un formulario otra vez. */
+.art-cabecera:focus-within{box-shadow:-12px 0 0 -10px var(--brand)}
+
+.art-bloques{display:flex;flex-direction:column}
+
+.art-bloque{position:relative;padding:.5rem 0;border-radius:var(--rad-sm);transition:background .15s}
+.art-bloque:focus-within{background:var(--surface-2)}
+.art-bloque:focus-within,.art-bloque:hover{box-shadow:-12px 0 0 -10px var(--brand-soft)}
+.art-bloque:focus-within{box-shadow:-12px 0 0 -10px var(--brand)}
+
+/* Chrome del bloque: en el MARGEN IZQUIERDO, fuera del texto, y solo cuando hace falta.
+   Primero se puso arriba a la derecha, dentro de la caja, y tapaba las últimas palabras
+   de la primera línea justo al enfocar el bloque —o sea, exactamente cuando se está
+   escribiendo ahí—. Reservarle sitio dentro habría estrechado la medida de lectura, y
+   empujar el contenido al aparecer habría hecho saltar el texto bajo el cursor. En el
+   margen no estorba a nada, que es donde lo ponen los editores por bloques.
+
+   El rótulo del tipo se quitó a la vez: si el editor se parece al artículo —y de eso va
+   este rediseño—, un subtítulo ya se ve que es un subtítulo y la etiqueta sobra. Los
+   botones llevan su `aria-label`, así que para el lector de pantalla no se pierde nada. */
+.art-bloque-hd{position:absolute;top:.35rem;left:-2.3rem;display:flex;flex-direction:column;gap:.2rem;
+  opacity:0;transform:translateX(3px);transition:opacity .15s,transform .15s;pointer-events:none}
+.art-bloque:hover .art-bloque-hd,.art-bloque:focus-within .art-bloque-hd{opacity:1;transform:none;pointer-events:auto}
+.art-bloque-tipo{display:none}
+.art-bloque-ac{display:flex;flex-direction:column;gap:.2rem}
+.art-bloque-ac button{width:26px;height:26px;display:flex;align-items:center;justify-content:center;
+  border:1px solid var(--line);background:var(--surface);border-radius:6px;cursor:pointer;
+  color:var(--ink-faint);transition:var(--tr)}
+.art-bloque-ac button:hover:not(:disabled){border-color:var(--brand-soft);color:var(--brand-deep);background:var(--brand-tint)}
+.art-bloque-ac button:disabled{opacity:.3;cursor:default}
+.art-bloque-ac button:focus-visible{outline:none;box-shadow:var(--ring)}
+.art-bloque-ac .ic{width:13px;height:13px}
+
+/* Los campos del lienzo no parecen campos: parecen el texto que van a ser. */
+.art-esc{width:100%;font:inherit;background:transparent;border:0;padding:0;margin:0;resize:none;
+  color:var(--ink);overflow:hidden}
+.art-esc:focus{outline:none}
+.art-esc::placeholder{color:var(--ink-faint);opacity:.6}
+.art-esc.es-parrafo{font-size:1.02rem;line-height:1.75}
+/* Los subtítulos respiran arriba como en el artículo: son la señal de que empieza
+   otra parte, y sin ese aire el lienzo se lee como una lista de campos. */
+.art-esc.es-titulo2{font-family:Archivo,inherit;font-size:1.35rem;font-weight:800;line-height:1.25;letter-spacing:-.01em}
+.art-esc.es-titulo3{font-family:Archivo,inherit;font-size:1.1rem;font-weight:700;line-height:1.3}
+.art-bloque:has(.es-titulo2),.art-bloque:has(.es-titulo3){margin-top:1.2rem}
+/* Un textarea no puede llevar viñetas, así que la lista se señala con una guía a la
+   izquierda: sin ella, cinco renglones sueltos no se distinguen de cinco párrafos. */
+.art-esc.es-lista{font-size:1.02rem;line-height:1.7;border-left:2px solid var(--line);
+  padding-left:.7rem}
+.art-bloque:focus-within .art-esc.es-lista{border-left-color:var(--brand-soft)}
+.art-esc.es-mono{font-family:'JetBrains Mono',ui-monospace,monospace;font-size:.82rem;line-height:1.6;
+  background:var(--surface-2);border:1px solid var(--line);border-radius:var(--rad-sm);padding:.5rem .6rem}
+
+/* Los campos accesorios (enlace, pie, alt) sí son campos, y se ven como tales,
+   pero en gris y pequeños: son ajustes, no el contenido. */
+.art-sub{display:flex;flex-direction:column;gap:.35rem;margin-top:.5rem}
+/* Y los que son OPCIONALES —el enlace de un párrafo, el nivel de un subtítulo, si la
+   lista va numerada— se esconden hasta que el bloque tiene el foco. Con ellos siempre
+   a la vista, cada párrafo arrastraba un campo vacío debajo y el lienzo volvía a
+   parecer un formulario, que es justo lo que este rediseño vino a quitar. Siguen
+   visibles si ya llevan algo escrito (`:has`), para que nada quede escondido; donde
+   `:has` no exista, se ven al enfocar, que es cuando hacen falta. */
+.art-sub-op{display:none}
+.art-bloque:focus-within .art-sub-op{display:flex}
+.art-sub-op:has(input[type=text]:not(:placeholder-shown)){display:flex}
+.art-sub-op:has(input[type=checkbox]:checked){display:flex}
+.art-sub input[type=text]{width:100%;font:inherit;font-size:var(--fs-xs);color:var(--ink-soft);
+  background:var(--surface);border:1px solid var(--line);border-radius:var(--rad-sm);padding:.35rem .55rem}
+.art-sub input[type=text]:focus{outline:none;border-color:var(--brand);box-shadow:var(--ring)}
+.art-ayuda{font-size:var(--fs-xs);color:var(--ink-faint);margin:.3rem 0 0;line-height:1.5}
+.art-ayuda b{color:var(--ink-soft);font-weight:700}
+
+/* Insertar ENTRE bloques: la línea aparece al acercarse. Es donde la gente
+   quiere añadir algo —justo aquí, no al final— y evita el viaje al panel. */
+.art-entre{position:relative;height:14px;display:flex;align-items:center;justify-content:center}
+.art-entre::before{content:'';position:absolute;left:0;right:0;height:1px;background:var(--brand-soft);
+  opacity:0;transition:opacity .15s}
+.art-entre:hover::before,.art-entre:focus-within::before{opacity:1}
+.art-mas{width:22px;height:22px;border-radius:999px;border:1px solid var(--line);background:var(--surface);
+  color:var(--ink-faint);display:flex;align-items:center;justify-content:center;cursor:pointer;
+  opacity:0;transition:opacity .15s,transform .15s;font-size:15px;line-height:1;padding:0}
+.art-entre:hover .art-mas,.art-entre:focus-within .art-mas{opacity:1}
+.art-mas:hover{border-color:var(--brand);color:var(--brand-deep);transform:scale(1.1)}
+.art-mas:focus-visible{opacity:1;outline:none;box-shadow:var(--ring)}
+
+/* Panel lateral: contexto y herramientas, nunca la acción primaria. */
+.art-panel{position:sticky;top:calc(var(--s6) + var(--s2));display:flex;flex-direction:column;gap:var(--s3)}
 .art-panel-caja{border:1px solid var(--line);border-radius:var(--rad);background:var(--surface);padding:var(--s3)}
-.art-panel-t{font-size:var(--fs-xs);font-weight:800;text-transform:uppercase;letter-spacing:.03em;
+.art-panel-t{font-size:10px;font-weight:800;text-transform:uppercase;letter-spacing:.06em;
   color:var(--ink-faint);margin:0 0 .6rem}
-.art-insertar{display:grid;grid-template-columns:1fr 1fr;gap:.4rem}
-.art-insertar button{display:flex;align-items:center;gap:.4rem;padding:.45rem .5rem;font:inherit;
-  font-size:var(--fs-xs);font-weight:600;color:var(--ink);background:var(--surface-2);
-  border:1px solid var(--line);border-radius:var(--rad-sm);cursor:pointer;text-align:left}
-.art-insertar button:hover{border-color:var(--brand-soft);background:var(--brand-tint);color:var(--brand-deep)}
-.art-insertar .ic{width:14px;height:14px;flex:none}
+
+/* Ficha de estado: cifras tabulares para que no bailen al escribir. */
+.art-cifras{display:flex;flex-direction:column;gap:.4rem}
+.art-cifra{display:flex;align-items:baseline;justify-content:space-between;gap:var(--s2);
+  font-size:var(--fs-xs);color:var(--ink-faint)}
+.art-cifra b{font-size:var(--fs-sm);font-weight:800;color:var(--ink);font-variant-numeric:tabular-nums}
+
+.art-insertar{display:flex;flex-direction:column;gap:.2rem}
+.art-insertar button{display:flex;align-items:center;gap:.5rem;padding:.45rem .5rem;font:inherit;
+  font-size:var(--fs-sm);font-weight:600;color:var(--ink);background:transparent;
+  border:1px solid transparent;border-radius:var(--rad-sm);cursor:pointer;text-align:left;width:100%}
+.art-insertar button:hover{border-color:var(--line);background:var(--surface-2)}
+.art-insertar button:focus-visible{outline:none;box-shadow:var(--ring)}
+.art-insertar .ic{width:15px;height:15px;flex:none;color:var(--ink-faint)}
+.art-insertar button:hover .ic{color:var(--brand-deep)}
+.art-insertar .art-atajo{margin-left:auto;font-size:10px;font-weight:700;color:var(--ink-faint);
+  border:1px solid var(--line);border-radius:4px;padding:0 .25rem}
+
+/* Menú flotante de inserción (el que abre el «+» entre bloques). */
+.art-menu{position:absolute;z-index:30;min-width:210px;background:var(--surface);
+  border:1px solid var(--line);border-radius:var(--rad);box-shadow:var(--sh-lg,0 20px 40px rgba(0,0,0,.18));
+  padding:.35rem;display:flex;flex-direction:column;gap:.1rem}
+.art-menu button{display:flex;align-items:center;gap:.5rem;padding:.45rem .5rem;font:inherit;
+  font-size:var(--fs-sm);font-weight:600;color:var(--ink);background:transparent;border:0;
+  border-radius:var(--rad-sm);cursor:pointer;text-align:left;width:100%}
+.art-menu button:hover,.art-menu button:focus-visible{background:var(--brand-tint);color:var(--brand-deep);outline:none}
+.art-menu .ic{width:15px;height:15px;flex:none;color:var(--ink-faint)}
+.art-menu small{display:block;font-size:10px;font-weight:500;color:var(--ink-faint)}
+
+/* Vista previa dentro del editor: el artículo tal cual, sin salir de la pantalla. */
+.art-previa{border:1px dashed var(--brand-soft);border-radius:var(--rad);padding:var(--s4);
+  background:var(--surface)}
+.art-previa-nota{font-size:var(--fs-xs);font-weight:700;color:var(--brand-deep);
+  text-transform:uppercase;letter-spacing:.06em;margin:0 0 var(--s3)}
+
+/* Por debajo de 1200px el margen del lienzo ya no da para el chrome, así que vuelve
+   al flujo, en fila y arriba a la derecha. Y sin hover que valga: en una pantalla
+   táctil no existe «pasar el ratón», así que lo que solo aparece al pasar, no existe. */
+@media (max-width:1200px){
+  .art-bloque-hd{opacity:1;transform:none;pointer-events:auto;position:static;
+    flex-direction:row;justify-content:flex-end;margin-bottom:.3rem}
+  .art-bloque-ac{flex-direction:row}
+  .art-mas{opacity:1}
+  .art-sub-op{display:flex}
+}
+@media (max-width:1040px){
+  .art-panel{position:static}
+}
 
 .art-vacio{text-align:center;padding:var(--s5) var(--s3);color:var(--ink-faint)}
 .art-vacio .ic{width:30px;height:30px;opacity:.5;margin:0 auto var(--s2);display:block}
@@ -174,6 +400,11 @@
 <?!= include('app_icons'); ?>
 <?!= include('app_motion'); ?>
 <?!= include('app_loaders'); ?>
+<!-- ScrollTrigger: lo necesita el revelado del visor. Misma version fijada (3.13.0) y
+     mismo origen (cdnjs) que el resto del proyecto; el registro va defendido porque el
+     CDN puede no llegar. -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.13.0/ScrollTrigger.min.js"></script>
+<script>if (window.gsap && window.ScrollTrigger) gsap.registerPlugin(ScrollTrigger);</script>
 <script>if (window.VentelFX) VentelFX.pagina("articulo");</script>
 <?!= include('app_shell'); ?>
 <?!= include('app_aura'); ?>
@@ -399,8 +630,159 @@
       return caja2;
     }
 
+    if (b.tipo === 'diagrama') return cajaDiagrama(b, false);
+
     if (b.tipo === 'separador') return el('hr', 'art-sep');
     return null;   // tipo desconocido: no se pinta y no se rompe nada
+  }
+
+  /* ═══════════════════════════════════════════════════════════════════════
+     DIAGRAMAS · draw.io (diagrams.net), incrustado
+     ───────────────────────────────────────────────────────────────────────
+     Se guarda el XML del diagrama y se dibuja dentro de un IFRAME de
+     diagrams.net, nunca en nuestro DOM. Dos motivos, y el segundo es el que
+     manda: un diagrama exportado a SVG trae `foreignObject`, estilos y a veces
+     guiones, así que meterlo en la página sería justo lo que el resto de esta
+     fase evita; dentro del iframe, por mucho que traiga, se queda ahí.
+
+     El mismo componente sirve para leer y para editar: cambia el `chrome`. Así
+     lo que se ve mientras se dibuja es exactamente lo que verá quien lea.
+
+     La conversación con el iframe es la documentada por diagrams.net
+     (`proto=json`): él avisa con `init` cuando está listo, nosotros mandamos el
+     XML, y él devuelve `save` y `exit`. Se comprueba SIEMPRE el `origin`: un
+     `message` puede mandarlo cualquier ventana, y este maneja el contenido de un
+     artículo del equipo. */
+  var DRAWIO = 'https://embed.diagrams.net';
+
+  function urlDrawio(editable){
+    // ui=min y spin=1 vienen del manual de diagrams.net; lang=es porque el equipo
+    // trabaja en español y el editor tiene traducción completa.
+    return DRAWIO + '/?embed=1&proto=json&spin=1&lang=es&ui=min&libraries=1'
+      + (editable ? '&chrome=1&modified=unsavedChanges&saveAndExit=1&noExitBtn=0' : '&chrome=0&lightbox=1');
+  }
+
+  /**
+   * Monta un diagrama. Devuelve {el, destruir}.
+   * @param {object} b     bloque {xml, titulo, alto}
+   * @param {boolean} edit si true, el iframe trae las herramientas de dibujo
+   * @param {function=} alGuardar  recibe el XML nuevo (solo en modo edición)
+   */
+  function montarDiagrama(b, edit, alGuardar){
+    var caja = el('div', 'art-diag');
+    var fr = document.createElement('iframe');
+    fr.className = 'art-diag-frame';
+    fr.title = b.titulo || 'Diagrama';
+    fr.setAttribute('referrerpolicy', 'no-referrer');
+    fr.style.height = (Number(b.alto) || 420) + 'px';
+
+    /* Aviso de red bloqueada. diagrams.net es un dominio externo, igual que el CDN
+       de GSAP, y en esta red corporativa a veces no pasa. Si a los seis segundos no
+       ha dicho `init`, el marco vacío no explica nada: se dice qué pasó y se ofrece
+       lo único que queda, que es el propio XML para abrirlo por fuera. */
+    var listo = false;
+    var reloj = setTimeout(function (){
+      if (listo) return;
+      caja.classList.add('sin-red');
+      var nota = el('div', 'art-diag-nota',
+        'No pudimos cargar el editor de diagramas (diagrams.net). Puede ser la red de la oficina. ' +
+        'El diagrama sigue guardado: vuelve a intentarlo más tarde o ábrelo desde app.diagrams.net.');
+      caja.appendChild(nota);
+    }, 6000);
+
+    function alMensaje(e){
+      if (e.origin !== DRAWIO) return;                 // solo hablamos con él
+      if (e.source !== fr.contentWindow) return;       // y solo con ESTE marco
+      var msg = null;
+      try { msg = JSON.parse(e.data); } catch (err) { return; }
+      if (!msg || !msg.event) return;
+
+      if (msg.event === 'init') {
+        listo = true;
+        clearTimeout(reloj);
+        caja.classList.add('is-listo');
+        fr.contentWindow.postMessage(JSON.stringify({
+          action: 'load', autosave: 0, xml: b.xml || ''
+        }), DRAWIO);
+        return;
+      }
+      if (msg.event === 'save' && edit && typeof alGuardar === 'function') {
+        alGuardar(String(msg.xml || ''));
+        return;
+      }
+      if (msg.event === 'exit' && edit && typeof alGuardar === 'function') {
+        alGuardar(null);   // salir sin guardar
+      }
+    }
+    window.addEventListener('message', alMensaje);
+
+    fr.src = urlDrawio(edit);
+    caja.appendChild(fr);
+
+    return {
+      el: caja,
+      destruir: function (){
+        clearTimeout(reloj);
+        window.removeEventListener('message', alMensaje);
+        if (fr.parentNode) fr.parentNode.removeChild(fr);
+      }
+    };
+  }
+
+  /** El bloque de diagrama tal como se ve al LEER: barra, lienzo y pantalla completa. */
+  function cajaDiagrama(b, edit){
+    var caja = el('div', 'art-doc-emb art-diag-caja');
+
+    var barra = el('div', 'art-doc-bar');
+    barra.appendChild(icono('layers'));
+    barra.appendChild(el('span', 'art-doc-tt', b.titulo || 'Diagrama'));
+    var ampliar = el('button', 'art-diag-ampliar', 'Pantalla completa');
+    ampliar.type = 'button';
+    ampliar.addEventListener('click', function (){ abrirDiagramaGrande(b); });
+    barra.appendChild(ampliar);
+    caja.appendChild(barra);
+
+    var montaje = montarDiagrama(b, edit === true, null);
+    caja.appendChild(montaje.el);
+    return caja;
+  }
+
+  /* Pantalla completa: un diagrama de flujo con quince cajas no se lee en 420 px de
+     alto, y hacer zoom con la rueda dentro del artículo pelea con el scroll de la
+     página. Aquí se abre grande, y al cerrar el foco vuelve a donde estaba. */
+  function abrirDiagramaGrande(b){
+    var overlay = el('div', 'art-diag-full');
+    overlay.setAttribute('role', 'dialog');
+    overlay.setAttribute('aria-modal', 'true');
+    overlay.setAttribute('aria-label', b.titulo || 'Diagrama');
+    var quienAbrio = document.activeElement;
+
+    var barra = el('div', 'art-diag-full-bar');
+    barra.appendChild(el('span', 'art-diag-full-tt', b.titulo || 'Diagrama'));
+    var cerrar = el('button', 'v-btn v-btn-ghost', 'Cerrar');
+    cerrar.type = 'button';
+    barra.appendChild(cerrar);
+    overlay.appendChild(barra);
+
+    var montaje = montarDiagrama({ xml: b.xml, titulo: b.titulo, alto: 0 }, false, null);
+    montaje.el.classList.add('es-full');
+    overlay.appendChild(montaje.el);
+    document.body.appendChild(overlay);
+
+    function fuera(){
+      montaje.destruir();
+      document.removeEventListener('keydown', porEsc);
+      if (overlay.parentNode) overlay.parentNode.removeChild(overlay);
+      if (quienAbrio && quienAbrio.focus) quienAbrio.focus();
+    }
+    function porEsc(e){ if (e.key === 'Escape') fuera(); }
+    cerrar.addEventListener('click', fuera);
+    overlay.addEventListener('click', function (e){ if (e.target === overlay) fuera(); });
+    document.addEventListener('keydown', porEsc);
+    cerrar.focus();
+
+    // La entrada la pone AppMotion si está; si no, el overlay ya nace visible.
+    if (window.AppMotion && AppMotion.modalIn) AppMotion.modalIn(overlay, montaje.el);
   }
 
   function pintarCuerpo(contenido){
@@ -416,7 +798,9 @@
   }
 
   window.ArticuloRender = { pintarBloque: pintarBloque, pintarCuerpo: pintarCuerpo, urlSegura: urlSegura,
-                            docDeUrl: docDeUrl, parsearTSV: parsearTSV };
+                            docDeUrl: docDeUrl, parsearTSV: parsearTSV,
+                            montarDiagrama: montarDiagrama, abrirDiagramaGrande: abrirDiagramaGrande,
+                            el: el, icono: icono };
 })();
 </script>
 <script>
@@ -544,25 +928,43 @@
   function pintarLectura(){
     st.modo = 'lee';
     var a = st.articulo;
+    matarEscena();
     vaciar(vista);
 
-    var barra = el('div', 'art-acciones');
-    barra.style.marginBottom = 'var(--s3)';
+    /* Progreso de lectura. En un artículo largo dentro del iframe de Apps Script no
+       hay barra de desplazamiento de la ventana que sirva de referencia, así que sin
+       esto no se sabe si queda un párrafo o quince. Es una línea de 3 px; se mueve con
+       transform y, sin GSAP, sencillamente no aparece. */
+    var progreso = el('div', 'art-progreso');
+    var barraProg = el('i', null, null);
+    progreso.appendChild(barraProg);
+    vista.appendChild(progreso);
+
+    var acciones = el('div', 'art-acciones art-lee-barra');
     var volver = el('button', 'v-btn v-btn-ghost', '← Todos los artículos');
     volver.type = 'button';
     volver.addEventListener('click', function (){ st.id = ''; cargarLista(); });
-    barra.appendChild(volver);
+    acciones.appendChild(volver);
     if (st.puedeEditar) {
       var editar = el('button', 'v-btn v-btn-ghost', 'Editar');
       editar.type = 'button';
       editar.addEventListener('click', function (){ abrirEditor(a); });
-      barra.appendChild(editar);
+      acciones.appendChild(editar);
       var lectores = el('button', 'v-btn v-btn-ghost', 'Quién lo ha leído');
       lectores.type = 'button';
       lectores.addEventListener('click', function (){ verLectores(a.id); });
-      barra.appendChild(lectores);
+      acciones.appendChild(lectores);
     }
-    vista.appendChild(barra);
+    var copiar = el('button', 'v-btn v-btn-ghost', 'Copiar enlace');
+    copiar.type = 'button';
+    copiar.addEventListener('click', function (){
+      if (!(window.AppUrl && AppUrl.copyLink)) return;
+      AppUrl.copyLink('articulo', { art: a.id }).then(function (ok){
+        aviso(ok ? 'Enlace copiado.' : 'No pudimos copiar el enlace.', ok ? 'ok' : 'warn');
+      });
+    });
+    acciones.appendChild(copiar);
+    vista.appendChild(acciones);
 
     var doc = el('article', 'art-doc');
     var hd = el('div', 'art-doc-hd');
@@ -579,10 +981,174 @@
     }
     hd.appendChild(firma);
     doc.appendChild(hd);
-    doc.appendChild(R.pintarCuerpo(a.contenido));
-    vista.appendChild(doc);
+
+    var cuerpo = R.pintarCuerpo(a.contenido);
+    doc.appendChild(cuerpo);
+
+    /* Índice del artículo. Solo si hay al menos dos subtítulos: con uno no es un índice,
+       es un enlace suelto. Se arma leyendo el DOM ya pintado, así que no hay una segunda
+       fuente de verdad que se pueda desincronizar del contenido. */
+    var indice = construirIndice(cuerpo);
+    if (indice) {
+      var conIndice = el('div', 'art-lectura');
+      conIndice.appendChild(doc);
+      conIndice.appendChild(indice);
+      vista.appendChild(conIndice);
+    } else {
+      vista.appendChild(doc);
+    }
+
     iconos();
+    montarZoomImagenes(cuerpo);
+    montarEscena(cuerpo, barraProg);
     if (window.AppUrl && AppUrl.irAncla) AppUrl.irAncla();
+  }
+
+  /** Tabla de contenidos a partir de los subtítulos ya pintados. */
+  function construirIndice(cuerpo){
+    var titulos = cuerpo.querySelectorAll('.art-h2, .art-h3');
+    if (titulos.length < 2) return null;
+    var nav = el('nav', 'art-indice');
+    nav.setAttribute('aria-label', 'Contenido del artículo');
+    nav.appendChild(el('p', 'art-panel-t', 'En este artículo'));
+    var lista = el('ul', 'art-indice-lista');
+    Array.prototype.forEach.call(titulos, function (t, i){
+      var id = 'art-sec-' + i;
+      t.id = id;
+      var li = document.createElement('li');
+      var a = el('a', t.className === 'art-h3' ? 'es-hijo' : null, t.textContent);
+      a.href = '#' + id;
+      a.dataset.destino = id;
+      a.addEventListener('click', function (e){
+        e.preventDefault();
+        t.scrollIntoView({ behavior: mueve() ? 'smooth' : 'auto', block: 'start' });
+      });
+      li.appendChild(a);
+      lista.appendChild(li);
+    });
+    nav.appendChild(lista);
+    return nav;
+  }
+
+  /** ¿Se puede animar? Mismo guardián que app_motion: sin GSAP o con movimiento
+      reducido, el resultado final se enseña de inmediato y no se anima nada. */
+  function mueve(){
+    var reducido = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+    return typeof window.gsap !== 'undefined' && !reducido;
+  }
+
+  var escena = null;
+  function matarEscena(){
+    if (escena) { try { escena.revert(); } catch (e) {} escena = null; }
+    if (window.ScrollTrigger) ScrollTrigger.getAll().forEach(function (t){ t.kill(); });
+  }
+
+  /* Las animaciones del visor, todas dentro de un `gsap.context` para poder matarlas
+     de una vez: esta pantalla repinta el artículo entero al cambiar de uno a otro, y
+     los ScrollTriggers de la lectura anterior se quedarían midiendo nodos muertos. */
+  function montarEscena(cuerpo, barraProg){
+    if (!mueve()) return;
+
+    escena = gsap.context(function (){
+      // Cabecera: entra una vez, corta.
+      gsap.from('.art-doc-hd > *', {
+        opacity: 0, y: 14, duration: .5, ease: 'power3.out',
+        stagger: { amount: .18 }, clearProps: 'transform,opacity'
+      });
+
+      if (!window.ScrollTrigger) return;
+
+      /* Revelado por bloques. El estado oculto lo pone JavaScript AQUÍ y no el CSS:
+         si el CDN no llega, no se ejecuta esta línea y el artículo se lee entero. */
+      var bloques = cuerpo.children;
+      gsap.set(bloques, { opacity: 0, y: 16 });
+      ScrollTrigger.batch(bloques, {
+        start: 'top 90%',
+        onEnter: function (lote){
+          gsap.to(lote, {
+            opacity: 1, y: 0, duration: .5, ease: 'power2.out',
+            stagger: { amount: Math.min(.3, lote.length * .05) },
+            overwrite: 'auto', clearProps: 'transform'
+          });
+        }
+      });
+      // Lo que ya está en pantalla al abrir no espera al scroll.
+      gsap.to(Array.prototype.filter.call(bloques, function (n){
+        return n.getBoundingClientRect().top < window.innerHeight * .9;
+      }), { opacity: 1, y: 0, duration: .5, ease: 'power2.out',
+            stagger: { amount: .25 }, clearProps: 'transform' });
+
+      // Progreso: quickTo reutiliza un tween en vez de crear uno por evento de scroll.
+      var mueveBarra = gsap.quickTo(barraProg, 'scaleX', { duration: .2, ease: 'none' });
+      gsap.set(barraProg, { transformOrigin: 'left center', scaleX: 0 });
+      ScrollTrigger.create({
+        start: 0, end: 'max',
+        onUpdate: function (self){ mueveBarra(self.progress); }
+      });
+
+      // Scroll-spy del índice: marca dónde vas sin recalcular en cada scroll.
+      var enlaces = vista.querySelectorAll('.art-indice a');
+      if (enlaces.length) {
+        Array.prototype.forEach.call(enlaces, function (a){
+          var destino = document.getElementById(a.dataset.destino);
+          if (!destino) return;
+          ScrollTrigger.create({
+            trigger: destino, start: 'top 30%', end: 'bottom 30%',
+            onToggle: function (self){ a.classList.toggle('es-aqui', self.isActive); }
+          });
+        });
+      }
+    }, vista);
+
+    // Después de pintar y en el frame siguiente: medir un layout a medio hacer da
+    // posiciones equivocadas y los revelados disparan todos a la vez.
+    requestAnimationFrame(function (){ if (window.ScrollTrigger) ScrollTrigger.refresh(); });
+  }
+
+  /* Zoom de imágenes: una captura de pantalla dentro de una columna de 68ch no se lee.
+     Al pulsarla se abre a tamaño completo, con Esc y clic fuera para cerrar. */
+  function montarZoomImagenes(cuerpo){
+    var imgs = cuerpo.querySelectorAll('.art-fig img');
+    Array.prototype.forEach.call(imgs, function (img){
+      img.classList.add('es-ampliable');
+      img.setAttribute('role', 'button');
+      img.setAttribute('tabindex', '0');
+      img.setAttribute('aria-label', 'Ampliar la imagen' + (img.alt ? ': ' + img.alt : ''));
+      var abrir = function (){ ampliarImagen(img); };
+      img.addEventListener('click', abrir);
+      img.addEventListener('keydown', function (e){
+        if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); abrir(); }
+      });
+    });
+  }
+
+  function ampliarImagen(img){
+    var overlay = el('div', 'art-zoom');
+    overlay.setAttribute('role', 'dialog');
+    overlay.setAttribute('aria-modal', 'true');
+    overlay.setAttribute('aria-label', img.alt || 'Imagen ampliada');
+    var quienAbrio = document.activeElement;
+    var grande = document.createElement('img');
+    grande.src = img.src;
+    grande.alt = img.alt || '';
+    overlay.appendChild(grande);
+    var cerrar = el('button', 'art-zoom-x', '×');
+    cerrar.type = 'button';
+    cerrar.setAttribute('aria-label', 'Cerrar');
+    overlay.appendChild(cerrar);
+    document.body.appendChild(overlay);
+
+    function fuera(){
+      document.removeEventListener('keydown', porEsc);
+      if (overlay.parentNode) overlay.parentNode.removeChild(overlay);
+      if (quienAbrio && quienAbrio.focus) quienAbrio.focus();
+    }
+    function porEsc(e){ if (e.key === 'Escape') fuera(); }
+    cerrar.addEventListener('click', fuera);
+    overlay.addEventListener('click', function (e){ if (e.target === overlay) fuera(); });
+    document.addEventListener('keydown', porEsc);
+    cerrar.focus();
+    if (mueve()) gsap.from(grande, { opacity: 0, scale: .96, duration: .28, ease: 'power3.out' });
   }
 
   function verLectores(id){
@@ -607,13 +1173,14 @@
 
   /* ── Editor ────────────────────────────────────────────────────────── */
   var TIPOS = [
-    { t: 'texto',      n: 'Párrafo',      i: 'document' },
-    { t: 'titulo',     n: 'Subtítulo',    i: 'textsize' },
-    { t: 'lista',      n: 'Lista',        i: 'layers' },
-    { t: 'imagen',     n: 'Imagen',       i: 'folder' },
-    { t: 'tabla',      n: 'Tabla',        i: 'chart' },
-    { t: 'documento',  n: 'Documento',    i: 'presentation' },
-    { t: 'separador',  n: 'Separador',    i: 'minus' }
+    { t: 'texto',      n: 'Párrafo',    i: 'document',     d: 'Texto corrido' },
+    { t: 'titulo',     n: 'Subtítulo',  i: 'textsize',     d: 'Separa las partes' },
+    { t: 'lista',      n: 'Lista',      i: 'layers',       d: 'Un punto por renglón' },
+    { t: 'imagen',     n: 'Imagen',     i: 'folder',       d: 'Se sube a Drive' },
+    { t: 'tabla',      n: 'Tabla',      i: 'chart',        d: 'Pegada de Sheets' },
+    { t: 'documento',  n: 'Documento',  i: 'presentation', d: 'Docs, Slides u hoja' },
+    { t: 'diagrama',   n: 'Diagrama',   i: 'layers',       d: 'Flujo con draw.io' },
+    { t: 'separador',  n: 'Separador',  i: 'minus',        d: 'Una línea de descanso' }
   ];
 
   function abrirEditor(a){
@@ -623,55 +1190,176 @@
     st.bloques = ((st.articulo.contenido && st.articulo.contenido.bloques) || []).slice();
     if (!st.bloques.length) st.bloques.push({ tipo: 'texto', partes: [{ t: '' }] });
     st.sucio = false;
+    st.previa = false;
+    st.foco = null;          // bloque al que llevar el cursor tras repintar
     pintarEditor();
     reflejar({ art: st.id, action: st.id ? 'edit' : 'nueva' }, true);
   }
 
-  function marcar(){ st.sucio = true; }
+  function marcar(){
+    st.sucio = true;
+    pintarCifras();
+    pintarEstado();
+  }
+
+  /* Un textarea que crece con lo que se escribe. Sin esto, el lienzo tiene barras de
+     desplazamiento dentro de cada párrafo y deja de parecerse a un artículo. */
+  function autoAlto(ta){
+    ta.style.height = 'auto';
+    ta.style.height = (ta.scrollHeight + 2) + 'px';
+  }
+  function conAutoAlto(ta){
+    ta.addEventListener('input', function (){ autoAlto(this); });
+    setTimeout(function (){ autoAlto(ta); }, 0);
+    return ta;
+  }
+
+  /* ── Las cifras del artículo, en vivo ─────────────────────────────────
+     Cuántas palabras llevas y cuánto se tarda en leerlo es lo que de verdad
+     contesta «¿me estoy pasando?», y hasta ahora había que guardar y salir para
+     saberlo. Se calcula sobre los bloques en memoria, sin ir al servidor. */
+  function palabrasDe(bloques){
+    var partes = [];
+    (bloques || []).forEach(function (b){
+      if (b.tipo === 'titulo') partes.push(b.texto || '');
+      else if (b.tipo === 'texto') partes.push((b.partes || []).map(function (p){ return p.t; }).join(''));
+      else if (b.tipo === 'lista') (b.items || []).forEach(function (it){
+        partes.push((it || []).map(function (p){ return p.t; }).join(''));
+      });
+      else if (b.tipo === 'tabla') (b.filas || []).forEach(function (f){ partes.push(f.join(' ')); });
+      else if (b.tipo === 'imagen') partes.push(b.pie || '');
+    });
+    var t = partes.join(' ').replace(/\s+/g, ' ').trim();
+    return t ? t.split(' ').length : 0;
+  }
+
+  function pintarCifras(){
+    var caja = document.getElementById('artCifras');
+    if (!caja) return;
+    var pal = palabrasDe(st.bloques);
+    var datos = [
+      ['Palabras', pal],
+      ['Lectura', Math.max(1, Math.round(pal / 200)) + ' min'],
+      ['Bloques', st.bloques.length]
+    ];
+    vaciar(caja);
+    datos.forEach(function (d){
+      var fila = el('div', 'art-cifra');
+      fila.appendChild(el('span', null, d[0]));
+      fila.appendChild(el('b', null, d[1]));
+      caja.appendChild(fila);
+    });
+  }
+
+  function pintarEstado(){
+    var n = document.getElementById('artEstado');
+    if (!n) return;
+    n.className = 'art-estado ' + (st.sucio ? 'sucio' : 'guardado');
+    n.textContent = st.sucio ? 'Sin guardar' : (st.id ? 'Guardado' : 'Nuevo');
+  }
 
   function pintarEditor(){
     vaciar(vista);
-    var hd = el('div', 'art-hd');
-    var izq = document.createElement('div');
-    izq.appendChild(el('h1', null, st.id ? 'Editando artículo' : 'Artículo nuevo'));
-    izq.appendChild(el('p', null, 'Se escribe por bloques. Cada bloque es texto: lo que escribas se guarda tal cual y se pinta igual para todo el mundo.'));
-    hd.appendChild(izq);
-    vista.appendChild(hd);
+
+    /* ── Barra de trabajo ───────────────────────────────────────────────
+       Lo que hay que saber siempre a la izquierda (dónde estoy, en qué estado,
+       si hay cambios sin guardar) y a la derecha UNA sola acción primaria. */
+    var barra = el('div', 'art-barra');
+    var izq = el('div', 'art-barra-izq');
+    var salir = el('button', 'v-btn v-btn-ghost', '← Salir');
+    salir.type = 'button';
+    salir.addEventListener('click', salirDelEditor);
+    izq.appendChild(salir);
+    izq.appendChild(el('span', 'art-badge ' + (st.articulo.estado === 'publicado' ? 'publicado' : 'borrador'),
+      st.articulo.estado === 'publicado' ? 'Publicado' : 'Borrador'));
+    var estado = el('span', 'art-estado', '');
+    estado.id = 'artEstado';
+    estado.setAttribute('aria-live', 'polite');
+    izq.appendChild(estado);
+    barra.appendChild(izq);
+
+    var der = el('div', 'art-barra-der');
+    var previa = el('button', 'v-btn v-btn-ghost', st.previa ? 'Seguir escribiendo' : 'Vista previa');
+    previa.type = 'button';
+    previa.addEventListener('click', function (){ st.previa = !st.previa; pintarEditor(); });
+    der.appendChild(previa);
+    var guardar = el('button', 'v-btn v-btn-ghost', 'Guardar');
+    guardar.type = 'button';
+    guardar.title = 'Ctrl + S';
+    guardar.addEventListener('click', function (){ guardarArticulo(st.articulo.estado || 'borrador'); });
+    der.appendChild(guardar);
+    var publicar = el('button', 'v-btn v-btn-primary',
+      st.articulo.estado === 'publicado' ? 'Guardar y retirar' : 'Publicar');
+    publicar.type = 'button';
+    publicar.addEventListener('click', function (){
+      guardarArticulo(st.articulo.estado === 'publicado' ? 'borrador' : 'publicado');
+    });
+    der.appendChild(publicar);
+    barra.appendChild(der);
+    vista.appendChild(barra);
 
     var grid = el('div', 'art-editor');
     var col = document.createElement('div');
 
-    // Título y resumen
-    var cabecera = el('div', 'art-bloque');
-    cabecera.appendChild(el('div', 'art-bloque-tipo', 'Título y resumen'));
-    var tTitulo = document.createElement('input');
-    tTitulo.type = 'text';
-    tTitulo.value = st.articulo.titulo || '';
-    tTitulo.placeholder = 'Título del artículo';
-    tTitulo.maxLength = 160;
-    tTitulo.addEventListener('input', function (){ st.articulo.titulo = this.value; marcar(); });
-    cabecera.appendChild(tTitulo);
-    var tRes = document.createElement('textarea');
-    tRes.rows = 2;
-    tRes.value = st.articulo.resumen || '';
-    tRes.placeholder = 'Resumen de una o dos líneas: es lo que se lee en la lista y en el buscador.';
-    tRes.maxLength = 400;
-    tRes.style.marginTop = '.4rem';
-    tRes.addEventListener('input', function (){ st.articulo.resumen = this.value; marcar(); });
-    cabecera.appendChild(tRes);
-    col.appendChild(cabecera);
+    if (st.previa) {
+      /* Vista previa: el render REAL, el mismo que verá quien lo lea. No una
+         imitación —eso es lo que acaba mintiendo— sino la misma función. */
+      var caja = el('div', 'art-previa');
+      caja.appendChild(el('p', 'art-previa-nota', 'Así se verá'));
+      var doc = el('article', 'art-doc');
+      var hdp = el('div', 'art-doc-hd');
+      hdp.appendChild(el('h1', null, st.articulo.titulo || '(sin título)'));
+      if (st.articulo.resumen) hdp.appendChild(el('p', 'art-doc-rs', st.articulo.resumen));
+      doc.appendChild(hdp);
+      doc.appendChild(R.pintarCuerpo({ v: 1, bloques: st.bloques }));
+      caja.appendChild(doc);
+      col.appendChild(caja);
+    } else {
+      var lienzo = el('div', 'art-lienzo');
 
-    var caja = el('div', 'art-bloques');
-    caja.style.marginTop = 'var(--s2)';
-    st.bloques.forEach(function (b, i){ caja.appendChild(editorDeBloque(b, i)); });
-    col.appendChild(caja);
+      var cab = el('div', 'art-cabecera');
+      var tTitulo = document.createElement('input');
+      tTitulo.type = 'text';
+      tTitulo.className = 'art-campo-titulo';
+      tTitulo.value = st.articulo.titulo || '';
+      tTitulo.placeholder = 'Título del artículo';
+      tTitulo.maxLength = 160;
+      tTitulo.setAttribute('aria-label', 'Título del artículo');
+      tTitulo.addEventListener('input', function (){ st.articulo.titulo = this.value; marcar(); });
+      cab.appendChild(tTitulo);
+      var tRes = document.createElement('textarea');
+      tRes.className = 'art-campo-resumen';
+      tRes.rows = 1;
+      tRes.value = st.articulo.resumen || '';
+      tRes.placeholder = 'Resumen en una o dos líneas. Es lo que se lee en la lista y en el buscador.';
+      tRes.maxLength = 400;
+      tRes.setAttribute('aria-label', 'Resumen del artículo');
+      tRes.addEventListener('input', function (){ st.articulo.resumen = this.value; marcar(); });
+      cab.appendChild(conAutoAlto(tRes));
+      lienzo.appendChild(cab);
+
+      var caja2 = el('div', 'art-bloques');
+      st.bloques.forEach(function (b, i){
+        caja2.appendChild(editorDeBloque(b, i));
+        caja2.appendChild(zonaInsertar(i + 1));
+      });
+      lienzo.appendChild(caja2);
+      col.appendChild(lienzo);
+    }
     grid.appendChild(col);
 
-    // Panel lateral
+    // ── Panel lateral: contexto y herramientas. Nunca la acción primaria.
     var panel = el('div', 'art-panel');
 
+    var fichaCaja = el('div', 'art-panel-caja');
+    fichaCaja.appendChild(el('p', 'art-panel-t', 'Este artículo'));
+    var cifras = el('div', 'art-cifras');
+    cifras.id = 'artCifras';
+    fichaCaja.appendChild(cifras);
+    panel.appendChild(fichaCaja);
+
     var insertar = el('div', 'art-panel-caja');
-    insertar.appendChild(el('p', 'art-panel-t', 'Añadir bloque'));
+    insertar.appendChild(el('p', 'art-panel-t', 'Añadir al final'));
     var botones = el('div', 'art-insertar');
     TIPOS.forEach(function (t){
       var b = el('button', null, null);
@@ -682,55 +1370,120 @@
       botones.appendChild(b);
     });
     insertar.appendChild(botones);
+    insertar.appendChild(el('p', 'art-ayuda', 'También puedes usar el + que aparece entre dos bloques para insertar justo ahí.'));
     panel.appendChild(insertar);
-
-    var acciones = el('div', 'art-panel-caja');
-    acciones.appendChild(el('p', 'art-panel-t', 'Publicación'));
-    var estadoAct = el('div', 'art-acciones');
-    var guardar = el('button', 'v-btn v-btn-primary', 'Guardar');
-    guardar.type = 'button';
-    guardar.addEventListener('click', function (){ guardarArticulo(st.articulo.estado || 'borrador'); });
-    estadoAct.appendChild(guardar);
-    var publicar = el('button', 'v-btn v-btn-ghost',
-      st.articulo.estado === 'publicado' ? 'Pasar a borrador' : 'Guardar y publicar');
-    publicar.type = 'button';
-    publicar.addEventListener('click', function (){
-      guardarArticulo(st.articulo.estado === 'publicado' ? 'borrador' : 'publicado');
-    });
-    estadoAct.appendChild(publicar);
-    acciones.appendChild(estadoAct);
-    var salir = el('button', 'v-btn v-btn-ghost', 'Salir sin guardar');
-    salir.type = 'button';
-    salir.style.marginTop = '.5rem';
-    salir.addEventListener('click', function (){
-      if (st.sucio && !window.confirm('Se perderá lo que has escrito desde el último guardado. ¿Salir igualmente?')) return;
-      if (st.id) abrirArticulo(st.id); else cargarLista();
-    });
-    acciones.appendChild(salir);
-    panel.appendChild(acciones);
 
     var ayuda = el('div', 'art-panel-caja');
     ayuda.appendChild(el('p', 'art-panel-t', 'Cómo se pegan las cosas'));
     ayuda.appendChild(el('p', 'art-ayuda',
-      'Tabla: copia el rango en Sheets o Excel y pégalo en un bloque de tabla; se reparte solo en columnas. ' +
-      'Documento: pega el enlace de un Docs, Slides o Sheets y se incrusta. ' +
-      'Imagen: elige el archivo y se sube a la carpeta del Portal en Drive.'));
+      'Copia un rango de Sheets o Excel y pégalo en un bloque de tabla: se reparte solo en columnas. ' +
+      'Pega el enlace de un Docs, Slides o Sheets en un bloque de documento y se incrusta. ' +
+      'Las imágenes se suben a la carpeta del Portal en Drive.'));
     panel.appendChild(ayuda);
+
+    var borrarCaja = el('div', 'art-panel-caja');
+    borrarCaja.appendChild(el('p', 'art-panel-t', 'Zona de riesgo'));
+    var borrar = el('button', 'v-btn v-btn-ghost', 'Borrar este artículo');
+    borrar.type = 'button';
+    borrar.disabled = !st.id;
+    borrar.addEventListener('click', borrarArticulo);
+    borrarCaja.appendChild(borrar);
+    if (!st.id) borrarCaja.appendChild(el('p', 'art-ayuda', 'Todavía no se ha guardado, así que no hay nada que borrar.'));
+    panel.appendChild(borrarCaja);
 
     grid.appendChild(panel);
     vista.appendChild(grid);
+    pintarCifras();
+    pintarEstado();
     iconos();
+
+    // El cursor vuelve donde estaba: tras insertar o mover un bloque, repintar y
+    // dejar el foco en el body obliga a buscar con el ratón dónde ibas.
+    if (st.foco != null) {
+      var campos = vista.querySelectorAll('.art-bloque .art-esc');
+      var destino = campos[st.foco];
+      if (destino) { destino.focus(); if (destino.setSelectionRange) { var n = destino.value.length; destino.setSelectionRange(n, n); } }
+      st.foco = null;
+    }
   }
 
-  function anadirBloque(tipo){
+  function salirDelEditor(){
+    if (st.sucio && !window.confirm('Se perderá lo que has escrito desde el último guardado. ¿Salir igualmente?')) return;
+    if (st.id) abrirArticulo(st.id); else cargarLista();
+  }
+
+  function borrarArticulo(){
+    if (!st.id) return;
+    if (!window.confirm('Se borrará el artículo del Portal. Esta acción no se puede deshacer.')) return;
+    AppRun.call('artEliminar', [st.id, correo()], { busy: 'Borrando el artículo' })
+      .then(function (r){
+        if (!r || r.status !== 'ok') { aviso((r && r.error) || 'No pudimos borrarlo.', 'warn'); return; }
+        st.sucio = false; st.id = '';
+        aviso('Artículo borrado.', 'ok');
+        cargarLista();
+      }, function (){ aviso('No pudimos borrarlo.', 'warn'); });
+  }
+
+  /* Zona de inserción entre dos bloques: una línea con un «+» que solo aparece al
+     acercarse. Es donde la gente quiere añadir algo —justo ahí— y evita tener que
+     añadir al final y subir el bloque a base de flechas. */
+  function zonaInsertar(pos){
+    var zona = el('div', 'art-entre');
+    var mas = el('button', 'art-mas', '+');
+    mas.type = 'button';
+    mas.setAttribute('aria-label', 'Insertar un bloque aquí');
+    mas.addEventListener('click', function (e){ abrirMenuInsertar(e.currentTarget, pos); });
+    zona.appendChild(mas);
+    return zona;
+  }
+
+  function abrirMenuInsertar(anclaje, pos){
+    cerrarMenu();
+    var menu = el('div', 'art-menu');
+    menu.id = 'artMenuInsertar';
+    TIPOS.forEach(function (t){
+      var b = el('button', null, null);
+      b.type = 'button';
+      b.appendChild(icono(t.i));
+      var txt = document.createElement('span');
+      txt.appendChild(document.createTextNode(t.n));
+      txt.appendChild(el('small', null, t.d));
+      b.appendChild(txt);
+      b.addEventListener('click', function (){ cerrarMenu(); anadirBloque(t.t, pos); });
+      menu.appendChild(b);
+    });
+    document.body.appendChild(menu);
+    var r = anclaje.getBoundingClientRect();
+    menu.style.top = (window.scrollY + r.bottom + 6) + 'px';
+    menu.style.left = Math.max(8, Math.min(window.innerWidth - 230, r.left - 90)) + 'px';
+    if (window.Icons) Icons.render(menu);
+    var primero = menu.querySelector('button');
+    if (primero) primero.focus();
+    setTimeout(function (){ document.addEventListener('click', cerrarMenuFuera); }, 0);
+  }
+  function cerrarMenu(){
+    var m = document.getElementById('artMenuInsertar');
+    if (m && m.parentNode) m.parentNode.removeChild(m);
+    document.removeEventListener('click', cerrarMenuFuera);
+  }
+  function cerrarMenuFuera(e){
+    var m = document.getElementById('artMenuInsertar');
+    if (m && !m.contains(e.target)) cerrarMenu();
+  }
+
+  /** `pos` = dónde insertarlo. Sin ella, al final. */
+  function anadirBloque(tipo, pos){
     var nuevo = tipo === 'texto' ? { tipo: 'texto', partes: [{ t: '' }] }
       : tipo === 'titulo' ? { tipo: 'titulo', texto: '', nivel: 2 }
       : tipo === 'lista' ? { tipo: 'lista', items: [[{ t: '' }]], ordenada: false }
       : tipo === 'imagen' ? { tipo: 'imagen', url: '', alt: '', pie: '' }
       : tipo === 'tabla' ? { tipo: 'tabla', filas: [], encabezado: true }
       : tipo === 'documento' ? { tipo: 'documento', clase: '', docId: '', titulo: '' }
+      : tipo === 'diagrama' ? { tipo: 'diagrama', xml: '', titulo: '', alto: 420 }
       : { tipo: 'separador' };
-    st.bloques.push(nuevo);
+    var destino = (pos == null || pos > st.bloques.length) ? st.bloques.length : pos;
+    st.bloques.splice(destino, 0, nuevo);
+    st.foco = destino;          // el cursor cae dentro del bloque recién creado
     marcar();
     pintarEditor();
   }
@@ -739,6 +1492,7 @@
     var j = i + dir;
     if (j < 0 || j >= st.bloques.length) return;
     var tmp = st.bloques[i]; st.bloques[i] = st.bloques[j]; st.bloques[j] = tmp;
+    st.foco = j;                // el foco viaja CON el bloque, no se queda en su hueco
     marcar();
     pintarEditor();
   }
@@ -746,6 +1500,7 @@
   function quitarBloque(i){
     st.bloques.splice(i, 1);
     if (!st.bloques.length) st.bloques.push({ tipo: 'texto', partes: [{ t: '' }] });
+    st.foco = Math.max(0, i - 1);
     marcar();
     pintarEditor();
   }
@@ -757,16 +1512,19 @@
 
   function editorDeBloque(b, i){
     var caja = el('div', 'art-bloque');
+    caja.setAttribute('data-i', String(i));
+
+    // Chrome flotante: rótulo del tipo y acciones. Solo se ve al pasar o enfocar.
     var hd = el('div', 'art-bloque-hd');
     var ficha = TIPOS.filter(function (t){ return t.t === b.tipo; })[0];
     hd.appendChild(el('span', 'art-bloque-tipo', (ficha && ficha.n) || b.tipo));
     var ac = el('div', 'art-bloque-ac');
-    [['up', -1, 'Subir'], ['down', 1, 'Bajar']].forEach(function (m){
+    [['arrow', -1, 'Subir'], ['chevdown', 1, 'Bajar']].forEach(function (m){
       var btn = document.createElement('button');
       btn.type = 'button';
       btn.title = m[2];
-      btn.setAttribute('aria-label', m[2] + ' bloque');
-      btn.appendChild(icono(m[0] === 'up' ? 'arrow' : 'chevdown'));
+      btn.setAttribute('aria-label', m[2] + ' este bloque');
+      btn.appendChild(icono(m[0]));
       btn.disabled = (m[1] === -1 && i === 0) || (m[1] === 1 && i === st.bloques.length - 1);
       btn.addEventListener('click', function (){ moverBloque(i, m[1]); });
       ac.appendChild(btn);
@@ -774,7 +1532,7 @@
     var borrar = document.createElement('button');
     borrar.type = 'button';
     borrar.title = 'Quitar bloque';
-    borrar.setAttribute('aria-label', 'Quitar bloque');
+    borrar.setAttribute('aria-label', 'Quitar este bloque');
     borrar.appendChild(icono('trash'));
     borrar.addEventListener('click', function (){ quitarBloque(i); });
     ac.appendChild(borrar);
@@ -783,146 +1541,347 @@
 
     if (b.tipo === 'texto') {
       var ta = document.createElement('textarea');
-      ta.rows = 4;
+      ta.className = 'art-esc es-parrafo';
+      ta.rows = 1;
       ta.value = textoDePartes(b.partes);
-      ta.placeholder = 'Escribe el párrafo.';
-      ta.addEventListener('input', function (){ b.partes = [{ t: this.value }]; marcar(); });
-      caja.appendChild(ta);
+      ta.placeholder = 'Escribe aquí…';
+      ta.setAttribute('aria-label', 'Párrafo ' + (i + 1));
+      ta.addEventListener('input', function (){
+        var u = (b.partes || []).filter(function (p){ return p.url; })[0];
+        b.partes = u ? [{ t: this.value, url: u.url }] : [{ t: this.value }];
+        marcar();
+      });
+      /* Enter al final de un párrafo abre el siguiente, como en cualquier editor.
+         Con Shift+Enter se parte la línea dentro del mismo párrafo, que es la otra
+         mitad de la convención. */
+      ta.addEventListener('keydown', function (e){
+        if (e.key !== 'Enter' || e.shiftKey) return;
+        if (this.selectionStart !== this.value.length) return;
+        e.preventDefault();
+        anadirBloque('texto', i + 1);
+      });
+      caja.appendChild(conAutoAlto(ta));
+
+      var sub = el('div', 'art-sub art-sub-op');
       var enl = document.createElement('input');
       enl.type = 'text';
-      enl.placeholder = 'Enlace opcional para todo el párrafo (https://…)';
-      enl.style.marginTop = '.4rem';
+      enl.placeholder = 'Enlace para todo el párrafo (https://…), opcional';
+      enl.setAttribute('aria-label', 'Enlace del párrafo ' + (i + 1));
       var urlActual = (b.partes || []).filter(function (p){ return p.url; })[0];
       enl.value = urlActual ? urlActual.url : '';
       enl.addEventListener('input', function (){
         var u = R.urlSegura(this.value);
         var txt = textoDePartes(b.partes);
         b.partes = u ? [{ t: txt, url: u }] : [{ t: txt }];
+        var pista = caja.querySelector('.art-ayuda');
+        if (pista) pista.textContent = this.value.trim() && !u
+          ? 'Ese enlace no vale: solo se admiten direcciones que empiecen por https://'
+          : '';
         marcar();
       });
-      caja.appendChild(enl);
-      caja.appendChild(el('p', 'art-ayuda',
-        'Si pones un enlace, el párrafo entero se vuelve enlace. Para enlazar solo una frase, ponla en su propio párrafo.'));
+      sub.appendChild(enl);
+      sub.appendChild(el('p', 'art-ayuda', ''));
+      caja.appendChild(sub);
     }
 
     else if (b.tipo === 'titulo') {
       var ti = document.createElement('input');
       ti.type = 'text';
+      ti.className = 'art-esc ' + (b.nivel === 3 ? 'es-titulo3' : 'es-titulo2');
       ti.value = b.texto || '';
-      ti.placeholder = 'Subtítulo';
+      ti.placeholder = b.nivel === 3 ? 'Subtítulo menor' : 'Subtítulo';
+      ti.setAttribute('aria-label', 'Subtítulo');
       ti.addEventListener('input', function (){ b.texto = this.value; marcar(); });
       caja.appendChild(ti);
+      var nivel = el('div', 'art-sub art-sub-op');
+      var lbl = document.createElement('label');
+      lbl.style.display = 'flex';
+      lbl.style.alignItems = 'center';
+      lbl.style.gap = '.4rem';
+      lbl.style.fontSize = 'var(--fs-xs)';
+      lbl.style.color = 'var(--ink-faint)';
+      var chkN = document.createElement('input');
+      chkN.type = 'checkbox';
+      chkN.checked = b.nivel === 3;
+      chkN.addEventListener('change', function (){ b.nivel = this.checked ? 3 : 2; marcar(); pintarEditor(); });
+      lbl.appendChild(chkN);
+      lbl.appendChild(document.createTextNode('Subtítulo de segundo nivel (más pequeño)'));
+      nivel.appendChild(lbl);
+      caja.appendChild(nivel);
     }
 
     else if (b.tipo === 'lista') {
       var tl = document.createElement('textarea');
-      tl.rows = 4;
+      tl.className = 'art-esc es-lista';
+      tl.rows = 1;
       tl.value = (b.items || []).map(function (it){ return textoDePartes(it); }).join('\n');
-      tl.placeholder = 'Un elemento por renglón.';
+      tl.placeholder = 'Un punto por renglón.';
+      tl.setAttribute('aria-label', 'Lista');
       tl.addEventListener('input', function (){
         b.items = this.value.split('\n').map(function (t){ return [{ t: t }]; });
         marcar();
       });
-      caja.appendChild(tl);
+      caja.appendChild(conAutoAlto(tl));
+      var subL = el('div', 'art-sub art-sub-op');
+      var lblL = document.createElement('label');
+      lblL.style.display = 'flex';
+      lblL.style.alignItems = 'center';
+      lblL.style.gap = '.4rem';
+      lblL.style.fontSize = 'var(--fs-xs)';
+      lblL.style.color = 'var(--ink-faint)';
+      var chkL = document.createElement('input');
+      chkL.type = 'checkbox';
+      chkL.checked = b.ordenada === true;
+      chkL.addEventListener('change', function (){ b.ordenada = this.checked; marcar(); });
+      lblL.appendChild(chkL);
+      lblL.appendChild(document.createTextNode('Numerada (1, 2, 3…)'));
+      subL.appendChild(lblL);
+      caja.appendChild(subL);
     }
 
     else if (b.tipo === 'imagen') {
+      /* La imagen se ve TAL CUAL va a quedar, con su pie debajo: es el bloque donde
+         más se agradece no tener que imaginar, porque lo que se sube desde el móvil
+         suele venir con otra proporción de la que uno recuerda. */
       if (b.url) {
+        var fig = el('figure', 'art-fig');
         var prev = document.createElement('img');
         prev.src = R.urlSegura(b.url);
-        prev.alt = '';
-        prev.style.maxWidth = '100%';
-        prev.style.borderRadius = '8px';
-        prev.style.marginBottom = '.4rem';
-        caja.appendChild(prev);
+        prev.alt = b.alt || '';
+        fig.appendChild(prev);
+        if (b.pie) fig.appendChild(el('figcaption', null, b.pie));
+        caja.appendChild(fig);
+      } else {
+        caja.appendChild(el('p', 'art-ayuda', 'Todavía sin imagen. Elige un archivo y se sube a la carpeta del Portal en Drive.'));
       }
+      var subI = el('div', 'art-sub');
       var file = document.createElement('input');
       file.type = 'file';
       file.accept = 'image/*';
+      file.setAttribute('aria-label', 'Archivo de imagen');
+      file.style.fontSize = 'var(--fs-xs)';
       file.addEventListener('change', function (){ subirImagen(this.files && this.files[0], b); });
-      caja.appendChild(file);
+      subI.appendChild(file);
       var pie = document.createElement('input');
       pie.type = 'text';
       pie.placeholder = 'Pie de imagen (opcional)';
       pie.value = b.pie || '';
-      pie.style.marginTop = '.4rem';
-      pie.addEventListener('input', function (){ b.pie = this.value; marcar(); });
-      caja.appendChild(pie);
+      pie.setAttribute('aria-label', 'Pie de imagen');
+      pie.addEventListener('input', function (){
+        b.pie = this.value;
+        var f = caja.querySelector('figcaption');
+        if (f) f.textContent = this.value;
+        marcar();
+      });
+      subI.appendChild(pie);
       var alt = document.createElement('input');
       alt.type = 'text';
-      alt.placeholder = 'Descripción para quien no ve la imagen';
+      alt.placeholder = 'Descripción para quien no puede ver la imagen';
       alt.value = b.alt || '';
-      alt.style.marginTop = '.4rem';
+      alt.setAttribute('aria-label', 'Texto alternativo');
       alt.addEventListener('input', function (){ b.alt = this.value; marcar(); });
-      caja.appendChild(alt);
+      subI.appendChild(alt);
+      caja.appendChild(subI);
     }
 
     else if (b.tipo === 'tabla') {
+      /* Dos mitades: donde se pega y lo que va a quedar. Pegar cien celdas y ver
+         solo el texto separado por tabuladores no dice si las columnas cuadran. */
       var tt = document.createElement('textarea');
-      tt.rows = 5;
+      tt.className = 'art-esc es-mono';
+      tt.rows = 3;
       tt.value = (b.filas || []).map(function (f){ return f.join('\t'); }).join('\n');
       tt.placeholder = 'Pega aquí el rango copiado de Sheets o Excel.';
+      tt.setAttribute('aria-label', 'Contenido de la tabla');
+      var repintaTabla = function (){
+        var vieja = caja.querySelector('.art-tabla-caja');
+        if (vieja) vieja.parentNode.removeChild(vieja);
+        if (!(b.filas || []).length) return;
+        var nueva = R.pintarBloque(b);
+        if (nueva) caja.insertBefore(nueva, caja.querySelector('.art-sub'));
+      };
       tt.addEventListener('input', function (){
         b.filas = R.parsearTSV(this.value);
-        marcar();
+        autoAlto(this);
         var n = caja.querySelector('.art-ayuda');
         if (n) n.textContent = b.filas.length
-          ? b.filas.length + ' filas × ' + (b.filas[0] ? b.filas[0].length : 0) + ' columnas.'
+          ? b.filas.length + ' filas × ' + (b.filas[0] ? b.filas[0].length : 0) + ' columnas'
           : 'Pega el rango y se reparte solo en columnas.';
+        repintaTabla();
+        marcar();
       });
-      caja.appendChild(tt);
+      caja.appendChild(conAutoAlto(tt));
+      if ((b.filas || []).length) {
+        var tablaPrev = R.pintarBloque(b);
+        if (tablaPrev) caja.appendChild(tablaPrev);
+      }
+      var subT = el('div', 'art-sub');
       var chk = document.createElement('label');
       chk.style.display = 'flex';
       chk.style.alignItems = 'center';
       chk.style.gap = '.4rem';
-      chk.style.marginTop = '.4rem';
       chk.style.fontSize = 'var(--fs-xs)';
+      chk.style.color = 'var(--ink-faint)';
       var ci = document.createElement('input');
       ci.type = 'checkbox';
       ci.checked = b.encabezado !== false;
-      ci.addEventListener('change', function (){ b.encabezado = this.checked; marcar(); });
+      ci.addEventListener('change', function (){ b.encabezado = this.checked; marcar(); repintaTabla(); });
       chk.appendChild(ci);
       chk.appendChild(document.createTextNode('La primera fila son los encabezados'));
-      caja.appendChild(chk);
-      caja.appendChild(el('p', 'art-ayuda', (b.filas || []).length
-        ? b.filas.length + ' filas × ' + (b.filas[0] ? b.filas[0].length : 0) + ' columnas.'
+      subT.appendChild(chk);
+      subT.appendChild(el('p', 'art-ayuda', (b.filas || []).length
+        ? b.filas.length + ' filas × ' + (b.filas[0] ? b.filas[0].length : 0) + ' columnas'
         : 'Pega el rango y se reparte solo en columnas.'));
+      caja.appendChild(subT);
     }
 
     else if (b.tipo === 'documento') {
+      var estadoDoc = el('p', 'art-ayuda', '');
+      var pintaDoc = function (){
+        var viejo = caja.querySelector('.art-doc-emb');
+        if (viejo) viejo.parentNode.removeChild(viejo);
+        if (!b.docId) return;
+        var visor = R.pintarBloque(b);
+        if (visor) caja.insertBefore(visor, caja.querySelector('.art-sub'));
+      };
+      if (b.docId) {
+        var visorIni = R.pintarBloque(b);
+        if (visorIni) caja.appendChild(visorIni);
+      } else {
+        caja.appendChild(el('p', 'art-ayuda', 'Pega abajo el enlace y el documento aparecerá aquí mismo.'));
+      }
+      var subD = el('div', 'art-sub');
       var du = document.createElement('input');
       du.type = 'text';
-      du.placeholder = 'Pega el enlace del Documento, Presentación u Hoja de Google';
-      du.value = b.docId ? 'https://docs.google.com/…/' + b.docId : '';
+      du.placeholder = 'Enlace del Documento, Presentación u Hoja de Google';
+      du.value = b.docId ? 'https://docs.google.com/' + ((DOC_RUTA[b.clase]) || 'file') + '/d/' + b.docId + '/edit' : '';
+      du.setAttribute('aria-label', 'Enlace del documento de Google');
       du.addEventListener('input', function (){
         var d = R.docDeUrl(this.value);
-        if (d) { b.clase = d.clase; b.docId = d.docId; marcar(); }
-        var n = caja.querySelector('.art-ayuda');
-        if (n) n.textContent = d
-          ? 'Reconocido: ' + d.clase + '. Se incrustará el visor.'
-          : 'Pega un enlace de docs.google.com o drive.google.com.';
+        if (d) { b.clase = d.clase; b.docId = d.docId; marcar(); pintaDoc(); }
+        estadoDoc.textContent = d
+          ? 'Reconocido: ' + NOMBRE_DOC[d.clase] + '.'
+          : (this.value.trim() ? 'No reconozco ese enlace. Tiene que ser de docs.google.com o drive.google.com.' : '');
       });
-      caja.appendChild(du);
+      subD.appendChild(du);
       var dt = document.createElement('input');
       dt.type = 'text';
       dt.placeholder = 'Cómo llamarlo en el artículo (opcional)';
       dt.value = b.titulo || '';
-      dt.style.marginTop = '.4rem';
+      dt.setAttribute('aria-label', 'Nombre del documento en el artículo');
       dt.addEventListener('input', function (){ b.titulo = this.value; marcar(); });
-      caja.appendChild(dt);
-      caja.appendChild(el('p', 'art-ayuda', b.docId
-        ? 'Reconocido: ' + (b.clase || 'archivo') + '. Se incrustará el visor.'
-        : 'Pega un enlace de docs.google.com o drive.google.com.'));
-      caja.appendChild(el('p', 'art-ayuda',
+      subD.appendChild(dt);
+      estadoDoc.textContent = b.docId ? 'Reconocido: ' + (NOMBRE_DOC[b.clase] || 'archivo de Drive') + '.' : '';
+      subD.appendChild(estadoDoc);
+      subD.appendChild(el('p', 'art-ayuda',
         'Quien lea el artículo verá el documento solo si Drive le da permiso: compártelo con el equipo antes de publicar.'));
+      caja.appendChild(subD);
+    }
+
+    else if (b.tipo === 'diagrama') {
+      /* En el editor se ve el MISMO visor que verá quien lea, y el dibujo se hace en
+         una ventana aparte a pantalla completa. Poner el editor de draw.io dentro del
+         lienzo —a 420 px, con su barra de herramientas y su paleta— dejaba el artículo
+         reducido a una rendija y el diagrama tampoco se dibujaba a gusto. */
+      var lienzoD = el('div', 'art-diag-hueco');
+      var pintaDiag = function (){
+        vaciar(lienzoD);
+        if (b.xml) {
+          lienzoD.appendChild(R.pintarBloque(b));
+        } else {
+          var vacio = el('div', 'art-diag-vacio');
+          vacio.appendChild(icono('layers'));
+          vacio.appendChild(el('div', 'art-vacio-t', 'Diagrama en blanco'));
+          vacio.appendChild(el('div', 'art-vacio-s',
+            'Dibuja un flujo con cajas, flechas y textos. Se guarda dentro del artículo y se puede volver a editar cuando quieras.'));
+          lienzoD.appendChild(vacio);
+        }
+      };
+      pintaDiag();
+      caja.appendChild(lienzoD);
+
+      var subG = el('div', 'art-sub');
+      var abrirEd = el('button', 'v-btn v-btn-primary', b.xml ? 'Editar el diagrama' : 'Dibujar el diagrama');
+      abrirEd.type = 'button';
+      abrirEd.addEventListener('click', function (){
+        abrirEditorDiagrama(b, function (xmlNuevo){
+          if (xmlNuevo == null) return;      // salió sin guardar
+          b.xml = xmlNuevo;
+          marcar();
+          pintaDiag();
+          abrirEd.textContent = 'Editar el diagrama';
+        });
+      });
+      subG.appendChild(abrirEd);
+      var dtG = document.createElement('input');
+      dtG.type = 'text';
+      dtG.placeholder = 'Cómo llamar al diagrama (opcional)';
+      dtG.value = b.titulo || '';
+      dtG.setAttribute('aria-label', 'Nombre del diagrama');
+      dtG.addEventListener('input', function (){
+        b.titulo = this.value;
+        var tt = lienzoD.querySelector('.art-doc-tt');
+        if (tt) tt.textContent = this.value || 'Diagrama';
+        marcar();
+      });
+      subG.appendChild(dtG);
+      subG.appendChild(el('p', 'art-ayuda',
+        'El diagrama se dibuja con draw.io y se guarda dentro del artículo, no en Drive: quien lo lea lo verá sin pedir permisos a nadie.'));
+      caja.appendChild(subG);
     }
 
     else if (b.tipo === 'separador') {
-      caja.appendChild(el('p', 'art-ayuda', 'Una línea para separar dos partes del artículo.'));
+      caja.appendChild(el('hr', 'art-sep'));
     }
 
     return caja;
   }
+
+  /* El editor de diagramas, a pantalla completa. Se cierra desde el propio draw.io
+     («Guardar y salir» manda `save` y luego `exit`), y también con Esc o el botón. */
+  function abrirEditorDiagrama(b, alTerminar){
+    var overlay = el('div', 'art-diag-full es-editor');
+    overlay.setAttribute('role', 'dialog');
+    overlay.setAttribute('aria-modal', 'true');
+    overlay.setAttribute('aria-label', 'Editor de diagramas');
+    var quienAbrio = document.activeElement;
+    var guardado = null;
+
+    var barra = el('div', 'art-diag-full-bar');
+    barra.appendChild(el('span', 'art-diag-full-tt', b.titulo || 'Diagrama del artículo'));
+    barra.appendChild(el('span', 'art-ayuda', 'Dibuja y pulsa «Guardar y salir» dentro del editor.'));
+    var cerrar = el('button', 'v-btn v-btn-ghost', 'Cerrar');
+    cerrar.type = 'button';
+    barra.appendChild(cerrar);
+    overlay.appendChild(barra);
+
+    var montaje = R.montarDiagrama({ xml: b.xml, titulo: b.titulo, alto: 0 }, true, function (xml){
+      if (xml == null) { fuera(); return; }   // `exit` sin guardar
+      guardado = xml;
+      alTerminar(xml);
+      aviso('Diagrama guardado en el artículo.', 'ok');
+      fuera();
+    });
+    montaje.el.classList.add('es-full');
+    overlay.appendChild(montaje.el);
+    document.body.appendChild(overlay);
+
+    function fuera(){
+      montaje.destruir();
+      document.removeEventListener('keydown', porEsc);
+      if (overlay.parentNode) overlay.parentNode.removeChild(overlay);
+      if (quienAbrio && quienAbrio.focus) quienAbrio.focus();
+      if (guardado == null) alTerminar(null);
+    }
+    function porEsc(e){ if (e.key === 'Escape') fuera(); }
+    cerrar.addEventListener('click', fuera);
+    document.addEventListener('keydown', porEsc);
+    if (window.AppMotion && AppMotion.modalIn) AppMotion.modalIn(overlay, montaje.el);
+  }
+
+  var DOC_RUTA = { documento: 'document', presentacion: 'presentation', hoja: 'spreadsheets', archivo: 'file' };
+  var NOMBRE_DOC = { documento: 'un Documento de Google', presentacion: 'una Presentación',
+                     hoja: 'una Hoja de cálculo', archivo: 'un archivo de Drive' };
 
   function subirImagen(file, bloque){
     if (!file) return;
@@ -997,6 +1956,18 @@
 
     window.addEventListener('beforeunload', function (e){
       if (st.modo === 'edita' && st.sucio) { e.preventDefault(); e.returnValue = ''; }
+    });
+
+    /* Ctrl/Cmd + S guarda, y Esc cierra el menú de insertar. Lo primero porque quien
+       escribe algo largo lo pulsa por reflejo cada pocos minutos, y sin atajo el
+       navegador ofrece «guardar la página», que no es lo que nadie quiere. */
+    document.addEventListener('keydown', function (e){
+      if (e.key === 'Escape') { cerrarMenu(); return; }
+      if ((e.ctrlKey || e.metaKey) && String(e.key).toLowerCase() === 's') {
+        if (st.modo !== 'edita') return;
+        e.preventDefault();
+        guardarArticulo(st.articulo.estado || 'borrador');
+      }
     });
   });
 })();

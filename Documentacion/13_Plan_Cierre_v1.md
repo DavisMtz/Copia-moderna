@@ -973,6 +973,80 @@ y qué se dejó fuera a propósito**. Mismo formato que el registro del document
 
 <!-- Las entradas nuevas van arriba, con la más reciente primero. -->
 
+### 2026-08-15 — F8, segunda tanda: el editor deja de parecer un formulario, y los artículos dibujan
+
+**Por qué esta tanda.** El editor de la tanda anterior funcionaba y se leía mal: cada bloque
+en una caja gris idéntica con su rótulo encima, de modo que un párrafo, un subtítulo y una
+tabla se veían igual y había que **imaginarse** el artículo. Encima era incoherente con la
+propia casa: el constructor de anuncios tiene vista previa desde siempre.
+
+**Qué se cambió.**
+
+- **El editor se parece al artículo.** Cada bloque se escribe con la misma tipografía con la
+  que se va a leer: el subtítulo se teclea grande y en Archivo, el párrafo con su medida y su
+  interlineado. El «chrome» del bloque —mover, quitar— se fue al **margen izquierdo** y solo
+  aparece al enfocar o pasar por encima. Primero se puso arriba a la derecha y **tapaba las
+  últimas palabras de la primera línea justo al enfocar el bloque**, o sea exactamente cuando
+  se está escribiendo ahí; reservarle sitio dentro habría estrechado la medida de lectura y
+  empujarlo al aparecer habría hecho saltar el texto bajo el cursor. El rótulo del tipo se
+  quitó a la vez: si el editor se parece al resultado, un subtítulo ya se ve que lo es.
+- **Los ajustes opcionales se esconden.** El enlace de un párrafo, el nivel de un subtítulo y
+  el «numerada» de una lista solo salen con el bloque enfocado —o si ya llevan algo—. Con
+  ellos siempre a la vista, cada párrafo arrastraba un campo vacío debajo.
+- **Vista previa, barra de trabajo y cifras en vivo.** La previa usa **la misma función de
+  render** que el lector, no una imitación —una imitación es lo que acaba mintiendo—. La barra
+  fija de arriba dice dónde estás, si hay cambios sin guardar, y tiene una sola acción
+  primaria. Y el panel cuenta palabras, minutos de lectura y bloques según se escribe, que es
+  lo que contesta «¿me estoy pasando?» sin tener que guardar y salir.
+- **Insertar entre bloques**, con un `+` que aparece al acercarse: es donde la gente quiere
+  añadir algo, y evita añadir al final y subirlo a base de flechas. El cursor cae dentro del
+  bloque nuevo, y al mover uno el foco viaja con él. `Enter` al final de un párrafo abre el
+  siguiente; `Ctrl+S` guarda, porque quien escribe algo largo lo pulsa por reflejo y sin
+  atajo el navegador ofrece «guardar la página».
+- **Motor de diagramas (draw.io / diagrams.net).** Bloque nuevo `diagrama` para dibujar
+  flujos, con sus cajas, flechas y textos editables. Se guarda **el XML**, no una imagen: un
+  flujo se corrige más veces de las que se dibuja, y así no hay que subir y versionar un PNG
+  por cada retoque. Se dibuja a pantalla completa y se lee incrustado, y el visor es **el
+  mismo componente** que el editor cambiando un parámetro, así que lo que se ve mientras se
+  dibuja es lo que verá quien lea. La conversación con el iframe es el protocolo `proto=json`
+  de diagrams.net, **comprobando el `origin` en cada mensaje**: un `message` lo puede mandar
+  cualquier ventana y este maneja el contenido de un artículo del equipo. Si diagrams.net no
+  responde en seis segundos —la red de la oficina bloquea dominios—, se dice con esas
+  palabras en vez de dejar un marco en blanco.
+- **Visor con oficio.** Barra de progreso de lectura (dentro del iframe de Apps Script no hay
+  barra de la ventana que sirva de referencia), índice de subtítulos con scroll-spy, revelado
+  de bloques al entrar en pantalla, y zoom de imágenes. Todo bajo las reglas del documento 11
+  y de la skill `gsap-ventel`: **el contenido es visible sin GSAP** —el estado oculto lo pone
+  JavaScript y solo si GSAP cargó—, `prefers-reduced-motion` enseña el resultado final sin
+  movimiento, el escalonado usa `amount` con techo, todo vive en un `gsap.context` que se
+  revierte al cambiar de artículo, y `ScrollTrigger` se carga de cdnjs en la **misma versión
+  fijada (3.13.0)** con el registro defendido.
+- **Lo nuevo va primero** (`pubOrdenParaNueva_`). Una publicación nueva nacía con orden 0 como
+  todas, y al desempatar por posición de fila aparecía la ÚLTIMA del Portal, debajo de las de
+  la semana pasada. Ahora nace con uno menos que el menor que haya: una escritura en vez de
+  renumerar la hoja entera. Solo al crear, y solo si no se pidió un orden concreto —quien
+  escribe un número manda, y editar no mueve de sitio—. Importa el doble desde F7, porque la
+  primera tarjeta es la **principal**: el sitio de honor se lo quedaba lo más viejo.
+
+**Qué se comprobó.** Las baterías suben a **209 comprobaciones** (99 en F7 + 110 en F8), con
+casos nuevos para el orden —incluido que editar no reordene y que un orden a mano se respete—
+y para el diagrama: XML válido en sus dos formas, alto acotado por arriba y por abajo, y
+rechazo de lo que no es un diagrama (`<script>`, un SVG con manejador, HTML suelto, texto
+libre y uno de 25 000 caracteres que reventaría la celda). El editor se revisó **en el
+navegador** con el CSS real a 1568 px, y de ahí salieron los tres arreglos de arriba.
+
+**Qué queda pendiente y hay que decir.**
+
+- **El visor no se ha visto en pantalla**: la extensión del navegador se desconectó a mitad de
+  la revisión. El editor sí se revisó así; el visor comparte tokens y patrones con lo ya
+  verificado, pero no es lo mismo que haberlo mirado.
+- **Los diagramas no se han probado contra Apps Script.** El iframe anidado y el `postMessage`
+  deberían comportarse como el iframe de Google Sheets de la revisión, que ya funciona ahí,
+  pero es una dependencia externa nueva y hay que verla en `/dev` antes de contarlo como
+  cerrado.
+- Sigue faltando lo mismo que la tanda anterior: **el alta en el buscador general**, que son
+  dos altas (Ctrl+K e Index tienen armados distintos).
+
 ### 2026-08-15 — F8, primera tanda: los artículos existen (falta repartirlos)
 
 **Qué se cambió.**

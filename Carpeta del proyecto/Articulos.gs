@@ -54,6 +54,7 @@ var ART_MAX_TITULO    = 160;
 var ART_MAX_RESUMEN   = 400;
 var ART_MAX_FILAS_TAB = 60;
 var ART_MAX_COLS_TAB  = 12;
+var ART_MAX_DIAGRAMA  = 20000;  // XML de draw.io por bloque
 
 // ── UTILIDADES DE HOJA ───────────────────────────────────────────────────────
 
@@ -283,6 +284,26 @@ function artBloque_(b) {
     return { tipo: 'documento', clase: clase, docId: docId, titulo: artTexto_(b.titulo, 200) };
   }
 
+  if (tipo === 'diagrama') {
+    /* Un diagrama es el XML de draw.io (diagrams.net), guardado como TEXTO.
+       Se guarda el XML y no una imagen exportada por dos razones: sigue siendo
+       editable dentro del artículo —un flujo se corrige más veces de las que se
+       dibuja— y no hay que subir ni versionar un PNG en Drive por cada retoque.
+       Y no se pinta nunca en nuestro DOM: viaja al visor de diagrams.net dentro de
+       un iframe, que es lo que lo mantiene aislado por más marcado que traiga. */
+    const xml = String(b.xml == null ? '' : b.xml).trim();
+    if (!xml || xml.length > ART_MAX_DIAGRAMA) return null;
+    // Tiene que parecer lo que dice ser. Cualquier otra cosa no se guarda: un blob
+    // de texto arbitrario en este campo acabaría en el iframe de un tercero.
+    if (!/^<(mxfile|mxGraphModel)[\s>]/i.test(xml)) return null;
+    return {
+      tipo: 'diagrama',
+      xml: xml,
+      titulo: artTexto_(b.titulo, 200),
+      alto: Math.min(900, Math.max(240, Number(b.alto) || 420))
+    };
+  }
+
   if (tipo === 'separador') return { tipo: 'separador' };
 
   return null;   // tipo desconocido: se descarta entero, no se adivina
@@ -310,7 +331,7 @@ function artTextoPlano_(contenido) {
     });
     else if (b.tipo === 'tabla') (b.filas || []).forEach(function (f) { partes.push(f.join(' ')); });
     else if (b.tipo === 'imagen') { if (b.pie) partes.push(b.pie); }
-    else if (b.tipo === 'documento') { if (b.titulo) partes.push(b.titulo); }
+    else if (b.tipo === 'documento' || b.tipo === 'diagrama') { if (b.titulo) partes.push(b.titulo); }
   });
   return partes.join(' ').replace(/\s+/g, ' ').trim();
 }

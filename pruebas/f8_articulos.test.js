@@ -272,6 +272,48 @@ console.log('\n3. BANCO HOSTIL · documentos de Google');
     ctx.artSanearContenido_({ bloques: [{ tipo: 'documento', docId: 'x' }] }).bloques.length, 0);
 }
 
+console.log('\n3 bis. BANCO HOSTIL · diagramas de draw.io');
+{
+  const ctx = cargar({});
+  const bueno = '<mxfile host="embed.diagrams.net"><diagram>abc</diagram></mxfile>';
+  const c = ctx.artSanearContenido_({ bloques: [{ tipo: 'diagrama', xml: bueno, titulo: 'Flujo de devolución' }] });
+  eq('un diagrama válido se guarda', c.bloques.length, 1);
+  eq('con su XML intacto', c.bloques[0].xml, bueno);
+  eq('y su título', c.bloques[0].titulo, 'Flujo de devolución');
+  ok('con un alto acotado', c.bloques[0].alto >= 240 && c.bloques[0].alto <= 900, String(c.bloques[0].alto));
+
+  eq('también acepta el otro formato de draw.io',
+    ctx.artSanearContenido_({ bloques: [{ tipo: 'diagrama', xml: '<mxGraphModel dx="1"><root/></mxGraphModel>' }] }).bloques.length, 1);
+
+  // Lo que NO es un diagrama no entra: este campo viaja a un iframe de terceros.
+  const basura = [
+    ['<script>alert(1)</script>', 'un guion disfrazado de diagrama'],
+    ['<svg onload=alert(1)></svg>', 'un SVG con manejador'],
+    ['<html><body>hola</body></html>', 'HTML cualquiera'],
+    ['no soy xml', 'texto suelto'],
+    ['', 'vacío'],
+    ['   <mxfile>x</mxfile>', 'con espacios delante (se recorta y sí vale)']
+  ];
+  basura.slice(0, 5).forEach(([xml, nombre]) => {
+    eq('rechaza ' + nombre,
+      ctx.artSanearContenido_({ bloques: [{ tipo: 'diagrama', xml: xml }] }).bloques.length, 0);
+  });
+  eq('el que solo traía espacios delante sí se guarda',
+    ctx.artSanearContenido_({ bloques: [{ tipo: 'diagrama', xml: '   <mxfile>x</mxfile>' }] }).bloques.length, 1);
+
+  const enorme = ctx.artSanearContenido_({ bloques: [{ tipo: 'diagrama', xml: '<mxfile>' + 'x'.repeat(25000) + '</mxfile>' }] });
+  eq('un diagrama desmesurado se descarta en vez de reventar la celda', enorme.bloques.length, 0);
+
+  const alturas = ctx.artSanearContenido_({ bloques: [
+    { tipo: 'diagrama', xml: bueno, alto: 5000 }, { tipo: 'diagrama', xml: bueno, alto: 10 }
+  ] });
+  eq('un alto disparatado se recorta arriba', alturas.bloques[0].alto, 900);
+  eq('y abajo', alturas.bloques[1].alto, 240);
+
+  const plano = ctx.artTextoPlano_(c);
+  ok('el buscador encuentra el diagrama por su título', plano.indexOf('Flujo de devolución') > -1, plano);
+}
+
 console.log('\n4. Tablas y listas: forma sana pase lo que pase');
 {
   const ctx = cargar({});

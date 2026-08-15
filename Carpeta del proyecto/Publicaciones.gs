@@ -166,6 +166,36 @@ function pubFilaViva_(row, c) {
   return false;
 }
 
+/**
+ * El «Orden» que le toca a una publicación NUEVA para salir la primera.
+ *
+ * Uno menos que el menor que haya. Se eligió eso en vez de renumerar todas las filas
+ * —que es lo que hace `moverAnuncio`— porque renumerar son N escrituras cada vez que
+ * alguien publica algo, y aquí basta con una. Que los números se vayan a negativo no
+ * molesta a nadie: la columna es un criterio de orden, no una posición que se enseñe,
+ * y el primer reordenado manual los normaliza a 0..n-1.
+ */
+function pubOrdenParaNueva_(sheet, c) {
+  try {
+    if (c.orden < 0) return 0;
+    const last = sheet.getLastRow();
+    if (last < 2) return 0;
+    const valores = sheet.getRange(2, c.orden + 1, last - 1, 1).getValues();
+    let min = 0, hay = false;
+    for (let i = 0; i < valores.length; i++) {
+      const v = valores[i][0];
+      if (v === '' || v === null || v === undefined) continue;
+      const n = Number(v);
+      if (isNaN(n)) continue;
+      if (!hay || n < min) { min = n; hay = true; }
+    }
+    return hay ? min - 1 : 0;
+  } catch (e) {
+    Logger.log('pubOrdenParaNueva_: ' + e);
+    return 0;
+  }
+}
+
 // ── SANEO DEL JSON DE UNA PUBLICACIÓN ────────────────────────────────────────
 
 var PUB_ENCUESTA_MAX_OPCIONES = 6;   // decisión de la fase 7: más no caben en la tarjeta ni en móvil

@@ -636,10 +636,21 @@ function publicarAnuncio(payload) {
 
     const datos = pubSanearDatos_(payload.datos && typeof payload.datos === 'object' ? payload.datos : {});
     const activo = payload.activo === undefined ? true : !!payload.activo;
-    const orden = Number(payload.orden) || 0;
+    let orden = Number(payload.orden) || 0;
     const id = payload.id && String(payload.id).trim() ? String(payload.id).trim() : pubNuevoIdAnuncio_();
 
     const rowIdx = portalFindAnuncioRow_(sheet, c, id);
+
+    /* LO NUEVO VA PRIMERO. Hasta ahora una publicación nueva nacía con orden 0 —igual
+       que todas las demás—, y como el desempate es el orden de las filas y `appendRow`
+       escribe al final, el anuncio recién publicado aparecía el ÚLTIMO del Portal:
+       justo debajo de los de la semana pasada. Quien acaba de publicar algo espera
+       verlo arriba, y encima ahora la primera tarjeta es la PRINCIPAL (F7), así que el
+       sitio de honor se lo quedaba lo más viejo.
+
+       Solo aplica al CREAR y solo si no se pidió un orden concreto: quien escribe un
+       número en el constructor manda, y editar una publicación no la mueve de sitio. */
+    if (rowIdx < 0 && !Number(payload.orden)) orden = pubOrdenParaNueva_(sheet, c);
 
     /* Autoría y fecha de alta se fijan al CREAR y no se vuelven a tocar. Hasta ahora
        "Creado" se reescribía en cada guardado, así que la columna decía "modificado por
