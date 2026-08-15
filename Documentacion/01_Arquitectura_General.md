@@ -84,7 +84,7 @@ Qué pasa exactamente cuando alguien abre `…/exec?page=cotizacion&folio=LVP-00
    - Si está en `PAGES` (16 pantallas) → página **de app**, y recibe `baseUrl`.
    - **Si no está en ninguna → cae al Portal.** Esta es la razón número uno de que un enlace
      roto «parezca funcionar»: la pantalla parpadea y acabas en el Portal.
-3. Se inyectan **los 16 parámetros de vista** (`PARAMS_VISTA`) en la plantilla, **todos**,
+3. Se inyectan **los 17 parámetros de vista** (`PARAMS_VISTA`) en la plantilla, **todos**,
    aunque esa pantalla use uno solo. No es desperdicio: una plantilla de Apps Script revienta
    al evaluar una variable que no se le pasó, y así añadir un parámetro es una línea en una
    lista en vez de una cacería por 40 archivos. Además se inyecta el juego entero ya

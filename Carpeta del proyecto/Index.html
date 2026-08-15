@@ -881,7 +881,13 @@ a:focus-visible,button:focus-visible,input:focus-visible,[tabindex]:focus-visibl
 .anc-card-img{height:140px;background-size:cover;background-position:center;background-color:#eef0f5}
 .anc-card-body{padding:.95rem 1.05rem 1.1rem;display:flex;flex-direction:column}
 .anc-card-title{font-family:Archivo,inherit;font-weight:800;font-size:1.02rem;line-height:1.25;color:var(--ink)}
-.anc-card-vig{display:inline-flex;align-items:center;gap:.35rem;font-size:.76rem;font-weight:700;color:var(--brand-d,#B80079);margin-top:.3rem}
+/* `--brand-d` no existe en ningún tema: esta regla llevaba desde siempre usando su color
+   de respaldo, así que la vigencia era el único texto de marca del Portal que NO seguía al
+   tema. Se corrige al token que sí existe (--brand-deep, prácticamente el mismo color en
+   claro). Nota para el tema carbón: --brand-deep tampoco se aclara ahí, y ese contraste
+   flojo lo comparten hoy varios textos de marca del Portal; arreglarlo es tocar el token
+   global, que se sale de esta fase. */
+.anc-card-vig{display:inline-flex;align-items:center;gap:.35rem;font-size:.76rem;font-weight:700;color:var(--brand-deep,#B80079);margin-top:.3rem}
 .anc-card-vig .ic{width:14px;height:14px}
 .anc-card-desc{font-size:.86rem;font-weight:500;line-height:1.5;color:var(--ink-soft,#4b5563);margin:.45rem 0 0}
 .anc-card.info{border-top:3px solid var(--info)} .anc-card.warn{border-top:3px solid var(--warn)}
@@ -892,6 +898,86 @@ a:focus-visible,button:focus-visible,input:focus-visible,[tabindex]:focus-visibl
 .anc-card-zoom .ic{width:15px;height:15px;margin:0}
 .anc-card{position:relative}
 .anc-card:hover .anc-card-zoom,.anc-card:focus-visible .anc-card-zoom{opacity:1;transform:scale(1)}
+
+/* ── Jerarquía: UNA principal, el resto especiales ─────────────────────────────
+   La principal ocupa dos columnas y sube la foto a 200 px; las especiales se quedan
+   como estaban. El `span 2` va detrás de una media query porque con una sola columna
+   —el móvil— pedir dos crea una columna implícita y la tarjeta se sale de la rejilla. */
+.anc-card-tag{display:inline-flex;align-items:center;gap:.3rem;align-self:flex-start;
+  font-size:.7rem;font-weight:800;letter-spacing:.02em;text-transform:uppercase;
+  color:var(--brand-deep,#A8006F);background:var(--brand-tint);border-radius:999px;
+  padding:.2rem .55rem;margin-bottom:.35rem}
+.anc-card-tag .ic{width:12px;height:12px}
+.anc-card.es-principal{box-shadow:var(--sh-md,0 10px 26px rgba(20,20,40,.12))}
+.anc-card.es-principal .anc-card-img{height:200px}
+.anc-card.es-principal .anc-card-title{font-size:1.22rem}
+@media (min-width:620px){ .anc-card.es-principal{grid-column:span 2} }
+
+/* ── Responsable: quién publicó esto ──────────────────────────────────────────
+   Abajo a la derecha y en gris: es una firma, no un dato que compita con el mensaje.
+   En la tarjeta va absoluto en la esquina para no empujar el cuerpo; en el modal y en
+   el destacado va en el flujo, donde ya hay un pie que lo acoge. */
+.anc-resp{display:inline-flex;align-items:center;gap:.3rem;font-size:.72rem;font-weight:600;
+  color:var(--ink-faint,#9aa1ad);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:60%}
+.anc-resp .ic{width:12px;height:12px;flex-shrink:0}
+/* `margin-top:auto` empuja la firma al fondo de la tarjeta, y el `flex:1` del cuerpo es
+   lo que le da fondo al que empujar: en una rejilla todas las tarjetas de una fila miden
+   lo mismo que la más alta, así que sin esto la firma quedaba flotando a media tarjeta —a
+   distinta altura en cada una— en vez de alinearse con las de al lado. */
+.anc-card-body{flex:1}
+.anc-card .anc-resp{align-self:flex-end;margin-top:auto;padding-top:.6rem}
+.anc-destacado .anc-resp{position:absolute;right:.9rem;bottom:.5rem}
+.anc-destacado{position:relative}
+.anc-modal-pie{display:flex;align-items:center;justify-content:space-between;gap:.6rem;
+  margin-top:1rem;padding-top:.75rem;border-top:1px solid var(--line,#e5e7eb)}
+.anc-share{display:inline-flex;align-items:center;gap:.35rem;background:none;border:none;cursor:pointer;
+  font:inherit;font-size:.78rem;font-weight:700;color:var(--brand-deep,#A8006F);padding:.25rem .1rem;border-radius:8px}
+.anc-share:hover{text-decoration:underline}
+.anc-share .ic{width:14px;height:14px}
+
+/* Aviso de una publicación que ya no está vigente (o que aún no empieza). */
+.anc-modal-estado{display:flex;align-items:center;gap:.5rem;font-size:.82rem;font-weight:600;
+  border-radius:10px;padding:.5rem .7rem;margin-bottom:.75rem}
+.anc-modal-estado .ic{width:15px;height:15px;flex-shrink:0}
+.anc-modal-estado.warn{background:var(--warn-bg);color:var(--warn)}
+.anc-modal-estado.info{background:var(--info-bg);color:var(--info)}
+
+/* ── ENCUESTAS ────────────────────────────────────────────────────────────────
+   Las barras son dos divs y un porcentaje: sin librería de gráficas, porque una
+   librería entera para pintar seis rectángulos es peso servido en TODAS las visitas
+   al Portal a cambio de nada. El color sale de los tokens del tema, así que la
+   gráfica cambia con él sin una sola regla extra. */
+.pub-enc{margin-top:.8rem;border-top:1px solid var(--line,#e5e7eb);padding-top:.7rem}
+.pub-enc-hd{display:flex;align-items:center;justify-content:space-between;gap:.5rem;flex-wrap:wrap}
+.pub-enc-tag{display:inline-flex;align-items:center;gap:.3rem;font-size:.7rem;font-weight:800;
+  text-transform:uppercase;letter-spacing:.02em;color:var(--brand-deep,#A8006F)}
+.pub-enc-tag .ic{width:12px;height:12px}
+.pub-enc-meta{font-size:.72rem;font-weight:600;color:var(--ink-faint,#9aa1ad)}
+.pub-enc-q{font-size:.92rem;font-weight:700;line-height:1.35;color:var(--ink);margin:.35rem 0 .6rem}
+.pub-enc-ops{display:flex;flex-direction:column;gap:.4rem}
+.pub-op{width:100%;text-align:left;font:inherit;font-size:.85rem;font-weight:600;color:var(--ink);
+  background:var(--card,#fff);border:1.5px solid var(--line,#e5e7eb);border-radius:10px;
+  padding:.5rem .75rem;cursor:pointer;transition:border-color .2s,background .2s,transform .2s}
+.pub-op:hover:not(:disabled){border-color:var(--brand,#E10098);background:var(--brand-tint);transform:translateX(2px)}
+.pub-op:disabled{opacity:.55;cursor:progress}
+.pub-op.mia{border-color:var(--brand,#E10098);background:var(--brand-tint)}
+.pub-enc-res{display:flex;flex-direction:column;gap:.5rem}
+.pub-bar-tt{display:flex;align-items:center;justify-content:space-between;gap:.5rem;
+  font-size:.8rem;font-weight:600;color:var(--ink-soft,#4b5563);margin-bottom:.2rem}
+.pub-bar-tt b{font-weight:800;color:var(--ink)}
+.pub-bar-tt .ic{width:13px;height:13px;color:var(--brand,#E10098)}
+.pub-bar-tr{height:8px;border-radius:999px;background:var(--line,#e5e7eb);overflow:hidden}
+.pub-bar-tr i{display:block;height:100%;border-radius:999px;background:var(--brand-soft,#f3a6d8);
+  transition:width .45s cubic-bezier(.22,.61,.36,1)}
+.pub-bar.mia .pub-bar-tr i{background:var(--brand,#E10098)}
+.pub-enc-pie{font-size:.74rem;font-weight:600;color:var(--ink-faint,#9aa1ad);margin:.55rem 0 0}
+.pub-enc-link{background:none;border:none;cursor:pointer;font:inherit;font-size:.74rem;font-weight:800;
+  color:var(--brand-deep,#A8006F);padding:0 .15rem}
+.pub-enc-link:hover{text-decoration:underline}
+@media (prefers-reduced-motion: reduce){
+  .pub-bar-tr i{transition:none}
+  .pub-op:hover:not(:disabled){transform:none}
+}
 
 /* ── Anuncio MODAL (pop-up de bienvenida / tarjeta expandida) ── */
 .anc-modal-overlay{position:fixed;inset:0;z-index:1200;display:none;align-items:center;justify-content:center;padding:1.2rem;background:rgba(15,18,30,.55);backdrop-filter:blur(3px)}
@@ -919,7 +1005,7 @@ a:focus-visible,button:focus-visible,input:focus-visible,[tabindex]:focus-visibl
 .anc-modal-card.is-expand .anc-modal-imgwrap{flex-shrink:0;max-height:72vh}
 .anc-modal-card.is-expand .anc-modal-photo{max-height:72vh;flex-shrink:0}
 .anc-modal-card.is-expand .anc-modal-body{overflow:auto}
-.anc-modal-card.is-expand .anc-modal-vig{display:inline-flex;align-items:center;gap:.35rem;font-size:.82rem;font-weight:700;color:var(--brand-d,#B80079);margin:0 0 .55rem}
+.anc-modal-card.is-expand .anc-modal-vig{display:inline-flex;align-items:center;gap:.35rem;font-size:.82rem;font-weight:700;color:var(--brand-deep,#B80079);margin:0 0 .55rem}
 .anc-modal-card.is-expand .anc-modal-vig .ic{width:15px;height:15px}
 .anc-modal-card.is-expand .anc-modal-body p{white-space:pre-wrap}
 .anc-modal-card.is-expand .anc-ctas{margin-top:1rem}
@@ -3007,10 +3093,15 @@ document.addEventListener('DOMContentLoaded', () => {
     // Cerrar el anuncio/tarjeta ampliada con Esc
     const ancOpen = document.getElementById('anuncioModal');
     if (e.key === 'Escape' && ancOpen && ancOpen.classList.contains('open')) { closeAnuncioModal('', false); return; }
-    // Enter/Espacio sobre una tarjeta enfocada → ampliarla
+    // Enter/Espacio sobre una tarjeta enfocada → ampliarla. Salvo que el foco esté en
+    // algo que YA hace lo suyo con esa tecla: el botón de una encuesta, el de copiar
+    // enlace o un CTA. Ahí el navegador dispara su propio clic, y ampliar además sería
+    // hacer dos cosas con una pulsación —votar y taparlo con el modal—.
     if ((e.key === 'Enter' || e.key === ' ') && !typing) {
-      const fc = document.activeElement.closest && document.activeElement.closest('.anc-card[data-anc-expand]');
-      if (fc) { e.preventDefault(); expandTarjeta(fc.dataset.ancExpand); return; }
+      const act = document.activeElement;
+      const propio = act && act.closest && act.closest('button, a, .pub-enc');
+      const fc = act && act.closest && act.closest('.anc-card[data-anc-expand]');
+      if (fc && (!propio || propio === fc)) { e.preventDefault(); expandTarjeta(fc.dataset.ancExpand); return; }
     }
     if (typing || e.ctrlKey || e.metaKey || e.altKey) { disarmGoto(); return; }
 
@@ -3047,8 +3138,16 @@ document.addEventListener('DOMContentLoaded', () => {
     const mcl = e.target.closest('.anc-modal-close');
     if (mcl) { closeAnuncioModal(mcl.dataset.ancModal, true); return; }
     if (e.target.id === 'anuncioModal') { closeAnuncioModal('', false); return; }
+    // Encuestas y "copiar enlace" van ANTES de ampliar la tarjeta: los tres viven dentro
+    // de la misma tarjeta, y sin este orden votar la ampliaba de paso.
+    const vot = e.target.closest('[data-enc-votar]');
+    if (vot) { e.preventDefault(); e.stopPropagation(); votarEncuesta(vot.dataset.encVotar, Number(vot.dataset.op)); return; }
+    const vlv = e.target.closest('[data-enc-volver]');
+    if (vlv) { e.preventDefault(); e.stopPropagation(); volverAEncuesta(vlv.dataset.encVolver); return; }
+    const shr = e.target.closest('[data-anc-share]');
+    if (shr) { e.preventDefault(); e.stopPropagation(); pubCopiarEnlace(shr.dataset.ancShare, shr); return; }
     const expCard = e.target.closest('.anc-card[data-anc-expand]');
-    if (expCard && !e.target.closest('.anc-cta')) { expandTarjeta(expCard.dataset.ancExpand); return; }
+    if (expCard && !e.target.closest('.anc-cta') && !e.target.closest('.pub-enc')) { expandTarjeta(expCard.dataset.ancExpand); return; }
     const tracked = e.target.closest('[data-track]');
     if (tracked) trackUse(tracked.dataset.track);
   });
@@ -3250,7 +3349,13 @@ function initNavigation(){
      pantalla de cotización aterriza en Paqueterías con "guía" escrito y la lista
      recortada, en vez de en el Portal entero teniendo que repetir la búsqueda.
      El filtro se aplica en cuanto hay datos: la sección puede llegar antes que la hoja. */
-  const restore = (sec, q, item) => {
+  /* `pub` es la publicación abierta en grande. Se atiende ANTES que la sección y aparte
+     de ella: un enlace a una publicación se manda tal cual —`portal?pub=anc-xxx`, sin
+     sección— y tiene que abrir algo igualmente. Por eso no está dentro del `if (!sec)`
+     de abajo, que es donde estuvo primero y donde no funcionaba para el enlace que de
+     verdad se comparte. */
+  const restore = (sec, q, item, pub) => {
+    sincronizarPub(pub || '');
     if (!sec || !document.getElementById('sec-' + sec)) return;
     suppressHistory = true; switchSec(sec); suppressHistory = false;
     if (!q && !item) return;
@@ -3293,17 +3398,53 @@ function initNavigation(){
   if (typeof google !== 'undefined' && google.script && google.script.history) {
     google.script.url.getLocation(loc => {
       const p = (loc && loc.parameter) || {};
-      restore(p.sec || loc.hash || '', p.q || '', p.item || '');
+      restore(p.sec || loc.hash || '', p.q || '', p.item || '', p.pub || '');
     });
     google.script.history.setChangeHandler(e => {
       const p = (e.location && e.location.parameter) || {};
-      restore(p.sec || e.location.hash || 'inicio', p.q || '', p.item || '');
+      restore(p.sec || e.location.hash || 'inicio', p.q || '', p.item || '', p.pub || '');
     });
   } else {
     const qs = new URLSearchParams(location.search);
-    restore((location.hash || '').replace('#','') || qs.get('sec') || '', qs.get('q') || '', qs.get('item') || '');
-    window.addEventListener('hashchange', () => restore((location.hash || '').replace('#','') || 'inicio', '', ''));
+    restore((location.hash || '').replace('#','') || qs.get('sec') || '', qs.get('q') || '', qs.get('item') || '', qs.get('pub') || '');
+    window.addEventListener('hashchange', () => restore((location.hash || '').replace('#','') || 'inicio', '', '', ''));
   }
+  /* El servidor ya inyectó los parámetros al renderizar (PARAMS_VISTA), y eso llega
+     ANTES que la respuesta de getLocation —que es un viaje a la ventana de arriba—.
+     Para el enlace de una publicación la diferencia se nota: sin esto, quien abre el
+     enlace ve el Portal entero medio segundo y el modal aparece después, como si lo
+     hubiera abierto él sin querer. Se lee de AppUrl, que es donde el servidor lo dejó. */
+  try {
+    const pubInicial = (window.AppUrl && AppUrl.param) ? (AppUrl.param('pub') || '')
+      : String((window.__APP__ && window.__APP__.pub) || '');
+    if (pubInicial) sincronizarPub(pubInicial);
+  } catch(e){}
+}
+
+/* ── LA PUBLICACIÓN ABIERTA, EN LA BARRA DE DIRECCIONES ──────────────────────
+   Una publicación del Portal es un sitio: se comparte, se abre desde el buscador y se
+   cierra con «atrás». Todo eso necesita que el modal y la dirección digan lo mismo, y
+   este par de funciones es la única costura entre los dos.
+
+   `pubAbierta` es lo que la barra debería estar diciendo. No se deduce del DOM porque
+   el mismo overlay lo usan tres cosas —el modal de bienvenida, la tarjeta ampliada y la
+   publicación de un enlace— y solo la tercera es una dirección. */
+let pubAbierta = '';
+/* Y esto es lo que se está intentando abrir pero todavía no está en pantalla: abrir la
+   publicación de un enlace puede tardar —hay que esperar a que lleguen los datos del
+   Portal, o preguntarle al servidor por una expirada—. Sin esta variable, la carga
+   inicial arrancaba DOS aperturas de lo mismo: una al leer los parámetros que inyectó
+   el servidor y otra cuando contestaba getLocation, porque entre las dos `pubAbierta`
+   seguía vacía y las dos creían ser la primera. */
+let pubPendiente = '';
+
+/* Pone el modal de acuerdo con lo que dice la URL, sin volver a escribirla: esto lo
+   llama quien LEE la barra —la carga inicial y el botón atrás—, y contestarle apilaría
+   una entrada por cada vez que se pulsa atrás. */
+function sincronizarPub(id){
+  if (id === pubAbierta || id === pubPendiente) return;
+  if (id) abrirPublicacion(id, true);
+  else if (pubAbierta) closeAnuncioModal('', false, true);
 }
 /* Lo que hay escrito en el filtro de una sección. Se lee del DOM y no de una variable
    porque el filtro lo pueden haber puesto tres sitios distintos —el asesor tecleando, un
@@ -3337,18 +3478,38 @@ function pushNav(id){
    Se REEMPLAZA la entrada de historial, no se apila: una por tecla dejaría el botón
    atrás inservible —habría que pulsarlo doce veces para deshacer una palabra—. Cambiar
    de sección sí apila, que es lo que la gente espera de algo que se ve como páginas. */
+/* `google.script.history` REEMPLAZA el juego de parámetros entero: lo que no se le pase
+   aquí desaparece de la barra. Por eso la publicación abierta se añade en esta función y
+   no en la que la abre —si no, teclear una letra en el filtro de una sección borraba el
+   `?pub=` y el enlace que alguien tuviera a medio copiar dejaba de llevar a la
+   publicación—. Misma razón por la que `q` ya viajaba aquí. */
 function navUrl(id, q, apilar){
   const params = q ? { sec:id, q:q } : { sec:id };
+  if (pubAbierta) params.pub = pubAbierta;
   if (typeof google !== 'undefined' && google.script && google.script.history) {
     const metodo = apilar ? google.script.history.push : google.script.history.replace;
     try { metodo.call(google.script.history, null, params, id); } catch(e){}
     return;
   }
-  const busca = '?sec=' + encodeURIComponent(id) + (q ? '&q=' + encodeURIComponent(q) : '');
+  const busca = '?sec=' + encodeURIComponent(id) + (q ? '&q=' + encodeURIComponent(q) : '')
+              + (pubAbierta ? '&pub=' + encodeURIComponent(pubAbierta) : '');
   try {
     if (apilar) history.pushState(null, '', busca + '#' + id);
     else history.replaceState(null, '', busca + '#' + id);
   } catch(e){ if (apilar) location.hash = id; }
+}
+
+/** La sección que se está viendo, para escribir la barra sin perderla. */
+function secActiva(){
+  const el = document.querySelector('.view-section.active');
+  return el ? el.id.replace(/^sec-/, '') : 'inicio';
+}
+
+/** Escribe la barra con el estado de ahora (sección + filtro + publicación abierta). */
+function navUrlEstado(apilar){
+  if (suppressHistory) return;
+  const sec = secActiva();
+  navUrl(sec, filtroDeSeccion(sec), apilar);
 }
 
 let urlFiltroTimer = null;
@@ -3682,6 +3843,170 @@ function ctaHtml(a){
   return btns ? `<div class="anc-ctas">${btns}</div>` : '';
 }
 
+/* ═══════════════════════════════════════════════════════════
+   ENCUESTAS (subtipo de la tarjeta)
+   ───────────────────────────────────────────────────────────
+   Una encuesta es una tarjeta con `encuesta` dentro de sus datos: pregunta, hasta seis
+   opciones y una fecha de cierre. Que sea un SUBTIPO y no un formato nuevo es lo que
+   hace que un cliente con la copia local de hace seis días —que no sabe nada de esto—
+   la siga pintando como la tarjeta informativa que también es, en vez de no pintar nada.
+
+   Los resultados NO viajan con los anuncios: se piden aparte (pubResultados) porque el
+   Portal se sirve con diez minutos de caché de script y siete días de copia local, y una
+   gráfica de votos con esa edad no está desactualizada, está mintiendo.
+═══════════════════════════════════════════════════════════ */
+const pubVotos   = {};   // id → {total, conteo, miVoto} — lo último que dijo el servidor
+const pubSueltas = {};   // id → publicación que no está en store (llegó por pubPorId)
+
+/** La publicación con la que repintar un bloque de encuesta, esté donde esté. */
+function pubDe(id){
+  return pubSueltas[id] || (store.anuncios || []).find(x => x.id === id) || null;
+}
+
+function encuestaCerrada(e, a){
+  if (a && a.estado === 'expirado') return true;
+  if (!e || !/^\d{4}-\d{2}-\d{2}$/.test(String(e.cierre || ''))) return false;
+  const p = String(e.cierre).split('-');
+  return new Date() > new Date(+p[0], +p[1] - 1, +p[2], 23, 59, 59);
+}
+
+function encuestaHtml(a){
+  const e = a && a.encuesta;
+  if (!e || !Array.isArray(e.opciones) || e.opciones.length < 2) return '';
+  return `<div class="pub-enc" data-enc="${esc(a.id)}">${encuestaCuerpoHtml(a)}</div>`;
+}
+
+/* El cuerpo se pinta aparte del contenedor porque se repinta solo él: al votar, lo que
+   cambia son las barras, y volver a escribir la tarjeta entera perdería el foco del
+   teclado justo después de pulsar —que es cuando más falta hace saber dónde estás—. */
+function encuestaCuerpoHtml(a){
+  const e = a.encuesta;
+  const res = pubVotos[a.id] || null;
+  const cerrada = encuestaCerrada(e, a);
+  const miVoto = res ? (res.miVoto || '') : '';
+  // Los resultados se enseñan a quien ya votó, cuando la encuesta cerró, o si quien la
+  // publicó eligió que se vean desde el principio. Enseñarlos antes de votar por omisión
+  // sesga la respuesta: se vota lo que va ganando.
+  const verResultados = !!miVoto || cerrada || e.verAntes === true;
+  const meta = [];
+  if (e.tiempo) meta.push(esc(e.tiempo));
+  if (e.cierre) meta.push((cerrada ? 'Cerró el ' : 'Hasta el ') + esc(e.cierre));
+  if (res && res.total) meta.push(res.total + (res.total === 1 ? ' voto' : ' votos'));
+
+  let cuerpo;
+  if (verResultados) {
+    const total = res ? (res.total || 0) : 0;
+    cuerpo = `<div class="pub-enc-res">` + e.opciones.map(op => {
+      // hasOwnProperty y no `res.conteo[op]` a secas: una opción llamada "constructor"
+      // devolvería una función heredada, y la barra saldría con NaN%.
+      const n = (res && res.conteo && Object.prototype.hasOwnProperty.call(res.conteo, op))
+        ? (Number(res.conteo[op]) || 0) : 0;
+      // Sin votos, las barras van a cero y no a un reparto igualitario inventado.
+      const pct = total ? Math.round(n * 100 / total) : 0;
+      const mia = op === miVoto;
+      return `<div class="pub-bar${mia ? ' mia' : ''}">
+          <div class="pub-bar-tt"><span>${esc(op)}${mia ? ' ' + icon('check') : ''}</span><b>${pct}%</b></div>
+          <div class="pub-bar-tr"><i style="width:${pct}%"></i></div>
+        </div>`;
+    }).join('') + `</div>` +
+    (cerrada ? '' : (miVoto ? `<p class="pub-enc-pie">Puedes cambiar tu voto hasta el cierre.
+        <button type="button" class="pub-enc-link" data-enc-volver="${esc(a.id)}">Cambiar</button></p>` : ''));
+  } else {
+    cuerpo = `<div class="pub-enc-ops" role="group" aria-label="${esc(e.pregunta)}">` +
+      e.opciones.map((op, i) =>
+        `<button type="button" class="pub-op" data-enc-votar="${esc(a.id)}" data-op="${i}">${esc(op)}</button>`
+      ).join('') + `</div>`;
+  }
+
+  return `<div class="pub-enc-hd">
+      <span class="pub-enc-tag">${icon('chart')} Encuesta</span>
+      ${meta.length ? `<span class="pub-enc-meta">${meta.join(' · ')}</span>` : ''}
+    </div>
+    <p class="pub-enc-q">${esc(e.pregunta)}</p>
+    ${cuerpo}
+    ${cerrada ? '<p class="pub-enc-pie">Esta encuesta ya cerró.</p>' : ''}`;
+}
+
+/* La misma encuesta está en DOS sitios a la vez: la tarjeta de la rejilla y el modal
+   abierto encima de ella. Todo lo que la toca trabaja sobre los dos —si no, se vota en
+   el modal y la tarjeta de detrás sigue enseñando el estado anterior—. De ahí que esto
+   sea querySelectorAll y no querySelector. */
+function bloquesEncuesta(id){
+  return document.querySelectorAll('[data-enc="' + (window.CSS && CSS.escape ? CSS.escape(id) : id) + '"]');
+}
+
+/** Repinta TODOS los bloques de esa encuesta: la misma vive en la tarjeta y en el modal. */
+function pintarEncuesta(id){
+  const a = pubDe(id);
+  if (!a || !a.encuesta) return;
+  bloquesEncuesta(id).forEach(el => { el.innerHTML = encuestaCuerpoHtml(a); });
+}
+
+/* Se pide UNA vez por encuesta y por carga: la gráfica no necesita seguir el minuto a
+   minuto —nadie mira una encuesta esperando a que suba una barra— y cada llamada es un
+   viaje al servidor por cada tarjeta del inicio. Al votar se refresca con la respuesta
+   del propio voto, que es el único momento en que el resultado cambia para quien mira. */
+const pubPedidos = {};
+function pedirResultados(id, forzar){
+  if (!id || (!forzar && pubPedidos[id])) return;
+  if (!(window.AppRun && window.google && google.script && google.script.run)) return;
+  pubPedidos[id] = true;
+  AppRun.call('pubResultados', [id, (window.AppSession && AppSession.userEmail) || ''], { busy: false })
+    .then(res => {
+      if (!res || res.status !== 'ok') return;
+      pubVotos[id] = { total: res.total || 0, conteo: res.conteo || {}, miVoto: res.miVoto || '' };
+      pintarEncuesta(id);
+    }, () => {});
+}
+
+/* Vota. El botón se apaga mientras el servidor contesta: sin eso, dos clics seguidos
+   mandaban dos votos y el segundo llegaba a una hoja que el primero estaba escribiendo. */
+function votarEncuesta(id, indice){
+  const a = pubDe(id);
+  const e = a && a.encuesta;
+  if (!e || !Array.isArray(e.opciones)) return;
+  const opcion = e.opciones[indice];
+  if (!opcion) return;
+  if (!(window.AppRun && window.google && google.script && google.script.run)) return;
+
+  const apagar = (v) => bloquesEncuesta(id).forEach(bl =>
+    bl.querySelectorAll('.pub-op').forEach(b => { b.disabled = v; }));
+  apagar(true);
+
+  AppRun.call('pubVotar', [{ id: id, opcion: opcion, asesor: (window.AppSession && AppSession.userEmail) || '' }],
+      { key: 'pub-votar:' + id })
+    .then(res => {
+      if (!res || res.status !== 'ok') {
+        apagar(false);
+        showToast(null, (res && res.error) || 'No pudimos registrar tu voto.');
+        return;
+      }
+      pubVotos[id] = { total: res.total || 0, conteo: res.conteo || {}, miVoto: res.miVoto || opcion };
+      pintarEncuesta(id);
+      showToast(null, 'Voto registrado · ¡gracias!');
+    }, () => {
+      apagar(false);
+      showToast(null, 'No pudimos registrar tu voto. Revisa tu conexión.');
+    });
+}
+
+/** «Cambiar»: vuelve a enseñar las opciones sin olvidar cuál está votada. */
+function volverAEncuesta(id){
+  const a = pubDe(id);
+  if (!a || !a.encuesta) return;
+  const e = a.encuesta, res = pubVotos[id] || {};
+  const html = `<div class="pub-enc-hd">
+      <span class="pub-enc-tag">${icon('chart')} Encuesta</span>
+      <span class="pub-enc-meta">Tu voto: ${esc(res.miVoto || '')}</span>
+    </div>
+    <p class="pub-enc-q">${esc(e.pregunta)}</p>
+    <div class="pub-enc-ops" role="group" aria-label="${esc(e.pregunta)}">` +
+    e.opciones.map((op, i) =>
+      `<button type="button" class="pub-op${op === res.miVoto ? ' mia' : ''}" data-enc-votar="${esc(id)}" data-op="${i}">${esc(op)}</button>`
+    ).join('') + `</div>`;
+  bloquesEncuesta(id).forEach(bl => { bl.innerHTML = html; });
+}
+
 function renderAnuncios(){
   const wrap  = document.getElementById('avisosWrap');
   const cards = document.getElementById('anunciosCards');
@@ -3700,6 +4025,7 @@ function renderAnuncios(){
             ${a.cuerpo ? `<div class="anc-d-text">${esc(a.cuerpo)}</div>` : ''}
             ${ctaHtml(a)}
           </div>
+          ${pubResponsableHtml(a)}
         </div>`;
       }
       const tone = anuTone(a.tono);
@@ -3712,26 +4038,44 @@ function renderAnuncios(){
     }).join('');
   }
 
-  // Tarjetas con imagen + CTA → #anunciosCards
+  /* Tarjetas con imagen + CTA → #anunciosCards
+     ─────────────────────────────────────────────────────────────────────────────
+     JERARQUÍA: la PRIMERA tarjeta —la de menor "Orden", que es el mecanismo de
+     prioridad que el Portal ya tenía— se pinta como publicación PRINCIPAL, al doble de
+     ancho y con la imagen grande; las demás quedan como especiales. Se eligió leer la
+     jerarquía del orden existente en vez de inventar un segundo criterio (una casilla
+     "es la principal" en el constructor) porque dos criterios de prioridad sobre la
+     misma rejilla acaban contradiciéndose: el día que la casilla y el orden no
+     coincidan, ninguna de las dos explica lo que se ve.
+
+     Es una sola línea de cambio si se prefiere lo otro: `esPrincipal` es el único sitio
+     donde se decide, y el CSS ya distingue las dos clases. */
   if (cards) {
     const tarjetas = list.filter(a => a.formato === 'tarjeta');
-    cards.innerHTML = tarjetas.map(a => {
+    const esPrincipal = (a, i) => i === 0;
+    cards.innerHTML = tarjetas.map((a, i) => {
       const img = safeUrl(a.imagenUrl);
       const tone = anuTone(a.tono);
+      const principal = esPrincipal(a, i);
       return `
-      <article class="anc-card ${tone}" data-anc-expand="${esc(a.id)}" tabindex="0" role="button" aria-label="Ampliar: ${esc(a.titulo || 'anuncio')}">
+      <article class="anc-card ${tone}${principal ? ' es-principal' : ' es-especial'}" data-anc-expand="${esc(a.id)}" tabindex="0" role="button" aria-label="Ampliar: ${esc(a.titulo || 'anuncio')}">
         <span class="anc-card-zoom" aria-hidden="true">${icon('maximize')}</span>
         ${img ? `<div class="anc-card-img" style="background-image:url('${img}')"></div>` : ''}
         <div class="anc-card-body">
+          ${principal ? `<span class="anc-card-tag">${icon('star')} Principal</span>` : ''}
           <div class="anc-card-title">${esc(a.titulo || '')}</div>
           ${a.vigencia ? `<div class="anc-card-vig">${icon('calendar')} ${esc(a.vigencia)}</div>` : ''}
           ${a.descripcion ? `<p class="anc-card-desc">${esc(a.descripcion)}</p>` : ''}
+          ${encuestaHtml(a)}
           ${ctaHtml(a)}
+          ${pubResponsableHtml(a)}
         </div>
       </article>`;
     }).join('');
     const lbl = document.getElementById('anunciosLabel');
     if (lbl) lbl.style.display = tarjetas.length ? '' : 'none';
+    // Los resultados de cada encuesta visible, una vez por carga (ver pedirResultados).
+    tarjetas.forEach(a => { if (a.encuesta) pedirResultados(a.id); });
   }
 
   // Modal de bienvenida → una vez por sesión, hasta cerrarse
@@ -3742,6 +4086,12 @@ function renderAnuncios(){
 function showAnuncioModal(a){
   const root = document.getElementById('anuncioModal');
   if (!root) return;
+  /* El saludo automático NO se pone delante de lo que a alguien le compartieron. Los dos
+     usan el mismo overlay, y como los datos del Portal llegan después de leer la URL, el
+     modal de bienvenida aparecía ENCIMA de la publicación de un enlace —y de paso se
+     marcaba como visto, así que tampoco volvía a salir—. Quien llega con un enlace pidió
+     ver algo concreto; la bienvenida le sale la próxima vez que entre por su cuenta. */
+  if (pubAbierta || pubPendiente) return;
   let seen = [];
   try { seen = JSON.parse(sessionStorage.getItem('ventel-modal-seen') || '[]'); } catch(e){}
   if (seen.includes(a.id)) return;
@@ -3754,9 +4104,16 @@ function showAnuncioModal(a){
         ${a.titulo ? `<h3>${esc(a.titulo)}</h3>` : ''}
         ${a.cuerpo ? `<p>${esc(a.cuerpo)}</p>` : ''}
         ${ctaHtml(a)}
+        <div class="anc-modal-pie">
+          <button type="button" class="anc-share" data-anc-share="${esc(a.id)}">${icon('copy')} Copiar enlace</button>
+          ${pubResponsableHtml(a, true)}
+        </div>
       </div>
     </div>`;
   root.classList.add('open');
+  /* El modal de bienvenida NO escribe la barra: sale solo al entrar, y una dirección
+     que cambia sin que nadie la haya pedido convierte el botón atrás en una trampa. Lo
+     que sí ofrece es el botón de copiar enlace, que es una petición explícita. */
   try { seen.push(a.id); sessionStorage.setItem('ventel-modal-seen', JSON.stringify(seen)); } catch(e){}
   if (GS()) gsap.fromTo(root.querySelector('.anc-modal-card'),
     { opacity:0, y:14, scale:.97 }, { opacity:1, y:0, scale:1, duration:.26, ease:'power3.out' });
@@ -3778,11 +4135,20 @@ function ancImgHTML(img, alt){
 // Sirve para cualquier formato (tarjeta, destacado, banner, modal): se usa al hacer
 // clic en una tarjeta y también al abrir un anuncio desde el buscador.
 // No marca el anuncio como descartado: el botón de cierre no lleva data-anc-modal.
-function expandTarjeta(id){
+//
+// `opts.pub` es una publicación que NO está en `store.anuncios` —la trajo pubPorId
+// porque el enlace apunta a algo expirado o programado—; `opts.sinUrl` desactiva la
+// escritura de la barra, que es lo que necesita quien llega LEYÉNDOLA.
+function expandTarjeta(id, opts){
+  opts = opts || {};
   const root = document.getElementById('anuncioModal');
   if (!root || !id) return;
-  const a = (store.anuncios || []).find(x => x.id === id);
+  const a = opts.pub || (store.anuncios || []).find(x => x.id === id);
   if (!a) return;
+  // Una publicación que no está en el Portal (expirada, programada, o más nueva que la
+  // copia local) se guarda aquí: es la única fuente que tendrá pintarEncuesta cuando
+  // alguien vote en ella, porque store.anuncios no la contiene ni la va a contener.
+  if (opts.pub) pubSueltas[a.id] = a;
   const img = safeUrl(a.imagenUrl);
   const cuerpo = a.descripcion || a.cuerpo || a.mensaje || '';
   root.innerHTML = `
@@ -3790,15 +4156,97 @@ function expandTarjeta(id){
       <button class="anc-modal-close" aria-label="Cerrar">${icon('close')}</button>
       ${ancImgHTML(img, a.titulo)}
       <div class="anc-modal-body">
+        ${pubAvisoEstadoHtml(a)}
         ${a.titulo ? `<h3>${esc(a.titulo)}</h3>` : ''}
         ${a.vigencia ? `<div class="anc-modal-vig">${icon('calendar')} ${esc(a.vigencia)}</div>` : ''}
         ${cuerpo ? `<p>${esc(cuerpo)}</p>` : ''}
+        ${encuestaHtml(a)}
         ${ctaHtml(a)}
+        <div class="anc-modal-pie">
+          <button type="button" class="anc-share" data-anc-share="${esc(a.id)}">${icon('copy')} Copiar enlace</button>
+          ${pubResponsableHtml(a, true)}
+        </div>
       </div>
     </div>`;
   root.classList.add('open');
+  pubAbierta = a.id;
+  pubPendiente = '';
+  if (!opts.sinUrl) navUrlEstado(true);   // abrir una publicación APILA: se cierra con «atrás»
+  if (a.encuesta) pedirResultados(a.id);
   if (GS()) gsap.fromTo(root.querySelector('.anc-modal-card'),
     { opacity:0, y:14, scale:.97 }, { opacity:1, y:0, scale:1, duration:.24, ease:'power3.out' });
+}
+
+/* Abre la publicación de un enlace compartido (?pub=…).
+   Tres caminos, y el tercero es la razón de que esto exista:
+     1. Está en el Portal → se amplía y ya.
+     2. Los datos todavía no han llegado → se espera a que lleguen (el enlace se abre
+        en frío: la petición al servidor va en camino cuando se lee la barra).
+     3. Ha llegado todo y no está → es una publicación que ya expiró, que aún no empieza
+        o que se creó después de la última copia local. Se le pide al servidor por su id
+        (pubPorId) en vez de no hacer nada, que es lo que hacía antes: un enlace que no
+        abre nada se lee como un enlace roto, y quien lo mandó no se entera nunca. */
+function abrirPublicacion(id, sinUrl, intentos){
+  if (!id) return;
+  pubPendiente = id;
+  const enPortal = (store.anuncios || []).find(x => x.id === id);
+  if (enPortal) { pubPendiente = ''; expandTarjeta(id, { sinUrl: sinUrl }); return; }
+  const n = intentos || 0;
+  // Se reintenta solo mientras esta siga siendo la publicación que se quiere: si entre
+  // dos intentos se cerró el modal o se pidió otra, la espera vieja se abandona en vez
+  // de aparecer encima de lo que la persona esté mirando ya.
+  if (!dataIsFresh && n < 20) {
+    setTimeout(() => { if (pubPendiente === id) abrirPublicacion(id, sinUrl, n + 1); }, 250);
+    return;
+  }
+  if (!(window.AppRun && window.google && google.script && google.script.run)) { pubPendiente = ''; return; }
+  AppRun.call('pubPorId', [id, (window.AppSession && AppSession.userEmail) || ''], { busy: false })
+    .then(res => {
+      pubPendiente = '';
+      if (res && res.status === 'ok' && res.pub) { expandTarjeta(id, { pub: res.pub, sinUrl: sinUrl }); return; }
+      pubAvisoSuelto((res && res.error) || 'No encontramos esa publicación.');
+    }, () => { pubPendiente = ''; pubAvisoSuelto('No pudimos abrir esa publicación. Revisa tu conexión.'); });
+}
+
+/* Lo que se enseña cuando el enlace no lleva a ninguna parte. La barra se limpia
+   también: dejar el ?pub= puesto haría que recargar repitiera el mismo aviso. */
+function pubAvisoSuelto(msg){
+  pubAbierta = '';
+  pubPendiente = '';
+  navUrlEstado(false);
+  // showToast es el aviso de esta pantalla; AppMotion no viaja al Portal (no incluye
+  // app_motion), así que usarlo aquí habría sido escribir mensajes que nadie ve.
+  showToast(null, msg);
+}
+
+/* El aviso de que esto ya no está vigente, con esas palabras. Solo lo traen las
+   publicaciones que llegan por pubPorId: las del Portal, por definición, están vivas. */
+function pubAvisoEstadoHtml(a){
+  if (!a || !a.estado || a.estado === 'activo') return '';
+  const txt = a.estado === 'expirado'
+    ? 'Esta publicación ya no está vigente' + (a.hasta ? ' (expiró el ' + esc(a.hasta) + ')' : '') + '.'
+    : 'Esta publicación aún no está publicada' + (a.desde ? ' (se publica el ' + esc(a.desde) + ')' : '') + '.';
+  return `<div class="anc-modal-estado ${a.estado === 'expirado' ? 'warn' : 'info'}">${icon('clock')}<span>${txt}</span></div>`;
+}
+
+/* Quién publicó esto. Va discreto y con NOMBRE, nunca con el correo: el Portal lo ve
+   todo el equipo y una dirección ahí es un dato de contacto que nadie pidió publicar
+   (el correo se queda en la hoja, para quien administra). */
+function pubResponsableHtml(a, enModal){
+  const quien = (a && a.responsable) ? String(a.responsable).trim() : '';
+  if (!quien) return '';
+  return `<span class="anc-resp${enModal ? ' en-modal' : ''}" title="Publicado por ${esc(quien)}">${icon('user')} ${esc(quien)}</span>`;
+}
+
+/* Copia el enlace de una publicación. Se construye con AppUrl para que salga la URL de
+   la webapp y no la del iframe de Apps Script, que es la que enseña la barra y no
+   sirve para nadie más. */
+function pubCopiarEnlace(id, btn){
+  if (!(window.AppUrl && AppUrl.base)) { showToast(null, 'No pudimos construir el enlace.'); return; }
+  AppUrl.copyLink('portal', { pub: id }).then(ok => {
+    showToast(ok ? btn : null, ok ? 'Enlace copiado · quien lo abra verá esta publicación'
+                                  : 'No pudimos copiar el enlace');
+  });
 }
 
 // Abre un anuncio desde el buscador: cambia a Inicio (para dar contexto) y lo amplía.
@@ -3808,7 +4256,7 @@ function openAnuncioDesdeBuscador(id){
   setTimeout(() => expandTarjeta(id), 60);
 }
 
-function closeAnuncioModal(id, permanente){
+function closeAnuncioModal(id, permanente, sinUrl){
   const root = document.getElementById('anuncioModal');
   if (!root) return;
   if (permanente && id && !dismissedAvisos.includes(id)) {
@@ -3816,6 +4264,13 @@ function closeAnuncioModal(id, permanente){
   }
   root.classList.remove('open');
   root.innerHTML = '';
+  pubPendiente = '';   // cancela una apertura en vuelo: ya no se quiere ver
+  /* Cerrar REEMPLAZA la entrada: abrir apiló una, así que si al cerrar se apilara otra,
+     «atrás» volvería a abrir la publicación que se acaba de cerrar. */
+  if (pubAbierta) {
+    pubAbierta = '';
+    if (!sinUrl) navUrlEstado(false);
+  }
 }
 
 /* ═══════════════════════════════════════════════════════════
@@ -4641,7 +5096,7 @@ function goAppAction(entrada){
      consola— sin dar ninguna señal de que el parámetro se había perdido por el
      camino. El fallo se veía como "el buscador te deja en el sitio equivocado", que
      no lleva a nadie hasta esta línea. La lista es la misma de PARAMS_VISTA. */
-  const PASAN = ['tpl', 'sec', 'action', 'folio', 'q', 'buscar', 'ancla', 'inc', 'promo', 'item', 'rango', 'estatus', 'dir', 'origen'];
+  const PASAN = ['tpl', 'sec', 'action', 'folio', 'q', 'buscar', 'ancla', 'inc', 'promo', 'item', 'rango', 'estatus', 'dir', 'origen', 'pub'];
   const params = {};
   PASAN.forEach(function (k) { if (act[k]) params[k] = act[k]; });
 

@@ -128,8 +128,13 @@ const PORTAL_PAGES = {
  *   estatus filtro por estatus de la tabla de supervisión.
  *   dir     filtro por dirección (departamento) del Monitor de promociones.
  *   origen  filtro por origen del Monitor de promociones ('Promociones', 'Marketplace').
+ *   pub     IDENTIDAD de una publicación del Portal, abierta en grande. Como `promo`, es
+ *           una identidad y no una posición: el id vive en la hoja (columna ID) y una
+ *           fila insertada más arriba no se lo cambia. Va aparte de `item` porque `item`
+ *           señala DENTRO de una sección —hay que decir también en cuál— y una
+ *           publicación se abre encima del Portal, venga uno de donde venga.
  */
-const PARAMS_VISTA = ['folio', 'action', 'format', 'q', 'buscar', 'tpl', 'sec', 'ancla', 'inc', 'next', 'promo', 'item', 'rango', 'estatus', 'dir', 'origen'];
+const PARAMS_VISTA = ['folio', 'action', 'format', 'q', 'buscar', 'tpl', 'sec', 'ancla', 'inc', 'next', 'promo', 'item', 'rango', 'estatus', 'dir', 'origen', 'pub'];
 
 /**
  * El estado inicial que recibe el navegador, serializado y listo para pegarse dentro de

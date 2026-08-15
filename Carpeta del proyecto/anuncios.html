@@ -121,6 +121,40 @@
         font-weight:600;color:var(--ink-soft);cursor:pointer;border-radius:var(--rad-sm)}
       .anc-link:hover{color:var(--alert)}
       .anc-link:focus-visible{outline:none;box-shadow:var(--ring)}
+      .anc-link:disabled{opacity:.5;cursor:default}
+      .anc-link:disabled:hover{color:var(--ink-soft)}
+
+      /* ── Conmutador compacto (plantillas, vigencia rápida, duración) ──────────
+         Mismo lenguaje que .anc-seg pero en una fila que se envuelve: son atajos, no
+         la decisión principal de la pantalla, y ocupar dos columnas altas los pondría
+         al mismo nivel visual que el formato. */
+      .anc-seg-sm{display:flex;flex-wrap:wrap;gap:var(--s2);margin-top:var(--s2)}
+      .anc-seg-sm button{flex-direction:row;align-items:center;padding:6px var(--s3);
+        font-size:var(--fs-xs);font-weight:600;border-radius:999px}
+
+      /* ── Opciones de una encuesta ── */
+      .anc-op-row{display:flex;align-items:center;gap:var(--s2);margin-bottom:var(--s2)}
+      .anc-op-row .v-input{flex:1;min-width:0}
+      .anc-op-x{flex:none;width:34px;height:34px;display:flex;align-items:center;justify-content:center;
+        border:1.5px solid var(--line);background:var(--surface);border-radius:var(--rad-sm);
+        color:var(--ink-faint);cursor:pointer;transition:var(--tr)}
+      .anc-op-x:hover:not(:disabled){border-color:var(--alert);color:var(--alert)}
+      .anc-op-x:disabled{opacity:.4;cursor:default}
+      .anc-op-x:focus-visible{outline:none;box-shadow:var(--ring)}
+      .anc-op-x .ic{width:15px;height:15px}
+
+      /* ── Revisión en vivo ──────────────────────────────────────────────────
+         Amarilla y no roja: son cosas que conviene mirar, no errores que impidan
+         publicar. Los que sí impiden salen en rojo junto a su campo (.anc-err). */
+      .anc-calidad{margin-top:var(--s3)}
+      .anc-calidad:empty{display:none}
+      .anc-calidad.on{border-radius:var(--rad-sm);padding:var(--s2) var(--s3);
+        background:var(--warn-bg);color:var(--warn)}
+      .anc-cal-t{display:flex;align-items:center;gap:var(--s2);font-size:var(--fs-sm);font-weight:700}
+      .anc-cal-t .ic{width:16px;height:16px;flex:none}
+      .anc-calidad ul{margin:var(--s2) 0 0;padding-left:1.15rem;font-size:var(--fs-xs);
+        font-weight:500;line-height:1.5}
+      .anc-calidad li+li{margin-top:3px}
 
       /* ── Subida de imagen ── */
       .anc-drop{display:flex;align-items:center;gap:var(--s3);border:1.5px dashed var(--line);
@@ -202,6 +236,32 @@
       .pv-card .pvig .ic{width:14px;height:14px}
       .pv-card .pc{font-size:.86rem;font-weight:500;line-height:1.5;
         color:var(--ink-soft);margin-top:.45rem}
+
+      /* ── Encuesta en la vista previa ───────────────────────────────────────
+         Las opciones son <span> y no <button>: aquí no hay nada que votar todavía, y
+         un botón que parece pulsable y no hace nada es peor que no tenerlo. Los estilos
+         imitan los del Portal (.pub-*) para que la vista previa no prometa una cosa y
+         el Portal enseñe otra. */
+      .pv-enc{margin-top:.7rem;border-top:1px solid var(--line);padding-top:.6rem}
+      .pv-enc-hd{display:flex;align-items:center;justify-content:space-between;gap:var(--s2);flex-wrap:wrap}
+      .pv-enc-tag{display:inline-flex;align-items:center;gap:.3rem;font-size:.68rem;font-weight:800;
+        text-transform:uppercase;letter-spacing:.02em;color:var(--brand-deep)}
+      .pv-enc-tag .ic{width:12px;height:12px}
+      .pv-enc-meta{font-size:.7rem;font-weight:600;color:var(--ink-faint)}
+      .pv-enc-q{font-size:.9rem;font-weight:700;line-height:1.35;color:var(--ink);margin:.3rem 0 .5rem}
+      .pv-enc-ops{display:flex;flex-direction:column;gap:.35rem}
+      .pv-op{display:block;font-size:.84rem;font-weight:600;color:var(--ink);
+        border:1.5px solid var(--line);border-radius:10px;padding:.45rem .7rem;background:var(--surface)}
+      .pv-enc-res{display:flex;flex-direction:column;gap:.45rem}
+      .pv-bar-tt{display:flex;align-items:center;justify-content:space-between;gap:var(--s2);
+        font-size:.78rem;font-weight:600;color:var(--ink-soft);margin-bottom:.2rem}
+      .pv-bar-tt b{font-weight:800;color:var(--ink)}
+      .pv-bar-tr{height:8px;border-radius:999px;background:var(--line);overflow:hidden}
+      .pv-bar-tr i{display:block;height:100%;border-radius:999px;background:var(--brand-soft)}
+      .pv-enc-vacia{display:flex;align-items:center;gap:var(--s2);margin-top:.7rem;
+        border-top:1px solid var(--line);padding-top:.6rem;font-size:.78rem;
+        font-weight:600;color:var(--ink-faint)}
+      .pv-enc-vacia .ic{width:15px;height:15px;flex:none}
 
       /* .anc-modal-card real: radio 20 y la foto NO se recorta — se muestra entera
          sobre fondo oscuro (object-fit:contain). Recortarla aquí hacía prometer un
@@ -322,6 +382,22 @@
             <form class="anc-card" id="ancForm" novalidate>
               <input type="hidden" id="f-id">
 
+              <!-- ── 0. Punto de partida ──────────────────────────────────────
+                   Empezar con el formulario en blanco es la parte cara de publicar:
+                   no es teclear el texto, es decidir qué formato le toca a un aviso
+                   de mantenimiento y con qué tono. Cada plantilla deja eso resuelto
+                   y el texto de ejemplo se sustituye escribiendo encima. -->
+              <fieldset class="anc-sec" id="grp-plantillas">
+                <legend>Empieza desde una plantilla <span class="anc-cc">opcional</span></legend>
+                <div class="anc-seg anc-seg-sm" id="plantillas" role="group" aria-label="Plantillas de arranque">
+                  <button type="button" data-pl="mantenimiento">Mantenimiento</button>
+                  <button type="button" data-pl="promocion">Promoción</button>
+                  <button type="button" data-pl="comunicado">Comunicado</button>
+                  <button type="button" data-pl="encuesta">Encuesta</button>
+                </div>
+                <p class="anc-help">Rellenan formato, tono y estructura. Si ya publicaste algo parecido, sale más a cuenta <b>Duplicar</b> desde la lista de la derecha: se copia entera y solo cambias lo que cambia.</p>
+              </fieldset>
+
               <!-- ── 1. Formato ── -->
               <fieldset class="anc-sec">
                 <legend>1 · Formato de la publicación</legend>
@@ -412,6 +488,47 @@
                   <input class="v-input" type="text" id="f-vigencia" placeholder="3 al 15 de junio">
                   <p class="anc-help">Solo es el texto que lee el asesor. Las fechas que ocultan el anuncio se configuran abajo.</p>
                 </div>
+
+                <!-- ── Encuesta: subtipo de la tarjeta ──────────────────────────
+                     No es un formato más (el Portal la sigue tratando como tarjeta,
+                     que es lo que la hace compatible con quien tenga la copia local
+                     vieja): es una tarjeta que además pregunta algo. -->
+                <div class="anc-field" id="grp-encuesta">
+                  <label class="anc-chk"><input type="checkbox" id="f-esEncuesta"> Convertir en encuesta</label>
+                  <p class="anc-help">La tarjeta enseña una pregunta con opciones y una gráfica de resultados. El resto de la tarjeta —imagen, descripción, botones— sigue funcionando igual.</p>
+
+                  <div id="encCampos" class="anc-hidden">
+                    <label class="anc-lbl" for="f-encPregunta" style="margin-top:var(--s2)">Pregunta <span class="anc-cc" id="cc-encPregunta"></span></label>
+                    <input class="v-input" type="text" id="f-encPregunta" placeholder="¿Qué horario te acomoda para la capacitación?" aria-describedby="err-f-encPregunta">
+                    <p class="anc-err" id="err-f-encPregunta" role="alert"></p>
+
+                    <span class="anc-lbl" style="margin-top:var(--s2)">Opciones <span class="anc-cc" id="cc-encOpciones"></span></span>
+                    <div id="encOpciones" data-campo="f-encOpciones"></div>
+                    <button type="button" class="anc-link" id="encAgregar">+ Añadir opción</button>
+                    <p class="anc-err" id="err-f-encOpciones" role="alert"></p>
+                    <p class="anc-help">Hasta seis: es lo que cabe en la tarjeta y en un celular sin que la gráfica se vuelva ilegible.</p>
+
+                    <div class="anc-field anc-row" style="margin-top:var(--s2)">
+                      <div>
+                        <label class="anc-lbl" for="f-encTiempo">Tiempo estimado</label>
+                        <input class="v-input" type="text" id="f-encTiempo" placeholder="30 segundos">
+                      </div>
+                      <div>
+                        <label class="anc-lbl" for="f-encCierre">Cierra el</label>
+                        <input class="v-input" type="date" id="f-encCierre" aria-describedby="err-f-encCierre">
+                      </div>
+                    </div>
+                    <p class="anc-err" id="err-f-encCierre" role="alert"></p>
+                    <div class="anc-seg anc-seg-sm" id="encDuracion" role="group" aria-label="Duración de la encuesta">
+                      <button type="button" data-dias="3">3 días</button>
+                      <button type="button" data-dias="7">1 semana</button>
+                      <button type="button" data-dias="15">15 días</button>
+                      <button type="button" data-dias="0">Sin cierre</button>
+                    </div>
+                    <label class="anc-chk" style="margin-top:var(--s2)"><input type="checkbox" id="f-encVerAntes"> Enseñar los resultados antes de votar</label>
+                    <p class="anc-help">Por omisión los resultados se ven al votar: enseñarlos antes hace que la gente vote lo que va ganando.</p>
+                  </div>
+                </div>
               </fieldset>
 
               <!-- ── 3. Botones ── -->
@@ -450,6 +567,15 @@
                 </div>
                 <p class="anc-err" id="err-f-hasta" role="alert"></p>
                 <p class="anc-help">Sin «desde» se publica ya; sin «expira» no caduca.</p>
+                <!-- Atajos de vigencia: "hasta el domingo" se piensa en días de la semana
+                     y se escribe en yyyy-mm-dd, que es donde se cuela la errata. -->
+                <div class="anc-seg anc-seg-sm" id="vigRapida" role="group" aria-label="Vigencia rápida">
+                  <button type="button" data-vig="hoy">Solo hoy</button>
+                  <button type="button" data-vig="semana">Esta semana</button>
+                  <button type="button" data-vig="domingo">Hasta el domingo</button>
+                  <button type="button" data-vig="mes">Un mes</button>
+                  <button type="button" data-vig="siempre">Sin caducidad</button>
+                </div>
                 <div class="anc-sched" id="schedInfo" aria-live="polite"></div>
 
                 <div class="anc-field">
@@ -477,6 +603,11 @@
                 </div>
                 <div class="anc-stage" id="preview"></div>
                 <p class="anc-where"><span class="ic" data-icon-anc="pin"></span><span id="pvWhere"></span></p>
+                <!-- Revisión en vivo: lo que se publicaría mal si se pulsara ahora.
+                     No bloquea (para eso está validar()): avisa de lo que el servidor
+                     acepta pero en el Portal se ve regular —una tarjeta sin imagen, un
+                     botón que no lleva a ninguna parte, una fecha ya pasada—. -->
+                <div class="anc-calidad" id="calidad" aria-live="polite"></div>
               </div>
 
               <div class="anc-card">
@@ -682,17 +813,18 @@
         }
         box.className = 'anc-sched ' + cls;
         box.innerHTML = ancIcon(ic) + '<span>' + esc(msg) + '</span>';
+        renderCalidad();
       }
 
       /* ── Campos visibles por formato ──────────────────────────────────────── */
       var FIELDS = {
         banner:    ['grp-tono','grp-mensaje'],
         destacado: ['grp-tono','grp-titulo','grp-icono','grp-cuerpo','grp-cta'],
-        tarjeta:   ['grp-tono','grp-titulo','grp-desc','grp-imagen','grp-vigencia','grp-cta'],
+        tarjeta:   ['grp-tono','grp-titulo','grp-desc','grp-imagen','grp-vigencia','grp-encuesta','grp-cta'],
         modal:     ['grp-titulo','grp-cuerpo','grp-imagen','grp-cta']
       };
       var ALL_GROUPS = ['grp-tono','grp-mensaje','grp-titulo','grp-icono','grp-cuerpo',
-                        'grp-desc','grp-imagen','grp-vigencia','grp-cta'];
+                        'grp-desc','grp-imagen','grp-vigencia','grp-encuesta','grp-cta'];
 
       var DONDE = {
         banner:    'Aparece arriba del inicio, sobre las tarjetas. El asesor puede cerrarlo y no vuelve a verlo.',
@@ -744,6 +876,198 @@
         renderPreview(true);
       }
 
+      /* ── ENCUESTA (subtipo de la tarjeta) ─────────────────────────────────── */
+      var ENC_MAX = 6;   // el mismo tope que aplica el servidor (PUB_ENCUESTA_MAX_OPCIONES)
+
+      /* Las opciones se leen del DOM y no de una variable: son campos de texto que el
+         usuario reordena, borra y vuelve a escribir, y mantener una copia en memoria al
+         día de todo eso es una segunda fuente de verdad que tarde o temprano discrepa
+         de lo que se ve en pantalla. */
+      function encOpcionesDom(){
+        return Array.prototype.map.call($('encOpciones').querySelectorAll('input'),
+          function(i){ return i.value.trim(); });
+      }
+
+      function encFilaHtml(valor, i){
+        return '<div class="anc-op-row" data-i="' + i + '">'
+          + '<input class="v-input" type="text" maxlength="80" value="' + esc(valor || '') + '"'
+          +   ' placeholder="Opción ' + (i + 1) + '" aria-label="Opción ' + (i + 1) + '">'
+          + '<button type="button" class="anc-op-x" data-op-quitar="' + i + '" title="Quitar esta opción"'
+          +   ' aria-label="Quitar la opción ' + (i + 1) + '">' + ancIcon('trash') + '</button>'
+          + '</div>';
+      }
+
+      function renderOpciones(lista){
+        var vals = (lista || encOpcionesDom());
+        if (vals.length < 2) vals = vals.concat(['', '']).slice(0, 2);
+        vals = vals.slice(0, ENC_MAX);
+        $('encOpciones').innerHTML = vals.map(encFilaHtml).join('');
+        // Menos de dos opciones no es una encuesta: el botón de quitar se apaga en vez
+        // de dejar borrar hasta romperla y avisar después.
+        var quitar = $('encOpciones').querySelectorAll('.anc-op-x');
+        Array.prototype.forEach.call(quitar, function(b){ b.disabled = vals.length <= 2; });
+        $('encAgregar').disabled = vals.length >= ENC_MAX;
+        $('encAgregar').textContent = vals.length >= ENC_MAX
+          ? 'Máximo ' + ENC_MAX + ' opciones' : '+ Añadir opción';
+        var cc = $('cc-encOpciones');
+        if (cc) cc.textContent = vals.length + '/' + ENC_MAX;
+      }
+
+      /** Enseña u oculta los campos de la encuesta y repinta lo que depende de ellos. */
+      function encToggle(animar){
+        var on = $('f-esEncuesta').checked;
+        $('encCampos').classList.toggle('anc-hidden', !on);
+        if (on && !$('encOpciones').children.length) renderOpciones(['', '']);
+        if (on && animar !== false && motionOK()){
+          gsap.fromTo($('encCampos'), { opacity:0, y:8 },
+            { opacity:1, y:0, duration:.28, ease:'power2.out', clearProps:'transform,opacity' });
+        }
+        renderPreview(true);
+      }
+
+      /** El objeto que se guarda en Datos (JSON), o null si esto no es una encuesta. */
+      function encuestaDatos(){
+        if (state.formato !== 'tarjeta' || !$('f-esEncuesta').checked) return null;
+        var ops = encOpcionesDom().filter(function(o){ return !!o; }).slice(0, ENC_MAX);
+        var preg = $('f-encPregunta').value.trim();
+        if (!preg || ops.length < 2) return null;
+        return {
+          pregunta: preg,
+          opciones: ops,
+          tiempo:   $('f-encTiempo').value.trim(),
+          cierre:   $('f-encCierre').value || '',
+          verAntes: $('f-encVerAntes').checked
+        };
+      }
+
+      /* ── PLANTILLAS DE ARRANQUE ───────────────────────────────────────────── */
+      var PLANTILLAS = {
+        mantenimiento: {
+          formato:'destacado', tono:'warn', icono:'gear',
+          titulo:'Mantenimiento programado',
+          cuerpo:'El sistema no estará disponible el sábado de 8:00 a 11:00 h. Termina y guarda tus cotizaciones antes de esa hora.',
+          dias:3
+        },
+        promocion: {
+          formato:'tarjeta', tono:'ok', titulo:'Nueva promoción',
+          desc:'Describe en una línea qué incluye y para quién aplica.',
+          vigencia:'Del 1 al 15 de este mes',
+          ctaTexto:'Ver los detalles', dias:15
+        },
+        comunicado: {
+          formato:'destacado', tono:'info', icono:'megaphone',
+          titulo:'Comunicado del equipo',
+          cuerpo:'Escribe aquí lo que todo el equipo tiene que saber, en dos o tres líneas.',
+          dias:7
+        },
+        encuesta: {
+          formato:'tarjeta', tono:'info', titulo:'Queremos tu opinión',
+          desc:'Una pregunta rápida para decidir entre varias opciones.',
+          encuesta:{ pregunta:'¿Qué horario te acomoda para la capacitación?',
+                     opciones:['Por la mañana','Después de comer','Al final del turno'],
+                     tiempo:'30 segundos' },
+          dias:7
+        }
+      };
+
+      /* Rellena el formulario con una plantilla. Solo se pisa lo que la plantilla trae:
+         quien ya escribió un título y luego pulsa "Promoción" espera quedarse con su
+         título y recibir la estructura, no empezar de cero. La guardia de cambios sin
+         guardar la pone el llamador. */
+      function aplicarPlantilla(k){
+        var p = PLANTILLAS[k]; if (!p) return;
+        applyFormato(p.formato, true, true);
+        applyTono(p.tono || 'info', false);
+        if (p.icono) $('f-icono').value = p.icono;
+        if (p.titulo && !$('f-titulo').value.trim())   $('f-titulo').value = p.titulo;
+        if (p.cuerpo && !$('f-cuerpo').value.trim())   $('f-cuerpo').value = p.cuerpo;
+        if (p.desc   && !$('f-desc').value.trim())     $('f-desc').value = p.desc;
+        if (p.vigencia && !$('f-vigencia').value.trim()) $('f-vigencia').value = p.vigencia;
+        if (p.ctaTexto && !$('f-ctaTexto').value.trim()) $('f-ctaTexto').value = p.ctaTexto;
+        if (p.encuesta){
+          $('f-esEncuesta').checked = true;
+          if (!$('f-encPregunta').value.trim()) $('f-encPregunta').value = p.encuesta.pregunta;
+          var actuales = encOpcionesDom().filter(function(o){ return !!o; });
+          renderOpciones(actuales.length >= 2 ? actuales : p.encuesta.opciones);
+          if (!$('f-encTiempo').value.trim()) $('f-encTiempo').value = p.encuesta.tiempo || '';
+          if (!$('f-encCierre').value && p.dias) $('f-encCierre').value = isoMasDias(p.dias);
+          encToggle(false);
+        }
+        if (p.dias && !$('f-hasta').value) $('f-hasta').value = isoMasDias(p.dias);
+        state.dirty = true;
+        renderSched(); renderPreview(true); renderCalidad();
+        if (window.AppMotion) AppMotion.toast('Plantilla cargada. Escribe encima para adaptarla.', 'ok');
+        // La barra dice el formato que se está redactando; la plantilla lo acaba de
+        // cambiar, así que se refleja igual que si se hubiera pulsado en el conmutador.
+        reflejarVista({ format: p.formato }, true);
+      }
+
+      /* ── VIGENCIA RÁPIDA ──────────────────────────────────────────────────── */
+      function isoDe(d){
+        return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' +
+               String(d.getDate()).padStart(2, '0');
+      }
+      function isoMasDias(n){ var d = hoy0(); d.setDate(d.getDate() + n); return isoDe(d); }
+
+      /** 'hoy' | 'semana' | 'domingo' | 'mes' | 'siempre' → escribe la fecha de expirar. */
+      function aplicarVigencia(k){
+        if (k === 'siempre'){ $('f-hasta').value = ''; }
+        else if (k === 'hoy'){ $('f-hasta').value = isoDe(hoy0()); }
+        else if (k === 'semana'){ $('f-hasta').value = isoMasDias(7); }
+        else if (k === 'mes'){ $('f-hasta').value = isoMasDias(30); }
+        else if (k === 'domingo'){
+          // Domingo de ESTA semana; si hoy ya es domingo, hoy (la vigencia es inclusiva
+          // de todo el día, así que "hasta el domingo" con hoy domingo sigue siendo hoy).
+          var d = hoy0();
+          d.setDate(d.getDate() + ((7 - d.getDay()) % 7));
+          $('f-hasta').value = isoDe(d);
+        }
+        state.dirty = true;
+        clearError('f-hasta');
+        renderSched(); renderCalidad();
+      }
+
+      /* ── AVISOS DE CALIDAD ────────────────────────────────────────────────── */
+      /* Lo que el servidor acepta pero en el Portal se lee mal. Es distinto de validar():
+         aquello impide publicar, esto solo lo cuenta. Reutiliza las mismas lecturas del
+         formulario, así que no hay dos ideas distintas de "está bien". */
+      function avisosCalidad(){
+        var f = state.formato, out = [];
+        if (f === 'tarjeta' && !safeUrl($('f-imagen').value))
+          out.push('Sin imagen, la tarjeta se ve como un bloque de texto en la rejilla del inicio.');
+        if (f === 'modal' && !safeUrl($('f-imagen').value))
+          out.push('Un modal sin imagen ocupa la pantalla entera para enseñar solo texto.');
+        [['f-ctaTexto','f-ctaUrl','principal'], ['f-cta2Texto','f-cta2Url','secundario']].forEach(function(p){
+          if ($('grp-cta').classList.contains('anc-hidden')) return;
+          var t = $(p[0]).value.trim(), u = safeUrl($(p[1]).value);
+          if (t && !u) out.push('El botón ' + p[2] + ' tiene texto pero no lleva a ninguna parte.');
+        });
+        var h = parseISO($('f-hasta').value);
+        if (h && h < hoy0()) out.push('La fecha de expiración ya pasó: se publicaría algo que nadie llegaría a ver.');
+        if (!$('f-activo').checked) out.push('Está marcado como oculto: se guarda, pero no aparece en el Portal.');
+        if (f === 'tarjeta' && $('f-esEncuesta').checked){
+          var ops = encOpcionesDom().filter(function(o){ return !!o; });
+          if (ops.length && ops.length < 2) out.push('Una encuesta necesita al menos dos opciones para poder contestarse.');
+          if (!$('f-encPregunta').value.trim() && ops.length) out.push('La encuesta no tiene pregunta.');
+          var repes = {}, hayRepe = false;
+          ops.forEach(function(o){ var k = o.toLowerCase(); if (repes[k]) hayRepe = true; repes[k] = 1; });
+          if (hayRepe) out.push('Hay dos opciones iguales: en la gráfica se verían como una sola barra repetida.');
+          var c = parseISO($('f-encCierre').value);
+          if (c && c < hoy0()) out.push('La encuesta cierra en una fecha ya pasada: nadie podría votar.');
+        }
+        return out;
+      }
+
+      function renderCalidad(){
+        var box = $('calidad'); if (!box) return;
+        var avisos = avisosCalidad();
+        if (!avisos.length){ box.innerHTML = ''; box.classList.remove('on'); return; }
+        box.classList.add('on');
+        box.innerHTML = '<div class="anc-cal-t">' + ancIcon('warning')
+          + '<span>' + avisos.length + (avisos.length === 1 ? ' cosa que revisar' : ' cosas que revisar') + '</span></div>'
+          + '<ul>' + avisos.map(function(a){ return '<li>' + esc(a) + '</li>'; }).join('') + '</ul>';
+      }
+
       /* ── Vista previa ─────────────────────────────────────────────────────── */
       function ctasHtml(){
         var t = esc($('f-ctaTexto').value.trim()), u = escAttr($('f-ctaUrl').value);
@@ -752,6 +1076,39 @@
         if (t && u)   b += '<a class="pv-cta" href="' + u + '" target="_blank" rel="noopener">' + t + ancIcon('external') + '</a>';
         if (t2 && u2) b += '<a class="pv-cta sec" href="' + u2 + '" target="_blank" rel="noopener">' + t2 + ancIcon('external') + '</a>';
         return b ? '<div class="pv-ctas">' + b + '</div>' : '';
+      }
+
+      /* La encuesta en la vista previa se enseña SIN VOTAR: opciones apagadas y una
+         gráfica de ejemplo con reparto igual. Enseñar botones que se pueden pulsar aquí
+         invitaría a probar el voto sobre un anuncio que todavía no existe, y no hay
+         nada que contestar hasta que se publique. */
+      function encuestaPreviewHtml(){
+        var e = encuestaDatos();
+        if (!e){
+          // Marcada como encuesta pero aún sin pregunta u opciones: se dice, en vez de
+          // enseñar una tarjeta normal y que parezca que la casilla no hizo nada.
+          if (state.formato === 'tarjeta' && $('f-esEncuesta') && $('f-esEncuesta').checked){
+            return '<div class="pv-enc pv-enc-vacia">' + ancIcon('chart')
+                 + '<span>Escribe la pregunta y al menos dos opciones para ver la encuesta.</span></div>';
+          }
+          return '';
+        }
+        var meta = [];
+        if (e.tiempo) meta.push(esc(e.tiempo));
+        if (e.cierre) meta.push('Hasta el ' + esc(e.cierre));
+        var pct = Math.round(100 / e.opciones.length);
+        var cuerpo = e.verAntes
+          ? '<div class="pv-enc-res">' + e.opciones.map(function(op){
+              return '<div class="pv-bar"><div class="pv-bar-tt"><span>' + esc(op) + '</span><b>' + pct + '%</b></div>'
+                   + '<div class="pv-bar-tr"><i style="width:' + pct + '%"></i></div></div>';
+            }).join('') + '</div>'
+          : '<div class="pv-enc-ops">' + e.opciones.map(function(op){
+              return '<span class="pv-op">' + esc(op) + '</span>';
+            }).join('') + '</div>';
+        return '<div class="pv-enc"><div class="pv-enc-hd"><span class="pv-enc-tag">'
+             + ancIcon('chart') + 'Encuesta</span>'
+             + (meta.length ? '<span class="pv-enc-meta">' + meta.join(' · ') + '</span>' : '')
+             + '</div><div class="pv-enc-q">' + esc(e.pregunta) + '</div>' + cuerpo + '</div>';
       }
 
       function renderPreview(estructural){
@@ -778,7 +1135,8 @@
                + (img ? '<img src="' + img + '" alt="">' : '')
                + '<div class="pb"><div class="pt">' + (titulo || 'Título de la tarjeta') + '</div>'
                + (vig ? '<div class="pvig">' + ancIcon('calendar') + vig + '</div>' : '')
-               + '<div class="pc">' + (desc || 'Descripción…') + '</div>' + cta + '</div></div>';
+               + '<div class="pc">' + (desc || 'Descripción…') + '</div>'
+               + encuestaPreviewHtml() + cta + '</div></div>';
         } else if (f === 'modal'){
           html = '<div class="pv-modal"><span class="pv-x">' + ancIcon('close') + '</span>'
                + (img ? '<img src="' + img + '" alt="">' : '')
@@ -787,6 +1145,9 @@
         }
         var stage = $('preview');
         stage.innerHTML = html;
+        // La revisión en vivo se recalcula con la vista previa: las dos leen lo mismo y
+        // se actualizan por los mismos motivos.
+        renderCalidad();
         // Solo se anima cuando cambia la ESTRUCTURA (formato, tono, imagen). Animar en
         // cada tecla convertiría la vista previa en un parpadeo constante.
         if (estructural && motionOK() && stage.firstChild){
@@ -798,7 +1159,9 @@
       /* ── Contadores y validación ──────────────────────────────────────────── */
       var COUNTERS = {
         'f-mensaje':['cc-mensaje',140], 'f-titulo':['cc-titulo',70],
-        'f-cuerpo':['cc-cuerpo',300],   'f-desc':['cc-desc',180]
+        'f-cuerpo':['cc-cuerpo',300],   'f-desc':['cc-desc',180],
+        // 160 es el mismo tope que aplica el servidor al sanear la encuesta.
+        'f-encPregunta':['cc-encPregunta',160]
       };
       function updateCounters(){
         Object.keys(COUNTERS).forEach(function(id){
@@ -822,8 +1185,22 @@
         if (box){ box.classList.remove('on'); box.innerHTML = ''; }
       }
       function limpiarErrores(){
-        Object.keys(COUNTERS).concat(['f-imagen','f-ctaTexto','f-cta2Texto','f-hasta','f-desde'])
+        Object.keys(COUNTERS).concat(['f-imagen','f-ctaTexto','f-cta2Texto','f-hasta','f-desde',
+                                      'f-encOpciones','f-encCierre'])
           .forEach(clearError);
+      }
+
+      /* El campo al que llevar el foco cuando la validación falla.
+         Casi siempre es un input con ese id, pero las opciones de la encuesta son una
+         lista que se crea y se destruye: su "campo" es el contenedor, marcado con
+         data-campo, y el foco va a su primer input. Sin esto, un error sobre las
+         opciones intentaba enfocar un id que no existe y se llevaba por delante el
+         envío entero —el formulario no publicaba y tampoco decía por qué—. */
+      function campoDe(id){
+        var el = $(id);
+        if (el) return el;
+        var caja = document.querySelector('[data-campo="' + id + '"]');
+        return caja ? (caja.querySelector('input, select, textarea') || caja) : null;
       }
 
       /** Devuelve el id del primer campo inválido, o '' si todo está bien. */
@@ -838,8 +1215,12 @@
         // Los contadores ahora BLOQUEAN: antes solo se pintaban de rojo y el texto
         // se publicaba igual, rompiendo la maqueta del portal.
         Object.keys(COUNTERS).forEach(function(id){
-          var grp = $(id).closest('.anc-field');
-          if (grp && grp.classList.contains('anc-hidden')) return;
+          // Un campo que no se ve no puede bloquear la publicación. Se pregunta por
+          // cualquier ancestro oculto y no solo por su .anc-field: la pregunta de la
+          // encuesta vive dentro de #encCampos, que se esconde entero al desmarcar la
+          // casilla, y con la comprobación anterior un texto largo escrito y luego
+          // descartado seguía impidiendo publicar señalando a un campo invisible.
+          if ($(id).closest('.anc-hidden')) return;
           var max = COUNTERS[id][1], n = ($(id).value || '').length;
           if (n > max) falla(id, 'Te pasaste por ' + (n - max) + ' caracteres (máx. ' + max + ').');
         });
@@ -860,6 +1241,22 @@
         var d = parseISO($('f-desde').value), h = parseISO($('f-hasta').value);
         if (d && h && h < d) falla('f-hasta', 'La fecha de retiro es anterior a la de publicación: el anuncio no se vería nunca.');
 
+        /* Encuesta. Se valida solo si la casilla está puesta: media encuesta escrita en
+           una tarjeta que ya no lo es no debe impedir publicarla —el que la desmarcó ya
+           dijo lo que quería—, y por eso encuestaDatos() devuelve null en ese caso. */
+        if (f === 'tarjeta' && $('f-esEncuesta').checked){
+          var preg = $('f-encPregunta').value.trim();
+          var ops = encOpcionesDom().filter(function(o){ return !!o; });
+          if (!preg) falla('f-encPregunta', 'La encuesta necesita una pregunta.');
+          if (ops.length < 2) falla('f-encOpciones', 'Escribe al menos dos opciones, o quita la marca de encuesta.');
+          var vistos = {}, repetida = '';
+          ops.forEach(function(o){ var k = o.toLowerCase(); if (vistos[k]) repetida = o; vistos[k] = 1; });
+          if (repetida) falla('f-encOpciones', 'La opción «' + repetida + '» está dos veces: en la gráfica saldría repetida.');
+          var cierre = parseISO($('f-encCierre').value);
+          if (cierre && cierre < hoy0()) falla('f-encCierre', 'La encuesta cerraría en una fecha ya pasada: nadie podría votar.');
+          if (cierre && h && cierre > h) falla('f-encCierre', 'La encuesta cierra después de que el anuncio expire: esos días no se podría votar porque la tarjeta ya no se ve.');
+        }
+
         return malo;
       }
 
@@ -871,7 +1268,11 @@
           d.cuerpo = $('f-cuerpo').value.trim(); d.icono = $('f-icono').value || 'megaphone'; }
         else if (f === 'tarjeta'){ d.tono = state.tono; d.titulo = $('f-titulo').value.trim();
           d.descripcion = $('f-desc').value.trim(); d.imagenUrl = safeUrl($('f-imagen').value);
-          d.vigencia = $('f-vigencia').value.trim(); }
+          d.vigencia = $('f-vigencia').value.trim();
+          // La encuesta viaja DENTRO de Datos (JSON): no hace falta tocar el esquema de
+          // columnas de la hoja, y una publicación sin encuesta no lleva la clave.
+          var enc = encuestaDatos();
+          if (enc) d.encuesta = enc; }
         else if (f === 'modal'){ d.titulo = $('f-titulo').value.trim();
           d.cuerpo = $('f-cuerpo').value.trim(); d.imagenUrl = safeUrl($('f-imagen').value); }
         if (f !== 'banner'){
@@ -886,9 +1287,11 @@
       function publicar(){
         var malo = validar();
         if (malo){
-          var el = $(malo);
-          el.focus();
-          if (window.AppMotion) AppMotion.shake(el.closest('.anc-field') || el);
+          var el = campoDe(malo);
+          if (el){
+            if (el.focus) el.focus();
+            if (window.AppMotion) AppMotion.shake(el.closest('.anc-field') || el);
+          }
           return;
         }
         var editando = !!$('f-id').value;
@@ -972,11 +1375,16 @@
          acaba de poner (ver el oyente de wireUrl). */
       function resetForm(sinUrl){
         ['f-id','f-mensaje','f-titulo','f-cuerpo','f-desc','f-imagen','f-vigencia',
-         'f-ctaTexto','f-ctaUrl','f-cta2Texto','f-cta2Url','f-desde','f-hasta','f-imagenFile']
+         'f-ctaTexto','f-ctaUrl','f-cta2Texto','f-cta2Url','f-desde','f-hasta','f-imagenFile',
+         'f-encPregunta','f-encTiempo','f-encCierre']
           .forEach(function(id){ $(id).value = ''; });
         $('f-icono').value = 'megaphone';
         $('f-orden').value = '0';
         $('f-activo').checked = true;
+        $('f-esEncuesta').checked = false;
+        $('f-encVerAntes').checked = false;
+        renderOpciones(['', '']);
+        encToggle(false);
         resetImagenUI();
         $('btnCancelar').classList.add('anc-hidden');
         $('btnPublicar').textContent = 'Publicar anuncio';
@@ -1034,6 +1442,17 @@
         $('f-desde').value = a.desde || '';
         $('f-hasta').value = a.hasta || '';
         $('f-activo').checked = !!a.activo;
+        // Encuesta: simétrico a buildDatos. Una publicación sin encuesta deja la casilla
+        // apagada y los campos vacíos, para que editar una tarjeta normal después de una
+        // encuesta no arrastre la pregunta de la anterior.
+        var enc = d.encuesta && typeof d.encuesta === 'object' ? d.encuesta : null;
+        $('f-esEncuesta').checked = !!enc;
+        $('f-encPregunta').value = enc ? (enc.pregunta || '') : '';
+        $('f-encTiempo').value   = enc ? (enc.tiempo || '') : '';
+        $('f-encCierre').value   = enc ? (enc.cierre || '') : '';
+        $('f-encVerAntes').checked = !!(enc && enc.verAntes);
+        renderOpciones(enc && Array.isArray(enc.opciones) && enc.opciones.length >= 2 ? enc.opciones : ['', '']);
+        encToggle(false);
         resetImagenUI();
         if (d.imagenUrl){
           $('imgThumb').src = safeUrl(d.imagenUrl);
@@ -1186,6 +1605,23 @@
 
       function tituloDe(a){ var d = a.datos || {}; return d.titulo || d.mensaje || '(sin título)'; }
 
+      /* Copia el enlace público de una publicación (?page=portal&pub=…).
+         Se construye con AppUrl para que salga la dirección de la webapp: la que enseña
+         la barra del navegador dentro de Apps Script es la del iframe y no le sirve a
+         nadie más. Sin AppUrl —vista previa fuera de Apps Script— se dice, en vez de
+         copiar una dirección rota que se descubre cuando ya se mandó. */
+      function copiarEnlacePublicacion(id){
+        if (!(window.AppUrl && AppUrl.base && AppUrl.copyLink)){
+          if (window.AppMotion) AppMotion.toast('No pudimos construir el enlace en esta vista.', 'warn');
+          return;
+        }
+        AppUrl.copyLink('portal', { pub: id }).then(function(ok){
+          if (window.AppMotion) AppMotion.toast(
+            ok ? 'Enlace copiado. Se abre directo en esta publicación.' : 'No pudimos copiar el enlace.',
+            ok ? 'ok' : 'warn');
+        });
+      }
+
       function renderFiltros(){
         var cuenta = { todos: listaActual.length };
         listaActual.forEach(function(a){
@@ -1219,9 +1655,14 @@
         if (a.hasta) meta.push('Expira ' + esc(a.hasta));
         var av = (est === 'activo') ? avisoExpira(a.hasta) : null;
         var id = esc(a.id);
+        var esEncuesta = !!(a.datos && a.datos.encuesta);
+        // Quién la publicó: es lo que responde "¿esto lo puedo tocar o le pregunto a
+        // alguien?" sin tener que abrir la hoja de cálculo.
+        if (a.responsable) meta.push('Por ' + esc(a.responsable));
         return '<div class="anc-item" data-id="' + id + '">'
           + '<div class="anc-item-hd">'
           +   '<span class="v-badge v-badge-pink">' + esc(a.formato) + '</span>'
+          +   (esEncuesta ? '<span class="v-badge v-badge-blue">encuesta</span>' : '')
           +   '<span class="v-badge ' + badge.cls + '">' + badge.txt + '</span>'
           +   '<span class="anc-item-tt">' + esc(tituloDe(a)) + '</span>'
           + '</div>'
@@ -1232,6 +1673,11 @@
           + '<div class="anc-item-ac">'
           +   '<button type="button" data-act="edit" data-id="' + id + '">' + ancIcon('pencil') + 'Editar</button>'
           +   '<button type="button" data-act="dup"  data-id="' + id + '">' + ancIcon('copy') + 'Duplicar</button>'
+          // El enlace directo a la publicación en el Portal. Se ofrece también para las
+          // expiradas y las programadas: pubPorId las sirve igual, diciendo en qué
+          // estado están, y es justo lo que se manda cuando alguien pregunta "¿qué decía
+          // el aviso de la semana pasada?".
+          +   '<button type="button" data-act="link" data-id="' + id + '">' + ancIcon('external') + 'Copiar enlace</button>'
           +   '<button type="button" data-act="toggle" data-id="' + id + '" data-on="' + (a.activo ? '1' : '0') + '">'
           +     ancIcon(a.activo ? 'eyeoff' : 'eye') + (a.activo ? 'Ocultar' : 'Activar') + '</button>'
           +   '<span class="sep"></span>'
@@ -1515,6 +1961,56 @@
         });
         $('f-activo').addEventListener('change', function(){ state.dirty = true; renderSched(); });
 
+        /* ── Encuesta ──────────────────────────────────────────────────────── */
+        $('f-esEncuesta').addEventListener('change', function(){ state.dirty = true; encToggle(); });
+        ['f-encPregunta','f-encTiempo'].forEach(function(id){
+          $(id).addEventListener('input', function(){ state.dirty = true; renderPreview(false); });
+        });
+        $('f-encCierre').addEventListener('change', function(){
+          state.dirty = true; clearError('f-encCierre'); renderPreview(false);
+        });
+        $('f-encVerAntes').addEventListener('change', function(){ state.dirty = true; renderPreview(true); });
+        // Las opciones son campos que van y vienen: se escucha al contenedor, que sí
+        // está siempre, en vez de re-enganchar oyentes en cada repintado.
+        $('encOpciones').addEventListener('input', function(){
+          state.dirty = true; clearError('f-encOpciones'); renderPreview(false);
+        });
+        $('encOpciones').addEventListener('click', function(e){
+          var x = e.target.closest('[data-op-quitar]');
+          if (!x || x.disabled) return;
+          var vals = encOpcionesDom();
+          vals.splice(Number(x.dataset.opQuitar), 1);
+          renderOpciones(vals);
+          state.dirty = true; renderPreview(true);
+        });
+        $('encAgregar').addEventListener('click', function(){
+          var vals = encOpcionesDom();
+          if (vals.length >= ENC_MAX) return;
+          renderOpciones(vals.concat(['']));
+          var ultimo = $('encOpciones').querySelector('.anc-op-row:last-child input');
+          if (ultimo) ultimo.focus();
+          state.dirty = true; renderPreview(true);
+        });
+        $('encDuracion').addEventListener('click', function(e){
+          var b = e.target.closest('button'); if (!b) return;
+          var dias = Number(b.dataset.dias);
+          $('f-encCierre').value = dias ? isoMasDias(dias) : '';
+          state.dirty = true; clearError('f-encCierre'); renderPreview(false);
+        });
+
+        /* ── Plantillas y vigencia rápida (llenado asistido) ───────────────── */
+        $('plantillas').addEventListener('click', function(e){
+          var b = e.target.closest('button'); if (!b) return;
+          // Una plantilla pisa el formato y parte del texto: pasa por la misma guardia
+          // que abrir otro anuncio, porque puede llevarse por delante lo que se estaba
+          // escribiendo.
+          pedirDescartar(function(){ aplicarPlantilla(b.dataset.pl); });
+        });
+        $('vigRapida').addEventListener('click', function(e){
+          var b = e.target.closest('button'); if (!b) return;
+          aplicarVigencia(b.dataset.vig);
+        });
+
         // Imagen: clic, teclado y arrastrar-soltar.
         $('f-imagenFile').addEventListener('change', function(e){
           subirArchivo(e.target.files && e.target.files[0]);
@@ -1561,6 +2057,8 @@
             if (a) pedirDescartar(function(){ cargarEnForm(a); });
           } else if (act === 'dup'){
             pedirDescartar(function(){ duplicar(id); });
+          } else if (act === 'link'){
+            copiarEnlacePublicacion(id);
           } else if (act === 'up' || act === 'down'){
             mover(id, act, b);
           } else if (act === 'toggle'){
@@ -1724,6 +2222,7 @@
            nada más entrar deja un «atrás» que no lleva a ninguna parte. */
         state.filtro = filtroValido(urlParam('sec'));
         itemPendiente = urlParam('item');   // lo abre abrirPendiente cuando llegue la lista
+        renderOpciones(['', '']);           // la encuesta arranca con sus dos opciones mínimas
         applyFormato(formatoValido(urlParam('format')), false, true); applyTono('info', false);
         renderPreview(false); renderSched();
         $('lista').innerHTML = skeleton();

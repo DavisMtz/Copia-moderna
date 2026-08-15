@@ -972,6 +972,109 @@ y qué se dejó fuera a propósito**. Mismo formato que el registro del document
 
 <!-- Las entradas nuevas van arriba, con la más reciente primero. -->
 
+### 2026-08-15 — F7 completa: cada publicación tiene nombre, sitio y quien responde por ella
+
+**Qué se cambió.**
+
+- **T7.1 · Saneo del modelo** (`Portal.gs`, `Publicaciones.gs` nuevo). Hasta hoy una fila
+  escrita a mano en el Sheet no tenía identidad propia: se le daba `anc-row-`+i, o sea **su
+  posición**. Eso convertía «insertar una fila arriba» en «cambiarle el identificador a
+  todas las de abajo», y desde que una publicación tiene enlace propio eso es un enlace que
+  empieza a llevar a otra publicación —sin error, sin aviso y sin forma de enterarse—.
+  Ahora `pubAsegurarIdsAnuncios_` le escribe un ID a lo que no lo tenga, también desde la
+  lectura pública del Portal, con `LockService` para que dos visitantes a la vez no se
+  pisen los huecos; si no consigue el candado **no escribe** y la lectura sigue con un id
+  derivado del CONTENIDO de la fila, que tampoco es posicional. Los avisos legacy de la hoja
+  `Avisos` pasan de `avi-`+i a `avi-`+huella del mensaje por la misma razón.
+  Se añadió la columna **`Responsable`** (el nombre legible; el correo se queda en `Autor`),
+  y las dos lecturas —la pública y la de administración— ya devuelven autoría y fecha de
+  alta. En el Portal se pinta el **nombre**: el correo es un dato de contacto que nadie pidió
+  publicar en una pantalla que ve todo el equipo.
+  De paso se corrigió algo que la tarea no pedía y que el requisito volvía urgente:
+  `publicarAnuncio` reescribía `Creado` en **cada** guardado, así que la columna decía
+  «modificado por última vez» con nombre de «Creado». Con el responsable a la vista, eso
+  significaría que corregir una errata en el anuncio de otra persona **te lo adjudica**.
+  Autoría y fecha se fijan ahora al crear y no se vuelven a tocar.
+- **T7.2 · Principal y especiales.** La primera tarjeta por columna Orden se pinta al doble
+  de ancho, con la imagen mayor y un distintivo; las demás quedan como especiales. Se leyó
+  la jerarquía del **orden que ya existía** en vez de añadir una casilla «es la principal»
+  al constructor: dos criterios de prioridad sobre la misma rejilla acaban
+  contradiciéndose, y el día que la casilla y el orden no coincidan ninguno de los dos
+  explica lo que se ve. Es una función de una línea (`esPrincipal`) si se prefiere lo otro
+  — **queda pendiente de validar con el creador**, como pedía la tarea.
+- **T7.3 · ID compartible.** Parámetro `pub` en las tres listas espejo (`Code.gs`,
+  `app_core.html`, `PASAN` de Index) y endpoint `pubPorId`, que sirve una publicación por su
+  id **incluidas las expiradas y las programadas**, diciendo en qué estado están para que el
+  modal lo escriba con palabras. Las **ocultas** no se sirven: apagar una publicación es la
+  forma que tiene quien administra de retirarla, y servirla por la puerta de atrás dejaría
+  esa decisión sin efecto. Botón «Copiar enlace» en el modal y en cada fila del constructor.
+  La pantalla aparte no se construyó, como decía el plan.
+- **T7.4 · Encuestas.** Subtipo de la tarjeta —no un formato nuevo—, que es lo que hace que
+  un cliente con la copia local de hace seis días la siga pintando como la tarjeta
+  informativa que también es. Hasta seis opciones, tiempo estimado y cierre. **Los votos van
+  en su propia hoja** (`Votos`, una fila por voto) porque `publicarAnuncio` reescribe la fila
+  del anuncio entera y editar el anuncio se los llevaría por delante. Escritura con
+  `LockService`, un voto por persona **cambiable hasta el cierre**, y límite de 40 por
+  persona y hora clonado de `reportBrokenLink`, que era hasta hoy la única escritura abierta
+  del Portal. Los resultados se leen con una llamada propia de **30 segundos** de caché,
+  fuera de `fetchToolsData` y su doble caché (10 min de script + 7 días en el navegador):
+  una gráfica de votos servida con esa edad no está desactualizada, miente. La gráfica son
+  dos `div` y un porcentaje con los tokens del tema —una librería entera para pintar seis
+  rectángulos es peso servido en todas las visitas al Portal a cambio de nada—.
+- **T7.5 · Llenado asistido** (`anuncios.html`). Cuatro plantillas de arranque
+  (mantenimiento, promoción, comunicado, encuesta) que dejan resueltos formato, tono y
+  estructura —la parte cara de publicar no es teclear el texto, es decidir qué formato le
+  toca a un aviso—; atajos de vigencia («solo hoy», «hasta el domingo», «un mes»), que es
+  donde se colaba la errata al escribir `yyyy-mm-dd` a mano; una **revisión en vivo** que
+  avisa de lo que el servidor acepta pero en el Portal se lee mal (tarjeta sin imagen, botón
+  con texto y sin enlace, fecha ya pasada, dos opciones iguales en una encuesta); y
+  «Duplicar», que ya existía, promovido en la ayuda del bloque de plantillas.
+
+**Qué se comprobó.** `pruebas/f7_publicaciones.test.js` (nuevo): **94 comprobaciones** que
+cargan `Portal.gs` y `Publicaciones.gs` reales sobre una hoja de cálculo fingida, en el
+mismo contexto, que es como conviven en Apps Script. Cubren los criterios de aceptación que
+no exigen desplegar: que insertar una fila a mano **no le cambie el ID a nadie** (criterio
+2); que dos personas votando a la vez **no pierdan votos**, que editar el anuncio después no
+borre resultados y que nadie vote dos veces con la misma sesión (criterio 3); que las
+expiradas se sirvan y las ocultas no; que la respuesta de resultados **no diga quién votó
+qué**; y que `pub` esté en las tres listas espejo. Pasan también las cuatro baterías que ya
+había (`estado_inicial`, `f6_buscador_paridad`, `ttl_cache`, `cache_identidad`) y
+`scripts/sintaxis.js` sobre los 72 archivos.
+
+**Cuatro fallos encontrados revisando lo escrito, antes de subir.**
+
+- **El modal de bienvenida tapaba el enlace compartido.** Los dos usan el mismo overlay, y
+  como los datos del Portal llegan *después* de leer la URL, quien abría
+  `?page=portal&pub=…` veía aparecer encima el saludo automático —que además se marcaba como
+  visto, así que tampoco volvía a salir—. Ahora el saludo se calla si hay una publicación
+  pedida por enlace.
+- **La carga inicial abría la publicación dos veces**: una al leer los parámetros que
+  inyecta el servidor y otra cuando contestaba `getLocation`, porque entre las dos la
+  variable de «publicación abierta» seguía vacía y las dos se creían la primera.
+- **Votar desde el modal apagaba los botones de la tarjeta de detrás.** La misma encuesta
+  está en dos sitios a la vez; todo lo que la toca trabaja ahora sobre los dos.
+- **Los avisos no se veían.** Se habían escrito con `AppMotion.toast`, y el Portal no
+  incluye `app_motion`: eran mensajes que nadie iba a leer. Van por `showToast`, que es el
+  aviso de esa pantalla.
+
+**Qué se dejó fuera a propósito.**
+
+- **La maqueta de «principal» está pendiente de validar con el creador**, tal como la tarea
+  pedía. Se implementó la interpretación declarada en el plan (posicional sobre la columna
+  Orden). La alternativa —jerarquía por formato: todo el formato tarjeta es principal— es
+  cambiar la función `esPrincipal` de `renderAnuncios`; el CSS ya distingue las dos clases.
+- **Los banners legacy descartados vuelven a aparecer una vez.** Su id cambia de posicional
+  a huella del mensaje, y el «no volver a mostrarme esto» del navegador va por id. Es el
+  precio de una sola vez por arreglar un identificador que se rompía en cada inserción de
+  fila; se prefirió eso a conservar un id que no significaba nada.
+- **La encuesta no manda avisos ni recuerda votar.** No estaba pedido y toca el terreno que
+  el alcance dejó fuera (§1: nada de correos ni relojes que revisen pendientes).
+- **Los resultados no se refrescan solos** mientras se mira la tarjeta. Se piden una vez por
+  carga y se actualizan con la respuesta del propio voto, que es el único momento en que el
+  número cambia para quien está mirando. Una encuesta que se repinta sola cada pocos
+  segundos es una llamada al servidor por cada tarjeta del inicio a cambio de un número que
+  nadie está esperando.
+
 ### 2026-08-15 — F6 completa: un solo motor de búsqueda, dos vestidos
 
 **Qué se cambió.**

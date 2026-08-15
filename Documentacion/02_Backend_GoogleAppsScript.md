@@ -23,7 +23,7 @@ cliente**, y por tanto **necesita su gate de permisos dentro**.
 | **Identidad y permisos** | `Seguridad.gs`, `Permisos.gs`, `Cuentas.gs`, `Consola.gs`, `Equipo.gs` |
 | **Cotizaciones** | `Code.gs`, `Formatos.gs`, `Correos.gs`, `CorreoCliente.gs`, `Metricas.gs` |
 | **Revisión y calidad** | `Revision.gs`, `AuditoriaCotizacion.gs`, `PoliticaRevision.gs` |
-| **Portal** | `Portal.gs`, `PortalContenido.gs`, `PortalPromosComercial.gs`, `Trazabilidad.gs`, `DiagnosticoPromos.gs` |
+| **Portal** | `Portal.gs`, `Publicaciones.gs`, `PortalContenido.gs`, `PortalPromosComercial.gs`, `Trazabilidad.gs`, `DiagnosticoPromos.gs` |
 | **Operación y atenciones** | `Operacion.gs`, `Atenciones.gs` |
 | **Infraestructura** | `Cache.gs`, `Preferencias.gs`, `Onboarding.gs`, `Admin.gs` |
 
@@ -44,7 +44,7 @@ el motor de búsqueda difusa.
 | `LOGIN_MAX_INTENTOS` / `LOGIN_VENTANA_SEGUNDOS` | 33–34 | 8 intentos fallidos → bloqueo de 15 minutos |
 | `PAGES` | 56 | **16 pantallas con sesión** |
 | `PORTAL_PAGES` | 89 | **3 pantallas públicas**: `portal`, `promociones`, `estado` |
-| `PARAMS_VISTA` | 124 | **16 parámetros** del contrato de URLs |
+| `PARAMS_VISTA` | 124 | **17 parámetros** del contrato de URLs |
 
 **Contrato de `PARAMS_VISTA`** — el criterio de qué va en cada uno, para que la lista no se
 llene de sinónimos:
@@ -64,6 +64,7 @@ llene de sinónimos:
 | `promo`, `item`, `rango` | Promoción, tarjeta y periodo del gráfico |
 | `estatus` | Filtro por estatus de la tabla de supervisión |
 | `dir`, `origen` | Filtros por dirección y por origen del Monitor de promociones |
+| `pub` | **Identidad** de una publicación del Portal, abierta en grande. Como `promo`, sale de la hoja y no de la posición de la fila. Va aparte de `item` porque `item` señala DENTRO de una sección y una publicación se abre venga uno de donde venga |
 
 > `next` solo acepta claves de la lista blanca `AppUrl.PAGINAS_TRAS_LOGIN` del cliente. Es
 > lo que impide usarlo como redirección abierta hacia fuera del sistema.
@@ -456,6 +457,39 @@ Las columnas se localizan por **alias** flexibles (`['enlace','liga','link','url
 los encabezados de esas hojas los escriben personas. Hay un caso real documentado: la hoja
 `Presentaciones` tiene el encabezado `DESCRPCION` (sin la i), y por eso el alias es `descr`
 y no `descrip`.
+
+**Autoría.** La lectura pública devuelve `responsable` (el nombre legible de quien publicó,
+nunca el correo) y `creado`; la de administración devuelve además `autor` (el correo). Las
+tres se fijan al crear y no se pisan al editar: ver el §4 del documento 04.
+
+---
+
+## 15 bis. `Publicaciones.gs` — identidad, enlace compartible y encuestas (fase 7)
+
+Lo que la fase 7 le puso encima a los anuncios. Va aparte de `Portal.gs` para que ese
+archivo siga siendo «leer la hoja del Portal y escribir sus anuncios»; los `.gs` comparten
+ámbito global, así que todo lo de aquí lleva prefijo `pub`.
+
+**Expuestas:** `pubPorId(id, email)`, `pubResultados(id, email)`, `pubVotar({id, opcion, asesor})`.
+
+Tres cosas, y cada una resuelve un problema que se veía como «el enlace no funciona»:
+
+1. **Identidad.** `pubAsegurarIdsAnuncios_` le pone ID a las filas que no lo traen (las que
+   alguien crea a mano en el Sheet). Corre también desde la lectura pública, con
+   `LockService`; si no consigue el candado no escribe, y el id sale del contenido de la
+   fila (`pubIdDeFila_`) en vez de su posición.
+2. **Enlace compartible.** `pubPorId` sirve UNA publicación por su id, incluidas las
+   **expiradas** y las **programadas**, diciendo en qué estado están para que el Portal lo
+   escriba con palabras. Las **ocultas** no se sirven: apagar una publicación es la forma de
+   retirarla, y servirla por la puerta de atrás dejaría esa decisión sin efecto.
+3. **Encuestas.** Subtipo de la tarjeta (`Datos.encuesta`: pregunta, hasta 6 opciones,
+   tiempo estimado, cierre). Los votos van en la hoja `Votos` —nunca en la fila del
+   anuncio— con candado, dedupe por correo y límite por hora. Los resultados se leen con
+   una llamada propia de **30 segundos de caché**, deliberadamente fuera de `fetchToolsData`
+   y su doble caché (10 min de script + 7 días en el navegador): una gráfica de votos con
+   esa edad no está desactualizada, miente.
+
+Pruebas: `pruebas/f7_publicaciones.test.js` (94 comprobaciones sobre los fuentes reales).
 
 ---
 
