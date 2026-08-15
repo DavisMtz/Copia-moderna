@@ -401,6 +401,19 @@
     for (i = 0; i < lista.length; i++) {
       var c = lista[i];
       if (c == null || c === '') continue;
+      /* Campo YA preparado: `{ campo: AppBuscar.campo(texto), p: 1.4 }`.
+         La memoria de campos solo guarda textos de menos de 160 caracteres —por encima
+         de eso la clave del mapa pesaría más que lo que ahorra—, así que un campo LARGO
+         se vuelve a tokenizar entero en cada pulsación de cada fila. Los `kw` de los
+         procesos de trazabilidad llegan a 240 palabras: son exactamente ese caso, y sin
+         esta puerta el tecleo se arrastra en cuanto la hoja de Homologación contesta.
+         Quien tenga campos así los prepara UNA vez, al construir su índice, y los pasa
+         hechos. */
+      if (typeof c === 'object' && c.campo) {
+        prep.push(c.campo);
+        pesos.push(c.p || 1);
+        continue;
+      }
       var texto = (typeof c === 'object' && c.t !== undefined) ? c.t : c;
       if (texto == null || texto === '') continue;
       prep.push(preparaCampo(texto));
@@ -419,7 +432,31 @@
       if (mejor > 0) acertadas++;
       total += mejor;
     }
-    if (!acertadas) return 0;
+
+    // Sinónimos: empujan, no deciden. Se cuentan aquí arriba porque también hay que
+    // saber si hubo alguno ANTES de decidir que no hay coincidencia (ver abajo).
+    var bonoSuave = 0;
+    for (var j = 0; j < Q.suaves.length; j++) {
+      var sw = Q.suaves[j];
+      for (i = 0; i < prep.length; i++) {
+        if (prep[i].toks.indexOf(sw) !== -1) { bonoSuave += 8 * pesos[i]; break; }
+      }
+    }
+
+    /* Ni una palabra ESCRITA acertó, pero un sinónimo sí.
+       Filtrando una tabla eso es un no rotundo —quien escribe "juan" no quiere ver a
+       todos los clientes— y por eso con `exigirTodas` se devuelve 0 como siempre.
+       En un BUSCADOR es lo contrario: el diccionario existe justamente para los casos
+       en que la palabra buscada no aparece en el texto. Quien escribe "clabe" busca
+       "Transferencia BBVA", donde "clabe" no está escrito por ninguna parte; quien
+       escribe "med" busca el monedero. Hasta aquí esas 80 y pico entradas de sinónimos
+       no servían de nada: la línea de arriba devolvía 0 antes de mirarlas, y el
+       diccionario era decorado.
+       Se devuelve solo el empujón y rebajado, de modo que un acercamiento por sinónimo
+       quede SIEMPRE por debajo de una coincidencia de verdad —8 × peso contra los
+       48-100 × peso de cualquier acierto literal—: aparece al final de la lista, que es
+       donde tiene que aparecer, no desaparecido. */
+    if (!acertadas) return exigirTodas ? 0 : bonoSuave * 0.25;
     if (exigirTodas && acertadas < Q.palabras.length) return 0;
 
     // Frase completa: escribir "estado de cuenta" y que exista tal cual pesa más
@@ -430,13 +467,7 @@
         if (pos !== -1) { total += (pos === 0 ? 70 : 40) * pesos[i]; break; }
       }
     }
-    // Sinónimos: empujan, no deciden.
-    for (var j = 0; j < Q.suaves.length; j++) {
-      var sw = Q.suaves[j];
-      for (i = 0; i < prep.length; i++) {
-        if (prep[i].toks.indexOf(sw) !== -1) { total += 8 * pesos[i]; break; }
-      }
-    }
+    total += bonoSuave;
     // Coincidencia parcial permitida: se ordena detrás de las completas.
     if (acertadas < Q.palabras.length) total *= (acertadas / Q.palabras.length) * 0.5;
     return total;

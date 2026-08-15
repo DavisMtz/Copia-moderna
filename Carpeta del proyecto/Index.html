@@ -1382,6 +1382,13 @@ table.ds-matrix{width:100%;border-collapse:separate;border-spacing:0;min-width:5
      aquí lo lleva el buscador general del topbar, que es el que llega a
      cualquier sitio de la aplicación y hasta ahora se leía como un campo más. -->
 <?!= include('app_aura') ?>
+<!-- F6 · Motor de búsqueda compartido. Hasta aquí el Portal llevaba el suyo propio
+     (buildQuery/scoreMatch/fuzzyHit), de modo que la MISMA palabra encontraba cosas
+     distintas según se escribiera arriba o en el buscador general (Ctrl+K) del resto
+     de la aplicación. Ahora los dos puntúan con AppBuscar: transposiciones al teclear,
+     forma compacta de folios, frontera letra/dígito, siglas y resaltado fiel a los
+     acentos. Va ANTES del bloque de guion grande, que lo usa desde su primera línea. -->
+<?!= include('app_buscar') ?>
 <!-- Núcleo compartido con el sistema de cotizaciones: AppUrl / AppSession.
      El Portal es público, pero si el asesor ya inició sesión en Cotizaciones
      el acceso del sidebar y el control del topbar lo llevan directo a su panel. -->
@@ -4768,7 +4775,9 @@ function doGlobalSearch(){
         const href = linkF ? linkHref(item[linkF]) : null;
         const cv = copyF ? String(item[copyF] || '').trim() : '';
         const copy = cv ? { val: cv, lbl: copyLbl || 'dato' } : null;
-        const score = listAll ? 1 : scoreMatch(Q, norm(name), norm(sub), norm(extra));
+        // Texto CRUDO al motor: `norm` se llevaba por delante la arroba de un correo y
+        // el guion de un folio, que es justo lo que AppBuscar sabe leer.
+        const score = listAll ? 1 : puntuaPortal(Q, name, sub, extra, CAMPOS_PORTAL);
         return { name, sub, href, copy, score };
       })
       .filter(r => r.score > 0)
@@ -4795,68 +4804,41 @@ function doGlobalSearch(){
       const name = String(a.titulo || a.mensaje || 'Anuncio');
       const sub  = String(a.descripcion || a.cuerpo || a.mensaje || a.vigencia || '');
       const extra = [a.vigencia, a.ctaTexto, a.formato].map(x => String(x || '')).join(' ');
-      return { name, sub, ancId: a.id, score: scoreMatch(Q, norm(name), norm(sub), norm(extra)) };
+      return { name, sub, ancId: a.id, score: puntuaPortal(Q, name, sub, extra, CAMPOS_PORTAL) };
     })
     .filter(r => r.score > 0)
     .sort((a, b) => b.score - a.score)
     .slice(0, 5);
   if (ancMatches.length) results.push({ key: '__anuncio', matches: ancMatches });
 
-  const fpMatches = FP_INDEX
-    .map(it => ({ name: it.name, sub: it.sub, target: it.target, score: scoreMatch(Q, norm(it.name), norm(it.sub), norm(it.kw || '')) }))
-    .filter(r => r.score > 0)
-    .sort((a, b) => b.score - a.score)
-    .slice(0, 6);
-  if (fpMatches.length) results.push({ key: 'formaspago', matches: fpMatches });
+  /* ÍNDICES DE SECCIÓN (formas de pago, devoluciones SAP y las seis de trazabilidad).
+     Eran ocho bloques copiados letra por letra que solo se diferenciaban en el índice,
+     la clave del grupo y —esto es lo que la copia escondía— en cuántos resultados
+     enseña cada uno: Formas de Pago corta en 6 y los demás en 5. Puestos en una tabla,
+     esa diferencia se ve; repetidos ocho veces, se pierde y el siguiente que unifique
+     los bloques la borrará sin enterarse.
 
-  const btMatches = BT_INDEX
-    .map(it => ({ name: it.name, sub: it.sub, target: it.target, score: scoreMatch(Q, norm(it.name), norm(it.sub), norm(it.kw || '')) }))
-    .filter(r => r.score > 0)
-    .sort((a, b) => b.score - a.score)
-    .slice(0, 5);
-  if (btMatches.length) results.push({ key: 'bigticket', matches: btMatches });
-
-  const sfMatches = SF_INDEX
-    .map(it => ({ name: it.name, sub: it.sub, target: it.target, score: scoreMatch(Q, norm(it.name), norm(it.sub), norm(it.kw || '')) }))
-    .filter(r => r.score > 0)
-    .sort((a, b) => b.score - a.score)
-    .slice(0, 5);
-  if (sfMatches.length) results.push({ key: 'softline', matches: sfMatches });
-
-  const sfmMatches = SFM_INDEX
-    .map(it => ({ name: it.name, sub: it.sub, target: it.target, score: scoreMatch(Q, norm(it.name), norm(it.sub), norm(it.kw || '')) }))
-    .filter(r => r.score > 0)
-    .sort((a, b) => b.score - a.score)
-    .slice(0, 5);
-  if (sfmMatches.length) results.push({ key: 'slmensajerias', matches: sfmMatches });
-
-  const mkpMatches = MKP_INDEX
-    .map(it => ({ name: it.name, sub: it.sub, target: it.target, score: scoreMatch(Q, norm(it.name), norm(it.sub), norm(it.kw || '')) }))
-    .filter(r => r.score > 0)
-    .sort((a, b) => b.score - a.score)
-    .slice(0, 5);
-  if (mkpMatches.length) results.push({ key: 'mkp', matches: mkpMatches });
-
-  const tdaMatches = TDA_INDEX
-    .map(it => ({ name: it.name, sub: it.sub, target: it.target, score: scoreMatch(Q, norm(it.name), norm(it.sub), norm(it.kw || '')) }))
-    .filter(r => r.score > 0)
-    .sort((a, b) => b.score - a.score)
-    .slice(0, 5);
-  if (tdaMatches.length) results.push({ key: 'tienda', matches: tdaMatches });
-
-  const genMatches = GEN_INDEX
-    .map(it => ({ name: it.name, sub: it.sub, target: it.target, score: scoreMatch(Q, norm(it.name), norm(it.sub), norm(it.kw || '')) }))
-    .filter(r => r.score > 0)
-    .sort((a, b) => b.score - a.score)
-    .slice(0, 5);
-  if (genMatches.length) results.push({ key: 'generales', matches: genMatches });
-
-  const devsapMatches = DEVSAP_INDEX
-    .map(it => ({ name: it.name, sub: it.sub, target: it.target, score: scoreMatch(Q, norm(it.name), norm(it.sub), norm(it.kw || '')) }))
-    .filter(r => r.score > 0)
-    .sort((a, b) => b.score - a.score)
-    .slice(0, 5);
-  if (devsapMatches.length) results.push({ key: 'devsap', matches: devsapMatches });
+     El `tope` viaja con cada fuente por eso mismo. Y los seis de trazabilidad nacen
+     VACÍOS a propósito (se rellenan cuando contesta la hoja de Homologación), así que
+     aquí se leen en cada búsqueda y no se capturan en una constante. */
+  const FUENTES_INDICE = [
+    { key:'formaspago',    lista:() => FP_INDEX,     tope:6 },
+    { key:'bigticket',     lista:() => BT_INDEX,     tope:5 },
+    { key:'softline',      lista:() => SF_INDEX,     tope:5 },
+    { key:'slmensajerias', lista:() => SFM_INDEX,    tope:5 },
+    { key:'mkp',           lista:() => MKP_INDEX,    tope:5 },
+    { key:'tienda',        lista:() => TDA_INDEX,    tope:5 },
+    { key:'generales',     lista:() => GEN_INDEX,    tope:5 },
+    { key:'devsap',        lista:() => DEVSAP_INDEX, tope:5 }
+  ];
+  FUENTES_INDICE.forEach(({ key, lista, tope }) => {
+    const matches = (lista() || [])
+      .map(it => ({ name: it.name, sub: it.sub, target: it.target, score: puntuaIndice(Q, it) }))
+      .filter(r => r.score > 0)
+      .sort((a, b) => b.score - a.score)
+      .slice(0, tope);
+    if (matches.length) results.push({ key, matches });
+  });
 
   // Acciones de la app: llevan a las pantallas del Sistema de Cotizaciones y a las
   // plantillas de correo ya hechas. Se muestran arriba porque son acciones directas.
@@ -4864,7 +4846,7 @@ function doGlobalSearch(){
   // goAppAction lo usa para resolver el destino y filtrar corría la numeración.
   const appMatches = appActionsPermitidas()
     .map(a => ({ idx:APP_ACTIONS.indexOf(a), name:a.name, sub:a.sub, icon:a.icon,
-                 score: scoreMatch(Q, norm(a.name), norm(a.sub), norm(a.kw || '')) }))
+                 score: puntuaPortal(Q, a.name, a.sub, a.kw || '') }))
     .filter(r => r.score > 0)
     .sort((a, b) => b.score - a.score)
     .slice(0, 6);
@@ -4874,7 +4856,7 @@ function doGlobalSearch(){
   // resultados de datos, así no le roba el foco a una coincidencia más fuerte.
   const navMatches = SECTIONS_NAV
     .map(s => ({ id:s.id, label:s.label, icon:s.icon, navkey:s.key,
-                 score: scoreMatch(Q, norm(s.label), '', norm(s.kw || '')) }))
+                 score: puntuaPortal(Q, s.label, '', s.kw || '') }))
     .filter(r => r.score > 0)
     .sort((a, b) => b.score - a.score)
     .slice(0, 4);
@@ -4882,9 +4864,9 @@ function doGlobalSearch(){
 
   // Promociones es una página aparte (Promociones.html). Aparece como resultado
   // directo del buscador cuando la consulta apunta al monitor de promociones.
-  const promoScore = scoreMatch(Q, norm('Promociones'),
-    norm('Monitor de promociones y descuentos'),
-    norm('promos promo monitor ofertas descuentos vigencias calendario rebajas liverpool'));
+  const promoScore = puntuaPortal(Q, 'Promociones',
+    'Monitor de promociones y descuentos',
+    'promos promo monitor ofertas descuentos vigencias calendario rebajas liverpool');
   if (promoScore > 0) {
     results.push({ key:'__promo', matches:[{ name:'Promociones', sub:'Abrir el monitor de promociones', score: promoScore }] });
   }
@@ -5322,16 +5304,77 @@ const SEARCH_SYNONYMS = {
   danada:'danado defecto incompleto equivocada resurtido', equivocada:'incompleto danada resurtido',
   reporte:'tiempo reportar dias avance solucion', proceso:'flujo procedimiento paso bt sl'
 };
-/* Construye el objeto de consulta: palabras escritas + términos suaves (sinónimos). */
+/* Los sinónimos del Portal se ENTREGAN al motor compartido en vez de quedarse aquí.
+   Es lo que hace que "clabe" llegue a Transferencia también desde el buscador general
+   de cualquier otra pantalla, que era medio objetivo de la fusión: el diccionario más
+   rico de los dos lo tenía el Portal, y no salía de esta página.
+   `agregaSinonimos` ACUMULA sobre los suyos, así que ninguno de los dos pierde nada. */
+if (window.AppBuscar) AppBuscar.agregaSinonimos(SEARCH_SYNONYMS);
+
+/* ── EL MOTOR ES AppBuscar (app_buscar.html) ──────────────────────────────────
+   Antes vivía aquí: buildQuery + scoreMatch + fuzzyHit + levLE, una copia recortada
+   del mismo problema que el buscador general ya resolvía mejor. Lo que se gana al
+   cambiar no es código más corto, es que la misma palabra encuentre lo mismo
+   escribiéndola arriba o en Ctrl+K:
+     · transposiciones al teclear ("cotizaicon" → cotización), que Levenshtein a secas
+       cobraba como dos errores y dejaba fuera;
+     · forma compacta ("lvp2024" → LVP-2024) y frontera letra/dígito;
+     · siglas ("cc" → Correos a Clientes);
+     · un tope de errores por longitud, en vez del corte seco en 4 letras de fuzzyHit.
+
+   Lo que NO se borró, contra lo que decía el plan: `norm` (la usan 20 sitios de esta
+   pantalla, del filtro por sección al salto al elemento exacto, y su alfabeto
+   [a-z0-9 ] es lo que hace seguro meterla en un atributo HTML) y `levLE`/`fuzzyHit`,
+   que sigue usando scoreTiendaCR — el scorer de Tienda/CR que el plan manda conservar
+   tal cual por su rama de número exacto/prefijo. */
+
+/* Consulta preparada UNA vez por búsqueda. Devuelve el objeto de AppBuscar con dos
+   alias (`words`, `raw`) porque scoreTiendaCR y doGlobalSearch lo leen con los nombres
+   de antes; renombrarlos en los dos sitios no aporta nada y sí arriesga. */
 function buildQuery(q){
-  const raw = norm(q);
-  const words = raw.split(/\s+/).filter(Boolean);
-  const soft = new Set();
-  words.forEach(w => { const syn = SEARCH_SYNONYMS[w]; if (syn) norm(syn).split(/\s+/).forEach(t => soft.add(t)); });
-  words.forEach(w => soft.delete(w));
-  return { raw, words, soft:[...soft] };
+  if (!window.AppBuscar) return { raw:norm(q), words:norm(q).split(/\s+/).filter(Boolean), soft:[], palabras:[], vacia:true };
+  const Q = AppBuscar.consulta(q);
+  Q.words = Q.palabras;
+  Q.raw = Q.crudo;
+  return Q;
 }
-/* Distancia de edición acotada (Levenshtein con poda): ¿a y b difieren en ≤ max ediciones? */
+
+/* Pesos de campo del Portal. Son los MISMOS que usa el buscador general para el mismo
+   tipo de dato (app_comando: nombre 3, sub 1, kw 1.4 en el catálogo; nombre 3, sub 1.2,
+   extra .7 en el contenido del Portal), y esa es justamente la razón de copiarlos: si
+   los dos buscadores puntúan el mismo contenido con pesos distintos, la paridad se
+   arregla caso a caso para siempre en vez de una sola vez.
+
+   `exigirTodas:false` NO es un descuido. Por omisión AppBuscar exige que todas las
+   palabras acierten —lo correcto para filtrar una tabla, donde "juan perez" no debe
+   traer a todos los Juan—, pero un buscador que se queda MUDO en cuanto escribes dos
+   palabras se siente roto. El motor propio de aquí siempre enseñaba las parciales
+   penalizadas, y eso se conserva. */
+const CAMPOS_INDICE  = (n, s, k) => [{ t:n, p:3 }, { t:s, p:1 },   { t:k, p:1.4 }];
+const CAMPOS_PORTAL  = (n, s, e) => [{ t:n, p:3 }, { t:s, p:1.2 }, { t:e, p:.7 }];
+const OPTS_PORTAL    = { exigirTodas:false };
+
+/* Puntúa un elemento del buscador del Portal. Recibe el texto CRUDO —no normalizado—
+   porque AppBuscar necesita los signos que `norm` convierte en espacio: la arroba de un
+   correo, el guion de un folio. Pasarle norm(...) por costumbre tira justo lo que el
+   motor nuevo sabe leer. */
+function puntuaPortal(Q, name, sub, extra, campos){
+  if (!window.AppBuscar || !Q || Q.vacia) return 0;
+  return AppBuscar.puntua(Q, (campos || CAMPOS_INDICE)(name || '', sub || '', extra || ''), OPTS_PORTAL);
+}
+
+/* Igual, pero para un elemento de índice que puede traer su `kw` YA preparado.
+   Los kw de trazabilidad llegan a 240 palabras —muy por encima del tope de memoización
+   del motor—, así que sin esto se volvían a tokenizar en cada pulsación y por cada uno
+   de los ~120 procesos: el tecleo se arrastraba justo después de que contestara la hoja
+   de Homologación, que es cuando el buscador por fin tiene algo que ofrecer. */
+function puntuaIndice(Q, it){
+  if (!window.AppBuscar || !Q || Q.vacia) return 0;
+  const kw = it.kwCampo ? { campo: it.kwCampo, p: 1.4 } : { t: it.kw || '', p: 1.4 };
+  return AppBuscar.puntua(Q, [{ t: it.name || '', p: 3 }, { t: it.sub || '', p: 1 }, kw], OPTS_PORTAL);
+}
+/* Distancia de edición acotada (Levenshtein con poda): ¿a y b difieren en ≤ max ediciones?
+   Sigue viva porque scoreTiendaCR la usa; el resto del buscador ya no. */
 function levLE(a, b, max){
   const la = a.length, lb = b.length;
   if (Math.abs(la - lb) > max) return false;
@@ -5361,35 +5404,28 @@ function fuzzyHit(hay, w){
   }
   return false;
 }
-function scoreMatch(Q, name, sub, extra){
-  const { raw, words, soft } = Q;
-  if (!words.length) return 0;
-  let s = 0, matched = 0;
-  if (raw.length >= 3 && name.includes(raw)) s += 16;                 // frase completa en el nombre
-  words.forEach(w => {
-    let hit = false;
-    if (name.includes(w)) { s += name.startsWith(w) ? 12 : 7; hit = true; }
-    else if (fuzzyHit(name, w)) { s += 5; hit = true; }
-    if (sub.includes(w)) { s += 4; hit = true; }
-    else if (fuzzyHit(sub, w)) { s += 2; hit = true; }
-    if (extra.includes(w)) { s += 2; hit = true; }
-    else if (fuzzyHit(extra, w)) { s += 1; hit = true; }
-    if (hit) matched++;
-  });
-  soft.forEach(w => {                                                 // sinónimos: aporte ligero
-    if (name.includes(w)) s += 3;
-    else if (sub.includes(w) || extra.includes(w)) s += 1.5;
-  });
-  if (words.length > 1 && matched < words.length) s *= (matched / words.length) * 0.6; // prioriza coincidir todas las palabras
-  return s;
-}
+/* AQUÍ VIVÍA `scoreMatch`, y lo sustituye AppBuscar.puntua a través de puntuaPortal.
+   Su modelo era SUMAR nombre + subtítulo + extra (un mismo término podía cobrar
+   12+4+2), y el motor compartido se queda con el MEJOR campo. No es un reescalado, es
+   otro modelo: lo que hoy gana por repetir la palabra en los tres campos baja algún
+   puesto, y lo que gana por acertar de verdad en el nombre sube. Es el cambio que se
+   estaba comprando. */
+
+/* `norm` NO es una pieza del buscador: es infraestructura de toda esta pantalla —el
+   filtro por sección, el parseo de ámbito, el salto al elemento exacto, el módulo de
+   Colecciones—. Su alfabeto [a-z0-9 ] es además lo que hace seguro meter su salida
+   dentro de un atributo HTML. Por eso se queda aunque el motor haya cambiado. */
 function norm(s){ return String(s).toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/[^a-z0-9 ]/g,' '); }
+/* Resaltado. Delega en AppBuscar.resalta, que mapea posición a posición el texto sin
+   acentos contra el original: hasta ahora un resultado que salía por "guia" contra
+   "Guía" se pintaba SIN una sola marca, y eso se lee como un resultado que no viene a
+   cuento. De paso desactiva algo peor que estaba latente: el resaltado anterior corría
+   una expresión regular POR PALABRA SOBRE EL HTML YA ESCRITO, así que buscar "mark",
+   "amp", "quot" o "lt" marcaba por dentro de las etiquetas y corrompía el desplegable.
+   Se conservan el nombre y la firma: hay nueve llamadas y ninguna cambia. */
 function hilite(text, q){
-  const safe = esc(text);
-  const words = q.trim().split(/\s+/).filter(Boolean);
-  let r = safe;
-  words.forEach(w => { r = r.replace(new RegExp(escRe(esc(w)), 'gi'), m => `<mark>${m}</mark>`); });
-  return r;
+  if (window.AppBuscar) return AppBuscar.resalta(text, q);
+  return esc(text);
 }
 function esc(s){ return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
 function escRe(s){ return s.replace(/[.*+?^${}()|[\]\\]/g,'\\$&'); }
@@ -6272,11 +6308,18 @@ function trazReconstruirIndices(){
   const porId = {};
   ((trazData && trazData.secciones) || []).forEach(function(sec){
     porId[sec.id] = (sec.procesos || []).map(function(p){
+      const kw = trazPalabrasClave(sec, p);
       return {
         name: p.nombre + ' — ' + sec.label,
         sub: trazResumen(sec, p),
         target: p.id,
-        kw: trazPalabrasClave(sec, p)
+        kw: kw,
+        /* El kw se prepara UNA vez, aquí, y no en cada pulsación: son hasta 240
+           palabras por proceso y el motor solo memoriza campos de menos de 160
+           caracteres, así que sin esto se retokenizaban los ~120 procesos con cada
+           tecla. Se conserva `kw` en crudo porque el resaltado y cualquier consumidor
+           futuro lo esperan como texto. */
+        kwCampo: window.AppBuscar ? AppBuscar.campo(kw) : null
       };
     });
   });
