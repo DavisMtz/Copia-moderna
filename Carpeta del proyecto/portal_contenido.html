@@ -534,7 +534,14 @@
         $('btnRapido').classList.toggle('pc-hidden', !!col.soloLectura);
 
         $('avisoCols').classList.add('pc-hidden');
-        $('lista').innerHTML = esqueleto();
+        // El esqueleto solo se repinta si no hay ya uno rodando. Al llegar el
+        // catálogo, abrirSeccion entra con el camión del arranque todavía puesto:
+        // reescribir #lista lo hacía salir de cuadro y arrancar de cero justo en el
+        // relevo entre el catálogo y las filas, que es cuando el ojo lo lee como un
+        // segundo camión. Es la misma espera —seguimos esperando a la hoja—, así que
+        // se deja rodar. Al cambiar de sección con la lista ya pintada no hay camión
+        // en el hueco y sí se pinta, que es lo que hace falta ahí.
+        if (!$('lista').querySelector('.vt-strip,.pc-sk')) $('lista').innerHTML = esqueleto();
         $('conteo').textContent = '';
 
         // Deep link: la sección abierta viaja en la URL para poder compartirla y para
@@ -553,12 +560,18 @@
       /* El esqueleto no es solo relleno gris: encabeza el camión de reparto, que
          es lo que dice "la hoja está contestando" en vez de "aquí no hay nada".
          Va como cadena porque #lista se rellena con innerHTML desde ocho sitios
-         distintos; el camión es 100 % CSS, así que no necesita montarse. */
-      function esqueleto() {
+         distintos; el camión es 100 % CSS, así que no necesita montarse.
+
+         Los textos son opcionales porque este mismo camión cubre DOS esperas: la de
+         las filas de una sección (lo de siempre, y por eso es lo que se da por
+         omisión) y la del catálogo en el arranque en frío, que antes contaba una
+         escena de VentelFX sobre #panel —ver cargarCatalogo— y se quitó porque
+         pintaba un segundo camión encima de éste. */
+      function esqueleto(etiqueta, mensajes) {
         var s = (window.VentelTruck ? window.VentelTruck.markup({
           alto: 'sm',
-          etiqueta: 'Cargando esta sección',
-          mensajes: [
+          etiqueta: etiqueta || 'Cargando esta sección',
+          mensajes: mensajes || [
             'Abriendo la hoja de esta sección…',
             'Cargando la mercancía del Sheets…',
             'El camión ya viene en camino…',
@@ -568,6 +581,17 @@
         for (var i = 0; i < 6; i++) s += '<div class="pc-sk" style="animation-delay:' + (-i * 0.11).toFixed(2) + 's"></div>';
         return s;
       }
+
+      /* Textos del arranque en frío. Hasta que no llega el catálogo no se sabe qué
+         sección se va a abrir, así que el camión cuenta el viaje ENTERO —primero el
+         catálogo, después las filas de la primera sección— y con eso no hay que
+         repintarlo a mitad de camino para corregir lo que dice. */
+      var PC_MSG_ARRANQUE = [
+        'Trayendo el catálogo del Portal…',
+        'Viendo qué secciones hay…',
+        'Abriendo la hoja de la primera sección…',
+        'Acomodando las entradas…'
+      ];
 
       /* ══ LISTA ════════════════════════════════════════════════════════════ */
 
@@ -1851,12 +1875,24 @@
         AppRun.swr('pc-catalogo-' + PC_EMAIL, 'portalContenidoCatalogo', [PC_EMAIL], {
           ttl: 24 * 60 * 60 * 1000,
           accept: function (res) { return !!(res && res.status === 'ok' && (res.colecciones || []).length); },
-          // Camión: esto es traer datos en bloque. Va sobre #panel porque es la
-          // tarjeta que se va a rellenar entera —conmutador, cabecera y lista—, y
-          // en modo cover para no empujar la maquetación. Con el catálogo ya en
-          // caché no se monta nada: lo decide swr, la pantalla sale pintada.
-          fx: { target: '#panel', tema: 'camion', mode: 'cover',
-                title: 'Trayendo el catálogo del Portal…' },
+          // AQUÍ NO VA `fx`, y es a propósito. La escena de camión iba sobre #panel,
+          // pero #lista vive DENTRO de #panel y ya tiene su propio camión puesto: la
+          // escena caía encima, y `.vfx-cover` no es opaco (78 % de superficie con
+          // blur), así que durante los 2-5 s de la lectura se veían DOS camiones, el
+          // de la escena nítido y el del esqueleto desenfocado detrás.
+          //
+          // De los dos se queda el ESQUELETO: dibuja la FORMA de la lista que va a
+          // llegar —la tarjeta no da el salto al aterrizar las filas—, es la MISMA
+          // espera que después cuenta la lectura de las filas (cargarFilas tampoco
+          // monta escena), así que el camión es uno solo de principio a fin, y sin
+          // `fx` el camino frío se comporta igual que el caliente: con el catálogo en
+          // caché swr nunca montaba la escena y la pantalla salía pintada.
+          //
+          // Lo que la escena aportaba —decir QUÉ se está esperando y enseñar el fallo
+          // donde se esperaba— no se pierde: los textos del arranque los lleva ahora
+          // el propio camión (PC_MSG_ARRANQUE) y el error lo sigue pintando
+          // pintarError en el mismo hueco, que además era ya el aviso que quedaba en
+          // pantalla cuando la tarjeta de fx.fail se cerraba sola a los 4,2 s.
           onData: function (res, deCache) {
             if (!res || res.status !== 'ok') {
               if (abierta) return;   // ya hay pantalla pintada desde la caché: no la tiramos
@@ -1972,7 +2008,16 @@
         if (window.VentelLoader) VentelLoader.hide();
 
         enganchar();
-        $('lista').innerHTML = esqueleto();
+        // El isotipo de arranque se retira EN EL ACTO, sin su desvanecido de 360 ms,
+        // porque en la instrucción siguiente encendemos nuestra propia espera: si no,
+        // la marca se disuelve por encima del camión y esos 360 ms se leen como dos
+        // loaders en el mismo hueco. VentelFX pide esa retirada solo cuando monta una
+        // escena suya; este esqueleto es marcado nuestro, así que la pide él.
+        if (window.VentelLoader && VentelLoader.retirarArranque) VentelLoader.retirarArranque();
+        // Un solo camión para todo el arranque: éste cubre la lectura del catálogo
+        // (2-5 s) y sigue puesto para la de las filas —abrirSeccion ya no lo
+        // repinta—, en vez de cruzarse con la escena que antes montaba cargarCatalogo.
+        $('lista').innerHTML = esqueleto('Cargando el contenido del Portal', PC_MSG_ARRANQUE);
         cargarCatalogo();
         if (window.Icons) Icons.render();
       });

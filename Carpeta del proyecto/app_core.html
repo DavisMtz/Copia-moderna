@@ -922,12 +922,20 @@
       // frecuente del portal: que la animación diga a dónde vas —etiquetas si
       // vas a Promociones, bolsa si vas a Atenciones— convierte esos segundos
       // en confirmación de que el clic se registró.
+      /* Se pasa por VentelLoader.show(), que YA resuelve la escena del destino por
+         su ficha, y no por VentelFX.overlay a pelo. Llamando al motor directamente
+         se saltaban las dos cosas que hace el partial: cerrar la escena que hubiera
+         abierta y retirar el isotipo de arranque. Por eso los sitios que encendían
+         su propia escena y acto seguido navegaban —once entre el Portal y el Monitor:
+         «Cotizaciones», «Enviar un Correo», Atenciones, el buscador general— dejaban
+         DOS escenas a pantalla completa superpuestas medio segundo, y encima con
+         títulos distintos, porque la primera no sabía a dónde iba. */
       try {
-        if (window.VentelFX) {
+        if (window.VentelLoader) {
+          VentelLoader.show({ pagina: page });
+        } else if (window.VentelFX) {
           const ficha = VentelFX.para(page);
           VentelFX.overlay(ficha.tema, { title: ficha.titulo, sub: ficha.sub, maxMs: 20000 });
-        } else if (window.VentelLoader) {
-          VentelLoader.show();
         }
       } catch (e) {}
       let fallo = null;
@@ -1623,20 +1631,36 @@
     let overlayObservado = false;
 
     /** El overlay de marca ya está tapando la pantalla: un segundo aviso sobra. */
+    /* ¿Hay ya una espera tapando la pantalla entera? Entonces este disco sobra: es
+       el genérico, y encima va por delante de todo (z-index 10001), así que se
+       pintaba ENCIMA de la escena temática durante toda la espera —al aprobar una
+       revisión, al generar el documento— y se veían los dos a la vez. La única
+       defensa hasta ahora era acordarse de escribir `busy:false` llamada por llamada,
+       y eso es una regla que se olvida en cuanto alguien añade una pantalla.
+       Se miran las DOS formas de tapar: el isotipo de LoaderPartial y las escenas a
+       pantalla completa del motor (`.vfx-overlay`). */
     function overlayTapando() {
       try {
         const o = document.getElementById('ventelLoader');
-        return !!(o && o.classList.contains('show') && !o.classList.contains('vl-hiding'));
+        if (o && o.classList.contains('show') && !o.classList.contains('vl-hiding')) return true;
+        return !!document.querySelector('.vfx-overlay');
       } catch (e) { return false; }
     }
 
     /** Cuando el overlay se retira, lo que siga en curso debe volverse visible. */
     function vigilarOverlay() {
       if (overlayObservado || typeof MutationObserver === 'undefined') return;
-      const o = document.getElementById('ventelLoader');
-      if (!o) return;
       overlayObservado = true;
-      new MutationObserver(function () { pintar(); }).observe(o, { attributes: true, attributeFilter: ['class'] });
+      const o = document.getElementById('ventelLoader');
+      if (o) new MutationObserver(function () { pintar(); }).observe(o, { attributes: true, attributeFilter: ['class'] });
+      /* Y el cuerpo, porque las escenas a pantalla completa se AÑADEN y se QUITAN del
+         body en vez de cambiar de clase: sin esto, el disco no reaparecería al cerrarse
+         una escena mientras la llamada sigue en curso. Solo hijos DIRECTOS del body,
+         que es donde viven los overlays: observar el árbol entero costaría un aviso por
+         cada repintado de una tabla. */
+      if (document.body) {
+        new MutationObserver(function () { pintar(); }).observe(document.body, { childList: true });
+      }
     }
 
     /** Los ocho puntos del isotipo, repartidos en el anillo y desfasados en la estela. */
@@ -1708,7 +1732,12 @@
       if (tOcultar) { clearTimeout(tOcultar); tOcultar = null; }
 
       if (cuenta > 0) {
-        if (visible || overlayTapando()) { mostrar(); return; }
+        /* Si algo pasó a tapar la pantalla DESPUÉS de que el disco ya estuviera
+           puesto —se enciende una escena a media consulta—, se retira: si no, se
+           quedaba flotando encima de ella, que es el mismo «dos loaders» visto en el
+           otro orden. El observador lo devuelve cuando la escena se vaya. */
+        if (overlayTapando()) { vigilarOverlay(); if (visible) ocultar(); return; }
+        if (visible) { mostrar(); return; }
         tMostrar = setTimeout(function () { tMostrar = null; mostrar(); }, RETRASO_MS);
         return;
       }

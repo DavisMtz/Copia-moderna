@@ -114,7 +114,7 @@
   var group   = document.getElementById("vlDots");
   var glow    = document.getElementById("vlGlow");
   var blur    = document.querySelector("#vlGoo feGaussianBlur");
-  if (!overlay || !group){ window.VentelLoader = { show:function(){}, hide:function(){} }; return; }
+  if (!overlay || !group){ window.VentelLoader = { show:function(){}, hide:function(){}, retirarArranque:function(){} }; return; }
 
   var dots = [], seeds = [];
   for (var i = 0; i < 8; i++){
@@ -246,6 +246,34 @@
    * repartidas por el proyecto hereden escena SIN tocarlas una por una.
    * Con {isotipo:true} se fuerza el comportamiento antiguo.
    */
+  /**
+   * Retira el overlay de arranque AL INSTANTE, sin transición, y para su animación.
+   *
+   * Es la pieza que evita el «se ven dos loaders». El isotipo nace visible con la
+   * página y `hide()` lo desvanece en 360 ms; pero toda pantalla llama a `hide()` y
+   * en la instrucción siguiente monta SU espera —un esqueleto, una escena—, así que
+   * las dos capas se cruzaban siempre: durante esos 360 ms se veía el isotipo
+   * girando por encima de las barras grises. Peor aún, `tl.pause()` vivía dentro del
+   * temporizador, o sea que el isotipo seguía MORFANDO mientras se iba, y eso es lo
+   * que lo hacía leerse como un segundo loader en marcha y no como un fundido.
+   *
+   * Quien va a encender una espera propia llama aquí primero. Lo hacen `show()` y,
+   * desde el motor, cualquier montaje de VentelFX: así ninguna pantalla tiene que
+   * acordarse de nada. Solo toca el isotipo de arranque; una escena a pantalla
+   * completa deliberada (`fxAbierto`) no se cierra desde aquí, que para eso está
+   * `hide()`.
+   */
+  function retirarArranque(){
+    if (hideTimer){ clearTimeout(hideTimer); hideTimer = null; }
+    if (fadeTimer){ clearTimeout(fadeTimer); fadeTimer = null; }
+    if (!overlay.classList.contains("show")) return;
+    overlay.classList.remove("show","vl-hiding","vl-has-msg");
+    stopFacts();
+    if (titleEl) titleEl.textContent = "";
+    if (subEl) subEl.textContent = "";
+    if (tl) tl.pause();
+  }
+
   function show(opts){
     opts = opts || {};
     if (window.VentelFX && opts.isotipo !== true){
@@ -254,13 +282,7 @@
         if (fxAbierto){ try { fxAbierto.done(); } catch(e){} }
         // El overlay de arranque, si sigue puesto, sale sin transición: dos
         // capas superpuestas se ven como un parpadeo.
-        if (overlay.classList.contains("show")){
-          overlay.classList.remove("show","vl-hiding","vl-has-msg");
-          stopFacts();
-          if (tl) tl.pause();
-        }
-        if (hideTimer){ clearTimeout(hideTimer); hideTimer = null; }
-        if (fadeTimer){ clearTimeout(fadeTimer); fadeTimer = null; }
+        retirarArranque();
         fxAbierto = VentelFX.overlay(opts.tema || ficha.tema, {
           title: opts.title || ficha.titulo,
           sub:   opts.sub   || ficha.sub,
@@ -287,12 +309,15 @@
     stopFacts();
     if (!overlay.classList.contains("show")) return;
     overlay.classList.add("vl-hiding");
+    // La animación se para YA, no al final del desvanecido. Lo que se disuelve es la
+    // marca quieta; dejándola girar, esos 360 ms se leían como un segundo loader
+    // encendido sobre el contenido que ya estaba apareciendo debajo.
+    if (tl) tl.pause();
     fadeTimer = setTimeout(function(){
       fadeTimer = null;
       overlay.classList.remove("show","vl-hiding","vl-has-msg");
       if (titleEl) titleEl.textContent = "";
       if (subEl) subEl.textContent = "";
-      if (tl) tl.pause();
     }, 360);
   }
 
@@ -323,6 +348,6 @@
     viewBox: "142.3 69.75 290 290"
   };
 
-  window.VentelLoader = { show: show, hide: hide, spinner: spinner, marca: MARCA };
+  window.VentelLoader = { show: show, hide: hide, retirarArranque: retirarArranque, spinner: spinner, marca: MARCA };
 })();
 </script>

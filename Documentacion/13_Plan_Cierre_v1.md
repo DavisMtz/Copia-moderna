@@ -972,6 +972,70 @@ y qué se dejó fuera a propósito**. Mismo formato que el registro del document
 
 <!-- Las entradas nuevas van arriba, con la más reciente primero. -->
 
+### 2026-08-15 — Una sola espera a la vista: se acabaron los dos loaders superpuestos
+
+Lo reportó el creador: «en algunas pantallas se ven dos loaders, el normal de siempre y
+el que se añadió después, animado con GSAP». Un recorrido de las diecinueve pantallas
+encontró que **la causa no estaba en ninguna pantalla**: eran cuatro fallos de
+coordinación entre las capas, y por eso el síntoma salía en tantos sitios distintos.
+
+**Lo que pasaba.**
+
+1. El isotipo de arranque **nace visible** con la página y cada pantalla lo apaga con
+   `hide()`, que lo desvanece en **360 ms**. Pero todas apagan y montan su propia espera
+   en el mismo tick, así que las dos capas se cruzaban SIEMPRE. Y `tl.pause()` vivía
+   dentro del temporizador: el isotipo seguía **girando mientras se iba**, que es lo que
+   lo hacía leerse como un segundo loader encendido y no como un fundido.
+2. `AppUrl.go` llamaba a `VentelFX.overlay` **a pelo** en vez de pasar por
+   `VentelLoader.show()`, saltándose las dos cosas que hace el partial: cerrar la escena
+   abierta y retirar el isotipo. Por eso los **once** sitios que encienden su escena y
+   acto seguido navegan —«Cotizaciones», «Enviar un Correo», Atenciones, el buscador
+   general— dejaban dos escenas a pantalla completa superpuestas medio segundo, **y con
+   títulos distintos**, porque la primera no sabía a dónde iba.
+3. El disco de la esquina (`AppBusy`) va a `z-index 10001`, por delante de todo, y su
+   guardia solo miraba el isotipo: se pintaba **encima de la escena temática durante
+   toda la espera**. La única defensa era acordarse de escribir `busy:false` llamada por
+   llamada, que es una regla que se olvida en cuanto alguien añade una pantalla.
+4. Y `.vfx-cover` **no es opaco** —78 % de superficie con `blur(3px)`—, así que lo que
+   quedara debajo se seguía viendo desenfocado. Eso convertía cualquier solape «corto»
+   en uno que duraba lo que durase el servidor.
+
+**Qué se cambió.** Cuatro arreglos en tres archivos compartidos, cero en las pantallas:
+
+- `LoaderPartial` estrena **`retirarArranque()`**: quita el isotipo al instante, sin
+  transición y con la animación parada. Es la pieza que faltaba, y ya existía a medias
+  —estaba encerrada dentro de `show()`, así que solo se beneficiaba quien entraba por
+  ahí—. Además `hide()` pausa la animación de inmediato.
+- `VentelFX` la llama al montar **cualquier** espera (`overlay`, `section`, `skeleton`):
+  quien enciende una espera nueva es quien sabe que la genérica ya no hace falta. Cubre
+  incluso a una pantalla que se olvide de llamar a `hide()`.
+- `AppUrl.go` pasa por `VentelLoader.show({pagina})`.
+- `AppBusy` mira también `.vfx-overlay`, y se retira si algo pasa a taparlo **después**
+  de estar puesto; un observador lo devuelve cuando la escena se va.
+
+Y tres solapes que sí eran de su pantalla: **portal_contenido** enseñaba *dos camiones a
+la vez* toda la carga (el CSS del esqueleto y la escena de GSAP encima, en contenedores
+anidados) — se queda el esqueleto, que dibuja la forma de lo que llega, y hereda el texto
+que aportaba la escena; **consulta_cotizacion** y **cotizado_preview** arrastraban un
+`#loading-overlay` heredado en el marcado, visible desde el primer fotograma, que se ha
+retirado con su CSS; y en cotizado_preview el apagado del arranque estaba en un `finally`,
+o sea DESPUÉS de montar la escena de la hoja — ahora va antes, y el relevo entre las dos
+escenas se encadena en vez de solaparse.
+
+**Qué se comprobó.** Los 26 `.gs` y los bloques `<script>` de las pantallas pasan
+comprobación de sintaxis; las tres suites en verde.
+
+**Qué se dejó fuera a propósito.**
+
+- El disco de la esquina sigue conviviendo con una escena de **sección** (`.vfx-cover`),
+  no solo con las de pantalla completa: son sitios distintos de la pantalla, y callarlo
+  ante cualquier sección escondería el aviso de otra llamada que sí siguiera en vuelo.
+  Donde narraba lo mismo dos veces se resolvió con `busy:false` en esa llamada.
+- El relevo entre dos escenas cuesta los ~480 ms que tarda `done()` en irse. Un
+  `swap()` en el motor, que solapara salida y entrada sin que coincidan, ahorraría el
+  encadenado a mano; queda anotado como mejora del motor, no de las pantallas.
+- Todo esto se verificó leyendo el código: el aspecto real solo se confirma publicando.
+
 ### 2026-08-15 — F4 completa: tres esperas que cuentan qué está pasando
 
 **Qué se cambió.**
