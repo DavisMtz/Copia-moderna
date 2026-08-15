@@ -30,7 +30,7 @@
   flex-wrap:wrap;margin-bottom:var(--s4)}
 .art-hd h1{font-family:Archivo,inherit;font-size:1.75rem;font-weight:800;letter-spacing:-.01em;
   color:var(--ink);margin:0}
-.art-hd p{color:var(--ink-soft);font-size:var(--fs-sm);margin:.35rem 0 0;max-width:62ch}
+.art-hd p{color:var(--ink-soft);font-size:var(--fs-sm);margin:.35rem 0 0;max-width:38rem}
 
 .art-lista{display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:var(--s3)}
 .art-card{display:flex;flex-direction:column;gap:.4rem;text-align:left;width:100%;
@@ -49,13 +49,18 @@
 .art-doc-hd{margin-bottom:var(--s4);padding-bottom:var(--s3);border-bottom:1px solid var(--line)}
 .art-doc-hd h1{font-family:Archivo,inherit;font-size:clamp(1.7rem,1.2rem + 1.6vw,2.4rem);
   font-weight:800;line-height:1.15;letter-spacing:-.02em;color:var(--ink);margin:0 0 .5rem}
-.art-doc-rs{font-size:1.05rem;line-height:1.6;color:var(--ink-soft);margin:0;max-width:62ch}
+.art-doc-rs{font-size:1.05rem;line-height:1.6;color:var(--ink-soft);margin:0;max-width:38rem}
 .art-firma{display:flex;align-items:center;gap:.6rem;flex-wrap:wrap;margin-top:var(--s3);
   font-size:var(--fs-xs);color:var(--ink-faint)}
 .art-firma b{color:var(--ink-soft);font-weight:700}
 
-/* El cuerpo: la medida de línea es la regla, no el ancho de la ventana. */
-.art-cuerpo{max-width:68ch}
+/* El cuerpo: la medida de línea es la regla, no el ancho de la ventana.
+   En REM y no en `ch`: `ch` mide el ancho del cero de la fuente ACTIVA, así que
+   mientras Archivo e Instrument Sans no han llegado —o si el CDN de fuentes está
+   bloqueado— se calcula con la fuente del sistema y sale una medida distinta. En el
+   iPad se veían renglones de 730 px, que es media línea de más de lo que el ojo
+   sigue sin perderse. 40rem son 640 px: unos 70 caracteres con nuestra tipografía. */
+.art-cuerpo{max-width:40rem}
 .art-cuerpo > * + *{margin-top:1.15rem}
 .art-p{font-size:1.02rem;line-height:1.75;color:var(--ink);margin:0}
 .art-h2{font-family:Archivo,inherit;font-size:1.35rem;font-weight:800;line-height:1.25;
@@ -74,14 +79,37 @@
   border:1px solid var(--line);background:var(--surface-2)}
 .art-fig figcaption{font-size:var(--fs-xs);color:var(--ink-faint);margin-top:.45rem;text-align:center}
 
-/* Las tablas se desplazan dentro de su caja: una tabla ancha no puede empujar la
-   página entera a la derecha, que es lo que rompe la lectura en el móvil. */
-.art-tabla-caja{overflow-x:auto;border:1px solid var(--line);border-radius:var(--rad-sm)}
-.art-tabla{border-collapse:collapse;width:100%;font-size:var(--fs-sm)}
+/* ── Tablas ───────────────────────────────────────────────────────────────────
+   Se desplazan dentro de su caja: una tabla ancha no puede empujar la página entera
+   a la derecha, que es lo que rompe la lectura en el móvil.
+
+   La clave está en `width:max-content`, y es lo que faltaba. Con `width:100%` la
+   tabla se COMPRIME para caber en la columna de lectura: siete columnas pegadas de
+   una hoja de cálculo acababan en tiras de dos centímetros con las palabras partidas
+   una por renglón —así se veía la tabla de cumpleaños en el iPad, ilegible—. Ahora la
+   tabla pide el ancho que necesita y, si no cabe, se arrastra; el `min-width:100%`
+   evita que una tabla de dos columnas quede encogida a la izquierda.
+
+   Las tablas de un artículo casi siempre vienen pegadas de Sheets, así que el ancho
+   real lo mandan los datos y no nosotros: por eso `min-width` por celda y `nowrap` en
+   los encabezados, que son los que peor se leen partidos. */
+.art-tabla-caja{overflow-x:auto;border:1px solid var(--line);border-radius:var(--rad-sm);
+  -webkit-overflow-scrolling:touch}
+.art-tabla{border-collapse:collapse;width:max-content;min-width:100%;font-size:var(--fs-sm)}
 .art-tabla th,.art-tabla td{padding:.5rem .7rem;text-align:left;border-bottom:1px solid var(--line);
-  vertical-align:top;white-space:pre-wrap}
-.art-tabla th{background:var(--surface-2);font-weight:700;color:var(--ink);position:sticky;top:0}
+  vertical-align:top;white-space:pre-wrap;min-width:7rem;max-width:22rem}
+.art-tabla th{background:var(--surface-2);font-weight:700;color:var(--ink);white-space:nowrap}
 .art-tabla tr:last-child td{border-bottom:0}
+.art-tabla tbody tr:nth-child(even){background:var(--surface-2)}
+/* Un aviso de que la tabla sigue: sin él, una tabla cortada por el borde parece una
+   tabla incompleta y nadie prueba a arrastrarla. */
+.art-tabla-caja{position:relative;background:
+  linear-gradient(to right, var(--surface) 30%, transparent),
+  linear-gradient(to left, var(--surface) 30%, transparent) 100% 0,
+  radial-gradient(farthest-side at 0 50%, rgba(27,35,48,.14), transparent),
+  radial-gradient(farthest-side at 100% 50%, rgba(27,35,48,.14), transparent) 100% 0;
+  background-repeat:no-repeat;background-size:36px 100%,36px 100%,14px 100%,14px 100%;
+  background-attachment:local,local,scroll,scroll}
 
 /* Documentos incrustados */
 .art-doc-emb{border:1px solid var(--line);border-radius:var(--rad);overflow:hidden;background:var(--surface)}
@@ -206,7 +234,7 @@
 /* El lienzo: mismo ancho de lectura que el artículo publicado, y centrado en su
    columna. Pegado a la izquierda dejaba un vacío raro a la derecha en pantallas
    anchas y el texto se leía descolgado del panel. */
-.art-lienzo{max-width:68ch;margin-inline:auto}
+.art-lienzo{max-width:40rem;margin-inline:auto}
 
 /* Cabecera: el título del artículo se escribe con el tamaño del título. */
 .art-campo-titulo{width:100%;font-family:Archivo,inherit;
@@ -303,11 +331,19 @@
 .art-mas:hover{border-color:var(--brand);color:var(--brand-deep);transform:scale(1.1)}
 .art-mas:focus-visible{opacity:1;outline:none;box-shadow:var(--ring)}
 
-/* Panel lateral: contexto y herramientas, nunca la acción primaria. */
+/* Panel lateral: contexto y herramientas, nunca la acción primaria.
+   Las cajas eran blancas sobre un fondo casi blanco (`--surface` #FFF sobre
+   `--content-bg` #F7F9FB) con un borde de 1 px que a esa distancia no se ve: en el
+   iPad los rótulos en mayúsculas parecían flotar sueltos por la derecha, sin caja
+   que los contuviera, y el panel se leía como cuatro trozos sin relación. Ahora la
+   caja va en el tono de superficie secundaria, que es el mecanismo que el proyecto ya
+   usa para «esto es un apartado», y el borde se refuerza. Un solo mecanismo de
+   separación: fondo. Nada de fondo + borde fuerte + sombra a la vez. */
 .art-panel{position:sticky;top:calc(var(--s6) + var(--s2));display:flex;flex-direction:column;gap:var(--s3)}
-.art-panel-caja{border:1px solid var(--line);border-radius:var(--rad);background:var(--surface);padding:var(--s3)}
+.art-panel-caja{border:1px solid var(--line);border-radius:var(--rad);
+  background:var(--surface-2);padding:var(--s3)}
 .art-panel-t{font-size:10px;font-weight:800;text-transform:uppercase;letter-spacing:.06em;
-  color:var(--ink-faint);margin:0 0 .6rem}
+  color:var(--ink-faint);margin:0 0 .6rem;padding-bottom:.4rem;border-bottom:1px solid var(--line)}
 
 /* Ficha de estado: cifras tabulares para que no bailen al escribir. */
 .art-cifras{display:flex;flex-direction:column;gap:.4rem}
@@ -317,17 +353,22 @@
 
 .art-insertar{display:flex;flex-direction:column;gap:.2rem}
 .art-insertar button{display:flex;align-items:center;gap:.5rem;padding:.45rem .5rem;font:inherit;
-  font-size:var(--fs-sm);font-weight:600;color:var(--ink);background:transparent;
-  border:1px solid transparent;border-radius:var(--rad-sm);cursor:pointer;text-align:left;width:100%}
-.art-insertar button:hover{border-color:var(--line);background:var(--surface-2)}
+  font-size:var(--fs-sm);font-weight:600;color:var(--ink);background:var(--surface);
+  border:1px solid var(--line);border-radius:var(--rad-sm);cursor:pointer;text-align:left;width:100%;
+  transition:var(--tr)}
+.art-insertar button:hover{border-color:var(--brand-soft);background:var(--brand-tint);color:var(--brand-deep)}
 .art-insertar button:focus-visible{outline:none;box-shadow:var(--ring)}
 .art-insertar .ic{width:15px;height:15px;flex:none;color:var(--ink-faint)}
 .art-insertar button:hover .ic{color:var(--brand-deep)}
 .art-insertar .art-atajo{margin-left:auto;font-size:10px;font-weight:700;color:var(--ink-faint);
   border:1px solid var(--line);border-radius:4px;padding:0 .25rem}
 
-/* Menú flotante de inserción (el que abre el «+» entre bloques). */
-.art-menu{position:absolute;z-index:30;min-width:210px;background:var(--surface);
+/* Menú flotante de inserción (el que abre el «+» entre bloques).
+   `fixed` y no `absolute`: se coloca con las coordenadas de `getBoundingClientRect`,
+   que ya son relativas a la ventana. Con `absolute` había que sumarle el scroll, y
+   dentro del iframe de Apps Script quien scrollea no siempre es el `body`, así que el
+   menú aparecía despegado del «+» que lo abrió. */
+.art-menu{position:fixed;z-index:30;min-width:210px;background:var(--surface);
   border:1px solid var(--line);border-radius:var(--rad);box-shadow:var(--sh-lg,0 20px 40px rgba(0,0,0,.18));
   padding:.35rem;display:flex;flex-direction:column;gap:.1rem}
 .art-menu button{display:flex;align-items:center;gap:.5rem;padding:.45rem .5rem;font:inherit;
@@ -360,7 +401,7 @@
 .art-vacio{text-align:center;padding:var(--s5) var(--s3);color:var(--ink-faint)}
 .art-vacio .ic{width:30px;height:30px;opacity:.5;margin:0 auto var(--s2);display:block}
 .art-vacio-t{font-size:var(--fs-md);font-weight:700;color:var(--ink-soft);margin-bottom:.35rem}
-.art-vacio-s{font-size:var(--fs-sm);line-height:1.55;max-width:44ch;margin-inline:auto}
+.art-vacio-s{font-size:var(--fs-sm);line-height:1.55;max-width:26rem;margin-inline:auto}
 
 .art-badge{display:inline-flex;align-items:center;gap:.3rem;font-size:var(--fs-xs);font-weight:700;
   border-radius:999px;padding:.15rem .5rem}
@@ -896,6 +937,8 @@
     });
     vista.appendChild(grid);
     iconos();
+    entrada(hd, { y: 10, duration: .35 });
+    entrada(grid.children, { delay: .06 });
     reflejar({ art: '' });
   }
 
@@ -999,6 +1042,8 @@
     }
 
     iconos();
+    entrada(acciones, { y: 8, duration: .3 });
+    if (indice) entrada(indice, { y: 10, delay: .12 });
     montarZoomImagenes(cuerpo);
     montarEscena(cuerpo, barraProg);
     if (window.AppUrl && AppUrl.irAncla) AppUrl.irAncla();
@@ -1035,6 +1080,33 @@
   function mueve(){
     var reducido = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
     return typeof window.gsap !== 'undefined' && !reducido;
+  }
+
+  /* Entrada de una vista. Siempre `from`: se parte de VISIBLE y se anima hacia el
+     sitio, así que si el CDN no llega no se ejecuta y no pasa nada — nunca al revés.
+
+     Y nunca se anima un contenedor que tenga dentro algo `position:sticky`: un
+     `transform` en un ancestro crea un contexto de apilamiento y el sticky deja de
+     pegarse mientras dura la animación. Por eso se animan los hijos concretos y no
+     `#vista` entera, que es donde vive la barra de trabajo del editor.
+
+     El escalonado va por `amount` con techo, no por escalón fijo: una lista de tres
+     artículos y una de treinta tienen que terminar de entrar en el mismo rato. */
+  function entrada(nodos, opts){
+    if (!mueve() || !nodos) return;
+    var lista = nodos.length !== undefined ? Array.prototype.slice.call(nodos) : [nodos];
+    if (!lista.length) return;
+    opts = opts || {};
+    gsap.from(lista, {
+      opacity: 0,
+      y: opts.y === undefined ? 14 : opts.y,
+      duration: opts.duration || .45,
+      ease: 'power3.out',
+      delay: opts.delay || 0,
+      stagger: { amount: Math.min(.4, lista.length * .05) },
+      overwrite: 'auto',
+      clearProps: 'transform,opacity'
+    });
   }
 
   var escena = null;
@@ -1254,8 +1326,13 @@
   function pintarEstado(){
     var n = document.getElementById('artEstado');
     if (!n) return;
+    var antes = n.className;
     n.className = 'art-estado ' + (st.sucio ? 'sucio' : 'guardado');
     n.textContent = st.sucio ? 'Sin guardar' : (st.id ? 'Guardado' : 'Nuevo');
+    /* Pasar de «sin guardar» a «guardado» es la confirmación que se busca con el
+       rabillo del ojo tras pulsar Ctrl+S, y un cambio de color sin movimiento se
+       pierde. El pop lo pone AppMotion, que es la pieza de la casa para esto. */
+    if (antes.indexOf('sucio') > -1 && !st.sucio && window.AppMotion && AppMotion.pop) AppMotion.pop(n);
   }
 
   function pintarEditor(){
@@ -1396,13 +1473,25 @@
     pintarCifras();
     pintarEstado();
     iconos();
+    entrada(col.firstChild ? col.firstChild.children : null, { y: 10, duration: .38 });
+    entrada(panel.children, { y: 12, delay: .08 });
 
-    // El cursor vuelve donde estaba: tras insertar o mover un bloque, repintar y
-    // dejar el foco en el body obliga a buscar con el ratón dónde ibas.
+    /* El cursor vuelve donde estaba: tras insertar o mover un bloque, repintar y
+       dejar el foco en el body obliga a buscar con el ratón dónde ibas. Y el bloque
+       en cuestión se señala con una entrada corta: cuando se inserta en medio de un
+       artículo largo, sin eso no se sabe cuál de los quince es el nuevo. */
     if (st.foco != null) {
       var campos = vista.querySelectorAll('.art-bloque .art-esc');
       var destino = campos[st.foco];
-      if (destino) { destino.focus(); if (destino.setSelectionRange) { var n = destino.value.length; destino.setSelectionRange(n, n); } }
+      if (destino) {
+        destino.focus();
+        if (destino.setSelectionRange) { var n = destino.value.length; destino.setSelectionRange(n, n); }
+        var bloque = destino.closest('.art-bloque');
+        if (bloque && mueve()) {
+          gsap.from(bloque, { opacity: 0, y: -8, duration: .32, ease: 'power3.out',
+                              overwrite: 'auto', clearProps: 'transform,opacity' });
+        }
+      }
       st.foco = null;
     }
   }
@@ -1454,17 +1543,27 @@
     });
     document.body.appendChild(menu);
     var r = anclaje.getBoundingClientRect();
-    menu.style.top = (window.scrollY + r.bottom + 6) + 'px';
+    // Si no cabe debajo, se abre hacia arriba: pulsar el «+» del último bloque no
+    // puede dejar el menú medio fuera de la pantalla.
+    var alto = menu.offsetHeight || 280;
+    var abajo = r.bottom + 6;
+    menu.style.top = (abajo + alto > window.innerHeight - 8 ? Math.max(8, r.top - alto - 6) : abajo) + 'px';
     menu.style.left = Math.max(8, Math.min(window.innerWidth - 230, r.left - 90)) + 'px';
     if (window.Icons) Icons.render(menu);
+    if (mueve()) gsap.from(menu, { opacity: 0, y: -6, duration: .18, ease: 'power2.out', clearProps: 'transform,opacity' });
     var primero = menu.querySelector('button');
     if (primero) primero.focus();
-    setTimeout(function (){ document.addEventListener('click', cerrarMenuFuera); }, 0);
+    setTimeout(function (){
+      document.addEventListener('click', cerrarMenuFuera);
+      // Al desplazarse, el menú se queda donde estaba y el «+» se va: se cierra.
+      window.addEventListener('scroll', cerrarMenu, true);
+    }, 0);
   }
   function cerrarMenu(){
     var m = document.getElementById('artMenuInsertar');
     if (m && m.parentNode) m.parentNode.removeChild(m);
     document.removeEventListener('click', cerrarMenuFuera);
+    window.removeEventListener('scroll', cerrarMenu, true);
   }
   function cerrarMenuFuera(e){
     var m = document.getElementById('artMenuInsertar');
