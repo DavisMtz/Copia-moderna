@@ -521,7 +521,8 @@ que la abre en grande, y la tarjeta puede ser una **encuesta** con resultados en
   orden existente (columna Orden + regla «solo un modal»), elegida para no inventar un
   segundo criterio de prioridad que choque con el que ya hay; **validar la maqueta con el
   creador antes de cerrar la tarea** por si su intención era jerarquía por formato (todo
-  el formato tarjeta = principal). El responsable va pequeño en la esquina inferior
+  el formato tarjeta = principal). *(Validado el 15/08/2026: el creador eligió esta misma
+  interpretación entre las tres que se le enseñaron. Ver el §18.)* El responsable va pequeño en la esquina inferior
   derecha de cada plantilla (tarjeta 3771-3781, destacado 3745-3753, modal 3799-3808;
   CSS junto a `.anc-card` 879-894).
 - **T7.3 — ID compartible.** Parámetro nuevo `pub` en las tres listas espejo
@@ -1000,8 +1001,11 @@ y qué se dejó fuera a propósito**. Mismo formato que el registro del document
   la jerarquía del **orden que ya existía** en vez de añadir una casilla «es la principal»
   al constructor: dos criterios de prioridad sobre la misma rejilla acaban
   contradiciéndose, y el día que la casilla y el orden no coincidan ninguno de los dos
-  explica lo que se ve. Es una función de una línea (`esPrincipal`) si se prefiere lo otro
-  — **queda pendiente de validar con el creador**, como pedía la tarea.
+  explica lo que se ve. **Validado con el creador el 15 de agosto de 2026**, como pedía la
+  tarea: se le enseñaron las tres maquetas —una principal por orden, todo el formato tarjeta
+  como principal, y una casilla en el constructor— y eligió la primera, que es la
+  implementada. La tarea queda cerrada; si algún día se prefiere otra, se decide en la
+  función `esPrincipal` de `renderAnuncios` y el CSS ya distingue las dos clases.
 - **T7.3 · ID compartible.** Parámetro `pub` en las tres listas espejo (`Code.gs`,
   `app_core.html`, `PASAN` de Index) y endpoint `pubPorId`, que sirve una publicación por su
   id **incluidas las expiradas y las programadas**, diciendo en qué estado están para que el
@@ -1059,10 +1063,10 @@ había (`estado_inicial`, `f6_buscador_paridad`, `ttl_cache`, `cache_identidad`)
 
 **Qué se dejó fuera a propósito.**
 
-- **La maqueta de «principal» está pendiente de validar con el creador**, tal como la tarea
-  pedía. Se implementó la interpretación declarada en el plan (posicional sobre la columna
-  Orden). La alternativa —jerarquía por formato: todo el formato tarjeta es principal— es
-  cambiar la función `esPrincipal` de `renderAnuncios`; el CSS ya distingue las dos clases.
+- **La casilla «es la principal» en el constructor**, que era la tercera maqueta que se le
+  enseñó al creador. Se descartó por lo mismo que la descartaba el plan: convive con la
+  columna Orden, así que serían dos criterios de prioridad sobre la misma rejilla, y el día
+  que no coincidan ninguno de los dos explica lo que se ve en el inicio.
 - **Los banners legacy descartados vuelven a aparecer una vez.** Su id cambia de posicional
   a huella del mensaje, y el «no volver a mostrarme esto» del navegador va por id. Es el
   precio de una sola vez por arreglar un identificador que se rompía en cada inserción de
