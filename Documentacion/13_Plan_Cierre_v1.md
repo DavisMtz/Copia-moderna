@@ -972,6 +972,106 @@ y qué se dejó fuera a propósito**. Mismo formato que el registro del document
 
 <!-- Las entradas nuevas van arriba, con la más reciente primero. -->
 
+### 2026-08-15 — F3 completa: la política se abre cuando se va a mirar, y la revisión se lee de un vistazo
+
+**Qué se cambió.**
+
+- **T3.1 · Política contraída con carga perezosa** (`inicio_avanzado.html`). La
+  cabecera de `#pol-seccion` deja de ser un rótulo y pasa a ser el interruptor de
+  la sección: un `<button>` con `aria-expanded`/`aria-controls` dentro del
+  encabezado, y el cuerpo —editor, simulador, historial y barra de guardado—
+  metido en un `#pol-panel` que pliega con `grid-template-rows: 0fr → 1fr`, el
+  mismo patrón ya probado en `.rev-panel` de la revisión de cotizaciones. Nace
+  **plegada** y `getPoliticaRevision` no se llama hasta la primera apertura: antes
+  se pedía al inicializar la pantalla, la mirara alguien o no, y eso costaba una
+  lectura de hoja y un editor entero montados en cada entrada al panel, además de
+  empujar hacia abajo lo que sí se mira a diario, que es la cola de pendientes.
+  «Descartar cambios» se queda fuera del botón (un botón dentro de otro no es HTML
+  válido) y solo se ofrece con la sección abierta y algo que descartar.
+- **T3.1 · La cabecera dice la verdad con el cuerpo cerrado.** El resumen se
+  separó del repintado del editor (`polResumenTexto` + `polPintarCabecera`), que
+  era la condición para poder plegar: `polPintar` reconstruye el editor y no puede
+  ser quien mantenga informada a una cabecera cuyo cuerpo quizá no se ha abierto
+  nunca. Dos decisiones dentro: el resumen describe **lo guardado** —lo que está
+  rigiendo—, no el borrador, porque una cabecera que contara cambios sin aplicar
+  diría que el sistema hace algo que aún no hace; y como con la sección plegada la
+  barra de guardado no se ve, la cabecera estrena un distintivo «Cambios sin
+  guardar» que es lo que impide plegar y olvidarse. `polPintar` además se blindó
+  para no montar el editor sin política en memoria. Llegar con `?ancla=pol-seccion`
+  abre la sección sola: ese enlace es alguien pidiendo la política a propósito.
+- **T3.2 · Refactor de claridad de `revision_cotizacion.html`.** Mismo contenido,
+  otra jerarquía:
+  - **Cabecera pegada arriba** con los tres datos que no pueden perderse de vista
+    al decidir —folio, estatus e **índice de confianza**, que se mudó del riel a
+    la cabecera—. Con treinta artículos en la lista esos datos quedaban tres
+    pantallas más arriba justo en el momento de aprobar. Se mantiene de una fila a
+    propósito; el material es el de las barras pegadas de la casa (fondo de la app
+    al 88 % con desenfoque, como `.topbar` y `.fp-nav`).
+  - **Tira de contexto** bajo la cabecera con la frase del índice y la instrucción
+    de la pantalla: se leen al llegar y se van con el scroll, que es lo que permite
+    que la cabecera de arriba sea corta. El número nunca queda solo, que era la
+    razón escrita de que el índice llevara frase.
+  - **Riel de decisión de verdad alcanzable**: se ancla bajo la cabecera y, si su
+    contenido no cabe, scrollea por dentro (`max-height` + `overflow`). Antes se
+    pegaba al borde superior, así que con muchos puntos de verificación el riel era
+    más alto que la pantalla y los botones de decidir quedaban fuera de alcance.
+  - **Datos de la cotización en dos grupos** («A quién va dirigida» / «Qué es esta
+    cotización») y las marcas de veredicto **alineadas al borde derecho** de su
+    celda en vez de pegadas al final de cada valor: caen todas en la misma vertical
+    y se ven de una pasada.
+  - Las dos barras pegadas se coordinan **midiéndose**, no suponiéndose: la del
+    shell y la de la revisión cambian de alto con el ancho, el zoom y el salto de
+    línea, así que su altura viaja por `--rev-top`/`--rev-head-h` con
+    `ResizeObserver`. Con eso el riel se ancla justo debajo y los saltos a un
+    elemento (`scroll-margin-top`) no quedan medio tapados.
+
+**Qué se comprobó.** Ningún `id` perdido en las dos pantallas (comparación
+automática contra `HEAD`: 0 bajas en `revision_cotizacion`, y las 3 altas de
+`inicio_avanzado` son las piezas nuevas del interruptor). Ninguna palabra de texto
+visible desaparece de la pantalla de revisión —criterio 3, verificado por
+comparación de todo el texto estático contra el original, no a ojo—; en la política
+solo cae el «Cargando la política…», que ya no describe nada. `guardarRevisionCotizacion`
+no aparece en el diff. Criterio 1 verificado en código: la única llamada a
+`getPoliticaRevision` vive en `polCargar`, y a `polCargar` solo se llega desde la
+primera apertura y desde «Descartar cambios». Markup de las dos pantallas bien
+anidado y sin botones anidados (validador de pila propio), los bloques `<script>`
+pasan comprobación de sintaxis con los scriptlets neutralizados, los 26 `.gs` en
+verde con `node --check` y las dos suites de `pruebas/` en verde (40 + 44
+comprobaciones). Conservados los overrides de `[data-theme="carbon"]` —con entrada
+nueva para el distintivo—, `prefers-reduced-motion` y la regla de impresión, que
+ahora además despega cabecera y riel: en papel no hay scroll y un riel con
+`overflow` impreso se dejaría fuera lo que no cupiera.
+
+**Qué se dejó fuera a propósito.**
+
+- **La maqueta previa validada «con quien revisa a diario» no se hizo, y es lo que
+  queda pendiente de F3.** El plan la daba por barata porque «la pantalla ya tiene
+  modo de vista de diseño»: **ese modo no existe** —se buscó en toda la pantalla y
+  en el proyecto—. En su lugar el refactor se hizo conservador y reversible (mismo
+  contenido, mismos `id`, ningún cambio en el flujo de decisión), de forma que el
+  antes/después se compara con el propio `git` y revertirlo es un `git revert`. La
+  validación con quien revisa a diario sigue siendo condición para dar la fase por
+  buena en producción; es una conversación, no una tarea de código.
+- El resumen de la política describe lo guardado y no el borrador (decisión de
+  arriba): con la sección abierta, mover un interruptor ya no cambia el texto de la
+  cabecera al instante. Lo que hay sin aplicar lo dicen el distintivo y la barra.
+- Plegar la sección con cambios sin guardar esconde el botón «Guardar la política»
+  hasta volver a abrirla. Se avisa con el distintivo en lugar de impedir el plegado:
+  bloquear un plegado por un borrador es peor trato que avisar de él.
+- Dentro del riel, la tarjeta de decisión no se fijó al fondo: con textarea y dos
+  botones es demasiado alta para pegarla sin comerse la lista de verificaciones que
+  hay que atender **antes** de decidir. El riel acotado ya la deja siempre a un
+  scroll corto.
+- El recorrido guiado de supervisión sigue en `version: 1` y su paso señala la
+  política, que ahora está plegada. Actualizarlo es **T12.2**, que consolida los
+  tours de todas las fases y escalona las subidas de versión; adelantarlo aquí
+  gastaría una de esas subidas por una sola pantalla.
+- Los criterios que exigen el navegador —que no salga ni una llamada al abrir el
+  panel (comprobable en la pestaña de red), el plegado en móvil, y el antes/después
+  punto por punto de la revisión— quedan para la comprobación manual sobre el
+  despliegue real de Apps Script, como el resto de criterios que dependen de
+  `google.script.*`.
+
 ### 2026-08-15 — F2 completa: la isla dinámica notifica
 
 **Qué se cambió.**
@@ -1041,6 +1141,11 @@ tablero (donde el estado sí es redundante pero el conteo no).
 - El criterio 1 (el número baja sin recargar) y el gesto táctil se dejan para la
   comprobación manual sobre el despliegue real de Apps Script, como el resto de
   criterios que exigen `google.script.*`.
+
+<!-- Esta entrada se quedó sin su encabezado y quedaban dos «Qué se cambió»
+     seguidos sin saber dónde empezaba cada uno. Se le pone título; sin fecha,
+     porque el registro no la traía y no se inventa. -->
+### F1 · URL viva y navegación por rol (T1.2 queda pendiente)
 
 **Qué se cambió.**
 
