@@ -1,0 +1,390 @@
+<script>
+/**
+ * =====================================================================================
+ * ÍNDICES COMPARTIDOS DEL PORTAL | Sistema de cotizaciones Ventel · Portal Ventel
+ * =====================================================================================
+ * Cuatro catálogos que hasta ahora vivían dentro de Index.html y por eso solo existían
+ * en la portada: las Formas de Pago, el glosario de Devoluciones SAP, el catálogo de
+ * Tiendas y Centros de Reparto, y la lista de secciones navegables.
+ *
+ * No es una extracción por limpieza. Era contenido que la gente busca a diario —"¿cuál
+ * es la CLABE?", "¿qué leyenda va en esta devolución?", "¿qué número es la CR de
+ * Guadalajara?"— y que desde el buscador general (Ctrl+K), desde una cotización o desde
+ * la pantalla de correos NO SE PODÍA ENCONTRAR: había que ir al Portal y buscar otra vez.
+ * Puesto aquí, lo indexan los dos buscadores y se llega desde cualquier pantalla.
+ *
+ * QUIÉN LO USA:
+ *   · Index.html    — el buscador de la portada, que además navega dentro de la página.
+ *   · app_comando   — el buscador general, que navega con portal?sec=…&item=….
+ *
+ * REGLA DE FORMA. Un elemento de índice es siempre { name, sub, target, kw }, con
+ * `target` = el id del elemento en el HTML del Portal. Esos cuatro nombres los leen los
+ * dos consumidores por nombre literal, y `target` acaba escrito tal cual en el atributo
+ * data-target de la fila del desplegable. Renombrar cualquiera de los cuatro no rompe
+ * nada visible: el buscador sigue devolviendo resultados, solo que sin puntaje o sin
+ * saltar a ningún sitio. Que no se vea es lo que lo hace peligroso.
+ *
+ * Y todo `target` tiene que corresponder a un id que EXISTE en Index.html. Si no existe,
+ * el Portal abre la sección, reintenta 1200 ms y se rinde en silencio: se lee como "el
+ * buscador encontró algo que no está".
+ *
+ * Es autónomo: no depende de AppBuscar, de app_core ni del tema.
+ */
+(function () {
+  'use strict';
+  if (window.AppIndices) return;
+
+  /* Misma normalización que el resto del Portal —minúsculas, sin acentos y con todo lo
+     que no sea letra o dígito convertido en espacio—. Va aquí dentro y no se le pide
+     prestada a nadie porque este archivo se carga ANTES que el guion de la pantalla, y
+     el catálogo de tiendas se construye al cargar. */
+  function norm(s) {
+    return String(s).toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/[^a-z0-9 ]/g, ' ');
+  }
+
+  /* ── Secciones navegables ─────────────────────────────────────────────────────
+     Sirven al buscador ("Ir a sección") y a los atajos de teclado «g + tecla».
+     `key` vacía = solo se llega por buscador o por el menú.
+
+     OJO: esta lista NO genera el menú lateral del Portal, que está escrito a mano en el
+     HTML. Añadir una sección aquí le da atajo y resultado de búsqueda, pero no botón. */
+  var SECCIONES = [
+    { id:'inicio',         label:'Inicio',         key:'i', icon:'home',         kw:'dashboard panel principal accesos rapidos avisos' },
+    { id:'herramientas',   label:'Herramientas',   key:'h', icon:'tools',        kw:'apps sistemas enlaces accesos' },
+    { id:'paqueterias',    label:'Paqueterías',    key:'p', icon:'package',      kw:'guias mensajeria envios soms rastreo' },
+    { id:'formaspago',     label:'Formas de Pago', key:'f', icon:'card',         kw:'efectivo transferencia bbva fiscal monedero fraudes clabe' },
+    { id:'pdepago',        label:'Pago Web',       key:'w', icon:'card',         kw:'pago web simulador liga pdepago' },
+    { id:'bigticket',      label:'Big Ticket',     key:'b', icon:'truck',        kw:'bt seguimientos trazabilidad muebles linea blanca' },
+    { id:'softline',       label:'Soft Line',      key:'s', icon:'package',      kw:'sf ropa moda seguimientos' },
+    { id:'slmensajerias',  label:'SL Mensajerías', key:'',  icon:'package',      kw:'mensajeria interna logistica softline' },
+    { id:'mkp',            label:'MarketPlace',    key:'m', icon:'package',      kw:'marketplace mkp vendedores' },
+    { id:'tienda',         label:'Tienda',         key:'t', icon:'home',         kw:'tienda fisica tda sucursal' },
+    { id:'generales',      label:'Generales',      key:'g', icon:'tools',        kw:'gen general otros' },
+    { id:'devsap',         label:'Devoluciones SAP', key:'d', icon:'card',       kw:'devoluciones sap leyendas glosario servicio sl enr reconocida satisfaccion correo soporte matriz recogido devolucion canalizar tienda mayor menor 3000 trazabilidad autorizacion ventas ccl supervisor team leader' },
+    { id:'formatos',       label:'Formatos',       key:'o', icon:'document',     kw:'documentos archivos formato' },
+    { id:'plantillas',     label:'Plantillas',     key:'l', icon:'mail',         kw:'plantillas correo email mail salesforce sales force mensaje asunto cuerpo escalamiento copia respuesta machote' },
+    { id:'presentaciones', label:'Presentaciones', key:'r', icon:'presentation', kw:'recursos diapositivas slides capacitacion' }
+  ];
+
+  /* ── Formas de Pago ──────────────────────────────────────────────────────────
+     Sección sin datos de backend: el contenido está escrito en el HTML del Portal y
+     este índice es la única forma de que sea buscable. */
+  var FORMAS_PAGO = [
+    { name:'Pago en Efectivo', sub:'Referencia Paynet · ficha y cómo pagar', target:'fp-efectivo', kw:'efectivo suburbia sbb paynet referencia codigo de barras ficha cajero comprobante' },
+    { name:'Tiendas afiliadas y montos', sub:'Lugares y montos máximos de pago en efectivo', target:'fp-tiendas', kw:'7-eleven seven walmart soriana circle k extra kiosko waldos sams club bodega aurrera farmacias del ahorro guadalajara pagaqui via servicios sys tienda monto maximo nivel nacional' },
+    { name:'Transferencia BBVA Bancomer', sub:'Convenio CIE 1422286, CLABE y pasos · Openpay', target:'fp-transfer', kw:'transferencia bbva bancomer convenio cie clabe openpay otro banco spei deposito beneficiario distribuidora' },
+    { name:'Datos Fiscales', sub:'RFC DLI931201MI9 · Régimen 601 · Distribuidora Liverpool', target:'fp-fiscal', kw:'datos fiscales rfc razon social factura facturacion regimen fiscal lugar de expedicion 37530 cfdi' },
+    { name:'Monedero Digital — Traspaso de Saldo', sub:'Reglas, datos requeridos y BINes permitidos', target:'fp-monedero', kw:'monedero electronico digital med traspaso de saldo ewallet bridgecore certificado fisico serie cvv boleta contable' },
+    { name:'Monederos físicos · BINes permitidos', sub:'Tabla de bines permitidos para traspaso', target:'fp-bin', kw:'bin 801 803 810 872 811 812 813 815 816 820 879 880 881 882 certificado apartados ventas corporativas vue master mesa de regalo digital wallet permitido' },
+    { name:'Visualización de Partidas (FBL5N)', sub:'SAP · Cuenta deudor 750160 · Sociedad 110', target:'fp-fbl5n', kw:'fbl5n sap partidas cuenta deudor sociedad asignacion pedido f8 transaccion' },
+    { name:'Prevención de Fraudes', sub:'Validación Cybersource, SAF, FMS y SVL', target:'fp-fraudes', kw:'fraude fraudes cybersource saf svl fms validacion listas negativas rechazo banco prevencion' }
+  ];
+
+  /* ── Devoluciones SAP ────────────────────────────────────────────────────────
+     Glosario de leyendas y matrices. Igual que Formas de Pago: contenido escrito en el
+     HTML, que sin este índice no aparece en ninguna búsqueda. */
+  var DEVSAP = [
+    { name:'Autorización escrita obligatoria — Ventas CCL', sub:'Devoluciones SAP · supervisor/team leader · correo Ventas CCL', target:'ds-autorizacion', kw:'autorizacion escrita obligatoria supervisor team leader correo ventas ccl ventas-ccl@liverpool.com.mx devolucion recogido cambio estatus copiar correo sap devoluciones' },
+    { name:'Glosario — Leyendas para devoluciones en SAP', sub:'Devoluciones SAP · escenario → leyenda · Mercaderías y MKP Soft Line', target:'ds-glosario', kw:'glosario leyendas devoluciones sap escenario servicio sl enr satisfaccion correo soporte mercaderias mkp soft line tabla' },
+    { name:'Leyenda Servicio SL (dañada / incompleta / equivocada)', sub:'Glosario SAP · ServicioSL/dañada · /incompleta · /equivocada · sin correo soporte', target:'ds-servicio-sl', kw:'servicio sl servicioSL dañada danada incompleta equivocada leyenda sap mercancia mercaderias mkp soft line no correo soporte glosario devoluciones' },
+    { name:'Leyenda ENR — Reconocida', sub:'Glosario SAP · entrega no reconocida sin evidencia', target:'ds-enr', kw:'enr reconocida entrega no reconocida sin evidencia plataformas leyenda sap mercaderias mkp soft line glosario devoluciones' },
+    { name:'Leyenda Satisfacción SL', sub:'Glosario SAP · sin tienda Liverpool cerca · producto menor a $3,000', target:'ds-satisfaccion-sl', kw:'satisfaccion sl leyenda sin tienda liverpool cerca producto menor 3000 solicita devolucion sap mercaderias mkp soft line glosario' },
+    { name:'Leyenda Correo soporte', sub:'Glosario SAP · recogido vencido · digitales · bonificaciones · semáforo PAO', target:'ds-correo-soporte', kw:'correo soporte leyenda recogido vencido descargas digitales bonificaciones semaforo pao cambio estatus cadena correos mercaderias sl mkp bt ordenes de venta glosario sap devoluciones' },
+    { name:'Matriz SL mayor a $3,000', sub:'Devoluciones SAP · recogido/devolución/canalizar/recogido y devolución', target:'ds-mayor', kw:'sl mayor a 3000 matriz devoluciones sap recogido devolucion canalizar tienda recogido y devolucion servicio satisfaccion cc candc sin tienda dimensiones grandes fragil rota mercancia mas de 3000' },
+    { name:'Matriz SL menor a $3,000', sub:'Devoluciones SAP · recogido/devolución/canalizar/recogido y devolución', target:'ds-menor', kw:'sl menor a 3000 matriz devoluciones sap recogido devolucion canalizar tienda recogido y devolucion servicio satisfaccion cc candc sin tienda dimensiones grandes fragil rota mercancia hasta 3000' },
+    { name:'Criterios y excepciones de devoluciones SL', sub:'Devoluciones SAP · frágil sin recogido · productos grandes · excepción Satisfacción', target:'ds-criterios', kw:'criterios excepciones devoluciones sl no aplica recogido cristaleria vinos perfumeria vajillas fragil productos grandes hornos pantallas escritorios aparatos ejercicio satisfaccion sin liverpool cerca dañada equivocada incompleta no cumple expectativas sap' }
+  ];
+
+  /* ── Tiendas y Centros de Reparto ────────────────────────────────────────────
+     167 pares número ↔ nombre. Se busca por los dos lados: "96" y "guadalajara" tienen
+     que llevar a la misma fila, porque en el teléfono se pregunta de las dos maneras. */
+  var TIENDA_CR_RAW = [
+    [1,'Liverpool Centro'],[2,'Liverpool Insurgentes'],[3,'Liverpool Polanco'],[4,'Liverpool Satélite'],
+    [5,'Liverpool Perisur'],[6,'Liverpool Coapa'],[7,'Liverpool Santa Fe'],[10,'Liverpool Xalapa Crystal'],
+    [11,'Liverpool Córdoba Crystal'],[12,'Liverpool Villahermosa Crystal'],[14,'Liverpool Tuxtla'],
+    [15,'Liverpool Puebla Crystal'],[16,'Liverpool Coatzacoalcos Crysta'],[17,'Liverpool Poza Rica'],
+    [19,'Liverpool Tapachula'],[21,'Liverpool Villahermosa'],[22,'Liverpool Monterrey Centro'],
+    [25,'Liverpool Gran Plaza'],[27,'Liverpool Acapulco Galerías'],[28,'Liverpool Veracruz Mocambo'],
+    [29,'Liverpool Perinorte'],[30,'CR AGUASCALIENTES'],[31,'Liverpool Monterrey'],[32,'CR COATZACOALCOS'],
+    [33,'CR TEPIC'],[34,'Liverpool Chihuahua Presidente'],[36,'Liverpool San Luis P El Dorado'],
+    [37,'Liverpool Oaxaca'],[41,'Liverpool Tampico'],[42,'Liverpool Chihuahua'],[43,'Liverpool Torreón'],
+    [44,'Liverpool Querétaro'],[45,'Liverpool Monterrey Valle'],[46,'Liverpool Culiacán'],[47,'Liverpool Irapuato'],
+    [48,'Liverpool Pachuca'],[49,'CR MONTERREY'],[50,'Liverpool Hermosillo'],[51,'Liverpool Guadalajara Centro'],
+    [53,'Liverpool Plaza Patria'],[54,'Liverpool Tepic Centro'],[55,'Liverpool Mazatlán Centro'],
+    [57,'Liverpool Morelia'],[58,'Liverpool Aguascalientes Villa'],[59,'CR CHIHUAHUA'],[60,'Liverpool Ciudad Obregón'],
+    [61,'Liverpool Morelia Paseo'],[62,'Liverpool Vallarta'],[64,'Liverpool Zapopan'],[65,'Liverpool Saltillo'],
+    [69,'CR XALAPA'],[70,'Liverpool Tlaquepaque'],[71,'Liverpool León'],[72,'Liverpool Puebla'],
+    [73,'Liverpool Veracruz'],[74,'Liverpool Metepec'],[75,'Liverpool Cancún'],[76,'Liverpool Mérida'],
+    [77,'Liverpool Cuernavaca'],[78,'Liverpool Guadalajara'],[79,'Liverpool Chetumal'],[80,'Liverpool Ecatepec'],
+    [81,'Liverpool Parque Delta'],[82,'Liverpool Xalapa'],[83,'Liverpool Lindavista'],[84,'Liverpool Colima'],
+    [85,'Liverpool Coatzacoalcos'],[86,'Liverpool Aguascalientes'],[87,'Liverpool Tezontle'],[88,'Liverpool Tepic'],
+    [89,'Liverpool Durango'],[91,'CR MAZATLÁN'],[92,'CR PUEBLA'],[93,'CR VILLAHERMOSA'],[94,'CR LEÓN'],
+    [96,'CR GUADALAJARA'],[97,'CR VERACRUZ'],[98,'CR TACUBAYA'],[102,'Liverpool Campeche'],[103,'Liverpool Interlomas'],
+    [104,'Liverpool Atizapan'],[105,'Liverpool Celaya'],[106,'Liverpool Puebla Serdán'],[107,'CR ACAPULCO'],
+    [108,'CR MORELIA'],[109,'CR QUERÉTARO'],[110,'Liverpool Ciudad Juarez'],[113,'Liverpool Monterrey Cumbres'],
+    [116,'CR CIUDAD JUÁREZ'],[117,'Liverpool Mazatlán'],[119,'CR CANCÚN'],[120,'CR CUERNAVACA'],[121,'Liverpool Orizaba'],
+    [126,'Liverpool Ciudad Victoria'],[127,'Liverpool Zacatecas'],[128,'CR TAMPICO'],[129,'CR TUXTLA GUTIÉRREZ'],
+    [130,'CR METEPEC'],[131,'CR MÉRIDA'],[132,'CR HERMOSILLO'],[133,'CR CÓRDOBA'],[134,'Liverpool Vhmosa. Altabrisa'],
+    [135,'Liverpool Oblatos'],[136,'Liverpool San Luis Potosí'],[137,'CR SAN LUIS POTOSÍ'],[140,'Liverpool Toluca'],
+    [142,'CR CHETUMAL'],[144,'CR CIUDAD OBREGÓN'],[145,'CR CIUDAD VICTORIA'],[147,'CR CULIACÁN'],[148,'CR DURANGO'],
+    [151,'CR OAXACA'],[152,'CR PACHUCA'],[153,'CR POZA RICA'],[154,'CR PUERTO VALLARTA'],[155,'CR TAPACHULA'],
+    [157,'CR TORREÓN'],[158,'CR LA PAZ'],[165,'Liverpool Veracruz El Dorado'],[166,'Liverpool León Sur'],
+    [168,'Liverpool Santa Anita'],[169,'Liverpool Tuxpan'],[170,'Liverpool Ciudad Jardin'],[171,'CR ISTMO'],
+    [173,'Liverpool Queretaro Antea'],[174,'CR MEXICALI'],[175,'Liverpool Tampico Altama'],[176,'Liverpool Mitikah'],
+    [177,'Liverpool Tlaxcala'],[178,'Liverpool Zamora'],[180,'Liverpool Coacalco'],[185,'CR ZONA NORTE'],
+    [186,'Liverpool Tlalnepantla'],[189,'Liverpool Monterrey la Fe'],[191,'Liverpool Tuxtla Oriente'],
+    [192,'Liverpool Cuautla'],[194,'Liverpool Salamanca'],[195,'Liverpool Tecamac'],[199,'Liverpool Toreo'],
+    [300,'Liverpool Tehuacán'],[302,'Liverpool Sn Miguel de Allende'],[303,'Liverpool Chilpancingo'],
+    [304,'Liverpool Ciudad del Carmen'],[305,'Liverpool Los Mochis'],[306,'Liverpool Acapulco'],
+    [307,'Liverpool Playa del Carmen'],[308,'Liverpool La Paz'],[310,'Liverpool Istmo'],[311,'Liverpool San Juan del Rio'],
+    [312,'Liverpool Mexicali'],[386,'Liverpool Parque Puebla'],[387,'Liverpool Hermosillo Galerías'],
+    [454,'Liverpool Guanajuato'],[455,'Liverpool Paseo Queretaro'],[456,'Liverpool Antenas Iztapalapa'],
+    [457,'Liverpool Monterrey Esfera'],[458,'Liverpool Mérida Cabo Norte'],[463,'Liverpool Oaxaca Plaza Bella'],
+    [468,'Liverpool Monclova'],[469,'Liverpool Atlixco'],[471,'Liverpool Fresnillo'],[472,'Liverpool Comitan'],
+    [688,'Liverpool Tijuana'],[766,'Liverpool Tepeyac'],[897,'CR TIJUANA'],[967,'Liverpool La Perla'],
+    [1109,'Liverpool Cd Juárez Rio Grande']
+  ];
+  var TIENDA_CR = TIENDA_CR_RAW.map(function (par) {
+    var num = par[0], name = par[1];
+    return { num: num, name: name, tipo: /^cr\b/i.test(name) ? 'CR' : 'Tienda',
+             _name: norm(name), _num: String(num) };
+  });
+
+  /* ── Puntuación de Tienda/CR ─────────────────────────────────────────────────
+     Scorer propio, y no el motor general, por una razón concreta: aquí el NÚMERO manda.
+     Un número exacto (+100) tiene que ganar siempre a la mejor coincidencia de nombre
+     posible (14 de nombre + 10 de frase), porque quien teclea "96" sabe lo que quiere.
+     Después va el prefijo (+30) y por último que el número aparezca dentro (+6).
+
+     La preferencia de tipo es un empujón SUAVE, nunca un filtro: "cr 96" prioriza los
+     centros de reparto pero no esconde la tienda 96. Convertirla en filtro es la
+     simplificación evidente al reescribir esto, y hace desaparecer resultados legítimos.
+
+     `levLE`/`fuzzyHit` viven aquí por lo mismo: son los únicos que quedaban del motor
+     viejo del Portal y solo esta función los usaba. */
+  function levLE(a, b, max) {
+    var la = a.length, lb = b.length;
+    if (Math.abs(la - lb) > max) return false;
+    var prev = new Array(lb + 1), j;
+    for (j = 0; j <= lb; j++) prev[j] = j;
+    for (var i = 1; i <= la; i++) {
+      var cur = new Array(lb + 1); cur[0] = i;
+      var best = cur[0];
+      for (j = 1; j <= lb; j++) {
+        var cost = a[i - 1] === b[j - 1] ? 0 : 1;
+        cur[j] = Math.min(prev[j] + 1, cur[j - 1] + 1, prev[j - 1] + cost);
+        if (cur[j] < best) best = cur[j];
+      }
+      if (best > max) return false;   // poda: toda la fila supera el umbral
+      prev = cur;
+    }
+    return prev[lb] <= max;
+  }
+  function fuzzyHit(hay, w) {
+    if (w.length < 4 || !hay) return false;
+    var max = w.length >= 7 ? 2 : 1;
+    var toks = hay.split(' ');
+    for (var i = 0; i < toks.length; i++) {
+      var t = toks[i];
+      if (t.length >= 3 && Math.abs(t.length - w.length) <= max && levLE(t, w, max)) return true;
+    }
+    return false;
+  }
+
+  /**
+   * @param {{words:string[], raw:string}} Q  consulta ya preparada
+   * @param {object} it   elemento de TIENDA_CR
+   * @param {string=} prefTipo  'CR' | 'Tienda' | null
+   */
+  function puntuaTiendaCR(Q, it, prefTipo) {
+    var words = (Q && Q.words) || (Q && Q.palabras) || [];
+    var raw = (Q && (Q.raw !== undefined ? Q.raw : Q.crudo)) || '';
+    var s = words.length ? 0 : 1, matched = 0;   // sin texto → base 1 (listar el catálogo)
+    words.forEach(function (w) {
+      var hit = false;
+      if (/^\d+$/.test(w)) {
+        if (it._num === w) { s += 100; hit = true; }
+        else if (it._num.indexOf(w) === 0) { s += 30; hit = true; }
+        else if (it._num.indexOf(w) !== -1) { s += 6; hit = true; }
+      } else {
+        if (it._name.indexOf(w) !== -1) { s += it._name.indexOf(w) === 0 ? 14 : 8; hit = true; }
+        else if (fuzzyHit(it._name, w)) { s += 5; hit = true; }
+      }
+      if (hit) matched++;
+    });
+    if (raw.length >= 3 && it._name.indexOf(raw) !== -1) s += 10;   // frase completa en el nombre
+    if (words.length > 1 && matched < words.length) s *= (matched / words.length) * 0.6;
+    if (prefTipo && it.tipo === prefTipo && (matched > 0 || !words.length)) s += words.length ? 4 : 0.5;
+    return s;
+  }
+
+  /* ── Lo mismo, aplanado para un buscador que NO es el Portal ─────────────────
+     El buscador general no puede saltar dentro de la portada: navega por URL. Cada
+     entrada viaja con la sección a la que pertenece y con el id del elemento, que es lo
+     que el Portal resuelve al llegar (`portal?sec=formaspago&item=fp-transfer`).
+     El id y no el nombre: el nombre lleva acentos y guiones largos y basta un espacio
+     de más para que la comparación falle; el id lo pone el propio Portal al pintar. */
+  function paraBuscadorGeneral() {
+    var out = [];
+    function mete(lista, grupo, seccion) {
+      lista.forEach(function (it) {
+        out.push({ grupo: grupo, seccion: seccion, nombre: it.name, sub: it.sub,
+                   extra: it.kw || '', item: it.target || '' });
+      });
+    }
+    mete(FORMAS_PAGO, 'Formas de Pago', 'formaspago');
+    mete(DEVSAP, 'Devoluciones SAP', 'devsap');
+    // Las secciones enteras también son un destino legítimo: "quiero ver Paqueterías".
+    SECCIONES.forEach(function (s) {
+      out.push({ grupo: 'Secciones del Portal', seccion: s.id, nombre: s.label,
+                 sub: 'Sección del Portal', extra: s.kw || '', item: '' });
+    });
+    return out;
+  }
+
+  /* ═══════════════════════════════════════════════════════════════════════════
+     ÁMBITO DE UNA CONSULTA
+     ═══════════════════════════════════════════════════════════════════════════
+     Había DOS parsers incompatibles, y por eso lo que se aprendía en un buscador no
+     servía en el otro: el Portal solo entendía la primera palabra suelta («formatos
+     guía») y el buscador general solo los dos puntos («cot: LVP-123»). Escribir en el
+     sitio equivocado no avisaba: simplemente buscaba el prefijo como si fuera texto.
+
+     Aquí está el único parser, y entiende las dos formas. Lo que NO se unifica es
+     CUÁNDO se acepta la forma suelta, y eso es deliberado:
+
+       · En el Portal sí. Sus ámbitos son nombres de sección —«plantillas», «formatos»,
+         «tienda»— y escribirlos a secas ya significaba acotar desde siempre.
+       · En el buscador general no. Sus ámbitos son «estado», «equipo», «cotizaciones»,
+         «portal»… que son también el nombre de las pantallas que ese mismo buscador
+         ofrece. Aceptar la forma suelta convertiría «estado de cuenta» en «búscame "de
+         cuenta" dentro de las fallas», que es de las consultas más frecuentes del día.
+
+     Un texto con dos puntos que NO sea un ámbito —«nota: pedir factura», una URL— se
+     devuelve como null y se busca tal cual. Y no se cae a la forma suelta: si no, la
+     primera palabra de una frase legítima acabaría acotando por su cuenta.
+  */
+  function ambito(texto, alias, opts) {
+    if (!alias) return null;
+    var t = String(texto || '');
+    var dosPuntos = t.match(/^\s*([^\s:]+)\s*:\s*([\s\S]*)$/);
+    if (dosPuntos) {
+      var k1 = norm(dosPuntos[1]).trim();
+      return alias[k1] ? { ambito: alias[k1], alias: k1, resto: dosPuntos[2].trim() } : null;
+    }
+    if (opts && opts.sueltos === false) return null;
+    var t2 = t.trim();
+    var sp = t2.search(/\s/);
+    var k2 = norm(sp === -1 ? t2 : t2.slice(0, sp)).trim();
+    if (!alias[k2]) return null;
+    return { ambito: alias[k2], alias: k2, resto: sp === -1 ? '' : t2.slice(sp + 1).trim() };
+  }
+
+  /* ═══════════════════════════════════════════════════════════════════════════
+     PROCESOS DE TRAZABILIDAD
+     ═══════════════════════════════════════════════════════════════════════════
+     Los dos buscadores armaban su propio índice de lo MISMO —la hoja de Homologación—
+     y con criterios distintos: uno se saltaba los procesos sin nombre y el otro no; uno
+     tiraba las secciones que no reconocía y el otro las conservaba; uno resumía el
+     proceso con «reporte · solución» y el otro añadía sección y plataformas. Resultado:
+     el mismo «devolución de MarketPlace» se leía distinto según dónde se preguntara, y
+     alguno de los dos podía no encontrarlo.
+
+     Este es el único armador, y produce el registro completo: cada consumidor lee los
+     campos que le sirven. Se quedó lo mejor de cada uno —el resumen largo, las palabras
+     clave ricas y el descarte de procesos sin nombre, que no son un resultado.
+
+     `kwCampo` viene ya preparado a propósito: los kw llegan a 240 palabras, muy por
+     encima del tope de memoización del motor, así que sin esto se volvían a tokenizar
+     en cada pulsación por cada uno de los ~120 procesos. */
+  var TRAZ_SINONIMOS = {
+    bigticket:     'bt big ticket bigticket trazabilidad proceso muebles linea blanca',
+    softline:      'sf sl softline soft line logistica interna mensajeria interna trazabilidad proceso',
+    slmensajerias: 'sf slm sl softline soft line mensajerias externas paqueteria guia trazabilidad proceso',
+    mkp:           'mkp marketplace market place seller vendedor trazabilidad proceso',
+    tienda:        'tda tienda fisica sucursal apv pos trazabilidad proceso',
+    generales:     'gen generales general otros trazabilidad proceso'
+  };
+  function trazLimpio(v) {
+    var s = String(v == null ? '' : v).trim();
+    if (!s || s === '-' || s === '—' || /^n\s*\/?\s*a$/i.test(s)) return '';
+    return s;
+  }
+  function trazEsLargo(v) {
+    var s = trazLimpio(v);
+    return !!s && (s.indexOf('\n') > -1 || s.length > 44);
+  }
+  function trazCorto(s, n) {
+    var t = String(s == null ? '' : s).trim();
+    return t.length > n ? t.slice(0, n - 1).trim() + '…' : t;
+  }
+  function trazPlataformas(str) {
+    return String(str == null ? '' : str).split(/[\/\n]+/)
+      .map(function (s) { return s.trim(); })
+      .filter(Boolean)
+      .map(function (s) {
+        var m = s.match(/^(.*?)\s*\(([^)]*)\)\s*$/);
+        return (m && m[1].trim()) ? m[1].trim() : s;
+      })
+      .filter(function (b) { return b.length <= 46; });
+  }
+  function trazResumen(sec, p) {
+    var partes = [sec.label || sec.etiqueta || ''];
+    var rep = trazLimpio(p.reporte), sol = trazLimpio(p.solucion);
+    if (rep && !trazEsLargo(rep)) partes.push('Reporte ' + rep);
+    if (sol) partes.push(trazEsLargo(sol) ? 'Solución según método de pago' : sol);
+    var plats = trazPlataformas(p.plataformas).slice(0, 3);
+    if (plats.length) partes.push(plats.join('/'));
+    return trazCorto(partes.filter(Boolean).join(' · '), 110);
+  }
+  function trazPalabrasClave(sec, p) {
+    var crudo = norm([
+      p.nombre, p.plataformas, p.reporte, p.avance, p.solucion, p.observaciones,
+      TRAZ_SINONIMOS[sec.id] || '', sec.label
+    ].join(' '));
+    var vistas = Object.create(null), salida = [];
+    crudo.split(/\s+/).forEach(function (w) {
+      if (w.length < 2 || vistas[w] || salida.length >= 240) return;
+      vistas[w] = 1;
+      salida.push(w);
+    });
+    return salida.join(' ');
+  }
+
+  function indexaTraz(datos) {
+    var out = [];
+    ((datos && datos.secciones) || []).forEach(function (sec) {
+      (sec.procesos || []).forEach(function (p) {
+        // Un proceso sin nombre no es un resultado: no hay nada que enseñar ni a dónde ir.
+        if (!p || !p.nombre) return;
+        var etiqueta = sec.label || sec.etiqueta || '';
+        var kw = trazPalabrasClave(sec, p);
+        out.push({
+          id: p.id, seccion: sec.id, seccionNombre: etiqueta,
+          nombre: p.nombre,
+          // El buscador del Portal enseña la sección pegada al nombre porque sus grupos
+          // ya están separados por sección; el general no, porque los mezcla en uno solo.
+          name: p.nombre + (etiqueta ? ' — ' + etiqueta : ''),
+          sub: trazResumen(sec, p),
+          target: p.id,
+          kw: kw,
+          kwCampo: (window.AppBuscar && AppBuscar.campo) ? AppBuscar.campo(kw) : null
+        });
+      });
+    });
+    return out;
+  }
+
+  window.AppIndices = {
+    secciones: SECCIONES,
+    formasPago: FORMAS_PAGO,
+    devolucionesSap: DEVSAP,
+    tiendaCR: TIENDA_CR,
+    puntuaTiendaCR: puntuaTiendaCR,
+    paraBuscadorGeneral: paraBuscadorGeneral,
+    ambito: ambito,
+    indexaTraz: indexaTraz,
+    normaliza: norm
+  };
+})();
+</script>

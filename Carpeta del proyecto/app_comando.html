@@ -873,13 +873,34 @@
       });
     }
 
+    /* ── Contenido del Portal que NO viene de la hoja ──
+       Formas de Pago, el glosario de Devoluciones SAP y las secciones navegables están
+       escritos en el HTML del Portal: no hay caché que leer ni servidor al que pedirlos.
+       Hasta ahora eso significaba que no existían fuera de la portada —"¿cuál es la
+       CLABE?" no se podía contestar desde una cotización sin cambiar de pantalla—, y es
+       justo lo que la fusión de los dos buscadores venía a arreglar.
+       Se calculan UNA vez: son literales, no cambian en toda la sesión. */
+    var estaticos = null;
+    function delPortal() {
+      if (estaticos === null) {
+        estaticos = (window.AppIndices ? AppIndices.paraBuscadorGeneral() : []).map(function (e) {
+          return { grupo: e.grupo, seccion: e.seccion, icono: IC.globo, nombre: e.nombre,
+                   sub: e.sub, extra: e.extra, href: '', item: e.item };
+        });
+      }
+      return estaticos.concat(portal);
+    }
+
     return {
       refrescar: refrescar,
       cotizaciones: function () { return cotizaciones; },
-      portal: function () { return portal; },
+      portal: delPortal,
       gente: function () { return gente; },
       operacion: function () { return operacion; },
       anuncios: function () { return anuncios; },
+      /* Solo la parte DINÁMICA: es lo que decide si hay que ir al servidor. Contando
+         también los estáticos, esto sería siempre `true` y el contenido de la hoja
+         —herramientas, plantillas, formatos— no se pediría nunca. */
       hayPortal: function () { return portal.length > 0; }
     };
   })();
@@ -933,26 +954,14 @@
     }, function () { trazPidiendo = false; });
   }
 
+  /* El armado vive en app_indices.html: el Portal indexa la MISMA hoja y lo hacía con
+     otro criterio —resumía con menos campos y no sumaba los sinónimos de la sección—,
+     así que el mismo proceso se encontraba en un buscador y en el otro no. El registro
+     que llega trae ya `kwCampo` preparado, que es lo que evita retokenizar 240 palabras
+     por proceso en cada pulsación. El id de la tarjeta ('bt-3') sigue viajando como
+     `item`: allí se resuelve sin depender de que el nombre coincida letra a letra. */
   function indexaTraz(d) {
-    var out = [];
-    ((d && d.secciones) || []).forEach(function (s) {
-      (s.procesos || []).forEach(function (p) {
-        if (!p || !p.nombre) return;
-        out.push({
-          // El id de la tarjeta ('bt-3') es lo que el Portal usa para anclar: viaja como
-          // `item` y allí se resuelve sin depender de que el nombre coincida letra a letra.
-          id: p.id,
-          seccion: s.id,
-          seccionNombre: s.label || s.etiqueta || '',
-          nombre: p.nombre,
-          // Lo que de verdad se busca de un proceso: en cuánto responden y en qué
-          // plataformas aplica. Va como subtítulo porque es la respuesta, no el adorno.
-          sub: [p.reporte, p.solucion].filter(Boolean).join(' · '),
-          extra: [p.plataformas, p.observaciones, s.label, s.etiqueta].filter(Boolean).join(' ')
-        });
-      });
-    });
-    return out;
+    return window.AppIndices ? AppIndices.indexaTraz(d) : [];
   }
 
   function pidePortal(alLlegar) {
@@ -1247,21 +1256,28 @@
     { id: 'op',     rotulo: 'Fallas',        alias: ['falla', 'fallas', 'estado', 'incidencia', 'incidencias'] }
   ];
 
+  /* Mapa alias → ámbito, que es lo que espera el parser compartido. Se arma una vez. */
+  var ALIAS_AMBITO = (function () {
+    var m = {};
+    AMBITOS.forEach(function (a) { a.alias.forEach(function (x) { m[x] = a; }); });
+    return m;
+  })();
+
   /**
    * Parte "portal: guía" en { ambito, resto }. Sin prefijo reconocido devuelve null y
    * todo sigue como siempre: un texto con dos puntos que no sea un ámbito —"nota: pedir
    * factura"— tiene que buscarse tal cual, no quedarse sin resultados.
+   *
+   * `sueltos:false` a propósito, y es la única diferencia con el buscador del Portal:
+   * allí los ámbitos son nombres de sección y escribirlos a secas ya significaba acotar,
+   * pero aquí son «estado», «equipo», «cotizaciones», «portal»… que son también el
+   * nombre de las pantallas que este mismo buscador ofrece. Sin ese freno, «estado de
+   * cuenta» se leería como «búscame "de cuenta" dentro de las fallas».
    */
   function partirAmbito(q) {
-    var m = String(q || '').match(/^\s*([a-záéíóúñ]+)\s*:\s*(.*)$/i);
-    if (!m) return null;
-    var pre = (window.AppBuscar ? AppBuscar.normaliza(m[1]) : m[1].toLowerCase()).trim();
-    for (var i = 0; i < AMBITOS.length; i++) {
-      if (AMBITOS[i].alias.indexOf(pre) !== -1) {
-        return { ambito: AMBITOS[i], resto: m[2].trim() };
-      }
-    }
-    return null;
+    if (!window.AppIndices) return null;
+    var r = AppIndices.ambito(q, ALIAS_AMBITO, { sueltos: false });
+    return r ? { ambito: r.ambito, resto: r.resto } : null;
   }
 
   /* ── Armado de los resultados ── */
@@ -1382,8 +1398,12 @@
        procedimiento a seguir. Puntúan alto por el nombre y por las plataformas, que es
        como se preguntan ("¿cuánto tarda una devolución de MarketPlace?"). */
     var tz = (esCotizacion || !deja('traz')) ? [] : B.filtra(trazIndice, q, function (p) {
+      /* El campo de palabras clave va PREPARADO: son hasta 240 palabras por proceso, muy
+         por encima del tope de memoización del motor, así que pasarlo como texto lo
+         volvía a tokenizar en cada tecla y por cada uno de los ~120 procesos. */
+      var claves = p.kwCampo ? { campo: p.kwCampo, p: .7 } : { t: p.kw || p.extra || '', p: .7 };
       return [{ t: p.nombre, p: 3 }, { t: p.seccionNombre, p: 1.4 },
-              { t: p.sub, p: 1 }, { t: p.extra, p: .7 }];
+              { t: p.sub, p: 1 }, claves];
     }, { limite: 5, conPuntaje: true });
     if (tz.length) grupos.push({ tipo: 'traz', titulo: 'Procesos y tiempos', icono: IC.caja,
                                  mejor: tz[0].score, filas: tz.map(function (r) { return r.item; }) });
@@ -1748,7 +1768,22 @@
       // elegido ya resaltado. Es exactamente lo que hace el buscador de la portada al
       // pulsar un resultado, y ahora se consigue desde cualquier pantalla porque todo
       // el destino cabe en la URL: sección, búsqueda y elemento.
-      if (p.seccion) { navega('portal', { sec: p.seccion, q: q, item: p.nombre }); return; }
+      if (p.seccion) {
+        /* Tres destinos distintos con la misma forma de URL:
+             · Elemento con id ('fp-transfer', 'ds-enr'): el id es mejor que el nombre
+               porque el Portal lo resuelve con getElementById y no depende de que el
+               texto coincida letra a letra —basta un espacio de más en la hoja para que
+               la comparación por nombre falle y la sección se abra sin resaltar nada.
+             · Elemento de la hoja sin id: se manda el nombre, como se hacía siempre.
+             · La SECCIÓN entera ("llévame a Paqueterías"): ni `item` ni `q`. Filtrar la
+               sección por la palabra que se escribió la dejaría casi vacía, y lo que se
+               pidió era verla completa. */
+        var destino = { sec: p.seccion };
+        var elemento = (p.item !== undefined) ? p.item : p.nombre;
+        if (elemento) { destino.item = elemento; destino.q = q; }
+        navega('portal', destino);
+        return;
+      }
       if (p.href) { abreLiga(p.href); return; }
       navega('portal', {});
     }

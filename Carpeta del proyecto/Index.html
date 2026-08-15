@@ -1389,6 +1389,11 @@ table.ds-matrix{width:100%;border-collapse:separate;border-spacing:0;min-width:5
      forma compacta de folios, frontera letra/dígito, siglas y resaltado fiel a los
      acentos. Va ANTES del bloque de guion grande, que lo usa desde su primera línea. -->
 <?!= include('app_buscar') ?>
+<!-- F6 · Índices compartidos: Formas de Pago, Devoluciones SAP, el catálogo de Tiendas
+     y CR, y las secciones navegables. Vivían aquí dentro y por eso solo existían en la
+     portada: ese contenido no se podía encontrar desde una cotización ni desde Ctrl+K.
+     Ahora es una fuente sola que indexan los dos buscadores. -->
+<?!= include('app_indices') ?>
 <!-- Núcleo compartido con el sistema de cotizaciones: AppUrl / AppSession.
      El Portal es público, pero si el asesor ya inició sesión en Cotizaciones
      el acceso del sidebar y el control del topbar lo llevan directo a su panel. -->
@@ -2869,35 +2874,15 @@ const SECTION_META = {
 
 /* Secciones navegables desde el buscador ("Ir a sección") y atajos de teclado (g + tecla).
    El orden sigue al del menú lateral. 'key' vacía = sólo accesible por buscador/menú. */
-const SECTIONS_NAV = [
-  { id:'inicio',         label:'Inicio',         key:'i', icon:'home',         kw:'dashboard panel principal accesos rapidos avisos' },
-  { id:'herramientas',   label:'Herramientas',   key:'h', icon:'tools',        kw:'apps sistemas enlaces accesos' },
-  { id:'paqueterias',    label:'Paqueterías',    key:'p', icon:'package',      kw:'guias mensajeria envios soms rastreo' },
-  { id:'formaspago',     label:'Formas de Pago', key:'f', icon:'card',         kw:'efectivo transferencia bbva fiscal monedero fraudes clabe' },
-  { id:'pdepago',        label:'Pago Web',       key:'w', icon:'card',         kw:'pago web simulador liga pdepago' },
-  { id:'bigticket',      label:'Big Ticket',     key:'b', icon:'truck',        kw:'bt seguimientos trazabilidad muebles linea blanca' },
-  { id:'softline',       label:'Soft Line',      key:'s', icon:'package',      kw:'sf ropa moda seguimientos' },
-  { id:'slmensajerias',  label:'SL Mensajerías', key:'',  icon:'package',      kw:'mensajeria interna logistica softline' },
-  { id:'mkp',            label:'MarketPlace',    key:'m', icon:'package',      kw:'marketplace mkp vendedores' },
-  { id:'tienda',         label:'Tienda',         key:'t', icon:'home',         kw:'tienda fisica tda sucursal' },
-  { id:'generales',      label:'Generales',      key:'g', icon:'tools',        kw:'gen general otros' },
-  { id:'devsap',         label:'Devoluciones SAP', key:'d', icon:'card',       kw:'devoluciones sap leyendas glosario servicio sl enr reconocida satisfaccion correo soporte matriz recogido devolucion canalizar tienda mayor menor 3000 trazabilidad autorizacion ventas ccl supervisor team leader' },
-  { id:'formatos',       label:'Formatos',       key:'o', icon:'document',     kw:'documentos archivos formato' },
-  { id:'plantillas',     label:'Plantillas',     key:'l', icon:'mail',         kw:'plantillas correo email mail salesforce sales force mensaje asunto cuerpo escalamiento copia respuesta machote' },
-  { id:'presentaciones', label:'Presentaciones', key:'r', icon:'presentation', kw:'recursos diapositivas slides capacitacion' }
-];
+/* Secciones navegables, atajos «g + tecla» y guía del «?». La lista vive ahora en
+   app_indices.html: el buscador general la necesita para ofrecer «ir a Paqueterías»
+   desde cualquier pantalla, y tener dos copias garantizaba que se separaran.
+   OJO, esto no genera el menú lateral: está escrito a mano en el HTML de arriba. */
+const SECTIONS_NAV = (window.AppIndices && AppIndices.secciones) || [];
 
 /* Índice estático de Formas de Pago (sección sin datos de backend) para el buscador */
-const FP_INDEX = [
-  { name:'Pago en Efectivo', sub:'Referencia Paynet · ficha y cómo pagar', target:'fp-efectivo', kw:'efectivo suburbia sbb paynet referencia codigo de barras ficha cajero comprobante' },
-  { name:'Tiendas afiliadas y montos', sub:'Lugares y montos máximos de pago en efectivo', target:'fp-tiendas', kw:'7-eleven seven walmart soriana circle k extra kiosko waldos sams club bodega aurrera farmacias del ahorro guadalajara pagaqui via servicios sys tienda monto maximo nivel nacional' },
-  { name:'Transferencia BBVA Bancomer', sub:'Convenio CIE 1422286, CLABE y pasos · Openpay', target:'fp-transfer', kw:'transferencia bbva bancomer convenio cie clabe openpay otro banco spei deposito beneficiario distribuidora' },
-  { name:'Datos Fiscales', sub:'RFC DLI931201MI9 · Régimen 601 · Distribuidora Liverpool', target:'fp-fiscal', kw:'datos fiscales rfc razon social factura facturacion regimen fiscal lugar de expedicion 37530 cfdi' },
-  { name:'Monedero Digital — Traspaso de Saldo', sub:'Reglas, datos requeridos y BINes permitidos', target:'fp-monedero', kw:'monedero electronico digital med traspaso de saldo ewallet bridgecore certificado fisico serie cvv boleta contable' },
-  { name:'Monederos físicos · BINes permitidos', sub:'Tabla de bines permitidos para traspaso', target:'fp-bin', kw:'bin 801 803 810 872 811 812 813 815 816 820 879 880 881 882 certificado apartados ventas corporativas vue master mesa de regalo digital wallet permitido' },
-  { name:'Visualización de Partidas (FBL5N)', sub:'SAP · Cuenta deudor 750160 · Sociedad 110', target:'fp-fbl5n', kw:'fbl5n sap partidas cuenta deudor sociedad asignacion pedido f8 transaccion' },
-  { name:'Prevención de Fraudes', sub:'Validación Cybersource, SAF, FMS y SVL', target:'fp-fraudes', kw:'fraude fraudes cybersource saf svl fms validacion listas negativas rechazo banco prevencion' }
-];
+/* Índice de Formas de Pago (sección sin datos de backend) → app_indices.html */
+const FP_INDEX = (window.AppIndices && AppIndices.formasPago) || [];
 
 /* Índices de Trazabilidad para el buscador global.
    Ya no se escriben a mano: los reconstruye trazReconstruirIndices() con lo que
@@ -2913,71 +2898,15 @@ let TDA_INDEX = [];   // Tienda Física
 let GEN_INDEX = [];   // Generales
 
 /* Índice estático de Devoluciones SAP (glosario de leyendas + matrices) para el buscador */
-const DEVSAP_INDEX = [
-  { name:'Autorización escrita obligatoria — Ventas CCL', sub:'Devoluciones SAP · supervisor/team leader · correo Ventas CCL', target:'ds-autorizacion', kw:'autorizacion escrita obligatoria supervisor team leader correo ventas ccl ventas-ccl@liverpool.com.mx devolucion recogido cambio estatus copiar correo sap devoluciones' },
-  { name:'Glosario — Leyendas para devoluciones en SAP', sub:'Devoluciones SAP · escenario → leyenda · Mercaderías y MKP Soft Line', target:'ds-glosario', kw:'glosario leyendas devoluciones sap escenario servicio sl enr satisfaccion correo soporte mercaderias mkp soft line tabla' },
-  { name:'Leyenda Servicio SL (dañada / incompleta / equivocada)', sub:'Glosario SAP · ServicioSL/dañada · /incompleta · /equivocada · sin correo soporte', target:'ds-servicio-sl', kw:'servicio sl servicioSL dañada danada incompleta equivocada leyenda sap mercancia mercaderias mkp soft line no correo soporte glosario devoluciones' },
-  { name:'Leyenda ENR — Reconocida', sub:'Glosario SAP · entrega no reconocida sin evidencia', target:'ds-enr', kw:'enr reconocida entrega no reconocida sin evidencia plataformas leyenda sap mercaderias mkp soft line glosario devoluciones' },
-  { name:'Leyenda Satisfacción SL', sub:'Glosario SAP · sin tienda Liverpool cerca · producto menor a $3,000', target:'ds-satisfaccion-sl', kw:'satisfaccion sl leyenda sin tienda liverpool cerca producto menor 3000 solicita devolucion sap mercaderias mkp soft line glosario' },
-  { name:'Leyenda Correo soporte', sub:'Glosario SAP · recogido vencido · digitales · bonificaciones · semáforo PAO', target:'ds-correo-soporte', kw:'correo soporte leyenda recogido vencido descargas digitales bonificaciones semaforo pao cambio estatus cadena correos mercaderias sl mkp bt ordenes de venta glosario sap devoluciones' },
-  { name:'Matriz SL mayor a $3,000', sub:'Devoluciones SAP · recogido/devolución/canalizar/recogido y devolución', target:'ds-mayor', kw:'sl mayor a 3000 matriz devoluciones sap recogido devolucion canalizar tienda recogido y devolucion servicio satisfaccion cc candc sin tienda dimensiones grandes fragil rota mercancia mas de 3000' },
-  { name:'Matriz SL menor a $3,000', sub:'Devoluciones SAP · recogido/devolución/canalizar/recogido y devolución', target:'ds-menor', kw:'sl menor a 3000 matriz devoluciones sap recogido devolucion canalizar tienda recogido y devolucion servicio satisfaccion cc candc sin tienda dimensiones grandes fragil rota mercancia hasta 3000' },
-  { name:'Criterios y excepciones de devoluciones SL', sub:'Devoluciones SAP · frágil sin recogido · productos grandes · excepción Satisfacción', target:'ds-criterios', kw:'criterios excepciones devoluciones sl no aplica recogido cristaleria vinos perfumeria vajillas fragil productos grandes hornos pantallas escritorios aparatos ejercicio satisfaccion sin liverpool cerca dañada equivocada incompleta no cumple expectativas sap' },
-];
+/* Índice de Devoluciones SAP: glosario de leyendas y matrices → app_indices.html */
+const DEVSAP_INDEX = (window.AppIndices && AppIndices.devolucionesSap) || [];
 
 /* Catálogo de Tiendas y Centros de Reparto (CR). Modo de búsqueda dedicado: al escribir
    "tienda" o "cr" en el buscador se localiza fácilmente por número o por nombre. */
-const TIENDA_CR_RAW = [
-  [1,'Liverpool Centro'],[2,'Liverpool Insurgentes'],[3,'Liverpool Polanco'],[4,'Liverpool Satélite'],
-  [5,'Liverpool Perisur'],[6,'Liverpool Coapa'],[7,'Liverpool Santa Fe'],[10,'Liverpool Xalapa Crystal'],
-  [11,'Liverpool Córdoba Crystal'],[12,'Liverpool Villahermosa Crystal'],[14,'Liverpool Tuxtla'],
-  [15,'Liverpool Puebla Crystal'],[16,'Liverpool Coatzacoalcos Crysta'],[17,'Liverpool Poza Rica'],
-  [19,'Liverpool Tapachula'],[21,'Liverpool Villahermosa'],[22,'Liverpool Monterrey Centro'],
-  [25,'Liverpool Gran Plaza'],[27,'Liverpool Acapulco Galerías'],[28,'Liverpool Veracruz Mocambo'],
-  [29,'Liverpool Perinorte'],[30,'CR AGUASCALIENTES'],[31,'Liverpool Monterrey'],[32,'CR COATZACOALCOS'],
-  [33,'CR TEPIC'],[34,'Liverpool Chihuahua Presidente'],[36,'Liverpool San Luis P El Dorado'],
-  [37,'Liverpool Oaxaca'],[41,'Liverpool Tampico'],[42,'Liverpool Chihuahua'],[43,'Liverpool Torreón'],
-  [44,'Liverpool Querétaro'],[45,'Liverpool Monterrey Valle'],[46,'Liverpool Culiacán'],[47,'Liverpool Irapuato'],
-  [48,'Liverpool Pachuca'],[49,'CR MONTERREY'],[50,'Liverpool Hermosillo'],[51,'Liverpool Guadalajara Centro'],
-  [53,'Liverpool Plaza Patria'],[54,'Liverpool Tepic Centro'],[55,'Liverpool Mazatlán Centro'],
-  [57,'Liverpool Morelia'],[58,'Liverpool Aguascalientes Villa'],[59,'CR CHIHUAHUA'],[60,'Liverpool Ciudad Obregón'],
-  [61,'Liverpool Morelia Paseo'],[62,'Liverpool Vallarta'],[64,'Liverpool Zapopan'],[65,'Liverpool Saltillo'],
-  [69,'CR XALAPA'],[70,'Liverpool Tlaquepaque'],[71,'Liverpool León'],[72,'Liverpool Puebla'],
-  [73,'Liverpool Veracruz'],[74,'Liverpool Metepec'],[75,'Liverpool Cancún'],[76,'Liverpool Mérida'],
-  [77,'Liverpool Cuernavaca'],[78,'Liverpool Guadalajara'],[79,'Liverpool Chetumal'],[80,'Liverpool Ecatepec'],
-  [81,'Liverpool Parque Delta'],[82,'Liverpool Xalapa'],[83,'Liverpool Lindavista'],[84,'Liverpool Colima'],
-  [85,'Liverpool Coatzacoalcos'],[86,'Liverpool Aguascalientes'],[87,'Liverpool Tezontle'],[88,'Liverpool Tepic'],
-  [89,'Liverpool Durango'],[91,'CR MAZATLÁN'],[92,'CR PUEBLA'],[93,'CR VILLAHERMOSA'],[94,'CR LEÓN'],
-  [96,'CR GUADALAJARA'],[97,'CR VERACRUZ'],[98,'CR TACUBAYA'],[102,'Liverpool Campeche'],[103,'Liverpool Interlomas'],
-  [104,'Liverpool Atizapan'],[105,'Liverpool Celaya'],[106,'Liverpool Puebla Serdán'],[107,'CR ACAPULCO'],
-  [108,'CR MORELIA'],[109,'CR QUERÉTARO'],[110,'Liverpool Ciudad Juarez'],[113,'Liverpool Monterrey Cumbres'],
-  [116,'CR CIUDAD JUÁREZ'],[117,'Liverpool Mazatlán'],[119,'CR CANCÚN'],[120,'CR CUERNAVACA'],[121,'Liverpool Orizaba'],
-  [126,'Liverpool Ciudad Victoria'],[127,'Liverpool Zacatecas'],[128,'CR TAMPICO'],[129,'CR TUXTLA GUTIÉRREZ'],
-  [130,'CR METEPEC'],[131,'CR MÉRIDA'],[132,'CR HERMOSILLO'],[133,'CR CÓRDOBA'],[134,'Liverpool Vhmosa. Altabrisa'],
-  [135,'Liverpool Oblatos'],[136,'Liverpool San Luis Potosí'],[137,'CR SAN LUIS POTOSÍ'],[140,'Liverpool Toluca'],
-  [142,'CR CHETUMAL'],[144,'CR CIUDAD OBREGÓN'],[145,'CR CIUDAD VICTORIA'],[147,'CR CULIACÁN'],[148,'CR DURANGO'],
-  [151,'CR OAXACA'],[152,'CR PACHUCA'],[153,'CR POZA RICA'],[154,'CR PUERTO VALLARTA'],[155,'CR TAPACHULA'],
-  [157,'CR TORREÓN'],[158,'CR LA PAZ'],[165,'Liverpool Veracruz El Dorado'],[166,'Liverpool León Sur'],
-  [168,'Liverpool Santa Anita'],[169,'Liverpool Tuxpan'],[170,'Liverpool Ciudad Jardin'],[171,'CR ISTMO'],
-  [173,'Liverpool Queretaro Antea'],[174,'CR MEXICALI'],[175,'Liverpool Tampico Altama'],[176,'Liverpool Mitikah'],
-  [177,'Liverpool Tlaxcala'],[178,'Liverpool Zamora'],[180,'Liverpool Coacalco'],[185,'CR ZONA NORTE'],
-  [186,'Liverpool Tlalnepantla'],[189,'Liverpool Monterrey la Fe'],[191,'Liverpool Tuxtla Oriente'],
-  [192,'Liverpool Cuautla'],[194,'Liverpool Salamanca'],[195,'Liverpool Tecamac'],[199,'Liverpool Toreo'],
-  [300,'Liverpool Tehuacán'],[302,'Liverpool Sn Miguel de Allende'],[303,'Liverpool Chilpancingo'],
-  [304,'Liverpool Ciudad del Carmen'],[305,'Liverpool Los Mochis'],[306,'Liverpool Acapulco'],
-  [307,'Liverpool Playa del Carmen'],[308,'Liverpool La Paz'],[310,'Liverpool Istmo'],[311,'Liverpool San Juan del Rio'],
-  [312,'Liverpool Mexicali'],[386,'Liverpool Parque Puebla'],[387,'Liverpool Hermosillo Galerías'],
-  [454,'Liverpool Guanajuato'],[455,'Liverpool Paseo Queretaro'],[456,'Liverpool Antenas Iztapalapa'],
-  [457,'Liverpool Monterrey Esfera'],[458,'Liverpool Mérida Cabo Norte'],[463,'Liverpool Oaxaca Plaza Bella'],
-  [468,'Liverpool Monclova'],[469,'Liverpool Atlixco'],[471,'Liverpool Fresnillo'],[472,'Liverpool Comitan'],
-  [688,'Liverpool Tijuana'],[766,'Liverpool Tepeyac'],[897,'CR TIJUANA'],[967,'Liverpool La Perla'],
-  [1109,'Liverpool Cd Juárez Rio Grande']
-];
-const TIENDA_CR = TIENDA_CR_RAW.map(([num, name]) => ({
-  num, name,
-  tipo: /^cr\b/i.test(name) ? 'CR' : 'Tienda',
-  _name: norm(name), _num: String(num)
-}));
+/* Catálogo de Tiendas y Centros de Reparto → app_indices.html. Trae ya calculados
+   `_name` y `_num`, que es contra lo que puntúa la búsqueda por número. */
+const TIENDA_CR = (window.AppIndices && AppIndices.tiendaCR) || [];
+
 
 let store = { herramientas:[], presentaciones:[], paqueterias:[], formatos:[], pdePago:[], plantillas:[], avisos:[], anuncios:[] };
 let pltView = [];        // plantillas actualmente renderizadas (respeta filtros de texto/tipo)
@@ -4574,39 +4503,23 @@ const SEARCH_SCOPES = {
   almacen:      { key:'__tiendacr',     label:'Tienda/CR' },
   almacenes:    { key:'__tiendacr',     label:'Tienda/CR' }
 };
-/* Puntúa una tienda/CR contra la consulta. Prioriza coincidencia exacta de número y luego
-   por prefijo; en texto, busca por nombre con tolerancia a errores. Sin texto → lista todo. */
+/* Puntúa una tienda/CR contra la consulta: número exacto por encima de todo, luego
+   prefijo, y en texto por nombre con tolerancia a erratas. Vive en app_indices.html
+   junto al catálogo, porque el buscador general lo necesita igual y era el único trozo
+   del motor viejo que valía la pena conservar tal cual. */
 function scoreTiendaCR(Q, it, prefTipo){
-  const { words, raw } = Q;
-  let s = words.length ? 0 : 1, matched = 0;             // sin texto → base 1 (listar catálogo)
-  words.forEach(w => {
-    let hit = false;
-    if (/^\d+$/.test(w)) {
-      if (it._num === w) { s += 100; hit = true; }
-      else if (it._num.startsWith(w)) { s += 30; hit = true; }
-      else if (it._num.includes(w)) { s += 6; hit = true; }
-    } else {
-      if (it._name.includes(w)) { s += it._name.startsWith(w) ? 14 : 8; hit = true; }
-      else if (fuzzyHit(it._name, w)) { s += 5; hit = true; }
-    }
-    if (hit) matched++;
-  });
-  if (raw.length >= 3 && it._name.includes(raw)) s += 10;   // frase completa en el nombre
-  if (words.length > 1 && matched < words.length) s *= (matched / words.length) * 0.6;
-  // Preferencia suave de tipo: \"cr …\" prioriza centros de reparto y \"tienda …\" tiendas,
-  // sin descartar al otro tipo (la búsqueda por número siempre resuelve). Sólo se aplica
-  // a coincidencias reales (o al listar sin texto), para no inflar resultados sin relación.
-  if (prefTipo && it.tipo === prefTipo && (matched > 0 || !words.length)) s += words.length ? 4 : 0.5;
-  return s;
+  return window.AppIndices ? AppIndices.puntuaTiendaCR(Q, it, prefTipo) : 0;
 }
-/* Detecta un prefijo de ámbito en la consulta. Devuelve { key, label, rest } o null. */
+/* Detecta un prefijo de ámbito en la consulta. Devuelve { key, label, rest } o null.
+   El parser vive en app_indices.html y entiende las DOS formas de la casa: la primera
+   palabra suelta («formatos guía»), que es la de siempre aquí, y los dos puntos
+   («formatos: guía»), que es la que se aprende usando el buscador general. Hasta ahora
+   escribir la del otro buscador no acotaba nada y tampoco avisaba: se buscaba el
+   prefijo como si fuera parte de la pregunta. */
 function parseScope(input){
-  const trimmed = input.trim();
-  const sp = trimmed.search(/\s/);
-  const first = norm(sp === -1 ? trimmed : trimmed.slice(0, sp)).trim();
-  const scope = SEARCH_SCOPES[first];
-  if (!scope) return null;
-  return { key: scope.key, label: scope.label, tipo: scope.tipo || null, rest: sp === -1 ? '' : trimmed.slice(sp + 1).trim() };
+  const r = window.AppIndices ? AppIndices.ambito(input, SEARCH_SCOPES) : null;
+  if (!r) return null;
+  return { key: r.ambito.key, label: r.ambito.label, tipo: r.ambito.tipo || null, rest: r.resto };
 }
 /* ──────── ACCIONES DE LA APP (buscador → funciones de toda la app) ────────
    Permite que el buscador global lleve directo a las pantallas del Sistema de
@@ -5322,11 +5235,13 @@ if (window.AppBuscar) AppBuscar.agregaSinonimos(SEARCH_SYNONYMS);
      · siglas ("cc" → Correos a Clientes);
      · un tope de errores por longitud, en vez del corte seco en 4 letras de fuzzyHit.
 
-   Lo que NO se borró, contra lo que decía el plan: `norm` (la usan 20 sitios de esta
-   pantalla, del filtro por sección al salto al elemento exacto, y su alfabeto
-   [a-z0-9 ] es lo que hace seguro meterla en un atributo HTML) y `levLE`/`fuzzyHit`,
-   que sigue usando scoreTiendaCR — el scorer de Tienda/CR que el plan manda conservar
-   tal cual por su rama de número exacto/prefijo. */
+   Lo que NO se borró, contra lo que decía el plan: `norm`. La usan una veintena de
+   sitios de esta pantalla que no tienen nada que ver con el buscador —el filtro por
+   sección, el parseo de ámbito, el salto al elemento exacto, el módulo de Colecciones—,
+   y su alfabeto [a-z0-9 ] es además lo que hace seguro meter su salida dentro de un
+   atributo HTML. `levLE` y `fuzzyHit` sí se fueron, pero no a la basura: se mudaron a
+   app_indices.html con su único usuario, scoreTiendaCR, que el plan manda conservar tal
+   cual por su rama de número exacto/prefijo. */
 
 /* Consulta preparada UNA vez por búsqueda. Devuelve el objeto de AppBuscar con dos
    alias (`words`, `raw`) porque scoreTiendaCR y doGlobalSearch lo leen con los nombres
@@ -5373,37 +5288,11 @@ function puntuaIndice(Q, it){
   const kw = it.kwCampo ? { campo: it.kwCampo, p: 1.4 } : { t: it.kw || '', p: 1.4 };
   return AppBuscar.puntua(Q, [{ t: it.name || '', p: 3 }, { t: it.sub || '', p: 1 }, kw], OPTS_PORTAL);
 }
-/* Distancia de edición acotada (Levenshtein con poda): ¿a y b difieren en ≤ max ediciones?
-   Sigue viva porque scoreTiendaCR la usa; el resto del buscador ya no. */
-function levLE(a, b, max){
-  const la = a.length, lb = b.length;
-  if (Math.abs(la - lb) > max) return false;
-  let prev = new Array(lb + 1);
-  for (let j = 0; j <= lb; j++) prev[j] = j;
-  for (let i = 1; i <= la; i++){
-    const cur = new Array(lb + 1); cur[0] = i; let best = cur[0];
-    for (let j = 1; j <= lb; j++){
-      const cost = a[i - 1] === b[j - 1] ? 0 : 1;
-      cur[j] = Math.min(prev[j] + 1, cur[j - 1] + 1, prev[j - 1] + cost);
-      if (cur[j] < best) best = cur[j];
-    }
-    if (best > max) return false; // poda: si toda la fila supera el umbral, no hay solución
-    prev = cur;
-  }
-  return prev[lb] <= max;
-}
-/* ¿alguna palabra de `hay` está dentro de la tolerancia de typos de `w`?
-   1 error para palabras de 4-6 letras, 2 errores para palabras de 7+ letras. */
-function fuzzyHit(hay, w){
-  if (w.length < 4 || !hay) return false;
-  const max = w.length >= 7 ? 2 : 1;
-  const toks = hay.split(' ');
-  for (let i = 0; i < toks.length; i++){
-    const t = toks[i];
-    if (t.length >= 3 && Math.abs(t.length - w.length) <= max && levLE(t, w, max)) return true;
-  }
-  return false;
-}
+/* AQUÍ VIVÍAN `levLE` y `fuzzyHit`, las dos piezas de tolerancia a erratas del motor
+   viejo. Se fueron con su único usuario, scoreTiendaCR, a app_indices.html. El resto de
+   la pantalla ya no las necesita: AppBuscar trae su propia distancia, con transposición
+   y con una criba que evita medir pares que no se parecen en la primera letra —que es
+   lo que hacía que "fraudes" trajera "grandes". */
 /* AQUÍ VIVÍA `scoreMatch`, y lo sustituye AppBuscar.puntua a través de puntuaPortal.
    Su modelo era SUMAR nombre + subtítulo + extra (un mismo término podía cobrar
    12+4+2), y el motor compartido se queda con el MEJOR campo. No es un reescalado, es
@@ -5607,16 +5496,9 @@ const TRAZ_CFG = [
   { id:'generales',     prefijo:'gen', block:'gen-block', num:'gen-num', plat:'gen-plat', note:'gen-note' }
 ];
 
-/* Sinónimos que NO están en la hoja pero que el asesor sí teclea ("bt", "sf",
-   "marketplace"). Se suman a las palabras clave de cada proceso. */
-const TRAZ_SINONIMOS = {
-  bigticket:     'bt big ticket bigticket trazabilidad proceso muebles linea blanca',
-  softline:      'sf sl softline soft line logistica interna mensajeria interna trazabilidad proceso',
-  slmensajerias: 'sf slm sl softline soft line mensajerias externas paqueteria guia trazabilidad proceso',
-  mkp:           'mkp marketplace market place seller vendedor trazabilidad proceso',
-  tienda:        'tda tienda fisica sucursal apv pos trazabilidad proceso',
-  generales:     'gen generales general otros trazabilidad proceso'
-};
+/* Los sinónimos de cada sección de trazabilidad ("bt", "sf", "marketplace") viven con
+   el armador del índice, en app_indices.html: los dos buscadores tienen que sumar las
+   mismas palabras o el mismo proceso se encuentra en uno y no en el otro. */
 
 /* Iconos en línea: así este bloque no depende del catálogo ICONS. */
 const TRAZ_IC = {
@@ -6301,27 +6183,20 @@ function trazFiltrar(secId, sinUrl){
 }
 
 /* ── Índices del buscador global ─────────────────────────────────────────────
-   Se reconstruyen con lo que llega de la hoja para que TODO el contenido de un
-   proceso (nombre, plazos, plataformas y observaciones) sea buscable desde el
-   buscador de arriba, no sólo unas palabras clave escritas a mano. */
+   El armado vive en app_indices.html porque el buscador general indexa la MISMA hoja
+   de Homologación y lo hacía con otro criterio: se saltaba los procesos sin nombre —el
+   del Portal no—, resumía con menos campos y no traía los sinónimos de la sección. Dos
+   índices del mismo dato es dos respuestas distintas a la misma pregunta según dónde se
+   escriba, que es exactamente lo que esta fase venía a terminar.
+
+   Aquí solo queda el reparto por sección, que sí es cosa del Portal: sus seis pestañas.
+   Una sección que la hoja traiga y no esté en esta lista no tiene pestaña donde vivir,
+   así que se queda fuera del buscador de la portada — pero el general sí la encuentra,
+   porque él no reparte por pestañas. */
 function trazReconstruirIndices(){
   const porId = {};
-  ((trazData && trazData.secciones) || []).forEach(function(sec){
-    porId[sec.id] = (sec.procesos || []).map(function(p){
-      const kw = trazPalabrasClave(sec, p);
-      return {
-        name: p.nombre + ' — ' + sec.label,
-        sub: trazResumen(sec, p),
-        target: p.id,
-        kw: kw,
-        /* El kw se prepara UNA vez, aquí, y no en cada pulsación: son hasta 240
-           palabras por proceso y el motor solo memoriza campos de menos de 160
-           caracteres, así que sin esto se retokenizaban los ~120 procesos con cada
-           tecla. Se conserva `kw` en crudo porque el resaltado y cualquier consumidor
-           futuro lo esperan como texto. */
-        kwCampo: window.AppBuscar ? AppBuscar.campo(kw) : null
-      };
-    });
+  ((window.AppIndices ? AppIndices.indexaTraz(trazData) : [])).forEach(function(p){
+    (porId[p.seccion] = porId[p.seccion] || []).push(p);
   });
   BT_INDEX  = porId.bigticket     || [];
   SF_INDEX  = porId.softline      || [];
@@ -6329,32 +6204,6 @@ function trazReconstruirIndices(){
   MKP_INDEX = porId.mkp           || [];
   TDA_INDEX = porId.tienda        || [];
   GEN_INDEX = porId.generales     || [];
-}
-
-/** Línea secundaria del resultado: sección, plazos y plataformas, en corto. */
-function trazResumen(sec, p){
-  const partes = [sec.label];
-  const rep = trazLimpio(p.reporte), sol = trazLimpio(p.solucion);
-  if (rep && !trazEsLargo(rep)) partes.push('Reporte ' + rep);
-  if (sol) partes.push(trazEsLargo(sol) ? 'Solución según método de pago' : sol);
-  const plats = trazPartesPlat(p.plataformas).map(function(t){ return t.base; }).slice(0, 3);
-  if (plats.length) partes.push(plats.join('/'));
-  return trazCorto(partes.join(' · '), 110);
-}
-
-/** Palabras únicas de todo el proceso + sinónimos de la sección. */
-function trazPalabrasClave(sec, p){
-  const crudo = norm([
-    p.nombre, p.plataformas, p.reporte, p.avance, p.solucion, p.observaciones,
-    TRAZ_SINONIMOS[sec.id] || '', sec.label
-  ].join(' '));
-  const vistas = {}, salida = [];
-  crudo.split(/\s+/).forEach(function(w){
-    if (w.length < 2 || vistas[w] || salida.length >= 240) return;
-    vistas[w] = 1;
-    salida.push(w);
-  });
-  return salida.join(' ');
 }
 
 /* ── Datos de ejemplo para la vista previa fuera de Apps Script ──────────────

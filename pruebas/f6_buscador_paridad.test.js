@@ -144,11 +144,25 @@ function extraeLiteral(src, nombre) {
 
 const INDEX = leer('Index.html');
 const SEARCH_SYNONYMS = extraeLiteral(INDEX, 'SEARCH_SYNONYMS');
-const FP_INDEX = extraeLiteral(INDEX, 'FP_INDEX');
-const DEVSAP_INDEX = extraeLiteral(INDEX, 'DEVSAP_INDEX');
-const SECTIONS_NAV = extraeLiteral(INDEX, 'SECTIONS_NAV');
 const APP_ACTIONS = extraeLiteral(INDEX, 'APP_ACTIONS');
-const TIENDA_CR_RAW = extraeLiteral(INDEX, 'TIENDA_CR_RAW');
+
+/* Los cuatro índices del Portal se mudaron a app_indices.html (T6.2) para que el
+   buscador general los alcance. Se cargan del partial REAL, con su IIFE, que es también
+   la comprobación de que el partial publica lo que promete. */
+function cargaAppIndices() {
+  const js = leer('app_indices.html').match(/<script>([\s\S]*?)<\/script>/)[1];
+  const ctx = { console, Math, JSON, String, Number, Object, Array, RegExp };
+  ctx.window = ctx;
+  vm.createContext(ctx);
+  vm.runInContext(js, ctx, { filename: 'app_indices.html' });
+  if (!ctx.AppIndices) throw new Error('app_indices.html no publicó window.AppIndices');
+  return ctx.AppIndices;
+}
+const IDX = cargaAppIndices();
+const FP_INDEX = IDX.formasPago;
+const DEVSAP_INDEX = IDX.devolucionesSap;
+const SECTIONS_NAV = IDX.secciones;
+const TIENDA_CR = IDX.tiendaCR;
 
 /* Fixture de `store`: lo que llega de la hoja de cálculo y aquí no hay servidor.
    Filas escritas con los MISMOS nombres de campo que declara `specs` en
@@ -430,6 +444,83 @@ console.log('7) Rendimiento con los kw largos de trazabilidad (criterio 4 del pl
   const b = B.puntua(Q, [{ t: largos[0].name, p: 3 }, { t: largos[0].sub, p: 1 }, { campo: largos[0].kwCampo, p: 1.4 }], OPTS_PORTAL);
   if (a !== b) mal(`preparar el campo cambia el puntaje: ${a} ≠ ${b}`);
   else console.log(`   ✓ mismo puntaje con campo preparado (${a.toFixed(1)})`);
+}
+console.log();
+
+/* — Tienda/CR: la rama de número que el plan manda conservar tal cual — */
+console.log('9) Tienda/CR: el número exacto gana siempre (T6.2)');
+{
+  const conQ = (t) => { const Q = B.consulta(t); Q.words = Q.palabras; Q.raw = Q.crudo; return Q; };
+  const busca = (t, prefTipo) => TIENDA_CR
+    .map((it) => ({ num: it.num, name: it.name, tipo: it.tipo, score: IDX.puntuaTiendaCR(conQ(t), it, prefTipo || null) }))
+    .filter((r) => r.score > 0)
+    .sort((a, b) => (b.score - a.score) || (a.num - b.num));
+
+  const cr96 = busca('96', 'CR');
+  if (!cr96.length || cr96[0].num !== 96) mal('"cr 96" no pone la 96 primero: ' + JSON.stringify(cr96.slice(0, 3)));
+  else console.log(`   ✓ "cr 96" → «${cr96[0].name}» (nº ${cr96[0].num}, ${cr96[0].score})`);
+
+  const tda96 = busca('96', 'Tienda');
+  if (!tda96.length || tda96[0].num !== 96) mal('"tienda 96" no encuentra la 96 (la preferencia de tipo se volvió filtro)');
+  else console.log(`   ✓ "tienda 96" también llega a la ${tda96[0].num} — la preferencia de tipo empuja, no filtra`);
+
+  const guada = busca('guadalajara');
+  if (!guada.some((r) => r.name.indexOf('GUADALAJARA') !== -1)) mal('"guadalajara" no encuentra la CR de Guadalajara');
+  else console.log(`   ✓ "guadalajara" → ${guada.length} resultados, el primero «${guada[0].name}»`);
+
+  // El catálogo entero cuando no se escribe nada (base 1): es lo que hace que teclear
+  // solo "tienda" liste las tiendas en vez de dejar el desplegable vacío.
+  const todo = busca('');
+  if (todo.length !== TIENDA_CR.length) mal(`sin texto deberían listarse las ${TIENDA_CR.length} y salen ${todo.length}`);
+  else console.log(`   ✓ sin texto se listan las ${todo.length} tiendas y CR`);
+
+  const conErrata = busca('guadalaraja');
+  if (!conErrata.length) console.log('   · "guadalaraja" (errata) no encuentra nada — tolerancia de scoreTiendaCR sin cambios');
+  else console.log(`   ✓ "guadalaraja" (errata) → «${conErrata[0].name}»`);
+}
+console.log();
+
+/* — T6.2: lo que solo existía en la portada, ahora se encuentra desde cualquier pantalla — */
+console.log('10) El buscador general alcanza el contenido del Portal (T6.2)');
+{
+  const delPortal = IDX.paraBuscadorGeneral();
+  const esperados = FP_INDEX.length + DEVSAP_INDEX.length + SECTIONS_NAV.length;
+  if (delPortal.length !== esperados) mal(`paraBuscadorGeneral devuelve ${delPortal.length} y deberían ser ${esperados}`);
+  else console.log(`   ✓ ${delPortal.length} entradas (${FP_INDEX.length} formas de pago + ${DEVSAP_INDEX.length} devoluciones SAP + ${SECTIONS_NAV.length} secciones)`);
+
+  // Los mismos pesos y la misma política que usa app_comando para el contenido del Portal.
+  const camposCmdk = (p) => [{ t: p.nombre, p: 3 }, { t: p.sub, p: 1.2 }, { t: p.extra, p: .7 }];
+  const desdeOtraPantalla = (t) => {
+    const varias = B.consulta(t).palabras.length > 1;
+    return B.filtra(delPortal, t, camposCmdk, { limite: 6, exigirTodas: varias, conPuntaje: true });
+  };
+
+  [
+    ['clabe', 'Transferencia BBVA', 'la CLABE, preguntada desde una cotización'],
+    ['enr', 'ENR', 'una leyenda de SAP desde la pantalla de correos'],
+    ['fbl5n', 'FBL5N', 'una transacción de SAP desde donde sea'],
+    ['bines', 'BINes', 'la tabla de bines permitidos'],
+    ['paqueterias', 'Paqueterías', 'una sección entera del Portal'],
+    ['monedero', 'Monedero', 'el traspaso de saldo'],
+    ['recogido vencido', 'Correo soporte', 'dos palabras, una leyenda concreta']
+  ].forEach(([q, esperado, porque]) => {
+    const r = desdeOtraPantalla(q);
+    const hit = r.find((x) => x.item.nombre.toLowerCase().indexOf(esperado.toLowerCase()) !== -1);
+    if (!hit) mal(`"${q}" no encuentra «${esperado}» desde otra pantalla (${porque}) — sale: ${r.map((x) => x.item.nombre).join(' | ') || 'nada'}`);
+    else console.log(`   ✓ "${q}" → «${hit.item.nombre}» · sec=${hit.item.seccion}${hit.item.item ? ' item=' + hit.item.item : ''}`);
+  });
+
+  // El destino tiene que ser navegable: sección conocida y, si hay elemento, un id real.
+  const secciones = new Set(SECTIONS_NAV.map((s) => s.id));
+  delPortal.forEach((p) => {
+    if (!secciones.has(p.seccion)) mal(`«${p.nombre}» apunta a la sección "${p.seccion}", que no está en SECTIONS_NAV`);
+  });
+  const conItem = delPortal.filter((p) => p.item);
+  const idsEnPortal = new Set();
+  (INDEX.match(/id="([a-z0-9-]+)"/g) || []).forEach((m) => idsEnPortal.add(m.slice(4, -1)));
+  const huerfanos = conItem.filter((p) => !idsEnPortal.has(p.item));
+  if (huerfanos.length) mal(`estos destinos no existen en el HTML del Portal: ${huerfanos.map((p) => p.item).join(', ')}`);
+  else console.log(`   ✓ los ${conItem.length} destinos con elemento apuntan a un id que existe en Index.html`);
 }
 console.log();
 
