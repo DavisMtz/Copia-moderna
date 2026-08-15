@@ -72,6 +72,18 @@
     },
 
     modalIn: function (overlay, card) {
+      /* Un cierre EN VUELO deja una línea de tiempo cuyo onComplete quita `.active`, y
+         como el overlay es `display:none` sin esa clase, apagaría el modal que se acaba
+         de abrir: nace visible y desaparece solo, con su pregunta hecha y sin nadie que
+         pueda contestarla. No es hipotético — el botón atrás con un diálogo de «cambios
+         sin guardar» delante cierra y vuelve a preguntar en la misma vuelta síncrona.
+
+         Se mata la LÍNEA entera, no sus tweens. Es la diferencia que importa y que ya
+         costó un arreglo que no arreglaba nada: `killTweensOf` sobre los hijos los saca
+         de la línea, la deja con duración cero y entonces COMPLETA en el fotograma
+         siguiente — o sea, adelanta el apagado de 220 ms a 16 ms en vez de evitarlo.
+         `tl.kill()` no dispara onComplete. Comprobado ejecutando GSAP, no razonado. */
+      if (overlay.__cierreTl) { overlay.__cierreTl.kill(); overlay.__cierreTl = null; }
       overlay.classList.add('active');
       if (!ok()) return;
       gsap.fromTo(overlay, { opacity: 0 }, { opacity: 1, duration: .22, ease: 'power1.out' });
@@ -79,9 +91,12 @@
     },
 
     modalOut: function (overlay, card, done) {
-      const finish = function () { overlay.classList.remove('active'); if (done) done(); };
+      const finish = function () { overlay.__cierreTl = null; overlay.classList.remove('active'); if (done) done(); };
       if (!ok()) { finish(); return; }
       const tl = gsap.timeline({ onComplete: finish });
+      // Guardada en el nodo para que modalIn pueda cancelarla si alguien reabre a media
+      // salida (ver el comentario de arriba). Se suelta en `finish`.
+      overlay.__cierreTl = tl;
       if (card) tl.to(card, { opacity: 0, y: 16, scale: .97, duration: .2, ease: 'power1.in' }, 0);
       tl.to(overlay, { opacity: 0, duration: .22, ease: 'power1.in', clearProps: 'opacity' }, 0);
     },

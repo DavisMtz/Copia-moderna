@@ -972,6 +972,115 @@ y qué se dejó fuera a propósito**. Mismo formato que el registro del document
 
 <!-- Las entradas nuevas van arriba, con la más reciente primero. -->
 
+### 2026-08-15 — F4 completa: tres esperas que cuentan qué está pasando
+
+**Qué se cambió.**
+
+- **T4.1 · Escena «reportes»** (`app_loaders.html` + `app_estado_historial.html`).
+  Nace `SCENES.reportes`: una persona ante su monitor, barras que crecen escalonadas,
+  una hoja de reporte que entra y sale, y la palomita de verificado al cerrar cada
+  vuelta. Se engancha en el historial de estado sustituyendo el esqueleto estático,
+  con `cuerpoEspera()` intacto —la cabecera de periodos sobrevive a la espera, que es
+  la razón por la que existe— y la guarda de respuestas cruzadas sin tocar.
+  **Decisión de diseño, tomada a propósito y comentada:** la escena sale solo en la
+  PRIMERA carga, donde el hueco está vacío y las cuatro filas del esqueleto eran un
+  número inventado; al CAMBIAR de periodo sigue el esqueleto, que trae exactamente las
+  filas que había y no hace encoger y volver a crecer la tarjeta por una espera que
+  suele ser de medio segundo. El partial es compartido, así que la escena aparece
+  también en el tablero público: está dibujada para los dos contextos.
+- **T4.2 · Escena «asesor»** (`app_loaders.html` + `app_atenciones.html`). Una asesora
+  con diadema y fichas de cliente que van llegando. Sustituye las tres tarjetas grises
+  del esqueleto, que eran otro número inventado —quien abre Atenciones puede tener cero
+  pendientes o doce—, así que el salto de maquetación que el esqueleto venía a evitar lo
+  daba él mismo al aterrizar la lista. Es el **único** cambio permitido en el módulo.
+- **T4.3 · Esqueletos por sección** (`operacion.html`). El único `#opp-contenido` se
+  parte en cuatro (`#opp-esperan`, `#opp-vivas`, `#opp-sueltos`, `#opp-cerradas`), cada
+  uno con su rótulo ya escrito y su esqueleto propio, y `pintar()` vuelca cada sección
+  en el suyo. Ahora se ve **cuál** de las cuatro esperas va lenta, que era el problema.
+  Se quitó el `fx` global de la llamada para no duplicar, y los cinco manejadores se
+  cierran en `onData` **y** en `onError`.
+- **Fuga preexistente, cerrada de paso** (`app_loaders.html`). `stopAll()` solo mataba
+  lo que `build()` devuelve, pero cuatro escenas veteranas (`radar`, `camion`, `percha`,
+  `etiqueta`) crean además tweens sueltos con `repeat:-1` que no devuelven: seguían
+  latiendo para siempre contra un SVG ya retirado del documento, una fuga por cada
+  espera y justo en las pantallas que más se abren. `build()` pasa a envolverse en un
+  `gsap.context()` que `stopAll()` mata — `kill()` y no `revert()`, porque en la rama de
+  error la escena sigue en pantalla y revertir la haría saltar al fallar.
+
+**Qué se comprobó.** Los 26 `.gs` y los bloques `<script>` de todas las pantallas pasan
+comprobación de sintaxis; las tres suites de `pruebas/` en verde. El comportamiento de
+`gsap.context().kill()` —que corta los tweens sueltos sin revertir estilos— se verificó
+**ejecutando GSAP de verdad**, no razonándolo.
+
+**Qué se dejó fuera a propósito.**
+
+- El mapa `PANTALLAS` no se tocó: es para la espera de NAVEGAR a una pantalla, y estas
+  dos escenas son esperas dentro de una pantalla ya abierta. Si algún día se quiere que
+  navegar a `estado` o a `atenciones` saque la escena nueva, el cambio va ahí.
+- `VentelFX.skeleton` sigue sin un `kind` que dibuje un reporte suelto con su chip y sus
+  miniaturas, y sin `opts.title` para rotular la espera; el rótulo lo pone la pantalla.
+  Si el patrón se repite, su sitio es el motor.
+- El número de filas de cada esqueleto de Operación (2/2/3/1) es un juicio, no una
+  medida sobre datos reales.
+- Los criterios de F4 que exigen el navegador —el aspecto real de las escenas, el CDN
+  bloqueado, `prefers-reduced-motion`— quedan para la comprobación manual sobre el
+  despliegue, como el resto de lo que depende de `google.script.*`.
+
+### 2026-08-15 — Las dos lentes de revisión de T1.2 que faltaban, ya pasadas
+
+La entrada de T1.2 dejó anotado que las lentes de **regresión** y **alcance** no habían
+llegado a reportar. Se pasaron, y encontraron tres cosas — las tres corregidas:
+
+- **`operacion`: el enlace profundo se gastaba contra la copia en caché.** `AppRun.swr`
+  avisa DOS veces cuando hay copia local (primero con `deCache=true`, luego con la
+  respuesta del servidor), pero `onData` se declaró con un solo parámetro y tiraba el
+  aviso. La guarda de «aplicar el enlace una sola vez» se consumía contra una copia que
+  puede tener 45 s, así que una incidencia nacida dentro de esa ventana no se encontraba,
+  `olvidarUrl()` **borraba** `action`/`inc`/`item` de la barra, y cuando un segundo
+  después llegaba el dato bueno ya no quedaba ni modal ni enlace del que tirar. Ahora el
+  `deCache` viaja hasta la decisión y el intento queda pendiente para el pintado fresco
+  — que es justo lo que la pantalla hermana `anuncios` ya hacía bien.
+- **El arreglo anterior del diálogo de `anuncios` NO arreglaba nada.** Se dio por buena
+  una corrección que mataba los tweens del cierre; comprobado ejecutando GSAP, vaciar una
+  línea de tiempo hace que COMPLETE en el fotograma siguiente, así que **adelantaba** el
+  apagado de 220 ms a 16 ms en vez de evitarlo, y el comentario que lo acompañaba
+  afirmaba lo contrario. La cura no cabía en `anuncios`: está en `AppMotion.modalIn`
+  (`app_motion.html`), que ahora cancela el cierre en vuelo matando la LÍNEA entera
+  —`tl.kill()` no dispara `onComplete`—, y de paso cubre a todos los modales de la app.
+- **`Promociones` repintaba de más.** El oyente de atrás reconstruía la lista entera
+  aunque lo único que cambiara fuese la tarjeta enfocada: cada «atrás» vaciaba el
+  contenedor, relanzaba la cascada de entrada de todas las tarjetas y las barras de
+  vigencia desde cero. Ahora se compara antes de repintar, y el foco se resuelve sobre
+  las tarjetas que ya están.
+
+También salió un defecto latente del motor: `buildCard` sembraba el primer subtítulo
+desde `copy.steps[0]` pero nunca desde `opts.steps[0]`, así que quien pasa pasos propios
+sin `sub` —el historial, porque solo él sabe qué periodo se está pidiendo— arrancaba con
+el subtítulo en blanco hasta la primera rotación, a los 2,6 s: en una espera de un
+segundo, nunca. Corregido.
+
+Lo que las dos lentes **no** encontraron también cuenta: no falta ni un `id` en los trece
+archivos de T1.2, ninguna línea eliminada se llevó por delante una función o un botón,
+todos los manejadores que ganaron una bandera booleana están envueltos para que el
+`Event` no se cuele en su sitio, las cuatro prohibiciones de alcance se respetaron, y los
+tres formularios con trabajo en riesgo —el borrador de cotización, el `state.dirty` de
+anuncios y el correo a medio redactar— pasan por su guardia en los tres caminos.
+
+### 2026-08-15 — F1 verificada en el despliegue real: los criterios que faltaban, cerrados
+
+La entrada de abajo dejó tres criterios de F1 pendientes de comprobación manual, porque
+`google.script.history` no existe fuera del iframe de Apps Script y no se pueden verificar
+sin publicar. **El creador del proyecto los ha comprobado sobre el despliegue real y
+confirma que funcionan**: el criterio 1 (cambiar pestaña o filtro escribe la URL, F5
+restaura el mismo estado, atrás devuelve el estado anterior y no solo la dirección), el 2
+(copiar la URL en cualquier estado, abrirla sin sesión, pasar por el login y aterrizar en
+ese estado exacto) y el 4 (las tres puertas —login, Portal y shell— llevan a cada rol a su
+inicio).
+
+Con eso **F1 queda cerrada del todo**, no solo escrita. Es el único criterio de cierre que
+este plan no puede darse a sí mismo: lo que depende de `google.script.*` solo lo confirma
+quien tiene el despliegue delante.
+
 ### 2026-08-15 — T1.2 y **F1 completa**: la URL viva en todo el sitio
 
 **Qué se cambió.**

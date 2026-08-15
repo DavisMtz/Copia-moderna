@@ -1653,7 +1653,12 @@ document.addEventListener('DOMContentLoaded', () => {
        vuelve a apilar y el botón atrás deja de avanzar. */
     AppUrl.alCambiarUrl(function (loc) {
       const p = (loc && loc.parameter) || {};
-      irAPestana(SEC_A_TAB[p.sec] || 'promos', true);
+      /* Solo se cambia de pestaña si de verdad es otra: switchTab esconde todas las
+         secciones y relanza el fundido de la suya, así que llamarlo por costumbre hacía
+         parpadear la pantalla en cada atrás aunque la pestaña fuera la misma. */
+      const tab = SEC_A_TAB[p.sec] || 'promos';
+      const btn = document.getElementById('tab-' + tab);
+      if (btn && !btn.classList.contains('active')) irAPestana(tab, true);
       aplicarEstadoUrl(p, true);
     });
   }
@@ -1851,16 +1856,30 @@ function irAPestana(tabId, sinUrl){
  */
 function aplicarEstadoUrl(p, repintar){
   const inp = document.getElementById('searchInput');
+  const org = document.getElementById('filterOrigen');
+  const origen = ORIGENES.indexOf(p.origen) !== -1 ? p.origen : 'all';
+
+  /* Qué ha cambiado DE VERDAD respecto a lo que ya está en pantalla. Sin esta
+     comparación, cada atrás reconstruía la lista entera: soltar el foco de una tarjeta
+     —que no toca ni un filtro— vaciaba el contenedor, volvía a pintar todas las
+     tarjetas con su cascada de entrada y relanzaba las barras de vigencia desde cero.
+     El foco no necesita nada de eso: se resuelve sobre las tarjetas ya pintadas. */
+  const cambioFiltro = (p.q || '') !== inp.value ||
+                       (p.dir || 'all') !== currentDir ||
+                       origen !== org.value;
+
   inp.value = p.q || '';
   document.getElementById('searchClear').style.display = inp.value ? 'flex' : 'none';
   currentDir = p.dir || 'all';
-  const org = document.getElementById('filterOrigen');
-  org.value = ORIGENES.indexOf(p.origen) !== -1 ? p.origen : 'all';
+  org.value = origen;
   promoPendiente = p.promo || '';
   // Volver a una URL sin ?promo es haber cerrado el foco: se pasa por pcClear, que
   // es quien quita el letrero de «Enter para abrir» además de la marca.
   if (!promoPendiente) pcClear(true);
-  if (repintar) { syncChipState(); applyFilters(); }
+  if (repintar && cambioFiltro) { syncChipState(); applyFilters(); }
+  // Los filtros no se movieron, pero la URL sí pide otra tarjeta enfocada: se resuelve
+  // sobre las que ya están, sin reconstruir nada.
+  else if (repintar && promoPendiente) enfocarPromoPendiente();
 }
 
 /* Identidad de una tarjeta que sobrevive a un enlace compartido. No puede ser el

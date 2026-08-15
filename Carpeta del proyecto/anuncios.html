@@ -1347,21 +1347,12 @@
       var confirmCb = null, confirmNoCb = null, confirmPrevFocus = null;
       function abrirConfirm(opts, cb, cbNo){
         var ov = $('ancConfirm');
-        /* Un cierre en curso deja viva una línea de tiempo de GSAP cuyo onComplete
-           quita `.active` a los .22 s. Si entre medias se vuelve a abrir el diálogo,
-           ese onComplete apaga el diálogo NUEVO: queda oculto con su pregunta hecha y
-           sin nadie que pueda contestarla. No es hipotético — el botón atrás con una
-           pregunta a medio contestar hace justo eso, cerrar y volver a preguntar en la
-           misma vuelta síncrona (ver el oyente de wireUrl) —, y solo se ve con las
-           animaciones puestas: sin GSAP o con prefers-reduced-motion, modalOut termina
-           al momento y el orden sale bien. Matar los tweens pendientes y devolver la
-           opacidad cierra el hueco para cualquier camino que cierre y reabra seguido. */
-        if (window.gsap) {
-          var card = $('ancConfirmCard');
-          gsap.killTweensOf(ov); gsap.killTweensOf(card);
-          gsap.set(ov, { clearProps: 'opacity' });
-          gsap.set(card, { clearProps: 'opacity,transform' });
-        }
+        /* Cerrar y volver a abrir en la misma vuelta —el botón atrás con esta misma
+           pregunta delante lo hace— lo resuelve AppMotion.modalIn, que cancela el cierre
+           en vuelo antes de abrir. Aquí hubo un parche que mataba los tweens del cierre
+           y NO servía: vaciar la línea de tiempo la hace completar en el fotograma
+           siguiente, así que adelantaba el apagado en vez de evitarlo. La cura está en
+           la pieza común, donde además cubre a todos los modales de la app. */
         $('ancConfirmT').textContent = opts.titulo;
         $('ancConfirmD').innerHTML = esc(opts.texto);
         var si = $('ancConfirmYes');

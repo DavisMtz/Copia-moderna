@@ -1138,17 +1138,17 @@
   function clavePanorama() { return 'atenciones-' + correo(); }
 
   /* ── EL HUECO MIENTRAS SE PIDE EL PANORAMA ───────────────────────────────
-     Tres estados en el mismo sitio: el esqueleto de tarjetas mientras se pide, la
+     Tres estados en el mismo sitio: la escena del asesor mientras se pide, la
      lista cuando llega, y la escena de la bolsa con «Reintentar» si no llegó.
 
      El hueco se deja VACÍO a propósito cuando el motor de escenas está en la
-     pantalla: lo llena `cargar` con el esqueleto, que dibuja la forma de lo que va a
-     aterrizar y evita que la lista dé un salto al hacerlo. Sin motor —hay pantallas
+     pantalla: lo llena `cargar`, y ese hueco vacío es justo la señal que usa para
+     saber que puede hacerlo sin taparle la lista a nadie. Sin motor —hay pantallas
      que montan este módulo sin incluirlo— queda el disco de siempre. */
   function prepararHueco() {
     if (!host) return;
-    var conEsqueleto = !!window.VentelFX;
-    host.innerHTML = conEsqueleto
+    var conEscena = !!window.VentelFX;
+    host.innerHTML = conEscena
       ? ''
       : '<div class="atn-vacio"><div class="v-spinner"></div> Cargando tus atenciones…</div>';
   }
@@ -1236,10 +1236,35 @@
       ttl: TTL_PANORAMA,
       fuerza: forzar === true,
       accept: function (r) { return !!(r && r.success); },
-      // Esqueleto SOLO con el hueco vacío. Con la lista ya pintada —la
+      // Escena SOLO con el hueco vacío. Con la lista ya pintada —la
       // revalidación de siempre, o «Actualizar», que salta la caché— se colgaría
       // DEBAJO de lo que se está leyendo; ahí el acuse va en el botón que se pulsó.
-      fx: (host && !host.firstChild) ? { target: host, kind: 'tarjetas', rows: 3 } : null,
+      //
+      // Era un esqueleto de tres tarjetas y ahora es la escena del asesor. El
+      // esqueleto prometía una forma que aquí nadie puede saber: quien abre esto
+      // puede tener cero pendientes o doce, así que las tres tarjetas grises eran un
+      // número inventado y el salto que venían a evitar lo daban ellas mismas al
+      // aterrizar la lista de verdad. La escena no promete forma: cuenta lo que se
+      // está preguntando al servidor, que es lo único cierto durante esos segundos.
+      //
+      // Sin `title` ni `steps`: los textos de `asesor` viven en la copia del tema y
+      // están escritos para ESTA espera («separando las tuyas de las que están
+      // libres», «revisando qué reservas siguen vivas»). Repetirlos aquí sería
+      // tener el mismo guion en dos archivos, y el que se quedaría viejo es éste.
+      //
+      // `minHeight` y `mode` son los mismos que usa `mostrarError` unas líneas más
+      // arriba, y eso es a propósito: si la espera acaba mal, el aviso ocupa
+      // exactamente el hueco que ya estaba reservado y la tarjeta no se encoge para
+      // volver a crecer delante de quien está mirando.
+      //
+      // El manejador NO se guarda en una variable del módulo, al revés que `fxError`:
+      // esta escena la cierra `AppRun.swr`, que llama a `.done()` tanto si llegan los
+      // datos como si la llamada falla, y el `!host.firstChild` de aquí arriba impide
+      // montar una segunda encima de una viva. Guardar una copia sería un segundo
+      // dueño del mismo nodo, que es justo como se acaba cerrando la escena de otro.
+      fx: (host && !host.firstChild)
+        ? { target: host, tema: 'asesor', mode: 'fill', minHeight: '15rem' }
+        : null,
       onData: function (r, deCache, at) {
         if (r && r.success) { datos = r; datosAt = at || Date.now(); pintar(); }
       },
