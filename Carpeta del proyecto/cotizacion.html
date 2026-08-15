@@ -472,7 +472,7 @@
     </div>
 
     <script>
-        window.__APP__ = { baseUrl: <?!= JSON.stringify(baseUrl) ?>, folio: <?!= JSON.stringify(folio) ?>, action: <?!= JSON.stringify(action) ?> };
+        window.__APP__ = <?!= APP_JSON ?>;
     </script>
     <?!= include('app_core'); ?>
     <?!= include('app_prefs'); ?>

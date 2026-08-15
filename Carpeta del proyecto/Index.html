@@ -1385,7 +1385,7 @@ table.ds-matrix{width:100%;border-collapse:separate;border-spacing:0;min-width:5
 <!-- Núcleo compartido con el sistema de cotizaciones: AppUrl / AppSession.
      El Portal es público, pero si el asesor ya inició sesión en Cotizaciones
      el acceso del sidebar y el control del topbar lo llevan directo a su panel. -->
-<script>window.__APP__ = { baseUrl: '<?= APP_URL ?>' };</script>
+<script>window.__APP__ = <?!= APP_JSON ?>;</script>
 <?!= include('app_core') ?>
 <?!= include('app_prefs'); ?>
 <?!= include('app_guardado') ?>
@@ -4713,7 +4713,7 @@ function goAppAction(entrada){
      consola— sin dar ninguna señal de que el parámetro se había perdido por el
      camino. El fallo se veía como "el buscador te deja en el sitio equivocado", que
      no lleva a nadie hasta esta línea. La lista es la misma de PARAMS_VISTA. */
-  const PASAN = ['tpl', 'sec', 'action', 'folio', 'q', 'buscar', 'ancla', 'inc', 'promo', 'item'];
+  const PASAN = ['tpl', 'sec', 'action', 'folio', 'q', 'buscar', 'ancla', 'inc', 'promo', 'item', 'rango', 'estatus', 'dir', 'origen'];
   const params = {};
   PASAN.forEach(function (k) { if (act[k]) params[k] = act[k]; });
 

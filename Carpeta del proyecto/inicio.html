@@ -100,7 +100,7 @@
     </main>
 
     <script>
-        window.__APP__ = { baseUrl: <?!= JSON.stringify(baseUrl) ?>, q: <?!= JSON.stringify(q) ?> };
+        window.__APP__ = <?!= APP_JSON ?>;
     </script>
     <?!= include('app_core'); ?>
     <?!= include('app_prefs'); ?>

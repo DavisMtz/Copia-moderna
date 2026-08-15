@@ -669,14 +669,12 @@
   </div>
 
   <script>
-    window.__APP__ = {
-      baseUrl: <?!= JSON.stringify(APP_URL) ?>,
-      inc: <?!= JSON.stringify(inc) ?>,
-      // Periodo del gráfico ('24h', '7d'…). Va inyectado como los demás parámetros de
-      // vista: dentro del iframe de Apps Script, leer la barra de direcciones da la del
-      // sandbox y no la del enlace que alguien compartió.
-      rango: <?!= JSON.stringify(rango) ?>
-    };
+    /* La URL base y TODOS los parámetros de vista, inyectados por el servidor y ya
+       escapados (appEstadoInicialJson_ en Code.gs). Dentro del iframe de Apps Script,
+       leer la barra de direcciones da la del sandbox y no la del enlace que alguien
+       compartió: `inc` y `rango` —y cualquiera que se añada mañana— solo llegan por
+       aquí. Va ANTES de app_core, que es quien lo lee al cargarse. */
+    window.__APP__ = <?!= APP_JSON ?>;
   </script>
   <?!= include('app_core'); ?>
   <?!= include('app_prefs'); ?>

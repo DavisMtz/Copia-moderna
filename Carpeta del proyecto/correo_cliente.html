@@ -289,7 +289,7 @@
     <div class="cc-toast" id="toast"></div>
 
     <script>
-        window.__APP__ = { baseUrl: <?!= JSON.stringify(baseUrl) ?>, tpl: <?!= JSON.stringify(tpl) ?> };
+        window.__APP__ = <?!= APP_JSON ?>;
     </script>
     <?!= include('app_core'); ?>
     <?!= include('app_prefs'); ?>
