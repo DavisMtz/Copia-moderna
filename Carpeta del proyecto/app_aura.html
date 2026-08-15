@@ -514,6 +514,21 @@
      Subir C lo vuelve obediente y muerto; bajarlo, un péndulo. */
   var K = 26, C = 9.2;
 
+  /* El resorte no se enchufa de golpe. `TAU_TIRA` es lo que tarda en pasar de
+     "el cono va a lo suyo" a "el cono obedece", y al revés. Sin esta rampa, el
+     fotograma en que entra el ratón mete una aceleración enorme —el cursor
+     puede estar a media vuelta— y aunque el tirón es de menos de un grado, la
+     curva de velocidad da un escalón. Con ella, el cambio de mando también es
+     continuo: no hay un instante en que el componente cambie de idea. */
+  var TAU_TIRA = .28;
+
+  /* Techo de velocidad. Un cursor que cruza cerca del CENTRO del campo hace que
+     su ángulo respecto al centro gire medio círculo en unos pocos píxeles, y el
+     cono, obediente, se iba a 350°/s: correcto según la física y mareante en
+     pantalla. Ciento ochenta por segundo —media vuelta— es rápido de sobra para
+     que se lea como respuesta sin que parezca que se ha soltado. */
+  var VMAX = 180;
+
   /* Constantes de tiempo de los acercamientos exponenciales, en segundos: en
      una constante se recorre el 63 % de lo que falta. */
   var TAU_VEL = .85;          /* la vuelta a la velocidad de crucero */
@@ -711,6 +726,7 @@
         ang: -150,          /* grados del cono                            */
         vel: 300,           /* grados/s — el impulso con el que nace      */
         obj: null,          /* ángulo al que apunta el cursor, o nada     */
+        tira: 0,            /* 0 = va a lo suyo · 1 = obedece al cursor   */
         cerca: 0,           /* 0 en el centro del campo, 1 pegado al filo */
         malla: 0, arco: 0, halo: 0,   /* opacidades vivas                 */
         lx: 0, ly: 0, lop: 0,         /* el foco del puntero              */
@@ -756,13 +772,25 @@
         /* ── el ángulo ──
            Regla 1: la velocidad tiende siempre a la de crucero.
            Regla 2: si hay cursor, un resorte tira del cono hacia él.
-           No hay una tercera. */
-        if (E.obj === null) {
-          var crucero = E.dentro ? CRUCERO_FOCO : CRUCERO;
-          E.vel += (crucero - E.vel) * (1 - Math.exp(-dt / TAU_VEL));
-        } else {
-          E.vel += (K * corto(E.obj - E.ang) - C * E.vel) * dt;
+           No hay una tercera — y las dos conviven mezcladas por `tira`, que es
+           lo que evita el instante de conmutación entre una y otra. */
+        var tira = E.obj === null ? 0 : 1;
+        E.tira += (tira - E.tira) * (1 - Math.exp(-dt / TAU_TIRA));
+
+        var crucero = E.dentro ? CRUCERO_FOCO : CRUCERO;
+        E.vel += (crucero - E.vel) * (1 - Math.exp(-dt / TAU_VEL)) * (1 - E.tira);
+        if (E.obj !== null) {
+          E.vel += (K * corto(E.obj - E.ang) - C * E.vel) * dt * E.tira;
         }
+        /* El techo es para el resorte, no para el gesto: el barrido con el que
+           nace el contorno sale a 300°/s a propósito y no hay nada que marear
+           ahí, porque no está siguiendo a nadie. Por eso sólo se recorta cuando
+           hay una mano de por medio. */
+        if (E.tira > .05) {
+          if (E.vel >  VMAX) E.vel =  VMAX;
+          if (E.vel < -VMAX) E.vel = -VMAX;
+        }
+
         E.ang += E.vel * dt;
         if (E.ang > 3600 || E.ang < -3600) E.ang = corto(E.ang);   /* sin números enormes */
 
@@ -1045,7 +1073,11 @@
       function teclea() {
         if (!E.dentro) return;
         E.pulso = Math.min(.34, E.pulso + .16);
-        if (E.obj === null) E.vel += 55;
+        /* Un empujón a la velocidad, no un salto de posición: el cono acelera y
+           el propio integrador lo devuelve a su ritmo. Treinta y cinco grados
+           por segundo es medio grado de más en el primer fotograma —invisible—
+           y medio segundo de energía extra, que es lo que sí se nota. */
+        if (E.obj === null) E.vel += 35;
         if (tlChispa) {
           gsap.timeline()
             .to(tlChispa, { timeScale: 2.6, duration: .1, ease: 'power2.out' })
