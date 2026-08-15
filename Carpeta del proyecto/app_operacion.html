@@ -820,24 +820,16 @@
     // El rótulo se despliega al apuntar… salvo mientras la pestaña está prestada al
     // guardado: ahí el ancho lo lleva la isla, y dos dueños animando el mismo max-width
     // se pisan y dejan el texto cortado a media palabra. Con la zona abierta tampoco:
-    // ahí el despliegue es de la clase .op-desplegada (la pone expandirZona vía
-    // pintarPastilla) y el tween que plegaría al salir dejaría un estilo en línea
-    // ganándole a la clase para siempre.
+    // el despliegue ya lo hizo expandirZona con estos MISMOS tweens, y el pliegue del
+    // mouseleave —que salta al pasar de la pastilla a un óvalo— cerraría la fila de
+    // abajo con la zona todavía puesta.
     pastilla.addEventListener('mouseenter', function() {
       if (zonaAbierta) return;
-      if (window.gsap && !isla.activa && !pastilla.classList.contains('op-desplegada')) {
-        gsap.to(pastilla.querySelector('.op-pill-tx'), {
-          maxWidth: 240, marginLeft: 6, paddingRight: 4, opacity: 1, duration: 0.5, ease: "expo.out", overwrite: "auto"
-        });
-      }
+      desplegarTxPastilla();
     });
     pastilla.addEventListener('mouseleave', function() {
       if (zonaAbierta) return;
-      if (window.gsap && !isla.activa && !pastilla.classList.contains('op-desplegada')) {
-        gsap.to(pastilla.querySelector('.op-pill-tx'), {
-          maxWidth: 0, marginLeft: 0, paddingRight: 0, opacity: 0, duration: 0.4, ease: "power2.inOut", overwrite: "auto"
-        });
-      }
+      plegarTxPastilla();
     });
 
     // La zona se abre al apuntarla (o al recorrerla con el teclado) SOLO si hay
@@ -1103,6 +1095,30 @@
     return zona ? Array.prototype.slice.call(zona.querySelectorAll('.op-noti')) : [];
   }
 
+  /* El rótulo de la pastilla tiene UNA dueña animada: este par de tweens, los mismos
+     del hover de siempre. La zona los reutiliza al abrirse y cerrarse para que el
+     despliegue transicione en vez de aparecer de golpe —reconstruir la pastilla
+     insertaría el nodo ya en su estado final y la transición de CSS no dispara sobre
+     nodos recién puestos—. La clase .op-desplegada queda como respaldo sin GSAP y
+     para los estados que la pastilla ya desplegaba sola (incidencias, presentación),
+     que los guardas de aquí respetan. */
+  function desplegarTxPastilla() {
+    if (window.gsap && !isla.activa && !pastilla.classList.contains('op-desplegada')) {
+      gsap.to(pastilla.querySelector('.op-pill-tx'), {
+        maxWidth: 240, marginLeft: 6, paddingRight: 4, opacity: 1,
+        duration: 0.5, ease: 'expo.out', overwrite: 'auto'
+      });
+    }
+  }
+  function plegarTxPastilla() {
+    if (window.gsap && !isla.activa && !pastilla.classList.contains('op-desplegada')) {
+      gsap.to(pastilla.querySelector('.op-pill-tx'), {
+        maxWidth: 0, marginLeft: 0, paddingRight: 0, opacity: 0,
+        duration: 0.4, ease: 'power2.inOut', overwrite: 'auto'
+      });
+    }
+  }
+
   /** Registra o actualiza una fuente. Cuenta 0 = el óvalo se retira solo. */
   function ponerNotificacion(fuente) {
     if (!fuente || !fuente.id) return;
@@ -1116,6 +1132,14 @@
   function pintarNotis() {
     if (!zona) return;
 
+    // Idempotente también a nivel DOM: el sondeo repinta cada dos minutos (y dos
+    // veces cuando hay caché), y reconstruir óvalos que no cambiaron tiraría el foco
+    // del teclado y parpadearía bajo el puntero. Si la firma no se movió, ni se toca.
+    var vivas = notiFuentes.filter(function (f) { return (f.cuenta | 0) > 0; });
+    var firma = vivas.map(function (f) { return f.id + ':' + f.cuenta; }).join('|');
+    if (firma === zona.getAttribute('data-notis')) return;
+    zona.setAttribute('data-notis', firma);
+
     // La cuenta anterior de cada óvalo, para animar solo lo que cambió.
     var previos = {};
     notisEnZona().forEach(function (n) {
@@ -1123,7 +1147,6 @@
       n.parentNode.removeChild(n);
     });
 
-    var vivas = notiFuentes.filter(function (f) { return (f.cuenta | 0) > 0; });
     if (!vivas.length) { if (zonaAbierta) contraerZona(); return; }
 
     vivas.forEach(function (f) {
@@ -1162,18 +1185,38 @@
    * que abre el panel de estado con su toque de siempre—.
    */
   function alPulsarNoti(f) {
-    if (esTactil() && !zonaAbierta) { expandirZona(); return; }
+    // Con la isla puesta la zona no se abre (el guardado manda), pero un toque no
+    // puede tragarse sin hacer nada: en ese caso —igual que en escritorio, donde el
+    // hover ya abrió la zona— el toque navega directo.
+    if (esTactil() && !zonaAbierta && !isla.activa) { expandirZona(); return; }
     contraerZona();
     if (f && typeof f.ir === 'function') f.ir();
   }
 
   /**
-   * Abre la zona: fila → columna invertida. El cambio de sitio de cada óvalo se anima
-   * con FLIP (medir antes, cambiar el layout, entrar desde la posición vieja con
-   * transform), que es lo único que GSAP posee aquí. pintarPastilla() se llama para
-   * que la pastilla despliegue su rótulo por la clase de siempre: reconstruye el
-   * innerHTML, así que de paso borra cualquier estilo en línea que el hover hubiera
-   * dejado en el rótulo —sin eso, un max-width:0 en línea le ganaría a la clase—.
+   * Recoloca los óvalos con FLIP tras un cambio de layout de la zona, y es
+   * INTERRUMPIBLE: `antes` se mide con el transform que hubiera en vuelo (es la
+   * posición donde el ojo ve el óvalo ahora mismo), luego se mata ese tween y se
+   * limpia su transform ANTES de medir el destino —así el destino es layout puro— y
+   * el óvalo arranca exactamente donde estaba, sin el salto que daba entrar y salir
+   * rápido con el puntero.
+   */
+  function flipNotis(notis, antes, duracion, ease) {
+    notis.forEach(function (n, i) {
+      gsap.killTweensOf(n);
+      gsap.set(n, { clearProps: 'transform' });
+      var d = n.getBoundingClientRect();
+      gsap.from(n, { x: antes[i].left - d.left, y: antes[i].top - d.top,
+                     duration: duracion, ease: ease, overwrite: 'auto',
+                     clearProps: 'transform' });
+    });
+  }
+
+  /**
+   * Abre la zona: fila → columna invertida. El viaje de cada óvalo a su fila lo
+   * anima el FLIP (transform, lo único que GSAP posee aquí); el rótulo de la
+   * pastilla se despliega con su dueña de siempre —el tween del hover— para que
+   * transicione, con la clase .op-desplegada de respaldo cuando no hay GSAP.
    */
   function expandirZona() {
     if (zonaAbierta || !zona || isla.activa) return;
@@ -1183,15 +1226,12 @@
 
     var antes = conGsap() ? notis.map(function (n) { return n.getBoundingClientRect(); }) : null;
     zona.classList.add('op-abierta');
-    pintarPastilla();
 
     if (antes) {
-      notis.forEach(function (n, i) {
-        var d = n.getBoundingClientRect();
-        gsap.from(n, { x: antes[i].left - d.left, y: antes[i].top - d.top,
-                       duration: .45, ease: 'power3.out', overwrite: 'auto',
-                       clearProps: 'transform' });
-      });
+      desplegarTxPastilla();
+      flipNotis(notis, antes, .45, 'power3.out');
+    } else if (pastilla) {
+      pastilla.classList.add('op-desplegada');
     }
   }
 
@@ -1203,15 +1243,14 @@
     var notis = notisEnZona();
     var antes = conGsap() ? notis.map(function (n) { return n.getBoundingClientRect(); }) : null;
     zona.classList.remove('op-abierta');
-    if (!isla.activa) pintarPastilla();
 
     if (antes) {
-      notis.forEach(function (n, i) {
-        var d = n.getBoundingClientRect();
-        gsap.from(n, { x: antes[i].left - d.left, y: antes[i].top - d.top,
-                       duration: .4, ease: 'power2.inOut', overwrite: 'auto',
-                       clearProps: 'transform' });
-      });
+      plegarTxPastilla();
+      flipNotis(notis, antes, .4, 'power2.inOut');
+    } else if (pastilla && !isla.activa) {
+      // Sin GSAP la clase no se quita a mano —una incidencia pudo ponerla por su
+      // cuenta—: se repinta la pastilla, que recalcula su estado completo.
+      pintarPastilla();
     }
   }
 
@@ -1285,10 +1324,8 @@
     }
 
     // Con incidencias el rótulo se queda desplegado: no se puede pedir que alguien pase
-    // el ratón por encima para enterarse de que un sistema está caído. Con la zona de
-    // notificaciones abierta también: la pastilla es la fila de abajo y una fila sin
-    // texto no dice a dónde lleva.
-    var desplegada = afectados.length > 0 || presentando || zonaAbierta;
+    // el ratón por encima para enterarse de que un sistema está caído.
+    var desplegada = afectados.length > 0 || presentando;
 
     pastilla.className = 'op-pill tono-' + tono + (late ? ' late' : '') +
                          (desplegada ? ' op-desplegada' : '');
@@ -1297,6 +1334,20 @@
       '<span class="op-pill-tx">' + esc(texto) + '</span>' +
       (afectados.length > 1 ? '<span class="op-cont"><span>' + afectados.length + '</span></span>' : '');
     pastilla.setAttribute('aria-label', 'Estado de los sistemas: ' + texto + '. Abrir el detalle.');
+
+    // Con la zona de notificaciones abierta, la pastilla es la fila de abajo y su
+    // rótulo debe seguir a la vista aunque este repintado acabe de reconstruir el
+    // nodo. Se repone por la MISMA dueña que lo abrió: los estilos de GSAP —con set,
+    // no con tween: ya estaba abierto y debe seguir igual, no reanimarse— o la clase
+    // de respaldo cuando no hay GSAP.
+    if (zonaAbierta && !desplegada) {
+      if (conGsap()) {
+        gsap.set(pastilla.querySelector('.op-pill-tx'),
+                 { maxWidth: 240, marginLeft: 6, paddingRight: 4, opacity: 1 });
+      } else {
+        pastilla.classList.add('op-desplegada');
+      }
+    }
 
     var estabaOculta = pastilla.hidden;
     pastilla.hidden = false;

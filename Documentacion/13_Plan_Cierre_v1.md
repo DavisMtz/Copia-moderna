@@ -1025,13 +1025,27 @@ y qué se dejó fuera a propósito**. Mismo formato que el registro del document
 **Qué se comprobó.** `node --check` en verde sobre los `.gs` tocados; los bloques
 `<script>` de los dos HTML modificados pasan comprobación de sintaxis; las dos
 suites de `pruebas/` en verde (40 + 44 comprobaciones). Revisión adversarial en
-cuatro lentes (apego al plan, corrección JS, reglas GSAP de la casa, seguridad y
-caché del servidor) con verificación de cada hallazgo. Verificado en código que
-`estado.html` solo oculta `.op-pill`, así que el óvalo también notifica en el
-tablero (donde el estado sí es redundante pero el conteo no).
+cuatro lentes: corrieron dos (apego al plan y corrección JS) con 5 hallazgos; las
+otras dos (GSAP y servidor) y los verificadores cayeron por límite de sesión, así
+que los 5 se verificaron A MANO contra el código y las lentes caídas se cubrieron
+con el checklist de la skill `gsap-ventel` y el razonado de caché/gates ya escrito
+en el código: 4 eran reales y menores —repintado de óvalos no idempotente (tiraba
+el foco), FLIP no interrumpible (salto visual al entrar y salir rápido), toque
+tragado en táctil durante un guardado, y rótulo de la pastilla sin transición al
+abrir la zona— y se corrigieron en una segunda tanda; el quinto era la decisión de
+diseño del registro, documentada abajo. Verificado en código que `estado.html`
+solo oculta `.op-pill`, así que el óvalo también notifica en el tablero (donde el
+estado sí es redundante pero el conteo no).
 
 **Qué se dejó fuera a propósito.**
 
+- El registro de prioridades NO absorbe la maquinaria del guardado: la isla sigue
+  entrando por `AppGuardado.delegarIndicador` y las notificaciones por su registro,
+  con el contrato de prioridades (guardado > notificaciones > estado) escrito en el
+  código y cumplido por construcción —los óvalos son hermanos de la pastilla y la
+  zona no se abre con la isla puesta—. Refundir el guardado dentro del registro era
+  reescribir una máquina probada para ganar una simetría que hoy no compra nada;
+  se revisa si algún día una TERCERA fuente lo pide.
 - El texto de la fila inferior sigue siendo el de la máquina de estado («Sistemas
   operando», no el literal «Operando con normalidad» de la maqueta): inventar un
   segundo rótulo para el mismo estado es justo lo que la pastilla evita.
