@@ -7,11 +7,10 @@
      gritar: un cono de luz que recorre el filo por su cuenta, se engancha al
      puntero cuando hay puntero, y se enciende de verdad al acercarse al borde.
 
-     QUÉ CAMBIÓ respecto de la primera versión. Antes el contorno era un anillo
-     de color girando: bonito, pero siempre igual de brillante en toda la vuelta
-     y ajeno a dónde estabas. Ahora el filo se pinta con una MALLA de color
-     —siete manchas rosas de distinta profundidad— y sobre ella una VENTANA
-     CÓNICA que sólo deja ver un sector. Eso cambia dos cosas:
+     ── CÓMO SE PINTA ──────────────────────────────────────────────────────
+     El filo se pinta con una MALLA de color —siete manchas rosas de distinta
+     profundidad— y sobre ella una VENTANA CÓNICA que sólo deja ver un sector.
+     Eso cambia dos cosas frente a un anillo de color girando:
 
        · el color ya no es plano: según por dónde pase la ventana asoma el rosa
          claro, el de marca o el profundo, y nunca dos vueltas iguales;
@@ -20,16 +19,13 @@
          cursor se acerca al borde —en el centro del campo apenas se nota, sobre
          el filo se enciende del todo—.
 
-     Esa es la diferencia entre un adorno que gira y una superficie que responde.
-
      Seis capas, y cada una hace una sola cosa:
 
        halo    · el suelo del contorno. Va bajísimo a propósito (.05 en reposo,
                  .16 con el cursor dentro): es lo que evita que el filo se corte
                  en los tramos donde el cono no llega, no el protagonista. Un
                  anillo macizo al 60 % se lee como un aviso de error.
-       malla   · el corazón. Mesh de rosas de marca + ventana cónica. Gira sola
-                 en reposo, apunta al cursor cuando lo hay.
+       malla   · el corazón. Mesh de rosas de marca + ventana cónica.
        chispa  · dientes finos girando al revés y parpadeando con tiempos
                  irregulares. Cruzándose con la malla produce un batido que se
                  lee como corriente. Va en el límite de lo perceptible (nivel 3
@@ -47,21 +43,38 @@
                  tramo hacia el que mira la malla. Es lo que hace que el campo
                  parezca encenderse en lugar de cambiar de color.
 
-     Y tres gestos que no son capas:
+     ── POR QUÉ NO HAY ESTADOS, SINO FÍSICA ────────────────────────────────
+     Esta es la decisión que gobierna el archivo entero, y la razón de que se
+     sienta fluido en vez de correcto.
 
-       entrada · una sola vez al cargar, el cono da una vuelta completa —rápido
-                 al principio, frenando al final— y el halo sube detrás. El
-                 contorno no aparece: se dibuja.
-       foco    · el campo se levanta 1 px, el icono crece un 12 % con
-                 asentamiento y el chip del atajo se va hacia arriba. Un
-                 componente responde entero o no responde.
-       tecleo  · la malla pulsa y la chispa acelera de golpe para frenar
-                 después. La subida y bajada del ritmo es lo que se lee como
-                 "está recibiendo".
+     Lo natural sería una animación por estado: una que gire en reposo, otra que
+     persiga al cursor, otra que suba el brillo al enfocar, y apagar unas para
+     encender otras. Eso produce COSTURAS: en cada cambio hay un instante en que
+     dos animaciones escriben lo mismo, o en que una empieza a velocidad cero
+     justo donde la otra iba lanzada. Es exactamente lo que se percibe como
+     "hecho a trozos", y no se arregla con más `ease`: son dos movimientos
+     distintos pegados, no uno.
 
-     Quien manda en reposo no es el color, es el suceso: el campo se ve casi
-     normal hasta que el cono pasa. Un borde rosa permanente se convierte en
-     parte del mobiliario a los dos días; una vuelta lenta con respiración, no.
+     Aquí no hay estados: hay UN integrador —un único paso por fotograma— con
+     tres reglas y nada más:
+
+       1. el cono tiene VELOCIDAD ANGULAR, y esa velocidad tiende siempre a la
+          de crucero (una vuelta cada 26 s);
+       2. si hay un cursor, además actúa un RESORTE que tira del cono hacia él,
+          con su amortiguación — por eso llega, se pasa un pelo y se asienta;
+       3. cada opacidad persigue su objetivo por acercamiento exponencial, que
+          nunca da un salto porque siempre parte de donde está.
+
+     Con eso, todo lo que en otro diseño sería una transición aquí sale gratis:
+     entrar con el ratón no "arranca" nada —sólo aparece un objetivo—, salir no
+     "para" nada —el objetivo desaparece y la velocidad vuelve sola a la de
+     crucero—, y el tirón de una tecla es un empujón a la misma velocidad. No
+     hay dos caminos que sincronizar porque no hay dos caminos.
+
+     La entrada, incluso, deja de ser una animación: el contorno nace apagado,
+     con el cono a 300°/s. El integrador hace el resto —barre rápido, frena,
+     se posa en su vuelta lenta— y lo que se ve es exactamente el gesto que se
+     quería, sin una sola línea de tiempo dedicada.
 
      POR QUÉ SE GIRA UN ELEMENTO Y NO EL ÁNGULO DEL DEGRADADO. La forma corta de
      escribir esto es `conic-gradient(from var(--angulo))` y animar la variable.
@@ -86,20 +99,19 @@
      API · window.VentelAura
        · mount(host, opts)  -> monta el aura en un contenedor con position:relative
        · auto(root)         -> monta todo [data-vx-aura] que encuentre
-       · destroy(host)      -> mata las líneas de tiempo y quita el DOM
+       · destroy(host)      -> mata el integrador y quita el DOM
 
      opts = {
        intensidad : 'normal' | 'sutil',
        modo       : 'campo' | 'panel',   // 'panel' = el filo va por dentro
        energia    : 3,                   // 0..10, el chisporroteo
        destello   : true,                // el barrido al entrar el ratón
-       sigue      : true,                // el cono persigue al puntero
        radio      : null                 // se lee del propio elemento
      }
 
      MODO PANEL. `campo` da por hecho lo de siempre: un `input` dentro de un
      contenedor que no recorta, así que el marco puede salirse 1.5 px y el
-     resplandor 34 px más. La paleta de comandos no es eso —es una caja con
+     resplandor 30 px más. La paleta de comandos no es eso —es una caja con
      `overflow:hidden`, y ahí cualquier cosa que se salga desaparece—, así que
      en `panel` el marco va por DENTRO (inset 0) y el contenido, con su fondo
      opaco, deja asomar el filo por los cuatro lados. Sin arco exterior: lo
@@ -165,9 +177,7 @@
      Su opacidad se declara AQUÍ y no desde JavaScript a propósito: un
      `style.opacity` en línea gana a cualquier regla de CSS, y entonces las
      dos de abajo —las que dan respuesta al ratón y marcan el foco cuando no
-     hay GSAP— no llegarían a aplicarse nunca. Con GSAP animando sí se escribe
-     en línea, y eso está bien: en ese caso es JavaScript quien lleva los
-     estados y las reglas de CSS deben apartarse. */
+     hay GSAP— no llegarían a aplicarse nunca. */
   .vx-aura-halo{
     position:absolute;inset:0;border-radius:inherit;
     background:var(--brand,#E10098);
@@ -175,11 +185,21 @@
     transition:opacity .38s cubic-bezier(.22,1,.36,1);
   }
   .vx-aura-sutil .vx-aura-halo{opacity:.035}
+  /* Con el integrador en marcha el halo lo escribe él, fotograma a fotograma.
+     Dejar puesta la transición sería pedirle al navegador que interpole entre
+     dos valores que ya vienen interpolados: la respuesta se retrasaría 380 ms y
+     el halo iría siempre por detrás del resto del componente. */
+  .vx-aura-vivo .vx-aura-halo{transition:none}
 
   /* Las capas que giran. Centradas con `translate` —propiedad aparte— para
      que GSAP se quede con `transform` entero y no haya que reescribir el
-     centrado en cada fotograma. Cuadradas y más anchas que el campo: así
-     cubren las esquinas en cualquier ángulo. */
+     centrado en cada fotograma.
+
+     El tamaño lo pone el JS: un CUADRADO del largo de la diagonal del host. Es
+     lo que hace que los ángulos del cono sean ángulos de verdad — en un
+     rectángulo, un `conic-gradient` reparte los grados sobre una elipse y el
+     mismo sector se ve ancho arriba y estrecho a los lados. Los valores de aquí
+     son sólo el respaldo del primer fotograma. */
   .vx-aura-malla,
   .vx-aura-chispa,
   .vx-aura-cometa{
@@ -190,12 +210,6 @@
     will-change:transform;
     opacity:0;                                /* las enciende el JS */
   }
-  /* El panel es ancho y bajo; con 170 % el disco no llega a las esquinas y el
-     filo se corta justo en los redondeos. Un disco que cubra la diagonal
-     entera resuelve cualquier proporción. */
-  .vx-aura-panel .vx-aura-malla,
-  .vx-aura-panel .vx-aura-chispa,
-  .vx-aura-panel .vx-aura-cometa{width:145%;min-width:0;aspect-ratio:auto;height:340%}
 
   /* ── La malla ─────────────────────────────────────────────────────────
      Siete manchas de rosa a distinta profundidad sobre una base de marca. No
@@ -219,20 +233,22 @@
 
     /* La ventana. Se declara desde 0° y NO se anima nunca: lo que gira es el
        elemento, y la máscara —que vive en su espacio local— gira con él.
-       Los tramos de transparencia a los lados son los que hacen que el cono
-       tenga filos suaves en vez de dos cortes rectos. */
+
+       Los veinte puntos de degradado a cada lado son lo que separa un barrido
+       de una cuchilla: con el corte seco se ve pasar un borde recto por el
+       filo, y el ojo lo lee como un fallo de pintado antes que como luz. */
     -webkit-mask-image:conic-gradient(from 0deg at center,
       #000 0%,
       #000 calc(var(--vx-cono) * 1%),
-      transparent calc((var(--vx-cono) + 14) * 1%),
-      transparent calc((86 - var(--vx-cono)) * 1%),
+      transparent calc((var(--vx-cono) + 20) * 1%),
+      transparent calc((80 - var(--vx-cono)) * 1%),
       #000 calc((100 - var(--vx-cono)) * 1%),
       #000 100%);
             mask-image:conic-gradient(from 0deg at center,
       #000 0%,
       #000 calc(var(--vx-cono) * 1%),
-      transparent calc((var(--vx-cono) + 14) * 1%),
-      transparent calc((86 - var(--vx-cono)) * 1%),
+      transparent calc((var(--vx-cono) + 20) * 1%),
+      transparent calc((80 - var(--vx-cono)) * 1%),
       #000 calc((100 - var(--vx-cono)) * 1%),
       #000 100%);
   }
@@ -292,9 +308,8 @@
      que queda junto al cursor. La malla dibuja el arco largo; esto pone el
      punto caliente exactamente donde está la mano.
 
-     Es la pieza más barata de todas: dos `quickTo` sobre x/y, transform puro.
      El margen negativo centra el círculo en (x,y) sin gastar el `transform`,
-     que es de GSAP. */
+     que es del integrador. */
   .vx-aura-luz{
     position:absolute;top:0;left:0;
     width:172px;height:172px;margin:-86px 0 0 -86px;
@@ -324,15 +339,15 @@
     -webkit-mask-image:conic-gradient(from 0deg at center,
       #000 0%,
       #000 calc(var(--vx-cono) * 1%),
-      transparent calc((var(--vx-cono) + 16) * 1%),
-      transparent calc((84 - var(--vx-cono)) * 1%),
+      transparent calc((var(--vx-cono) + 22) * 1%),
+      transparent calc((78 - var(--vx-cono)) * 1%),
       #000 calc((100 - var(--vx-cono)) * 1%),
       #000 100%);
             mask-image:conic-gradient(from 0deg at center,
       #000 0%,
       #000 calc(var(--vx-cono) * 1%),
-      transparent calc((var(--vx-cono) + 16) * 1%),
-      transparent calc((84 - var(--vx-cono)) * 1%),
+      transparent calc((var(--vx-cono) + 22) * 1%),
+      transparent calc((78 - var(--vx-cono)) * 1%),
       #000 calc((100 - var(--vx-cono)) * 1%),
       #000 100%);
   }
@@ -386,6 +401,11 @@
      para que valga desde el primer fotograma y no haya un parpadeo. */
   .vx-aura-host > input,
   .vx-aura-host > textarea{position:relative;z-index:1}
+  /* En panel el contenido es un bloque cualquiera, no un campo: lo que suba por
+     encima del marco es todo lo que no sea una capa del aura. */
+  .vx-aura-panel > :not(.vx-aura):not(.vx-aura-brillo):not(.vx-aura-arco){
+    position:relative;z-index:1;
+  }
 
   /* Y los acompañantes por encima del campo. Esto NO es un detalle de estilo,
      es lo que arregla que la lupa y el chip del atajo desaparecieran en cuanto
@@ -405,11 +425,6 @@
   .vx-aura-host > .search-clear,
   .vx-aura-host > [data-vx-icono],
   .vx-aura-host > [data-vx-atajo]{z-index:2}
-  /* En panel el contenido es un bloque cualquiera, no un campo: lo que suba por
-     encima del marco es todo lo que no sea una capa del aura. */
-  .vx-aura-panel > :not(.vx-aura):not(.vx-aura-brillo):not(.vx-aura-arco){
-    position:relative;z-index:1;
-  }
 
   /* El borde propio del campo se templa hacia el color de marca. Sin esto se
      leen DOS anillos —el filete gris de siempre y el filo rosa por fuera— y
@@ -473,6 +488,10 @@
     && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
   function anima() { return typeof window.gsap !== 'undefined' && !reducido; }
 
+  /* ── Las constantes del movimiento ──────────────────────────────────────
+     Todo lo que se puede tocar para cambiar cómo se SIENTE el componente está
+     aquí arriba; abajo sólo hay física. */
+
   /* Opacidades del halo. Son bajas a propósito: el halo es el suelo del
      contorno, no su protagonista. Lo que se ve moverse es la malla, y lo que
      llama es el cometa; un anillo macizo al 60 % se lee como un aviso de
@@ -480,16 +499,28 @@
   var HALO = { reposo: .05, encima: .14, dentro: .16 };
   var HALO_SUTIL = { reposo: .035, encima: .1, dentro: .12 };
 
-  /* Opacidades de la malla y del arco por estado. La malla nunca baja del .3
-     —es la que sostiene el color del filo— y el arco sí, porque un resplandor
-     exterior permanente convierte la barra superior en un letrero. */
-  var MALLA = { reposo: .34, encima: .58, dentro: .74 };
-  var ARCO  = { reposo: .20, encima: .52, dentro: .78 };
+  /* Malla y arco. `encima` y `dentro` son los TECHOS: lo que se alcanza con el
+     cursor pegado al filo. En el centro del campo se queda en el suelo, y esa
+     diferencia es todo el efecto. */
+  var MALLA = { reposo: .34, encima: .60, dentro: .76 };
+  var ARCO  = { reposo: .20, encima: .54, dentro: .80 };
 
-  /* Cuánto respira en reposo: la malla sube y baja un 12 % cada cinco segundos
-     y pico. Sin esto la vuelta es de una regularidad de reloj, y un reloj se
-     deja de mirar; con esto el contorno parece que está pensando. */
-  var RESPIRA = 5.6;
+  var CRUCERO = 13.85;        /* grados por segundo — una vuelta cada 26 s */
+  var CRUCERO_FOCO = 21;      /* enfocado el cono no brilla más: corre más   */
+
+  /* El resorte que engancha el cono al cursor. `K` es cuánto tira y `C` cuánto
+     frena; con C algo por debajo del amortiguamiento crítico (2·√K ≈ 10.2) el
+     cono llega, se pasa un pelo y se asienta. Eso es lo que se lee como peso.
+     Subir C lo vuelve obediente y muerto; bajarlo, un péndulo. */
+  var K = 26, C = 9.2;
+
+  /* Constantes de tiempo de los acercamientos exponenciales, en segundos: en
+     una constante se recorre el 63 % de lo que falta. */
+  var TAU_VEL = .85;          /* la vuelta a la velocidad de crucero */
+  var TAU_OP  = .30;          /* malla, arco y halo                  */
+  var TAU_LUZ = .13;          /* el foco que sigue al puntero        */
+
+  var RESPIRA = 6.4, RESPIRA_AMP = .17;   /* el vaivén del reposo */
 
   function campoDe(host) {
     return host.querySelector('input, textarea');
@@ -532,6 +563,11 @@
     el.className = clase;
     el.setAttribute('aria-hidden', 'true');
     return el;
+  }
+
+  /** El camino más corto entre dos ángulos: ±180 y nunca la vuelta larga. */
+  function corto(grados) {
+    return ((grados % 360) + 540) % 360 - 180;
   }
 
   /**
@@ -627,124 +663,188 @@
 
     /* ── Movimiento ───────────────────────────────────────────────────
        Todo dentro de un contexto: un `revert()` en destroy() deshace las
-       líneas de tiempo Y los estilos que dejaron puestos. */
+       líneas de tiempo Y los estilos que dejaron puestos. La función que se
+       devuelve al final es la limpieza propia —el integrador y el observador
+       de tamaño no son tweens y hay que quitarlos a mano—. */
     host.classList.add('vx-aura-vivo');
 
     var ctx = gsap.context(function () {
 
-      gsap.set([malla, chispa, cometa], { opacity: 0, rotation: 0 });
-      /* Quien se enciende y se apaga es el CONTENEDOR del resplandor. El anillo
-         de dentro va siempre a opacidad plena: sólo se le toca la rotación, que
-         es la que lo mantiene quieto mientras la ventana cónica pasa por encima.
-         Apagarlo aquí junto al contenedor —que es lo que parece natural al
-         escribirlo— deja el resplandor invisible para siempre. */
-      if (arco) { gsap.set(arco, { opacity: 0, rotation: 0 }); gsap.set(anillo, { rotation: 0 }); }
+      /* ── Geometría ────────────────────────────────────────────────────
+         Las capas que giran son CUADRADAS y del largo de la diagonal del host.
+         Un `conic-gradient` reparte sus grados sobre la caja del elemento: en
+         un rectángulo tumbado, un sector de 40° ocupa media anchura arriba y un
+         suspiro en los costados, y el cono se ve deformarse al girar. Cuadrado,
+         los grados son grados.
 
-      /* El icono y el atajo van centrados con `transform:translateY(-50%)` en
-         el CSS de cada pantalla. En cuanto GSAP les anime la escala reescribe
-         `transform` entero y ese centrado se pierde —el icono se iría al borde
-         de golpe—. Traducirlo a `yPercent` antes de tocar nada se lo entrega a
-         GSAP sin cambiar dónde se ve. */
-      if (icono) gsap.set(icono, { yPercent: -50 });
-      if (atajo) gsap.set(atajo, { yPercent: -50 });
+         El 8 % de más es para que las esquinas del campo no queden justo en el
+         borde del disco, donde el degradado ya se está acabando. */
+      var lado = 0;
+      function mide() {
+        var r = host.getBoundingClientRect();
+        if (!r.width || !r.height) return;
+        var d = Math.ceil(Math.sqrt(r.width * r.width + r.height * r.height) * 1.08);
+        if (d === lado) return;
+        lado = d;
+        [malla, chispa, cometa].forEach(function (el) {
+          el.style.width = d + 'px';
+          el.style.height = d + 'px';
+          el.style.minWidth = '0';
+        });
+      }
+      mide();
 
-      /* Los dos estados del componente. Se declaran arriba porque la chispa
-         los consulta en cada parpadeo. */
-      var dentro = false, encima = false;
-      function eneTecho() {
-        if (dentro) return ENE.viva;
-        if (encima) return (ENE.reposo + ENE.viva) / 2;
-        return ENE.reposo;
+      /* El panel de comandos cambia de alto con cada búsqueda y el buscador de
+         la barra cambia de ancho con la ventana. Sin esto, el cono se queda con
+         la geometría del primer fotograma y el filo se corta en las esquinas
+         justo cuando la caja crece. */
+      var ro = null;
+      if (window.ResizeObserver) {
+        ro = new ResizeObserver(mide);
+        ro.observe(host);
       }
 
-      /* ── EL CONO ──────────────────────────────────────────────────────
-         Un solo número —`giro.a`, grados— manda sobre las tres capas que
-         llevan la ventana cónica. Se escribe con `quickSetter`, que salta la
-         maquinaria de tweens y va directo al transform; y se escriben las tres
-         en el MISMO paso, que es lo que mantiene el anillo contrarrotado
-         clavado en su sitio. Con tres tweens separados bastaría un fotograma
-         de desfase para que el resplandor temblara. */
-      var giro = { a: 0 };
-      var ponMalla  = gsap.quickSetter(malla, 'rotation', 'deg');
-      var ponArco   = arco ? gsap.quickSetter(arco, 'rotation', 'deg') : null;
-      var ponAnillo = arco ? gsap.quickSetter(anillo, 'rotation', 'deg') : null;
-      function aplicaGiro() {
-        ponMalla(giro.a);
-        if (ponArco) { ponArco(giro.a); ponAnillo(-giro.a); }
+      /* ── El estado ────────────────────────────────────────────────────
+         Nueve números. Todo lo que se ve moverse sale de aquí. */
+      var E = {
+        t: 0,               /* reloj propio, para el vaivén del reposo    */
+        ang: -150,          /* grados del cono                            */
+        vel: 300,           /* grados/s — el impulso con el que nace      */
+        obj: null,          /* ángulo al que apunta el cursor, o nada     */
+        cerca: 0,           /* 0 en el centro del campo, 1 pegado al filo */
+        malla: 0, arco: 0, halo: 0,   /* opacidades vivas                 */
+        lx: 0, ly: 0, lop: 0,         /* el foco del puntero              */
+        tlx: 0, tly: 0,               /* a dónde va el foco               */
+        pulso: 0,           /* el sobresalto de una tecla, que decae      */
+        dentro: false, encima: false, listo: false
+      };
+
+      /* Un cuarto de segundo de gracia antes de encender: la pantalla acaba de
+         pintarse y el contorno no tiene por qué competir con su entrada. */
+      gsap.delayedCall(.25, function () { E.listo = true; });
+
+      /* ── Los escritores ───────────────────────────────────────────────
+         `quickSetter` salta la maquinaria de tweens y va directo al estilo. Y
+         se escribe sólo lo que cambió de verdad: en reposo las opacidades se
+         mueven milésimas por fotograma, y ahorrarse esas escrituras es
+         ahorrarse un recálculo de estilo por capa y por fotograma. */
+      var ponMallaR  = gsap.quickSetter(malla, 'rotation', 'deg');
+      var ponChispaO = gsap.quickSetter(chispa, 'opacity');
+      var ponMallaO  = gsap.quickSetter(malla, 'opacity');
+      var ponHaloO   = gsap.quickSetter(halo, 'opacity');
+      var ponLuzX    = gsap.quickSetter(luz, 'x', 'px');
+      var ponLuzY    = gsap.quickSetter(luz, 'y', 'px');
+      var ponLuzO    = gsap.quickSetter(luz, 'opacity');
+      var ponArcoR   = arco ? gsap.quickSetter(arco, 'rotation', 'deg') : null;
+      var ponArcoO   = arco ? gsap.quickSetter(arco, 'opacity') : null;
+      var ponAnilloR = arco ? gsap.quickSetter(anillo, 'rotation', 'deg') : null;
+
+      var ult = { ang: null, malla: -1, arco: -1, halo: -1, lx: null, ly: null, lop: -1 };
+
+      /* ── El paso ──────────────────────────────────────────────────────
+         Un único integrador, una vez por fotograma. No hay estados que
+         encender ni apagar: hay objetivos, y lo que se ve es cómo el sistema
+         va hacia ellos. */
+      function paso(tiempo, delta) {
+        /* El tope de 50 ms es la red contra un fotograma perdido —una pestaña
+           que vuelve, una pausa del recolector—: sin él, un delta de un segundo
+           haría avanzar el cono un cuarto de vuelta de golpe y, peor, volvería
+           inestable el resorte, que da por hecho pasos pequeños. */
+        var dt = Math.min(delta, 50) / 1000;
+        E.t += dt;
+
+        /* ── el ángulo ──
+           Regla 1: la velocidad tiende siempre a la de crucero.
+           Regla 2: si hay cursor, un resorte tira del cono hacia él.
+           No hay una tercera. */
+        if (E.obj === null) {
+          var crucero = E.dentro ? CRUCERO_FOCO : CRUCERO;
+          E.vel += (crucero - E.vel) * (1 - Math.exp(-dt / TAU_VEL));
+        } else {
+          E.vel += (K * corto(E.obj - E.ang) - C * E.vel) * dt;
+        }
+        E.ang += E.vel * dt;
+        if (E.ang > 3600 || E.ang < -3600) E.ang = corto(E.ang);   /* sin números enormes */
+
+        /* ── las opacidades ──
+           Objetivo = suelo + (techo − suelo) × cercanía al borde. Sin cursor,
+           la cercanía es 0 y manda el suelo; y en reposo el suelo respira. */
+        var k = 1 - Math.exp(-dt / TAU_OP);
+        var quieto = !E.dentro && !E.encima;
+        var vaiven = quieto ? 1 + RESPIRA_AMP * Math.sin(E.t * 2 * Math.PI / RESPIRA) : 1;
+
+        var sueloM = (E.dentro ? MALLA.encima : MALLA.reposo) * vaiven;
+        var techoM =  E.dentro ? MALLA.dentro : MALLA.encima;
+        var objM = E.listo ? (sueloM + (techoM - sueloM) * E.cerca + E.pulso) * fuerza : 0;
+        E.malla += (Math.min(1, objM) - E.malla) * k;
+
+        if (ponArcoO) {
+          var sueloA = (E.dentro ? ARCO.encima : ARCO.reposo) * vaiven;
+          var techoA =  E.dentro ? ARCO.dentro : ARCO.encima;
+          var objA = E.listo ? (sueloA + (techoA - sueloA) * E.cerca) * fuerza : 0;
+          E.arco += (Math.min(1, objA) - E.arco) * k;
+        }
+
+        var objH = !E.listo ? 0
+                 : E.dentro ? escala.dentro
+                 : E.encima ? escala.encima
+                 : escala.reposo;
+        E.halo += (objH - E.halo) * k;
+
+        /* El sobresalto de una tecla se va solo, y por eso no hace falta ni
+           antirrebote ni una bandera de "ya está pulsando". */
+        if (E.pulso > .001) E.pulso *= Math.exp(-dt / .26); else E.pulso = 0;
+
+        /* ── el foco del puntero ──
+           Su retraso propio —más corto que el del cono— es lo que hace que la
+           luz vaya pegada a la mano mientras el cono llega detrás. Ese desfase
+           entre las dos capas es media sensación de profundidad. */
+        var kl = 1 - Math.exp(-dt / TAU_LUZ);
+        E.lx += (E.tlx - E.lx) * kl;
+        E.ly += (E.tly - E.ly) * kl;
+        var objL = E.encima ? .9 : (E.dentro ? .55 : 0);
+        E.lop += (objL - E.lop) * (1 - Math.exp(-dt / (objL > E.lop ? .18 : .5)));
+
+        /* ── a la pantalla ── */
+        if (ult.ang === null || Math.abs(E.ang - ult.ang) > .02) {
+          ponMallaR(E.ang); ult.ang = E.ang;
+          if (ponArcoR) { ponArcoR(E.ang); ponAnilloR(-E.ang); }
+        }
+        if (Math.abs(E.malla - ult.malla) > .002) { ponMallaO(E.malla); ult.malla = E.malla; }
+        if (Math.abs(E.halo  - ult.halo)  > .002) { ponHaloO(E.halo);   ult.halo  = E.halo; }
+        if (ponArcoO && Math.abs(E.arco - ult.arco) > .002) { ponArcoO(E.arco); ult.arco = E.arco; }
+        if (ult.lx === null || Math.abs(E.lx - ult.lx) > .3) { ponLuzX(E.lx); ult.lx = E.lx; }
+        if (ult.ly === null || Math.abs(E.ly - ult.ly) > .3) { ponLuzY(E.ly); ult.ly = E.ly; }
+        if (Math.abs(E.lop - ult.lop) > .003) { ponLuzO(E.lop); ult.lop = E.lop; }
       }
 
-      /* En reposo el cono da una vuelta cada 26 segundos. Es lento a propósito:
-         a esa velocidad no se mira, se percibe. `'+=360'` con `repeat:-1` deja
-         el ángulo donde estaba al final de cada vuelta, así que la reanudación
-         después de una persecución no da ningún salto — basta con `invalidate()`
-         para que relea el valor de partida. */
-      var tlGiro = gsap.to(giro, {
-        a: '+=360', duration: 26, ease: 'none', repeat: -1, onUpdate: aplicaGiro
-      });
+      gsap.ticker.add(paso);
 
-      /* Perseguir al puntero es mover ese mismo número, no otro camino de
-         código: `quickTo` reutiliza un tween en lugar de crear sesenta por
-         segundo, y su medio segundo de retraso es lo que hace que el cono
-         parezca tener peso en vez de ir pegado al cursor.
+      /* ── Lo que sí es una línea de tiempo ─────────────────────────────
+         Dos cosas no son física continua sino sucesos con su propio guion: el
+         chisporroteo, que es aleatorio por definición, y el cometa, que aparece
+         cada tantos segundos. Esas siguen siendo timelines de GSAP. */
 
-         `overwrite:'auto'` —aquí y en los dos seguidores de opacidad de abajo—
-         está por un caso concreto: si el ratón llega mientras la ENTRADA todavía
-         dibuja el contorno, hay dos animaciones escribiendo el mismo ángulo y la
-         misma opacidad, y gana la que renderice última, o sea la enlatada. Con
-         esto, en cuanto hay una mano de por medio la entrada suelta lo que
-         estuviera llevando. Mata sólo tweens ACTIVOS, así que el giro lento, que
-         para entonces está pausado, sobrevive intacto. */
-      var giroA = gsap.quickTo(giro, 'a', {
-        duration: .55, ease: 'power3', onUpdate: aplicaGiro, overwrite: 'auto'
-      });
-
-      /* La intensidad. Sale de la CERCANÍA AL BORDE, no de "hay un ratón
-         encima": en el centro del campo el aura apenas se mueve y sobre el filo
-         se enciende. Es lo que convierte el efecto en algo que se puede
-         provocar a voluntad, que es de donde sale la sensación de superficie. */
-      var mallaA = gsap.quickTo(malla, 'opacity', { duration: .35, ease: 'power2', overwrite: 'auto' });
-      var arcoA  = arco ? gsap.quickTo(arco, 'opacity', { duration: .4, ease: 'power2', overwrite: 'auto' }) : null;
-
-      /* La respiración de reposo. Va aparte del giro para poder pausarla en
-         cuanto hay una mano de por medio: cuando el usuario manda, el
-         componente deja de hacer sus cosas. */
-      var tlRespira = gsap.timeline({ repeat: -1, yoyo: true, paused: true })
-        .to(malla, { opacity: MALLA.reposo * fuerza * 1.28, duration: RESPIRA, ease: 'sine.inOut' }, 0);
-      if (arco) tlRespira.to(arco, { opacity: ARCO.reposo * fuerza * 1.4, duration: RESPIRA, ease: 'sine.inOut' }, 0);
-      api.tls.push(tlRespira);
-
-      /* Siempre por aquí, nunca `tlRespira.play(0)` a pelo. Un timeline recuerda
-         el valor con el que EMPEZÓ la primera vez —aquí, opacidad 0, porque se
-         construye antes de la entrada—, así que reanudarlo sin invalidar haría
-         parpadear el filo hasta apagarlo. `invalidate()` le hace releer dónde
-         está la capa ahora, que es justo el nivel de reposo al que la acaba de
-         dejar quien llama. */
-      function respiraOtraVez() {
-        if (dentro || encima || document.hidden) return;
-        tlRespira.invalidate().play(0);
-      }
-
-      /* La chispa: gira al revés y mucho más rápido, y encima parpadea con
-         valores distintos cada vez (`random()` + `repeatRefresh`). El parpadeo
-         es lo que separa "corriente" de "aro girando": una corriente no tiene
-         un brillo constante. Los tiempos también son irregulares —cada repetición
-         dura entre .28 y .6 s— porque un parpadeo a compás se oye como un
-         latido y vuelve a leerse como mecánico. */
       var tlChispa = null;
       if (nivel > 0) {
+        function eneTecho() {
+          if (E.dentro) return ENE.viva;
+          if (E.encima) return (ENE.reposo + ENE.viva) / 2;
+          return ENE.reposo;
+        }
+        /* La chispa se escribe con su propio quickSetter desde un tween sobre un
+           objeto: así el parpadeo lee el estado actual en cada repetición
+           (`repeatRefresh`) sin que nadie tenga que rehacer el tween cuando el
+           ratón entra o sale. */
+        var ch = { o: 0 };
         tlChispa = gsap.timeline()
-          .to(chispa, { opacity: ENE.reposo, duration: 1.4, ease: 'power1.out' })
           .to(chispa, { rotation: -360, duration: 9.5, ease: 'none', repeat: -1 }, 0)
-          .to(chispa, {
-            /* Valores por función, no literales: con `repeatRefresh` GSAP los
-               vuelve a evaluar en cada repetición, así que el parpadeo lee el
-               estado actual él solo. Sin esto haría falta rehacer el tween cada
-               vez que el ratón entra o sale, o tendría que pelearse con él un
-               `gsap.to` de fuera —y el que escribe cada fotograma gana—. */
-            opacity: function () { var t = eneTecho(); return gsap.utils.random(t * .45, t); },
+          .to(ch, {
+            o: function () { var t = eneTecho(); return gsap.utils.random(t * .45, t); },
             duration: function () { return gsap.utils.random(.28, .6); },
-            ease: 'power1.inOut', repeat: -1, repeatRefresh: true
-          }, 1.4);
+            ease: 'power1.inOut', repeat: -1, repeatRefresh: true,
+            onUpdate: function () { ponChispaO(E.listo ? ch.o : 0); }
+          }, .9);
         api.tls.push(tlChispa);
       }
 
@@ -752,54 +852,16 @@
          hace "controlado" en vez de mecánico —arranca, cruza y frena—, y el
          retraso largo es lo que lo hace notar en vez de molestar: si diera
          vueltas sin parar sería un spinner, y un spinner dice "espera", que
-         es justo lo contrario de lo que este campo tiene que decir. */
-      var tlCometa = gsap.timeline({ repeat: -1, repeatDelay: 6.4, delay: 2.9 })
-        .set(cometa, { rotation: -90 })
-        .to(cometa, { opacity: 1, duration: .16, ease: 'power1.out' })
-        .to(cometa, { rotation: 270, duration: 1.15, ease: 'power2.inOut' }, 0)
+         es justo lo contrario de lo que este campo tiene que decir.
+
+         La primera vuelta sale a la vez que el barrido de nacimiento: es el
+         gesto que enseña, sin que nadie lo diga, que este borde hace cosas. */
+      var tlCometa = gsap.timeline({ repeat: -1, repeatDelay: 6.4, delay: .45 })
+        .set(cometa, { rotation: -110 })
+        .to(cometa, { opacity: 1, duration: .18, ease: 'power1.out' })
+        .to(cometa, { rotation: 250, duration: 1.2, ease: 'power2.inOut' }, 0)
         .to(cometa, { opacity: 0, duration: .34, ease: 'power1.in' }, '-=.36');
-
-      api.tls.push(tlGiro, tlCometa);
-
-      /* ── La entrada ───────────────────────────────────────────────────
-         La primera vez que se ve la pantalla, el contorno no aparece: se
-         DIBUJA. El cono sale disparado y frena, el halo sube detrás y el
-         cometa cruza con él. Dura poco más de dos segundos y no se repite.
-
-         El ease es lo que cuenta la historia: `power4.out` gasta la mitad de
-         la vuelta en el primer 15 % del tiempo, así que se lee como un barrido
-         que arranca fuerte y se posa, no como un giro constante. */
-      var tlEntrada = gsap.timeline({ delay: .25 })
-        .fromTo(halo, { opacity: 0 },
-                      { opacity: escala.reposo, duration: 1.1, ease: 'power2.out' }, 0)
-        .fromTo(giro, { a: -150 }, {
-          a: 210, duration: 2.1, ease: 'power4.out', onUpdate: aplicaGiro,
-          /* La rotación libre no debe empezar hasta que la entrada termina, y
-             tiene que arrancar DESDE donde la entrada dejó el cono. */
-          onComplete: function () { tlGiro.invalidate().restart(); }
-        }, 0)
-        .fromTo(malla, { opacity: 0 },
-                       { opacity: MALLA.reposo * fuerza, duration: 1.3, ease: 'power2.out' }, 0)
-        .fromTo(cometa, { rotation: -110, opacity: 0 },
-                        { opacity: 1, duration: .22, ease: 'power1.out' }, .1)
-        .to(cometa, { rotation: 250, duration: 1.15, ease: 'power3.inOut' }, .1)
-        .to(cometa, { opacity: 0, duration: .3, ease: 'power1.in' }, 1.05)
-        .add(function () { respiraOtraVez(); }, 2.1);
-      if (arco) {
-        tlEntrada.fromTo(arco, { opacity: 0 },
-                               { opacity: ARCO.reposo * fuerza, duration: 1.5, ease: 'power2.out' }, .2);
-      }
-      /* La rotación libre espera a que el barrido de entrada acabe; si las dos
-         escribieran el ángulo a la vez el cono iría a tirones. */
-      tlGiro.pause(0);
-      api.tls.push(tlEntrada);
-
-      function haloA(valor, dur) {
-        gsap.to(halo, {
-          opacity: valor, duration: dur || .34,
-          ease: 'power2.out', overwrite: 'auto'
-        });
-      }
+      api.tls.push(tlCometa);
 
       /* El destello. Una sola pasada, con el ease cargado al final para que
          entre rápido y salga frenando: eso es lo que lo hace cinematográfico
@@ -820,19 +882,48 @@
         api.tls.push(tlBrillo);
       }
 
-      /* ── La luz que sigue al puntero ──────────────────────────────────
-         El rectángulo se mide UNA vez, al entrar. Leerlo en cada movimiento
-         obligaría al navegador a recalcular la disposición sesenta veces por
-         segundo para saber algo que no ha cambiado. */
-      var luzX = gsap.quickTo(luz, 'x', { duration: .5, ease: 'power3' });
-      var luzY = gsap.quickTo(luz, 'y', { duration: .5, ease: 'power3' });
+      /* ── Los acompañantes ─────────────────────────────────────────────
+         El icono y el chip del atajo van centrados con `translateY(-50%)` desde
+         el CSS de cada pantalla, y GSAP reescribe `transform` entero en cuanto
+         los toca: por eso hay que devolverle el centrado como `yPercent`.
+
+         `force3D:false` no es cosmética. Con la aceleración 3D que GSAP pone por
+         defecto, el icono se promociona a su propia capa y se rasteriza a media
+         posición de píxel: una lupa de 18 px con trazo de 2 px sale visiblemente
+         borrosa y se queda así mientras dure el estilo en línea. En 2D el
+         navegador la dibuja nítida.
+
+         Y al volver a reposo se limpia el `transform` entero: lo mejor que le
+         puede pasar al icono el 99 % del tiempo es no tener nada escrito encima. */
+      function icoA(escalaIcono, vuelve) {
+        if (!icono) return;
+        gsap.to(icono, {
+          scale: escalaIcono, yPercent: -50, duration: vuelve ? .45 : .5,
+          ease: vuelve ? 'power2.out' : 'back.out(2.2)',
+          force3D: false, overwrite: 'auto',
+          onComplete: vuelve ? function () { gsap.set(icono, { clearProps: 'transform' }); } : null
+        });
+      }
+      function atajoA(op, y, vuelve) {
+        if (!atajo) return;
+        gsap.to(atajo, {
+          opacity: op, y: y, yPercent: -50, duration: vuelve ? .35 : .3,
+          ease: vuelve ? 'power2.out' : 'power2.in',
+          force3D: false, overwrite: 'auto',
+          onComplete: vuelve ? function () { gsap.set(atajo, { clearProps: 'transform' }); } : null
+        });
+      }
+
+      /* ── Lo que hace la mano ──────────────────────────────────────────
+         Los manejadores no animan: sólo cambian objetivos. Es la diferencia
+         entre un componente con costuras y uno que se mueve solo. */
+
       var caja = null;
 
       /* Cercanía al borde, de 0 (justo en el centro) a 1 (tocando el filo).
-         Es el mismo cálculo del efecto original: se compara cuánto queda para
-         salirse por el eje que antes se agote, así que la diagonal y el lado
-         largo dan el mismo 1 en el borde. Sin esto, un campo de 560×44 daría
-         casi siempre 1 por arriba y nunca por los lados. */
+         Se compara cuánto queda para salirse por el eje que antes se agote, así
+         que la diagonal y el lado largo dan el mismo 1 en el borde. Sin esto, un
+         campo de 560×44 daría casi siempre 1 por arriba y nunca por los lados. */
       function cercania(x, y) {
         var cx = caja.width / 2, cy = caja.height / 2;
         var dx = Math.abs(x - cx), dy = Math.abs(y - cy);
@@ -841,57 +932,30 @@
         return Math.min(Math.max(1 / Math.min(kx, ky), 0), 1);
       }
 
-      /* Se registra una sola vez y se apaga por estado: `caja` sólo tiene valor
-         mientras el cursor está encima. Añadir y quitar el oyente en cada
-         entrada era una fuente de fugas si el componente moría con el ratón
-         dentro, y `mousemove` sobre el propio campo no se dispara cuando el
-         cursor está en otra parte de la pantalla, así que no ahorraba nada. */
-      function mueveLuz(ev) {
+      /* El rectángulo se mide UNA vez, al entrar. Leerlo en cada movimiento
+         obligaría al navegador a recalcular la disposición sesenta veces por
+         segundo para saber algo que no ha cambiado. */
+      function mueve(ev) {
         if (!caja) return;
         var x = ev.clientX - caja.left, y = ev.clientY - caja.top;
-        luzX(x); luzY(y);
+        E.tlx = x; E.tly = y;
+        E.cerca = cercania(x, y);
 
-        /* El ángulo del cursor respecto al centro, con el 0 arriba para que
-           coincida con el origen del cono. */
         var dx = x - caja.width / 2, dy = y - caja.height / 2;
-        if (dx || dy) {
-          var objetivo = Math.atan2(dy, dx) * 180 / Math.PI + 90;
-          /* Camino corto: sin esto, pasar de 359° a 1° manda al cono a dar la
-             vuelta entera por el lado largo. */
-          var delta = ((objetivo - giro.a) % 360 + 540) % 360 - 180;
-          giroA(giro.a + delta);
-        }
-
-        /* La cercanía manda sobre malla y arco. `dentro` levanta el suelo: con
-           el cursor de texto puesto, el aura no debe apagarse porque el ratón
-           se haya quedado quieto en mitad del campo. */
-        var c = cercania(x, y);
-        var base  = dentro ? MALLA.dentro : MALLA.encima;
-        var suelo = dentro ? MALLA.encima : MALLA.reposo;
-        mallaA(gsap.utils.clamp(0, 1, (suelo + (base - suelo) * c) * fuerza));
-        if (arcoA) {
-          var baseA  = dentro ? ARCO.dentro : ARCO.encima;
-          var sueloA = dentro ? ARCO.encima : ARCO.reposo;
-          arcoA(gsap.utils.clamp(0, 1, (sueloA + (baseA - sueloA) * c) * fuerza));
-        }
+        if (dx || dy) E.obj = Math.atan2(dy, dx) * 180 / Math.PI + 90;
       }
 
       function entra(ev) {
-        encima = true;
-        haloA(dentro ? escala.dentro : escala.encima);
-        tlRespira.pause();
-        /* Mientras hay mano, el cono no gira solo: obedece. */
-        tlGiro.pause();
-
-        /* La luz aparece YA en el punto por el que ha entrado el cursor, no
-           viajando desde donde se quedó la última vez: si no, cada entrada
-           empieza con un barrido fantasma cruzando el campo. */
+        E.encima = true;
         caja = marco.getBoundingClientRect();
         if (ev && ev.clientX !== undefined) {
-          gsap.set(luz, { x: ev.clientX - caja.left, y: ev.clientY - caja.top });
+          /* La luz aparece YA en el punto por el que ha entrado el cursor, no
+             viajando desde donde se quedó la última vez: si no, cada entrada
+             empieza con un barrido fantasma cruzando el campo. */
+          E.lx = E.tlx = ev.clientX - caja.left;
+          E.ly = E.tly = ev.clientY - caja.top;
+          mueve(ev);
         }
-        gsap.to(luz, { opacity: .9, duration: .45, ease: 'power2.out', overwrite: 'auto' });
-        if (ev) mueveLuz(ev);
 
         /* El cometa se adelanta a su turno: el destello y la vuelta salen
            juntos, y esa coincidencia es la que se lee como respuesta. */
@@ -911,47 +975,15 @@
         }
       }
 
+      /* Al salir no se para nada: se quita el objetivo. El cono sigue con la
+         velocidad que llevaba y el integrador la devuelve a la de crucero por
+         el camino largo, que es justo lo que se ve como inercia. */
       function sale() {
-        encima = false;
-        haloA(dentro ? escala.dentro : escala.reposo);
+        E.encima = false;
+        E.obj = null;
+        E.cerca = 0;
         caja = null;
-        reanudaGiro();
-        /* Se apaga más despacio de lo que se enciende. Encender rápido es
-           respuesta; apagar rápido es un corte. Si el campo sigue enfocado la
-           luz no se va del todo: se queda de guardia junto al cursor de texto. */
-        if (dentro) { luzAlCursor(); aEstado(true, .6); }
-        else {
-          gsap.to(luz, { opacity: 0, duration: .7, ease: 'power2.out', overwrite: 'auto' });
-          aEstado(false, .7);
-        }
-      }
-
-      /* Devuelve el cono a su vuelta lenta desde el ángulo en el que lo dejó la
-         mano. Dos cuidados:
-           · la persecución se PAUSA, no se mata: el tween interno de `quickTo`
-             es el mismo siempre, y matarlo dejaría manco al seguidor la próxima
-             vez que entre el ratón. Pausado, la siguiente llamada lo revive;
-           · `invalidate()` hace que el giro lento relea `giro.a` en vez de
-             volver al valor con el que nació el tween, que sería un salto. */
-      function reanudaGiro() {
-        if (giroA.tween) giroA.tween.pause();
-        tlGiro.invalidate().restart();
-      }
-
-      /* Lleva malla y arco al nivel que toca cuando NO hay cursor que seguir.
-         La respiración vuelve sola al terminar, y sólo si el campo está en
-         reposo: enfocado no respira, está atento. */
-      function aEstado(enfocado, dur) {
-        var d = dur || .5;
-        gsap.to(malla, {
-          opacity: (enfocado ? MALLA.dentro : MALLA.reposo) * fuerza,
-          duration: d, ease: 'power2.out', overwrite: 'auto',
-          onComplete: enfocado ? null : respiraOtraVez
-        });
-        if (arco) gsap.to(arco, {
-          opacity: (enfocado ? ARCO.dentro : ARCO.reposo) * fuerza,
-          duration: d, ease: 'power2.out', overwrite: 'auto'
-        });
+        if (E.dentro) luzAlCursor();
       }
 
       /* Con el teclado no hay puntero al que seguir, y quien entra con `/` o
@@ -960,29 +992,18 @@
          mirando. */
       function luzAlCursor() {
         var r = marco.getBoundingClientRect();
-        gsap.to(luz, {
-          x: Math.min(64, r.width * .16), y: r.height / 2,
-          opacity: .55, duration: .55, ease: 'power2.out', overwrite: 'auto'
-        });
+        E.tlx = Math.min(64, r.width * .16);
+        E.tly = r.height / 2;
       }
 
       function enfoca() {
-        dentro = true;
-        haloA(escala.dentro, .28);
-        tlRespira.pause();
+        E.dentro = true;
         /* Con el cursor dentro el cometa deja de esperar: órbita seguida y un
            poco más lenta. Ya no tiene que llamar la atención —ya la tiene—,
            tiene que acompañar. */
         tlCometa.repeatDelay(0);
         gsap.to(tlCometa, { timeScale: .8, duration: .5, ease: 'power2.out' });
         tlCometa.restart(true);
-        /* Enfocado el cono gira algo más deprisa: no es más brillo, es más
-           actividad. Si no hay mano encima, se sube el nivel a mano. */
-        gsap.to(tlGiro, { timeScale: 1.45, duration: .6, ease: 'power2.out' });
-        if (!caja) aEstado(true, .5);
-        /* La chispa no se sube por opacidad —de eso ya se encarga su propio
-           parpadeo al leer el estado—: se acelera. Más corriente es más rápido,
-           no más brillante. */
         if (tlChispa) gsap.to(tlChispa, { timeScale: 1.35, duration: .6, ease: 'power2.out' });
 
         /* El levantamiento. Un píxel: no se ve, se nota. `expo.out` frena casi
@@ -992,96 +1013,43 @@
            que la ventana se ha movido. */
         if (!panel) gsap.to(host, { y: -1, duration: .55, ease: 'expo.out', overwrite: 'auto' });
 
-        /* El icono y el atajo participan: un componente responde entero o no
-           responde. El `back.out` le da al icono un asentamiento mínimo —se
-           pasa un pelo y vuelve— y el atajo se va hacia arriba en vez de
+        /* Un componente responde entero o no responde: el icono crece con un
+           asentamiento mínimo y el chip se va hacia arriba en vez de
            desvanecerse en el sitio, porque desaparecer sin moverse parece un
            fallo de pintado. */
-        if (icono) gsap.to(icono, { scale: 1.12, duration: .5, ease: 'back.out(2.4)', overwrite: 'auto' });
-        if (atajo) gsap.to(atajo, { opacity: 0, y: -6, duration: .3, ease: 'power2.in', overwrite: 'auto' });
+        icoA(1.12, false);
+        atajoA(0, -6, false);
 
         if (!caja) luzAlCursor();
       }
 
       function desenfoca() {
-        dentro = false;
-        haloA(escala.reposo, .5);
+        E.dentro = false;
         tlCometa.repeatDelay(6.4);
         gsap.to(tlCometa, { timeScale: 1, duration: .5, ease: 'power2.out' });
-        gsap.to(tlGiro, { timeScale: 1, duration: .6, ease: 'power2.out' });
         if (tlChispa) gsap.to(tlChispa, { timeScale: 1, duration: .7, ease: 'power2.out' });
         if (!panel) gsap.to(host, { y: 0, duration: .6, ease: 'expo.out', overwrite: 'auto' });
-        if (icono) gsap.to(icono, { scale: 1, duration: .45, ease: 'power2.out', overwrite: 'auto' });
-        if (atajo) gsap.to(atajo, { opacity: 1, y: 0, duration: .35, ease: 'power2.out', overwrite: 'auto' });
-        if (!caja) {
-          gsap.to(luz, { opacity: 0, duration: .7, ease: 'power2.out', overwrite: 'auto' });
-          aEstado(false, .7);
-        }
+        icoA(1, true);
+        atajoA(1, 0, true);
       }
 
       /* ── Al escribir ──────────────────────────────────────────────────
-         Dos cosas a la vez y ninguna de brillo plano: la malla da un pulso corto
-         y la chispa SE ACELERA de golpe para frenar después. Esa subida y
-         bajada del ritmo es lo que se lee como "está recibiendo", igual que un
-         motor al que le entra gas.
+         Dos empujones a la misma física: uno a la opacidad, que decae solo, y
+         otro a la velocidad del cono. La subida y la bajada del ritmo es lo que
+         se lee como "está recibiendo", igual que un motor al que le entra gas.
 
-         El guardián no es un antirrebote por tiempo sino por estado: mientras
-         un pulso está en marcha, las teclas siguientes no encadenan otro. Con
-         antirrebote por tiempo, escribir deprisa deja el efecto siempre a
-         medias; así cada pulso se ve entero y la siguiente tecla arranca el
-         siguiente. */
-      var pulso = gsap.quickTo(malla, 'opacity', { duration: .18, ease: 'power2.out' });
-      var pulsando = false;
+         No hace falta antirrebote: `pulso` se satura y decae por su cuenta, así
+         que escribir deprisa sube el filo y lo mantiene arriba en vez de dejar
+         el efecto siempre a medias, que es lo que pasaba al encadenar tweens. */
       function teclea() {
-        if (!dentro || pulsando) return;
-        pulsando = true;
-        pulso(Math.min(1, .95 * fuerza));
-
-        /* Un empujón al cono en el sentido en el que ya iba: la tecla no sólo
-           enciende, mueve. Sólo cuando no hay ratón encima —si lo hay, el cono
-           está obedeciendo al cursor y no se le interrumpe— y con el giro lento
-           parado mientras dura, porque dos cosas escribiendo el mismo ángulo se
-           ven como un tirón al terminar la de arriba. */
-        if (!encima) {
-          tlGiro.pause();
-          gsap.to(giro, {
-            a: giro.a + 26, duration: .5, ease: 'power2.out',
-            onUpdate: aplicaGiro, overwrite: 'auto',
-            onComplete: function () { if (!encima) reanudaGiro(); }
-          });
-        }
-
+        if (!E.dentro) return;
+        E.pulso = Math.min(.34, E.pulso + .16);
+        if (E.obj === null) E.vel += 55;
         if (tlChispa) {
           gsap.timeline()
             .to(tlChispa, { timeScale: 2.6, duration: .1, ease: 'power2.out' })
             .to(tlChispa, { timeScale: 1.35, duration: .85, ease: 'power2.out' });
         }
-        gsap.delayedCall(.16, function () {
-          pulso(MALLA.dentro * fuerza);
-          pulsando = false;
-        });
-      }
-
-      /* Fuera de la vista no hay nada que animar. Una pestaña de fondo con un
-         disco girando es batería que se va sin que nadie lo vea. */
-      function visibilidad() {
-        if (document.hidden) {
-          [tlGiro, tlCometa, tlRespira].forEach(function (tl) { tl.pause(); });
-          if (tlChispa) tlChispa.pause();
-          return;
-        }
-        tlCometa.resume();
-        if (tlChispa) tlChispa.resume();
-        /* Al volver, cada línea arranca sólo si le TOCABA estar corriendo. El
-           giro lento no vuelve con el ratón encima —ahí manda el cursor— ni
-           mientras la entrada sigue dibujando el contorno, y la respiración no
-           vuelve con el campo enfocado: entonces no respira, está atento. */
-        /* `reanudaGiro` y no `resume`: el giro lento puede llevar pausado desde
-           antes de que la persecución le moviera el ángulo, y despertarlo tal
-           cual lo devolvería de golpe al que tenía guardado. Reanudar releyendo
-           dónde está es lo mismo que hace `sale()`. */
-        if (!encima && tlEntrada.progress() === 1) reanudaGiro();
-        if (!encima && !dentro) tlRespira.resume();
       }
 
       function on(el, ev, fn) {
@@ -1090,18 +1058,24 @@
       }
       on(host, 'mouseenter', entra);
       on(host, 'mouseleave', sale);
-      on(host, 'mousemove', mueveLuz);
+      on(host, 'mousemove', mueve);
       if (campo) {
         on(campo, 'focus', enfoca);
         on(campo, 'blur', desenfoca);
         on(campo, 'input', teclea);
       }
-      on(document, 'visibilitychange', visibilidad);
 
       /* Si el campo ya venía enfocado (atajo `/`, deep-link con ?q=, o el panel
          de comandos que se abre con el foco puesto), el estado correcto es el
          de dentro, no el de reposo. */
       if (campo && document.activeElement === campo) enfoca();
+
+      /* La limpieza que `gsap.context` no puede adivinar. Se devuelve, y
+         `revert()` la ejecuta. */
+      return function () {
+        gsap.ticker.remove(paso);
+        if (ro) ro.disconnect();
+      };
     }, host);
 
     api.ctx = ctx;
@@ -1124,7 +1098,7 @@
     }
   }
 
-  /** Deshace todo: líneas de tiempo, estilos, oyentes y DOM. */
+  /** Deshace todo: integrador, líneas de tiempo, estilos, oyentes y DOM. */
   function destroy(host) {
     var api = host && host._vxAura;
     if (!api) return;
