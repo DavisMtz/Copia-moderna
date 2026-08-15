@@ -108,6 +108,13 @@ const PERM_BLOQUES = [
   { id: 'portal_contenido',  nombre: 'Contenido del Portal',     grupo: 'Supervisión',
     detalle: 'Editar herramientas, plantillas, formatos y promociones del Portal.',
     pagina: 'portal_contenido',    admin: false, fijo: false },
+  // Publicar artículos es un permiso aparte de 'anuncios' a propósito: un anuncio cabe en
+  // una tarjeta y se retira solo; un artículo es documentación que el equipo va a citar
+  // durante meses. LEER no necesita bloque —los artículos son para todos—; esto solo
+  // abre el editor y la lista de quién ha leído cada uno.
+  { id: 'articulos',         nombre: 'Publicar artículos',       grupo: 'Supervisión',
+    detalle: 'Escribir, publicar y retirar los artículos largos del Portal, y ver quién los ha leído.',
+    pagina: 'articulo',            admin: false, fijo: false },
   // REPORTAR una falla no necesita bloque: lo puede hacer cualquiera con sesión, y ponerle
   // permiso sería tanto como pedir autorización para avisar de que algo no funciona. Este
   // bloque es solo para el otro lado del mostrador: decidir qué se le dice al equipo.
@@ -192,7 +199,7 @@ const PERM_ROLES = {
     bloques: ['portal', 'promociones', 'cotizar', 'consultar', 'enviar_cotizacion', 'correos_cliente',
               'atenciones',
               'supervision', 'revisar', 'politica_revision', 'trazabilidad', 'anuncios', 'portal_contenido',
-              'operacion', 'sup_equipo']
+              'articulos', 'operacion', 'sup_equipo']
   },
   maestro: {
     id: 'maestro',

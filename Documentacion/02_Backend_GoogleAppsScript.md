@@ -1,4 +1,4 @@
-# 02 · Backend · los 24 archivos `.gs`
+# 02 · Backend · los 28 archivos `.gs`
 
 Referencia archivo por archivo. Para cada uno: **qué hace**, **qué expone al cliente**,
 **qué no puedes romper** y **dónde tocar** si vienes a cambiar algo.
@@ -23,7 +23,7 @@ cliente**, y por tanto **necesita su gate de permisos dentro**.
 | **Identidad y permisos** | `Seguridad.gs`, `Permisos.gs`, `Cuentas.gs`, `Consola.gs`, `Equipo.gs` |
 | **Cotizaciones** | `Code.gs`, `Formatos.gs`, `Correos.gs`, `CorreoCliente.gs`, `Metricas.gs` |
 | **Revisión y calidad** | `Revision.gs`, `AuditoriaCotizacion.gs`, `PoliticaRevision.gs` |
-| **Portal** | `Portal.gs`, `Publicaciones.gs`, `PortalContenido.gs`, `PortalPromosComercial.gs`, `Trazabilidad.gs`, `DiagnosticoPromos.gs` |
+| **Portal** | `Portal.gs`, `Publicaciones.gs`, `Articulos.gs`, `PortalContenido.gs`, `PortalPromosComercial.gs`, `Trazabilidad.gs`, `DiagnosticoPromos.gs` |
 | **Operación y atenciones** | `Operacion.gs`, `Atenciones.gs` |
 | **Infraestructura** | `Cache.gs`, `Preferencias.gs`, `Onboarding.gs`, `Admin.gs` |
 
@@ -42,9 +42,9 @@ el motor de búsqueda difusa.
 | `HASH_SALT` | 29 | Sal de contraseñas. **Respaldo**: manda la propiedad de script del mismo nombre |
 | `WEBHOOK_URL` | 30 | Webhook de Chat para cotización nueva. **Respaldo**, igual que la anterior |
 | `LOGIN_MAX_INTENTOS` / `LOGIN_VENTANA_SEGUNDOS` | 33–34 | 8 intentos fallidos → bloqueo de 15 minutos |
-| `PAGES` | 56 | **16 pantallas con sesión** |
+| `PAGES` | 56 | **17 pantallas con sesión** |
 | `PORTAL_PAGES` | 89 | **3 pantallas públicas**: `portal`, `promociones`, `estado` |
-| `PARAMS_VISTA` | 124 | **17 parámetros** del contrato de URLs |
+| `PARAMS_VISTA` | 124 | **18 parámetros** del contrato de URLs |
 
 **Contrato de `PARAMS_VISTA`** — el criterio de qué va en cada uno, para que la lista no se
 llene de sinónimos:
@@ -65,6 +65,7 @@ llene de sinónimos:
 | `estatus` | Filtro por estatus de la tabla de supervisión |
 | `dir`, `origen` | Filtros por dirección y por origen del Monitor de promociones |
 | `pub` | **Identidad** de una publicación del Portal, abierta en grande. Como `promo`, sale de la hoja y no de la posición de la fila. Va aparte de `item` porque `item` señala DENTRO de una sección y una publicación se abre venga uno de donde venga |
+| `art` | **Identidad** de un artículo. Como `pub`, sale de la hoja. Va aparte porque una publicación se abre encima del Portal y un artículo tiene pantalla propia |
 
 > `next` solo acepta claves de la lista blanca `AppUrl.PAGINAS_TRAS_LOGIN` del cliente. Es
 > lo que impide usarlo como redirección abierta hacia fuera del sistema.

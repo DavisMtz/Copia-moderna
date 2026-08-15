@@ -973,6 +973,90 @@ y qué se dejó fuera a propósito**. Mismo formato que el registro del document
 
 <!-- Las entradas nuevas van arriba, con la más reciente primero. -->
 
+### 2026-08-15 — F8, primera tanda: los artículos existen (falta repartirlos)
+
+**Qué se cambió.**
+
+- **T8.1 · Modelo y permiso.** `Articulos.gs` (nuevo) con dos hojas —`Articulos` y
+  `ArticulosVistas`— y el contenido guardado como **JSON de bloques versionado**
+  (`{v:1, bloques:[…]}`), nunca HTML. La decisión ordena todo lo demás: guardar el HTML de
+  un editor sería guardar código de terceros para pintarlo en la pantalla de todo el
+  equipo. Con bloques, el servidor sabe qué campos existen y descarta el resto, y el
+  cliente construye nodos en vez de asignar `innerHTML`. Bloque de permiso `articulos`
+  («Publicar artículos», grupo Supervisión, en el rol avanzado): **escribir** pasa por él,
+  **leer** no —los artículos son para todos—. Va aparte de `anuncios` a propósito: un
+  anuncio cabe en una tarjeta y se retira solo; un artículo es documentación que el equipo
+  va a citar durante meses.
+- **T8.2 · Render seguro.** Cada bloque se pinta con `createElement` + `textContent`; los
+  hipervínculos son `<a>` con el `href` ya validado. Solo `https:` — ni `javascript:`, ni
+  `data:`, ni `//host` (protocolo relativo, el disfraz clásico), ni URLs con comillas o
+  espacios, que son las que se escapan del atributo. La regla está escrita **dos veces a
+  propósito**, en el servidor (`artUrlSegura_`) y en el cliente (`urlSegura`): el servidor
+  sanea al guardar, pero el cliente pinta también lo que tiene en memoria mientras se
+  edita. Se comprobó que `revUrlArticuloSegura_` **no** servía para reutilizar: tiene los
+  hosts cableados a liverpool.com.mx, así que habría devuelto vacío para todo enlace de un
+  artículo, docs.google.com incluido.
+- **T8.3 · Documentos incrustados.** Al pegar un enlace de Docs, Slides, Sheets o Drive se
+  extrae **el ID** —no la URL, que arrastra `/edit`, `#slide=`, `?usp=sharing` y a veces el
+  correo de quien la copió— y se arma el visor `/preview` con `referrerpolicy="no-referrer"`.
+  El aviso de «si esto se queda en blanco es que Drive no te da permiso» va **siempre
+  visible**, no solo al fallar: un iframe sin permiso no avisa de nada, se queda en blanco,
+  y desde fuera no se distingue de «está cargando». Es la lección del iframe de la revisión,
+  repetida a conciencia; y de paso se descubrió que `VentelFX.section().fail(msg)` **ignora
+  el mensaje** (`app_loaders.html`), así que apoyarse en él habría sido no avisar de nada.
+- **T8.4 · Lector y editor, una sola vista.** Pantalla `articulo` registrada en `PAGES`,
+  `AppUrl.PAGINAS`, `PAGINAS_TRAS_LOGIN` y `NOMBRES_PAGINA`, con `art` añadido a las **tres
+  listas espejo**. El lector pinta los bloques; quien tiene el permiso ve «Editar» y la
+  misma vista se vuelve editable. **El editor es un formulario por bloques y no un
+  `contenteditable`**, y es la decisión técnica que la fase pedía declarar: un
+  contenteditable produce el HTML que se le antoje a cada navegador, así que guardarlo
+  obliga a limpiar HTML ajeno —el trabajo que nadie gana—. Se paga con un editor menos «de
+  revista» y se cobra que el artículo se pinta igual dentro y fuera. Guardado por
+  `AppGuardado` con el motivo de los reintentos escrito: con id es actualización y se puede
+  repetir; sin id, cada intento **crea** un artículo. La firma sale de la hoja y la autoría
+  se fija al crear: quien corrige la errata de un artículo ajeno no pasa a ser su autor. La
+  lectura se registra en el servidor —no en una llamada aparte que se puede no hacer— con
+  una ventana de media hora para que refrescar cinco veces no cuente cinco lecturas.
+- **T8.5 · A medias: el carril del Portal, sí; el buscador, no.** El Portal tiene ya su
+  franja «Artículos del equipo», que es el camino de los lectores: la entrada del menú de
+  Gestión solo la ve quien publica. Se pide aparte de `fetchToolsData`, con caché de una
+  hora, porque los artículos cambian de mes en mes y no había por qué hacer más lenta la
+  pantalla que todo el mundo abre primero.
+
+**Qué se comprobó.** `pruebas/f8_articulos.test.js` (nuevo): **95 comprobaciones** sobre
+los fuentes reales. La mitad es el **banco de contenido hostil** que pedía el criterio 2:
+`javascript:` en todas sus formas (mayúsculas, con espacios delante, tras un tabulador,
+partido por un salto de línea), `data:text/html`, protocolo relativo, `vbscript:`, comillas
+que cierran el atributo, `<script>` dentro del texto —que se guarda como texto y no se
+pierde—, tipos de bloque inventados, y URLs falsas de Google (`docs.google.com.evil.example`,
+la misma sobre http, y la que lleva `docs.google.com` en el camino y no en el host). La otra
+mitad cubre permisos (borradores que no se listan ni se sirven), autoría que no se reescribe,
+el registro de lectura y el tope de tamaño, que **se dice en vez de truncar en silencio**.
+Pasan también las cinco baterías previas y `scripts/sintaxis.js` sobre los 74 archivos.
+
+**Qué queda de esta fase.** El alta en el **buscador general**, que son dos altas y no una:
+`app_comando` (Ctrl+K) tiene su propio armado y el Index el suyo (`FUENTES_INDICE`), y
+ninguno avisa si falta. El servidor ya sirve lo que hace falta (`artIndiceBuscador`, con
+título, resumen y el texto plano del cuerpo), así que es trabajo de cliente. Con eso se
+cierra el criterio 3 de la fase, que hoy está a medias: la URL compartida sí funciona
+—`art` viaja en las tres listas y sobrevive al login—, pero el artículo todavía no aparece
+al buscarlo.
+
+**Qué se dejó fuera a propósito.**
+
+- **El parser de pegado tabular está duplicado**, no compartido. El de
+  `portal_contenido.html` vive dentro del `<script>` de su pantalla, y moverlo a un include
+  obliga a tocar y volver a probar esa pantalla entera. Queda anotado con nombre y con la
+  regla escrita al lado: si se toca uno, se tocan los dos.
+- **Un enlace por párrafo, no por frase.** Enlazar tres palabras sueltas dentro de un
+  párrafo exigiría un editor de texto rico, que es justo lo que esta fase decidió no ser.
+  El modelo ya lo admite (las partes de un párrafo son independientes); lo que falta es la
+  interfaz, y puede llegar después sin migrar nada.
+- **Reordenar bloques es con flechas, no arrastrando.** El FLIP del constructor de anuncios
+  se miró y está atado a su lista (llama a `moverAnuncio`, usa su selector y su clave de
+  cola); reescribirlo aquí era más riesgo que valor para una lista que casi siempre tiene
+  menos de veinte elementos.
+
 ### 2026-08-15 — F7 completa: cada publicación tiene nombre, sitio y quien responde por ella
 
 **Qué se cambió.**

@@ -1,0 +1,1005 @@
+<!DOCTYPE html>
+<html lang="es" class="h-full">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Artículos · Ventel</title>
+
+<!-- Preferencias de vista (tamaño de letra, contraste) antes que nada, para que la
+     pantalla no parpadee del ajuste por omisión al de la persona. -->
+<?!= include('ViewPrefsPartial'); ?>
+<?!= include('app_theme'); ?>
+
+<style>
+/* ═══════════════════════════════════════════════════════════════════════════
+   ARTÍCULOS · pantalla de LECTURA LARGA
+   ───────────────────────────────────────────────────────────────────────────
+   Es la primera pantalla del sistema pensada para leer y no para operar, y eso
+   cambia las reglas: la medida de línea manda sobre el ancho disponible (65
+   caracteres, que es donde el ojo salta de renglón sin perderse), el interlineado
+   sube a 1.7, y el contraste del cuerpo baja un punto respecto a los títulos para
+   que la página no grite. Todo sale de los tokens de app_theme: aquí no hay ni un
+   color escrito a mano, así que los cuatro temas y el ajuste de contraste de
+   ViewPrefs funcionan sin una sola regla extra.
+═══════════════════════════════════════════════════════════════════════════ */
+
+.art-wrap{max-width:1180px;margin-inline:auto;padding:var(--s4) var(--s3) var(--s6)}
+
+/* ── Índice de artículos ── */
+.art-hd{display:flex;align-items:flex-start;justify-content:space-between;gap:var(--s3);
+  flex-wrap:wrap;margin-bottom:var(--s4)}
+.art-hd h1{font-family:Archivo,inherit;font-size:1.75rem;font-weight:800;letter-spacing:-.01em;
+  color:var(--ink);margin:0}
+.art-hd p{color:var(--ink-soft);font-size:var(--fs-sm);margin:.35rem 0 0;max-width:62ch}
+
+.art-lista{display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:var(--s3)}
+.art-card{display:flex;flex-direction:column;gap:.4rem;text-align:left;width:100%;
+  background:var(--surface);border:1px solid var(--line);border-radius:var(--rad);
+  padding:var(--s3);cursor:pointer;font:inherit;transition:var(--tr)}
+.art-card:hover{border-color:var(--brand-soft);transform:translateY(-2px);box-shadow:var(--sh-sm)}
+.art-card:focus-visible{outline:none;box-shadow:var(--ring)}
+.art-card-tt{font-family:Archivo,inherit;font-size:1.02rem;font-weight:800;line-height:1.3;color:var(--ink)}
+.art-card-rs{font-size:var(--fs-sm);line-height:1.5;color:var(--ink-soft);
+  display:-webkit-box;-webkit-line-clamp:3;-webkit-box-orient:vertical;overflow:hidden}
+.art-card-pie{display:flex;align-items:center;gap:.5rem;flex-wrap:wrap;margin-top:auto;
+  padding-top:.5rem;font-size:var(--fs-xs);color:var(--ink-faint)}
+
+/* ── El artículo ── */
+.art-doc{max-width:none}
+.art-doc-hd{margin-bottom:var(--s4);padding-bottom:var(--s3);border-bottom:1px solid var(--line)}
+.art-doc-hd h1{font-family:Archivo,inherit;font-size:clamp(1.7rem,1.2rem + 1.6vw,2.4rem);
+  font-weight:800;line-height:1.15;letter-spacing:-.02em;color:var(--ink);margin:0 0 .5rem}
+.art-doc-rs{font-size:1.05rem;line-height:1.6;color:var(--ink-soft);margin:0;max-width:62ch}
+.art-firma{display:flex;align-items:center;gap:.6rem;flex-wrap:wrap;margin-top:var(--s3);
+  font-size:var(--fs-xs);color:var(--ink-faint)}
+.art-firma b{color:var(--ink-soft);font-weight:700}
+
+/* El cuerpo: la medida de línea es la regla, no el ancho de la ventana. */
+.art-cuerpo{max-width:68ch}
+.art-cuerpo > * + *{margin-top:1.15rem}
+.art-p{font-size:1.02rem;line-height:1.75;color:var(--ink);margin:0}
+.art-h2{font-family:Archivo,inherit;font-size:1.35rem;font-weight:800;line-height:1.25;
+  color:var(--ink);margin:2.2rem 0 0;letter-spacing:-.01em}
+.art-h3{font-family:Archivo,inherit;font-size:1.1rem;font-weight:700;line-height:1.3;
+  color:var(--ink);margin:1.8rem 0 0}
+.art-cuerpo a{color:var(--brand-deep);text-decoration:underline;text-underline-offset:2px;
+  text-decoration-thickness:1px}
+.art-cuerpo a:hover{color:var(--brand)}
+.art-ul,.art-ol{margin:0;padding-left:1.4rem;display:flex;flex-direction:column;gap:.45rem}
+.art-ul li,.art-ol li{font-size:1.02rem;line-height:1.7;color:var(--ink)}
+.art-sep{border:0;border-top:1px solid var(--line);margin:2rem 0}
+
+.art-fig{margin:0}
+.art-fig img{display:block;width:100%;height:auto;border-radius:var(--rad-sm);
+  border:1px solid var(--line);background:var(--surface-2)}
+.art-fig figcaption{font-size:var(--fs-xs);color:var(--ink-faint);margin-top:.45rem;text-align:center}
+
+/* Las tablas se desplazan dentro de su caja: una tabla ancha no puede empujar la
+   página entera a la derecha, que es lo que rompe la lectura en el móvil. */
+.art-tabla-caja{overflow-x:auto;border:1px solid var(--line);border-radius:var(--rad-sm)}
+.art-tabla{border-collapse:collapse;width:100%;font-size:var(--fs-sm)}
+.art-tabla th,.art-tabla td{padding:.5rem .7rem;text-align:left;border-bottom:1px solid var(--line);
+  vertical-align:top;white-space:pre-wrap}
+.art-tabla th{background:var(--surface-2);font-weight:700;color:var(--ink);position:sticky;top:0}
+.art-tabla tr:last-child td{border-bottom:0}
+
+/* Documentos incrustados */
+.art-doc-emb{border:1px solid var(--line);border-radius:var(--rad);overflow:hidden;background:var(--surface)}
+.art-doc-bar{display:flex;align-items:center;gap:.5rem;padding:.55rem .75rem;
+  background:var(--surface-2);border-bottom:1px solid var(--line);font-size:var(--fs-xs);
+  font-weight:700;color:var(--ink-soft)}
+.art-doc-bar .ic{width:15px;height:15px;flex:none}
+.art-doc-bar .art-doc-tt{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.art-doc-emb iframe{display:block;width:100%;height:min(70vh,560px);border:0;background:var(--surface-2)}
+/* El aviso va SIEMPRE visible, no solo cuando falla: un iframe de Google al que no
+   tienes acceso no avisa de nada —se queda en blanco— y desde fuera no hay forma de
+   saberlo. Es la lección del iframe de la revisión, y aquí se repite a propósito. */
+.art-doc-nota{padding:.5rem .75rem;font-size:var(--fs-xs);line-height:1.5;color:var(--ink-faint);
+  border-top:1px solid var(--line);background:var(--surface)}
+.art-doc-nota a{color:var(--brand-deep);font-weight:700}
+
+/* ── Editor ── */
+.art-editor{display:grid;grid-template-columns:minmax(0,1fr) 300px;gap:var(--s4);align-items:start}
+@media (max-width:1000px){ .art-editor{grid-template-columns:minmax(0,1fr)} }
+.art-bloques{display:flex;flex-direction:column;gap:var(--s2)}
+.art-bloque{border:1px solid var(--line);border-radius:var(--rad-sm);background:var(--surface);
+  padding:var(--s2) var(--s3);position:relative}
+.art-bloque.is-arrastre{opacity:.5}
+.art-bloque-hd{display:flex;align-items:center;gap:.4rem;margin-bottom:.4rem}
+.art-bloque-tipo{font-size:var(--fs-xs);font-weight:800;text-transform:uppercase;letter-spacing:.03em;
+  color:var(--brand-deep);flex:1}
+.art-bloque-ac{display:flex;gap:.25rem}
+.art-bloque-ac button{width:28px;height:28px;display:flex;align-items:center;justify-content:center;
+  border:1px solid var(--line);background:var(--surface);border-radius:6px;cursor:pointer;color:var(--ink-faint)}
+.art-bloque-ac button:hover:not(:disabled){border-color:var(--brand-soft);color:var(--brand-deep)}
+.art-bloque-ac button:disabled{opacity:.35;cursor:default}
+.art-bloque-ac .ic{width:14px;height:14px}
+.art-bloque textarea,.art-bloque input[type=text]{width:100%;font:inherit;font-size:.95rem;
+  line-height:1.6;color:var(--ink);background:var(--surface);border:1px solid var(--line);
+  border-radius:var(--rad-sm);padding:.5rem .65rem;resize:vertical}
+.art-bloque textarea:focus,.art-bloque input:focus{outline:none;border-color:var(--brand);box-shadow:var(--ring)}
+.art-ayuda{font-size:var(--fs-xs);color:var(--ink-faint);margin:.35rem 0 0;line-height:1.5}
+
+.art-panel{position:sticky;top:var(--s3);display:flex;flex-direction:column;gap:var(--s3)}
+.art-panel-caja{border:1px solid var(--line);border-radius:var(--rad);background:var(--surface);padding:var(--s3)}
+.art-panel-t{font-size:var(--fs-xs);font-weight:800;text-transform:uppercase;letter-spacing:.03em;
+  color:var(--ink-faint);margin:0 0 .6rem}
+.art-insertar{display:grid;grid-template-columns:1fr 1fr;gap:.4rem}
+.art-insertar button{display:flex;align-items:center;gap:.4rem;padding:.45rem .5rem;font:inherit;
+  font-size:var(--fs-xs);font-weight:600;color:var(--ink);background:var(--surface-2);
+  border:1px solid var(--line);border-radius:var(--rad-sm);cursor:pointer;text-align:left}
+.art-insertar button:hover{border-color:var(--brand-soft);background:var(--brand-tint);color:var(--brand-deep)}
+.art-insertar .ic{width:14px;height:14px;flex:none}
+
+.art-vacio{text-align:center;padding:var(--s5) var(--s3);color:var(--ink-faint)}
+.art-vacio .ic{width:30px;height:30px;opacity:.5;margin:0 auto var(--s2);display:block}
+.art-vacio-t{font-size:var(--fs-md);font-weight:700;color:var(--ink-soft);margin-bottom:.35rem}
+.art-vacio-s{font-size:var(--fs-sm);line-height:1.55;max-width:44ch;margin-inline:auto}
+
+.art-badge{display:inline-flex;align-items:center;gap:.3rem;font-size:var(--fs-xs);font-weight:700;
+  border-radius:999px;padding:.15rem .5rem}
+.art-badge.borrador{background:var(--warn-bg);color:var(--warn)}
+.art-badge.publicado{background:var(--ok-bg);color:var(--ok)}
+
+.art-acciones{display:flex;gap:.5rem;flex-wrap:wrap;align-items:center}
+.art-oculto{display:none!important}
+
+/* Lectores */
+.art-lectores{display:flex;flex-direction:column;gap:.35rem;max-height:280px;overflow-y:auto}
+.art-lector{display:flex;align-items:baseline;justify-content:space-between;gap:.5rem;
+  font-size:var(--fs-xs);color:var(--ink-soft)}
+.art-lector b{color:var(--ink);font-weight:600}
+.art-lector span{color:var(--ink-faint);white-space:nowrap}
+
+@media (prefers-reduced-motion: reduce){
+  .art-card:hover{transform:none}
+}
+</style>
+<?!= include('app_tailwind'); ?>
+</head>
+<body class="h-full text-slate-800">
+<div class="app-aurora"></div>
+<div id="operacion-avisos"></div>
+
+<main id="main-content" class="art-wrap">
+  <div id="vista"></div>
+</main>
+
+<script>window.__APP__ = <?!= APP_JSON ?>;</script>
+<?!= include('app_core'); ?>
+<?!= include('app_prefs'); ?>
+<?!= include('app_guardado'); ?>
+<?!= include('app_buscar'); ?>
+<?!= include('app_indices'); ?>
+<?!= include('app_icons'); ?>
+<?!= include('app_motion'); ?>
+<?!= include('app_loaders'); ?>
+<script>if (window.VentelFX) VentelFX.pagina("articulo");</script>
+<?!= include('app_shell'); ?>
+<?!= include('app_aura'); ?>
+<?!= include('app_comando'); ?>
+<?!= include('app_precarga'); ?>
+<?!= include('LoaderPartial'); ?>
+<?!= include('app_operacion'); ?>
+<?!= include('app_atenciones'); ?>
+
+<script>
+(function () {
+  'use strict';
+
+  /* ═══════════════════════════════════════════════════════════════════════
+     ARTÍCULOS — lector y editor de la misma vista
+     ───────────────────────────────────────────────────────────────────────
+     LA DECISIÓN TÉCNICA, declarada antes de escribir (la fase la pedía):
+
+     El editor es un FORMULARIO POR BLOQUES, no un `contenteditable`.
+
+     Un contenteditable produce el HTML que se le antoje al navegador —y cada
+     navegador el suyo—, así que guardarlo obliga a limpiar HTML ajeno, que es
+     precisamente el trabajo que nadie gana. Con un campo por bloque, lo que se
+     escribe es TEXTO y lo que se guarda es un objeto de forma conocida: no hay
+     ningún punto del camino donde el contenido pueda convertirse en marcado.
+     Se paga con un editor menos «de revista» —no se escribe en negrita a mitad
+     de frase—, y a cambio el artículo se pinta igual dentro y fuera, hoy y
+     cuando el modelo cambie de versión.
+
+     Y el pintado NUNCA usa innerHTML con contenido del artículo: cada bloque se
+     construye con createElement y textContent. Es la otra mitad de lo mismo.
+  ═══════════════════════════════════════════════════════════════════════ */
+
+  function icono(nombre){
+    var svg = document.createElement('span');
+    svg.setAttribute('data-icon', nombre);
+    svg.className = 'ic';
+    return svg;
+  }
+  /** Crea un elemento con texto. El texto SIEMPRE por textContent: es la regla. */
+  function el(tag, clase, texto){
+    var n = document.createElement(tag);
+    if (clase) n.className = clase;
+    if (texto != null) n.textContent = String(texto);
+    return n;
+  }
+
+  /* ── URLs seguras, del lado del cliente ────────────────────────────────
+     El servidor ya sanea al guardar (artUrlSegura_), pero el cliente pinta
+     también lo que tiene en memoria mientras se edita, y una copia local vieja
+     podría traer cualquier cosa. Es la misma regla escrita dos veces a
+     propósito: solo https, y ninguna de las formas de disfrazar otra cosa. */
+  function urlSegura(u){
+    var s = String(u == null ? '' : u).trim();
+    if (!/^https:\/\/[^\s"'<>]+$/i.test(s)) return '';
+    return s.length > 2000 ? '' : s;
+  }
+
+  var DOC_VISOR = {
+    documento:    { ruta: 'document',     nombre: 'Documento de Google',    icono: 'document' },
+    presentacion: { ruta: 'presentation', nombre: 'Presentación de Google', icono: 'presentation' },
+    hoja:         { ruta: 'spreadsheets', nombre: 'Hoja de cálculo',        icono: 'chart' },
+    archivo:      { ruta: 'file',         nombre: 'Archivo de Drive',       icono: 'folder' }
+  };
+  function urlVisor(clase, docId){
+    var f = DOC_VISOR[clase] || DOC_VISOR.archivo;
+    return 'https://docs.google.com/' + f.ruta + '/d/' + encodeURIComponent(docId) + '/preview';
+  }
+  function urlAbrir(clase, docId){
+    var f = DOC_VISOR[clase] || DOC_VISOR.archivo;
+    var base = f.ruta === 'file' ? 'https://drive.google.com/file/d/' : 'https://docs.google.com/' + f.ruta + '/d/';
+    return base + encodeURIComponent(docId) + (f.ruta === 'file' ? '/view' : '/edit');
+  }
+  /** Extrae {clase, docId} de una URL pegada de Google. Gemela de artDocDeUrl_ del servidor. */
+  function docDeUrl(url){
+    var s = String(url || '').trim();
+    if (!/^https:\/\/(docs|drive)\.google\.com\//i.test(s)) return null;
+    var m = s.match(/\/(document|presentation|spreadsheets|file)\/d\/([a-zA-Z0-9_-]{10,})/);
+    if (!m) return null;
+    var clase = m[1] === 'document' ? 'documento'
+              : m[1] === 'presentation' ? 'presentacion'
+              : m[1] === 'spreadsheets' ? 'hoja' : 'archivo';
+    return { clase: clase, docId: m[2] };
+  }
+
+  /* ── Parser de pegado tabular (TSV) ────────────────────────────────────
+     Gemelo del de portal_contenido.html: mismas comillas, mismos saltos. No se
+     comparte todavía porque aquel vive dentro del <script> de su pantalla y
+     moverlo a un include obliga a tocar y volver a probar esa pantalla; queda
+     anotado como deuda con nombre. Si se toca uno, se tocan los dos. */
+  function parsearTSV(texto){
+    var filas = [], celda = '', fila = [], enComillas = false;
+    var t = String(texto || '').replace(/\r\n/g, '\n').replace(/\r/g, '\n');
+    for (var i = 0; i < t.length; i++) {
+      var ch = t[i];
+      if (enComillas) {
+        if (ch === '"') {
+          if (t[i + 1] === '"') { celda += '"'; i++; }
+          else enComillas = false;
+        } else celda += ch;
+      } else if (ch === '"') enComillas = true;
+      else if (ch === '\t') { fila.push(celda); celda = ''; }
+      else if (ch === '\n') { fila.push(celda); filas.push(fila); fila = []; celda = ''; }
+      else celda += ch;
+    }
+    if (celda !== '' || fila.length) { fila.push(celda); filas.push(fila); }
+    return filas.filter(function (f) { return f.some(function (c) { return String(c).trim() !== ''; }); });
+  }
+
+  /* ═══════════════════════════════════════════════════════════════════════
+     PINTAR UN ARTÍCULO (lector)
+     Cada bloque se construye a mano. Ni un innerHTML con contenido del artículo.
+  ═══════════════════════════════════════════════════════════════════════ */
+
+  /** Un párrafo: nodos de texto y <a> con href ya validado. */
+  function pintarPartes(destino, partes){
+    (partes || []).forEach(function (p){
+      var txt = String(p.t == null ? '' : p.t);
+      var url = urlSegura(p.url);
+      if (!url) { destino.appendChild(document.createTextNode(txt)); return; }
+      var a = el('a', null, txt);
+      a.href = url;
+      a.target = '_blank';
+      a.rel = 'noopener noreferrer';
+      destino.appendChild(a);
+    });
+  }
+
+  function pintarBloque(b){
+    if (b.tipo === 'titulo') return el(b.nivel === 3 ? 'h3' : 'h2', b.nivel === 3 ? 'art-h3' : 'art-h2', b.texto);
+
+    if (b.tipo === 'texto') {
+      var p = el('p', 'art-p');
+      pintarPartes(p, b.partes);
+      return p;
+    }
+
+    if (b.tipo === 'lista') {
+      var lista = el(b.ordenada ? 'ol' : 'ul', b.ordenada ? 'art-ol' : 'art-ul');
+      (b.items || []).forEach(function (partes){
+        var li = document.createElement('li');
+        pintarPartes(li, partes);
+        lista.appendChild(li);
+      });
+      return lista;
+    }
+
+    if (b.tipo === 'imagen') {
+      var url = urlSegura(b.url);
+      if (!url) return null;
+      var fig = el('figure', 'art-fig');
+      var img = document.createElement('img');
+      img.src = url;
+      img.alt = String(b.alt || '');
+      img.loading = 'lazy';
+      fig.appendChild(img);
+      if (b.pie) fig.appendChild(el('figcaption', null, b.pie));
+      return fig;
+    }
+
+    if (b.tipo === 'tabla') {
+      var caja = el('div', 'art-tabla-caja');
+      var tabla = el('table', 'art-tabla');
+      var filas = b.filas || [];
+      var desde = 0;
+      if (b.encabezado !== false && filas.length) {
+        var thead = document.createElement('thead');
+        var trh = document.createElement('tr');
+        (filas[0] || []).forEach(function (c){ trh.appendChild(el('th', null, c)); });
+        thead.appendChild(trh);
+        tabla.appendChild(thead);
+        desde = 1;
+      }
+      var tbody = document.createElement('tbody');
+      for (var i = desde; i < filas.length; i++) {
+        var tr = document.createElement('tr');
+        (filas[i] || []).forEach(function (c){ tr.appendChild(el('td', null, c)); });
+        tbody.appendChild(tr);
+      }
+      tabla.appendChild(tbody);
+      caja.appendChild(tabla);
+      return caja;
+    }
+
+    if (b.tipo === 'documento') {
+      var ficha = DOC_VISOR[b.clase] || DOC_VISOR.archivo;
+      var caja2 = el('div', 'art-doc-emb');
+
+      var barra = el('div', 'art-doc-bar');
+      barra.appendChild(icono(ficha.icono));
+      barra.appendChild(el('span', 'art-doc-tt', b.titulo || ficha.nombre));
+      var abrir = el('a', null, 'Abrir en Google');
+      abrir.href = urlAbrir(b.clase, b.docId);
+      abrir.target = '_blank';
+      abrir.rel = 'noopener noreferrer';
+      abrir.style.color = 'var(--brand-deep)';
+      abrir.style.fontWeight = '700';
+      barra.appendChild(abrir);
+      caja2.appendChild(barra);
+
+      var fr = document.createElement('iframe');
+      fr.src = urlVisor(b.clase, b.docId);
+      fr.title = b.titulo || ficha.nombre;
+      fr.setAttribute('referrerpolicy', 'no-referrer');
+      fr.setAttribute('loading', 'lazy');
+      caja2.appendChild(fr);
+
+      /* El aviso va SIEMPRE, no solo si falla. Un documento de Drive al que no
+         tienes permiso se queda en blanco dentro del marco y no avisa de nada:
+         desde fuera no hay forma de distinguirlo de «está cargando». Decirlo
+         antes evita el rato de mirar un rectángulo vacío pensando que es lento. */
+      var nota = el('div', 'art-doc-nota');
+      nota.appendChild(document.createTextNode(
+        'Si el recuadro se queda en blanco es que tu cuenta no tiene permiso sobre este documento: ' +
+        'los permisos los da Drive, no el Portal. Pídeselos a quien lo compartió, o '));
+      var abrir2 = el('a', null, 'ábrelo en Google');
+      abrir2.href = urlAbrir(b.clase, b.docId);
+      abrir2.target = '_blank';
+      abrir2.rel = 'noopener noreferrer';
+      nota.appendChild(abrir2);
+      nota.appendChild(document.createTextNode(' para ver el motivo exacto.'));
+      caja2.appendChild(nota);
+      return caja2;
+    }
+
+    if (b.tipo === 'separador') return el('hr', 'art-sep');
+    return null;   // tipo desconocido: no se pinta y no se rompe nada
+  }
+
+  function pintarCuerpo(contenido){
+    var cuerpo = el('div', 'art-cuerpo');
+    ((contenido && contenido.bloques) || []).forEach(function (b){
+      var n = pintarBloque(b);
+      if (n) cuerpo.appendChild(n);
+    });
+    if (!cuerpo.firstChild) {
+      cuerpo.appendChild(el('p', 'art-p', 'Este artículo todavía no tiene contenido.'));
+    }
+    return cuerpo;
+  }
+
+  window.ArticuloRender = { pintarBloque: pintarBloque, pintarCuerpo: pintarCuerpo, urlSegura: urlSegura,
+                            docDeUrl: docDeUrl, parsearTSV: parsearTSV };
+})();
+</script>
+<script>
+/* La interfaz (lista, lector, editor y guardado) va en su propio bloque para que el
+   render —que es la pieza con implicaciones de seguridad— se lea entero de una vez. */
+(function () {
+  'use strict';
+  var R = window.ArticuloRender;
+  var vista = document.getElementById('vista');
+
+  var st = { modo: 'lista', id: '', articulo: null, lista: [], puedeEditar: false, sucio: false, bloques: [] };
+
+  function correo(){ return (window.AppSession && AppSession.userEmail) || ''; }
+  function param(n){ return (window.AppUrl && AppUrl.param) ? (AppUrl.param(n) || '') : ''; }
+  function reflejar(p, apilar){
+    if (window.AppUrl && AppUrl.reflejar) AppUrl.reflejar(p, apilar ? { apilar: true } : null);
+  }
+  function aviso(m, t){ if (window.AppMotion && AppMotion.toast) AppMotion.toast(m, t || 'info'); }
+  function el(tag, clase, texto){
+    var n = document.createElement(tag);
+    if (clase) n.className = clase;
+    if (texto != null) n.textContent = String(texto);
+    return n;
+  }
+  function vaciar(n){ while (n.firstChild) n.removeChild(n.firstChild); }
+  function icono(nombre, clase){
+    var s = document.createElement('span');
+    s.setAttribute('data-icon', nombre);
+    s.className = 'ic' + (clase ? ' ' + clase : '');
+    return s;
+  }
+  function iconos(){ if (window.Icons) Icons.render(vista); }
+
+  /* ── Lista ─────────────────────────────────────────────────────────── */
+  function cargarLista(){
+    var fx = window.VentelFX ? VentelFX.skeleton('#vista', 'lista', { rows: 4 }) : null;
+    AppRun.call('artListar', [correo(), {}], { busy: false })
+      .then(function (r){
+        if (fx) fx.done();
+        if (!r || r.status !== 'ok') { pintarError(r && r.error); return; }
+        st.lista = r.articulos || [];
+        st.puedeEditar = !!r.puedeEditar;
+        pintarLista();
+      }, function (){ if (fx) fx.done(); pintarError(); });
+  }
+
+  function pintarLista(){
+    st.modo = 'lista';
+    vaciar(vista);
+
+    var hd = el('div', 'art-hd');
+    var izq = document.createElement('div');
+    izq.appendChild(el('h1', null, 'Artículos'));
+    izq.appendChild(el('p', null,
+      'Lo que hay que saber explicado con calma: guías, procedimientos y todo lo que no cabe en un anuncio.'));
+    hd.appendChild(izq);
+
+    if (st.puedeEditar) {
+      var nuevo = el('button', 'v-btn v-btn-primary', 'Escribir artículo');
+      nuevo.type = 'button';
+      nuevo.addEventListener('click', function (){ abrirEditor(null); });
+      hd.appendChild(nuevo);
+    }
+    vista.appendChild(hd);
+
+    if (!st.lista.length) {
+      var vacio = el('div', 'art-vacio');
+      vacio.appendChild(icono('document'));
+      vacio.appendChild(el('div', 'art-vacio-t', 'Todavía no hay artículos'));
+      vacio.appendChild(el('div', 'art-vacio-s', st.puedeEditar
+        ? 'Escribe el primero: una guía, un procedimiento, la explicación de un caso que se repite.'
+        : 'Cuando el equipo publique alguno, aparecerá aquí.'));
+      vista.appendChild(vacio);
+      iconos();
+      return;
+    }
+
+    var grid = el('div', 'art-lista');
+    st.lista.forEach(function (a){
+      var card = el('button', 'art-card');
+      card.type = 'button';
+      card.appendChild(el('div', 'art-card-tt', a.titulo || '(sin título)'));
+      if (a.resumen) card.appendChild(el('div', 'art-card-rs', a.resumen));
+      var pie = el('div', 'art-card-pie');
+      if (a.estado !== 'publicado') {
+        pie.appendChild(el('span', 'art-badge borrador', 'Borrador'));
+      }
+      if (a.minutos) pie.appendChild(el('span', null, a.minutos + ' min de lectura'));
+      if (a.autores) pie.appendChild(el('span', null, '· ' + a.autores));
+      card.appendChild(pie);
+      card.addEventListener('click', function (){ abrirArticulo(a.id, true); });
+      grid.appendChild(card);
+    });
+    vista.appendChild(grid);
+    iconos();
+    reflejar({ art: '' });
+  }
+
+  function pintarError(msg){
+    vaciar(vista);
+    var v = el('div', 'art-vacio');
+    v.appendChild(icono('chat'));
+    v.appendChild(el('div', 'art-vacio-t', 'No pudimos cargar los artículos'));
+    v.appendChild(el('div', 'art-vacio-s', msg || 'Revisa tu conexión y vuelve a intentarlo.'));
+    vista.appendChild(v);
+    iconos();
+  }
+
+  /* ── Lector ────────────────────────────────────────────────────────── */
+  function abrirArticulo(id, apilar){
+    if (!id) return;
+    var fx = window.VentelFX ? VentelFX.skeleton('#vista', 'lista', { rows: 3 }) : null;
+    AppRun.call('artObtener', [id, correo()], { busy: false })
+      .then(function (r){
+        if (fx) fx.done();
+        if (!r || r.status !== 'ok') { pintarError(r && r.error); return; }
+        st.articulo = r.articulo;
+        st.id = id;
+        st.puedeEditar = !!r.puedeEditar;
+        pintarLectura();
+        reflejar({ art: id }, apilar);
+      }, function (){ if (fx) fx.done(); pintarError(); });
+  }
+
+  function pintarLectura(){
+    st.modo = 'lee';
+    var a = st.articulo;
+    vaciar(vista);
+
+    var barra = el('div', 'art-acciones');
+    barra.style.marginBottom = 'var(--s3)';
+    var volver = el('button', 'v-btn v-btn-ghost', '← Todos los artículos');
+    volver.type = 'button';
+    volver.addEventListener('click', function (){ st.id = ''; cargarLista(); });
+    barra.appendChild(volver);
+    if (st.puedeEditar) {
+      var editar = el('button', 'v-btn v-btn-ghost', 'Editar');
+      editar.type = 'button';
+      editar.addEventListener('click', function (){ abrirEditor(a); });
+      barra.appendChild(editar);
+      var lectores = el('button', 'v-btn v-btn-ghost', 'Quién lo ha leído');
+      lectores.type = 'button';
+      lectores.addEventListener('click', function (){ verLectores(a.id); });
+      barra.appendChild(lectores);
+    }
+    vista.appendChild(barra);
+
+    var doc = el('article', 'art-doc');
+    var hd = el('div', 'art-doc-hd');
+    if (a.estado !== 'publicado') hd.appendChild(el('span', 'art-badge borrador', 'Borrador · solo lo ves tú'));
+    hd.appendChild(el('h1', null, a.titulo || '(sin título)'));
+    if (a.resumen) hd.appendChild(el('p', 'art-doc-rs', a.resumen));
+
+    var firma = el('div', 'art-firma');
+    if (a.autores) { firma.appendChild(el('b', null, a.autores)); }
+    if (a.creado) firma.appendChild(el('span', null, '· ' + a.creado));
+    if (a.minutos) firma.appendChild(el('span', null, '· ' + a.minutos + ' min de lectura'));
+    if (a.editadoPor && a.editado && a.editado !== a.creado) {
+      firma.appendChild(el('span', null, '· última edición ' + a.editado + ' por ' + a.editadoPor));
+    }
+    hd.appendChild(firma);
+    doc.appendChild(hd);
+    doc.appendChild(R.pintarCuerpo(a.contenido));
+    vista.appendChild(doc);
+    iconos();
+    if (window.AppUrl && AppUrl.irAncla) AppUrl.irAncla();
+  }
+
+  function verLectores(id){
+    AppRun.call('artLectores', [id, correo()], { busy: 'Consultando lectores' })
+      .then(function (r){
+        if (!r || r.status !== 'ok') { aviso((r && r.error) || 'No pudimos consultarlo.', 'warn'); return; }
+        var caja = el('div', 'art-panel-caja');
+        caja.style.marginTop = 'var(--s3)';
+        caja.appendChild(el('p', 'art-panel-t', r.total === 1 ? '1 persona lo ha leído' : r.total + ' personas lo han leído'));
+        var lista = el('div', 'art-lectores');
+        (r.lectores || []).forEach(function (l){
+          var fila = el('div', 'art-lector');
+          fila.appendChild(el('b', null, l.nombre || l.correo));
+          fila.appendChild(el('span', null, l.primera + (l.veces > 1 ? ' · ' + l.veces + ' veces' : '')));
+          lista.appendChild(fila);
+        });
+        if (!r.total) lista.appendChild(el('div', 'art-lector', 'Todavía nadie.'));
+        caja.appendChild(lista);
+        vista.appendChild(caja);
+      }, function (){ aviso('No pudimos consultarlo.', 'warn'); });
+  }
+
+  /* ── Editor ────────────────────────────────────────────────────────── */
+  var TIPOS = [
+    { t: 'texto',      n: 'Párrafo',      i: 'document' },
+    { t: 'titulo',     n: 'Subtítulo',    i: 'textsize' },
+    { t: 'lista',      n: 'Lista',        i: 'layers' },
+    { t: 'imagen',     n: 'Imagen',       i: 'folder' },
+    { t: 'tabla',      n: 'Tabla',        i: 'chart' },
+    { t: 'documento',  n: 'Documento',    i: 'presentation' },
+    { t: 'separador',  n: 'Separador',    i: 'minus' }
+  ];
+
+  function abrirEditor(a){
+    st.modo = 'edita';
+    st.articulo = a || { id: '', titulo: '', resumen: '', estado: 'borrador', contenido: { v: 1, bloques: [] } };
+    st.id = st.articulo.id || '';
+    st.bloques = ((st.articulo.contenido && st.articulo.contenido.bloques) || []).slice();
+    if (!st.bloques.length) st.bloques.push({ tipo: 'texto', partes: [{ t: '' }] });
+    st.sucio = false;
+    pintarEditor();
+    reflejar({ art: st.id, action: st.id ? 'edit' : 'nueva' }, true);
+  }
+
+  function marcar(){ st.sucio = true; }
+
+  function pintarEditor(){
+    vaciar(vista);
+    var hd = el('div', 'art-hd');
+    var izq = document.createElement('div');
+    izq.appendChild(el('h1', null, st.id ? 'Editando artículo' : 'Artículo nuevo'));
+    izq.appendChild(el('p', null, 'Se escribe por bloques. Cada bloque es texto: lo que escribas se guarda tal cual y se pinta igual para todo el mundo.'));
+    hd.appendChild(izq);
+    vista.appendChild(hd);
+
+    var grid = el('div', 'art-editor');
+    var col = document.createElement('div');
+
+    // Título y resumen
+    var cabecera = el('div', 'art-bloque');
+    cabecera.appendChild(el('div', 'art-bloque-tipo', 'Título y resumen'));
+    var tTitulo = document.createElement('input');
+    tTitulo.type = 'text';
+    tTitulo.value = st.articulo.titulo || '';
+    tTitulo.placeholder = 'Título del artículo';
+    tTitulo.maxLength = 160;
+    tTitulo.addEventListener('input', function (){ st.articulo.titulo = this.value; marcar(); });
+    cabecera.appendChild(tTitulo);
+    var tRes = document.createElement('textarea');
+    tRes.rows = 2;
+    tRes.value = st.articulo.resumen || '';
+    tRes.placeholder = 'Resumen de una o dos líneas: es lo que se lee en la lista y en el buscador.';
+    tRes.maxLength = 400;
+    tRes.style.marginTop = '.4rem';
+    tRes.addEventListener('input', function (){ st.articulo.resumen = this.value; marcar(); });
+    cabecera.appendChild(tRes);
+    col.appendChild(cabecera);
+
+    var caja = el('div', 'art-bloques');
+    caja.style.marginTop = 'var(--s2)';
+    st.bloques.forEach(function (b, i){ caja.appendChild(editorDeBloque(b, i)); });
+    col.appendChild(caja);
+    grid.appendChild(col);
+
+    // Panel lateral
+    var panel = el('div', 'art-panel');
+
+    var insertar = el('div', 'art-panel-caja');
+    insertar.appendChild(el('p', 'art-panel-t', 'Añadir bloque'));
+    var botones = el('div', 'art-insertar');
+    TIPOS.forEach(function (t){
+      var b = el('button', null, null);
+      b.type = 'button';
+      b.appendChild(icono(t.i));
+      b.appendChild(document.createTextNode(t.n));
+      b.addEventListener('click', function (){ anadirBloque(t.t); });
+      botones.appendChild(b);
+    });
+    insertar.appendChild(botones);
+    panel.appendChild(insertar);
+
+    var acciones = el('div', 'art-panel-caja');
+    acciones.appendChild(el('p', 'art-panel-t', 'Publicación'));
+    var estadoAct = el('div', 'art-acciones');
+    var guardar = el('button', 'v-btn v-btn-primary', 'Guardar');
+    guardar.type = 'button';
+    guardar.addEventListener('click', function (){ guardarArticulo(st.articulo.estado || 'borrador'); });
+    estadoAct.appendChild(guardar);
+    var publicar = el('button', 'v-btn v-btn-ghost',
+      st.articulo.estado === 'publicado' ? 'Pasar a borrador' : 'Guardar y publicar');
+    publicar.type = 'button';
+    publicar.addEventListener('click', function (){
+      guardarArticulo(st.articulo.estado === 'publicado' ? 'borrador' : 'publicado');
+    });
+    estadoAct.appendChild(publicar);
+    acciones.appendChild(estadoAct);
+    var salir = el('button', 'v-btn v-btn-ghost', 'Salir sin guardar');
+    salir.type = 'button';
+    salir.style.marginTop = '.5rem';
+    salir.addEventListener('click', function (){
+      if (st.sucio && !window.confirm('Se perderá lo que has escrito desde el último guardado. ¿Salir igualmente?')) return;
+      if (st.id) abrirArticulo(st.id); else cargarLista();
+    });
+    acciones.appendChild(salir);
+    panel.appendChild(acciones);
+
+    var ayuda = el('div', 'art-panel-caja');
+    ayuda.appendChild(el('p', 'art-panel-t', 'Cómo se pegan las cosas'));
+    ayuda.appendChild(el('p', 'art-ayuda',
+      'Tabla: copia el rango en Sheets o Excel y pégalo en un bloque de tabla; se reparte solo en columnas. ' +
+      'Documento: pega el enlace de un Docs, Slides o Sheets y se incrusta. ' +
+      'Imagen: elige el archivo y se sube a la carpeta del Portal en Drive.'));
+    panel.appendChild(ayuda);
+
+    grid.appendChild(panel);
+    vista.appendChild(grid);
+    iconos();
+  }
+
+  function anadirBloque(tipo){
+    var nuevo = tipo === 'texto' ? { tipo: 'texto', partes: [{ t: '' }] }
+      : tipo === 'titulo' ? { tipo: 'titulo', texto: '', nivel: 2 }
+      : tipo === 'lista' ? { tipo: 'lista', items: [[{ t: '' }]], ordenada: false }
+      : tipo === 'imagen' ? { tipo: 'imagen', url: '', alt: '', pie: '' }
+      : tipo === 'tabla' ? { tipo: 'tabla', filas: [], encabezado: true }
+      : tipo === 'documento' ? { tipo: 'documento', clase: '', docId: '', titulo: '' }
+      : { tipo: 'separador' };
+    st.bloques.push(nuevo);
+    marcar();
+    pintarEditor();
+  }
+
+  function moverBloque(i, dir){
+    var j = i + dir;
+    if (j < 0 || j >= st.bloques.length) return;
+    var tmp = st.bloques[i]; st.bloques[i] = st.bloques[j]; st.bloques[j] = tmp;
+    marcar();
+    pintarEditor();
+  }
+
+  function quitarBloque(i){
+    st.bloques.splice(i, 1);
+    if (!st.bloques.length) st.bloques.push({ tipo: 'texto', partes: [{ t: '' }] });
+    marcar();
+    pintarEditor();
+  }
+
+  /** El texto de un párrafo se edita como TEXTO PLANO; los enlaces se escriben aparte. */
+  function textoDePartes(partes){
+    return (partes || []).map(function (p){ return p.t; }).join('');
+  }
+
+  function editorDeBloque(b, i){
+    var caja = el('div', 'art-bloque');
+    var hd = el('div', 'art-bloque-hd');
+    var ficha = TIPOS.filter(function (t){ return t.t === b.tipo; })[0];
+    hd.appendChild(el('span', 'art-bloque-tipo', (ficha && ficha.n) || b.tipo));
+    var ac = el('div', 'art-bloque-ac');
+    [['up', -1, 'Subir'], ['down', 1, 'Bajar']].forEach(function (m){
+      var btn = document.createElement('button');
+      btn.type = 'button';
+      btn.title = m[2];
+      btn.setAttribute('aria-label', m[2] + ' bloque');
+      btn.appendChild(icono(m[0] === 'up' ? 'arrow' : 'chevdown'));
+      btn.disabled = (m[1] === -1 && i === 0) || (m[1] === 1 && i === st.bloques.length - 1);
+      btn.addEventListener('click', function (){ moverBloque(i, m[1]); });
+      ac.appendChild(btn);
+    });
+    var borrar = document.createElement('button');
+    borrar.type = 'button';
+    borrar.title = 'Quitar bloque';
+    borrar.setAttribute('aria-label', 'Quitar bloque');
+    borrar.appendChild(icono('trash'));
+    borrar.addEventListener('click', function (){ quitarBloque(i); });
+    ac.appendChild(borrar);
+    hd.appendChild(ac);
+    caja.appendChild(hd);
+
+    if (b.tipo === 'texto') {
+      var ta = document.createElement('textarea');
+      ta.rows = 4;
+      ta.value = textoDePartes(b.partes);
+      ta.placeholder = 'Escribe el párrafo.';
+      ta.addEventListener('input', function (){ b.partes = [{ t: this.value }]; marcar(); });
+      caja.appendChild(ta);
+      var enl = document.createElement('input');
+      enl.type = 'text';
+      enl.placeholder = 'Enlace opcional para todo el párrafo (https://…)';
+      enl.style.marginTop = '.4rem';
+      var urlActual = (b.partes || []).filter(function (p){ return p.url; })[0];
+      enl.value = urlActual ? urlActual.url : '';
+      enl.addEventListener('input', function (){
+        var u = R.urlSegura(this.value);
+        var txt = textoDePartes(b.partes);
+        b.partes = u ? [{ t: txt, url: u }] : [{ t: txt }];
+        marcar();
+      });
+      caja.appendChild(enl);
+      caja.appendChild(el('p', 'art-ayuda',
+        'Si pones un enlace, el párrafo entero se vuelve enlace. Para enlazar solo una frase, ponla en su propio párrafo.'));
+    }
+
+    else if (b.tipo === 'titulo') {
+      var ti = document.createElement('input');
+      ti.type = 'text';
+      ti.value = b.texto || '';
+      ti.placeholder = 'Subtítulo';
+      ti.addEventListener('input', function (){ b.texto = this.value; marcar(); });
+      caja.appendChild(ti);
+    }
+
+    else if (b.tipo === 'lista') {
+      var tl = document.createElement('textarea');
+      tl.rows = 4;
+      tl.value = (b.items || []).map(function (it){ return textoDePartes(it); }).join('\n');
+      tl.placeholder = 'Un elemento por renglón.';
+      tl.addEventListener('input', function (){
+        b.items = this.value.split('\n').map(function (t){ return [{ t: t }]; });
+        marcar();
+      });
+      caja.appendChild(tl);
+    }
+
+    else if (b.tipo === 'imagen') {
+      if (b.url) {
+        var prev = document.createElement('img');
+        prev.src = R.urlSegura(b.url);
+        prev.alt = '';
+        prev.style.maxWidth = '100%';
+        prev.style.borderRadius = '8px';
+        prev.style.marginBottom = '.4rem';
+        caja.appendChild(prev);
+      }
+      var file = document.createElement('input');
+      file.type = 'file';
+      file.accept = 'image/*';
+      file.addEventListener('change', function (){ subirImagen(this.files && this.files[0], b); });
+      caja.appendChild(file);
+      var pie = document.createElement('input');
+      pie.type = 'text';
+      pie.placeholder = 'Pie de imagen (opcional)';
+      pie.value = b.pie || '';
+      pie.style.marginTop = '.4rem';
+      pie.addEventListener('input', function (){ b.pie = this.value; marcar(); });
+      caja.appendChild(pie);
+      var alt = document.createElement('input');
+      alt.type = 'text';
+      alt.placeholder = 'Descripción para quien no ve la imagen';
+      alt.value = b.alt || '';
+      alt.style.marginTop = '.4rem';
+      alt.addEventListener('input', function (){ b.alt = this.value; marcar(); });
+      caja.appendChild(alt);
+    }
+
+    else if (b.tipo === 'tabla') {
+      var tt = document.createElement('textarea');
+      tt.rows = 5;
+      tt.value = (b.filas || []).map(function (f){ return f.join('\t'); }).join('\n');
+      tt.placeholder = 'Pega aquí el rango copiado de Sheets o Excel.';
+      tt.addEventListener('input', function (){
+        b.filas = R.parsearTSV(this.value);
+        marcar();
+        var n = caja.querySelector('.art-ayuda');
+        if (n) n.textContent = b.filas.length
+          ? b.filas.length + ' filas × ' + (b.filas[0] ? b.filas[0].length : 0) + ' columnas.'
+          : 'Pega el rango y se reparte solo en columnas.';
+      });
+      caja.appendChild(tt);
+      var chk = document.createElement('label');
+      chk.style.display = 'flex';
+      chk.style.alignItems = 'center';
+      chk.style.gap = '.4rem';
+      chk.style.marginTop = '.4rem';
+      chk.style.fontSize = 'var(--fs-xs)';
+      var ci = document.createElement('input');
+      ci.type = 'checkbox';
+      ci.checked = b.encabezado !== false;
+      ci.addEventListener('change', function (){ b.encabezado = this.checked; marcar(); });
+      chk.appendChild(ci);
+      chk.appendChild(document.createTextNode('La primera fila son los encabezados'));
+      caja.appendChild(chk);
+      caja.appendChild(el('p', 'art-ayuda', (b.filas || []).length
+        ? b.filas.length + ' filas × ' + (b.filas[0] ? b.filas[0].length : 0) + ' columnas.'
+        : 'Pega el rango y se reparte solo en columnas.'));
+    }
+
+    else if (b.tipo === 'documento') {
+      var du = document.createElement('input');
+      du.type = 'text';
+      du.placeholder = 'Pega el enlace del Documento, Presentación u Hoja de Google';
+      du.value = b.docId ? 'https://docs.google.com/…/' + b.docId : '';
+      du.addEventListener('input', function (){
+        var d = R.docDeUrl(this.value);
+        if (d) { b.clase = d.clase; b.docId = d.docId; marcar(); }
+        var n = caja.querySelector('.art-ayuda');
+        if (n) n.textContent = d
+          ? 'Reconocido: ' + d.clase + '. Se incrustará el visor.'
+          : 'Pega un enlace de docs.google.com o drive.google.com.';
+      });
+      caja.appendChild(du);
+      var dt = document.createElement('input');
+      dt.type = 'text';
+      dt.placeholder = 'Cómo llamarlo en el artículo (opcional)';
+      dt.value = b.titulo || '';
+      dt.style.marginTop = '.4rem';
+      dt.addEventListener('input', function (){ b.titulo = this.value; marcar(); });
+      caja.appendChild(dt);
+      caja.appendChild(el('p', 'art-ayuda', b.docId
+        ? 'Reconocido: ' + (b.clase || 'archivo') + '. Se incrustará el visor.'
+        : 'Pega un enlace de docs.google.com o drive.google.com.'));
+      caja.appendChild(el('p', 'art-ayuda',
+        'Quien lea el artículo verá el documento solo si Drive le da permiso: compártelo con el equipo antes de publicar.'));
+    }
+
+    else if (b.tipo === 'separador') {
+      caja.appendChild(el('p', 'art-ayuda', 'Una línea para separar dos partes del artículo.'));
+    }
+
+    return caja;
+  }
+
+  function subirImagen(file, bloque){
+    if (!file) return;
+    if (file.size > 8 * 1024 * 1024) { aviso('La imagen supera los 8 MB.', 'warn'); return; }
+    var lector = new FileReader();
+    lector.onload = function (){
+      AppRun.call('artSubirImagen', [{ dataUrl: lector.result, nombre: file.name, asesor: correo() }],
+        { busy: 'Subiendo la imagen' })
+        .then(function (r){
+          if (!r || r.status !== 'ok') { aviso((r && r.error) || 'No pudimos subir la imagen.', 'warn'); return; }
+          bloque.url = r.url;
+          marcar();
+          pintarEditor();
+        }, function (){ aviso('No pudimos subir la imagen.', 'warn'); });
+    };
+    lector.readAsDataURL(file);
+  }
+
+  function guardarArticulo(estado){
+    var titulo = String(st.articulo.titulo || '').trim();
+    if (!titulo) { aviso('El artículo necesita un título.', 'warn'); return; }
+
+    var payload = {
+      id: st.id || '',
+      titulo: titulo,
+      resumen: String(st.articulo.resumen || '').trim(),
+      contenido: { v: 1, bloques: st.bloques },
+      estado: estado,
+      asesor: correo()
+    };
+
+    AppGuardado.guardar({
+      clave: 'articulo:' + (payload.id || 'nuevo'),
+      etiqueta: payload.id ? 'Guardando el artículo' : 'Creando el artículo',
+      hecho: estado === 'publicado' ? 'Artículo publicado.' : 'Artículo guardado.',
+      fn: 'artGuardar',
+      args: [payload],
+      /* Con id es una actualización —repetirla deja el mismo resultado, así que se puede
+         reintentar—; sin id, cada intento CREA un artículo, y reintentar publicaría el
+         mismo dos veces. Es el mismo criterio que el constructor de anuncios. */
+      reintentos: payload.id ? 2 : 0,
+      valida: function (res){ return !!(res && res.status === 'ok'); },
+      alLograr: function (res){
+        st.id = res.id;
+        st.articulo.id = res.id;
+        st.articulo.estado = res.estado;
+        st.sucio = false;
+        abrirArticulo(res.id);
+      }
+    });
+  }
+
+  /* ── Arranque y estado en la URL ───────────────────────────────────── */
+  function aplicarUrl(){
+    var id = param('art');
+    if (id && id !== st.id) { abrirArticulo(id); return; }
+    if (!id && st.modo !== 'lista') cargarLista();
+  }
+
+  document.addEventListener('DOMContentLoaded', function () {
+    // Leer artículos no pide bloque: pide sesión. El editor aparece solo si el servidor
+    // dice que esta persona puede (artListar/artObtener devuelven `puedeEditar`).
+    if (!requireSession('articulo')) return;
+
+    AppShell.mount({ active: 'articulo', title: 'Artículos' });
+    if (window.VentelLoader) VentelLoader.hide();
+
+    var id = param('art');
+    if (id) abrirArticulo(id); else cargarLista();
+
+    if (window.AppUrl && AppUrl.alCambiarUrl) AppUrl.alCambiarUrl(aplicarUrl);
+
+    window.addEventListener('beforeunload', function (e){
+      if (st.modo === 'edita' && st.sucio) { e.preventDefault(); e.returnValue = ''; }
+    });
+  });
+})();
+</script>
+</body>
+</html>

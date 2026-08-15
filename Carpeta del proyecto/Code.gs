@@ -81,7 +81,13 @@ const PAGES = {
   // Atenciones pospuestas y pendientes. Se sirve a quien la pida —igual que las demás—
   // y no enseña nada hasta que el servidor confirma el bloque 'atenciones' en cada
   // llamada: aquí dentro hay teléfonos de clientes y esa puerta la guarda Atenciones.gs.
-  'atenciones':          { file: 'atenciones',          title: 'Atenciones pendientes - Sistema Ventel' }
+  'atenciones':          { file: 'atenciones',          title: 'Atenciones pendientes - Sistema Ventel' },
+
+  // Artículos: documentación larga del equipo. La pantalla es LECTOR para cualquiera con
+  // sesión y EDITOR para quien tenga el bloque 'articulos'; son la misma vista, y por eso
+  // hay una sola entrada. Como el resto, servir el cascarón no filtra nada: quién puede
+  // escribir lo decide Articulos.gs en cada llamada.
+  'articulo':            { file: 'articulo',            title: 'Artículos - Sistema Ventel' }
 };
 
 // Páginas públicas del Portal Ventel (sin sesión). El Portal es la landing por
@@ -128,13 +134,16 @@ const PORTAL_PAGES = {
  *   estatus filtro por estatus de la tabla de supervisión.
  *   dir     filtro por dirección (departamento) del Monitor de promociones.
  *   origen  filtro por origen del Monitor de promociones ('Promociones', 'Marketplace').
+ *   art     IDENTIDAD de un artículo. Igual que `pub`, sale de la hoja y no de la posición
+ *           de la fila. Va aparte de `pub` porque son dos cosas distintas: una publicación
+ *           se abre ENCIMA del Portal y un artículo tiene pantalla propia.
  *   pub     IDENTIDAD de una publicación del Portal, abierta en grande. Como `promo`, es
  *           una identidad y no una posición: el id vive en la hoja (columna ID) y una
  *           fila insertada más arriba no se lo cambia. Va aparte de `item` porque `item`
  *           señala DENTRO de una sección —hay que decir también en cuál— y una
  *           publicación se abre encima del Portal, venga uno de donde venga.
  */
-const PARAMS_VISTA = ['folio', 'action', 'format', 'q', 'buscar', 'tpl', 'sec', 'ancla', 'inc', 'next', 'promo', 'item', 'rango', 'estatus', 'dir', 'origen', 'pub'];
+const PARAMS_VISTA = ['folio', 'action', 'format', 'q', 'buscar', 'tpl', 'sec', 'ancla', 'inc', 'next', 'promo', 'item', 'rango', 'estatus', 'dir', 'origen', 'pub', 'art'];
 
 /**
  * El estado inicial que recibe el navegador, serializado y listo para pegarse dentro de

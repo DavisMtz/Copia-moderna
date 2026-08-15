@@ -143,7 +143,7 @@ Una fila por artículo. Se identifican por `FolioCotizacion`.
 
 ---
 
-## 4. Libro 2 · Hoja del Portal (12 pestañas)
+## 4. Libro 2 · Hoja del Portal (14 pestañas)
 
 Es la que edita el equipo desde la pantalla **Contenido del Portal** (`portal_contenido`).
 
@@ -157,6 +157,8 @@ Es la que edita el equipo desde la pantalla **Contenido del Portal** (`portal_co
 | `Plantillas` | Título · Tipo · Asunto · Cuerpo · Consideraciones | Ya traía columna `ID` |
 | `Anuncios` | `ID` · `Formato` · `Activo` · `Orden` · `Desde` · `Hasta` · `Datos` (JSON) · `Autor` · `Responsable` · `Creado` | Formatos: `banner`, `destacado`, `tarjeta`, `modal`. Una tarjeta con `encuesta` dentro de `Datos` es una encuesta |
 | `Votos` | `Fecha` · `Publicación` · `Correo` · `Opción` | Una fila por voto. La crea sola `pubVotar` (`Publicaciones.gs`) |
+| `Articulos` | `ID` · `Titulo` · `Resumen` · `Contenido (JSON)` · `Estado` · `Autores` · `Creado` · `Editado` · `Editado por` | Fase 8. El contenido es JSON de bloques versionado, nunca HTML. Estados: `borrador`, `publicado` |
+| `ArticulosVistas` | `ID articulo` · `Correo` · `Nombre` · `Primera vez` · `Ultima vez` · `Veces` | Una fila por persona y artículo. La escribe sola `artObtener` al servir un artículo publicado |
 | `Avisos` | *(legado)* | Respaldo antiguo de banners |
 | `Promociones` | Dirección · Categoría · Promoción · Marca · Vigencia · Liga | **Tiene columnas que la app NO toca** (SKUS Mercaderías, banners de home) |
 | `MKP` | Dirección · Categoría · Promoción MKT · Promoción (respaldo) · Vigencia · Liga | Marketplace |

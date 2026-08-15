@@ -899,6 +899,23 @@ a:focus-visible,button:focus-visible,input:focus-visible,[tabindex]:focus-visibl
 .anc-card{position:relative}
 .anc-card:hover .anc-card-zoom,.anc-card:focus-visible .anc-card-zoom{opacity:1;transform:scale(1)}
 
+/* ── Carril de artículos (fase 8) ─────────────────────────────────────────────
+   Los artículos tienen pantalla propia; aquí solo está la puerta. Se pintan como
+   fichas de texto y no como tarjetas con foto a propósito: lo que invita a leer un
+   artículo es de qué trata y cuánto se tarda, no una imagen decorativa. */
+.art-carril{display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:1rem;margin-bottom:1.4rem}
+.art-carril:empty{display:none}
+.art-ficha{display:flex;flex-direction:column;gap:.35rem;text-align:left;width:100%;font:inherit;
+  background:var(--card,#fff);border:1px solid var(--line,#e5e7eb);border-left:3px solid var(--brand,#E10098);
+  border-radius:12px;padding:.85rem 1rem;cursor:pointer;transition:transform .2s,box-shadow .2s,border-color .2s}
+.art-ficha:hover{transform:translateY(-2px);box-shadow:var(--sh-md,0 10px 26px rgba(20,20,40,.12))}
+.art-ficha:focus-visible{outline:none;box-shadow:var(--ring)}
+.art-ficha-tt{font-family:Archivo,inherit;font-weight:800;font-size:.98rem;line-height:1.3;color:var(--ink)}
+.art-ficha-rs{font-size:.84rem;line-height:1.5;color:var(--ink-soft,#4b5563);
+  display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+.art-ficha-pie{display:flex;gap:.4rem;flex-wrap:wrap;font-size:.72rem;font-weight:600;color:var(--ink-faint,#9aa1ad)}
+@media (prefers-reduced-motion: reduce){ .art-ficha:hover{transform:none} }
+
 /* ── Jerarquía: UNA principal, el resto especiales ─────────────────────────────
    La principal ocupa dos columnas y sube la foto a 200 px; las especiales se quedan
    como estaban. El `span 2` va detrás de una media query porque con una sola columna
@@ -1685,6 +1702,11 @@ table.ds-matrix{width:100%;border-collapse:separate;border-spacing:0;min-width:5
 
     <div class="dash-label" id="anunciosLabel" style="display:none"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M3 11v3a1 1 0 0 0 1 1h2l4 4V6L6 10H4a1 1 0 0 0-1 1Z"/><path d="M14 7.5a5 5 0 0 1 0 7M17.5 5a9 9 0 0 1 0 12"/></svg> Anuncios del equipo <span class="dl-line"></span></div>
     <div class="anuncios-cards" id="anunciosCards"></div>
+
+    <!-- Artículos recientes (fase 8). Nace oculto y solo aparece si hay alguno
+         publicado: una franja vacía con un rótulo es peor que no tener franja. -->
+    <div class="dash-label" id="articulosLabel" style="display:none"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M6 3h9l4 4v14H6z"/><path d="M14 3v5h5M9 12h7M9 16h5"/></svg> Artículos del equipo <span class="dl-line"></span></div>
+    <div class="art-carril" id="articulosCarril"></div>
 
     <div class="dash-label"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3l2.3 6.2L21 11l-6 2 6 2-6.7 1.8L12 21l-2.3-4.2L3 15l6-2-6-2 6.7-1.8Z"/></svg> Hoy en promociones <span class="dl-line"></span></div>
     <div class="promo-strip" id="promoStrip">
@@ -3781,6 +3803,7 @@ function showLoader(id){
 /* ──────── DASHBOARD ──────── */
 function renderDashboard(){
   renderAnuncios();
+  renderArticulos();
 
   // Accesos rápidos personalizados: fijados primero, luego los más usados
   const qg = document.getElementById('qaGrid');
@@ -3912,9 +3935,12 @@ function encuestaCuerpoHtml(a){
     (cerrada ? '' : (miVoto ? `<p class="pub-enc-pie">Puedes cambiar tu voto hasta el cierre.
         <button type="button" class="pub-enc-link" data-enc-volver="${esc(a.id)}">Cambiar</button></p>` : ''));
   } else {
+    // El `disabled` se emite en el HTML y no se pone después: así el candado de un voto
+    // en vuelo sobrevive a este repintado, que es justo el que antes lo abría.
+    const bloqueado = pubVotando[a.id] ? ' disabled' : '';
     cuerpo = `<div class="pub-enc-ops" role="group" aria-label="${esc(e.pregunta)}">` +
       e.opciones.map((op, i) =>
-        `<button type="button" class="pub-op" data-enc-votar="${esc(a.id)}" data-op="${i}">${esc(op)}</button>`
+        `<button type="button" class="pub-op"${bloqueado} data-enc-votar="${esc(a.id)}" data-op="${i}">${esc(op)}</button>`
       ).join('') + `</div>`;
   }
 
@@ -3947,6 +3973,12 @@ function pintarEncuesta(id){
    viaje al servidor por cada tarjeta del inicio. Al votar se refresca con la respuesta
    del propio voto, que es el único momento en que el resultado cambia para quien mira. */
 const pubPedidos = {};
+/* Qué encuestas tienen un voto EN VUELO. Vive fuera del DOM a propósito: el `disabled`
+   de los botones se lo lleva por delante cualquier repintado —y aquí repinta media
+   pantalla: los datos frescos del Portal, abrir el modal, fijar un acceso—, así que un
+   candado que viva solo en los botones se abre solo un instante después de cerrarse. */
+const pubVotando = {};
+
 function pedirResultados(id, forzar){
   if (!id || (!forzar && pubPedidos[id])) return;
   if (!(window.AppRun && window.google && google.script && google.script.run)) return;
@@ -3954,13 +3986,27 @@ function pedirResultados(id, forzar){
   AppRun.call('pubResultados', [id, (window.AppSession && AppSession.userEmail) || ''], { busy: false })
     .then(res => {
       if (!res || res.status !== 'ok') return;
+      /* Esta respuesta se calculó ANTES de que la persona votara, y las dos llamadas
+         viajan por separado: si llega después del voto, contarlo sería devolver la
+         encuesta a «sin votar» con el voto ya guardado en la hoja —la pantalla mentiría
+         y encima invitaría a votar otra vez—. Se descarta si hay un voto en vuelo o si
+         lo que ya sabemos (tengo voto) es más nuevo que lo que trae (no lo tienes). */
+      if (pubVotando[id]) return;
+      if (pubVotos[id] && pubVotos[id].miVoto && !res.miVoto) return;
       pubVotos[id] = { total: res.total || 0, conteo: res.conteo || {}, miVoto: res.miVoto || '' };
       pintarEncuesta(id);
     }, () => {});
 }
 
-/* Vota. El botón se apaga mientras el servidor contesta: sin eso, dos clics seguidos
-   mandaban dos votos y el segundo llegaba a una hoja que el primero estaba escribiendo. */
+/* Vota. Dos candados, y hacen falta los dos:
+   · `pubVotando` impide un segundo voto mientras el primero viaja. No basta con apagar
+     los botones, porque el siguiente repintado los devuelve encendidos.
+   · La clave de AppRun lleva la OPCIÓN. AppRun fusiona las llamadas que comparten clave
+     y devuelve la promesa de la primera SIN mandar la segunda: con la clave puesta solo
+     en el id, votar A y enseguida B mandaba A, se tragaba B y contestaba «Voto
+     registrado» pintando A. Confirmación de éxito con el voto equivocado.
+   Y hacen falta juntos: solo la clave dejaría dos escrituras en vuelo sobre la misma
+   fila de la hoja, y el resultado quedaría a merced de cuál llegue antes. */
 function votarEncuesta(id, indice){
   const a = pubDe(id);
   const e = a && a.encuesta;
@@ -3968,14 +4014,17 @@ function votarEncuesta(id, indice){
   const opcion = e.opciones[indice];
   if (!opcion) return;
   if (!(window.AppRun && window.google && google.script && google.script.run)) return;
+  if (pubVotando[id]) return;
 
   const apagar = (v) => bloquesEncuesta(id).forEach(bl =>
     bl.querySelectorAll('.pub-op').forEach(b => { b.disabled = v; }));
+  pubVotando[id] = true;
   apagar(true);
 
   AppRun.call('pubVotar', [{ id: id, opcion: opcion, asesor: (window.AppSession && AppSession.userEmail) || '' }],
-      { key: 'pub-votar:' + id })
+      { key: 'pub-votar:' + id + ':' + opcion })
     .then(res => {
+      delete pubVotando[id];
       if (!res || res.status !== 'ok') {
         apagar(false);
         showToast(null, (res && res.error) || 'No pudimos registrar tu voto.');
@@ -3985,6 +4034,7 @@ function votarEncuesta(id, indice){
       pintarEncuesta(id);
       showToast(null, 'Voto registrado · ¡gracias!');
     }, () => {
+      delete pubVotando[id];
       apagar(false);
       showToast(null, 'No pudimos registrar tu voto. Revisa tu conexión.');
     });
@@ -4002,9 +4052,66 @@ function volverAEncuesta(id){
     <p class="pub-enc-q">${esc(e.pregunta)}</p>
     <div class="pub-enc-ops" role="group" aria-label="${esc(e.pregunta)}">` +
     e.opciones.map((op, i) =>
-      `<button type="button" class="pub-op${op === res.miVoto ? ' mia' : ''}" data-enc-votar="${esc(id)}" data-op="${i}">${esc(op)}</button>`
+      `<button type="button" class="pub-op${op === res.miVoto ? ' mia' : ''}"${pubVotando[id] ? ' disabled' : ''} data-enc-votar="${esc(id)}" data-op="${i}">${esc(op)}</button>`
     ).join('') + `</div>`;
   bloquesEncuesta(id).forEach(bl => { bl.innerHTML = html; });
+}
+
+/* ═══════════════════════════════════════════════════════════
+   ARTÍCULOS EN EL PORTAL (fase 8)
+   ───────────────────────────────────────────────────────────
+   El Portal es donde entra el equipo, así que es donde tiene que estar la puerta a
+   los artículos: la entrada del menú de Gestión solo la ve quien PUBLICA, y sin este
+   carril un asesor no tendría por dónde llegar más que buscándolos.
+
+   Se piden aparte de fetchToolsData, con su propia caché de una hora: los artículos
+   cambian de mes en mes, no de minuto en minuto, y meterlos en la carga del Portal
+   habría hecho más lenta la pantalla que todo el mundo abre primero por un contenido
+   que casi nadie estrena cada día.
+═══════════════════════════════════════════════════════════ */
+function renderArticulos(){
+  const carril = document.getElementById('articulosCarril');
+  const lbl = document.getElementById('articulosLabel');
+  if (!carril || !(window.AppRun && window.google && google.script && google.script.run)) return;
+
+  AppRun.swr('portal-articulos-v1', 'artListar', [(window.AppSession && AppSession.userEmail) || '', { tope: 6 }], {
+    ttl: 60 * 60 * 1000,
+    busy: false,
+    accept: r => !!(r && r.status === 'ok'),
+    onData: (r) => {
+      // Solo publicados: un borrador es trabajo a medias y esta es la portada.
+      const arts = ((r && r.articulos) || []).filter(a => a.estado === 'publicado');
+      carril.textContent = '';
+      if (lbl) lbl.style.display = arts.length ? '' : 'none';
+      if (!arts.length) return;
+      arts.forEach(a => {
+        const b = document.createElement('button');
+        b.type = 'button';
+        b.className = 'art-ficha';
+        b.setAttribute('aria-label', 'Leer el artículo: ' + (a.titulo || ''));
+        const tt = document.createElement('div');
+        tt.className = 'art-ficha-tt';
+        tt.textContent = a.titulo || '(sin título)';
+        b.appendChild(tt);
+        if (a.resumen) {
+          const rs = document.createElement('div');
+          rs.className = 'art-ficha-rs';
+          rs.textContent = a.resumen;
+          b.appendChild(rs);
+        }
+        const pie = document.createElement('div');
+        pie.className = 'art-ficha-pie';
+        if (a.minutos) pie.appendChild(Object.assign(document.createElement('span'), { textContent: a.minutos + ' min' }));
+        if (a.autores) pie.appendChild(Object.assign(document.createElement('span'), { textContent: '· ' + a.autores }));
+        b.appendChild(pie);
+        b.addEventListener('click', () => {
+          if (window.AppUrl && AppUrl.base) AppUrl.go('articulo', { art: a.id });
+        });
+        carril.appendChild(b);
+      });
+    },
+    onError: () => { if (lbl) lbl.style.display = 'none'; }
+  });
 }
 
 function renderAnuncios(){
@@ -4189,8 +4296,17 @@ function expandTarjeta(id, opts){
 function abrirPublicacion(id, sinUrl, intentos){
   if (!id) return;
   pubPendiente = id;
-  const enPortal = (store.anuncios || []).find(x => x.id === id);
-  if (enPortal) { pubPendiente = ''; expandTarjeta(id, { sinUrl: sinUrl }); return; }
+  /* El store puede venir de la copia local de SIETE DÍAS, y mientras no conteste Apps
+     Script no sirve para decidir esto. Sin la guarda de frescura, un enlace a algo que
+     entretanto expiró —o que quien administra OCULTÓ porque traía un dato equivocado—
+     se abría desde esa copia: sin el aviso de vigencia que esta fase construyó, con sus
+     botones activos, y saltándose la decisión de retirarlo (pubPorId se niega a servir
+     las ocultas justamente para que retirar algo signifique algo). El coste de esperar
+     es un cuarto de segundo; el de no hacerlo, enseñar lo retirado como vigente. */
+  if (dataIsFresh) {
+    const enPortal = (store.anuncios || []).find(x => x.id === id);
+    if (enPortal) { pubPendiente = ''; expandTarjeta(id, { sinUrl: sinUrl }); return; }
+  }
   const n = intentos || 0;
   // Se reintenta solo mientras esta siga siendo la publicación que se quiere: si entre
   // dos intentos se cerró el modal o se pidió otra, la espera vieja se abandona en vez
@@ -4200,12 +4316,24 @@ function abrirPublicacion(id, sinUrl, intentos){
     return;
   }
   if (!(window.AppRun && window.google && google.script && google.script.run)) { pubPendiente = ''; return; }
+  /* Los dos manejadores comprueban que ESTA sigue siendo la publicación que se quiere,
+     igual que el reintento de arriba. El viaje a pubPorId dura lo suyo (lee la hoja
+     entera), y en ese hueco la persona puede haber abierto otra tarjeta o cerrado el
+     modal: sin la guarda, la respuesta tardía se pintaba encima de lo que estuviera
+     mirando —dejando la barra diciendo una publicación y la pantalla enseñando otra— y,
+     si venía con error, borraba el estado de la publicación ajena que sí estaba abierta.
+     `closeAnuncioModal` pone pubPendiente a vacío precisamente para cancelar esto. */
   AppRun.call('pubPorId', [id, (window.AppSession && AppSession.userEmail) || ''], { busy: false })
     .then(res => {
+      if (pubPendiente !== id) return;
       pubPendiente = '';
       if (res && res.status === 'ok' && res.pub) { expandTarjeta(id, { pub: res.pub, sinUrl: sinUrl }); return; }
       pubAvisoSuelto((res && res.error) || 'No encontramos esa publicación.');
-    }, () => { pubPendiente = ''; pubAvisoSuelto('No pudimos abrir esa publicación. Revisa tu conexión.'); });
+    }, () => {
+      if (pubPendiente !== id) return;
+      pubPendiente = '';
+      pubAvisoSuelto('No pudimos abrir esa publicación. Revisa tu conexión.');
+    });
 }
 
 /* Lo que se enseña cuando el enlace no lleva a ninguna parte. La barra se limpia
@@ -5096,7 +5224,7 @@ function goAppAction(entrada){
      consola— sin dar ninguna señal de que el parámetro se había perdido por el
      camino. El fallo se veía como "el buscador te deja en el sitio equivocado", que
      no lleva a nadie hasta esta línea. La lista es la misma de PARAMS_VISTA. */
-  const PASAN = ['tpl', 'sec', 'action', 'folio', 'q', 'buscar', 'ancla', 'inc', 'promo', 'item', 'rango', 'estatus', 'dir', 'origen', 'pub'];
+  const PASAN = ['tpl', 'sec', 'action', 'folio', 'q', 'buscar', 'ancla', 'inc', 'promo', 'item', 'rango', 'estatus', 'dir', 'origen', 'pub', 'art'];
   const params = {};
   PASAN.forEach(function (k) { if (act[k]) params[k] = act[k]; });
 

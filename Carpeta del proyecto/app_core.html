@@ -247,7 +247,8 @@
     'login':               'el inicio de sesión',
     'registro':            'la creación de cuenta',
     'recuperar':           'la recuperación de contraseña',
-    'portal':              'el portal'
+    'portal':              'el portal',
+    'articulo':            'los artículos'
   };
 
   /**
@@ -760,7 +761,7 @@
    * Quien añada un nombre aquí lo añade también en Code.gs y en la lista PASAN del
    * Index: son tres listas espejo y el sistema no avisa cuando dejan de decir lo mismo.
    */
-  const PARAMS_VISTA = ['folio', 'action', 'format', 'q', 'buscar', 'tpl', 'sec', 'ancla', 'inc', 'next', 'promo', 'item', 'rango', 'estatus', 'dir', 'origen', 'pub'];
+  const PARAMS_VISTA = ['folio', 'action', 'format', 'q', 'buscar', 'tpl', 'sec', 'ancla', 'inc', 'next', 'promo', 'item', 'rango', 'estatus', 'dir', 'origen', 'pub', 'art'];
 
   /** Parámetros de campaña que ensucian un enlace compartido y no significan nada aquí. */
   const PARAMS_BASURA = /^(utm_|fbclid$|gclid$|mc_eid$|_ga$)/i;
@@ -816,7 +817,7 @@
       'dashboard', 'inicio_avanzado', 'cotizacion', 'cotizado_preview', 'consulta_cotizacion',
       'revision_cotizacion', 'correoventel', 'correo_cliente', 'anuncios', 'portal_contenido',
       'operacion', 'consola', 'atenciones',
-      'portal', 'promociones', 'estado'
+      'portal', 'promociones', 'estado', 'articulo'
     ],
 
     /**
@@ -1020,7 +1021,7 @@
     PAGINAS_TRAS_LOGIN: [
       'cotizacion', 'cotizado_preview', 'consulta_cotizacion', 'revision_cotizacion',
       'correoventel', 'correo_cliente', 'anuncios', 'portal_contenido', 'dashboard',
-      'inicio_avanzado', 'consola', 'operacion', 'estado', 'atenciones'
+      'inicio_avanzado', 'consola', 'operacion', 'estado', 'atenciones', 'articulo'
     ],
 
     /**
@@ -2032,6 +2033,7 @@
       { bloque: 'politica_revision', page: 'inicio_avanzado', nombre: 'Política de revisión', corto: 'reglas de revisión', sub: 'Reglas de revisión' },
       { bloque: 'anuncios',          page: 'anuncios',        nombre: 'Anuncios del Portal',  corto: 'anuncios',           sub: 'Anuncios del Portal' },
       { bloque: 'portal_contenido',  page: 'portal_contenido', nombre: 'Contenido del Portal', corto: 'contenido del Portal', sub: 'Herramientas, plantillas y promos' },
+      { bloque: 'articulos',         page: 'articulo',        nombre: 'Artículos',            corto: 'artículos',          sub: 'Guías largas del equipo' },
       { bloque: 'operacion',         page: 'operacion',       nombre: 'Estado de operación',  corto: 'estado de operación', sub: 'Fallas reportadas por el equipo' },
       /* LA CONSOLA ENTRA POR DOS LLAVES, y esa es toda la unificación vista desde el
          menú. 'adm_miembros' es la del maestro y 'sup_equipo' la de la supervisión;
