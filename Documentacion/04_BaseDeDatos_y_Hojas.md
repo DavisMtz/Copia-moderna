@@ -143,7 +143,7 @@ Una fila por artículo. Se identifican por `FolioCotizacion`.
 
 ---
 
-## 4. Libro 2 · Hoja del Portal (11 pestañas)
+## 4. Libro 2 · Hoja del Portal (12 pestañas)
 
 Es la que edita el equipo desde la pantalla **Contenido del Portal** (`portal_contenido`).
 
@@ -155,7 +155,8 @@ Es la que edita el equipo desde la pantalla **Contenido del Portal** (`portal_co
 | `Formatos` | Acceso · Observaciones · Liga | |
 | `PdePago` | Nombre · Detalles · Liga | |
 | `Plantillas` | Título · Tipo · Asunto · Cuerpo · Consideraciones | Ya traía columna `ID` |
-| `Anuncios` | `ID` · `Formato` · `Activo` · `Orden` · `Desde` · `Hasta` · `Datos` (JSON) · `Autor` · `Creado` | Formatos: `banner`, `destacado`, `tarjeta`, `modal` |
+| `Anuncios` | `ID` · `Formato` · `Activo` · `Orden` · `Desde` · `Hasta` · `Datos` (JSON) · `Autor` · `Responsable` · `Creado` | Formatos: `banner`, `destacado`, `tarjeta`, `modal`. Una tarjeta con `encuesta` dentro de `Datos` es una encuesta |
+| `Votos` | `Fecha` · `Publicación` · `Correo` · `Opción` | Una fila por voto. La crea sola `pubVotar` (`Publicaciones.gs`) |
 | `Avisos` | *(legado)* | Respaldo antiguo de banners |
 | `Promociones` | Dirección · Categoría · Promoción · Marca · Vigencia · Liga | **Tiene columnas que la app NO toca** (SKUS Mercaderías, banners de home) |
 | `MKP` | Dirección · Categoría · Promoción MKT · Promoción (respaldo) · Vigencia · Liga | Marketplace |
@@ -174,6 +175,26 @@ los encabezados los escriban personas.
 > `Portal.gs` localizan sus columnas por encabezado, así que ninguna se entera. El motivo:
 > el número de fila cambia en cuanto alguien inserta una fila desde el Sheet, y entonces la
 > app editaría o borraría la fila equivocada.
+
+> **`Anuncios` va un paso más allá: las FILAS sin ID también lo reciben**
+> (`pubAsegurarIdsAnuncios_`, `Publicaciones.gs`), y no solo desde la pantalla de gestión:
+> también desde la lectura pública del Portal, con `LockService` para que dos visitantes a la
+> vez no se pisen. Hacía falta porque una fila creada a mano en el Sheet se identificaba por
+> su POSICIÓN, y desde que una publicación tiene enlace propio (`?page=portal&pub=…`) eso
+> significaba un enlace que empieza a llevar a otra publicación en cuanto alguien inserta una
+> fila más arriba — sin error y sin forma de enterarse. Si el candado no se consigue, no se
+> escribe: la lectura sigue con un id derivado del CONTENIDO de la fila, que tampoco es
+> posicional.
+
+> **`Autor` guarda el correo y `Responsable` el nombre legible.** El Portal pinta el nombre;
+> el correo se queda en la hoja y en la pantalla de administración, que es donde sirve para
+> saber a quién preguntarle. Las dos, junto con `Creado`, se escriben al CREAR y no se pisan
+> al editar: si no, corregir una errata en el anuncio de otra persona te lo adjudicaría.
+
+> **Los votos NO viven en la fila del anuncio.** `publicarAnuncio` reescribe la fila entera
+> con `setValues`, así que editar el anuncio se los llevaría por delante. Van en su propia
+> hoja `Votos`, una fila por voto, con dedupe por correo (un voto por persona, cambiable
+> hasta el cierre), `LockService` en la escritura y límite de 40 votos por persona y hora.
 
 ---
 

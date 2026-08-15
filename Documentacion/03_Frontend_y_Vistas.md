@@ -198,6 +198,17 @@ barra para siempre y contradice al resto del estado.
 > **El Portal (`Index.html`) es la excepción deliberada**: tiene maquinaria propia
 > (`navUrl`/`restore`/`setChangeHandler`) que ya cumple esta convención. No se migró porque
 > funciona y reescribirla es riesgo sin ganancia.
+>
+> Su estado son tres cosas: la sección (`sec`), el filtro de esa sección (`q`) y la
+> **publicación abierta en grande** (`pub`, fase 7). Las tres se escriben en `navUrl`, y no
+> donde se decide cada una, porque `google.script.history` reemplaza el juego de parámetros
+> ENTERO: lo que no se le pase desaparece de la barra. Antes de centralizarlo, teclear una
+> letra en el filtro borraba el `?pub=` que alguien estaba a medio copiar.
+>
+> Abrir una publicación **apila** historial (es un sitio, se vuelve con «atrás»); cerrarla
+> **reemplaza** (si apilara, «atrás» la volvería a abrir). El modal de bienvenida no escribe
+> nada: sale solo al entrar, y una dirección que cambia sin que nadie la pida convierte el
+> botón atrás en una trampa.
 
 ### `AppSession`
 

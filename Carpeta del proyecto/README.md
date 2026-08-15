@@ -180,7 +180,7 @@ no usa el shell ni el motor de búsqueda compartidos —tiene los suyos— y sí
 | Punto | Estado |
 |---|---|
 | Enlaces al sitio correcto | Menú lateral, conmutador de áreas, tarjetas y buscador. Un fallo grave corregido (ver abajo) |
-| Accesible e interpretable por URL | `?sec=`, `?q=` e `?item=`, con hash, atrás/adelante y ahora también salida a la barra de direcciones |
+| Accesible e interpretable por URL | `?sec=`, `?q=`, `?item=` y `?pub=` (la publicación abierta en grande), con hash, atrás/adelante y salida a la barra de direcciones |
 | Las funciones en el buscador general | Catálogo de pantallas de la app, secciones, promociones y anuncios. Faltaban dos entradas y el icono de una |
 | Caché y almacenamiento local | Tres copias locales con stale-while-revalidate (Portal, Trazabilidad, promos); a la principal le faltaban versión y caducidad |
 | Lenguaje no técnico | Revisado: avisos, vacíos y errores hablan de conexión y de datos, no de peticiones ni de caché |

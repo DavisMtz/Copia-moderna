@@ -752,10 +752,15 @@
    * Son facetas, no identidades, así que van aparte de `q` —que es el texto libre del
    * buscador— y se escriben REEMPLAZANDO, nunca apilando.
    *
+   * `pub` es la publicación del Portal que se abre en grande. Es una identidad, como
+   * `folio` o `promo`, y por eso apila historial al abrirse: el modal de una publicación
+   * es un sitio del que se vuelve con «atrás». Viaja en esta lista para que sobreviva al
+   * login —quien recibe el enlace sin sesión aterriza en la publicación, no en el inicio—.
+   *
    * Quien añada un nombre aquí lo añade también en Code.gs y en la lista PASAN del
    * Index: son tres listas espejo y el sistema no avisa cuando dejan de decir lo mismo.
    */
-  const PARAMS_VISTA = ['folio', 'action', 'format', 'q', 'buscar', 'tpl', 'sec', 'ancla', 'inc', 'next', 'promo', 'item', 'rango', 'estatus', 'dir', 'origen'];
+  const PARAMS_VISTA = ['folio', 'action', 'format', 'q', 'buscar', 'tpl', 'sec', 'ancla', 'inc', 'next', 'promo', 'item', 'rango', 'estatus', 'dir', 'origen', 'pub'];
 
   /** Parámetros de campaña que ensucian un enlace compartido y no significan nada aquí. */
   const PARAMS_BASURA = /^(utm_|fbclid$|gclid$|mc_eid$|_ga$)/i;

@@ -64,7 +64,7 @@ Cifras clave del modelo, también verificadas contra el código:
 - **22 bloques de permisos** en 4 grupos (`PERM_BLOQUES`, `Permisos.gs`).
 - **3 roles**: `normal` (Asesor), `avanzado` (Supervisor), `maestro`.
 - **4 modos de autenticación**: `portal`, `auto`, `estricto`, `legado`.
-- **16 parámetros de vista** en el contrato de URLs (`PARAMS_VISTA`, `Code.gs`).
+- **17 parámetros de vista** en el contrato de URLs (`PARAMS_VISTA`, `Code.gs`).
 - **16 páginas de app** con sesión + **3 páginas públicas** del Portal.
 - **~31 comprobaciones** en 10 áreas dentro de `revisionMaestra()` (el total exacto varía:
   hay dos bucles que generan un check por pestaña del Portal).
