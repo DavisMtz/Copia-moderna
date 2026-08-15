@@ -44,7 +44,7 @@ el motor de búsqueda difusa.
 | `LOGIN_MAX_INTENTOS` / `LOGIN_VENTANA_SEGUNDOS` | 33–34 | 8 intentos fallidos → bloqueo de 15 minutos |
 | `PAGES` | 56 | **16 pantallas con sesión** |
 | `PORTAL_PAGES` | 89 | **3 pantallas públicas**: `portal`, `promociones`, `estado` |
-| `PARAMS_VISTA` | 124 | **13 parámetros** del contrato de URLs |
+| `PARAMS_VISTA` | 124 | **16 parámetros** del contrato de URLs |
 
 **Contrato de `PARAMS_VISTA`** — el criterio de qué va en cada uno, para que la lista no se
 llene de sinónimos:
@@ -62,9 +62,22 @@ llene de sinónimos:
 | `inc` | Incidencia a abrir en el tablero de estado |
 | `next` | A dónde volver tras el login. **Es una clave de página, jamás una URL** |
 | `promo`, `item`, `rango` | Promoción, tarjeta y periodo del gráfico |
+| `estatus` | Filtro por estatus de la tabla de supervisión |
+| `dir`, `origen` | Filtros por dirección y por origen del Monitor de promociones |
 
 > `next` solo acepta claves de la lista blanca `AppUrl.PAGINAS_TRAS_LOGIN` del cliente. Es
 > lo que impide usarlo como redirección abierta hacia fuera del sistema.
+
+> `promo` es una clave **derivada del contenido** de la fila (dirección + categoría +
+> promoción, normalizado), no su posición: el Monitor no tiene ids en la hoja, y un índice
+> posicional deja el enlace apuntando a otra promoción en cuanto alguien inserta una fila.
+
+**`appEstadoInicialJson_(baseUrl, e)`** — arma el `window.__APP__` de todas las pantallas: la
+URL base más los 16 parámetros de esta petición, serializados. Escapa `<`, `>`, `&` y los dos
+separadores de línea que JSON deja pasar crudos (U+2028/U+2029). Ese escape no es cosmético:
+los valores vienen de la URL y se imprimen con `<?!= ?>`, que no escapa, así que sin él un
+enlace con `?folio=</script><script>…` cerraba la etiqueta y ejecutaba código en la sesión de
+quien lo abriera. Cubierto por `pruebas/estado_inicial.test.js`.
 
 **Funciones expuestas al cliente**
 

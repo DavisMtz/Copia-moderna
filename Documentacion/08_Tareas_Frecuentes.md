@@ -106,15 +106,23 @@ URL) y con una que lo tenga; probar el botón atrás del navegador.
 
 ## 5. Añadir un parámetro de vista a la URL
 
+Son **tres listas espejo** y el sistema no avisa cuando dejan de decir lo mismo:
+
 1. **`Code.gs` → `PARAMS_VISTA`**: añadir el nombre al arreglo.
 2. **`app_core.html` → `AppUrl`**: añadirlo a su lista espejo, para que `AppUrl.params()` lo
    devuelva.
-3. Documentar en el comentario de `PARAMS_VISTA` **qué va en él**, siguiendo el criterio ya
+3. **`Index.html` → `PASAN`**: para que el buscador del Portal lo arrastre al navegar.
+4. Documentar en el comentario de `PARAMS_VISTA` **qué va en él**, siguiendo el criterio ya
    establecido (identidad / modificador / filtro aplicado / término de búsqueda).
 
 > Se inyecta en **todas** las plantillas, aunque solo lo use una. Es a propósito: una
 > plantilla de Apps Script revienta al evaluar una variable que no se le pasó, y así añadir
 > un parámetro es una línea en una lista en vez de una cacería por 40 archivos.
+
+> **No hay que tocar ninguna pantalla.** Todas escriben `window.__APP__ = <?!= APP_JSON ?>;`,
+> que trae el juego entero, así que el parámetro nuevo llega a las diecinueve por el paso 1.
+> Antes cada pantalla elegía a mano qué copiar y añadir un parámetro exigía acordarse de
+> inyectarlo en cada una: el día que se olvidaba, el enlace profundo moría en silencio.
 
 **Caso real:** `item` funcionaba «de casualidad» porque el Portal lee la URL real, pero
 `AppUrl.params()` no lo devolvía. Se añadió a las dos listas.

@@ -119,9 +119,21 @@ Casi seguro: **esa pantalla no define `window.__APP__`** antes de `app_core`. `A
 con la URL base vacía y `build()` devuelve `null`. Es exactamente lo que le pasó a
 `atenciones.html`.
 
+La línea es siempre la misma, `window.__APP__ = <?!= APP_JSON ?>;`, y va **antes** del
+`include('app_core')`. Si está compuesta a mano (`{ baseUrl: …, folio: … }`), es de antes de
+T1.2 y le faltarán parámetros: cámbiala por la línea única en vez de añadirle el que falte.
+
 Comprueba también que `AppUrl.param()` devuelve algo: sin `__APP__`, lee la barra de
 direcciones del iframe del sandbox en vez de la del enlace, así que **tampoco llegan los
-parámetros de la URL**.
+parámetros de la URL**. Ese fue el síntoma de la consola durante meses: leía `?sec=` y `?q=`
+en dos sitios y no le llegaban nunca, porque su `__APP__` solo llevaba `baseUrl`.
+
+### «Cambio de pestaña / abro algo y el botón atrás no me devuelve»
+
+La pantalla escribe en la URL pero **no registra `AppUrl.alCambiarUrl`**: la dirección cambia
+y la vista se queda igual. Toda pantalla que apile (`{apilar:true}`) tiene que tener oyente.
+Si el oyente existe y aun así falla, mira las cuatro trampas del documento 03 §5 — lo más
+probable es que la ausencia del parámetro no esté restaurando el valor por omisión.
 
 ### «El botón atrás no funciona» / «Se llena el historial»
 
