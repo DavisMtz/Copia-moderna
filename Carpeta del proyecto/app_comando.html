@@ -318,106 +318,54 @@
      Esto NO es seguridad: el servidor vuelve a exigir el permiso al abrir cada
      pantalla (secIdentidadConBloque_). Es no ofrecerle a nadie una puerta que se
      le va a cerrar en la cara. */
-  var CATALOGO = [
-    { id:'dashboard', nombre:'Panel de cotizaciones', sub:'Tus folios, su estatus y qué falta enviar',
-      icono:IC.casa, page:'dashboard', kw:'inicio panel principal dashboard mis cotizaciones tabla folios' },
+  /* Iconos del catálogo compartido → los glifos de este panel. El catálogo usa el
+     vocabulario de nombres del Portal, que es el más completo de los dos. */
+  var ICONO_DE_CATALOGO = {
+    home:IC.casa, document:IC.doc, send:IC.correo, mail:IC.correop, chart:IC.grafica,
+    check:IC.check, gear:IC.engrane, megaphone:IC.megafono, layers:IC.capas,
+    bolt:IC.pulso, lock:IC.llave, key:IC.llave, clock:IC.reloj, globe:IC.globo,
+    sparkle:IC.estrella, wifi:IC.pulso, flag:IC.pulso
+  };
 
-    { id:'cotizacion', nombre:'Nueva cotización', sub:'Crear una cotización desde cero',
-      icono:IC.doc, page:'cotizacion', bloques:['cotizar'], kw:'nueva crear cotizar generar folio productos precio alta' },
+  /* Acciones locales del catálogo: las que NO cambian de pantalla. En el catálogo
+     viajan como NOMBRE —es un archivo de datos, no puede llevar funciones dentro— y
+     cada superficie las resuelve contra su propio mapa. */
+  var ACCION_LOCAL = {
+    reportarFalla: function () {
+      if (window.AppOperacion && AppOperacion.reportar) { AppOperacion.reportar(''); return; }
+      if (window.AppUrl) AppUrl.go('estado');
+    }
+  };
 
-    { id:'correoventel', nombre:'Enviar cotización por correo', sub:'Mandar una cotización con su PDF',
-      icono:IC.correo, page:'correoventel', bloques:['enviar_cotizacion'], kw:'enviar mandar correo pdf adjunto cliente reenviar' },
+  /* ═══════════════════════════════════════════════════════════════════════════
+     CATÁLOGO DE FUNCIONES
+     ═══════════════════════════════════════════════════════════════════════════
+     Vive en app_indices.html. Estaba escrito aquí Y en Index.html, y las dos copias
+     ya habían divergido: este buscador no ofrecía «Atenciones rescatables» ni
+     «Historial del servicio», y el del Portal no ofrecía «Portal Ventel», «Monitor de
+     promociones» ni «Inicio de gestión». Cada pantalla nueva se daba de alta en uno de
+     los dos y no en el otro, y para notarlo había que buscar la misma palabra en los
+     dos sitios y comparar.
 
-    { id:'correo_cliente', nombre:'Correos a clientes', sub:'Plantillas de correo listas para enviar',
-      icono:IC.correop, page:'correo_cliente', bloques:['correos_cliente'], kw:'plantillas mensaje escribir redactar machote' },
-
-    { id:'inicio_avanzado', nombre:'Panel avanzado', sub:'Métricas, búsqueda global y reportes',
-      icono:IC.grafica, page:'inicio_avanzado', bloques:['supervision'], kw:'supervision metricas reportes csv estadisticas indicadores avanzado' },
-
-    { id:'revisar', nombre:'Revisar cotizaciones', sub:'Cola de cotizaciones por autorizar',
-      icono:IC.check, page:'inicio_avanzado', bloques:['revisar'], kw:'revision autorizar aprobar rechazar cola pendientes' },
-
-    { id:'politica', nombre:'Política de revisión', sub:'Reglas que mandan una cotización a revisión',
-      icono:IC.engrane, page:'inicio_avanzado', bloques:['politica_revision'], kw:'reglas politica umbral descuento revision configurar' },
-
-    { id:'anuncios', nombre:'Anuncios del Portal', sub:'Publicar avisos para todo el equipo',
-      icono:IC.megafono, page:'anuncios', bloques:['anuncios'], kw:'aviso publicar comunicado banner novedades' },
-
-    { id:'portal_contenido', nombre:'Contenido del Portal', sub:'Herramientas, plantillas, formatos y promos',
-      icono:IC.capas, page:'portal_contenido', bloques:['portal_contenido'], kw:'administrar editar catalogo herramientas formatos ligas' },
-
-    { id:'operacion', nombre:'Estado de operación', sub:'Fallas que reporta el equipo',
-      icono:IC.pulso, page:'operacion', bloques:['operacion'], kw:'incidencias caido fallas confirmar sistemas problemas' },
-
-    /* La gestión de roles se mudó del panel avanzado a la Consola. La entrada se queda
-       —con las mismas palabras con las que la gente la busca: "equipo", "asesores",
-       "dar de baja"— pero apuntando al sitio nuevo. Quitarla habría dejado sin resultado
-       justo el término por el que se busca esa pantalla. */
-    { id:'equipo', nombre:'Roles y accesos de tu equipo', sub:'Altas, roles y bajas, desde la Consola',
-      icono:IC.llave, page:'consola', params:{ sec:'miembros' }, bloques:['sup_equipo'],
-      kw:'equipo asesores roles permisos alta baja ascender supervisor personal gente consola' },
-
-    { id:'consola', nombre:'Consola', sub:'Personas, permisos y ajustes del sistema',
-      icono:IC.engrane, page:'consola', bloques:['adm_miembros','adm_permisos','adm_ajustes'], maestro:true,
-      kw:'administracion usuarios altas bajas roles bitacora salud modulos' },
-
-    { id:'atenciones', nombre:'Atenciones pendientes', sub:'Clientes por retomar cuando algo falló',
-      icono:IC.reloj, page:'atenciones', bloques:['atenciones'],
-      kw:'atencion pendiente pospuesta cliente telefono llamar retomar rescate rescatar guardar datos ' +
-         'volver despues callback seguimiento espera' },
-
-    { id:'atenciones-nueva', nombre:'Registrar un cliente en espera', sub:'Guardar sus datos para retomar la atención',
-      icono:IC.doc, page:'atenciones', params:{ action:'nueva' }, bloques:['atenciones'],
-      kw:'registrar guardar cliente telefono anotar apuntar nueva atencion pendiente pospuesta ' +
-         'se cayo el sistema fallo connect' },
-
-    { id:'feed-supervision', nombre:'Inicio de gestión', sub:'Resumen del día y tus accesos directos',
-      icono:IC.casa, page:'inicio_avanzado', bloques:['supervision','revisar','politica_revision','sup_equipo'],
-      kw:'feed inicio resumen accesos directos fijados atajos panel gestion supervision' },
-
-    { id:'portal', nombre:'Portal Ventel', sub:'Herramientas, procesos e información del área',
-      icono:IC.globo, page:'portal', kw:'inicio informacion guias procesos paqueterias devoluciones trazabilidad' },
-
-    { id:'promociones', nombre:'Monitor de promociones', sub:'Promociones vigentes y su agenda',
-      icono:IC.estrella, page:'promociones', bloques:['promociones'], kw:'promos descuentos ofertas vigencias rebajas calendario msi' },
-
-    { id:'estado', nombre:'Tablero de estado', sub:'¿Está caído el sistema o soy yo?',
-      icono:IC.pulso, page:'estado', kw:'estatus servicios caido intermitente connect sap salesforce' },
-
-    /* Reportar NO cambia de pantalla: el panel de operación se abre encima de donde estés.
-       Es la acción con más prisa de todo el catálogo —se busca con algo ya roto delante— y
-       cobrarle una carga completa de Apps Script es el motivo por el que la gente acaba
-       avisando por chat en vez de por aquí. */
-    { id:'reportar-falla', nombre:'Reportar una falla', sub:'Avisar al equipo de que algo no está funcionando',
-      icono:IC.pulso, sesion:true, cierra:true,
-      kw:'reportar reporte falla caida avisar problema no funciona error incidencia se cayo ' +
-         'levantar ticket connect sap lento intermitente',
-      fn:function () {
-        if (window.AppOperacion && AppOperacion.reportar) { AppOperacion.reportar(''); return; }
-        if (window.AppUrl) AppUrl.go('estado');
-      } },
-
-    /* Plantillas de correo: se abren ya elegidas (?tpl=…). Son el destino real de
-       "necesito mandar un estado de cuenta", que es como se pide en voz alta. */
-    { id:'tpl-ticket', nombre:'Plantilla · Ticket de compra', sub:'Reenvío del ticket de una compra',
-      icono:IC.correop, page:'correo_cliente', params:{ tpl:'ticket' }, bloques:['correos_cliente'],
-      kw:'ticket compra comprobante pedido reenvio' },
-    { id:'tpl-edo', nombre:'Plantilla · Estado de cuenta PF', sub:'Solicitud de estado de cuenta',
-      icono:IC.correop, page:'correo_cliente', params:{ tpl:'edodecuenta' }, bloques:['correos_cliente'],
-      kw:'estado cuenta persona fisica validacion tarjeta' },
-    { id:'tpl-edoext', nombre:'Plantilla · Estado de cuenta extranjera', sub:'Validación con tarjeta extranjera',
-      icono:IC.correop, page:'correo_cliente', params:{ tpl:'edodecuentaextranjera' }, bloques:['correos_cliente'],
-      kw:'extranjera internacional tarjeta fuera pais' },
-    { id:'tpl-ok', nombre:'Plantilla · Validación exitosa', sub:'Avisar que la validación fue correcta',
-      icono:IC.correop, page:'correo_cliente', params:{ tpl:'validacionexitosa' }, bloques:['correos_cliente'],
-      kw:'validacion exitosa aprobada correcta pedido liberado' },
-    { id:'tpl-libre', nombre:'Plantilla · Formato personalizable', sub:'Correo libre con la estructura de marca',
-      icono:IC.correop, page:'correo_cliente', params:{ tpl:'formato' }, bloques:['correos_cliente'],
-      kw:'personalizable libre generico formato marca' },
-    { id:'tpl-plano', nombre:'Plantilla · Texto plano', sub:'Escribir un correo desde cero',
-      icono:IC.correop, page:'correo_cliente', params:{ tpl:'textoplano' }, bloques:['correos_cliente'],
-      kw:'texto plano sin plantilla escribir cero' }
-  ];
+     La proyección se hace UNA vez: `destinos()` corre en cada pulsación y rehacer
+     veinticinco objetos por tecla no lo paga nadie. */
+  var _catalogo = null;
+  function catalogo() {
+    if (_catalogo) return _catalogo;
+    _catalogo = (window.AppIndices ? AppIndices.catalogo : [])
+      .filter(function (f) { return !(f.fuera && f.fuera.indexOf('cmdk') !== -1); })
+      .map(function (f) {
+        return {
+          id: f.id, nombre: f.nombre, sub: f.sub, kw: f.kw,
+          icono: ICONO_DE_CATALOGO[f.icono] || IC.doc,
+          page: f.page, params: f.params, ancla: f.ancla,
+          bloques: f.bloques, maestro: f.maestro, sesion: f.sesion,
+          publica: f.publica, cierra: f.cierra,
+          fn: f.fn ? ACCION_LOCAL[f.fn] : undefined
+        };
+      });
+    return _catalogo;
+  }
 
   /** Sube o baja un paso el tamaño del texto, sin salirse de la escala. */
   function pasoTexto(dir) {
@@ -568,28 +516,34 @@
       kw:'descuentos ofertas msi vigencias importar comercial calendario' }
   ];
 
-  /** ¿Esta entrada del catálogo la alcanza la sesión actual? */
+  /** ¿Este APARTADO interno lo alcanza la sesión actual?
+      Solo lo usan las SECCIONES —los apartados dentro de una pantalla—, que son propias
+      de este panel y siempre se consultan con sesión puesta. El catálogo de funciones ya
+      no pasa por aquí: su política vive en app_indices.html, escrita una sola vez para
+      los dos buscadores. */
   function alcanzable(d, logueado) {
-    if (!logueado) {
-      // Sin sesión solo la landing pública y el tablero de estado, y ni siquiera esos
-      // si el módulo está apagado por mantenimiento (ver AppFunciones en app_core:
-      // la lista de apagados ya se consulta sin sesión).
-      if (d.id !== 'portal' && d.id !== 'estado') return false;
-      if (window.AppFunciones && d.bloques) {
-        return d.bloques.some(function (b) { return !AppFunciones.moduloApagado(b); });
-      }
-      return true;
-    }
+    if (!logueado) return false;
     if (d.maestro && !(window.AppSession && AppSession.isMaster)) return false;
     if (!d.bloques) return true;
     for (var i = 0; i < d.bloques.length; i++) if (puede(d.bloques[i])) return true;
     return false;
   }
 
-  /** Las funciones que ESTA sesión puede abrir de verdad. */
+  /** Las funciones que ESTA sesión puede abrir de verdad.
+      Sin sesión aquí solo salen las públicas —el Portal y el estado del servicio—, y no
+      por prudencia: este panel no tiene el puente al login que sí tiene el buscador del
+      Portal, así que ofrecer una pantalla que exige identidad sería ofrecer una puerta
+      que no lleva a ninguna parte. La regla, con su porqué, está en app_indices.html. */
   function destinos() {
-    var logueado = conSesion();
-    return CATALOGO.filter(function (d) { return alcanzable(d, logueado); });
+    if (!window.AppIndices) return [];
+    var permitidas = AppIndices.funciones('cmdk', {
+      conSesion: conSesion(),
+      esMaestro: !!(window.AppSession && AppSession.isMaster),
+      puede: puede
+    });
+    var ok = Object.create(null);
+    permitidas.forEach(function (f) { ok[f.id] = true; });
+    return catalogo().filter(function (d) { return ok[d.id]; });
   }
 
   /** Los apartados internos que ESTA sesión puede abrir. */
@@ -726,9 +680,19 @@
       /* La pantalla en la que YA ESTÁS baja al final. Ofrecer "ir a donde ya estoy" es
          gastar el primer resultado —el que se abre con Enter sin mirar— en no hacer
          nada. No se esconde: alguien puede querer recargarla. */
-      if (dePagina && d.page && d.page === dePagina && !d.fn) score *= 0.35;
+      if (dePagina && pageDe(d) && pageDe(d) === dePagina && !d.fn) score *= 0.35;
       return { item: d, score: score };
     }).sort(function (a, b) { return b.score - a.score; });
+  }
+
+  /** Pantalla REAL a la que lleva una entrada: '__home' es «la que le toque a quien
+      busca», no una página. Se resuelve al comparar y no al proyectar el catálogo porque
+      la proyección se hace una sola vez y `homePage()` depende de la sesión, que puede
+      no estar lista todavía. Sin esto, «Panel de cotizaciones» no se apartaba estando ya
+      en esa pantalla —el `if` de arriba comparaba '__home' contra 'dashboard'— y se
+      quedaba con el primer resultado, el que se abre con Enter sin mirar. */
+  function pageDe(d) {
+    return (d && d.page === '__home' && window.AppUrl && AppUrl.homePage) ? AppUrl.homePage() : (d && d.page);
   }
 
   /* ═══════════════════════════════════════════════════════════════════════════
@@ -1253,7 +1217,11 @@
     { id: 'portal', rotulo: 'Portal',        alias: ['portal', 'herramienta', 'herramientas', 'formato', 'formatos'] },
     { id: 'traz',   rotulo: 'Procesos',      alias: ['proceso', 'procesos', 'traz', 'trazabilidad', 'tiempos'] },
     { id: 'gente',  rotulo: 'Personas',      alias: ['gente', 'persona', 'personas', 'equipo', 'asesor', 'asesores'] },
-    { id: 'op',     rotulo: 'Fallas',        alias: ['falla', 'fallas', 'estado', 'incidencia', 'incidencias'] }
+    { id: 'op',     rotulo: 'Fallas',        alias: ['falla', 'fallas', 'estado', 'incidencia', 'incidencias'] },
+    /* El catálogo de tiendas solo sale solo cuando la consulta trae un número; con el
+       ámbito puesto se busca también por nombre, que es como se pregunta cuando no se
+       recuerda el número («cr: guadalajara»). */
+    { id: 'tienda', rotulo: 'Tiendas y CR',  alias: ['tienda', 'tiendas', 'cr', 'crs', 'sucursal', 'sucursales', 'almacen', 'almacenes'] }
   ];
 
   /* Mapa alias → ámbito, que es lo que espera el parser compartido. Se arma una vez. */
@@ -1314,7 +1282,7 @@
       var yaVisto = Object.create(null);
       conUso.forEach(function (d) { yaVisto[d.id] = true; });
       var resto = dst.filter(function (d) {
-        return !yaVisto[d.id] && !d.fn && (!paginaActual || d.page !== paginaActual);
+        return !yaVisto[d.id] && !d.fn && (!paginaActual || pageDe(d) !== paginaActual);
       });
       var fn0 = conUso.concat(resto).slice(0, 7);
       if (fn0.length) grupos.push({ tipo: 'fn', titulo: conUso.length ? 'Lo que sueles abrir' : 'Ir a', icono: IC.flecha, filas: fn0 });
@@ -1461,6 +1429,37 @@
       }, { limite: 3, conPuntaje: true });
       if (anun.length) grupos.push({ tipo: 'anuncio', titulo: 'Anuncios', icono: IC.megafono,
                                      mejor: anun[0].score, filas: anun.map(function (r) { return r.item; }) });
+    }
+
+    /* 8) TIENDAS Y CENTROS DE REPARTO. El catálogo vivía solo en el Portal, así que
+       "¿qué número es la CR de Guadalajara?" —una pregunta que se hace con el cliente al
+       teléfono— obligaba a cambiar de pantalla y buscar otra vez.
+
+       No se puntúa con el motor general sino con su scorer propio, que es lo que hace
+       que un número EXACTO gane siempre a la mejor coincidencia de nombre: quien teclea
+       "96" sabe lo que quiere. Y solo entra si la consulta lo pide de verdad —un número,
+       o el ámbito puesto—: sin ese freno, cualquier palabra de tres letras sacaría media
+       lista de tiendas por delante de la cotización que se estaba buscando. */
+    /* NO se cuelga de `esCotizacion`: «cr 96», «tda 130» o «cr-96» encajan en el patrón
+       de folio (dos a cinco letras y dígitos), así que esa guarda apagaba el grupo justo
+       en las consultas para las que existe. El freno de verdad lo ponen `pideTienda`
+       —hace falta un número o el ámbito puesto— y el corte por puntaje, así que ninguna
+       palabra suelta saca tiendas. Un correo sí se descarta: ahí se busca un cliente. */
+    if (!B.esCorreo(q) && window.AppIndices && deja('tienda')) {
+      var pideTienda = soloAmbito === 'tienda' || /\d/.test(q);
+      if (pideTienda) {
+        var Qt = B.consulta(q);
+        Qt.words = Qt.palabras; Qt.raw = Qt.crudo;
+        var tds = AppIndices.tiendaCR
+          .map(function (it) { return { it: it, s: AppIndices.puntuaTiendaCR(Qt, it, null) }; })
+          .filter(function (r) { return r.s > 0; })
+          .sort(function (a, b) { return (b.s - a.s) || (a.it.num - b.it.num); })
+          .slice(0, 4);
+        if (tds.length) {
+          grupos.push({ tipo: 'tienda', titulo: 'Tiendas y centros de reparto', icono: IC.caja,
+                        mejor: tds[0].s, filas: tds.map(function (r) { return r.it; }) });
+        }
+      }
     }
 
     /* El grupo que MEJOR responde va arriba, no el que estaba primero en el código.
@@ -1655,6 +1654,19 @@
             '</span>' + deQuien +
             '<span class="cmdk-enter">↵ Ver</span><span class="cmdk-go">' + IC.flecha + '</span>');
 
+        } else if (g.tipo === 'tienda') {
+          /* El número EN GRANDE y el nombre debajo: nueve de cada diez veces este
+             resultado se lee para dictarlo por teléfono, no para abrir nada. Y por eso
+             la pista de teclado dice «Copiar» y no «Abrir»: no hay a dónde ir. */
+          html += fila('',
+            '<span class="cmdk-chip">' + IC.caja + '</span>' +
+            '<span class="cmdk-tx">' +
+              '<span class="cmdk-name">' + B.resalta(String(r.num), q) + ' · ' + B.resalta(r.name, q) + '</span>' +
+              '<span class="cmdk-sub">' + esc(r.tipo === 'CR' ? 'Centro de reparto' : 'Tienda') + '</span>' +
+            '</span>' +
+            '<span class="cmdk-tag">' + esc(r.tipo) + '</span>' +
+            '<span class="cmdk-enter">↵ Copiar</span>');
+
         } else if (g.tipo === 'anuncio') {
           html += fila('',
             '<span class="cmdk-chip">' + IC.megafono + '</span>' +
@@ -1688,11 +1700,12 @@
              'También puedes acotar escribiendo <b>portal:</b>, <b>cot:</b> o <b>gente:</b> delante.</div>'
            : '<div>Escribe para buscar.</div>' +
              '<div style="margin-top:.4rem;font-size:.8rem">Pantallas y apartados, folios, clientes, personas del equipo, ' +
-             'contenido del Portal, procesos y tiempos, las fallas abiertas y los clientes que esperan una llamada.</div>' +
+             'contenido del Portal, procesos y tiempos, tiendas y centros de reparto, las fallas abiertas ' +
+             'y los clientes que esperan una llamada.</div>' +
              /* Los ámbitos no se adivinan: si no se enseñan aquí, existen para quien lea
                 el código y para nadie más. Se pintan como lo que son, algo que se teclea. */
              '<div style="margin-top:.55rem;font-size:.78rem;opacity:.85">Para buscar en un solo sitio, ' +
-             'empieza por <b>portal:</b>, <b>cot:</b>, <b>procesos:</b>, <b>gente:</b> o <b>fallas:</b></div>') +
+             'empieza por <b>portal:</b>, <b>cot:</b>, <b>procesos:</b>, <b>gente:</b>, <b>fallas:</b> o <b>tienda:</b></div>') +
         (sugerencias.length
           ? '<div class="cmdk-pistas">' + sugerencias.map(function (s) {
               return '<button type="button" class="cmdk-pista" data-q="' + esc(s) + '">' + esc(s) + '</button>';
@@ -1761,6 +1774,41 @@
       navega('atenciones', { sec: f.dato.donde, q: f.dato.telefono || f.dato.cliente });
       return;
     }
+    if (f.tipo === 'tienda') {
+      /* No hay a dónde navegar: el catálogo de tiendas no es una pantalla. Lo que se
+         quiere del resultado es el NÚMERO, para dictarlo o pegarlo en SAP, así que Enter
+         lo copia y el panel se queda abierto —normalmente se consultan dos o tres
+         seguidas y cerrarlo obligaría a volver a escribir. */
+      var texto = String(f.dato.num);
+      var nombreTda = f.dato.name;
+      /* Con respaldo y con aviso en los dos casos. La API del portapapeles no existe
+         fuera de un origen seguro y el navegador la niega si la pestaña perdió el foco;
+         sin esta rama, el panel prometía «↵ Copiar», no pasaba nada y no había forma de
+         saber si se había copiado o no. Mismo patrón que ya usa app_atenciones. */
+      var aviso = function (ok) {
+        if (window.AppMotion && AppMotion.toast) {
+          AppMotion.toast(ok ? 'Copiado: ' + texto + ' · ' + nombreTda
+                             : 'No se pudo copiar el ' + texto + '; selecciónalo a mano.',
+                          ok ? 'ok' : 'warn');
+        }
+      };
+      var respaldo = function () {
+        try {
+          var ta = document.createElement('textarea');
+          ta.value = texto;
+          ta.style.cssText = 'position:fixed;top:-1000px;opacity:0';
+          document.body.appendChild(ta);
+          ta.select();
+          var ok = document.execCommand('copy');
+          document.body.removeChild(ta);
+          aviso(!!ok);
+        } catch (e) { aviso(false); }
+      };
+      if (navigator.clipboard && navigator.clipboard.writeText) {
+        navigator.clipboard.writeText(texto).then(function () { aviso(true); }, respaldo);
+      } else respaldo();
+      return;
+    }
     if (f.tipo === 'anuncio') { navega('anuncios', { q: f.dato.titulo }); return; }
     if (f.tipo === 'portal') {
       var p = f.dato;
@@ -1792,7 +1840,13 @@
   function navega(page, params, ancla) {
     cerrar(true);
     if (window.VentelLoader) VentelLoader.show();
-    if (window.AppUrl) AppUrl.go(page, params || {}, ancla);
+    if (!window.AppUrl) return;
+    /* '__home' no es una pantalla: es «la que le toque a quien busca». Un asesor va a su
+       panel de cotizaciones y una supervisión al suyo, que es lo que decidió F1 para
+       esta misma pregunta. El catálogo lo escribe así una vez y cada buscador lo
+       resuelve al navegar. */
+    var destino = (page === '__home' && AppUrl.homePage) ? AppUrl.homePage() : page;
+    AppUrl.go(destino, params || {}, ancla);
   }
 
   function abreLiga(href) {

@@ -144,7 +144,6 @@ function extraeLiteral(src, nombre) {
 
 const INDEX = leer('Index.html');
 const SEARCH_SYNONYMS = extraeLiteral(INDEX, 'SEARCH_SYNONYMS');
-const APP_ACTIONS = extraeLiteral(INDEX, 'APP_ACTIONS');
 
 /* Los cuatro índices del Portal se mudaron a app_indices.html (T6.2) para que el
    buscador general los alcance. Se cargan del partial REAL, con su IIFE, que es también
@@ -163,6 +162,11 @@ const FP_INDEX = IDX.formasPago;
 const DEVSAP_INDEX = IDX.devolucionesSap;
 const SECTIONS_NAV = IDX.secciones;
 const TIENDA_CR = IDX.tiendaCR;
+/* El catálogo de funciones también se unificó (T6.3). Se proyecta como lo hace
+   Index.html, para puntuar contra lo mismo que puntúa el buscador de verdad. */
+const APP_ACTIONS = IDX.catalogo
+  .filter((f) => !(f.fuera && f.fuera.indexOf('portal') !== -1))
+  .map((f) => ({ id: f.id, name: f.nombre, sub: f.sub, kw: f.kw, bloques: f.bloques }));
 
 /* Fixture de `store`: lo que llega de la hoja de cálculo y aquí no hay servidor.
    Filas escritas con los MISMOS nombres de campo que declara `specs` en
@@ -524,6 +528,90 @@ console.log('10) El buscador general alcanza el contenido del Portal (T6.2)');
 }
 console.log();
 
+/* — T6.3: un solo catálogo de funciones, sin perder ninguna puerta — */
+console.log('11) Catálogo de funciones unificado (T6.3)');
+{
+  const CAT = IDX.catalogo;
+  const firma = (f) => {
+    const p = f.params || {};
+    const claves = Object.keys(p).sort().map((k) => k + '=' + p[k]).join(',');
+    return (f.fn ? 'fn:' + f.fn : f.page) + (claves ? '|' + claves : '');
+  };
+  const firmas = new Set(CAT.map(firma));
+
+  /* Destinos que ofrecía CADA buscador antes de la fusión, copiados de los dos catálogos
+     originales. Es la lista de puertas que no se pueden haber cerrado. */
+  const ANTES_PORTAL = ['__home', 'cotizacion', 'correoventel', 'correo_cliente', 'inicio_avanzado',
+    'anuncios', 'portal_contenido', 'operacion', 'consola', 'consola|sec=miembros', 'atenciones',
+    'atenciones|action=nueva', 'atenciones|sec=publicas', 'estado', 'fn:reportarFalla',
+    'correo_cliente|tpl=ticket', 'correo_cliente|tpl=edodecuenta', 'correo_cliente|tpl=edodecuentaextranjera',
+    'correo_cliente|tpl=validacionexitosa', 'correo_cliente|tpl=formato', 'correo_cliente|tpl=textoplano'];
+  const ANTES_CMDK = ANTES_PORTAL.concat(['portal', 'promociones'])
+    .filter((d) => d !== 'atenciones|sec=publicas');
+
+  [['el Portal', ANTES_PORTAL], ['el buscador general', ANTES_CMDK]].forEach(([quien, antes]) => {
+    const perdidas = antes.filter((d) => !firmas.has(d));
+    if (perdidas.length) mal(`${quien} perdió estos destinos: ${perdidas.join(', ')}`);
+    else console.log(`   ✓ ${quien}: los ${antes.length} destinos que ofrecía siguen en el catálogo`);
+  });
+
+  const ids = CAT.map((f) => f.id);
+  if (new Set(ids).size !== ids.length) mal('hay ids repetidos en el catálogo');
+  else console.log(`   ✓ ${CAT.length} entradas con id único`);
+
+  // Los parámetros solo llegan a la pantalla si su clave está en PARAMS_VISTA. Una clave
+  // inventada se pierde por el camino sin dar ninguna señal.
+  const CORE = leer('app_core.html');
+  const PARAMS_VISTA = new Function('return ' + CORE.match(/const PARAMS_VISTA = (\[[^\]]*\]);/)[1])();
+  const malos = [];
+  CAT.forEach((f) => Object.keys(f.params || {}).forEach((k) => {
+    if (PARAMS_VISTA.indexOf(k) === -1) malos.push(f.id + ' → ' + k);
+  }));
+  if (malos.length) mal('parámetros que no están en PARAMS_VISTA (se pierden sin aviso): ' + malos.join(', '));
+  else console.log(`   ✓ todos los parámetros del catálogo están en PARAMS_VISTA`);
+
+  // Cada superficie tiene que saber pintar todos los iconos y resolver todas las acciones.
+  const iconosPortal = new Set((leer('Index.html').match(/^const ICONS = \{[\s\S]*?\n\};/m) || [''])[0]
+    .split('\n').map((l) => (l.match(/^\s{2}([a-z]+):/) || [])[1]).filter(Boolean));
+  iconosPortal.add('cloud');
+  const iconosCmdk = new Set(Object.keys(new Function('return ' + (leer('app_comando.html')
+    .match(/var ICONO_DE_CATALOGO = (\{[\s\S]*?\n  \});/) || [])[1].replace(/IC\.[a-z]+/g, '1'))()));
+  const sinIcono = CAT.filter((f) => !iconosCmdk.has(f.icono));
+  if (sinIcono.length) mal('iconos que el buscador general no sabe pintar: ' + sinIcono.map((f) => f.icono).join(', '));
+  else console.log('   ✓ los dos buscadores saben pintar los ' + new Set(CAT.map((f) => f.icono)).size + ' iconos del catálogo');
+
+  const fns = CAT.filter((f) => f.fn).map((f) => f.fn);
+  const enPortal = leer('Index.html');
+  const enCmdk = leer('app_comando.html');
+  fns.forEach((n) => {
+    if (enPortal.indexOf(n + ':') === -1) mal(`la acción local "${n}" no está en APP_ACTION_FN del Portal`);
+    else if (enCmdk.indexOf(n + ':') === -1) mal(`la acción local "${n}" no está en ACCION_LOCAL del buscador general`);
+    else console.log(`   ✓ la acción local "${n}" la resuelven los dos buscadores`);
+  });
+
+  // Política sin sesión, la que el plan pide parametrizar por superficie.
+  const visitante = { conSesion: false, esMaestro: false, puede: () => false };
+  const enPortalSinSesion = IDX.funciones('portal', visitante);
+  const enCmdkSinSesion = IDX.funciones('cmdk', visitante);
+  if (enPortalSinSesion.some((f) => f.sesion)) mal('el Portal ofrece a un visitante algo que exige sesión');
+  else if (enPortalSinSesion.length < 20) mal(`el Portal solo ofrece ${enPortalSinSesion.length} a un visitante; ofrecía casi todas`);
+  else console.log(`   ✓ sin sesión: el Portal ofrece ${enPortalSinSesion.length} (van al login y de ahí a su destino)`);
+  /* Antes de la fusión eran dos ids escritos a mano en un `if` («portal» y «estado»).
+     Ahora son las entradas marcadas `publica`, y son tres porque el historial del
+     servicio —la otra puerta de la MISMA pantalla pública— también lo es. */
+  const idsCmdk = enCmdkSinSesion.map((f) => f.id).sort().join(',');
+  if (idsCmdk !== 'estado,estado-historial,portal') mal(`sin sesión el buscador general debería ofrecer solo lo público y ofrece: ${idsCmdk || 'nada'}`);
+  else console.log(`   ✓ sin sesión: el buscador general ofrece solo lo público (${idsCmdk})`);
+
+  // Y con sesión de asesor, que es el caso normal.
+  const asesor = { conSesion: true, esMaestro: false, puede: (b) => ['cotizar', 'enviar_cotizacion', 'correos_cliente', 'atenciones'].indexOf(b) !== -1 };
+  const suyas = IDX.funciones('cmdk', asesor).map((f) => f.id);
+  if (suyas.indexOf('consola') !== -1) mal('un asesor ve la Consola en el catálogo');
+  else if (suyas.indexOf('cotizacion') === -1) mal('un asesor no ve «Nueva cotización»');
+  else console.log(`   ✓ un asesor ve ${suyas.length} funciones, sin Consola y con su cotización`);
+}
+console.log();
+
 /* — Lo que NO se toca: filtrar una tabla sigue exigiendo todas las palabras — */
 console.log('8) El filtro de tablas (exigirTodas por omisión) no cambió');
 {
@@ -536,6 +624,70 @@ console.log('8) El filtro de tablas (exigirTodas por omisión) no cambió');
   const porSinonimoEnTabla = B.puntua(Qs, [{ t: 'Transferencia BBVA', p: 3 }]);
   if (porSinonimoEnTabla !== 0) mal('un sinónimo se coló en el filtro de tablas: ' + porSinonimoEnTabla);
   else console.log('   ✓ un sinónimo no filtra filas de una tabla (solo acerca en un buscador)');
+
+  /* El hueco por el que se coló una regresión de verdad: ningún término de la batería
+     mezclaba una palabra larga con la partición letra/dígito. Al descartar los restos de
+     una letra dentro de consulta(), "lvp1" pasó a buscar solo "lvp" y el filtro de la
+     tabla de cotizaciones devolvía TODOS los folios en vez de estrecharse.
+     Filtrando se exige lo que la persona escribió; buscando se usa el núcleo. */
+  const FOLIOS = ['LVP-260726-0001', 'LVP-260801-0899', 'LVP-260802-0234', 'LVP-260803-0567'];
+  const conUno = FOLIOS.filter((f) => B.puntua(B.consulta('lvp1'), [{ t: f, p: 3 }]) > 0);
+  if (conUno.length === FOLIOS.length) mal(`"lvp1" no estrecha la tabla: devuelve los ${FOLIOS.length} folios`);
+  else if (!conUno.length) mal('"lvp1" no encuentra ningún folio');
+  else console.log(`   ✓ "lvp1" deja ${conUno.length} de ${FOLIOS.length} folios (${conUno.join(', ')})`);
+
+  const PROMOS = ['Pantallas 4K Samsung', 'Pantallas Full HD LG', 'Laptops Gamer'];
+  const dosPal = PROMOS.filter((p) => B.puntua(B.consulta('pantallas 4k'), [{ t: p, p: 3 }]) > 0);
+  if (dosPal.length !== 1) mal(`"pantallas 4k" deja ${dosPal.length} promociones y debería dejar 1: ${dosPal.join(' | ')}`);
+  else console.log(`   ✓ "pantallas 4k" deja solo «${dosPal[0]}»`);
+
+  // Y la ganancia del otro lado sigue en pie: buscando, "fbl5n" no inunda.
+  const nucleoSigue = B.consulta('fbl5n').nucleo.join(',');
+  if (nucleoSigue !== 'fbl') mal('el núcleo de "fbl5n" debería ser [fbl] y es: ' + nucleoSigue);
+  else console.log('   ✓ buscando, "fbl5n" sigue reduciéndose a «fbl» (el resto no inunda)');
+}
+console.log();
+
+/* — Los sinónimos cortos no pueden engancharse dentro de cualquier palabra — */
+console.log('12) Los sinónimos no enganchan a media palabra');
+{
+  const RUIDO = [
+    ['tienda', 'Descripción del proceso', 'cr'],
+    ['tienda', 'Traslado de mercancía', 'sl'],
+    ['proceso', 'Traspaso de saldo', 'paso']
+  ];
+  RUIDO.forEach(([q, texto, culpable]) => {
+    const s = B.puntua(B.consulta(q), [{ t: texto, p: 3 }], OPTS_PORTAL);
+    if (s > 0) mal(`"${q}" puntúa «${texto}» (${s.toFixed(1)}) por el sinónimo corto «${culpable}» metido a media palabra`);
+    else console.log(`   ✓ "${q}" no puntúa «${texto}»`);
+  });
+  // Lo que SÍ tiene que seguir alcanzando: plural y palabra compuesta larga.
+  [['openpay', 'Portal de Transferencias BBVA'], ['guia', 'Reenvío del ticket']].forEach(([q, texto]) => {
+    const s = B.puntua(B.consulta(q), [{ t: texto, p: 3 }], OPTS_PORTAL);
+    if (s <= 0) mal(`"${q}" dejó de alcanzar «${texto}»`);
+    else console.log(`   ✓ "${q}" sigue alcanzando «${texto}» (${s.toFixed(1)})`);
+  });
+}
+console.log();
+
+/* — El ámbito no puede confundir una propiedad heredada con un ámbito de verdad — */
+console.log('13) El parser de ámbitos no hereda de Object.prototype');
+{
+  const alias = { cot: { id: 'cot' }, portal: { id: 'portal' } };
+  ['constructor', 'toString', 'valueOf', 'hasOwnProperty'].forEach((k) => {
+    const r = IDX.ambito(k + ': algo', alias, { sueltos: false });
+    if (r) mal(`"${k}:" se toma por un ámbito y devuelve ${typeof r.ambito}`);
+  });
+  console.log('   ✓ «constructor:», «toString:», «valueOf:» y «hasOwnProperty:» se buscan como texto');
+  const ok = IDX.ambito('cot: LVP-123', alias, { sueltos: false });
+  if (!ok || ok.ambito.id !== 'cot' || ok.resto !== 'LVP-123') mal('«cot: LVP-123» dejó de acotar');
+  else console.log('   ✓ «cot: LVP-123» sigue acotando, con resto «' + ok.resto + '»');
+  const suelto = IDX.ambito('formatos acta', { formatos: { id: 'f' } });
+  if (!suelto || suelto.resto !== 'acta') mal('la forma suelta del Portal dejó de funcionar');
+  else console.log('   ✓ «formatos acta» (forma suelta) sigue acotando en el Portal');
+  const noEsAmbito = IDX.ambito('nota: pedir factura', alias, { sueltos: false });
+  if (noEsAmbito) mal('«nota:» se toma por un ámbito');
+  else console.log('   ✓ «nota: pedir factura» se busca tal cual');
 }
 console.log();
 

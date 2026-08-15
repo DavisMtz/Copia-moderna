@@ -266,18 +266,27 @@
   */
   function ambito(texto, alias, opts) {
     if (!alias) return null;
+    /* `hasOwnProperty` y no `alias[k]` a secas: los dos diccionarios que llegan aquí son
+       objetos literales, así que heredan de Object.prototype y escribir «constructor:»,
+       «toString:» o «valueOf:» devolvía una función haciéndose pasar por un ámbito. El
+       panel se quedaba entonces intentando pintar un grupo que no existe. */
+    var suyo = function (k) {
+      return Object.prototype.hasOwnProperty.call(alias, k) ? alias[k] : null;
+    };
     var t = String(texto || '');
     var dosPuntos = t.match(/^\s*([^\s:]+)\s*:\s*([\s\S]*)$/);
     if (dosPuntos) {
       var k1 = norm(dosPuntos[1]).trim();
-      return alias[k1] ? { ambito: alias[k1], alias: k1, resto: dosPuntos[2].trim() } : null;
+      var a1 = suyo(k1);
+      return a1 ? { ambito: a1, alias: k1, resto: dosPuntos[2].trim() } : null;
     }
     if (opts && opts.sueltos === false) return null;
     var t2 = t.trim();
     var sp = t2.search(/\s/);
     var k2 = norm(sp === -1 ? t2 : t2.slice(0, sp)).trim();
-    if (!alias[k2]) return null;
-    return { ambito: alias[k2], alias: k2, resto: sp === -1 ? '' : t2.slice(sp + 1).trim() };
+    var a2 = suyo(k2);
+    if (!a2) return null;
+    return { ambito: a2, alias: k2, resto: sp === -1 ? '' : t2.slice(sp + 1).trim() };
   }
 
   /* ═══════════════════════════════════════════════════════════════════════════
@@ -375,6 +384,200 @@
     return out;
   }
 
+  /* ═══════════════════════════════════════════════════════════════════════════
+     CATÁLOGO DE FUNCIONES — todo lo que la app sabe hacer
+     ═══════════════════════════════════════════════════════════════════════════
+     Estaba escrito DOS veces: `CATALOGO` en app_comando y `APP_ACTIONS` en Index.html.
+     No eran copias: habían divergido. El buscador del Portal no ofrecía «Portal Ventel»,
+     «Monitor de promociones» ni «Inicio de gestión»; el buscador general no ofrecía
+     «Atenciones rescatables» ni «Historial del servicio». Nadie lo notaba, porque para
+     verlo hay que buscar la misma palabra en los dos sitios y comparar. Cada pantalla
+     nueva del año que viene se iba a dar de alta en uno de los dos y no en el otro.
+
+     Aquí está una sola vez, como DATOS. Lo que cambia por superficie —qué se ofrece sin
+     sesión, con qué icono se pinta, cómo se navega— lo decide cada buscador al pedirlo.
+
+     CAMPOS:
+       id        clave estable. Es también la clave con la que el buscador general
+                 guarda la costumbre de uso en el navegador de cada persona: renombrarla
+                 no rompe nada visible y BORRA en silencio lo aprendido. No se toca.
+       page      pantalla destino. '__home' = la que corresponda al rol de quien busca.
+       params    parámetros de vista (tpl, sec, action…). Solo llegan si su clave está
+                 en PARAMS_VISTA (Code.gs y app_core): inventar una se pierde sin aviso.
+       fn        NOMBRE de una acción local, no la función: el catálogo son datos, y
+                 cada superficie resuelve el nombre contra su propio mapa.
+       bloques   permisos; con tener UNO basta. Sin `bloques`, para cualquiera con sesión.
+       publica   se puede abrir SIN sesión y tiene sentido sin ella.
+       sesion    no significa nada sin haber entrado (reportar una falla, p. ej.).
+       fuera     superficies donde la entrada no se ofrece, con su motivo al lado.
+
+     Esto NO es seguridad: el servidor vuelve a exigir el permiso al abrir cada pantalla
+     (secIdentidadConBloque_). Es no ofrecer una puerta que se va a cerrar en la cara. */
+  var FUNCIONES = [
+    /* Una sola entrada para «mi panel de cotizaciones», y va a '__home' —no a
+       'dashboard'— porque es lo que decidió F1 para esta misma pregunta: la entrada a
+       Cotizaciones lleva a cada quien a su inicio. Para un asesor son la misma pantalla;
+       para una supervisión, '__home' es su panel y 'dashboard' era el del asesor. */
+    { id:'dashboard', nombre:'Panel de cotizaciones', sub:'Tus folios, su estatus y qué falta enviar',
+      icono:'home', page:'__home',
+      kw:'inicio panel principal dashboard mis cotizaciones tabla folios sistema de cotizaciones ventas cotizar' },
+
+    { id:'cotizacion', nombre:'Nueva cotización', sub:'Crear una cotización desde cero',
+      icono:'document', page:'cotizacion', bloques:['cotizar'],
+      kw:'nueva crear cotizar generar folio productos precio alta cotizacion' },
+
+    { id:'correoventel', nombre:'Enviar cotización por correo', sub:'Mandar una cotización con su PDF',
+      icono:'send', page:'correoventel', bloques:['enviar_cotizacion'],
+      kw:'enviar mandar correo pdf adjunto cliente reenviar cotizacion' },
+
+    { id:'correo_cliente', nombre:'Correos a clientes', sub:'Plantillas de correo listas para enviar',
+      icono:'mail', page:'correo_cliente', bloques:['correos_cliente'],
+      kw:'plantillas mensaje escribir redactar machote correos clientes' },
+
+    { id:'inicio_avanzado', nombre:'Panel avanzado', sub:'Métricas, búsqueda global y reportes',
+      icono:'chart', page:'inicio_avanzado', bloques:['supervision'],
+      kw:'supervision metricas reportes csv estadisticas indicadores avanzado admin' },
+
+    { id:'revisar', nombre:'Revisar cotizaciones', sub:'Cola de cotizaciones por autorizar',
+      icono:'check', page:'inicio_avanzado', bloques:['revisar'],
+      kw:'revision autorizar aprobar rechazar cola pendientes revisar' },
+
+    { id:'politica', nombre:'Política de revisión', sub:'Reglas que mandan una cotización a revisión',
+      icono:'gear', page:'inicio_avanzado', bloques:['politica_revision'],
+      kw:'reglas politica umbral descuento revision configurar' },
+
+    { id:'anuncios', nombre:'Anuncios del Portal', sub:'Publicar avisos para todo el equipo',
+      icono:'megaphone', page:'anuncios', bloques:['anuncios'],
+      kw:'aviso publicar comunicado banner novedades anuncios' },
+
+    { id:'portal_contenido', nombre:'Contenido del Portal', sub:'Herramientas, plantillas, formatos y promos',
+      icono:'layers', page:'portal_contenido', bloques:['portal_contenido'],
+      kw:'administrar editar catalogo herramientas formatos ligas contenido promos' },
+
+    { id:'operacion', nombre:'Estado de operación', sub:'Fallas que reporta el equipo',
+      icono:'bolt', page:'operacion', bloques:['operacion'],
+      kw:'incidencias caido fallas confirmar sistemas problemas operacion atender' },
+
+    /* La gestión de roles se mudó del panel avanzado a la Consola. La entrada se queda
+       —con las palabras con las que la gente la busca: "equipo", "asesores", "dar de
+       baja"— pero apuntando al sitio nuevo. Sin `maestro`: la abre también una
+       supervisión, y marcarla escondía justo la pantalla a la que da acceso ese permiso. */
+    { id:'equipo', nombre:'Roles y accesos de tu equipo', sub:'Altas, roles y bajas, desde la Consola',
+      icono:'key', page:'consola', params:{ sec:'miembros' }, bloques:['sup_equipo'],
+      kw:'equipo asesores roles permisos alta baja ascender supervisor personal gente consola accesos' },
+
+    { id:'consola', nombre:'Consola', sub:'Personas, permisos y ajustes del sistema',
+      icono:'lock', page:'consola', bloques:['adm_miembros','adm_permisos','adm_ajustes'], maestro:true,
+      kw:'administracion usuarios altas bajas roles bitacora salud modulos consola ajustes' },
+
+    { id:'atenciones', nombre:'Atenciones pendientes', sub:'Clientes por retomar cuando algo falló',
+      icono:'clock', page:'atenciones', bloques:['atenciones'],
+      kw:'atencion pendiente pospuesta cliente telefono llamar retomar rescate rescatar guardar datos ' +
+         'volver despues callback seguimiento espera' },
+
+    { id:'atenciones-nueva', nombre:'Registrar un cliente en espera', sub:'Guardar sus datos para retomar la atención',
+      icono:'document', page:'atenciones', params:{ action:'nueva' }, bloques:['atenciones'],
+      kw:'registrar guardar cliente telefono anotar apuntar nueva atencion pendiente pospuesta ' +
+         'se cayo el sistema fallo connect' },
+
+    /* Con `sec:'publicas'`: buscar "rescatables" tiene que dejar delante la lista de las
+       liberadas, no la pantalla en su pestaña de siempre para que se busque otra vez.
+       `fuera:['cmdk']` porque ahí ya existe como APARTADO (`sec-atenciones-pool`), y sin
+       esto salía DOS veces —una en «Funciones» y otra en «Apartados»— con el mismo
+       nombre, el mismo subtítulo y el mismo destino exacto. Además, al ser dos ids
+       distintos, la costumbre de uso se partía en dos claves para el mismo sitio y el
+       panel no aprendía bien ninguna de las dos. Se quita del catálogo y no el apartado
+       porque el id del apartado ya está guardado en el navegador de cada persona. */
+    { id:'atenciones-rescatables', nombre:'Atenciones rescatables', sub:'Las que otros asesores liberaron y puedes tomar',
+      icono:'key', page:'atenciones', params:{ sec:'publicas' }, bloques:['atenciones'], fuera:['cmdk'],
+      kw:'rescatar rescate publicas liberadas pool tomar otro asesor clientes libres atenciones disponibles' },
+
+    { id:'feed-supervision', nombre:'Inicio de gestión', sub:'Resumen del día y tus accesos directos',
+      icono:'home', page:'inicio_avanzado', bloques:['supervision','revisar','politica_revision','sup_equipo'],
+      kw:'feed inicio resumen accesos directos fijados atajos panel gestion supervision' },
+
+    /* `fuera:['portal']`: estando YA en el Portal, ofrecer "ir al Portal" es ruido, y su
+       buscador tiene además su propia navegación por secciones. */
+    { id:'portal', nombre:'Portal Ventel', sub:'Herramientas, procesos e información del área',
+      icono:'globe', page:'portal', publica:true, fuera:['portal'],
+      kw:'inicio informacion guias procesos paqueterias devoluciones trazabilidad portal' },
+
+    /* Igual: la portada ya saca el monitor con su propio grupo y su empujón al primer
+       puesto cuando la consulta apunta a promociones. */
+    { id:'promociones', nombre:'Monitor de promociones', sub:'Promociones vigentes y su agenda',
+      icono:'sparkle', page:'promociones', bloques:['promociones'], fuera:['portal'],
+      kw:'promos descuentos ofertas vigencias rebajas calendario msi promociones monitor' },
+
+    /* Las dos puertas del estado del servicio, y son dos a propósito: "¿está caído o soy
+       yo?" y "¿cuántos reportes hubo esta semana?" no son la misma pregunta, aunque
+       lleven a la misma pantalla. */
+    { id:'estado', nombre:'Tablero de estado', sub:'¿Está caído el sistema o soy yo?',
+      icono:'wifi', page:'estado', publica:true,
+      kw:'estatus servicios caido caida intermitente connect sap salesforce funciona anda lento esta caido soy yo tablero' },
+
+    { id:'estado-historial', nombre:'Historial del servicio', sub:'Cuántos reportes hubo cada día y qué se confirmó',
+      icono:'chart', page:'estado', publica:true,
+      kw:'historial grafico barras fechas dias reportes incidencias confirmadas caidas tendencia semana mes estadistica' },
+
+    /* Reportar NO cambia de pantalla: el panel de operación se abre encima de donde
+       estés. Es la acción con más prisa del catálogo —se busca con algo ya roto
+       delante— y cobrarle una carga completa de Apps Script es el motivo por el que la
+       gente acaba avisando por chat en vez de por aquí. */
+    { id:'reportar-falla', nombre:'Reportar una falla', sub:'Avisar al equipo de que algo no está funcionando',
+      icono:'flag', sesion:true, cierra:true, fn:'reportarFalla',
+      kw:'reportar reporte falla caida avisar problema no funciona error incidencia se cayo ' +
+         'levantar ticket connect sap lento intermitente' },
+
+    /* Plantillas de correo: se abren ya elegidas (?tpl=…). Son el destino real de
+       "necesito mandar un estado de cuenta", que es como se pide en voz alta. */
+    { id:'tpl-ticket', nombre:'Plantilla · Ticket de compra', sub:'Reenvío del ticket de una compra',
+      icono:'mail', page:'correo_cliente', params:{ tpl:'ticket' }, bloques:['correos_cliente'],
+      kw:'ticket compra comprobante pedido reenvio plantilla correo' },
+    { id:'tpl-edo', nombre:'Plantilla · Estado de cuenta PF', sub:'Solicitud de estado de cuenta',
+      icono:'mail', page:'correo_cliente', params:{ tpl:'edodecuenta' }, bloques:['correos_cliente'],
+      kw:'estado cuenta persona fisica pf validacion tarjeta plantilla correo' },
+    { id:'tpl-edoext', nombre:'Plantilla · Estado de cuenta extranjera', sub:'Validación con tarjeta extranjera',
+      icono:'mail', page:'correo_cliente', params:{ tpl:'edodecuentaextranjera' }, bloques:['correos_cliente'],
+      kw:'extranjera internacional tarjeta fuera pais estado cuenta plantilla correo' },
+    { id:'tpl-ok', nombre:'Plantilla · Validación exitosa', sub:'Avisar que la validación fue correcta',
+      icono:'mail', page:'correo_cliente', params:{ tpl:'validacionexitosa' }, bloques:['correos_cliente'],
+      kw:'validacion exitosa aprobada correcta pedido liberado plantilla correo' },
+    { id:'tpl-libre', nombre:'Plantilla · Formato personalizable', sub:'Correo libre con la estructura de marca',
+      icono:'mail', page:'correo_cliente', params:{ tpl:'formato' }, bloques:['correos_cliente'],
+      kw:'personalizable libre generico formato marca plantilla correo' },
+    { id:'tpl-plano', nombre:'Plantilla · Texto plano', sub:'Escribir un correo desde cero',
+      icono:'mail', page:'correo_cliente', params:{ tpl:'textoplano' }, bloques:['correos_cliente'],
+      kw:'texto plano sin plantilla escribir cero correo' }
+  ];
+
+  /**
+   * Las funciones que ESTA superficie puede ofrecer a QUIEN está buscando.
+   *
+   * La política sin sesión es distinta en cada buscador, y no por descuido:
+   *   · En el Portal se ofrece todo lo que no exija identidad. Un visitante que elige
+   *     «Nueva cotización» pasa por el login y aterriza EN LA COTIZACIÓN: eso es una
+   *     respuesta útil, y la pantalla de destino viaja en el enlace (T1.3).
+   *   · En el buscador general solo lo `publica`. Ahí no hay ese puente al login —una
+   *     pantalla que exige sesión aparecería y no llevaría a ninguna parte—, así que
+   *     ofrecerla sería prometer una puerta cerrada.
+   *
+   * `ctx` = { conSesion, esMaestro, puede(bloque) }.
+   */
+  function funciones(superficie, ctx) {
+    ctx = ctx || {};
+    var puede = ctx.puede || function () { return false; };
+    return FUNCIONES.filter(function (f) {
+      if (f.fuera && f.fuera.indexOf(superficie) !== -1) return false;
+      if (!ctx.conSesion) {
+        if (f.sesion) return false;                       // no significa nada sin entrar
+        return superficie === 'portal' ? true : !!f.publica;
+      }
+      if (f.maestro && !ctx.esMaestro) return false;
+      if (!f.bloques) return true;
+      return f.bloques.some(puede);
+    });
+  }
+
   window.AppIndices = {
     secciones: SECCIONES,
     formasPago: FORMAS_PAGO,
@@ -384,6 +587,8 @@
     paraBuscadorGeneral: paraBuscadorGeneral,
     ambito: ambito,
     indexaTraz: indexaTraz,
+    catalogo: FUNCIONES,
+    funciones: funciones,
     normaliza: norm
   };
 })();

@@ -972,6 +972,180 @@ y qué se dejó fuera a propósito**. Mismo formato que el registro del document
 
 <!-- Las entradas nuevas van arriba, con la más reciente primero. -->
 
+### 2026-08-15 — F6 completa: un solo motor de búsqueda, dos vestidos
+
+**Qué se cambió.**
+
+- **T6.1 · El Portal adopta `AppBuscar`** (`Index.html`). Se retiró el motor propio
+  —`buildQuery` + `scoreMatch` + `fuzzyHit` + `levLE`— y las 13 llamadas pasan por dos
+  funciones nuevas, `puntuaPortal` y `puntuaIndice`. Los **pesos de campo son los mismos
+  que usa el buscador general para el mismo tipo de dato** (nombre 3 · sub 1 · kw 1.4 en
+  los índices; nombre 3 · sub 1.2 · extra .7 en el contenido del Portal), y esa es la
+  razón de copiarlos: si los dos buscadores puntúan el mismo contenido con pesos
+  distintos, la paridad se arregla caso a caso para siempre en vez de una sola vez.
+  `hilite` delega en `AppBuscar.resalta`, lo que de paso apaga dos fallos latentes: un
+  resultado que salía por «guia» contra «Guía» se pintaba **sin una sola marca** —se lee
+  como un resultado que no viene a cuento—, y el resaltado anterior corría una expresión
+  regular por palabra **sobre el HTML que él mismo acababa de escribir**, así que buscar
+  «mark», «amp» o «quot» marcaba por dentro de las etiquetas y corrompía el desplegable.
+  Los ocho bloques de índices, que eran copias letra por letra, quedaron en una tabla que
+  hace visible lo que la copia escondía: Formas de Pago corta en 6 resultados y los demás
+  en 5.
+- **Tres arreglos en el motor compartido** (`app_buscar.html`), que salieron de la
+  batería de paridad y no de una lectura:
+  - **Los sinónimos no servían de nada.** `puntua` devolvía 0 si ninguna palabra
+    *escrita* acertaba, y eso ocurría **antes** de mirar el diccionario: las más de
+    ochenta entradas de sinónimos eran decorado. Quien escribe «clabe» busca
+    «Transferencia BBVA», donde la palabra «clabe» no aparece. Ahora, y solo cuando el
+    llamador ha pedido `exigirTodas:false` —es decir, en un buscador y nunca al filtrar
+    una tabla—, un acercamiento por sinónimo puntúa bajo en vez de desaparecer.
+  - **Los restos de una letra inundaban la lista.** La partición por frontera
+    letra/dígito deja «fbl5n» en «fbl · 5 · n», y esa «n» suelta encaja en casi
+    cualquier texto: la clave más específica del Portal devolvía las ocho formas de pago.
+    Se descartan los restos de una letra, conservando los que la persona escribió sueltos
+    («iphone 5»), donde el número sí es parte de la pregunta.
+  - **Los sinónimos se buscan también por la palabra como se escribió**, no solo por sus
+    trozos: el diccionario está escrito con los términos tal cual se teclean —«fbl5n»,
+    «msi», «med»—, así que la entrada más específica era justo la que no se encontraba a
+    sí misma.
+- **T6.2 · `app_indices.html`, fuente común** (nuevo, incluido en 16 pantallas). Se
+  llevaron ahí los cuatro índices que vivían dentro de `Index.html` —Formas de Pago,
+  el glosario de Devoluciones SAP, el catálogo de 167 Tiendas y Centros de Reparto con su
+  `scoreTiendaCR`, y las secciones navegables— y ahora **los indexa también el buscador
+  general**. No era una extracción por limpieza: es contenido que se busca a diario
+  —«¿cuál es la CLABE?», «¿qué leyenda va en esta devolución?», «¿qué número es la CR de
+  Guadalajara?»— y que desde una cotización o desde Ctrl+K **no se podía encontrar**.
+  Un resultado de estos navega con `portal?sec=…&item=…` llevando el **id** de la tarjeta
+  y no el nombre, porque el nombre viene de una hoja y basta un espacio de más para que
+  la comparación falle. Tienda/CR entra con su propio grupo y **copia el número en vez de
+  navegar**: no hay pantalla a la que ir, y nueve de cada diez veces ese resultado se lee
+  para dictarlo por teléfono.
+- **T6.3 · Un solo catálogo de funciones.** `CATALOGO` (app_comando) y `APP_ACTIONS`
+  (Index) eran la misma lista dos veces, y **ya habían divergido**: el buscador del Portal
+  no ofrecía «Portal Ventel», «Monitor de promociones» ni «Inicio de gestión», y el
+  general no ofrecía «Atenciones rescatables» ni «Historial del servicio». Nadie lo
+  notaba, porque para verlo hay que buscar la misma palabra en los dos sitios y comparar.
+  Quedan 27 entradas en una sola fuente, con la **política sin sesión parametrizada por
+  superficie** y con su porqué escrito: el Portal ofrece todo lo que no exija identidad
+  —un visitante que elige «Nueva cotización» pasa por el login y aterriza *en la
+  cotización*—, y el buscador general solo lo público, porque allí no existe ese puente.
+  Esa política dejó de ser dos ids escritos a mano en un `if` y es ahora una marca
+  declarativa. Se unificaron también el **armador del índice de trazabilidad** (dos
+  criterios distintos sobre la misma hoja: uno se saltaba los procesos sin nombre y el
+  otro no) y el **parser de ámbitos**, que ahora entiende las dos sintaxis de la casa.
+- **T6.4 · Peso de página.** Lo que la tarea pedía —«diferir el panel hasta el primer
+  Ctrl+K/`/` sin perder el atajo»— **ya estaba hecho**: `construye()` tiene un solo
+  llamador, `abrir()` (`app_comando.html:1898`), y lo único que corre al cargar es
+  registrar un `keydown` y poner el botón (`arranca()`, 2116-2135). Se midió con
+  `scripts/peso.js`, que resuelve los `include()` como hace el servidor. Ver abajo lo que
+  queda pendiente de decidir.
+- **Herramientas nuevas.** `scripts/sintaxis.js` comprueba los 26 `.gs` y los bloques de
+  guion de los `.html` (99 bloques) —hasta ahora un paréntesis suelto no se veía hasta
+  desplegar—; `scripts/peso.js` da el peso servido de cada pantalla.
+
+**Nueve regresiones encontradas y arregladas antes de subir.** El cambio pasó por una
+revisión adversaria de cinco lentes sobre el diff completo, con cada hallazgo verificado
+por otra lectura que intentaba refutarlo: quince propuestos, cuatro refutados, once
+confirmados sobre nueve defectos distintos. Las que importan:
+
+- **El descarte de restos de una letra rompía el filtro de tablas en seis pantallas.**
+  Vivía en `consulta()`, que es común a todas las superficies. Un asesor tecleando
+  «lvp1» para encontrar LVP-260726-0001 se quedaba sin el «1» y la tabla le devolvía
+  **todos** los folios; «pantallas 4k» dejaba pasar también las Full HD. Filtrando una
+  tabla, el resto no sobra: **estrecha**. Ahora `consulta()` devuelve las dos lecturas
+  —`palabras` (lo que se escribió) y `nucleo` (sin restos)— y decide `puntua`, que es el
+  único que sabe si está filtrando o buscando.
+- **El empujón por sinónimo se sumaba.** Una consulta cuyo diccionario expande a seis
+  términos juntaba 8 × 6 y adelantaba a un resultado que sí contenía lo escrito. Ahora
+  cuenta el mejor, no la suma: el tope es lo que el comentario promete.
+- **Los sinónimos cortos enganchaban a media palabra**: «cr» dentro de «desCRipción»,
+  «sl» dentro de «traSLado». Ahora el sinónimo tiene que empezar la palabra, y solo
+  puede ir en medio si tiene cinco letras o más —que es lo que hace falta para alcanzar
+  «rEENVÍO» desde «envio» sin regalarle puntos a media lista.
+- **«cr 96» encajaba en el patrón de folio** y apagaba el grupo de tiendas justo en la
+  consulta para la que se creó.
+- **`'__home'` se comparaba sin resolver**, así que «Panel de cotizaciones» no se
+  apartaba estando ya en esa pantalla y se quedaba con el primer resultado, el que se
+  abre con Enter sin mirar.
+- **Copiar el número de tienda fallaba en silencio** si el navegador negaba el
+  portapapeles: el panel prometía «↵ Copiar» y no pasaba nada. Ahora hay respaldo y aviso.
+- **`«constructor:»` se tomaba por un ámbito**, porque los diccionarios de alias heredan
+  de `Object.prototype`.
+- **«Atenciones rescatables» salía dos veces** en el buscador general —como función y
+  como apartado—, con el mismo destino, y partía en dos claves la costumbre de uso.
+- **Llegar desde Ctrl+K a Formas de Pago tardaba 3 segundos en resaltar la tarjeta**: el
+  Portal esperaba a que se «llenara» una sección que no sale de ninguna hoja.
+
+Las cuatro que se refutaron también dejaron algo: dos culpaban a la fase de un orden que
+ya existía antes (`Math.max(mejorCot, 400)`, previo al refactor) y una describía un
+camino que ninguna llamada alcanza. Se anotan aquí para no volver a levantarlas.
+
+**Qué se comprobó.** La batería de paridad del criterio 1 existe y vive en
+`pruebas/f6_buscador_paridad.test.js`: **50 términos reales × 13 fuentes**, con el motor
+viejo copiado letra por letra dentro de la prueba como referencia congelada. Resultado:
+**ninguna coincidencia perdida, 73 resultados nuevos** y tres coincidencias por parecido
+de letras que el motor nuevo descarta a propósito —«fraudes» encontraba «grandes» por dos
+sustituciones—. La prueba distingue las dos cosas: una pérdida literal o por sinónimo
+falla la suite; una que solo salía por parecido se anota aparte para mirarla. También se
+comprueba que el número exacto de una tienda gana siempre («cr 96» → CR GUADALAJARA), que
+la preferencia de tipo empuja y no filtra («tienda 96» llega a la misma), que los 17
+destinos con elemento apuntan a un id que existe de verdad en `Index.html`, que ningún
+destino del catálogo se perdió en la fusión (21 del Portal + 22 del general), que todos
+los parámetros están en `PARAMS_VISTA`, y que **el filtro de tablas no cambió** —las seis
+pantallas que usan `AppBuscar` para filtrar listas siguen exigiendo todas las palabras—.
+El criterio 4 (los `kw` de 240 palabras) se midió: preparar el campo una vez en vez de
+retokenizarlo en cada pulsación es **4-5 veces más rápido** con 120 procesos y 8
+pulsaciones, y da exactamente el mismo puntaje. Las cuatro suites en verde y los 100
+bloques de guion sin errores de sintaxis.
+
+Y se cerró el hueco por el que se coló la peor de las regresiones: **ningún término de la
+batería mezclaba una palabra larga con la partición letra/dígito**, que es exactamente la
+forma del fallo. Ahora hay tres bloques nuevos que lo cubren —el filtro de tablas con
+«lvp1» y «pantallas 4k», los sinónimos cortos a media palabra, y el parser de ámbitos
+contra las propiedades heredadas—, escritos como los casos que fallaban.
+
+**Correcciones al plan** (los anclajes eran del 14 de agosto y el código se movió):
+
+- «Borrar `levLE`/`fuzzyHit`/`norm`» era **incorrecto en los tres**. `norm` la usan una
+  veintena de sitios ajenos al buscador —el filtro por sección, el salto al elemento
+  exacto, el módulo de Colecciones— y su alfabeto es lo que hace seguro meter su salida
+  en un atributo HTML. `levLE` y `fuzzyHit` las usa `scoreTiendaCR`, que el propio plan
+  manda conservar: se mudaron con él, no se borraron.
+- Los índices *hardcodeados* de `Index.html` no eran cuatro: los bloques de puntuación
+  son **ocho** (Formas de Pago, Devoluciones SAP y los seis de trazabilidad).
+- El espejo del servidor no está en `Code.gs:1269-1315` sino en **1348-1496**, y las
+  claves `quotes-` / `pendientes-` / `sup-quotes-` **no existen en ningún `.gs`**: son
+  claves de `localStorage` que gestiona `AppCache` en `app_core.html`. El criterio 3 se
+  cumple por construcción —no se tocó ni el servidor ni esas claves— y se dejó anotado
+  para que nadie vuelva a buscarlas donde no están.
+- El peso de `app_comando` no son «~300 KB»: son **116 KB por pantalla**, sobre pantallas
+  que ya pesan ~1 MB servidas.
+
+**Qué se dejó fuera a propósito.**
+
+- **La descarga diferida de `app_comando` + `app_indices` (157 KB, ~16 % de cada
+  pantalla) NO se hizo, y es una decisión que le toca al creador.** En Apps Script
+  `include()` pega el partial dentro del HTML: no hay forma de aplazar los bytes sin
+  pedirlos después al servidor con `google.script.run`. Eso convertiría el primer Ctrl+K
+  en una espera de red de entre 300 y 800 ms —y en dejar de funcionar si la llamada
+  falla— para un atajo que hoy abre al instante. Cambiar el peso por eso no es
+  evidentemente bueno y no se hace sin decidirlo.
+- **Las dos memorias de búsqueda siguen sin hablarse**: el buscador general aprende de la
+  costumbre (`ventel-cmdk-uso`) y el del Portal guarda sus últimas búsquedas
+  (`ventel-recent`, tope 5). Unificarlas es otra conversación —qué significa «lo que
+  sueles abrir» en una portada pública— y no la pedía esta fase.
+- **La forma suelta del ámbito no se activó en el buscador general.** Sus ámbitos son
+  «estado», «equipo», «cotizaciones», «portal»… que son también el nombre de las
+  pantallas que ese mismo buscador ofrece: aceptarla convertiría «estado de cuenta» en
+  «búscame *de cuenta* dentro de las fallas». El parser es uno solo y entiende las dos
+  sintaxis; lo que cambia por superficie es cuál se acepta, y está escrito con su porqué.
+- **`scoreTiendaCR` no se fusionó con el motor general.** Su rama de número exacto
+  (+100 sobre los 14+10 del mejor nombre posible) es lo que hace que «96» resuelva
+  siempre, y el plan la marca como «la mejor versión». Se movió tal cual.
+- Lo que exige un navegador —el aspecto del desplegable, la grabación antes/después del
+  criterio 2, el orden que se percibe al teclear— queda para la comprobación manual sobre
+  el despliegue.
+
 ### 2026-08-15 — F5 completa: Operación recomienda, y el tablero se consulta sin salir
 
 **Qué se cambió.**

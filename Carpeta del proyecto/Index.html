@@ -3271,9 +3271,18 @@ function initNavigation(){
       // Se reintenta solo mientras la sección esté VACÍA: el filtro llega antes que la
       // hoja de cálculo. En cuanto hay filas se para, aunque ninguna coincida —"no hay
       // resultados" es una respuesta, y volver a filtrar doce veces no la cambia.
+      //
+      // Y hay una tercera clase de sección: las que NO salen de ninguna hoja. Formas de
+      // Pago y Devoluciones SAP están escritas en el HTML de esta página, así que su
+      // clave no existe en `store` y nunca se «llena». Desde que el buscador general
+      // manda aquí (`portal?sec=formaspago&item=fp-transfer`), eso significaba tres
+      // segundos de espera —doce reintentos de 250 ms— antes de resaltar una tarjeta que
+      // llevaba ahí desde el primer fotograma. Si la sección no está respaldada por
+      // `store`, no hay nada que esperar.
+      const deHoja = Object.prototype.hasOwnProperty.call(store, clave);
       const llena = esTraz
         ? !!document.querySelector('#traz-' + sec + ' .traz-card')
-        : (store[clave] || []).length > 0;
+        : (!deHoja || (store[clave] || []).length > 0);
       if (!llena && intentos < 12) { setTimeout(() => aplicar(intentos + 1), 250); return; }
       // `item` es el elemento concreto que se eligió allá afuera: se le lleva el foco
       // igual que cuando se pulsa un resultado del buscador de esta misma pantalla.
@@ -4536,57 +4545,51 @@ function parseScope(input){
 
    Esto no es seguridad: el candado real sigue en el servidor, que vuelve a exigir el
    bloque al abrir cada pantalla. Es no anunciar lo que no se puede usar. */
-const APP_ACTIONS = [
-  { name:'Sistema de cotizaciones', sub:'Ir a mi panel de cotizaciones', icon:'document', kw:'cotizaciones sistema panel inicio dashboard mis cotizaciones ventas cotizar folios', act:{ page:'__home' } },
-  { name:'Nueva cotización',        sub:'Crear una cotización desde cero', icon:'document', kw:'nueva cotizacion crear cotizar generar folio productos precio alta', bloques:['cotizar'], act:{ page:'cotizacion' } },
-  { name:'Enviar cotización por correo', sub:'Mandar una cotización con su PDF', icon:'send', kw:'enviar correo cotizacion pdf mandar cliente folio adjunto reenviar', bloques:['enviar_cotizacion'], act:{ page:'correoventel' } },
-  { name:'Correos a clientes',      sub:'Plantillas de correo listas para enviar', icon:'mail', kw:'correos clientes plantillas enviar mensaje redactar', bloques:['correos_cliente'], act:{ page:'correo_cliente' } },
-  { name:'Panel avanzado',          sub:'Métricas, búsqueda global y reportes', icon:'chart', kw:'panel avanzado supervision metricas reportes estadisticas csv admin', bloques:['supervision'], act:{ page:'inicio_avanzado' } },
-  { name:'Revisar cotizaciones',    sub:'Cola de cotizaciones por autorizar', icon:'check', kw:'revisar revision autorizar aprobar rechazar cola pendientes', bloques:['revisar'], act:{ page:'inicio_avanzado' } },
-  { name:'Política de revisión',    sub:'Reglas que mandan una cotización a revisión', icon:'gear', kw:'politica reglas umbral descuento revision configurar', bloques:['politica_revision'], act:{ page:'inicio_avanzado' } },
-  { name:'Anuncios del Portal',     sub:'Publicar avisos para todo el equipo', icon:'megaphone', kw:'anuncios aviso publicar comunicado banner novedades', bloques:['anuncios'], act:{ page:'anuncios' } },
-  { name:'Contenido del Portal',    sub:'Editar herramientas, plantillas y formatos', icon:'layers', kw:'contenido administrar editar catalogo herramientas formatos ligas promos', bloques:['portal_contenido'], act:{ page:'portal_contenido' } },
-  { name:'Estado de operación',     sub:'Confirmar y atender las fallas reportadas', icon:'bolt', kw:'operacion incidencias fallas caido confirmar sistemas problemas', bloques:['operacion'], act:{ page:'operacion' } },
-  { name:'Consola',                 sub:'Personas, permisos y ajustes del sistema', icon:'lock', kw:'consola administracion usuarios altas bajas roles permisos bitacora salud', bloques:['adm_miembros','adm_permisos','adm_ajustes'], maestro:true, act:{ page:'consola' } },
-  // Sin `maestro:true`: la gestión de roles se mudó del panel avanzado a la Consola y la
-  // abre también un supervisor. Con la marca de maestro, el buscador del Portal escondía
-  // justo la pantalla a la que ese permiso da acceso.
-  { name:'Roles y accesos de tu equipo', sub:'Altas, roles y bajas, desde la Consola', icon:'lock', kw:'equipo roles accesos asesores alta baja ascender supervisor permisos gente personal consola', bloques:['sup_equipo'], act:{ page:'consola', sec:'miembros' } },
-  { name:'Atenciones pendientes',   sub:'Clientes por retomar cuando algo falló', icon:'clock', kw:'atenciones pendientes pospuestas cliente telefono llamar retomar rescate rescatar callback seguimiento espera guardar datos', bloques:['atenciones'], act:{ page:'atenciones' } },
-  { name:'Registrar un cliente en espera', sub:'Guardar sus datos para retomar la atención', icon:'document', kw:'registrar guardar cliente telefono anotar apuntar atencion pendiente pospuesta se cayo el sistema fallo', bloques:['atenciones'], act:{ page:'atenciones', action:'nueva' } },
-  // Con `sec:'publicas'`: buscar "rescatables" tiene que dejar delante la lista de las
-  // liberadas, no la pantalla en la pestaña de siempre para que se busque otra vez.
-  { name:'Atenciones rescatables',  sub:'Las que otros asesores liberaron y puedes tomar', icon:'key', kw:'rescatar rescate publicas liberadas pool tomar otro asesor clientes libres atenciones disponibles', bloques:['atenciones'], act:{ page:'atenciones', sec:'publicas' } },
-  /* Las dos puertas del estado del servicio. Faltaban las dos, y son de las que más se
-     buscan en voz alta: "¿está caído o soy yo?" no lo contestaba nadie —solo salía el
-     historial, que es otra cosa— y "se cayó Connect" no ofrecía reportarlo. */
-  { name:'Tablero de estado',       sub:'¿Está caído el sistema o soy yo?', icon:'wifi', kw:'estado estatus tablero servicio caido caida sistemas connect sap salesforce funciona anda lento intermitente esta caido soy yo', act:{ page:'estado' } },
-  /* Reportar NO cambia de pantalla: el panel de AppOperacion se abre aquí mismo. Mandar
-     a alguien a otra vista para decir que algo se cayó es cobrarle una carga completa de
-     Apps Script por avisar, y es exactamente el momento en que tiene menos tiempo. */
-  { name:'Reportar una falla',      sub:'Avisar al equipo de que algo no está funcionando', icon:'flag', kw:'reportar reporte falla caida avisar problema no funciona error incidencia se cayo levantar ticket', sesion:true, act:{ fn:'reportarFalla' } },
-  { name:'Historial del servicio',  sub:'Cuántos reportes hubo cada día y qué se confirmó', icon:'bolt', kw:'historial grafico barras fechas dias reportes incidencias confirmadas caidas tendencia semana mes estadistica', act:{ page:'estado' } },
-  { name:'Plantilla · Ticket de compra',        sub:'Reenvío del ticket de una compra', icon:'mail', kw:'ticket compra comprobante pedido reenvio plantilla correo', bloques:['correos_cliente'], act:{ page:'correo_cliente', tpl:'ticket' } },
-  { name:'Plantilla · Edo. de cuenta PF',       sub:'Solicitud de estado de cuenta', icon:'mail', kw:'estado cuenta pf persona fisica validacion tarjeta plantilla correo', bloques:['correos_cliente'], act:{ page:'correo_cliente', tpl:'edodecuenta' } },
-  { name:'Plantilla · Edo. cuenta extranjera',  sub:'Validación con tarjeta extranjera', icon:'mail', kw:'estado cuenta extranjera tarjeta internacional plantilla correo', bloques:['correos_cliente'], act:{ page:'correo_cliente', tpl:'edodecuentaextranjera' } },
-  { name:'Plantilla · Validación exitosa',      sub:'Avisar que la validación fue correcta', icon:'mail', kw:'validacion exitosa aprobada correcta pedido plantilla correo', bloques:['correos_cliente'], act:{ page:'correo_cliente', tpl:'validacionexitosa' } },
-  { name:'Plantilla · Formato personalizable',  sub:'Correo libre con estructura de marca', icon:'mail', kw:'formato personalizable libre generico plantilla correo', bloques:['correos_cliente'], act:{ page:'correo_cliente', tpl:'formato' } },
-  { name:'Plantilla · Texto plano',             sub:'Escribir un correo desde cero', icon:'mail', kw:'texto plano sin plantilla libre escribir correo cero', bloques:['correos_cliente'], act:{ page:'correo_cliente', tpl:'textoplano' } }
-];
+/* Traducción de los nombres de icono del catálogo compartido a los de esta pantalla.
+   Solo hace falta para uno: los demás nombres del catálogo YA son los de ICONS, que es
+   el vocabulario más completo de los dos y por eso se eligió como el común. */
+const ICONO_DE_CATALOGO = { globe:'cloud' };
+
+/** Una entrada del catálogo compartido, en la forma que consume este buscador. */
+function entradaDeApp(f){
+  const act = Object.assign({}, f.params || {});
+  if (f.page) act.page = f.page;
+  if (f.fn) act.fn = f.fn;
+  return { id:f.id, name:f.nombre, sub:f.sub, icon:ICONO_DE_CATALOGO[f.icono] || f.icono,
+           kw:f.kw, bloques:f.bloques, maestro:f.maestro, sesion:f.sesion, act };
+}
+
+/* El catálogo de funciones vive en app_indices.html. Estaba escrito aquí Y en
+   app_comando, y las dos copias ya habían divergido: este buscador no ofrecía «Portal
+   Ventel», «Monitor de promociones» ni «Inicio de gestión», y el otro no ofrecía
+   «Atenciones rescatables» ni «Historial del servicio».
+
+   El ORDEN de este arreglo es contrato: el índice dentro de APP_ACTIONS viaja al DOM en
+   data-app y goAppAction lo usa para resolver el destino. Por eso se construye una vez y
+   completo —incluidas las entradas que la sesión no puede abrir—, y el filtrado por
+   permisos se hace aparte, sin recomponer el arreglo: filtrar aquí correría la
+   numeración y el buscador te llevaría a la pantalla equivocada. */
+const APP_ACTIONS = (window.AppIndices ? AppIndices.catalogo : [])
+  .filter(f => !(f.fuera && f.fuera.indexOf('portal') !== -1))
+  .map(entradaDeApp);
 
 /** Las acciones que ESTA sesión puede abrir. Sin sesión, todas (llevan al login). */
 function appActionsPermitidas(){
-  const conSesion = !!(window.AppSession && AppSession.isLoggedIn());
-  // `sesion:true` es para lo que no significa nada sin haber entrado. Los demás
-  // resultados sí se ofrecen a un visitante: llevan al login y de ahí a su destino,
-  // que es una respuesta útil. "Reportar una falla" no: se hace desde aquí mismo y
-  // sin identidad no hay nada que reportar.
-  if (!conSesion) return APP_ACTIONS.filter(a => !a.sesion);
-  return APP_ACTIONS.filter(a => {
-    if (a.maestro && !AppSession.isMaster) return false;
-    if (!a.bloques) return true;
-    return a.bloques.some(b => AppSession.can(b));
+  if (!window.AppIndices) return APP_ACTIONS;
+  /* La política la decide app_indices.html, que la tiene escrita UNA vez para los dos
+     buscadores y con el porqué de que sean distintas: aquí se ofrece todo lo que no
+     exija identidad —un visitante que elige «Nueva cotización» pasa por el login y
+     aterriza EN la cotización, que es una respuesta útil— y en el buscador general solo
+     lo público, porque allí no existe ese puente al login. */
+  const permitidas = AppIndices.funciones('portal', {
+    conSesion: !!(window.AppSession && AppSession.isLoggedIn()),
+    esMaestro: !!(window.AppSession && AppSession.isMaster),
+    puede: b => !!(window.AppSession && AppSession.can(b))
   });
+  const ok = new Set(permitidas.map(f => f.id));
+  // Se FILTRA el arreglo original, nunca se recompone: el índice dentro de APP_ACTIONS
+  // es lo que viaja al DOM en data-app, y recomponerlo corre la numeración.
+  return APP_ACTIONS.filter(a => ok.has(a.id));
 }
 
 /* Acciones locales del buscador: no cambian de pantalla, hacen algo aquí mismo.

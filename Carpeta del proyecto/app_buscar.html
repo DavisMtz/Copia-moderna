@@ -246,17 +246,23 @@
   function consulta(q) {
     var crudo = normaliza(q);
     var lista = palabras(crudo);
-    /* Los restos de UNA letra que deja la partición por frontera letra/dígito no son
-       una palabra buscada: son un resto. "fbl5n" —una transacción de SAP, de lo más
-       concreto que alguien puede teclear— se parte en «fbl · 5 · n», y esa "n" suelta
-       encaja en casi cualquier texto: la clave más específica del Portal acababa
-       devolviendo el catálogo entero, y encima ordenado por ruido.
+    /* `nucleo` = lo mismo sin los restos de UNA letra que deja la partición por frontera
+       letra/dígito. "fbl5n" —una transacción de SAP, de lo más concreto que alguien
+       puede teclear— se parte en «fbl · 5 · n», y esa "n" suelta encaja en casi cualquier
+       texto: BUSCANDO, la clave más específica del Portal devolvía el catálogo entero.
        Se conservan las de una letra que la persona SÍ escribió sueltas ("iphone 5"),
-       porque ahí el número es parte de la pregunta y no un resto de la partición. */
+       porque ahí el número es parte de la pregunta y no un resto de la partición.
+
+       Va aparte y NO pisa `palabras` porque las dos superficies quieren cosas opuestas:
+       al FILTRAR UNA TABLA el resto no sobra, ESTRECHA —quien teclea "lvp1" buscando
+       LVP-260726-0001 quiere que el "1" cuente, y descartarlo le devuelve la tabla
+       entera—, mientras que BUSCANDO ese mismo resto ensucia. Quien decide es `puntua`,
+       que es el único que sabe en cuál de los dos casos está (ver `exigirTodas`). */
     var escritas = crudo.split(/[\s@._]+/).filter(Boolean);
+    var nucleo = lista;
     if (lista.length > 1) {
       var utiles = lista.filter(function (w) { return w.length > 1 || escritas.indexOf(w) !== -1; });
-      if (utiles.length) lista = utiles;
+      if (utiles.length) nucleo = utiles;
     }
     var suaves = [];
     var vistos = Object.create(null);
@@ -280,6 +286,7 @@
       crudo: crudo,
       compacto: compacta(q),
       palabras: lista,
+      nucleo: nucleo,
       suaves: suaves,
       correo: RE_CORREO.test(String(q || '').trim()),
       vacia: lista.length === 0
@@ -441,9 +448,15 @@
     }
     if (!prep.length) return 0;
 
+    /* FILTRANDO una tabla se exige lo que la persona escribió, entero; BUSCANDO se usa
+       el núcleo, sin los restos de una letra de la partición letra/dígito. Es la misma
+       consulta leída con dos criterios, y el criterio lo pone quien llama (ver `nucleo`
+       en consulta(), arriba). */
+    var palabras = (!exigirTodas && Q.nucleo && Q.nucleo.length) ? Q.nucleo : Q.palabras;
+
     var total = 0, acertadas = 0;
-    for (var k = 0; k < Q.palabras.length; k++) {
-      var w = Q.palabras[k];
+    for (var k = 0; k < palabras.length; k++) {
+      var w = palabras[k];
       var mejor = 0;
       for (i = 0; i < prep.length; i++) {
         var s = puntuaPalabra(w, prep[i]) * pesos[i];
@@ -455,19 +468,30 @@
 
     // Sinónimos: empujan, no deciden. Se cuentan aquí arriba porque también hay que
     // saber si hubo alguno ANTES de decidir que no hay coincidencia (ver abajo).
-    var bonoSuave = 0;
+    var bonoSuave = 0, mejorSuave = 0;
     for (var j = 0; j < Q.suaves.length; j++) {
       var sw = Q.suaves[j];
       var puesto = false;
       for (i = 0; i < prep.length && !puesto; i++) {
-        /* Basta con que el sinónimo esté DENTRO de una palabra, no que sea la palabra
-           entera. El diccionario está escrito en singular —"transferencia", "envio"— y
-           los textos de la hoja hablan en plural: exigiendo el token exacto, "openpay"
-           dejaba de llegar a «Portal de TransferenciaS BBVA» y "guia" a «seguimiento de
-           envíoS». Es lo que hacía el buscador del Portal desde siempre. */
+        /* El sinónimo tiene que EMPEZAR la palabra, y solo puede aparecer en medio si
+           tiene cinco letras o más.
+           El diccionario está escrito en singular —"transferencia", "envio"— y los
+           textos de la hoja hablan en plural, así que hace falta alcanzar
+           «transferenciaS» y «envíoS»: eso lo da el prefijo. Y hace falta alcanzar
+           «rEENVÍO» desde "envio", que va en medio: eso lo da la regla de las cinco.
+           Buscando la subcadena a secas, en cambio, los sinónimos de dos y tres letras
+           —"cr", "bt", "sl", "tda", "med"— enganchaban DENTRO de cualquier palabra
+           («desCRipción», «traSLado») y regalaban puntos a media lista. */
         var toks = prep[i].toks;
         for (var t = 0; t < toks.length; t++) {
-          if (toks[t].indexOf(sw) !== -1) { bonoSuave += 8 * pesos[i]; puesto = true; break; }
+          var pos = toks[t].indexOf(sw);
+          if (pos === 0 || (pos > 0 && sw.length >= 5)) {
+            var b8 = 8 * pesos[i];
+            bonoSuave += b8;
+            if (b8 > mejorSuave) mejorSuave = b8;
+            puesto = true;
+            break;
+          }
         }
       }
     }
@@ -481,12 +505,13 @@
        escribe "med" busca el monedero. Hasta aquí esas 80 y pico entradas de sinónimos
        no servían de nada: la línea de arriba devolvía 0 antes de mirarlas, y el
        diccionario era decorado.
-       Se devuelve solo el empujón y rebajado, de modo que un acercamiento por sinónimo
-       quede SIEMPRE por debajo de una coincidencia de verdad —8 × peso contra los
-       48-100 × peso de cualquier acierto literal—: aparece al final de la lista, que es
-       donde tiene que aparecer, no desaparecido. */
-    if (!acertadas) return exigirTodas ? 0 : bonoSuave * 0.25;
-    if (exigirTodas && acertadas < Q.palabras.length) return 0;
+       Se devuelve el MEJOR empujón y rebajado —no la suma—, de modo que un acercamiento
+       por sinónimo quede SIEMPRE por debajo de una coincidencia de verdad. Sumándolos,
+       una consulta cuyo diccionario expande a seis términos juntaba 8 × 6 y adelantaba a
+       un resultado que sí contenía lo escrito pero llegaba penalizado por parcial: el
+       tope tiene que ser 8 × pesoMáximo × 0.25, que es lo que este comentario promete. */
+    if (!acertadas) return exigirTodas ? 0 : mejorSuave * 0.25;
+    if (exigirTodas && acertadas < palabras.length) return 0;
 
     // Frase completa: escribir "estado de cuenta" y que exista tal cual pesa más
     // que las tres palabras sueltas repartidas por el texto.
@@ -498,7 +523,7 @@
     }
     total += bonoSuave;
     // Coincidencia parcial permitida: se ordena detrás de las completas.
-    if (acertadas < Q.palabras.length) total *= (acertadas / Q.palabras.length) * 0.5;
+    if (acertadas < palabras.length) total *= (acertadas / palabras.length) * 0.5;
     return total;
   }
 
