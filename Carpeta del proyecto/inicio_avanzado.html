@@ -868,7 +868,16 @@
                     supervision: document.getElementById('panel-supervision')
                 };
 
-                const activate = (key) => {
+                /* `sinUrl` es el corte del bucle: el oyente de atrás repinta la pestaña que
+                   pide la URL y, si esa activación volviera a escribir la barra, el panel
+                   se contestaría a sí mismo sin parar. Lo llaman con true el arranque, la
+                   restauración por enlace y el oyente; el clic no, que es quien navega.
+                   Mismo patrón que irAPanel en consola.html. */
+                const activate = (key, sinUrl) => {
+                    // Volver a pulsar la pestaña que ya está abierta no apila: si lo hiciera,
+                    // el usuario tendría que darle cinco veces a "atrás" para que la pantalla
+                    // cambiara una, y parecería que el botón está roto.
+                    const repetida = Array.from(tabs).some(t => t.dataset.tab === key && t.classList.contains('active'));
                     tabs.forEach(t => {
                         const isActive = t.dataset.tab === key;
                         t.classList.toggle('active', isActive);
@@ -877,6 +886,9 @@
                     Object.keys(panels).forEach(k => {
                         if (panels[k]) panels[k].classList.toggle('active', k === key);
                     });
+                    // Cambiar de pestaña APILA: atrás tiene que devolver a la que se venía
+                    // viendo, no sacar de la pantalla.
+                    if (!sinUrl && !repetida && window.AppUrl) AppUrl.reflejar({ sec: key }, { apilar: true });
                 };
                 window._svActivateTab = activate;
 
@@ -889,9 +901,23 @@
                 if (!PUEDE.revisar && !PUEDE.metricas && !PUEDE.politica && tabRevision) tabRevision.style.display = 'none';
                 if (!PUEDE.metricas && tabMetricas) tabMetricas.style.display = 'none';
 
-                /* Activar la primera pestaña VISIBLE por defecto. */
+                /* Activar la primera pestaña VISIBLE por defecto. Sin escribir la URL: el
+                   arranque no es una navegación, y apilar aquí dejaría una entrada de
+                   historial de la que atrás no sale. */
                 const firstVisible = Array.from(tabs).find(t => t.style.display !== 'none');
-                if (firstVisible) activate(firstVisible.dataset.tab);
+                if (firstVisible) activate(firstVisible.dataset.tab, true);
+
+                /* Qué pestaña vale la que trae ?sec. Solo si existe Y esta persona la puede
+                   ver: un enlace compartido por un supervisor llega con sec=metricas y a
+                   quien no tiene el permiso hay que dejarlo en la suya, no ante un panel
+                   escondido y una barra de pestañas sin ninguna marcada. Cuando no hay sec
+                   —volver con atrás a la URL de entrada— manda la de por omisión: la
+                   ausencia del parámetro significa "la de arranque", no "deja la que esté". */
+                const tabPorOmision = firstVisible ? firstVisible.dataset.tab : 'inicio';
+                const tabPermitida = (key) => {
+                    const t = Array.from(tabs).find(x => x.dataset.tab === key && panels[key]);
+                    return (t && t.style.display !== 'none') ? key : tabPorOmision;
+                };
 
                 /* Los enlaces viejos a la gestión de roles (?ancla=eq-seccion) siguen
                    llegando: del buscador general, de un chat, de un marcador. Ya no hay
@@ -902,6 +928,11 @@
                     AppUrl.go('consola', { sec: 'miembros', q: AppUrl.param('q') || '' });
                     return;
                 }
+
+                /* Un enlace compartido reproduce la pestaña que se estaba viendo. Se activa
+                   SIN escribir: la barra ya lo dice, y volver a escribirlo en la carga
+                   apilaría una entrada de historial de más. */
+                if (window.AppUrl) activate(tabPermitida(AppUrl.param('sec')), true);
 
                 /* F2: la isla de notificaciones llega con ?ancla=pend-lista. La cola
                    vive en la pestaña Revisión, que no es la que se activa por defecto:
@@ -914,10 +945,37 @@
                 if (ancla && panels.revision && tabRevision && tabRevision.style.display !== 'none') {
                     const destino = document.getElementById(ancla);
                     if (destino && panels.revision.contains(destino)) {
-                        activate('revision');
-                        requestAnimationFrame(() => AppUrl.irAncla());
+                        /* ORDEN DELIBERADO —aquí es donde se equivoca el siguiente que pase—:
+                           el ANCLA GANA a ?sec, por eso este bloque va DESPUÉS de restaurar
+                           la pestaña de la URL y la pisa. Un enlace con sec=supervision y un
+                           ancla que vive en Revisión pide un apartado que la otra pestaña
+                           tiene en display:none: respetar sec dejaría el scroll sin moverse y
+                           al usuario mirando la pantalla equivocada. El ancla es el destino
+                           concreto, sec es solo el encuadre.
+                           Se activa sin escribir y después se corrige `sec` por REEMPLAZO
+                           —nunca apilando, que esto es la carga y no un clic— para que la
+                           barra acabe diciendo la pestaña que de verdad se está viendo. */
+                        activate('revision', true);
+                        /* El ancla se CONSUME al aplicarla, y esa es la mitad que
+                           faltaba. Como este bloque pisa ?sec en cada carga, dejarla
+                           puesta producía direcciones que se contradicen solas: pulsas
+                           «Métricas», la barra dice sec=metricas, pulsas F5 y vuelve a
+                           abrirse Revisión porque el ancla sigue ahí mandando. Y el
+                           enlace copiado le hacía lo mismo al compañero. Gastada el
+                           ancla, cada cambio de pestaña produce ya un enlace que
+                           reproduce lo que se ve. Se le pasa a irAncla a mano porque
+                           sin argumento lo lee de la URL, de donde acaba de salir. */
+                        AppUrl.reflejar({ sec: 'revision', ancla: '' });
+                        requestAnimationFrame(() => AppUrl.irAncla(ancla));
                     }
                 }
+
+                /* Atrás/adelante: la pestaña la manda la URL, nunca lo que hubiera en
+                   pantalla. Con `true` para no contestarle al navegador (ver activate). */
+                if (window.AppUrl) AppUrl.alCambiarUrl(function (loc) {
+                    const p = (loc && loc.parameter) || {};
+                    activate(tabPermitida(p.sec), true);
+                });
             })();
 
             // El loader de marca cubre el arranque; se retira en cuanto la pantalla está lista.
@@ -1511,6 +1569,10 @@
                     .find(o => o.value && AppEstatus.info(o.value).pendiente);
                 supStatus.value = opcionPendiente ? opcionPendiente.value : '';
                 applyFilters();
+                // Este botón mueve pestaña Y filtros a la vez: sin reflejar, la barra
+                // seguiría anunciando la búsqueda que este mismo clic acaba de borrar, y
+                // un F5 la resucitaría. (El cambio de pestaña ya lo escribe _svActivateTab.)
+                reflejarFiltros();
                 document.getElementById('sup-table-body').closest('section')
                     .scrollIntoView({ behavior: 'smooth', block: 'start' });
             });
@@ -2350,10 +2412,35 @@
                 });
             }
 
+            /* Estatus y formato de la URL, DESPUÉS de llenar sus <select>.
+             *
+             * Sus opciones se fabrican con los valores reales de la hoja
+             * (populateFilterOptions), así que antes de la lectura la opción que pide el
+             * enlace todavía no existe y asignarla dejaría el filtro en "Todos" sin avisar.
+             *
+             * Se reintenta en la segunda pintada porque la primera puede venir de la copia
+             * local (AppCache), que quizá no traiga ese estatus. Dos oportunidades y para:
+             * si el valor del enlace ya no existe en la hoja —un estatus retirado—, hay que
+             * dejar de pisar lo que la persona haya elegido mientras tanto. Se lee la URL
+             * VIVA, así que si para entonces ya cambió el filtro a mano, esto reasigna lo
+             * que ella misma acaba de poner.
+             */
+            let restauracionPendiente = 2;
+            const restaurarSelectsDeUrl = () => {
+                if (restauracionPendiente <= 0 || !window.AppUrl) return;
+                restauracionPendiente--;
+                const est = AppUrl.param('estatus') || '';
+                const fmt = AppUrl.param('format') || '';
+                supStatus.value = est;
+                supFormat.value = fmt;
+                if ((!est || supStatus.value === est) && (!fmt || supFormat.value === fmt)) restauracionPendiente = 0;
+            };
+
             const paintSupervision = (quotes) => {
                 allQuotes = quotes || [];
                 renderPendientes(allQuotes);
                 populateFilterOptions();
+                restaurarSelectsDeUrl();
                 applyFilters();
 
                 // KPI de monto del mes se calcula con estos datos.
@@ -2502,12 +2589,85 @@
                 AppMotion.pop(ev.currentTarget);
             });
 
+            /* --- Los filtros de supervisión en la URL ---
+             * Cuatro de los seis controles viajan en la barra —q, rango, estatus y
+             * format— para que un enlace compartido, o un F5, reproduzcan la MISMA
+             * tabla que se estaba mirando. Son facetas, no navegación: se escriben
+             * REEMPLAZANDO. Si cada tecla apilase historial, salir de esta pantalla
+             * costaría veinte veces "atrás".
+             *
+             * La espera para no escribir la barra letra por letra ya la pone
+             * AppUrl.reflejar (300 ms). El debounce de 250 ms de aquí abajo es otra
+             * cosa —filtrar la tabla, que son miles de filas— y se queda como estaba.
+             *
+             * `rango` es UN parámetro para DOS controles. Formato: "desde..hasta" en
+             * ISO (2026-01-15..2026-02-28), dejando el lado que falte vacío cuando
+             * solo se llenó uno (2026-01-15.. o ..2026-02-28). El separador de dos
+             * puntos no aparece nunca dentro de una fecha ISO, así que el corte no es
+             * ambiguo; vacíos los dos, el parámetro desaparece de la barra.
+             *
+             * El asesor (#sup-advisor) queda FUERA a propósito: filtra comparando por
+             * nombre propio, y un nombre propio en un enlace que se pega en un chat es
+             * dato personal de más.
+             */
+            const RANGO_SEP = '..';
+            const RE_FECHA = /^\d{4}-\d{2}-\d{2}$/;
+
+            const rangoDeControles = () => {
+                const desde = supDateFrom.value;
+                const hasta = supDateTo.value;
+                return (desde || hasta) ? (desde + RANGO_SEP + hasta) : '';
+            };
+
+            /* Una sola escritura con los cuatro valores VIVOS de los controles. Mandarlos
+               todos siempre es lo que mantiene la barra fiel cuando quien mueve los filtros
+               no es un clic en ellos —"Limpiar filtros", "Ver todas las pendientes"—: lo que
+               quedó vacío quita su parámetro en la misma pasada, sin dejar atrás un valor
+               viejo que reviviría en la siguiente escritura o al recargar. */
+            const reflejarFiltros = () => {
+                if (!window.AppUrl) return;
+                AppUrl.reflejar({
+                    q: supSearch.value.trim(),
+                    rango: rangoDeControles(),
+                    estatus: supStatus.value,
+                    format: supFormat.value
+                });
+            };
+
+            /* Pone los controles como diga la URL. Lo que la URL NO trae se vacía: volver
+               con atrás a una dirección sin `estatus` tiene que quitar ese filtro, no dejar
+               puesto el que hubiera en pantalla. No escribe la barra —aquí manda ella—, así
+               que no hay realimentación posible. */
+            const filtrosDesdeUrl = (p) => {
+                p = p || {};
+                const rango = String(p.rango || '').split(RANGO_SEP);
+                supSearch.value = p.q || '';
+                supDateFrom.value = RE_FECHA.test(rango[0] || '') ? rango[0] : '';
+                supDateTo.value = RE_FECHA.test(rango[1] || '') ? rango[1] : '';
+                supStatus.value = p.estatus || '';
+                supFormat.value = p.format || '';
+                applyFilters();
+            };
+
+            /* Atrás/adelante sobre los filtros. Va aparte del oyente de las pestañas
+               —alCambiarUrl admite varios— porque son dos estados independientes: se puede
+               volver a un rango de fechas sin cambiar de pestaña. */
+            if (window.AppUrl) AppUrl.alCambiarUrl(function (loc) {
+                filtrosDesdeUrl((loc && loc.parameter) || {});
+            });
+
             let searchDebounce = null;
             supSearch.addEventListener('input', () => {
                 clearTimeout(searchDebounce);
                 searchDebounce = setTimeout(applyFilters, 250);
+                reflejarFiltros();
             });
-            [supDateFrom, supDateTo, supStatus, supAdvisor, supFormat].forEach(el => el.addEventListener('change', applyFilters));
+            [supDateFrom, supDateTo, supStatus, supFormat].forEach(el => el.addEventListener('change', () => {
+                applyFilters();
+                reflejarFiltros();
+            }));
+            // El asesor filtra igual que los demás, pero no se refleja (ver arriba).
+            supAdvisor.addEventListener('change', applyFilters);
             downloadReportButton.addEventListener('click', downloadReport);
             clearFiltersButton.addEventListener('click', () => {
                 supSearch.value = '';
@@ -2517,6 +2677,9 @@
                 supAdvisor.value = '';
                 supFormat.value = '';
                 applyFilters();
+                // Los cuatro parámetros se van en UNA escritura: cuatro llamadas dejarían
+                // cuatro reemplazos seguidos por lo mismo.
+                reflejarFiltros();
                 AppMotion.pop(clearFiltersButton);
             });
 
@@ -2524,6 +2687,13 @@
             // ya aplicado (desde el panel normal, el Portal o un enlace compartido).
             const urlQuery = AppUrl.param('q');
             if (urlQuery) supSearch.value = urlQuery;
+
+            /* Las fechas se restauran ya: son campos libres y no dependen de lo que traiga
+               la hoja. Los dos <select> NO se pueden restaurar aquí —ver
+               restaurarSelectsDeUrl, junto a paintSupervision—. */
+            const urlRango = String(AppUrl.param('rango') || '').split(RANGO_SEP);
+            if (RE_FECHA.test(urlRango[0] || '')) supDateFrom.value = urlRango[0];
+            if (RE_FECHA.test(urlRango[1] || '')) supDateTo.value = urlRango[1];
 
             loadSupervisionQuotes();
 

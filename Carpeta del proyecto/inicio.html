@@ -318,6 +318,7 @@
         const syncStatus = document.getElementById('sync-status');
         const refreshButton = document.getElementById('refreshButton');
         let myQuotes = []; // Última lista propia conocida (para filtrar sin red y calcular el resumen).
+        let listaPropiaPedida = false;  // ¿se ha llegado a pedir? (ver la rama de término vacío)
         let buscandoFuera = false;  // hay una búsqueda del equipo en marcha o en pantalla
         let relojFuera = null;      // antirrebote de esa búsqueda
 
@@ -337,6 +338,7 @@
 
         const loadUserQuotes = (searchTerm = null, forzarRecarga = false) => {
             const isOwnList = !searchTerm;
+            if (isOwnList) listaPropiaPedida = true;
 
             // 1. Primer pintado instantáneo desde la caché local (solo para la lista propia).
             const cached = isOwnList ? AppCache.get(QUOTES_CACHE_KEY) : null;
@@ -552,6 +554,11 @@
             if (!term) return;
             clearTimeout(relojFuera);
             if (AppSession.can('supervision')) { AppUrl.go('inicio_avanzado', { q: term }); return; }
+            // Quien se queda aquí deja su búsqueda en la barra igual que quien se va: la
+            // rama de arriba se lleva el término en el enlace y esta, sin esto, cambiaba
+            // la tabla sin cambiar la dirección —copiar la URL de una búsqueda con Enter
+            // daba el panel vacío, y F5 la perdía—.
+            AppUrl.reflejar({ q: term });
             loadUserQuotes(term);
         });
 
@@ -564,12 +571,34 @@
            Se espera un poco y se exigen tres caracteres para no mandar a la hoja de cálculo
            una consulta por cada tecla. */
         const BUSCAR_FUERA_MS = 420;
-        searchInput.addEventListener('input', () => {
-            const term = searchInput.value.trim();
+
+        /**
+         * Aplica un término a la pantalla. Es la PUERTA ÚNICA: por aquí pasan el teclado y
+         * el botón atrás, para que volver atrás repinte exactamente igual que teclear.
+         *
+         * @param {string} term
+         * @param {boolean=} sinUrl true cuando el término LO TRAE la propia URL (atrás /
+         *   adelante). Reescribirla ahí sería contestarle al navegador lo que él acaba de
+         *   decir, y el botón atrás se quedaría girando sobre la misma búsqueda.
+         */
+        const aplicarBusqueda = (term, sinUrl) => {
             clearTimeout(relojFuera);
+
+            /* La búsqueda pasa a la barra de direcciones: sin esto la pantalla leía ?q al
+               entrar pero no lo escribía nunca, así que una búsqueda hecha aquí no se podía
+               pegar en un chat ni sobrevivía a un F5. Va por `reflejar` SIN apilar —que ya
+               junta las pulsaciones y reemplaza a los 300 ms—: no se cuelga del antirrebote
+               de abajo, que decide otra cosa (cuándo salir a la red). Término vacío QUITA
+               ?q; si se quedara, recargar resucitaría la búsqueda recién borrada. */
+            if (!sinUrl) AppUrl.reflejar({ q: term });
 
             if (term === '') {
                 buscandoFuera = false;
+                /* Quedarse sin búsqueda es volver a TU lista, y quien entró por un enlace
+                   con ?q nunca llegó a pedirla —`loadUserQuotes` con término no toca
+                   `myQuotes`—: sin esta rama, vaciar el campo (o volver atrás a una URL sin
+                   ?q) le dejaba "Aún no tienes cotizaciones" a quien sí las tiene. */
+                if (!listaPropiaPedida) { loadUserQuotes(); return; }
                 displayQuotes(myQuotes);
                 updateStats(myQuotes);
                 setSyncStatus('');
@@ -594,11 +623,16 @@
                 if (searchInput.value.trim() !== term) return;
                 loadUserQuotes(term);
             }, BUSCAR_FUERA_MS);
-        });
+        };
+
+        searchInput.addEventListener('input', () => aplicarBusqueda(searchInput.value.trim()));
 
         refreshButton.addEventListener('click', () => {
             AppCache.remove(QUOTES_CACHE_KEY);
+            // Este botón vacía el campo, así que también tiene que vaciar la barra: con ?q
+            // puesto, recargar devolvía la búsqueda que Actualizar acababa de quitar.
             searchInput.value = '';
+            AppUrl.reflejar({ q: '' });
             clearTimeout(relojFuera);
             buscandoFuera = false;
             loadUserQuotes(null, true);   // sin caché local NI de servidor
@@ -613,6 +647,24 @@
         } else {
             loadUserQuotes();
         }
+
+        /* Atrás y adelante del navegador. Manda la barra: con ?q se repuebla el campo y se
+           aplica; SIN ?q se vacía el campo y vuelve la lista propia. La ausencia del
+           parámetro también es un estado, no un "déjalo como está": tratarla de otro modo
+           dejaba la tabla filtrada y el campo escrito en una dirección que ya no decía nada
+           de eso, y el siguiente F5 deshacía el filtro solo.
+
+           Se aplica con `sinUrl` para no reescribir lo que el navegador acaba de poner.
+           El corte de abajo evita el viaje de más: si cambió otro parámetro pero `q` es el
+           mismo, la pantalla ya muestra lo que la URL pide y volver a buscar en las
+           cotizaciones del equipo sería una llamada para repintar lo idéntico. */
+        AppUrl.alCambiarUrl((loc) => {
+            const p = (loc && loc.parameter) || {};
+            const term = String(p.q || '').trim();
+            if (searchInput.value.trim() === term) return;
+            searchInput.value = term;
+            aplicarBusqueda(term, true);
+        });
     });
     </script>
 </body>

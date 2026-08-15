@@ -679,6 +679,14 @@
             }
 
             setText('view-folio', data.folio);
+            /* El folio bueno es el que contesta el servidor. El que traía la pantalla
+               pudo escribirse de otra forma —espacios, minúsculas, el que quedó en
+               localStorage de una sesión anterior— y ese es justo el que acabaría en el
+               enlace que alguien comparte. Se adopta el mismo `data.folio` con el que
+               más abajo se arman Editar y Enviar, para que la barra, los botones y el
+               documento no puedan discrepar. Sin apilar: es la misma cotización que ya
+               se estaba abriendo, no un paso más del historial. */
+            if (data.folio && window.AppUrl && AppUrl.reflejar) AppUrl.reflejar({ folio: data.folio });
             setText('view-fechaEmision', data.timestamp ? new Date(data.timestamp).toLocaleDateString('es-MX', { day: '2-digit', month: 'long', year: 'numeric' }) : 'N/A');
             setText('view-asesorNombre', data.advisorName);
             setText('view-clienteNombre', data.clientName);
@@ -831,6 +839,17 @@
             let folioToView = AppUrl.param('folio');
             if (!folioToView) {
                 try { folioToView = localStorage.getItem('selectedQuoteFolio') || ''; } catch (e) {}
+                /* Entrar por localStorage dejaba la barra muda: se está viendo una
+                   cotización completa y la URL no dice cuál. Copiar ese enlace y
+                   mandarlo abría "No se especificó un folio", y hasta el F5 propio
+                   dependía de que la clave siguiera apuntando aquí —es una sola para
+                   toda la app: abrir otra cotización en otra pestaña la pisa y la
+                   recarga trae la equivocada—. Se escribe DESPUÉS de la guardia de
+                   sesión, para no anunciar en la barra un folio a quien va camino del
+                   login. Sin apilar: no es una navegación nueva, es ponerle nombre a lo
+                   que ya se está viendo, y apilar dejaría un "atrás" hacia esta misma
+                   pantalla sin folio. */
+                if (folioToView && window.AppUrl && AppUrl.reflejar) AppUrl.reflejar({ folio: folioToView });
             }
             console.log("Folio obtenido para consulta:", folioToView);
 

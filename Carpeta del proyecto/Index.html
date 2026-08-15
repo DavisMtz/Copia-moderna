@@ -3365,7 +3365,12 @@ function initNavigation(){
    enlace con ?q= y el buscador global— y el input es el único que se entera de los tres. */
 function filtroDeSeccion(id){
   const wrap = document.getElementById('sec-' + id);
-  const input = wrap ? wrap.querySelector('.filter-input input, .filter-bar input') : null;
+  /* `.traz-find` es el buscador de las secciones de Trazabilidad, que no llevan barra de
+     filtro como las de hoja. Sin él aquí, salir de Big Ticket y volver a entrar apilaba
+     una dirección sin `q` mientras el campo seguía escrito y la lista recortada: la
+     dirección decía "todos los procesos" y la pantalla enseñaba uno. Son excluyentes —
+     ninguna sección tiene los dos—, así que el orden del selector da igual. */
+  const input = wrap ? wrap.querySelector('.filter-input input, .filter-bar input, .traz-find input') : null;
   return input ? String(input.value || '').trim() : '';
 }
 
@@ -6186,7 +6191,11 @@ function trazAplicarBusqueda(secId, q){
   if (!host) return;
   const input = host.querySelector('.traz-find input');
   if (input) input.value = q;
-  trazFiltrar(secId);
+  /* Sin URL: el término que se está escribiendo VIENE de la dirección —lo trae restore(),
+     al arrancar y en cada botón atrás—, así que devolvérselo al navegador sería contestar
+     a quien acaba de hablar. Y restore() reintenta hasta doce veces mientras la sección
+     está vacía esperando la hoja: cada reintento sería otra escritura de lo mismo. */
+  trazFiltrar(secId, true);
 }
 
 /** Buscador dentro de la sección (con antirrebote: se teclea rápido). */
@@ -6208,10 +6217,18 @@ function trazPlat(secId, key){
   trazFiltrar(secId);
 }
 
-function trazFiltrar(secId){
+/* `sinUrl` corta la escritura en la barra de direcciones; lo usa quien filtra PORQUE lo
+   pidió la dirección (ver trazAplicarBusqueda), no el asesor tecleando. */
+function trazFiltrar(secId, sinUrl){
   const host = document.getElementById('traz-' + secId);
   if (!host) return;
   const input = host.querySelector('.traz-find input');
+  /* Estas seis secciones eran el hueco que le quedaba al Portal: `filterSec` refleja su
+     filtro desde siempre, y aquí se buscaba "reporte" dentro de Big Ticket, se copiaba el
+     enlace y el compañero aterrizaba en las cuarenta tarjetas. Se refleja el texto TAL
+     CUAL se escribió y no el de `norm`, que ya viene sin acentos ni mayúsculas: la
+     dirección la lee gente, y restore() la vuelve a meter en este mismo campo. */
+  if (!sinUrl) reflejarFiltro(secId, input ? String(input.value || '').trim() : '');
   const q = norm(input ? input.value : '').trim();
   const plat = host.dataset.trazPlat || '';
   const palabras = q ? q.split(/\s+/).filter(Boolean) : [];

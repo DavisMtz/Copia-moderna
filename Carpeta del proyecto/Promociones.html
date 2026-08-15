@@ -1564,6 +1564,20 @@ let currentDir = 'all';
 let currentNow = new Date();
 let lastDayKey = '';
 let searchTimeout;
+/* Tarjeta que la URL pide enfocar y que todavía no se ha podido enfocar porque las
+   tarjetas se pintan DESPUÉS de que conteste la hoja (AppRun.swr). La consume el
+   primer renderCards que tenga algo que enseñar; ver enfocarPromoPendiente. */
+let promoPendiente = '';
+/* Nombre de la pestaña en la URL ↔ id de la vista en el DOM. El id es "calendar"
+   desde el primer día —renombrarlo tocaría el HTML, el CSS y los conteos— pero la
+   barra de direcciones la lee gente, y ahí va en castellano como el resto de la
+   pantalla. "promos" es la pestaña por omisión, así que se escribe QUITANDO el
+   parámetro: una URL limpia y ?sec=promos no pueden significar cosas distintas. */
+const SEC_A_TAB = { promos:'promos', calendario:'calendar', agenda:'agenda' };
+const TAB_A_SEC = { promos:'', calendar:'calendario', agenda:'agenda' };
+/* Los únicos orígenes que el desplegable conoce: un ?origen= inventado dejaría el
+   select en blanco y filtrando por nada. */
+const ORIGENES = ['Promociones','Marketplace'];
 const RM = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
 const DIAS = ['Domingo','Lunes','Martes','Miércoles','Jueves','Viernes','Sábado'];
 const MESES = ['Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre'];
@@ -1606,8 +1620,43 @@ document.addEventListener('DOMContentLoaded', () => {
   startClock();
   document.getElementById('searchInput').addEventListener('input', handleSearchDebounce);
   document.getElementById('searchInput').addEventListener('keydown', e => { if (e.key === 'Escape') clearSearch(); });
-  document.getElementById('filterOrigen').addEventListener('change', applyFilters);
+  document.getElementById('filterOrigen').addEventListener('change', function () {
+    applyFilters();
+    // Refiltrar repinta las tarjetas y el foco se va con ellas, igual que ya pasaba
+    // al teclear en el buscador: se suelta por pcClear para que ?promo no se quede
+    // señalando una tarjeta que ya no está marcada. Las dos escrituras caen en la
+    // misma espera de reflejar y salen como un único cambio de dirección.
+    if (pcIndex >= 0) pcClear();
+    // Sin apilar: elegir el origen es acotar la misma lista, no ir a otro sitio.
+    if (window.AppUrl && AppUrl.reflejar) AppUrl.reflejar({ origen: this.value === 'all' ? '' : this.value });
+  });
   agEnganchar();
+
+  /* ── La URL manda ─────────────────────────────────────────────────────────
+     El Monitor corre fuera del shell, así que hasta ahora no leía ni escribía
+     nada de la barra de direcciones: mandar «mira esta promoción» era mandar la
+     portada y explicar de palabra qué buscar. Ahora la pestaña, la búsqueda, la
+     dirección, el origen y la tarjeta enfocada viajan en el enlace.
+     La pestaña se aplica ya; los filtros solo se SIEMBRAN, sin repintar: las
+     tarjetas llegan con la hoja y un applyFilters() aquí pondría el «Sin
+     resultados» encima del cargador que todavía está girando. */
+  if (window.AppUrl && AppUrl.reflejar) {
+    const pIni = AppUrl.params();
+    const tabIni = SEC_A_TAB[pIni.sec] || 'promos';
+    if (tabIni !== 'promos') irAPestana(tabIni, true);   // "promos" ya viene activa del HTML
+    aplicarEstadoUrl(pIni, false);
+
+    /* Atrás/adelante. Obligatorio porque aquí se apilan dos cosas —la pestaña y la
+       tarjeta enfocada—: sin oyente, atrás cambiaría la dirección y la pantalla se
+       quedaría igual. Todo entra con `sinUrl`/`repintar` en modo callado: lo que
+       llega es lo que el navegador ACABA de poner, y contestarle reescribiendo
+       vuelve a apilar y el botón atrás deja de avanzar. */
+    AppUrl.alCambiarUrl(function (loc) {
+      const p = (loc && loc.parameter) || {};
+      irAPestana(SEC_A_TAB[p.sec] || 'promos', true);
+      aplicarEstadoUrl(p, true);
+    });
+  }
 
   const backTop = document.getElementById('backTop');
   window.addEventListener('scroll', () => backTop.classList.toggle('show', window.scrollY > 600), { passive:true });
@@ -1750,7 +1799,18 @@ function renderHeroDate(){
   document.getElementById('hero-date-full').innerText = `de ${MESES[currentNow.getMonth()]} de ${currentNow.getFullYear()}`;
 }
 
-function switchTab(tabId, btn){
+/**
+ * @param {boolean=} sinUrl true cuando el cambio VIENE de la URL (arranque o botón
+ *   atrás): reescribirla ahí sería contestarle al navegador y, como esto apila, el
+ *   historial se quedaría atascado en la misma pestaña por muchos atrás que se den.
+ */
+function switchTab(tabId, btn, sinUrl){
+  /* ANTES de tocar las clases, porque la línea siguiente se lleva por delante la
+     marca que hay que consultar. Volver a pulsar la pestaña ya abierta no es ir a
+     ningún sitio: apilarlo dejaba entradas de historial gemelas, y los primeros
+     «atrás» no cambiaban nada visible —el botón pareciendo averiado— hasta gastar
+     una por cada clic repetido. */
+  const repetida = btn.classList.contains('active');
   document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
   btn.classList.add('active');
   document.querySelectorAll('.view-section').forEach(sec => { sec.style.display='none'; sec.classList.remove('active'); });
@@ -1758,6 +1818,75 @@ function switchTab(tabId, btn){
   target.style.display = 'block'; target.classList.add('active');
   if (tabId === 'agenda') renderAgenda();
   if (window.gsap && !RM) gsap.fromTo(target, {opacity:0,y:12}, {opacity:1,y:0,duration:.3,ease:'power3.out'});
+  // Apila: estas tres pestañas se leen como páginas distintas —«mándame el
+  // calendario» es una petición corriente— y atrás tiene que volver a la anterior,
+  // no sacar del Monitor.
+  if (!sinUrl && !repetida && window.AppUrl && AppUrl.reflejar) {
+    const cambio = { sec: TAB_A_SEC[tabId] };
+    // Salir de la lista suelta la tarjeta enfocada, y por la misma pcClear de
+    // siempre: el foco solo se ve en «Promociones», así que dejar ?promo puesto
+    // desde el calendario sería prometer en el enlace algo que no está en pantalla.
+    if (tabId !== 'promos') { pcClear(true); cambio.promo = ''; }
+    AppUrl.reflejar(cambio, { apilar: true });
+  }
+}
+
+/* Cambiar de pestaña sabiendo solo su nombre: de la URL llega "calendario", no el
+   <button> que switchTab necesita para marcarse activo. */
+function irAPestana(tabId, sinUrl){
+  const btn = document.getElementById('tab-' + tabId);
+  if (btn) switchTab(tabId, btn, sinUrl);
+}
+
+/**
+ * Pone los filtros y el foco en el estado que dice la URL.
+ *
+ * La AUSENCIA de un parámetro es un valor, no un «déjalo como está»: volver con
+ * atrás a la dirección limpia tiene que dejar la búsqueda vacía, todas las
+ * direcciones y cualquier origen. Sin esto, deshacer un filtro con el botón atrás
+ * cambiaba la barra y dejaba la lista filtrada igual que antes.
+ *
+ * @param {object} p  Parámetros de la URL (los de AppUrl.params o los del oyente).
+ * @param {boolean=} repintar false al arrancar: todavía no hay tarjetas que filtrar.
+ */
+function aplicarEstadoUrl(p, repintar){
+  const inp = document.getElementById('searchInput');
+  inp.value = p.q || '';
+  document.getElementById('searchClear').style.display = inp.value ? 'flex' : 'none';
+  currentDir = p.dir || 'all';
+  const org = document.getElementById('filterOrigen');
+  org.value = ORIGENES.indexOf(p.origen) !== -1 ? p.origen : 'all';
+  promoPendiente = p.promo || '';
+  // Volver a una URL sin ?promo es haber cerrado el foco: se pasa por pcClear, que
+  // es quien quita el letrero de «Enter para abrir» además de la marca.
+  if (!promoPendiente) pcClear(true);
+  if (repintar) { syncChipState(); applyFilters(); }
+}
+
+/* Identidad de una tarjeta que sobrevive a un enlace compartido. No puede ser el
+   índice de pcIndex —es posicional sobre el DOM ya filtrado: cambia con el filtro,
+   con el orden de la hoja y con el día— y la hoja no manda ningún id, así que se
+   deriva del contenido de la fila. Recortada, porque una promoción entera en la
+   barra de direcciones es un enlace que nadie pega. */
+function promoClave(p){
+  return String((p.direccion||'') + ' ' + (p.categoria||'') + ' ' + (p.promocion||''))
+    .normalize('NFD').replace(/[\u0300-\u036f]/g, '')
+    .toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+/, '').slice(0, 60).replace(/-+$/, '');
+}
+
+/* Enfoca la tarjeta que pedía la URL, ahora que ya hay tarjetas. Un solo intento:
+   si hoy no está a la vista —promoción vencida, o un filtro que la esconde— se
+   ignora en silencio, igual que AppUrl.irAncla con un ancla que ya no existe. Y
+   NO se abre el enlace de Liverpool: un enlace compartido no puede abrir pestañas
+   por su cuenta. */
+function enfocarPromoPendiente(){
+  if (!promoPendiente) return;
+  const clave = promoPendiente;
+  promoPendiente = '';
+  const cards = pcCards();
+  for (let i = 0; i < cards.length; i++) {
+    if (cards[i].dataset.clave === clave) { pcSet(i, true); return; }
+  }
 }
 
 function handleDataSuccess(data, fromCache, at){
@@ -1769,6 +1898,12 @@ function handleDataSuccess(data, fromCache, at){
   lastUpdated = at || Date.now();
   renderSyncStatus();
   globalData = data;
+  // Con datos nuevos las tarjetas se vuelven a pintar desde cero y el foco del
+  // teclado se pierde con ellas. La URL es quien sabe cuál estaba enfocada, así que
+  // se vuelve a pedir: si no, la copia de caché enfocaba la tarjeta del enlace y la
+  // respuesta de la hoja, medio segundo después, la dejaba sin marcar. Lo mismo vale
+  // para «Actualizar datos», que ya no le quita al asesor la tarjeta que miraba.
+  promoPendiente = (window.AppUrl && AppUrl.param) ? (AppUrl.param('promo') || '') : '';
   refreshActiveData();
   document.getElementById('promos-loader').style.display = 'none';
   document.getElementById('controls-panel').style.display = 'block';
@@ -1847,7 +1982,15 @@ function makeChip(value, label, color, n){
   // y la fila no se desalinea al cambiar de filtro.
   b.innerHTML = `<span class="chip-dot"${color ? ` style="color:${color}"` : ' style="color:var(--ink-faint)"'}></span>` +
                 `${label} <span class="chip-n">${n}</span>`;
-  b.onclick = () => { currentDir = (currentDir === value) ? 'all' : value; syncChipState(); applyFilters(); };
+  b.onclick = () => {
+    currentDir = (currentDir === value) ? 'all' : value;
+    syncChipState(); applyFilters();
+    if (pcIndex >= 0) pcClear();   // ver la nota del filtro de origen
+    // Sin apilar: probar píldoras es mirar lo mismo de otra forma, y apilarlo
+    // obligaría a pulsar atrás una vez por cada dirección que se hubiera tanteado.
+    // "all" QUITA el parámetro: es el estado por omisión y no merece ensuciar el enlace.
+    if (window.AppUrl && AppUrl.reflejar) AppUrl.reflejar({ dir: currentDir === 'all' ? '' : currentDir });
+  };
   return b;
 }
 function syncChipState(){
@@ -1859,11 +2002,18 @@ function handleSearchDebounce(){
   document.getElementById('searchClear').style.display = document.getElementById('searchInput').value ? 'flex' : 'none';
   clearTimeout(searchTimeout);
   searchTimeout = setTimeout(applyFilters, 150);
+  // La barra de direcciones va por su cuenta y no por este temporizador: reflejar()
+  // ya junta las ráfagas de tecleo y REEMPLAZA la entrada, para no dejar una por
+  // letra escrita. Los 150 ms de arriba son para filtrar la lista, otra cosa.
+  if (window.AppUrl && AppUrl.reflejar) AppUrl.reflejar({ q: document.getElementById('searchInput').value.trim() });
 }
 function clearSearch(){
   const inp = document.getElementById('searchInput');
   inp.value = ''; document.getElementById('searchClear').style.display = 'none';
   applyFilters(); inp.focus();
+  // Borrar también escribe: si ?q se quedara puesto, un F5 —o la siguiente
+  // escritura, que parte de la URL vigente— resucitaría la búsqueda recién deshecha.
+  if (window.AppUrl && AppUrl.reflejar) AppUrl.reflejar({ q: '' });
 }
 /* ── Qué se compara al buscar una promoción, y cuánto pesa cada cosa ──────────
    Antes esto era un includes() literal sobre cuatro campos: escribir "pantayas"
@@ -1983,6 +2133,7 @@ function renderCards(promosArray){
   if (promosArray.length === 0) {
     container.innerHTML = estadoVacio(IC.lupa, 'Sin resultados',
       'Prueba con otra palabra, quita el filtro de dirección o cambia el origen.');
+    enfocarPromoPendiente();   // no hay tarjetas: consume el intento y no lo deja colgando
     return;
   }
   container.innerHTML = '';
@@ -2011,7 +2162,9 @@ function renderCards(promosArray){
       vigHtml=`<div class="card-vig"><div class="vig-top"><span class="vig-range">${IC.cal}<strong>${promo.vigencia||'Vigencia no especificada'}</strong></span><span class="vig-pill muted">Sin fecha</span></div></div>`;
     }
     container.insertAdjacentHTML('beforeend',
-      `<article class="card promo-card" style="--dept-color:${color}">` +
+      // data-clave: la identidad que viaja en ?promo. Se deja en el DOM porque el
+      // foco del teclado trabaja sobre las tarjetas pintadas, no sobre los objetos.
+      `<article class="card promo-card" data-clave="${promoClave(promo)}" style="--dept-color:${color}">` +
         `<div class="card-header">` +
           `<span class="dept-tag"><span class="dot"></span>${promo.direccion}</span>` +
           `<span class="origin-tag ${isMkp?'mkp':''}">${origenCorto(promo.origen)}</span>` +
@@ -2026,6 +2179,9 @@ function renderCards(promosArray){
     if (window.fxRevealCards) { window.fxRevealCards(); } else { gsap.fromTo('.promo-card',{opacity:0,scale:.98,y:10},{opacity:1,scale:1,y:0,duration:.28,stagger:.03,ease:'power3.out',clearProps:'transform'}); }
     document.querySelectorAll('.vig-fill').forEach(el => gsap.fromTo(el,{width:'0%'},{width:el.dataset.progress+'%',duration:.5,ease:'power2.out',delay:.1}));
   } else { document.querySelectorAll('.vig-fill').forEach(el => el.style.width=el.dataset.progress+'%'); }
+  // Ya hay tarjetas: este es el único momento en el que se puede atender al ?promo
+  // que trajo el enlace. Antes de esto el contenedor está vacío.
+  enfocarPromoPendiente();
 }
 
 let viewMonth = null;
@@ -2585,8 +2741,28 @@ document.addEventListener('DOMContentLoaded',function(){setTheme(document.docume
 var pcIndex = -1;
 function pcCards(){ return Array.prototype.slice.call(document.querySelectorAll('#promos-container .promo-card')); }
 function pcClearHint(){ document.querySelectorAll('.kb-open-hint').forEach(function(h){ h.remove(); }); }
-function pcClear(){ pcIndex = -1; pcClearHint(); pcCards().forEach(function(c){ c.classList.remove('kb-focus'); }); }
-function pcSet(i){
+/**
+ * Desenfocar es la ÚNICA puerta de salida del foco, y por eso también escribe:
+ * quitar la marca a mano dejaría ?promo puesto y un F5 resucitaría la tarjeta que
+ * el asesor acababa de soltar. Con `sinUrl` la llama el oyente de atrás, que ya
+ * viene de una dirección sin ?promo y no tiene a quién contestar.
+ * @param {boolean=} sinUrl
+ */
+function pcClear(sinUrl){
+  pcIndex = -1; pcClearHint(); pcCards().forEach(function(c){ c.classList.remove('kb-focus'); });
+  if(!sinUrl && window.AppUrl && AppUrl.reflejar) AppUrl.reflejar({ promo: '' });
+}
+/**
+ * @param {boolean=} sinUrl true cuando el foco lo pide la propia URL (enlace
+ *   compartido o botón atrás): apilar ahí realimentaría al oyente sin parar.
+ * @param {boolean=} apilar false para RECORRER la lista con las flechas. Entrar en
+ *   la lista es abrir un elemento y apila; ir de una tarjeta a la siguiente no lo
+ *   es, y apilarlo dejaba el botón atrás inservible: diez flechazos eran diez
+ *   entradas de historial, así que salir del Monitor pedía diez «atrás», cada uno
+ *   repintando la lista entera. Con la tecla mantenida, decenas. Reemplazando, la
+ *   ráfaga de flechas cae en la misma espera de reflejar y sale como una sola.
+ */
+function pcSet(i, sinUrl, apilar){
   var cards = pcCards(); if(!cards.length){ pcIndex = -1; return; }
   pcIndex = (i + cards.length) % cards.length;
   pcClearHint();
@@ -2603,8 +2779,13 @@ function pcSet(i){
   c.appendChild(hint);
   var y = c.getBoundingClientRect().top + window.scrollY - 120;
   window.scrollTo({ top: Math.max(0,y), behavior: 'smooth' });
+  // Apila: enfocar una promoción es abrir un elemento, y atrás debe soltarla y
+  // devolver la lista, no sacar del Monitor. Recorrer con las flechas reemplaza
+  // (ver `apilar`): la barra sigue diciendo qué tarjeta se mira, con UNA entrada.
+  if(!sinUrl && window.AppUrl && AppUrl.reflejar)
+    AppUrl.reflejar({ promo: c.dataset.clave || '' }, apilar === false ? null : { apilar: true });
 }
-function pcMove(d){ var cards = pcCards(); if(cards.length) pcSet((pcIndex<0?(d>0?-1:0):pcIndex)+d); }
+function pcMove(d){ var cards = pcCards(); if(cards.length) pcSet((pcIndex<0?(d>0?-1:0):pcIndex)+d, false, false); }
 function pcEnter(){
   var cards = pcCards(); if(!cards.length) return false;
   // Primer Enter: aún no hay tarjeta seleccionada → llevar al objetivo de búsqueda (no abre)
@@ -2625,7 +2806,10 @@ document.addEventListener('DOMContentLoaded', function(){
     else if(e.key==='ArrowUp' || e.key==='ArrowLeft'){ e.preventDefault(); pcMove(-1); }
     else if(e.key==='Enter'){ if(pcEnter()) e.preventDefault(); }
   });
-  inp.addEventListener('input', pcClear);
+  // Envuelto y no `pcClear` a pelo: como manejador recibiría el Event en el primer
+  // argumento, que ahora es `sinUrl`, y el ?promo de la tarjeta soltada se quedaría
+  // en la barra mientras se teclea una búsqueda nueva.
+  inp.addEventListener('input', function(){ pcClear(); });
 });
 </script>
 

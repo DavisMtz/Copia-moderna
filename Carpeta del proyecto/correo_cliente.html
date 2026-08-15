@@ -544,7 +544,21 @@ function renderTplGrid(){
   });
 }
 
-function seleccionarPlantilla(id){
+/**
+ * Elegir plantilla cambia la pantalla entera —fija tplId, vacía el formulario y
+ * repinta la vista previa—, así que APILA historial: atrás devuelve a lo que se
+ * estaba viendo, no saca de la pantalla.
+ *
+ * @param {string} id
+ * @param {boolean=} sinUrl true cuando la plantilla LA PIDE la propia URL (enlace
+ *   compartido o botón atrás): contestarle al navegador con la dirección que
+ *   acabamos de leerle realimentaría al oyente sin parar.
+ */
+function seleccionarPlantilla(id, sinUrl){
+  // Volver a pulsar la tarjeta que ya está elegida sigue reiniciando el formulario
+  // —es lo que hacía—, pero no apila: si lo hiciera, habría que darle tres veces a
+  // "atrás" para que la pantalla cambiara una, y el botón parecería roto.
+  const repetida = (tplId === id);
   tplId = id;
   fields = {};
   subjectDirty = false;
@@ -590,6 +604,48 @@ function seleccionarPlantilla(id){
 
   $id('inpSubject').value = t.asunto(fields);
   renderPreview();
+
+  if (!sinUrl && !repetida && window.AppUrl && AppUrl.reflejar) {
+    AppUrl.reflejar({ tpl: id }, { apilar: true });
+  }
+}
+
+/**
+ * Soltar la plantilla y volver a la rejilla: el estado con el que arranca la
+ * pantalla cuando la URL no trae ?tpl (sin tarjeta marcada, sin campos, sin asunto
+ * y la vista previa en su cartel de "elige una plantilla").
+ *
+ * Salir también escribe: dejar el ?tpl puesto haría que un F5 resucitara la
+ * plantilla que se acaba de soltar. Hoy la única puerta que llega aquí es el botón
+ * atrás —la rejilla no ofrece un "cambiar de plantilla"—, y por eso el oyente la
+ * llama con `sinUrl`.
+ *
+ * @param {boolean=} sinUrl
+ */
+function volverARejilla(sinUrl){
+  tplId = null;
+  fields = {};
+  subjectDirty = false;
+  document.querySelectorAll('.tpl-card').forEach(c => c.classList.remove('sel'));
+  $id('tplNameTag').textContent = '';
+  $id('fieldsBody').innerHTML = '<p class="text-sm text-slate-500 text-center py-4">Selecciona una plantilla para ver sus campos.</p>';
+  // El asunto lo genera la plantilla, así que se va con ella; destinatarios y
+  // adjuntos se quedan, igual que al cambiar de una plantilla a otra.
+  $id('inpSubject').value = '';
+  renderPreview();
+
+  if (!sinUrl && window.AppUrl && AppUrl.reflejar) AppUrl.reflejar({ tpl: '' });
+}
+
+/* ¿Hay algo escrito a mano en los campos de la plantilla? Los valores por omisión
+   (campo.def) no cuentan: se pusieron solos y nadie los echa de menos. */
+function hayTextoEnPlantilla(){
+  const t = TEMPLATES[tplId];
+  if (!t) return false;
+  return t.campos.some(c => {
+    const v = (fields[c.id] || '').trim();
+    return !!v && v !== String(c.def || '').trim();
+  });
 }
 
 /* ── Vista previa en vivo ── */
@@ -941,10 +997,42 @@ document.addEventListener('DOMContentLoaded', () => {
     // Deep-link desde el buscador del Portal: ?tpl=<id> abre esa plantilla lista.
     const tplParam = (window.AppUrl && AppUrl.param('tpl')) || (window.__APP__ && window.__APP__.tpl) || '';
     if (tplParam && TEMPLATES[tplParam]) {
-      seleccionarPlantilla(tplParam);
+      // Con `true`: la barra ya dice esta plantilla, y apilar aquí dejaría una entrada
+      // de historial que al pulsar atrás lleva a la misma pantalla de la que se viene.
+      seleccionarPlantilla(tplParam, true);
       const card = document.querySelector('.tpl-card[data-tpl="' + tplParam + '"]');
       if (card) card.scrollIntoView({ behavior: 'smooth', block: 'center' });
     }
+
+    /* Atrás/adelante: la plantilla la manda la URL, nunca lo que hubiera en pantalla.
+       Dos cuidados, que es donde esto se rompe:
+       - Un ?tpl igual al que ya está puesto NO se repinta. seleccionarPlantilla vacía
+         el formulario, así que cualquier otro parámetro que cambiara en la barra le
+         borraría al asesor el correo a medio redactar sin que él tocara nada.
+       - La AUSENCIA de ?tpl es un estado, no un "deja lo que había": es la rejilla sin
+         plantilla elegida, tal como arranca la pantalla. */
+    if (window.AppUrl && AppUrl.alCambiarUrl) AppUrl.alCambiarUrl(loc => {
+      const p = (loc && loc.parameter) || {};
+      const pedida = TEMPLATES[p.tpl] ? p.tpl : '';   // un ?tpl inventado es rejilla, no avería
+      if (pedida === (tplId || '')) return;
+
+      /* El modal de verificación se cierra por su puerta de siempre, no quitándole la
+         clase a mano: enseña el resumen de la plantilla que se acaba de dejar atrás y
+         confirmar ahí enviaría el correo que la pantalla tiene AHORA, que ya no es el
+         que se está leyendo. Con un envío en curso cerrarModal() no hace nada, que es
+         justo lo que debe pasar. */
+      cerrarModal();
+
+      const habiaTexto = hayTextoEnPlantilla();
+      if (pedida) seleccionarPlantilla(pedida, true);
+      else volverARejilla(true);
+
+      /* Se avisa después, no se pregunta antes: cuando el navegador nos llama la
+         dirección YA cambió, y un confirm que el asesor cancele obligaría a apilar
+         otra entrada para que barra y pantalla vuelvan a decir lo mismo. Al menos
+         que nadie se quede mirando un formulario vacío sin saber qué lo vació. */
+      if (habiaTexto) toast('Volviste atrás: los datos que habías escrito en la plantilla anterior se vaciaron.');
+    });
 
     $id('inpSubject').addEventListener('input', () => { subjectDirty = true; $id('f-subject').classList.remove('field-invalid'); });
     ['f-to','f-cc','f-cco'].forEach(wid => {

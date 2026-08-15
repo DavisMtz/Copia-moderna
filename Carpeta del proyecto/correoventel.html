@@ -150,10 +150,13 @@
            catálogo de formatos y el remitente— las lleva `AppRun.swr`, que es quien
            lee, pinta, revalida y guarda. */
 
-        // El folio y el formato pueden venir de otra pantalla por la URL; si no,
-        // se usa lo que se guardó con la cotización.
+        // El folio puede venir de otra pantalla por la URL. Se copia una sola vez porque
+        // solo sirve para la auto-búsqueda del arranque, antes de que nada escriba la barra.
         const urlFolio = AppUrl.param('folio');
-        const urlFormat = AppUrl.param('format');
+        /* El formato NO se congela aquí. Desde que el selector refleja su elección, este
+           valor cambia durante la sesión: con la copia del arranque, la segunda búsqueda
+           preseleccionaría el formato con el que se entró mientras la barra sigue
+           anunciando el que el asesor eligió después. Se lee vivo donde se usa. */
 
         /* Chip giratorio en línea. El giro NO se pone aquí: app_loaders ya trae
            `[data-chipspin]{animation:vfx-spin .9s linear infinite}` —con su variante
@@ -182,7 +185,16 @@
             const match = formatosActuales.find(f => f.id === formatSelect.value);
             formatHint.textContent = match ? match.description : '';
         };
-        formatSelect.addEventListener('change', describirFormato);
+        formatSelect.addEventListener('change', () => {
+            describirFormato();
+            /* El formato decide el PDF que le llega al cliente y hasta ahora solo vivía
+               en el <select>: un F5 lo devolvía al de la cotización y no había manera de
+               mandarle a nadie «envíasela con este formato». Va sin apilar —es una
+               preferencia de la vista, no un paso del historial— y solo desde `change`,
+               que es cosa de la persona: renderFormats marca la opción con innerHTML y
+               eso no dispara este oyente, así que pintar el selector no escribe la URL. */
+            if (window.AppUrl && AppUrl.reflejar) AppUrl.reflejar({ format: formatSelect.value });
+        });
 
         const renderFormats = (response, preferredId) => {
             quitarChipFormatos();
@@ -312,6 +324,14 @@
             step1Chip.classList.remove('done');
             step1Chip.textContent = '1';
             loadedQuoteData = null;
+            /* La pantalla vuelve a cero, así que la barra también. Con el folio puesto, un
+               F5 tras enviar el correo dispararía la auto-búsqueda y recargaría la
+               cotización que se acababa de despachar; y cuando se limpia porque el
+               servidor no reconoció ese folio, la recarga volvería a pedir el mismo folio
+               malo una y otra vez. `format` se va con él porque emailForm.reset() devuelve
+               el selector a su opción por omisión: dejarlo sería anunciar en el enlace un
+               formato que ya nadie tiene elegido. Sin apilar: esto es limpiar, no navegar. */
+            if (window.AppUrl && AppUrl.reflejar) AppUrl.reflejar({ folio: '', format: '' });
         };
 
         // --- Lógica Principal ---
@@ -359,6 +379,16 @@
                     response = response || {};
                     if (response.success) {
                         loadedQuoteData = response.data;
+                        /* La cotización cargada pasa a la barra: es lo que convierte «ya
+                           tengo los datos» en un enlace que otro asesor abre con el paso 1
+                           resuelto en vez de teniendo que teclear el folio. Se refleja el
+                           que contesta el SERVIDOR, no lo que se escribió en la caja
+                           —espacios o minúsculas acabarían en el enlace compartido—, que
+                           es el mismo con el que más abajo se arman «Ver Cotización» y el
+                           envío. Sin apilar: no se ha cambiado de pantalla, se le está
+                           poniendo nombre a la que ya se está viendo, y apilar dejaría un
+                           «atrás» hacia esta misma pantalla en blanco. */
+                        if (window.AppUrl && AppUrl.reflejar) AppUrl.reflejar({ folio: loadedQuoteData.folio });
                         quoteDataStatus.innerHTML = `
                             <span class="font-bold text-green-700">✓ Datos Cargados:</span>
                             Cotización <strong>${loadedQuoteData.folio}</strong> para <strong>${loadedQuoteData.clientName}</strong>.
@@ -372,7 +402,10 @@
                         subjectInput.value = `Cotización de Servicios Ventel - Folio ${loadedQuoteData.folio}`;
                         bodyInput.value = `Estimado(a) ${loadedQuoteData.clientName},\n\nJunto con saludar, y como seguimiento a nuestra conversación, le hago llegar la cotización solicitada con folio ${loadedQuoteData.folio}.\n\nQuedo a sus órdenes para cualquier duda o aclaración.\n\nSaludos cordiales,`;
 
-                        loadEmailFormats(urlFormat || loadedQuoteData.format);
+                        /* Lo que pide la URL manda sobre el formato guardado con la
+                           cotización, y se pregunta VIVO: es lo que mantiene de acuerdo al
+                           selector y al enlace cuando se buscan dos folios seguidos. */
+                        loadEmailFormats(AppUrl.param('format') || loadedQuoteData.format);
 
                         emailFields.disabled = false;
                         viewQuoteButton.disabled = false;
