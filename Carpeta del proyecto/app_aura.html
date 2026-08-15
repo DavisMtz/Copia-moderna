@@ -825,13 +825,14 @@
          chisporroteo, que es aleatorio por definición, y el cometa, que aparece
          cada tantos segundos. Esas siguen siendo timelines de GSAP. */
 
+      function eneTecho() {
+        if (E.dentro) return ENE.viva;
+        if (E.encima) return (ENE.reposo + ENE.viva) / 2;
+        return ENE.reposo;
+      }
+
       var tlChispa = null;
       if (nivel > 0) {
-        function eneTecho() {
-          if (E.dentro) return ENE.viva;
-          if (E.encima) return (ENE.reposo + ENE.viva) / 2;
-          return ENE.reposo;
-        }
         /* La chispa se escribe con su propio quickSetter desde un tween sobre un
            objeto: así el parpadeo lee el estado actual en cada repetición
            (`repeatRefresh`) sin que nadie tenga que rehacer el tween cuando el
