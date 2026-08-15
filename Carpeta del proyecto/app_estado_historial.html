@@ -543,11 +543,32 @@
     wrap.insertAdjacentHTML('beforeend', html);
   }
 
+  /* La escena de espera se guarda en el módulo porque hay que poder cerrarla desde donde no
+     se abrió: llegan los datos, falla la llamada o se pulsa otro periodo, y en los tres casos
+     el nodo se lo lleva por delante el innerHTML del repintado. Una escena huérfana no se ve,
+     pero sus temporizadores siguen corriendo contra un nodo que ya no está en el documento:
+     la rotación de subtítulos y, sobre todo, el tope de 45 s de VentelFX. */
+  var fxEspera = null;
+  function cerrarEspera() {
+    if (!fxEspera) return;
+    fxEspera.done();
+    fxEspera = null;
+  }
+
+  /** El mismo aviso para las dos formas de quedarse sin cifras: sin respuesta del servidor y
+      con una respuesta que no trae `success`. Va por cuerpoEspera para que la cabecera de
+      periodos siga ahí, que es la única salida que le queda a quien se topó con el error. */
+  function avisoNoCargo() {
+    cuerpoEspera('<div style="padding:2rem;text-align:center;' +
+      'color:var(--ink-soft,#5C6B7E)">No pudimos cargar el historial.</div>');
+  }
+
   /**
    * Esqueleto con la rejilla de .eh-fila (nombre · tira · reportes): dibuja la forma exacta
-   * de lo que va a llegar, así que al aterrizar los datos no se mueve nada de sitio. Usa la
-   * barra de brillo de VentelFX porque el motor no trae un esqueleto con esta forma; sin el
-   * motor en la pantalla, se cae al aviso de siempre.
+   * de lo que va a llegar, así que al aterrizar los datos no se mueve nada de sitio. Es la
+   * espera de los CAMBIOS DE PERIODO —ver esperar()—. Usa la barra de brillo de VentelFX
+   * porque el motor no trae un esqueleto con esta forma; sin el motor en la pantalla, se cae
+   * al aviso de siempre.
    */
   function esqueleto(n) {
     if (!window.VentelFX) {
@@ -566,7 +587,8 @@
 
   function esperar() {
     // Tantas filas como había: cambiar de periodo no cambia cuántos sistemas hay.
-    var n = host.querySelectorAll('.eh-fila').length || 4;
+    var previas = host.querySelectorAll('.eh-fila').length;
+    var n = previas || 4;
     // El pulsado se mueve YA al periodo pedido, y la tabla vuelve a su rótulo cerrado: el
     // panel que abría desaparece con el resto del cuerpo.
     var tabla = host.querySelector('[data-eh-tabla]');
@@ -580,7 +602,49 @@
     host.querySelectorAll('[data-eh-rango]').forEach(function (b) {
       b.setAttribute('aria-pressed', String(b.getAttribute('data-eh-rango') === rango.id));
     });
-    cuerpoEspera(esqueleto(n));
+
+    // Si quedaba una escena de la espera anterior —se pulsó otro periodo antes de que
+    // contestara el servidor—, se cierra ANTES de montar la siguiente: dos escenas en el
+    // mismo hueco son dos tandas de temporizadores y dos topes de 45 s corriendo a la vez.
+    cerrarEspera();
+
+    /* ── DOS ESPERAS DISTINTAS, Y ES A PROPÓSITO ────────────────────────────────────────
+       · PRIMERA CARGA (no hay ni una .eh-fila en pantalla): el hueco está vacío y nadie
+         sabe qué se está trayendo. Ahí la escena gana su sitio: cuenta que se están
+         revisando los reportes, y de paso llena un agujero que el esqueleto solo podía
+         adivinar —las cuatro filas de respaldo son un número inventado, los sistemas que
+         conteste el servidor pueden ser otros tantos—.
+       · CAMBIO DE PERIODO: ya hay una forma en pantalla y quien pulsó sabe lo que viene;
+         lo único que importa es no mover nada. El esqueleto trae EXACTAMENTE las filas que
+         había, así que la tarjeta conserva su altura y el resto de la página —el feed de
+         supervisión o el tablero público, que llevan más cosas debajo— no da el doble salto
+         de encoger y volver a crecer por una espera que muchas veces es de medio segundo.
+       Sin el motor en la pantalla no hay escena que montar y manda el mismo esqueleto, que
+       ya sabe caerse a su aviso con spinner. */
+    if (previas || !window.VentelFX) { cuerpoEspera(esqueleto(n)); return; }
+
+    // La escena va en su propio hueco y no directamente en .eh-wrap: así cuerpoEspera()
+    // sigue siendo el único que decide qué sobrevive (la cabecera) y qué se sustituye.
+    cuerpoEspera('<div data-eh-escena></div>');
+    fxEspera = VentelFX.section(host.querySelector('[data-eh-escena]'), 'reportes', {
+      // 'fill' y no 'cover': cuerpoEspera acaba de retirar el cuerpo, no queda nada debajo
+      // que tapar.
+      mode: 'fill',
+      // Y el hueco se queda en lo que mide la escena, no en los 260 px que el motor reserva
+      // por omisión: esto vive dentro de otras pantallas, y reservar de más solo hace que
+      // todo lo que va debajo salte al aterrizar el gráfico.
+      minHeight: '14rem',
+      // Los textos se pasan desde aquí en vez de dejar la copia del tema: el periodo que se
+      // está pidiendo solo lo sabe este módulo, y «las últimas 24 horas» es justo el dato
+      // que convierte una espera genérica en una que cuenta algo.
+      title: 'Revisando los reportes…',
+      steps: [
+        'Reuniendo los reportes de ' + (porHoras() ? 'las últimas ' : 'los últimos ') +
+          tramosTexto() + '…',
+        'Agrupando por sistema…',
+        'Contando las incidencias confirmadas…'
+      ]
+    });
   }
 
   function cargar(usarCache) {
@@ -606,14 +670,21 @@
       accept: function (r) { return !!(r && r.success); },
       onData: function (r) {
         if (rango.id !== pedido) return;
+        // La escena se cierra DESPUÉS de la guarda, nunca antes: hacerlo arriba dejaría que
+        // la respuesta tardía del periodo anterior apagase la espera del que se acaba de
+        // pedir, y el hueco se quedaría en blanco hasta que contestara el suyo.
+        cerrarEspera();
         if (r && r.success) { datos = r; pintar(); }
+        // Respuesta sin cifras. Con el esqueleto daba igual —se quedaba brillando—, pero la
+        // escena sí se ha cerrado: callar aquí dejaría un hueco vacío sin decir por qué.
+        else if (!datos) avisoNoCargo();
       },
       onError: function () {
         if (rango.id !== pedido) return;
+        cerrarEspera();
         // También aquí se conservan los botones de periodo: es la única salida que le
         // queda a quien acaba de tropezarse con el error.
-        if (!datos) cuerpoEspera('<div style="padding:2rem;text-align:center;' +
-          'color:var(--ink-soft,#5C6B7E)">No pudimos cargar el historial.</div>');
+        if (!datos) avisoNoCargo();
       }
     });
   }

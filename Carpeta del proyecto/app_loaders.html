@@ -20,7 +20,7 @@
 
      TEMAS (uno por familia de espera, ver tabla al final del archivo):
        camion · caja · percha · sobre · escaner · documento · hoja ·
-       radar · etiqueta · bolsa
+       radar · etiqueta · bolsa · reportes · asesor
 
      DEGRADACIÓN: si GSAP no cargó (CDN caído) o el usuario pide menos
      movimiento, las escenas se dibujan igual pero quietas, con un pulso CSS
@@ -924,6 +924,252 @@
     }
   };
 
+  /* ── 10 · REPORTES · verificar cifras, historial del estado del servicio ──
+     Una persona ante su monitor repasando las gráficas del periodo, con el
+     reporte impreso entrando y saliendo por un lado y la palomita al final de
+     cada vuelta.
+
+     Se dibuja SOBRIA a propósito: el partial que la monta es el mismo del
+     tablero público, así que esta escena la ve gente de fuera del equipo. Sin
+     guiños internos, y todo el color sale de los tokens de tema —nada a mano—
+     para que se lea igual de bien en claro que en oscuro.
+
+     Dos decisiones que no son de dibujo sino de degradación:
+       · El SVG nace en su POSE FINAL (barras crecidas, hoja puesta, palomita
+         puesta) y es build() quien retrocede lo que va a animar. Si el CDN de
+         GSAP no llega, build() no corre y lo que queda es el informe ya
+         revisado; al revés —piezas en opacity 0 esperando a GSAP— quedaba un
+         monitor vacío, que se lee como pantalla rota y no como espera.
+       · Todo el movimiento vive DENTRO de la línea que se devuelve. `.done()`
+         solo mata lo que build() entrega, así que un `gsap.to` suelto con
+         repeat:-1 seguiría latiendo contra un SVG que ya no está en la página.
+
+     El bucle cierra por donde abre: las barras se recogen antes de acabar la
+     vuelta, así que la última pose y la primera son la misma y no hay costura. */
+  SCENES.reportes = {
+    w: 250, box: '0 0 250 170',
+    svg: function () {
+      // Alturas desiguales y fijas: son cinco por diseño, así que valen a mano.
+      // La línea base (y=92) es la que manda, porque de ella crecen las barras.
+      var XB = [108, 131, 154, 177, 200], HB = [26, 40, 32, 54, 44];
+      var TONO = ['var(--vfx-brand)', 'var(--vfx-purple)', 'var(--vfx-brand)', 'var(--vfx-orange)', 'var(--vfx-brand)'];
+      var barras = '', i;
+      for (i = 0; i < XB.length; i++) {
+        barras += '<rect data-barra x="' + XB[i] + '" y="' + (92 - HB[i]) + '" width="14" height="' +
+                  HB[i] + '" rx="2" fill="' + TONO[i] + '"/>';
+      }
+      var reng = '', RY = [128, 135, 142], RW = [40, 32, 36];
+      for (i = 0; i < RY.length; i++) {
+        reng += '<rect x="196" y="' + RY[i] + '" width="' + RW[i] + '" height="3.4" rx="1.7" fill="var(--vfx-line)"/>';
+      }
+      return '' +
+      /* El recorte va en un grupo APARTE del que se anima: un clip-path se lee en
+         el espacio del elemento que lo lleva, así que puesto sobre la hoja viajaría
+         con ella. Y hace falta: `.vfx-stage svg` tiene overflow visible (lo piden
+         otras escenas), de modo que sin recorte la hoja se pasearía por encima de
+         la tarjeta al entrar y al salir. */
+      '<defs><clipPath id="vfxRep__UID__"><rect x="0" y="0" width="250" height="170"/></clipPath></defs>' +
+      '<path d="M8 152h234" stroke="var(--vfx-line)" stroke-width="2.5" stroke-linecap="round"/>' +
+      // ── Quien revisa. Silueta geométrica, como el resto de la casa: cuello,
+      //    hombros y cabeza. El tono medio (--vfx-faint) es el único que contrasta
+      //    contra el fondo en los dos temas; el ink se perdería en uno de ellos.
+      '<g data-persona>' +
+        '<rect x="47" y="68" width="18" height="26" rx="8" fill="var(--vfx-faint)"/>' +
+        '<path d="M20 152v-24a36 36 0 0 1 72 0v24Z" fill="var(--vfx-purple)"/>' +
+        // El cuello de la prenda arranca DENTRO del hombro (el borde del torso
+        // pasa por y≈95 a esa altura): un par de píxeles más arriba y las puntas
+        // del trazo asomaban por fuera de la silueta, como dos rayas sueltas.
+        '<path d="M42 98c5 8 22 8 28 0" fill="none" stroke="var(--vfx-deep)" stroke-width="2.4" opacity=".35"/>' +
+        '<g data-cabeza><circle cx="56" cy="58" r="17" fill="var(--vfx-faint)"/></g>' +
+      '</g>' +
+      // ── El monitor y su gráfica
+      '<rect x="96" y="18" width="132" height="90" rx="10" fill="var(--vfx-surface)" stroke="var(--vfx-line)" stroke-width="2.4"/>' +
+      '<rect x="103" y="25" width="118" height="76" rx="6" fill="var(--vfx-surface2)"/>' +
+      '<rect x="110" y="33" width="40" height="5" rx="2.5" fill="var(--vfx-brand)"/>' +
+      '<rect x="156" y="33" width="20" height="5" rx="2.5" fill="var(--vfx-faint)" opacity=".5"/>' +
+      // Retículas por debajo de las barras: son lo que convierte cinco rectángulos
+      // en una gráfica y no en una fila de bloques.
+      '<path d="M108 60h108M108 76h108" stroke="var(--vfx-line)" stroke-width="1" opacity=".9"/>' +
+      '<path d="M106 92h112" stroke="var(--vfx-line)" stroke-width="1.6" stroke-linecap="round"/>' +
+      barras +
+      '<rect x="155" y="108" width="14" height="16" fill="var(--vfx-line)"/>' +
+      '<rect x="138" y="123" width="48" height="6" rx="3" fill="var(--vfx-line)"/>' +
+      '<rect x="116" y="140" width="80" height="10" rx="3" fill="var(--vfx-line)"/>' +
+      '<rect x="122" y="143" width="34" height="2.6" rx="1.3" fill="var(--vfx-surface)" opacity=".7"/>' +
+      '<rect x="160" y="143" width="22" height="2.6" rx="1.3" fill="var(--vfx-surface)" opacity=".7"/>' +
+      // ── La palomita: va colgada de la esquina del monitor y no encima de la
+      //    gráfica, que es la que hay que poder leer mientras se espera.
+      '<g data-sello>' +
+        '<circle cx="228" cy="96" r="13.5" fill="var(--vfx-brand)" stroke="var(--vfx-surface)" stroke-width="2.5"/>' +
+        '<path d="M221.5 96.5l4.4 4.4 8.6-9.6" fill="none" stroke="var(--vfx-surface)" stroke-width="3.2" stroke-linecap="round" stroke-linejoin="round"/>' +
+      '</g>' +
+      // ── El reporte impreso, sobre la mesa. La inclinación va en un <g> interno
+      //    para que la animación mueva el de fuera sin pelearse con ella.
+      '<g clip-path="url(#vfxRep__UID__)">' +
+        '<g data-hoja><g transform="rotate(-4 216 130)">' +
+          '<rect x="188" y="111" width="56" height="40" rx="4" fill="var(--vfx-surface)" stroke="var(--vfx-line)" stroke-width="1.8"/>' +
+          '<rect x="196" y="119" width="24" height="4.5" rx="2.25" fill="var(--vfx-brand)"/>' +
+          reng +
+        '</g></g>' +
+      '</g>';
+    },
+    build: function (root, gsap) {
+      var q = gsap.utils.selector(root);
+      var barras = q('[data-barra]');
+      var CICLO = 4.6;
+
+      /* Los orígenes se declaran TODOS aquí y ningún tween vuelve a cambiarlos:
+         cuando un origen se estrena dentro del propio tween teniendo ya una
+         transformación encima, GSAP compensa con una traslación (smoothOrigin) y
+         esa compensación se cuela en la animación —la hoja salía disparada—.
+
+         Las cinco barras comparten origen «0 92» y no hace falta uno por barra:
+         solo se escala en Y, así que la coordenada x del eje no cambia nada; lo
+         único que importa es que crezcan desde la línea base de la gráfica. */
+      gsap.set(barras, { scaleY: 0, svgOrigin: '0 92' });
+      gsap.set(q('[data-sello]'), { opacity: 0, scale: .35, svgOrigin: '228 96' });
+      gsap.set(q('[data-hoja]'), { svgOrigin: '216 130' });
+      gsap.set(q('[data-cabeza]'), { svgOrigin: '56 90' });
+
+      var tl = gsap.timeline({ repeat: -1 });
+      // 1 · Las cifras del periodo entran de izquierda a derecha, como se leen.
+      tl.to(barras, { scaleY: 1, duration: .5, ease: 'power2.out',
+            stagger: { amount: .5, from: 'start' } }, 0)
+        // 2 · El reporte impreso entra por la derecha y se queda para el repaso.
+        .fromTo(q('[data-hoja]'), { x: 74, rotation: 6, opacity: 0 },
+            { x: 0, rotation: 0, opacity: 1, duration: .6, ease: 'power3.out' }, .2)
+        // 3 · Dos series se corrigen. Es el «verificando» de la escena: si las
+        //     barras solo crecieran y se fueran, esto sería un gráfico, no un repaso.
+        .to(barras[1], { scaleY: 1.3, duration: .42, ease: 'power2.out' }, 1.25)
+        .to(barras[3], { scaleY: .76, duration: .42, ease: 'power2.out' }, 1.4)
+        // 4 · El gesto de verificación: cabezada corta y palomita.
+        .to(q('[data-cabeza]'), { rotation: -6, duration: .3, ease: 'sine.inOut',
+            yoyo: true, repeat: 1 }, 1.95)
+        .to(q('[data-sello]'), { opacity: 1, scale: 1, duration: .45, ease: 'back.out(2.4)' }, 2.05)
+        // 5 · La hoja sale por donde entró.
+        .to(q('[data-hoja]'), { x: 74, rotation: 6, opacity: 0, duration: .55, ease: 'power2.in' }, 2.95)
+        // 6 · Se recoge todo ANTES de que acabe la vuelta: así el bucle no da el
+        //     corte seco de pasar de la última pose a la primera.
+        .to(barras, { scaleY: 0, duration: .4, ease: 'power2.in',
+            stagger: { amount: .3, from: 'end' } }, 3.55)
+        .to(q('[data-sello]'), { opacity: 0, duration: .3, ease: 'power1.in' }, 3.55)
+        .set(q('[data-sello]'), { scale: .35 }, 4)
+        // La respiración cabe cuatro veces justas en el ciclo, así que termina en
+        // su punto de partida y el reinicio no se nota.
+        .to(q('[data-persona]'), { y: -2.2, duration: CICLO / 4, ease: 'sine.inOut',
+            yoyo: true, repeat: 3 }, 0)
+        .to({}, { duration: CICLO }, 0);
+      return tl;
+    }
+  };
+
+  /* ── 11 · ASESOR · atenciones, clientes a los que hay que devolver la llamada ─
+     Una asesora con diadema y las fichas de quienes se quedaron a medias llegando
+     a su lado, una detrás de otra.
+
+     El tono pesa tanto como el dibujo: esta espera sale en Atenciones, donde lo
+     que hay al otro lado son clientes sin resolver. Una escena nerviosa ahí mete
+     prisa en vez de acompañar, así que el pulso del auricular es lento y las
+     fichas entran suave y se van hacia la asesora, no hacia fuera.
+
+     Misma regla que en `reportes`, y por lo mismo: el dibujo nace en su pose
+     final y build() retrocede lo que va a animar, de modo que sin GSAP quedan la
+     asesora y sus tres fichas en vez de un hueco. Y todo el movimiento va dentro
+     de la línea devuelta, que es lo único que `.done()` mata.
+
+     Las duraciones son divisores exactos del ciclo (4.8 s): 4×1.2, 2×2.4, 8×.6 y
+     6×.8. Sin eso el pulso se corta a media onda al reiniciar el bucle y da un
+     tirón cada cinco segundos, que es justo lo que se nota en una espera larga. */
+  SCENES.asesor = {
+    w: 230, box: '0 0 230 168',
+    svg: function () {
+      // Tres fichas: son las que caben sin que la escena se vuelva una lista.
+      var fichas = '', YF = [32, 70, 108], i;
+      for (i = 0; i < YF.length; i++) {
+        var y = YF[i];
+        fichas += '<g data-ficha>' +
+          '<rect x="118" y="' + y + '" width="100" height="30" rx="9" fill="var(--vfx-surface)" stroke="var(--vfx-line)" stroke-width="1.8"/>' +
+          // Retrato mínimo: cabeza y hombros. Dice «cliente» sin una sola letra,
+          // que a este tamaño saldría borrosa y obligaría a cargar la fuente.
+          '<circle cx="135" cy="' + (y + 15) + '" r="8.5" fill="var(--vfx-tint)"/>' +
+          '<circle cx="135" cy="' + (y + 12) + '" r="3.1" fill="var(--vfx-brand)" opacity=".75"/>' +
+          '<path d="M129.6 ' + (y + 20) + 'a5.6 5.6 0 0 1 10.8 0Z" fill="var(--vfx-brand)" opacity=".75"/>' +
+          '<rect x="150" y="' + (y + 9) + '" width="44" height="4.6" rx="2.3" fill="var(--vfx-brand)" opacity=".85"/>' +
+          '<rect x="150" y="' + (y + 18) + '" width="46" height="3.6" rx="1.8" fill="var(--vfx-line)"/>' +
+        '</g>';
+      }
+      return '' +
+      // El recorte solo abraza las fichas, y va en un grupo que NO se anima: las
+      // fichas entran desde fuera del encuadre y sin él se verían cruzar la
+      // tarjeta por su cuenta (el svg de la escena tiene overflow visible).
+      '<defs><clipPath id="vfxAsesor__UID__"><rect x="0" y="0" width="230" height="168"/></clipPath></defs>' +
+      '<path d="M12 156h206" stroke="var(--vfx-line)" stroke-width="2.5" stroke-linecap="round"/>' +
+      // Las ondas van DETRÁS de la asesora: así salen del auricular y se alejan,
+      // en vez de pasarle por encima de la cara.
+      '<circle data-onda cx="43" cy="62" r="12" fill="none" stroke="var(--vfx-brand)" stroke-width="2.4" opacity="0"/>' +
+      '<circle data-onda cx="43" cy="62" r="12" fill="none" stroke="var(--vfx-brand)" stroke-width="1.8" opacity="0"/>' +
+      '<g data-persona>' +
+        '<rect x="55" y="68" width="18" height="26" rx="8" fill="var(--vfx-faint)"/>' +
+        '<path d="M26 156v-26a38 38 0 0 1 76 0v26Z" fill="var(--vfx-brand)"/>' +
+        '<path d="M53 95c4 8 18 8 22 0" fill="none" stroke="var(--vfx-deep)" stroke-width="2.6" opacity=".45"/>' +
+        '<circle cx="64" cy="58" r="19" fill="var(--vfx-faint)"/>' +
+        // La diadema: arco por encima de la cabeza, las dos copas y el brazo del
+        // micrófono cayendo hacia la barbilla. Es lo que separa «una persona» de
+        // «una persona atendiendo por teléfono», que es lo que hay que contar.
+        '<path d="M44 60a20 22 0 0 1 40 0" fill="none" stroke="var(--vfx-deep)" stroke-width="5" stroke-linecap="round"/>' +
+        '<rect data-auricular x="36" y="52" width="14" height="20" rx="7" fill="var(--vfx-deep)"/>' +
+        '<rect x="78" y="52" width="14" height="20" rx="7" fill="var(--vfx-deep)"/>' +
+        '<path d="M85 71c3 7 1 11-7 12" fill="none" stroke="var(--vfx-deep)" stroke-width="3" stroke-linecap="round"/>' +
+        '<circle cx="78" cy="83" r="3.4" fill="var(--vfx-deep)"/>' +
+      '</g>' +
+      '<g clip-path="url(#vfxAsesor__UID__)">' + fichas + '</g>' +
+      // La marca de «ya la estoy atendiendo» sobre la primera ficha: el bucle
+      // termina en algo hecho, no solo en tres tarjetas apiladas.
+      '<g data-ok>' +
+        '<circle cx="208" cy="47" r="8" fill="var(--vfx-brand)"/>' +
+        '<path d="M204.2 47.2l2.6 2.6 5-5.6" fill="none" stroke="var(--vfx-surface)" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/>' +
+      '</g>';
+    },
+    build: function (root, gsap) {
+      var q = gsap.utils.selector(root);
+      var fichas = q('[data-ficha]');
+      var ondas = q('[data-onda]');
+      var CICLO = 4.8;
+
+      // Orígenes declarados antes de la línea de tiempo (misma razón que en
+      // `reportes` y en `hoja`): un origen que cambia con la transformación puesta
+      // arrastra una compensación que se ve como un salto.
+      gsap.set(q('[data-auricular]'), { svgOrigin: '43 62' });
+      gsap.set(q('[data-ok]'), { opacity: 0, scale: .4, svgOrigin: '208 47' });
+      gsap.set(fichas, { x: 26, opacity: 0 });
+
+      var tl = gsap.timeline({ repeat: -1 });
+      // Las fichas llegan de una en una: reparto por tiempo TOTAL, no un escalón
+      // por ficha, para que el ritmo no dependa de cuántas se dibujen mañana.
+      tl.to(fichas, { x: 0, opacity: 1, duration: .55, ease: 'power3.out',
+            stagger: { amount: .5, from: 'start' } }, .35)
+        .to(q('[data-ok]'), { opacity: 1, scale: 1, duration: .4, ease: 'back.out(2.2)' }, 2.2)
+        // Salen hacia la asesora, que es a donde van de verdad: alguien las toma.
+        .to(fichas, { x: -18, opacity: 0, duration: .5, ease: 'power2.in',
+            stagger: { amount: .35, from: 'start' } }, 3.5)
+        .to(q('[data-ok]'), { opacity: 0, duration: .3, ease: 'power1.in' }, 3.5)
+        .set(q('[data-ok]'), { scale: .4 }, 4.3)
+        // El auricular respira ocho veces por ciclo y las dos ondas caben cuatro y
+        // dos veces: las tres acaban a la vez que la vuelta, sin media onda cortada.
+        .to(q('[data-auricular]'), { scale: 1.08, duration: .6, ease: 'sine.inOut',
+            yoyo: true, repeat: 7 }, 0)
+        // `attr` y no width/height: es un radio, y es lo que ya hace `radar`.
+        .fromTo(ondas[0], { attr: { r: 12 }, opacity: .5 },
+            { attr: { r: 34 }, opacity: 0, duration: 1.2, ease: 'power1.out', repeat: 3 }, 0)
+        .fromTo(ondas[1], { attr: { r: 12 }, opacity: .3 },
+            { attr: { r: 42 }, opacity: 0, duration: 2.4, ease: 'power1.out', repeat: 1 }, 0)
+        .to(q('[data-persona]'), { y: -2, duration: .8, ease: 'sine.inOut',
+            yoyo: true, repeat: 5 }, 0)
+        .to({}, { duration: CICLO }, 0);
+      return tl;
+    }
+  };
+
   /* ─────────────────────────────────────────────────────────────────────────
      COPIAS POR TEMA
      El subtítulo rota mientras se espera. No es adorno: cambiar el texto cada
@@ -940,7 +1186,12 @@
     hoja:      { title: 'Preparando el documento…', steps: ['Abriendo la plantilla oficial…', 'Escribiendo los productos en la hoja…', 'Aplicando el formato de la cotización…', 'Calculando los totales…', 'Google Sheets está terminando la hoja…'] },
     radar:     { title: 'Consultando el tablero…',  steps: ['Barriendo los registros…', 'Calculando indicadores…', 'Ordenando resultados…'] },
     etiqueta:  { title: 'Cargando promociones…',    steps: ['Revisando vigencias…', 'Calculando precios…', 'Aplicando descuentos…'] },
-    bolsa:     { title: 'Preparando la atención…',  steps: ['Reuniendo los pendientes…', 'Agrupando por cliente…', 'Listo en un momento…'] }
+    bolsa:     { title: 'Preparando la atención…',  steps: ['Reuniendo los pendientes…', 'Agrupando por cliente…', 'Listo en un momento…'] },
+    // Los pasos de `reportes` los lee también quien entra al tablero público:
+    // cuentan lo que pasa por debajo (juntar, contar por sistema, ordenar en el
+    // tiempo, dibujar) sin nombrar nada que solo se entienda desde dentro.
+    reportes:  { title: 'Revisando los reportes…',  steps: ['Reuniendo los reportes del periodo…', 'Contando los de cada sistema…', 'Ordenando la línea de tiempo…', 'Armando las gráficas…'] },
+    asesor:    { title: 'Preparando tus atenciones…', steps: ['Buscando a los clientes que quedaron a medias…', 'Separando las tuyas de las que están libres…', 'Revisando qué reservas siguen vivas…', 'Ordenando la lista…'] }
   };
 
   /* ── Datos curiosos para esperas LARGAS (envío de correo, PDF grande) ──────
@@ -1022,7 +1273,12 @@
         (opts.facts ? '<div class="vfx-fact"></div>' : ''));
     if (!opts.bare) {
       card.querySelector('.vfx-title').textContent = opts.title || copy.title || 'Un momento…';
-      card.querySelector('.vfx-sub').textContent = opts.sub || (copy.steps && copy.steps[0]) || '';
+      /* Los `steps` DEL LLAMADOR también siembran el primero. Sin eso, quien pasa steps
+         propios y no `sub` —porque solo él sabe qué se está pidiendo, como el historial
+         con su periodo— arrancaba con el subtítulo en blanco hasta la primera rotación,
+         a los 2,6 s: en una espera de un segundo, nunca. */
+      card.querySelector('.vfx-sub').textContent =
+        opts.sub || (opts.steps && opts.steps[0]) || (copy.steps && copy.steps[0]) || '';
     }
     return card;
   }
@@ -1037,7 +1293,7 @@
     var card = buildCard(theme, opts);
     host.appendChild(card);
 
-    var tweens = [], stepTimer = null, safety = null, ended = false;
+    var tweens = [], stepTimer = null, safety = null, ended = false, escenaCtx = null;
     var barFill = card.querySelector('.vfx-bar > i');
     var subEl = card.querySelector('.vfx-sub');
     // aria-busy en el anfitrión: un lector de pantalla anuncia «ocupado» en vez
@@ -1047,8 +1303,21 @@
     if (animOK()) {
       var svgRoot = card.querySelector('.vfx-stage svg');
       try {
-        var tl = SCENES[theme].build(svgRoot, G());
-        if (tl) tweens.push(tl);
+        /* build() se envuelve en un contexto, y no basta con guardar lo que devuelve.
+           Varias escenas veteranas (radar, camion, percha, etiqueta) crean además
+           tweens sueltos con repeat:-1 que NO devuelven: el barrido del radar, las
+           ruedas del camión. Como stopAll() solo mata lo que hay en `tweens`, esos
+           seguían latiendo para siempre contra un SVG ya retirado del documento —una
+           fuga por cada espera, en las pantallas que más se abren—. El contexto atrapa
+           todo lo que se cree ahí dentro, incluido lo que escriba una escena futura que
+           no conozca esta regla.
+           `kill()` y no `revert()`: solo hay que detenerlas, no devolver los estilos —
+           en la rama de fail() la escena SIGUE en pantalla con su mensaje de error, y
+           revertir la dejaría dando un salto justo al fallar. */
+        escenaCtx = G().context(function () {
+          var tl = SCENES[theme].build(svgRoot, G());
+          if (tl) tweens.push(tl);
+        });
       } catch (e) { host.classList.add('vfx-static'); }
       // La barra corre rápido al principio y se frena: sugiere avance sin prometer un final.
       if (barFill) tweens.push(G().to(barFill, { width: '92%', duration: 18, ease: 'power4.out' }));
@@ -1100,6 +1369,8 @@
       if (safety) { clearTimeout(safety); safety = null; }
       tweens.forEach(function (t) { try { t.kill(); } catch (e) {} });
       tweens = [];
+      // Y con ellos, todo lo que build() creara por su cuenta (ver el contexto al montar).
+      if (escenaCtx) { try { escenaCtx.kill(); } catch (e) {} escenaCtx = null; }
     }
 
     var api = {
@@ -1589,6 +1860,15 @@
        radar      consola, métricas, tableros, operación, estado
        etiqueta   promociones, precios, descuentos
        bolsa      atenciones, pedidos, pendientes
+       reportes   contar y verificar cifras de un periodo
+                  · historial del estado del servicio (también en el tablero
+                    público, así que la escena se diseñó para gente de fuera)
+                  Frente a `radar`: aquél es «se está mirando el panorama
+                  ahora», éste es «se están cuadrando los números de un rango».
+       asesor     esperas del módulo de Atenciones donde hay personas detrás
+                  · el panorama de clientes a los que hay que devolver la llamada
+                  Frente a `bolsa`: aquél cuenta lo que se junta, éste cuenta
+                  quién lo va a atender.
 
      La regla es una sola: dos esperas del MISMO tipo usan el MISMO tema. Es lo
      que convierte las escenas en un lenguaje —«ah, viene el camión, esto tarda

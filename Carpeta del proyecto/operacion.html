@@ -60,7 +60,11 @@
   .opp-rot { display: flex; align-items: center; gap: 10px; margin: 34px 0 14px;
     font-size: .7rem; font-weight: 800; letter-spacing: .13em; text-transform: uppercase;
     color: var(--ink-faint); }
-  .opp-rot:first-of-type { margin-top: 0; }
+  /* El primer rótulo no se separa de los KPIs. Aquí ponía `.opp-rot:first-of-type`, que
+     valía cuando los cuatro colgaban del mismo padre; ahora cada sección es su propio
+     contenedor y el rótulo de las cuatro era «el primero de su tipo», así que las cuatro
+     perdían la separación y quedaban pegadas unas a otras. */
+  #opp-esperan .opp-rot { margin-top: 0; }
   .opp-rot::after { content: ''; flex: 1; height: 1px; background: var(--line); }
   .opp-rot .opp-n { background: var(--surface-2); border: 1px solid var(--line);
     border-radius: 999px; padding: 1px 8px; font-size: .68rem; color: var(--ink-soft); }
@@ -119,10 +123,13 @@
   .opp-vacio p { margin: 0 auto; max-width: 46ch; font-size: .87rem; line-height: 1.6; }
 
   /* Esqueletos de espera (VentelFX). El de los KPIs entra como UN hijo de la rejilla y sin
-     esto se encogería a la primera columna con las cuatro cajas apiladas dentro; el de las
-     incidencias se pone a una columna porque lo que va a llegar son tarjetas a lo ancho. */
+     esto se encogería a la primera columna con las cuatro cajas apiladas dentro; los de las
+     secciones se ponen a una columna porque lo que va a llegar son tarjetas a lo ancho.
+     El selector es de descendencia y no de hijo directo: los esqueletos ya no cuelgan de
+     #opp-contenido sino de cada sección, y con `>` dejaban de coincidir —volvían a salir a
+     dos y tres columnas contra un contenido que llega a lo ancho—. */
   #opp-kpis > .vfx-sk { grid-column: 1 / -1; }
-  #opp-contenido > .vfx-sk-grid { grid-template-columns: 1fr; }
+  #opp-contenido .vfx-sk-grid { grid-template-columns: 1fr; }
 
   /* ── Modal ── */
   .opp-modal-ov { position: fixed; inset: 0; z-index: 980; background: rgba(16,24,40,.5);
@@ -286,27 +293,80 @@
 
     /* ── Carga ── */
 
+    /**
+     * Las cuatro secciones del panel, en el orden en que se leen. La tabla vive aquí y no
+     * repartida por pintar() porque el id, el rótulo y la forma del esqueleto tienen que
+     * decir lo mismo: si el esqueleto lleva un rótulo y el definitivo otro, al aterrizar
+     * los datos parece que ha cambiado de sección.
+     * Las cuatro son 'tarjetas' porque la incidencia (.opp-card) y el reporte suelto
+     * (.opp-rep) son la misma silueta: recuadro con título, dos líneas y dos botones.
+     */
+    var SECCIONES = [
+      { id: 'opp-esperan',  rotulo: 'Esperan tu decisión',  filas: 2 },
+      { id: 'opp-vivas',    rotulo: 'Incidencias activas',  filas: 2 },
+      { id: 'opp-sueltos',  rotulo: 'Reportes sin agrupar', filas: 3 },
+      // Una sola caja: es la única sección que desaparece entera cuando no hay nada que
+      // enseñar, así que dibujar de más aquí es un hueco que se cierra de golpe al llegar.
+      { id: 'opp-cerradas', rotulo: 'Cerradas esta semana', filas: 1 }
+    ];
+
+    /**
+     * Deja los cuatro contenedores puestos dentro de #opp-contenido. El rótulo se escribe
+     * YA, antes que los datos: un esqueleto sin nombre no dice CUÁL de las cuatro esperas
+     * es la que está tardando, que es lo que se venía a arreglar. Va sin la bolita del
+     * contador porque un 0 provisional es un dato falso que además saltaría al corregirse.
+     * @param {boolean=} limpiar true al empezar una carga desde cero (hay que barrer lo
+     *   anterior); sin él solo se rehace si falta, que es como vuelve el panel después de
+     *   que un error ocupara #opp-contenido entero y se pulsara Actualizar.
+     */
+    function armar(limpiar) {
+      var cont = document.getElementById('opp-contenido');
+      if (limpiar || !document.getElementById(SECCIONES[0].id)) {
+        cont.innerHTML = SECCIONES.map(function (s) {
+          return '<div id="' + s.id + '"><h2 class="opp-rot">' + esc(s.rotulo) + '</h2></div>';
+        }).join('');
+      }
+      return cont;
+    }
+
     function cargar(forzar) {
       var cont = document.getElementById('opp-contenido');
       var cajaKpis = document.getElementById('opp-kpis');
-      var skKpis = null;
+      var esqueletos = [];
 
-      // Sin nada en mano se vacía el panel y se dibuja la FORMA de lo que viene. El
-      // esqueleto de las incidencias lo monta AppRun con `fx` —él ya sabe no montarlo si
-      // hubiera caché que pintar—; los KPIs van aparte porque `fx` solo admite un destino.
+      // Sin nada en mano se vacía el panel y se dibuja la FORMA de lo que viene, una por
+      // sección: antes las cuatro esperaban tras un único esqueleto y mientras cargaba eran
+      // un bloque indistinto en el que no se veía cuál iba lenta.
+      // La condición es la misma que aplica `fx` de AppRun por dentro (app_core, swr): con
+      // caché, swr pinta lo guardado en el acto, y montar aquí un esqueleto sería cambiarle
+      // al usuario sus datos por cajas grises.
       if (!datos) {
-        cont.innerHTML = '';
+        armar(true);
         cajaKpis.innerHTML = '';
-        if (window.VentelFX) skKpis = VentelFX.skeleton(cajaKpis, 'kpis', { rows: 4 });
+        if (window.VentelFX) {
+          esqueletos.push(VentelFX.skeleton(cajaKpis, 'kpis', { rows: 4 }));
+          SECCIONES.forEach(function (s) {
+            esqueletos.push(VentelFX.skeleton('#' + s.id, 'tarjetas', { rows: s.filas }));
+          });
+        }
+      }
+
+      // Se apagan en onData Y en onError. Solo en onData, un fallo del servidor dejaría las
+      // cinco esperas brillando para siempre, que se lee como «esto sigue cargando».
+      function apagar() {
+        esqueletos.forEach(function (sk) { sk.done(); });
+        esqueletos = [];
       }
 
       AppRun.swr('operacion-panel', 'opPanel', [correo()], {
         ttl: 45000,
         maxAge: forzar ? 0 : 45000,
-        fx: { target: '#opp-contenido', kind: 'tarjetas', rows: 3 },
         accept: function (r) { return !!(r && r.success); },
-        onData: function (r) {
-          if (skKpis) { skKpis.done(); skKpis = null; }
+        /* El segundo argumento importa: swr avisa DOS veces cuando había copia local
+           —primero con deCache=true y luego con la respuesta del servidor— y hay que
+           saber cuál de las dos es, o el enlace profundo se gasta contra la copia. */
+        onData: function (r, deCache) {
+          apagar();
           if (!r || !r.success) {
             if (!datos) {
               cont.innerHTML = '<div class="opp-vacio"><b>No pudimos cargar el panel</b><p>' +
@@ -315,10 +375,10 @@
             return;
           }
           datos = r;
-          pintar();
+          pintar(deCache);
         },
         onError: function () {
-          if (skKpis) { skKpis.done(); skKpis = null; }
+          apagar();
           if (!datos) {
             cont.innerHTML = '<div class="opp-vacio"><b>No hay conexión con el sistema</b>' +
               '<p>Revisa tu internet e inténtalo de nuevo.</p></div>';
@@ -329,7 +389,7 @@
 
     /* ── Pintado ── */
 
-    function pintar() {
+    function pintar(deCache) {
       var incs = datos.incidentes || [];
       var sueltos = datos.sueltos || [];
       var esperan = incs.filter(function (i) { return i.estado === 'posible' && !i.cierra; });
@@ -348,38 +408,49 @@
         : 'Sin webhook configurado: los avisos al equipo no saldrán.';
       aviso.style.color = datos.webhookEstado ? '' : 'var(--warn)';
 
-      var html = '';
+      // Cada sección escribe en SU contenedor. Se rehacen si faltan porque el mensaje de
+      // error ocupa #opp-contenido entero: sin esto, la carga que viene detrás de un fallo
+      // pintaría contra contenedores que ya no existen.
+      armar();
 
-      html += rotulo('Esperan tu decisión', esperan.length);
-      html += esperan.length
+      seccion('opp-esperan', esperan.length, esperan.length
         ? esperan.map(function (i) { return tarjeta(i, 'urge'); }).join('')
         : '<div class="opp-vacio"><b>Nada pendiente</b><p>Cuando ' + datos.umbral.personas +
           ' personas reporten lo mismo en menos de ' + datos.umbral.minutos +
-          ' minutos, la incidencia aparecerá aquí para que la confirmes o la descartes.</p></div>';
+          ' minutos, la incidencia aparecerá aquí para que la confirmes o la descartes.</p></div>');
 
-      html += rotulo('Incidencias activas', vivas.length);
-      html += vivas.length
+      seccion('opp-vivas', vivas.length, vivas.length
         ? vivas.map(function (i) { return tarjeta(i, 'viva'); }).join('')
         : '<div class="opp-vacio"><b>Ningún sistema marcado como caído</b>' +
-          '<p>Todo lo que el equipo ve ahora mismo es «funcionando».</p></div>';
+          '<p>Todo lo que el equipo ve ahora mismo es «funcionando».</p></div>');
 
-      html += rotulo('Reportes sin agrupar', sueltos.length);
-      html += sueltos.length
+      seccion('opp-sueltos', sueltos.length, sueltos.length
         ? sueltos.map(reporteSuelto).join('')
         : '<div class="opp-vacio"><b>Sin reportes sueltos</b>' +
-          '<p>Aquí caen los reportes de las últimas 24 horas que todavía no llegaron al umbral.</p></div>';
+          '<p>Aquí caen los reportes de las últimas 24 horas que todavía no llegaron al umbral.</p></div>');
 
+      // Las cerradas no dejan ni rótulo cuando no hay ninguna: sin cierres esta semana no
+      // hay nada que contar y el título solo sería ruido encima de un hueco.
       if (cerradas.length) {
-        html += rotulo('Cerradas esta semana', cerradas.length);
-        html += cerradas.map(function (i) { return tarjeta(i, 'cerrada'); }).join('');
+        seccion('opp-cerradas', cerradas.length,
+          cerradas.map(function (i) { return tarjeta(i, 'cerrada'); }).join(''));
+      } else {
+        document.getElementById('opp-cerradas').innerHTML = '';
       }
 
-      document.getElementById('opp-contenido').innerHTML = html;
       cablear();
 
-      if (!urlAplicada) {
-        urlAplicada = true;
-        if (window.AppUrl && AppUrl.params) aplicarUrl(AppUrl.params());
+      /* El enlace profundo se aplica UNA vez… pero no contra cualquier pintado. Con copia
+         local, este primer pintado es el de la copia, que puede tener hasta 45 s (y la
+         precarga la mantiene caliente desde otras pantallas). Si la incidencia del enlace
+         nació dentro de esa ventana, no está en la copia: aplicarUrl no la encontraba,
+         olvidarUrl BORRABA action/inc/item de la barra, y cuando un segundo después
+         llegaba el dato bueno el intento ya estaba gastado — ni se abría el modal ni
+         quedaba enlace del que tirar, ni recargando. Por eso aplicarUrl devuelve false
+         cuando no encuentra lo pedido en una copia: el intento queda pendiente para el
+         pintado fresco. Mismo criterio que usa anuncios.html con su `abrirPendiente`. */
+      if (!urlAplicada && window.AppUrl && AppUrl.params) {
+        if (aplicarUrl(AppUrl.params(), deCache) !== false) urlAplicada = true;
       }
     }
 
@@ -389,6 +460,16 @@
 
     function rotulo(texto, n) {
       return '<h2 class="opp-rot">' + esc(texto) + '<span class="opp-n">' + n + '</span></h2>';
+    }
+
+    /**
+     * Vuelca una sección entera: su rótulo, ya con el contador de verdad, y su contenido.
+     * El texto lo saca de SECCIONES y no del llamador para que el rótulo que se leyó
+     * mientras cargaba y el definitivo sean literalmente el mismo.
+     */
+    function seccion(id, n, html) {
+      var s = SECCIONES.filter(function (x) { return x.id === id; })[0];
+      document.getElementById(id).innerHTML = rotulo(s.rotulo, n) + html;
     }
 
     function tarjeta(i, clase) {
@@ -778,7 +859,9 @@
      * abren con `sinUrl`: lo que llega ES la barra de direcciones y contestarle escribiendo
      * lo mismo apilaría una entrada por cada pulsación de atrás.
      */
-    function aplicarUrl(p) {
+    /** Devuelve false —y solo entonces— cuando lo pedido no está PORQUE los datos son una
+        copia local: el llamador deja el intento pendiente para el pintado fresco. */
+    function aplicarUrl(p, deCache) {
       p = p || {};
       var pide = { action: String(p.action || ''), inc: String(p.inc || ''), item: String(p.item || '') };
       var hay = urlDelModal(estadoModal);
@@ -803,12 +886,16 @@
 
       if (pide.action === 'elevar') {
         var rep = (datos.sueltos || []).filter(function (r) { return r.id === pide.item; })[0];
-        if (rep) abrirModalElevar(rep.id, true); else olvidarUrl();
+        if (rep) { abrirModalElevar(rep.id, true); return; }
+        if (deCache) return false;   // puede que aún no esté en la copia: se reintenta
+        olvidarUrl();
         return;
       }
 
       var inc = (datos.incidentes || []).filter(function (x) { return x.id === pide.inc; })[0];
-      if (inc) abrirModalActualizar(inc, ACCIONES[pide.action], true); else olvidarUrl();
+      if (inc) { abrirModalActualizar(inc, ACCIONES[pide.action], true); return; }
+      if (deCache) return false;
+      olvidarUrl();
     }
 
     /** El enlace pide algo que ya no está: la incidencia salió de la semana, el reporte se
