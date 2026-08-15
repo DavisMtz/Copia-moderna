@@ -246,10 +246,30 @@
   function consulta(q) {
     var crudo = normaliza(q);
     var lista = palabras(crudo);
+    /* Los restos de UNA letra que deja la partición por frontera letra/dígito no son
+       una palabra buscada: son un resto. "fbl5n" —una transacción de SAP, de lo más
+       concreto que alguien puede teclear— se parte en «fbl · 5 · n», y esa "n" suelta
+       encaja en casi cualquier texto: la clave más específica del Portal acababa
+       devolviendo el catálogo entero, y encima ordenado por ruido.
+       Se conservan las de una letra que la persona SÍ escribió sueltas ("iphone 5"),
+       porque ahí el número es parte de la pregunta y no un resto de la partición. */
+    var escritas = crudo.split(/[\s@._]+/).filter(Boolean);
+    if (lista.length > 1) {
+      var utiles = lista.filter(function (w) { return w.length > 1 || escritas.indexOf(w) !== -1; });
+      if (utiles.length) lista = utiles;
+    }
     var suaves = [];
     var vistos = Object.create(null);
     lista.forEach(function (w) { vistos[w] = true; });
-    lista.forEach(function (w) {
+    escritas.forEach(function (w) { vistos[w] = true; });
+    /* Los sinónimos se buscan por la palabra COMO SE ESCRIBIÓ y también por cada trozo.
+       El diccionario está escrito con los términos tal cual se teclean —"fbl5n", "msi",
+       "med"—, y la partición por frontera letra/dígito deja "fbl5n" en «fbl · 5 · n»:
+       buscando solo por los trozos, la entrada más específica del diccionario era
+       justamente la que nunca se encontraba a sí misma. */
+    var claves = lista.slice();
+    escritas.forEach(function (w) { if (claves.indexOf(w) === -1) claves.push(w); });
+    claves.forEach(function (w) {
       var syn = SINONIMOS[w];
       if (!syn) return;
       normaliza(syn).split(' ').forEach(function (t) {
@@ -438,8 +458,17 @@
     var bonoSuave = 0;
     for (var j = 0; j < Q.suaves.length; j++) {
       var sw = Q.suaves[j];
-      for (i = 0; i < prep.length; i++) {
-        if (prep[i].toks.indexOf(sw) !== -1) { bonoSuave += 8 * pesos[i]; break; }
+      var puesto = false;
+      for (i = 0; i < prep.length && !puesto; i++) {
+        /* Basta con que el sinónimo esté DENTRO de una palabra, no que sea la palabra
+           entera. El diccionario está escrito en singular —"transferencia", "envio"— y
+           los textos de la hoja hablan en plural: exigiendo el token exacto, "openpay"
+           dejaba de llegar a «Portal de TransferenciaS BBVA» y "guia" a «seguimiento de
+           envíoS». Es lo que hacía el buscador del Portal desde siempre. */
+        var toks = prep[i].toks;
+        for (var t = 0; t < toks.length; t++) {
+          if (toks[t].indexOf(sw) !== -1) { bonoSuave += 8 * pesos[i]; puesto = true; break; }
+        }
       }
     }
 

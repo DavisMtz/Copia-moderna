@@ -80,27 +80,34 @@ function motorViejo(SEARCH_SYNONYMS) {
     }
     return false;
   }
+  /* Copia congelada, con un solo añadido: apunta POR QUÉ coincidió.
+     Hace falta para juzgar las diferencias. Un resultado que el motor viejo sacaba solo
+     por parecido de letras puede desaparecer sin que eso sea una pérdida —"fraudes"
+     casaba con "grandes" por dos sustituciones, y eso no es lo que nadie buscaba—,
+     mientras que perder una coincidencia literal o un sinónimo sí es una regresión.
+     La criba de AppBuscar (vecinasPlausibles) descarta esos pares a propósito. */
   function scoreMatch(Q, name, sub, extra) {
     const { raw, words, soft } = Q;
-    if (!words.length) return 0;
-    let s = 0, matched = 0;
-    if (raw.length >= 3 && name.includes(raw)) s += 16;
+    if (!words.length) return { score: 0, via: null };
+    let s = 0, matched = 0, literal = false, difuso = false, sinonimo = false;
+    if (raw.length >= 3 && name.includes(raw)) { s += 16; literal = true; }
     words.forEach((w) => {
       let hit = false;
-      if (name.includes(w)) { s += name.startsWith(w) ? 12 : 7; hit = true; }
-      else if (fuzzyHit(name, w)) { s += 5; hit = true; }
-      if (sub.includes(w)) { s += 4; hit = true; }
-      else if (fuzzyHit(sub, w)) { s += 2; hit = true; }
-      if (extra.includes(w)) { s += 2; hit = true; }
-      else if (fuzzyHit(extra, w)) { s += 1; hit = true; }
+      if (name.includes(w)) { s += name.startsWith(w) ? 12 : 7; hit = true; literal = true; }
+      else if (fuzzyHit(name, w)) { s += 5; hit = true; difuso = true; }
+      if (sub.includes(w)) { s += 4; hit = true; literal = true; }
+      else if (fuzzyHit(sub, w)) { s += 2; hit = true; difuso = true; }
+      if (extra.includes(w)) { s += 2; hit = true; literal = true; }
+      else if (fuzzyHit(extra, w)) { s += 1; hit = true; difuso = true; }
       if (hit) matched++;
     });
     soft.forEach((w) => {
-      if (name.includes(w)) s += 3;
-      else if (sub.includes(w) || extra.includes(w)) s += 1.5;
+      if (name.includes(w)) { s += 3; sinonimo = true; }
+      else if (sub.includes(w) || extra.includes(w)) { s += 1.5; sinonimo = true; }
     });
     if (words.length > 1 && matched < words.length) s *= (matched / words.length) * 0.6;
-    return s;
+    const via = literal ? 'literal' : (sinonimo ? 'sinonimo' : (difuso ? 'difuso' : null));
+    return { score: s, via };
   }
   return {
     puntua: (q, name, sub, extra) => scoreMatch(buildQuery(q), norm(name || ''), norm(sub || ''), norm(extra || ''))
@@ -248,9 +255,13 @@ function encuentra(motor, q, f) {
   const out = [];
   f.filas.forEach((fila) => {
     const [n, s, e] = textos(f, fila);
-    const score = motor === 'viejo' ? viejo.puntua(q, n, s, e)
-      : (f.modo === 'indice' ? nuevoIndice(q, n, s, e) : nuevoPortal(q, n, s, e));
-    if (score > 0) out.push({ nombre: n, score });
+    if (motor === 'viejo') {
+      const r = viejo.puntua(q, n, s, e);
+      if (r.score > 0) out.push({ nombre: n, score: r.score, via: r.via });
+    } else {
+      const score = f.modo === 'indice' ? nuevoIndice(q, n, s, e) : nuevoPortal(q, n, s, e);
+      if (score > 0) out.push({ nombre: n, score });
+    }
   });
   return out.sort((a, b) => b.score - a.score);
 }
@@ -270,8 +281,9 @@ const TERMINOS = [
   'pago web', 'capacitacion'
 ];
 
-let fallos = 0, avisos = 0;
+let fallos = 0;
 const gana = [];
+const ruidoFuera = [];
 function mal(msg) { fallos++; console.log('  ✗ ' + msg); }
 
 console.log('BATERÍA DE PARIDAD · ' + TERMINOS.length + ' términos × ' + FUENTES.length + ' fuentes\n');
@@ -284,13 +296,18 @@ TERMINOS.forEach((q) => {
     const ahora = encuentra('nuevo', q, f);
     const nombresAhora = new Set(ahora.map((r) => r.nombre));
     antes.forEach((r) => {
-      if (!nombresAhora.has(r.nombre)) mal(`"${q}" en ${f.id}: se perdió «${r.nombre}» (antes ${r.score.toFixed(1)})`);
+      if (nombresAhora.has(r.nombre)) return;
+      // Lo que el motor viejo solo sacaba por parecido de letras no cuenta como pérdida:
+      // la criba del motor nuevo descarta esos pares a propósito y se anotan aparte para
+      // poder mirarlos uno a uno.
+      if (r.via === 'difuso') { ruidoFuera.push(`"${q}" en ${f.id}: «${r.nombre}» (solo por parecido, ${r.score.toFixed(1)})`); return; }
+      mal(`"${q}" en ${f.id}: se perdió «${r.nombre}» (antes ${r.score.toFixed(1)}, por ${r.via})`);
     });
     const nuevos = ahora.filter((r) => !antes.some((a) => a.nombre === r.nombre));
     nuevos.forEach((r) => gana.push(`"${q}" en ${f.id}: ahora encuentra «${r.nombre}»`));
   });
 });
-console.log(`   ${fallos ? fallos + ' pérdidas' : 'sin pérdidas'} · ${gana.length} resultados nuevos\n`);
+console.log(`   ${fallos ? fallos + ' pérdidas reales' : 'sin pérdidas'} · ${gana.length} resultados nuevos · ${ruidoFuera.length} coincidencias por parecido descartadas\n`);
 
 /* — Criterio 1 (la otra mitad): lo que el motor nuevo sabe y el viejo no — */
 console.log('2) Ganancias concretas que la fusión tenía que traer');
@@ -355,12 +372,21 @@ console.log('6) Resaltado');
   if (conAcento.indexOf('<mark>') === -1) mal('el resaltado sin acentos no marca «Guía»');
   else console.log('   ✓ "guia" marca «Guía» (antes salía sin una sola marca)');
 
-  const trampa = B.resalta('Formato de marca registrada', 'mark');
+  // El texto contiene "mark" de verdad: es el caso que rompía el desplegable, porque el
+  // resaltado anterior corría su expresión regular sobre el HTML que él mismo acababa
+  // de escribir y volvía a marcar dentro de la etiqueta <mark>.
+  const trampa = B.resalta('MarketPlace y sus marcas', 'mark');
   const marcas = (trampa.match(/<mark>/g) || []).length;
   const cierres = (trampa.match(/<\/mark>/g) || []).length;
-  if (marcas !== cierres || /<mark>[^<]*<mark>/.test(trampa)) {
+  if (!marcas) mal('buscar "mark" no marca nada en «MarketPlace y sus marcas»');
+  else if (marcas !== cierres || /<mark>[^<]*<mark>/.test(trampa)) {
     mal('buscar "mark" corrompe el HTML del resaltado: ' + trampa);
-  } else console.log('   ✓ buscar "mark" no rompe el HTML (' + marcas + ' marcas bien cerradas)');
+  } else console.log('   ✓ buscar "mark" marca ' + marcas + ' vez/veces sin romper el HTML: ' + trampa);
+  // Y la trampa de las entidades: "amp" casaba dentro de &amp; y partía la entidad.
+  const ent = B.resalta('Ventas & Servicios amplios', 'amp');
+  if (/&(?!amp;|lt;|gt;|quot;|#39;)/.test(ent.replace(/<\/?mark>/g, '')) || /&am<\/?mark>/.test(ent)) {
+    mal('buscar "amp" parte una entidad HTML: ' + ent);
+  } else console.log('   ✓ buscar "amp" no parte la entidad de «&»');
 
   const inyeccion = B.resalta('<img src=x onerror=alert(1)> guía', 'guia');
   if (inyeccion.indexOf('<img') !== -1) mal('el resaltado no escapa el HTML del dato');
@@ -427,6 +453,11 @@ console.log('─'.repeat(70));
 if (gana.length) {
   console.log('Resultados que antes NO salían (muestra de ' + Math.min(12, gana.length) + ' de ' + gana.length + '):');
   gana.slice(0, 12).forEach((g) => console.log('   + ' + g));
+  console.log();
+}
+if (ruidoFuera.length) {
+  console.log('Coincidencias por parecido de letras que el motor nuevo descarta (' + ruidoFuera.length + '):');
+  ruidoFuera.forEach((r) => console.log('   − ' + r));
   console.log();
 }
 if (fallos) {
