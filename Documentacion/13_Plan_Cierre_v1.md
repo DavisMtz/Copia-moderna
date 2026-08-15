@@ -972,6 +972,73 @@ y qué se dejó fuera a propósito**. Mismo formato que el registro del document
 
 <!-- Las entradas nuevas van arriba, con la más reciente primero. -->
 
+### 2026-08-15 — F5 completa: Operación recomienda, y el tablero se consulta sin salir
+
+**Qué se cambió.**
+
+- **T5.1 · Tablero embebido** (`operacion.html`). «Ver el tablero público» deja de navegar
+  —en Apps Script eso recarga la webapp entera, 2-5 s, y al volver se habían perdido el
+  scroll, el modal a medio escribir y la sección por la que se iba— y abre un panel sobre
+  la misma pantalla. Los datos **ya están en el navegador**: salen de
+  `AppOperacion.alCambiar`, que entrega también lo que hay en caché, así que se pinta en
+  el primer fotograma sin pedir nada nuevo. El gráfico es el partial de siempre
+  (`AppEstadoHistorial.montar`), no una tercera copia. Y el markup de `estado.html` **no
+  se duplica**: es una vista compacta propia que reutiliza las clases de esta pantalla y
+  copia las PALABRAS —si el supervisor leyera otro titular que el equipo, no estaría
+  comprobando lo que cree—. La ruta `estado` sigue intacta, con sus enlaces de Chat.
+  Estado en la URL con `sec=tablero` (abrir apila, cerrar quita), periodo en `?rango`,
+  cierre por aspa/Escape/fondo devolviendo scroll y foco, y Escape en cadena: visor →
+  modal → tablero.
+- **T5.2 · Recomendaciones con algoritmos locales** (`Operacion.gs` + `operacion.html`).
+  `opRecomendaciones(email)` cruza lo que ya existe —claves de tramo horario, similitud
+  Dice/Damerau, catálogo de submotivos— en **una sola pasada por cada hoja**, y saca las
+  cuatro del plan: la franja horaria que concentra los reportes de un sistema, el sistema
+  más problemático, el submotivo que reincide (por parecido, no por igualdad literal: «no
+  abre» y «no carga» son el mismo problema escrito por dos personas) y los reportes
+  sueltos que se parecen a una incidencia abierta, con su botón para agruparlos.
+  **Cada una cita su evidencia** —«12 reportes de Connect entre las 9 y las 11 h en los
+  últimos 7 días»—, que es lo que hace que se le crea, y **todas tienen umbral escrito**:
+  seis reportes repartidos en tres días distintos y tres personas, o no sale. Una caída de
+  un martes ya no se disfraza de costumbre. Con la lista vacía la sección **no se pinta**:
+  un recuadro que dice «sin recomendaciones» ocuparía el mejor sitio de la pantalla los
+  días buenos, que son la mayoría.
+- **T5.2b · `opPanel` cacheado.** Releía las TRES hojas en cada carga de cada supervisor;
+  durante una caída, con varias personas mirando, eso se multiplicaba — y es parte de la
+  lentitud que obligó a poner esperas. Se parte en puerta y cuerpo: el cuerpo va en
+  `opCacheado_` con clave **compartida**, y `yo` se añade después sobre una copia. Meter
+  el correo en la clave habría dado una copia por persona, y entonces la primera carga de
+  cada supervisor volvería a costar las tres lecturas, que es justo lo que se evita.
+- **T5.3 · Exporte CSV** (`operacion.html`). La pantalla no exportaba nada: llevar una
+  caída a una reunión obligaba a transcribir las tarjetas a mano. CSV generado en el
+  cliente con el patrón probado de la casa (Blob + enlace, BOM UTF-8 para que Excel abra
+  los acentos). Las cuatro columnas que pedía el alcance **no existían con ese nombre** y
+  se resolvieron declarándolo: «Plataforma» ← `sistema`, «Categoría» ← `submotivo`,
+  «Hora» en columna propia y en 24 h —suelta, que es lo que permite repetir en Excel el
+  análisis por franjas— y «Tipo» ← Incidencia | Reporte suelto, que es la distinción que
+  de verdad separa las filas.
+
+**Qué se comprobó.** Los 26 `.gs` y los bloques `<script>` de las pantallas pasan
+comprobación de sintaxis; las tres suites en verde. El contrato entre servidor y pantalla
+se fijó por escrito ANTES de repartir el trabajo y se verificó campo por campo al juntarlo.
+Cada agente montó su banco de pruebas: la caché del panel (segunda consulta, cero lecturas;
+`yo` correcto por persona), los umbrales de cada recomendación (9 contra 8 no publica nada;
+una sospecha caducada no se propone), y el CSV con comas, comillas y saltos de línea dentro
+de las notas.
+
+**Qué se dejó fuera a propósito.**
+
+- El detalle por incidencia no se replica dentro del tablero embebido: las incidencias son
+  de solo lectura ahí y el detalle sigue viviendo en `estado.html`, adonde lleva el botón
+  del pie llevándose el periodo que se esté mirando. Duplicarlo era el segundo tablero que
+  el plan quiere evitar.
+- El exporte saca lo que el panel tiene cargado (incidencias vivas, cerradas de 7 días y
+  sueltos de 24 h). Un histórico más ancho necesita una función de servidor nueva.
+- Los umbrales se eligieron con criterio, no con datos de producción, y están pensados para
+  **pecar de callados**. Son constantes con nombre y con su porqué encima, para que
+  bajarlos sea una decisión informada de una línea.
+- Los criterios que exigen el navegador —que el tablero abra en <1 s, el aspecto del panel,
+  la descarga real del CSV— quedan para la comprobación manual sobre el despliegue.
+
 ### 2026-08-15 — Una sola espera a la vista: se acabaron los dos loaders superpuestos
 
 Lo reportó el creador: «en algunas pantallas se ven dos loaders, el normal de siempre y

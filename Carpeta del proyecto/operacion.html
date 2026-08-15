@@ -26,10 +26,10 @@
   /* Tokens de señal locales: --warn/--alert/--ok están hechos para fondo claro y en carbón
      caen a ~2,5:1. Se ajustan aquí una sola vez y lo heredan bordes, filos y KPIs; el token
      global no se toca porque en otras pantallas se usa como fondo. */
-  .opp, .opp-modal-ov {
+  .opp, .opp-modal-ov, .opp-tab-ov {
     --o-ok: var(--ok); --o-warn: var(--warn); --o-alert: var(--alert); --o-info: var(--info);
   }
-  [data-theme="carbon"] .opp, [data-theme="carbon"] .opp-modal-ov {
+  [data-theme="carbon"] .opp, [data-theme="carbon"] .opp-modal-ov, [data-theme="carbon"] .opp-tab-ov {
     --o-ok: #4ADE80; --o-warn: #F2B65A; --o-alert: #FCA5A5; --o-info: #93B4FF;
   }
 
@@ -56,6 +56,39 @@
     color: var(--ink-soft); }
   .opp-kpi.urge { border-color: var(--o-warn); background: var(--warn-bg); }
   .opp-kpi.urge b, .opp-kpi.urge small { color: var(--o-warn); }
+
+  /* ── Recomendaciones ────────────────────────────────────────────────────────────────
+     Lo que estas mismas cifras ya dicen y que hoy solo lee quien tiene tiempo de mirar un
+     rato: que un sistema falla siempre a la misma hora, que el fallo de la semana pasada
+     ya volvió tres veces, que esos tres sueltos son la incidencia que hay abierta arriba.
+     Va ENTRE los KPIs y las cuatro secciones porque es exactamente eso: la lectura de las
+     cifras de arriba y el motivo por el que se baja a lo de abajo.
+
+     Sin nada que recomendar la sección desaparece entera. Un recuadro permanente diciendo
+     «sin recomendaciones» ocuparía el mejor sitio de la pantalla los días buenos —que son
+     la mayoría— para no decir nada, y en una pantalla de trabajo eso se aprende a saltar
+     con la vista en dos días; el día que sí tuviera algo, ya nadie lo miraría. */
+  .opp-reco { margin-bottom: 30px; }
+  .opp-reco[hidden] { display: none; }
+  .opp-reco .opp-rot { margin-top: 0; }
+  .opp-reco-pie { margin: -8px 0 14px; font-size: .76rem; font-weight: 600; color: var(--ink-faint); }
+
+  /* El filo de color lo pone la urgencia, y sale de los tokens de señal de esta pantalla
+     —los mismos que ya usan las tarjetas y los KPIs—. Un rojo escrito a mano aquí sería
+     un rojo más que revisar cada vez que se toque el tema, y en carbón caería a 2,5:1
+     justo en lo que quiere llamar la atención. */
+  .opp-reco-c { border: 1px solid var(--line); border-left: 4px solid var(--o-info);
+    border-radius: 14px; background: var(--surface); padding: 15px 17px; margin-bottom: 10px; }
+  .opp-reco-c.urg-alta  { border-left-color: var(--o-alert); }
+  .opp-reco-c.urg-media { border-left-color: var(--o-warn); }
+  .opp-reco-c.urg-baja  { border-left-color: var(--o-info); }
+  .opp-reco-c h3 { margin: 9px 0 0; font-size: 1rem; font-weight: 700; color: var(--ink); line-height: 1.4; }
+  /* La cifra que sostiene el consejo: debajo del título y más discreta, porque primero se
+     lee la conclusión y solo después por qué hay que creérsela. Nunca está vacía —una
+     recomendación sin cifra detrás no se publica—, así que no hace falta preverlo. */
+  .opp-reco-ev { margin: 5px 0 0; font-size: .84rem; color: var(--ink-soft); line-height: 1.55; }
+  .opp-reco-de { margin: 5px 0 0; font-size: .79rem; color: var(--ink-faint); line-height: 1.5; }
+  .opp-reco .opp-acc { margin-top: 12px; padding-top: 12px; }
 
   .opp-rot { display: flex; align-items: center; gap: 10px; margin: 34px 0 14px;
     font-size: .7rem; font-weight: 800; letter-spacing: .13em; text-transform: uppercase;
@@ -127,9 +160,12 @@
      secciones se ponen a una columna porque lo que va a llegar son tarjetas a lo ancho.
      El selector es de descendencia y no de hijo directo: los esqueletos ya no cuelgan de
      #opp-contenido sino de cada sección, y con `>` dejaban de coincidir —volvían a salir a
-     dos y tres columnas contra un contenido que llega a lo ancho—. */
+     dos y tres columnas contra un contenido que llega a lo ancho—.
+     Las recomendaciones entran en la misma regla por lo mismo: son tarjetas a lo ancho, y
+     con la rejilla por omisión la única caja del esqueleto salía a un tercio de ancho, que
+     no es la forma de nada de lo que va a aterrizar ahí. */
   #opp-kpis > .vfx-sk { grid-column: 1 / -1; }
-  #opp-contenido .vfx-sk-grid { grid-template-columns: 1fr; }
+  #opp-contenido .vfx-sk-grid, #opp-reco .vfx-sk-grid { grid-template-columns: 1fr; }
 
   /* ── Modal ── */
   .opp-modal-ov { position: fixed; inset: 0; z-index: 980; background: rgba(16,24,40,.5);
@@ -166,6 +202,83 @@
 
   .opp-modal-acc { display: flex; gap: 9px; justify-content: flex-end; flex-wrap: wrap; margin-top: 22px; }
 
+  /* ── Tablero embebido ──────────────────────────────────────────────────────────────
+     Lo que ve el equipo, encima de esta pantalla y sin salir de ella. Es una vista
+     COMPACTA, no una copia de estado.html: comparte sus palabras y sus datos, pero de su
+     hoja de estilos aquí no se copia nada —dos tableros con dos hojas divergen en cuanto
+     alguien toca una—. Lo que se puede reutilizar se reutiliza tal cual (.opp-badge,
+     .opp-rot, .opp-vacio, .opp-meta), y esto es solo el armazón que falta.
+
+     Va por debajo del modal (980) y del visor (995): si un enlace abre las dos cosas a la
+     vez —?action=nueva&sec=tablero—, la decisión que se está tomando manda sobre la
+     consulta. */
+  .opp-tab-ov { position: fixed; inset: 0; z-index: 970; background: rgba(16,24,40,.5);
+    backdrop-filter: blur(2px); display: none; align-items: center; justify-content: center; padding: 22px 18px; }
+  .opp-tab-ov.abierto { display: flex; }
+  .opp-tab { width: 100%; max-width: 880px; max-height: 92vh; display: flex; flex-direction: column;
+    background: var(--surface); border: 1px solid var(--line); border-radius: 18px;
+    box-shadow: 0 26px 60px -24px rgba(16,24,40,.5); overflow: hidden; }
+  .opp-tab-head { display: flex; align-items: flex-start; gap: 12px;
+    padding: 20px 22px 15px; border-bottom: 1px solid var(--line); }
+  .opp-tab-head h2 { margin: 0; font-size: 1.12rem; font-weight: 700; color: var(--ink); }
+  .opp-tab-head p { margin: 4px 0 0; font-size: .82rem; color: var(--ink-soft); line-height: 1.5; max-width: 58ch; }
+  .opp-tab-x { flex: none; margin-left: auto; width: 34px; height: 34px; border-radius: 50%;
+    border: 1px solid var(--line); background: var(--surface-2); color: var(--ink-soft);
+    cursor: pointer; display: flex; align-items: center; justify-content: center; }
+  .opp-tab-x:hover { color: var(--ink); }
+  .opp-tab-x:focus-visible { outline: 2px solid var(--brand); outline-offset: 2px; }
+  .opp-tab-x svg { width: 17px; height: 17px; }
+
+  /* El cuerpo es el ÚNICO que rueda. Con la ventana rodando por detrás, la cabecera se
+     iba de la pantalla y no quedaba a mano ni el aspa ni de qué tablero se trataba. */
+  .opp-tab-cuerpo { padding: 18px 22px 22px; overflow-y: auto; -webkit-overflow-scrolling: touch; }
+  .opp-tab-pie { display: flex; align-items: center; gap: 10px; flex-wrap: wrap;
+    padding: 11px 22px; border-top: 1px solid var(--line); background: var(--surface-2);
+    font-size: .76rem; font-weight: 600; color: var(--ink-faint); }
+  .opp-tab-pie .opp-sep { flex: 1; }
+
+  .opp-tab-tit { border: 1px solid var(--line); border-left-width: 4px; border-radius: 16px;
+    padding: 17px 19px; background: var(--surface-2); margin-bottom: 6px; }
+  .opp-tab-tit.tono-ok    { border-left-color: var(--o-ok); }
+  .opp-tab-tit.tono-warn  { border-left-color: var(--o-warn); }
+  .opp-tab-tit.tono-alert { border-left-color: var(--o-alert); }
+  .opp-tab-tit.tono-info  { border-left-color: var(--o-info); }
+  .opp-tab-ojo { display: inline-flex; align-items: center; gap: 6px; font-size: .68rem;
+    font-weight: 800; letter-spacing: .12em; text-transform: uppercase; color: var(--ink-faint); }
+  .opp-tab-vivo { width: 7px; height: 7px; border-radius: 50%; background: currentColor; }
+  .opp-tab-tit.tono-ok    .opp-tab-ojo { color: var(--o-ok); }
+  .opp-tab-tit.tono-warn  .opp-tab-ojo { color: var(--o-warn); }
+  .opp-tab-tit.tono-alert .opp-tab-ojo { color: var(--o-alert); }
+  .opp-tab-tit h3 { margin: 7px 0 0; font-family: var(--f-display); font-size: 1.3rem;
+    font-weight: 800; letter-spacing: -.02em; color: var(--ink); line-height: 1.2; }
+  .opp-tab-tit p { margin: 6px 0 0; font-size: .88rem; color: var(--ink-soft); line-height: 1.55; }
+
+  /* La tarjeta de incidencia se reutiliza tal cual; solo baja un nivel de encabezado,
+     porque aquí el h2 es el título del propio tablero y el h3 el rótulo de la sección. */
+  .opp-tab .opp-card h4 { margin: 0 0 6px; font-size: 1.02rem; font-weight: 700;
+    color: var(--ink); line-height: 1.35; }
+
+  .opp-tab-sis { display: grid; grid-template-columns: repeat(auto-fill, minmax(190px, 1fr)); gap: 8px; }
+  .opp-tab-s { display: flex; align-items: center; gap: 9px; padding: 9px 12px;
+    border: 1px solid var(--line); border-radius: 12px; background: var(--surface); }
+  .opp-tab-dot { width: 8px; height: 8px; border-radius: 50%; flex: none; background: var(--o-ok); }
+  .opp-tab-s.tono-warn  .opp-tab-dot { background: var(--o-warn); }
+  .opp-tab-s.tono-alert .opp-tab-dot { background: var(--o-alert); }
+  .opp-tab-s.tono-info  .opp-tab-dot { background: var(--o-info); }
+  .opp-tab-s-tx { min-width: 0; }
+  .opp-tab-s-tx b { display: block; font-size: .84rem; font-weight: 650; color: var(--ink);
+    overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .opp-tab-s-tx small { display: block; font-size: .74rem; color: var(--ink-soft); }
+
+  /* El globo del historial cuelga del <body> con z-index 60, que es lo correcto cuando el
+     gráfico es una tarjeta más de la página (tablero público, feed de supervisión). Aquí
+     vive DENTRO de un overlay a 970, así que con su z-index de origen se dibujaba detrás
+     del panel: señalar una barra no enseñaba nada. Se sube solo en esta pantalla —y por
+     debajo del visor de evidencias, que sigue mandando sobre todo—.
+     El selector lleva `body >` por peso, no por adorno: el partial se incluye al final del
+     documento, así que con la misma especificidad ganaba su 60 por ir después. */
+  body > .eh-globo { z-index: 990; }
+
   /* ── Visor ── */
   .opp-visor { position: fixed; inset: 0; z-index: 995; background: rgba(8,12,20,.9);
     display: none; align-items: center; justify-content: center; padding: 32px; }
@@ -180,6 +293,13 @@
     .opp { padding: 20px 14px 64px; }
     .opp-head h1 { font-size: 1.3rem; }
     .opp-modal { padding: 20px 18px; }
+    /* En el teléfono el tablero ocupa la pantalla: con los 22 px de aire a los lados, la
+       tira de barras del historial se quedaba sin ancho para leerse. */
+    .opp-tab-ov { padding: 0; }
+    .opp-tab { max-width: none; max-height: 100vh; height: 100%; border-radius: 0; border: 0; }
+    .opp-tab-head { padding: 16px 15px 12px; }
+    .opp-tab-cuerpo { padding: 15px 15px 20px; }
+    .opp-tab-pie { padding: 10px 15px; }
   }
   @media (prefers-reduced-motion: reduce) { * { transition-duration: .01ms !important; } }
   </style>
@@ -200,15 +320,49 @@
       <button type="button" class="v-btn v-btn-ghost v-btn-sm" id="opp-tablero">Ver el tablero público</button>
       <span class="opp-sep"></span>
       <span id="opp-webhook-aviso" style="font-size:.78rem;color:var(--ink-faint);font-weight:600"></span>
+      <button type="button" class="v-btn v-btn-ghost v-btn-sm" id="opp-exportar">Exportar a CSV</button>
       <button type="button" class="v-btn v-btn-ghost v-btn-sm" id="opp-refrescar">Actualizar</button>
     </div>
 
     <div class="opp-kpis" id="opp-kpis"></div>
+
+    <!-- Las recomendaciones. Nace OCULTA y con el atributo puesto en el HTML: la sección
+         solo existe cuando hay algo que recomendar, y sin `hidden` de partida asomaría un
+         hueco vacío entre los KPIs y el contenido en cada carga de cada supervisor. -->
+    <section class="opp-reco" id="opp-reco" hidden></section>
+
     <div id="opp-contenido"></div>
   </main>
 
   <div class="opp-modal-ov" id="opp-modal-ov">
     <div class="opp-modal" role="dialog" aria-modal="true" aria-labelledby="opp-modal-titulo" id="opp-modal"></div>
+  </div>
+
+  <!-- El tablero público, encima de esta pantalla. Nace vacío: lo pinta el navegador con
+       el estado que AppOperacion ya tiene para la pastilla de la esquina. -->
+  <div class="opp-tab-ov" id="opp-tablero-ov" aria-hidden="true">
+    <div class="opp-tab" role="dialog" aria-modal="true" aria-labelledby="opp-tab-titulo" id="opp-tab">
+      <header class="opp-tab-head">
+        <div class="opp-tab-tx">
+          <h2 id="opp-tab-titulo">El tablero público</h2>
+          <p>Esto es lo que ven ahora mismo los asesores y quien abra el tablero sin sesión.</p>
+        </div>
+        <button type="button" class="opp-tab-x" id="opp-tab-x" aria-label="Cerrar el tablero">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M6 6l12 12M18 6 6 18"/></svg>
+        </button>
+      </header>
+      <div class="opp-tab-cuerpo">
+        <div id="opp-tab-ahora"></div>
+        <!-- Hueco propio del historial: el partial es dueño de lo que hay aquí dentro
+             —incluida su espera—, así que nadie más le escribe encima. -->
+        <div id="opp-tab-historial"></div>
+      </div>
+      <footer class="opp-tab-pie">
+        <span id="opp-tab-sello"></span>
+        <span class="opp-sep"></span>
+        <button type="button" class="v-btn v-btn-ghost v-btn-sm" id="opp-tab-ir">Abrir el tablero completo</button>
+      </footer>
+    </div>
   </div>
 
   <div class="opp-visor" id="opp-visor">
@@ -234,6 +388,11 @@
   <?!= include('app_precarga'); ?>
   <?!= include('app_operacion'); ?>
   <?!= include('app_atenciones'); ?>
+  <!-- El gráfico del historial es el MISMO partial que monta el tablero público y el feed
+       de supervisión. Se incluye aquí para el tablero embebido: rehacer el gráfico contra
+       las mismas dos funciones del servidor sería la tercera copia, y a la primera que
+       alguien tocara una de ellas empezarían a contar cosas distintas. -->
+  <?!= include('app_estado_historial'); ?>
   <?!= include('LoaderPartial'); ?>
   <script>
   document.addEventListener('DOMContentLoaded', function () {
@@ -578,6 +737,167 @@
       }
     }
 
+    /* ── Recomendaciones ────────────────────────────────────────────────────────────
+       `opRecomendaciones` lee los MISMOS reportes que ya hay en las hojas de este módulo y
+       saca de ellos las tres o cuatro conclusiones que nadie tiene tiempo de sacar en mitad
+       de una caída. Aquí solo se pintan: ni una cifra se calcula en el navegador, porque
+       una cuenta hecha en la pantalla y otra hecha en el servidor terminan discrepando el
+       día que alguien toque una de las dos.
+
+       CLAVE DE swr PROPIA, y no la del panel. Son dos ritmos distintos —el panel caduca a
+       los 45 s y esto a los cinco minutos, que es lo que el servidor tarda en recalcularlo—
+       y, sobre todo, son dos esperas independientes: con una sola clave, el panel (que es a
+       lo que se viene) no pintaría hasta que estuviera lista una sección de apoyo. */
+
+    var recoDatos = null;
+    var cajaReco = document.getElementById('opp-reco');
+
+    /** Cómo se ve cada urgencia. El tono es el de las pastillas que ya usa la pantalla
+        (.opp-badge tono-*), así que el rojo de «urgente» es exactamente el mismo rojo que
+        el de una incidencia grave: dos rojos distintos para la misma gravedad se leen como
+        dos gravedades distintas. */
+    var URGENCIA = {
+      alta:  { tono: 'alert', texto: 'Urgente' },
+      media: { tono: 'warn',  texto: 'Conviene mirarlo' },
+      baja:  { tono: 'info',  texto: 'Para tener en cuenta' }
+    };
+
+    function recoOcultar() { cajaReco.innerHTML = ''; cajaReco.hidden = true; }
+
+    /** @param {boolean=} forzar true al volver de una escritura o del botón «Actualizar»:
+        salta la copia local del navegador (el servidor ya tiró la suya al escribir). */
+    function recoCargar(forzar) {
+      var sk = null;
+
+      /* Mismo criterio que las cuatro secciones de abajo: esqueleto SOLO cuando no hay nada
+         que enseñar. Con copia local, swr pinta lo guardado en el acto y taparlo con cajas
+         grises sería cambiarle al usuario información buena por una espera.
+         Y UNA sola caja, no tres: esta sección puede terminar vacía —los días buenos lo
+         está—, así que dibujar de más aquí es prometer un contenido que a lo mejor no
+         existe y dejar un hueco que se cierra de golpe al llegar la respuesta. */
+      if (!recoDatos) {
+        cajaReco.hidden = false;
+        cajaReco.innerHTML = '';
+        if (window.VentelFX) sk = VentelFX.skeleton(cajaReco, 'tarjetas', { rows: 1 });
+      }
+
+      // Se apaga en onData Y en onError, como los del panel: solo en onData, un fallo del
+      // servidor dejaría la caja gris brillando para siempre encima del contenido bueno.
+      function apagar() { if (sk) { sk.done(); sk = null; } }
+
+      AppRun.swr('operacion-reco', 'opRecomendaciones', [correo()], {
+        /* Cinco minutos, los mismos que guarda el servidor (OP_TTL_RECOMENDACIONES).
+           Pedirlo más a menudo sería pagar una llamada para que devolviera su misma copia,
+           y una lectura de siete días no cambia de conclusión en 45 segundos. Esta es la
+           mitad de «no encarecer la carga del panel»: la otra es no salir en el mismo
+           fotograma que él (ver el arranque, al final del archivo). */
+        ttl: 300000,
+        maxAge: 300000,
+        fuerza: !!forzar,
+        /* El disco de la esquina NO se enciende por esto. La sección ya tiene su propia
+           espera en su propio hueco, y el disco seguiría girando después de que el panel
+           estuviera pintado, diciendo «esto sigue cargando» de una pantalla ya lista. */
+        busy: false,
+        accept: function (r) { return !!(r && r.success); },
+        onData: function (r) {
+          apagar();
+          // Sin permiso, o con el cálculo caído, la sección sencillamente no está. Es una
+          // ayuda, no el panel: un error rojo aquí alarmaría sobre algo que nadie pidió, y
+          // el trabajo de esta pantalla se hace entero sin ella.
+          if (!r || !r.success) { if (!recoDatos) recoOcultar(); return; }
+          recoDatos = r;
+          pintarReco();
+        },
+        onError: function () { apagar(); if (!recoDatos) recoOcultar(); }
+      });
+    }
+
+    function pintarReco() {
+      var lista = (recoDatos && recoDatos.recomendaciones) || [];
+      // La lista vacía no pinta NADA, ni siquiera el rótulo. Ver el comentario de .opp-reco.
+      if (!lista.length) { recoOcultar(); return; }
+
+      cajaReco.hidden = false;
+      cajaReco.innerHTML =
+        rotulo('Lo que dicen los datos', lista.length) +
+        /* El periodo se cita una vez, arriba, y viene del servidor ya redactado: si algún
+           día se ampliara la ventana de cálculo allí y aquí siguiera diciendo «7 días», las
+           cifras de abajo dejarían de cuadrar con la frase que las presenta. */
+        '<p class="opp-reco-pie">Sobre ' + esc(recoDatos.periodo || 'los últimos días') +
+          (desdeHace(recoDatos.generado) ? ' · calculado ' + esc(desdeHace(recoDatos.generado)) : '') +
+        '</p>' +
+        lista.map(tarjetaReco).join('');
+
+      cablearReco();
+    }
+
+    function tarjetaReco(r, i) {
+      var u = URGENCIA[r.urgencia] || URGENCIA.baja;
+      var a = r.accion;
+      return '<article class="opp-reco-c urg-' + esc(r.urgencia || 'baja') + '">' +
+        '<span class="opp-badge tono-' + u.tono + '">' + (ICONO[u.tono] || IC.info) +
+          esc(u.texto) + '</span>' +
+        '<h3>' + esc(r.titulo) + '</h3>' +
+        '<p class="opp-reco-ev">' + esc(r.evidencia) + '</p>' +
+        (r.detalle ? '<p class="opp-reco-de">' + esc(r.detalle) + '</p>' : '') +
+        (a && a.texto
+          ? '<div class="opp-acc">' +
+            '<button type="button" class="v-btn v-btn-ghost v-btn-sm" data-reco="' + i + '">' +
+              esc(a.texto) + '</button></div>'
+          : '') +
+      '</article>';
+    }
+
+    /* El botón guarda el ÍNDICE, no el id: la acción se vuelve a leer de `recoDatos` en el
+       momento del clic, así que si entretanto llegaron recomendaciones nuevas se sigue la
+       que está en pantalla y no la que había cuando se pintó el botón.
+       `data-reco` es un atributo aparte de `data-acc` a propósito: esta sección vive fuera
+       de #opp-contenido y cablear() no la toca, pero el día que alguien mueva una de las
+       dos, dos atributos distintos no pueden cablearse dos veces. */
+    function cablearReco() {
+      cajaReco.querySelectorAll('[data-reco]').forEach(function (b) {
+        b.addEventListener('click', function () {
+          var lista = (recoDatos && recoDatos.recomendaciones) || [];
+          var r = lista[Number(b.getAttribute('data-reco'))];
+          if (!r || !r.accion) return;
+          disparador = b;      // ahí vuelve el foco cuando se cierre el modal
+          seguirReco(r.accion);
+        });
+      });
+    }
+
+    /**
+     * Lleva a donde dice la recomendación con los modales que la pantalla YA tiene:
+     * `elevar` abre el de convertir el reporte suelto en incidencia y `ver` el de
+     * actualizar la incidencia. No se escribe ningún modal nuevo a propósito: son las
+     * mismas dos decisiones que se toman desde las tarjetas de abajo, y duplicarlas sería
+     * tener dos sitios donde arreglar el mismo error.
+     *
+     * Antes de abrir se comprueba que lo señalado siga estando. Las recomendaciones se
+     * guardan cinco minutos y el panel cuarenta y cinco segundos: en ese hueco otro
+     * supervisor puede haber agrupado ese reporte o cerrado esa incidencia. Sin esta
+     * comprobación, `abrirModalElevar` no encuentra el reporte y SALE EN SILENCIO —un botón
+     * que al pulsarlo no hace absolutamente nada, que es la peor forma de contar que algo
+     * cambió—. Con ella se dice qué pasó y se piden recomendaciones frescas.
+     */
+    function seguirReco(a) {
+      if (datos) {
+        if (a.tipo === 'elevar') {
+          var rep = (datos.sueltos || []).filter(function (r) { return r.id === a.item; })[0];
+          if (rep) { abrirModalElevar(rep.id); return; }
+        } else {
+          var inc = (datos.incidentes || []).filter(function (x) { return x.id === a.inc; })[0];
+          if (inc) { abrirModalActualizar(inc); return; }
+        }
+      }
+      if (window.AppMotion) {
+        AppMotion.toast(datos
+          ? 'Eso ya no está en el panel: alguien lo atendió mientras tanto.'
+          : 'El panel todavía se está cargando.', 'warn');
+      }
+      if (datos) recoCargar(true);
+    }
+
     /* ── Modal: actualizar una incidencia ── */
 
     var estadoModal = null;
@@ -806,7 +1126,11 @@
     /** @param {boolean=} sinUrl true cuando cierra el botón atrás. Ver abrirModalActualizar. */
     function cerrarModal(sinUrl) {
       modalOv.classList.remove('abierto');
-      document.body.style.overflow = '';
+      // El scroll del fondo se suelta solo cuando NO queda nada encima. Cerrar este modal
+      // a pelo con '' devolvía el scroll a la pantalla cuando el modal se había abierto
+      // sobre el tablero —un enlace ?action=…&sec=tablero—, y el panel rodaba por detrás
+      // del tablero mientras se leía.
+      ajustarFondo();
       estadoModal = null;
       if (disparador && disparador.focus) { try { disparador.focus(); } catch (e) {} }
       disparador = null;
@@ -816,10 +1140,308 @@
     }
 
     modalOv.addEventListener('click', function (e) { if (e.target === modalOv) cerrarModal(); });
+    // Escape cierra SIEMPRE lo de más arriba y solo eso: la imagen ampliada, luego el modal
+    // y por último el tablero. Cerrar de golpe las tres capas con una tecla dejaría al
+    // supervisor de vuelta en el panel sin haber pedido salir de ninguna.
     document.addEventListener('keydown', function (e) {
       if (e.key !== 'Escape') return;
       if (visor.classList.contains('abierto')) { visor.classList.remove('abierto'); return; }
-      if (modalOv.classList.contains('abierto')) cerrarModal();
+      if (modalOv.classList.contains('abierto')) { cerrarModal(); return; }
+      if (tableroAbierto) cerrarTablero();
+    });
+
+    /* ── Tablero embebido ───────────────────────────────────────────────────────────
+       «Ver el tablero público» navegaba a ?page=estado, y eso SACABA de esta pantalla a
+       quien estaba gestionando: en Apps Script cambiar de página recarga la webapp entera
+       (2-5 s), y al volver se había perdido el scroll, el modal a medio escribir y la
+       sección por la que se iba. Ahora se abre encima.
+
+       Se pinta con lo que el navegador YA tiene: AppOperacion trae el estado en todas las
+       pantallas para la pastilla de la esquina, y `alCambiar` entrega también lo que haya
+       en caché, así que el tablero aparece en el primer fotograma en vez de costar otra
+       consulta al servidor. La única llamada nueva es la del historial, y es suya.
+
+       La ruta `estado` no se toca: los avisos de Chat mandan enlaces ?page=estado&inc= y
+       el detalle por incidencia sigue viviendo allí —de ahí el botón del pie—. */
+
+    var tabOv = document.getElementById('opp-tablero-ov');
+    var tabPanel = document.getElementById('opp-tab');
+    var tabAhora = document.getElementById('opp-tab-ahora');
+    var tabHist = document.getElementById('opp-tab-historial');
+    var tabSello = document.getElementById('opp-tab-sello');
+
+    var tableroAbierto = false;
+    var tabDisparador = null;    // el botón que lo abrió: ahí vuelve el foco al cerrar
+    var tabScrollY = 0;          // dónde estaba la pantalla de debajo
+    var tabDejar = null;         // la baja del oyente de AppOperacion
+    var tabEstado = null;        // último estado conocido, ya desenvuelto
+    var tabSk = null;            // la ÚNICA espera del tablero mientras no hay estado
+    var tabReloj = null;         // tope de esa espera
+    var tabHistMontado = false;
+    var tabRangoInicial = '';    // el periodo del historial cuando la URL no dice cuál
+
+    function animable() {
+      return typeof window.gsap !== 'undefined' &&
+        !(window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches);
+    }
+
+    /** El estado llega envuelto ({estado:…}) o a pelo según por dónde venga. */
+    function desenvolver(x) { return (x && x.estado) ? x.estado : x; }
+
+    /** El fondo se bloquea mientras haya ALGO delante, y se suelta cuando no queda nada:
+        son dos capas independientes y cada una creyéndose la única se pisaban. */
+    function ajustarFondo() {
+      var hayCapa = modalOv.classList.contains('abierto') || tableroAbierto;
+      document.body.style.overflow = hayCapa ? 'hidden' : '';
+    }
+
+    /**
+     * @param {Element=} quien   botón que abre, para devolverle el foco al cerrar.
+     * @param {boolean=} sinUrl  true cuando quien abre es la propia URL (el arranque o el
+     *   botón atrás): contestarle a la barra con lo que ella acaba de decir apilaría una
+     *   entrada por cada pulsación de atrás.
+     */
+    function abrirTablero(quien, sinUrl) {
+      if (tableroAbierto) return;
+      tableroAbierto = true;
+      tabDisparador = quien || null;
+
+      // El scroll se apunta ANTES de bloquear el fondo: al poner overflow:hidden el
+      // navegador puede llevar la página a lo alto, y cerrar devolvía al principio de la
+      // lista a quien estaba mirando la quinta incidencia.
+      tabScrollY = window.pageYOffset || document.documentElement.scrollTop || 0;
+
+      tabOv.classList.add('abierto');
+      tabOv.setAttribute('aria-hidden', 'false');
+      ajustarFondo();
+
+      // Solo opacidad y desplazamiento: nada que obligue al navegador a recalcular la
+      // página de debajo. Sin GSAP —o con el movimiento reducido— el tablero simplemente
+      // aparece, que es lo que tiene que pasar.
+      if (animable()) {
+        gsap.killTweensOf([tabOv, tabPanel]);
+        gsap.fromTo(tabOv, { opacity: 0 }, { opacity: 1, duration: .18, ease: 'power1.out' });
+        gsap.from(tabPanel, { y: 14, opacity: 0, duration: .34, ease: 'power3.out',
+                              clearProps: 'transform,opacity' });
+      }
+
+      // `alCambiar` avisa YA con lo que hubiera en caché, así que esto pinta antes de
+      // devolver el control. Si no hay nada todavía no llama a nadie, y ahí es donde entra
+      // la espera de pintarTablero.
+      if (!tabDejar && window.AppOperacion && AppOperacion.alCambiar) {
+        tabDejar = AppOperacion.alCambiar(pintarTablero);
+      }
+      if (!tabEstado) pintarTablero(window.AppOperacion ? AppOperacion.estado() : null);
+
+      sincronizarRango((window.AppUrl && AppUrl.param('rango')) || '');
+
+      if (!sinUrl) reflejarTablero(true);
+
+      setTimeout(function () {
+        var x = document.getElementById('opp-tab-x');
+        if (x) x.focus();
+      }, 40);
+    }
+
+    /** @param {boolean=} sinUrl Ver abrirTablero. */
+    function cerrarTablero(sinUrl) {
+      if (!tableroAbierto) return;
+      tableroAbierto = false;
+      tabOv.classList.remove('abierto');
+      tabOv.setAttribute('aria-hidden', 'true');
+      ajustarFondo();
+
+      // Deja de escuchar: repintar un tablero que no se ve es trabajo tirado, y el
+      // oyente vuelve a ponerse —con los datos frescos— en cuanto se abra otra vez.
+      if (tabDejar) { try { tabDejar(); } catch (e) {} tabDejar = null; }
+      if (tabReloj) { clearTimeout(tabReloj); tabReloj = null; }
+
+      // Se vuelve al MISMO sitio: el scroll que había y el foco en el botón que abrió. Si
+      // lo abrió un enlace no hay tal botón, y el foco se caería al <body> —el siguiente
+      // tabulador volvería a empezar por la barra lateral—: va al que lo abre, que es
+      // justo donde está mirando quien acaba de cerrarlo.
+      try { window.scrollTo(0, tabScrollY); } catch (e) {}
+      var volverA = tabDisparador || document.getElementById('opp-tablero');
+      if (volverA && volverA.focus) { try { volverA.focus(); } catch (e) {} }
+      tabDisparador = null;
+
+      if (!sinUrl) reflejarTablero(false);
+    }
+
+    /** @param {boolean} apilar true al abrir —atrás cierra el tablero y deja el panel
+        debajo, en vez de sacar de la pantalla a quien solo quería cerrarlo—. Al cerrar se
+        reemplaza, que cerrar no es ir a ningún sitio nuevo.
+        `rango` se va con el tablero: es SU estado, y dejarlo colgado en la barra lo
+        arrastraría reflejar() a todos los enlaces que se copiaran después. */
+    function reflejarTablero(apilar) {
+      if (!window.AppUrl || !AppUrl.reflejar) return;
+      AppUrl.reflejar(apilar ? { sec: 'tablero' } : { sec: '', rango: '' },
+                      apilar ? { apilar: true } : null);
+    }
+
+    /**
+     * Pinta la vista compacta con el estado que haya. Se llama desde el oyente de
+     * AppOperacion, así que también repinta sola cuando se confirma una falla desde el
+     * panel de debajo (guardar refresca el estado).
+     */
+    function pintarTablero(e) {
+      e = desenvolver(e);
+      if (e && e.success !== false) tabEstado = e;
+      if (!tableroAbierto) return;
+
+      if (!tabEstado) {
+        /* UNA espera, y solo aquí. El historial monta la suya en su propio hueco, y por eso
+           no se monta hasta que esto tiene datos (ver montarHistorial): dos esperas a la
+           vez dentro del mismo panel se leen como que algo va mal, no como que va a llegar.
+           La del panel de debajo tampoco se solapa: está tapada por el tablero. */
+        if (!tabSk && window.VentelFX) tabSk = VentelFX.skeleton(tabAhora, 'tarjetas', { rows: 2 });
+        // Y un tope honesto: si el estado no llega —AppOperacion lo pide por su cuenta al
+        // arrancar la pantalla—, el hueco dice qué pasa en vez de quedarse en cajas grises.
+        if (!tabReloj) {
+          tabReloj = setTimeout(function () {
+            tabReloj = null;
+            if (tabEstado || !tableroAbierto) return;
+            if (tabSk) { tabSk.done(); tabSk = null; }
+            tabAhora.innerHTML = '<div class="opp-vacio"><b>Todavía no tenemos el estado</b>' +
+              '<p>No hemos podido consultar cómo van los sistemas. El tablero completo sigue ' +
+              'disponible en su pantalla.</p></div>';
+            montarHistorial();
+          }, 12000);
+        }
+        return;
+      }
+
+      if (tabSk) { tabSk.done(); tabSk = null; }
+      if (tabReloj) { clearTimeout(tabReloj); tabReloj = null; }
+
+      tabAhora.innerHTML = vistaTablero(tabEstado);
+      tabSello.textContent = 'Última consulta: ' + (fechaLarga(tabEstado.consultado) || '—');
+      montarHistorial();
+    }
+
+    /**
+     * La vista compacta: qué sistema, qué le pasa y desde cuándo. Las palabras son las del
+     * tablero público a propósito —mismo titular, mismo rótulo, mismo vacío—: si aquí se
+     * dijera otra cosa, quien supervisa creería estar leyendo algo distinto de lo que ve
+     * el equipo, que es justo lo que viene a comprobar.
+     */
+    function vistaTablero(e) {
+      var sistemas = e.sistemas || [];
+      var incs = e.incidentes || [];
+      var bien = sistemas.filter(function (s) { return s.tono === 'ok'; }).length;
+      var tono = e.global || 'ok';
+
+      // Mientras nadie ha confirmado nada el titular no afirma una caída: es la misma
+      // prudencia del tablero público, y desdecirse mañana cuesta más que ser prudente hoy.
+      var titular = (tono === 'ok') ? 'Todo funcionando'
+                  : (e.sospecha ? 'Posibles problemas' : 'Hay incidencias activas');
+      var rotulo = (tono === 'ok') ? 'Servicio operativo'
+                  : (e.sospecha ? 'Revisando reportes' : 'Incidencia en curso');
+
+      var html =
+        '<div class="opp-tab-tit tono-' + esc(tono) + '">' +
+          '<span class="opp-tab-ojo"><span class="opp-tab-vivo"></span>' + esc(rotulo) + '</span>' +
+          '<h3>' + esc(titular) + '</h3>' +
+          (e.resumen ? '<p>' + esc(e.resumen) + '</p>' : '') +
+          '<div class="opp-meta">' +
+            '<span class="opp-pin">' + IC.ok + esc(bien + ' de ' + sistemas.length +
+              (sistemas.length === 1 ? ' sistema funcionando' : ' sistemas funcionando')) + '</span>' +
+            '<span class="opp-pin">' + IC.reloj +
+              esc('Consultado ' + (desdeHace(e.consultado) || 'ahora')) + '</span>' +
+          '</div>' +
+        '</div>';
+
+      html += '<h3 class="opp-rot">Incidencias abiertas' +
+        (incs.length ? '<span class="opp-n">' + incs.length + '</span>' : '') + '</h3>';
+
+      html += incs.length
+        ? incs.map(function (i) {
+            var nota = (i.ultima && i.ultima.nota) || i.detalle || '';
+            return '<article class="opp-card">' +
+              '<div class="opp-card-top">' +
+                '<span class="opp-badge tono-' + esc(i.tono) + '">' + (ICONO[i.tono] || IC.info) +
+                  esc(i.estadoNombre) + '</span>' +
+                '<span style="font-size:.8rem;font-weight:650;color:var(--ink-soft)">' +
+                  esc(i.sistema) + '</span>' +
+              '</div>' +
+              '<h4>' + esc(i.titulo) + '</h4>' +
+              (nota ? '<p class="opp-det">' + esc(nota) + '</p>' : '') +
+              (i.desde
+                ? '<div class="opp-meta"><span class="opp-pin">' + IC.reloj +
+                  esc('Desde ' + fechaLarga(i.desde) + ' · ' + desdeHace(i.desde)) + '</span></div>'
+                : '') +
+            '</article>';
+          }).join('')
+        : '<div class="opp-vacio"><b>No hay incidencias abiertas</b>' +
+          '<p>Cuando algo falle aparecerá aquí, con lo que se sepa y desde cuándo.</p></div>';
+
+      // Los destacados van delante, como en el tablero público. Aquí no se parten en dos
+      // apartados con rótulo propio: son cuatro o cinco cajas de una línea, y dos títulos
+      // encima de eso ocupan más que lo que separan.
+      var enOrden = sistemas.filter(function (s) { return s.destacado; })
+        .concat(sistemas.filter(function (s) { return !s.destacado; }));
+
+      html += '<h3 class="opp-rot">Sistemas<span class="opp-n">' + sistemas.length + '</span></h3>' +
+        '<div class="opp-tab-sis">' +
+        enOrden.map(function (s) {
+          var i = (s.incidentes || [])[0];
+          return '<div class="opp-tab-s tono-' + esc(s.tono) + '">' +
+            '<span class="opp-tab-dot"></span>' +
+            '<span class="opp-tab-s-tx"><b>' + esc(s.nombre) + '</b><small>' +
+              esc(s.estadoNombre + (s.tono !== 'ok' && i && i.desde ? ' · ' + desdeHace(i.desde) : '')) +
+            '</small></span>' +
+          '</div>';
+        }).join('') +
+        '</div>';
+
+      return html;
+    }
+
+    /**
+     * El gráfico del historial, montado UNA vez en su hueco. Se monta al tener el estado
+     * delante y no al abrir: mientras la vista compacta espera, la escena del historial
+     * sería una segunda espera en el mismo panel.
+     *
+     * No se desmonta al cerrar: el partial guarda un solo anfitrión y sus datos, así que
+     * dejarlo puesto es lo que hace que la segunda apertura sea instantánea y no otra
+     * consulta al servidor.
+     */
+    function montarHistorial() {
+      if (tabHistMontado || !window.AppEstadoHistorial) return;
+      tabHistMontado = true;
+      // Se pregunta ANTES de montar (montar ya aplica el de la URL si viene): es el periodo
+      // al que hay que volver cuando atrás lleva a una dirección que no trae ?rango.
+      tabRangoInicial = AppEstadoHistorial.rango() || '';
+      AppEstadoHistorial.montar(tabHist, {
+        rango: (window.AppUrl && AppUrl.param('rango')) || '',
+        alCambiar: function (id) {
+          if (!window.AppUrl || !AppUrl.reflejar) return;
+          // Reemplaza, no apila: cambiar de periodo es mirar lo mismo de otra forma, y
+          // apilarlo obligaría a pulsar atrás una vez por cada botón que se probara.
+          AppUrl.reflejar({ rango: id });
+        }
+      });
+    }
+
+    /** El periodo que dice la barra manda sobre el que quedó de la vez anterior. Callado:
+        lo que llega ES la dirección, y contestarle la reescribiría. */
+    function sincronizarRango(id) {
+      if (!tabHistMontado || !window.AppEstadoHistorial) return;
+      AppEstadoHistorial.irARango(String(id || '') || tabRangoInicial, true);
+    }
+
+    document.getElementById('opp-tab-x').addEventListener('click', function () { cerrarTablero(); });
+    // Envuelto y no `cerrarTablero` a pelo: como manejador recibiría el MouseEvent en el
+    // primer argumento y lo leería como `sinUrl`, así que el fondo dejaría de limpiar la
+    // barra —y un F5 resucitaría el tablero que se acaba de cerrar—.
+    tabOv.addEventListener('click', function (e) { if (e.target === tabOv) cerrarTablero(); });
+
+    // La salida a la pantalla completa se conserva: el detalle de una incidencia con sus
+    // reportes y evidencias vive allí, y quien quiera copiar el enlace público lo necesita.
+    // Se lleva el periodo que se está mirando: llegar al tablero completo y encontrarlo en
+    // otra escala obligaría a volver a buscarlo.
+    document.getElementById('opp-tab-ir').addEventListener('click', function () {
+      AppUrl.go('estado', window.AppEstadoHistorial ? { rango: AppEstadoHistorial.rango() } : null);
     });
 
     /* ── Memoria de estado en la URL ────────────────────────────────────────────────
@@ -860,9 +1482,16 @@
      * lo mismo apilaría una entrada por cada pulsación de atrás.
      */
     /** Devuelve false —y solo entonces— cuando lo pedido no está PORQUE los datos son una
-        copia local: el llamador deja el intento pendiente para el pintado fresco. */
-    function aplicarUrl(p, deCache) {
+        copia local: el llamador deja el intento pendiente para el pintado fresco.
+        @param {boolean=} deLaBarra true solo cuando llega de atrás/adelante. Ver aplicarSeccion. */
+    function aplicarUrl(p, deCache, deLaBarra) {
       p = p || {};
+
+      // El tablero va PRIMERO y por su cuenta: no es un modal sobre una incidencia, no
+      // necesita los datos del panel para abrirse —se pinta con los de AppOperacion— y
+      // debajo hay varios `return` que se lo saltarían.
+      aplicarSeccion(p, deLaBarra);
+
       var pide = { action: String(p.action || ''), inc: String(p.inc || ''), item: String(p.item || '') };
       var hay = urlDelModal(estadoModal);
       // Ya está delante lo que se pide: repintarlo borraría la nota a medio escribir.
@@ -896,6 +1525,30 @@
       if (inc) { abrirModalActualizar(inc, ACCIONES[pide.action], true); return; }
       if (deCache) return false;
       olvidarUrl();
+    }
+
+    /**
+     * La sección que pide la barra: hoy solo `sec=tablero`. Se llama desde el arranque y
+     * desde atrás/adelante, y siempre en callado —lo que llega ES la dirección—.
+     *
+     * La AUSENCIA también dice algo: volver a una dirección sin `sec` es «el panel a
+     * secas», y sin el else el botón atrás cambiaba la barra dejando el tablero delante,
+     * contando una cosa distinta de la que decía la URL.
+     *
+     * @param {boolean=} deLaBarra true solo cuando el aviso viene de atrás/adelante, que
+     *   es el único caso en el que hay que mover el periodo del historial. Al arrancar no
+     *   se toca, y no es un detalle: elegir un periodo lo escribe con la espera de 300 ms
+     *   de reflejar(), así que durante ese momento la URL todavía no lo dice — y el
+     *   pintado del panel, que llega por su cuenta y lee la barra, devolvía el gráfico al
+     *   periodo inicial delante de quien acababa de pulsar otro.
+     */
+    function aplicarSeccion(p, deLaBarra) {
+      var quiere = String((p && p.sec) || '') === 'tablero';
+      if (quiere && !tableroAbierto) abrirTablero(null, true);
+      else if (!quiere && tableroAbierto) cerrarTablero(true);
+      // Y el periodo del historial, que viaja aparte: atrás desde ?rango=30d tiene que
+      // devolver el gráfico al periodo de la entrada anterior, no dejar los 30 días.
+      if (quiere && deLaBarra) sincronizarRango(String((p && p.rango) || ''));
     }
 
     /** El enlace pide algo que ya no está: la incidencia salió de la semana, el reporte se
@@ -1015,6 +1668,11 @@
           AppCache.remove('operacion-estado');
           datos = null;
           cargar(true);
+          // Toda escritura invalida su caché, y esta invalida también la de arriba: el
+          // servidor tira de un golpe todo lo suyo (opInvalidarCache_), pero la copia de
+          // recomendaciones del navegador dura cinco minutos y se quedaría proponiendo
+          // agrupar el reporte que se acaba de agrupar, con el botón muerto que eso implica.
+          recoCargar(true);
           if (window.AppOperacion) AppOperacion.refrescar(true);
         }
       });
@@ -1047,8 +1705,130 @@
           AppCache.remove('operacion-panel');
           datos = null;
           cargar(true);
+          // Descartar cambia la lista sobre la que se calcula «estos tres sueltos son la
+          // misma falla»: sin releerlas, la recomendación seguiría contando —y ofreciendo
+          // agrupar— un reporte que ya no está en ninguna parte.
+          recoCargar(true);
         }
       });
+    }
+
+    /* ── Exporte a CSV ──────────────────────────────────────────────────────────────
+       Esta pantalla no exportaba nada: para llevar una caída a una reunión había que
+       transcribir las tarjetas a mano. El CSV se genera en el navegador, como el reporte de
+       cotizaciones de inicio_avanzado: sin viaje al servidor, sin permisos de Drive y sin
+       nada que se quede a medias si la conexión se corta a mitad de la descarga.
+
+       Se exporta lo que hay en `datos`, que es exactamente lo que las cuatro secciones
+       acaban de pintar: las incidencias (esperan, activas y cerradas de la semana) y los
+       reportes sueltos de las últimas 24 h. Nada que no esté en pantalla.
+
+       LAS CUATRO COLUMNAS QUE PIDE EL ALCANCE, con el campo que las sostiene:
+         · Tipo       → incidencia o reporte suelto. No existe ningún campo llamado así; es
+                        la distinción que de verdad separa las filas de este CSV y la que
+                        decide qué columnas van llenas en cada una.
+         · Hora       → en columna propia, aparte de la fecha, y en HH:mm de 24 horas.
+                        Suelta es lo que permite repetir en una hoja de cálculo el análisis
+                        por franjas que hace la sección de arriba («falla de 9 a 11 h»);
+                        pegada a la fecha no se puede agrupar por ella.
+         · Categoría  → el submotivo, que es el catálogo con el que el equipo clasifica lo
+                        que le pasa («No abre», «Va lento»).
+         · Plataforma → el sistema afectado (Connect, el CRM…). Es lo que el formulario de
+                        reporte llama «sistema» y que aquí se pedía por su otro nombre. */
+
+    /** Una celda: comillas dobladas y entrecomillado solo cuando hace falta. Mismo escapado
+        que el reporte de cotizaciones —una nota con una coma partía la fila en dos—. */
+    function csvCelda(v) {
+      var s = String(v == null ? '' : v).replace(/"/g, '""');
+      return /[",\n]/.test(s) ? '"' + s + '"' : s;
+    }
+
+    function csvFecha(iso) {
+      var d = new Date(iso);
+      return isNaN(d.getTime()) ? '' : d.toLocaleDateString('es-MX');
+    }
+
+    /* HH:mm a mano y no con toLocaleTimeString: en es-MX devuelve «9:14 a. m.», que Excel
+       no ordena ni agrupa por hora —y agrupar por hora es justo para lo que se pidió esta
+       columna—. Con dos dígitos siempre, que «9:14» y «10:14» se ordenan al revés como
+       texto. */
+    function csvHora(iso) {
+      var d = new Date(iso);
+      if (isNaN(d.getTime())) return '';
+      return ('0' + d.getHours()).slice(-2) + ':' + ('0' + d.getMinutes()).slice(-2);
+    }
+
+    /** aaaammdd: así los archivos de varios días se ordenan solos en la carpeta. */
+    function csvSello(d) {
+      return d.getFullYear() + ('0' + (d.getMonth() + 1)).slice(-2) + ('0' + d.getDate()).slice(-2);
+    }
+
+    var CSV_COLS = ['Tipo', 'Fecha', 'Hora', 'Plataforma', 'Categoría', 'Estado', 'Título',
+                    'Personas', 'Reportes', 'Origen', 'Persona', 'Correo',
+                    'Confirmada', 'Cerrada', 'Notas'];
+
+    function exportarCsv(boton) {
+      if (!datos) {
+        if (window.AppMotion) AppMotion.toast('El panel todavía se está cargando.', 'warn');
+        return;
+      }
+
+      var incs = datos.incidentes || [];
+      var sueltos = datos.sueltos || [];
+      if (!incs.length && !sueltos.length) {
+        if (window.AppMotion) AppMotion.toast('No hay nada que exportar ahora mismo.', 'warn');
+        return;
+      }
+
+      // La incidencia se fecha por cuando se DETECTÓ, que es lo que enseña su tarjeta;
+      // confirmada y cerrada viajan en columnas propias porque son tres momentos distintos
+      // y meterlos en una sola obligaría a elegir cuál de los tres se pierde.
+      var filas = incs.map(function (i) {
+        return [
+          'Incidencia', csvFecha(i.creado), csvHora(i.creado),
+          i.sistema, i.submotivo, i.estadoNombre, i.titulo,
+          i.personas, i.reportes,
+          i.origen === 'automatico' ? 'Automática' : 'Publicada',
+          i.confirmadoNombre || '', '',
+          i.confirmado ? csvFecha(i.confirmado) + ' ' + csvHora(i.confirmado) : '',
+          i.cerrado ? csvFecha(i.cerrado) + ' ' + csvHora(i.cerrado) : '',
+          i.detalle || ''
+        ];
+      }).concat(sueltos.map(function (r) {
+        // Los unos de Personas y Reportes no son relleno: un suelto ES una persona y un
+        // reporte, y dejarlos vacíos rompería cualquier suma de esas dos columnas.
+        return [
+          'Reporte suelto', csvFecha(r.fecha), csvHora(r.fecha),
+          r.sistema, r.submotivo, 'Sin agrupar', '',
+          1, 1, 'Reportado por el equipo',
+          r.nombre || '', r.correo || '', '', '', r.notas || ''
+        ];
+      }));
+
+      // BOM UTF-8: sin él Excel abre «Categoría» como «CategorÃ­a» y el archivo se vuelve
+      // inservible justo para quien no sabe cambiarle la codificación al abrirlo.
+      var csv = '﻿' + CSV_COLS.join(',') + '\n' +
+        filas.map(function (f) { return f.map(csvCelda).join(','); }).join('\n');
+
+      var nombre = 'Operacion_' + csvSello(new Date()) + '.csv';
+      var url = URL.createObjectURL(new Blob([csv], { type: 'text/csv;charset=utf-8;' }));
+      var enlace = document.createElement('a');
+      enlace.href = url;
+      enlace.download = nombre;
+      document.body.appendChild(enlace);
+      enlace.click();
+      document.body.removeChild(enlace);
+      // Se suelta el objeto en cuanto el navegador se lo ha llevado: sin esto cada descarga
+      // deja el CSV entero retenido en memoria hasta recargar, y este panel se queda abierto
+      // toda la jornada delante de quien va exportando una caída tras otra.
+      URL.revokeObjectURL(url);
+
+      if (window.AppMotion) {
+        AppMotion.pop(boton);
+        AppMotion.toast('Descargado ' + nombre + ': ' +
+          incs.length + (incs.length === 1 ? ' incidencia y ' : ' incidencias y ') +
+          sueltos.length + (sueltos.length === 1 ? ' reporte suelto.' : ' reportes sueltos.'), 'ok');
+      }
     }
 
     /* ── Barra superior ── */
@@ -1056,11 +1836,19 @@
     document.getElementById('opp-nueva').addEventListener('click', function () {
       disparador = this; abrirModalNueva();
     });
-    document.getElementById('opp-tablero').addEventListener('click', function () { AppUrl.go('estado'); });
+    // Antes esto era AppUrl.go('estado'). Consultar el tablero era perder el sitio.
+    document.getElementById('opp-tablero').addEventListener('click', function () { abrirTablero(this); });
+    document.getElementById('opp-exportar').addEventListener('click', function () { exportarCsv(this); });
     document.getElementById('opp-refrescar').addEventListener('click', function () {
       AppCache.remove('operacion-panel');
       datos = null;
       cargar(true);
+      // Las recomendaciones también se releen: salen de las mismas hojas, y dejarlas como
+      // estaban después de pulsar «Actualizar» es enseñar dos verdades con distinta fecha
+      // en la misma pantalla. No se vacían antes de pedirlas: lo que hay sigue siendo
+      // cierto hasta que llegue lo nuevo, y taparlo con un esqueleto sería quitar
+      // información a cambio de nada.
+      recoCargar(true);
     });
 
     document.getElementById('opp-visor-x').addEventListener('click', function () { visor.classList.remove('abierto'); });
@@ -1069,10 +1857,31 @@
     // Atrás y adelante del navegador. Se registra antes de cargar para que una pulsación
     // temprana no se pierda: aplicarUrl aguanta sin datos y pintar() la repone al llegar.
     if (window.AppUrl && AppUrl.alCambiarUrl) {
-      AppUrl.alCambiarUrl(function (loc) { aplicarUrl((loc && loc.parameter) || {}); });
+      AppUrl.alCambiarUrl(function (loc) { aplicarUrl((loc && loc.parameter) || {}, false, true); });
     }
 
+    /* Un F5 con el tablero abierto lo reabre, y ANTES de pedir el panel: el tablero no
+       depende de opPanel —se pinta con el estado que AppOperacion ya trae—, así que
+       esperar a pintar() lo habría hecho aparecer segundos tarde, y con el panel caído no
+       habría aparecido nunca (pintar() no llega a llamarse). Los modales sí esperan ahí,
+       porque sin sus datos no hay incidencia que enseñar. */
+    if (window.AppUrl && AppUrl.params) aplicarSeccion(AppUrl.params());
+
     cargar(false);
+
+    /* Las recomendaciones salen un fotograma DESPUÉS del panel, no en el mismo tick.
+       Montar una llamada de google.script.run no es gratis —crea su iframe y serializa los
+       argumentos—, así que pedirlas aquí mismo retrasaría el dibujado de los esqueletos que
+       `cargar` acaba de escribir en el DOM: el panel, que es a lo que se viene, tardaría más
+       en dar señales de vida por culpa de una sección de apoyo. Es la otra mitad de «las
+       recomendaciones no encarecen la carga del panel»; la primera es su caché de cinco
+       minutos. Con el hueco de por medio siguen siendo dos peticiones independientes: si
+       una falla o tarda, la otra ni se entera. */
+    if (typeof requestAnimationFrame === 'function') {
+      requestAnimationFrame(function () { setTimeout(function () { recoCargar(false); }, 0); });
+    } else {
+      setTimeout(function () { recoCargar(false); }, 0);
+    }
   });
   </script>
 </body>

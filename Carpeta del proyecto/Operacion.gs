@@ -1883,85 +1883,802 @@ function opGate_(email) {
 }
 
 /**
+ * Cuánto se cachea el cuerpo del panel.
+ *
+ * Treinta segundos, los mismos que `OP_TTL_SESION`: el panel es el gemelo de supervisión de
+ * lo que ya se cachea para el indicador, y dos ventanas distintas para el mismo dato harían
+ * que la pantalla y la isla se contradijeran durante medio minuto.
+ *
+ * Y por debajo de los 45 s con los que el cliente pide `opPanel` (operacion.html, `AppRun.swr`
+ * con ttl/maxAge 45000), a propósito: si el servidor guardara MÁS que el cliente, cada vez
+ * que la copia del navegador caduca se le serviría una del servidor todavía más vieja y las
+ * dos esperas se sumarían. Con 30 s el servidor siempre ha releído más tarde que el cliente,
+ * así que la caché de aquí nunca es la que añade retraso. Además toda escritura invalida
+ * (opInvalidarCache_), de modo que confirmar o descartar una incidencia se ve al instante.
+ */
+const OP_TTL_PANEL = 30;
+
+/**
  * Todo lo que necesita el panel: incidentes vivos, los ya cerrados de los últimos días y los
  * reportes que aún no pertenecen a ningún incidente (los que no llegaron al umbral).
+ *
+ * F5 (T5.2b) · EL CUERPO VA CACHEADO Y `yo` NO.
+ *
+ * Antes esto releía TRES hojas enteras —incidentes, reportes y catálogo— en cada carga de
+ * cada supervisor. Con varias personas mirando el panel a la vez durante una caída (que es
+ * justo cuando lo miran), la pantalla tardaba lo que tardan esas lecturas multiplicadas por
+ * cuantos estuvieran dentro; esa es parte de la lentitud que obligó a poner esperas.
+ *
+ * La clave de caché NO lleva el correo. Se miró campo por campo qué depende de quién
+ * pregunta y solo `yo` lo hace: incidencias, sueltos, catálogo, umbral y webhooks son
+ * idénticos para cualquiera que pase la puerta, porque `opGate_` exige el MISMO bloque a
+ * todos. Meter el correo en la clave daría una copia por persona: la primera carga de cada
+ * supervisor volvería a costar las tres lecturas —justo lo que se viene a evitar— y en una
+ * caída con seis personas dentro habría seis entradas repitiendo el mismo contenido.
+ *
+ * Así que se cachea SOLO la parte común y `yo` se añade después sobre una copia, exactamente
+ * como `opEstadoSesion` hace con `puedeGestionar`, `mios` y `yo`. La copia importa: sin ella
+ * se estaría escribiendo el correo de quien preguntó primero dentro del objeto que devuelve
+ * la caché en el mismo proceso.
+ *
+ * Quien no pasa `opGate_` no llega nunca a `opCacheado_`, así que compartir la entrada no
+ * abre ninguna puerta: el permiso decide SI recibes el panel, no QUÉ panel recibes.
  */
 function opPanel(email) {
   try {
     const gate = opGate_(email);
     if (!gate.ok) return { success: false, message: gate.error };
 
-    const catalogo = opLeerCatalogo_();
-    opCaducarPosibles_(catalogo);
+    const base = opCacheado_('panel', OP_TTL_PANEL, function () { return opCalcularPanel_(); });
+    if (!base || base.success === false) return base;
 
-    const todos = opLeerHoja_(OP_SHEET_INCIDENTES, OP_COLS_INCIDENTES)
-      .map(function (f) { return opIncidenteDeFila_(f, catalogo); })
-      .filter(function (i) { return i.id; });
-
-    const reportes = opLeerHoja_(OP_SHEET_REPORTES, OP_COLS_REPORTES);
-    const conteo = {};
-    const personas = {};
-    reportes.forEach(function (f) {
-      const inc = String(f.IncidenteId || '');
-      if (!inc) return;
-      conteo[inc] = (conteo[inc] || 0) + 1;
-      if (!personas[inc]) personas[inc] = {};
-      personas[inc][String(f.Correo || '').toLowerCase()] = true;
-    });
-
-    const desdeCerrados = Date.now() - 7 * 24 * 3600 * 1000;
-    const salida = todos.filter(function (i) {
-      return !i.cierra || opMs_(i.cerrado || i.actualizado) > desdeCerrados;
-    }).map(function (i) {
-      return {
-        id: i.id, sistema: i.sistema, sistemaClave: i.sistemaClave, submotivo: i.submotivo,
-        titulo: i.titulo || opTitulo_(i.sistema, i.submotivo), detalle: i.detalle,
-        estado: i.estado, estadoNombre: i.estadoNombre, tono: i.tono,
-        afecta: i.afecta, cierra: i.cierra, origen: i.origen,
-        creado: i.creado, confirmado: i.confirmado, confirmadoNombre: i.confirmadoNombre,
-        actualizado: i.actualizado, cerrado: i.cerrado,
-        reportes: conteo[i.id] || 0,
-        personas: Object.keys(personas[i.id] || {}).filter(Boolean).length
-      };
-    }).sort(function (a, b) {
-      // Lo que espera una decisión primero; dentro de eso, lo más reciente.
-      if (a.cierra !== b.cierra) return a.cierra ? 1 : -1;
-      if ((a.estado === 'posible') !== (b.estado === 'posible')) return a.estado === 'posible' ? -1 : 1;
-      return (b.actualizado || b.creado || '').localeCompare(a.actualizado || a.creado || '');
-    });
-
-    const desdeSueltos = Date.now() - 24 * 3600 * 1000;
-    const sueltos = reportes.filter(function (f) {
-      return !String(f.IncidenteId || '') && opMs_(f.Fecha) > desdeSueltos &&
-             String(f.Estado || '') !== 'descartado';
-    }).map(function (f) {
-      let evidencias = [];
-      try { evidencias = JSON.parse(f.Evidencias || '[]'); } catch (e) { evidencias = []; }
-      return {
-        id: String(f.ID || ''), fecha: opISO_(f.Fecha),
-        nombre: String(f.Nombre || ''), correo: String(f.Correo || ''),
-        sistema: String(f.Sistema || ''), sistemaClave: String(f.SistemaClave || ''),
-        submotivo: String(f.Submotivo || ''), notas: String(f.Notas || ''),
-        evidencias: Array.isArray(evidencias) ? evidencias : []
-      };
-    }).sort(function (a, b) { return (b.fecha || '').localeCompare(a.fecha || ''); });
-
-    return {
-      success: true,
-      yo: { email: gate.email, nombre: gate.nombre },
-      incidentes: salida,
-      sueltos: sueltos,
-      catalogo: {
-        sistemas: catalogo.sistemas.map(function (s) { return { clave: s.clave, nombre: s.nombre }; }),
-        estados: catalogo.estados
-      },
-      umbral: { personas: OP_UMBRAL_PERSONAS, minutos: OP_VENTANA_MIN },
-      webhookEstado: !!secConfig_('OPERACION_WEBHOOK_ESTADO', OPERACION_WEBHOOK_ESTADO),
-      webhookReportes: !!secConfig_('OPERACION_WEBHOOK_REPORTES', OPERACION_WEBHOOK_REPORTES)
-    };
+    const salida = JSON.parse(JSON.stringify(base));
+    salida.yo = { email: gate.email, nombre: gate.nombre };
+    return salida;
   } catch (e) {
     Logger.log('opPanel: ' + e + ' · ' + e.stack);
     return { success: false, message: 'No pudimos cargar el panel. Inténtalo de nuevo en un momento.' };
+  }
+}
+
+/**
+ * El cuerpo del panel, sin nada que dependa de quién pregunta.
+ *
+ * Va sin try/catch propio: lo que falle aquí tiene que subir hasta `opPanel` para que
+ * `opCacheado_` NO guarde una respuesta a medias. Guardar un panel roto durante 30 s
+ * convierte un fallo de un segundo en medio minuto de pantalla vacía para todo el equipo.
+ *
+ * OJO CON LA ESCRITURA: `opCaducarPosibles_` apaga aquí mismo las sospechas abandonadas y,
+ * cuando apaga alguna, invalida la caché. Es exactamente el caso del que avisa el comentario
+ * de `opCacheado_`: la clave se recalcula DESPUÉS del productor, así que este panel —que ya
+ * refleja las incidencias recién apagadas— se guarda bajo la generación nueva y no nace
+ * muerto. Si algún día se moviera la caducidad fuera de aquí, hay que releer aquel comentario
+ * antes de tocar nada.
+ */
+function opCalcularPanel_() {
+  const catalogo = opLeerCatalogo_();
+  opCaducarPosibles_(catalogo);
+
+  const todos = opLeerHoja_(OP_SHEET_INCIDENTES, OP_COLS_INCIDENTES)
+    .map(function (f) { return opIncidenteDeFila_(f, catalogo); })
+    .filter(function (i) { return i.id; });
+
+  const reportes = opLeerHoja_(OP_SHEET_REPORTES, OP_COLS_REPORTES);
+  const conteo = {};
+  const personas = {};
+  reportes.forEach(function (f) {
+    const inc = String(f.IncidenteId || '');
+    if (!inc) return;
+    conteo[inc] = (conteo[inc] || 0) + 1;
+    if (!personas[inc]) personas[inc] = {};
+    personas[inc][String(f.Correo || '').toLowerCase()] = true;
+  });
+
+  const desdeCerrados = Date.now() - 7 * 24 * 3600 * 1000;
+  const salida = todos.filter(function (i) {
+    return !i.cierra || opMs_(i.cerrado || i.actualizado) > desdeCerrados;
+  }).map(function (i) {
+    return {
+      id: i.id, sistema: i.sistema, sistemaClave: i.sistemaClave, submotivo: i.submotivo,
+      titulo: i.titulo || opTitulo_(i.sistema, i.submotivo), detalle: i.detalle,
+      estado: i.estado, estadoNombre: i.estadoNombre, tono: i.tono,
+      afecta: i.afecta, cierra: i.cierra, origen: i.origen,
+      creado: i.creado, confirmado: i.confirmado, confirmadoNombre: i.confirmadoNombre,
+      actualizado: i.actualizado, cerrado: i.cerrado,
+      reportes: conteo[i.id] || 0,
+      personas: Object.keys(personas[i.id] || {}).filter(Boolean).length
+    };
+  }).sort(function (a, b) {
+    // Lo que espera una decisión primero; dentro de eso, lo más reciente.
+    if (a.cierra !== b.cierra) return a.cierra ? 1 : -1;
+    if ((a.estado === 'posible') !== (b.estado === 'posible')) return a.estado === 'posible' ? -1 : 1;
+    return (b.actualizado || b.creado || '').localeCompare(a.actualizado || a.creado || '');
+  });
+
+  const desdeSueltos = Date.now() - 24 * 3600 * 1000;
+  const sueltos = reportes.filter(function (f) {
+    return !String(f.IncidenteId || '') && opMs_(f.Fecha) > desdeSueltos &&
+           String(f.Estado || '') !== 'descartado';
+  }).map(function (f) {
+    let evidencias = [];
+    try { evidencias = JSON.parse(f.Evidencias || '[]'); } catch (e) { evidencias = []; }
+    return {
+      id: String(f.ID || ''), fecha: opISO_(f.Fecha),
+      nombre: String(f.Nombre || ''), correo: String(f.Correo || ''),
+      sistema: String(f.Sistema || ''), sistemaClave: String(f.SistemaClave || ''),
+      submotivo: String(f.Submotivo || ''), notas: String(f.Notas || ''),
+      evidencias: Array.isArray(evidencias) ? evidencias : []
+    };
+  }).sort(function (a, b) { return (b.fecha || '').localeCompare(a.fecha || ''); });
+
+  return {
+    success: true,
+    incidentes: salida,
+    sueltos: sueltos,
+    catalogo: {
+      sistemas: catalogo.sistemas.map(function (s) { return { clave: s.clave, nombre: s.nombre }; }),
+      estados: catalogo.estados
+    },
+    umbral: { personas: OP_UMBRAL_PERSONAS, minutos: OP_VENTANA_MIN },
+    webhookEstado: !!secConfig_('OPERACION_WEBHOOK_ESTADO', OPERACION_WEBHOOK_ESTADO),
+    webhookReportes: !!secConfig_('OPERACION_WEBHOOK_REPORTES', OPERACION_WEBHOOK_REPORTES)
+  };
+}
+
+// =================================================================================================
+// RECOMENDACIONES (FASE 5 · T5.2)
+// =================================================================================================
+
+/**
+ * LO QUE YA SE SABE, DICHO EN VOZ ALTA
+ * -------------------------------------
+ * El panel enseña incidencias y reportes sueltos; el gráfico enseña barras. Entre las dos
+ * cosas hay una lectura que hoy solo hace quien tiene tiempo de mirar mucho rato: "esto pasa
+ * todas las mañanas", "este fallo ya volvió tres veces", "estos tres sueltos son la incidencia
+ * que tienes abierta arriba". Eso es lo que se calcula aquí, con los datos que YA hay en las
+ * hojas de este módulo. Nada sale del proyecto.
+ *
+ * DOS REGLAS QUE NO SE NEGOCIAN
+ *
+ *   1. TODA RECOMENDACIÓN CITA SU CIFRA. Sin número no se publica. "Connect va mal" no le
+ *      sirve a nadie; "31 reportes de Connect en los últimos 7 días, de 12 personas" se puede
+ *      comprobar, discutir y llevar a una reunión.
+ *
+ *   2. LAS CIFRAS SON LAS MISMAS QUE LAS DEL GRÁFICO. Se cuentan todos los reportes del
+ *      periodo, incluidos los que supervisión acabó descartando, exactamente como hace
+ *      `opCalcularHistorial_`. Es tentador excluirlos —"no eran fallas de verdad"— pero
+ *      entonces la frase diría 14 donde la barra de al lado, en la misma pantalla, dice 16, y
+ *      la primera vez que alguien note ese descuadre dejará de creerse las dos cosas. La única
+ *      excepción es la recomendación de sueltos, que mira la MISMA lista que pinta el panel
+ *      (donde un descartado ya no está) porque su acción es sobre esa lista.
+ *
+ * POR QUÉ NO SE LLAMA A `opCalcularHistorial_` NI A `opCalcularHistorialHoras_`
+ *
+ * Se leyeron las dos y se reutiliza de ellas lo que de verdad importa reutilizar: sus claves
+ * de tramo (`opHoraClave_`, de donde salen aquí el día y la hora, para que un reporte caiga en
+ * el mismo cajón que en el gráfico) y su criterio de gravedad (PERSONAS distintas contra
+ * `OP_UMBRAL_PERSONAS`, no filas). Llamarlas, en cambio, volvería a leer la hoja de reportes
+ * dos veces más y aun así no serviría: ninguna de las dos series lleva el TEXTO del submotivo,
+ * que es lo que necesitan dos de las cuatro recomendaciones, y la de horas está topada en 72 h
+ * —tres muestras por franja— cuando "esto pasa todas las mañanas" no se puede afirmar con tres
+ * días. Así que aquí se hace UNA sola pasada por reportes y UNA por incidencias, y de esa
+ * pasada salen las cuatro. El criterio de aceptación de la fase es justamente ese: que la
+ * sección no repita lecturas de hoja.
+ *
+ * Y NO SE CADUCAN LAS SOSPECHAS AQUÍ. `opCaducarPosibles_` escribe, y escribir invalida la
+ * caché. Si esta función lo llamara, cada carga de la pantalla tendría dos productores
+ * invalidándose el uno al otro —el panel guarda, las recomendaciones invalidan, el panel
+ * vuelve a leer— y la caché no serviría de nada precisamente en la pantalla que se vino a
+ * acelerar. Lo caduca `opCalcularPanel_`, que se pide desde la misma pantalla. Lo único que
+ * hay que compensar es no recomendar agrupar nada en una sospecha que está a punto de
+ * apagarse sola; eso se filtra abajo con la misma condición que usa `opCaducarPosibles_`.
+ */
+
+/** Ventana de análisis. Una semana: coge los cinco días laborables enteros más el fin de
+ *  semana, que es lo que hace falta para poder decir "todos los lunes" o "todas las mañanas"
+ *  sin que una guardia rara de sábado se coma la muestra. Se dice en castellano en `periodo`
+ *  para que la pantalla lo cite tal cual y la cifra nunca viaje sin su plazo. */
+const OP_RECO_DIAS = 7;
+const OP_RECO_PERIODO = 'los últimos 7 días';
+
+/**
+ * Cuánto se cachea. Cinco minutos, diez veces más que el panel, y a propósito: el numerador
+ * de todo lo de aquí es una semana de reportes, así que un reporte nuevo mueve las cuentas
+ * menos de un uno por ciento y una recomendación de hace cinco minutos dice exactamente lo
+ * mismo que una recién hecha. Ponerle el TTL del panel obligaría a releer las hojas cada vez
+ * que el panel se refresca, que es lo contrario de lo que pide esta fase. Y como toda
+ * escritura invalida, confirmar o descartar algo sí recalcula al momento.
+ */
+const OP_TTL_RECOMENDACIONES = 300;
+
+/** Tope de la lista. Seis: una sección que no cabe de un vistazo se deja de leer entera, y
+ *  entonces da igual lo buena que sea la séptima. */
+const OP_RECO_MAX = 6;
+
+/**
+ * UMBRALES · por qué estos números y no otros
+ * --------------------------------------------
+ * Una "recomendación" sacada de dos reportes es ruido, y el ruido enseña a ignorar la sección
+ * entera: a la tercera vez que alguien la abre y encuentra una obviedad, deja de abrirla y ya
+ * no vuelve ni el día que hay algo bueno. Por eso cada una tiene su mínimo escrito, y si no se
+ * alcanza, esa recomendación NO SALE. Una lista vacía es una respuesta perfectamente buena.
+ *
+ * El mínimo de PERSONAS es el de la casa (`OP_UMBRAL_PERSONAS`, tres) en las cuatro. Es la
+ * misma frontera que decide si se levanta un incidente automático: por debajo de tres personas
+ * distintas lo que hay es alguien con un problema, no un sistema que falla. Si aquí se usara
+ * otro número, la sección estaría recomendando sobre patrones que la alerta automática no
+ * considera dignos de una bandera, y las dos cosas se contradirían en la misma pantalla.
+ */
+
+/** FRANJA HORARIA · ancho de la franja y mínimos. */
+const OP_RECO_FRANJA_HORAS = 2;
+/** Seis reportes: tres días con dos reportes cada uno. Con menos, una sola mañana mala se
+ *  disfraza de costumbre. */
+const OP_RECO_MIN_REPORTES_FRANJA = 6;
+/** Tres DÍAS DISTINTOS. Es el umbral que de verdad sostiene esta recomendación: dos días son
+ *  una casualidad y uno es una caída, no una franja. Sin esto, una caída de 14 reportes un
+ *  martes por la mañana dejaría "Connect falla de 9 a 11" en pantalla toda la semana. */
+const OP_RECO_MIN_DIAS = 3;
+/** Y la franja tiene que CONCENTRAR. Dos horas dentro de una jornada de unas ocho ya se llevan
+ *  un 25 % por puro reparto; por debajo de un tercio no hay franja, hay horario de trabajo. */
+const OP_RECO_CONCENTRACION_FRANJA = 0.35;
+
+/** SISTEMA PROBLEMÁTICO · más de un reporte al día de media en la semana. Por debajo de eso,
+ *  "el que más se reporta" es simplemente el que tuvo un mal día. */
+const OP_RECO_MIN_REPORTES_SISTEMA = 8;
+/** Y tiene que DESTACAR: la mitad más que el segundo. Con 9 contra 8 el "más problemático"
+ *  cambia de nombre cada vez que entra un reporte, y una recomendación que cambia sola cada
+ *  media hora no es una conclusión, es un marcador. */
+const OP_RECO_VENTAJA_SISTEMA = 1.5;
+
+/** SUBMOTIVO REINCIDENTE · cinco reportes del mismo problema en la semana. */
+const OP_RECO_MIN_REPORTES_MOTIVO = 5;
+/** Y sobre todo: DOS EPISODIOS. "Reincidente" significa que VOLVIÓ, no que duró. Tres días
+ *  seguidos son un problema largo —eso ya lo cuenta la incidencia abierta o el sistema
+ *  problemático—; lunes, jueves y viernes son un problema que vuelve, que es otra cosa y pide
+ *  otra decisión. Sin este mínimo, esta recomendación repetiría la de arriba con otras
+ *  palabras y la sección diría dos veces lo mismo. */
+const OP_RECO_MIN_EPISODIOS = 2;
+
+/** SUELTOS AGRUPABLES · dos reportes sueltos, de dos personas distintas, parecidos a la misma
+ *  incidencia abierta. Uno solo no basta: puede ser el mismo dedo que ya reportó dentro de la
+ *  incidencia, y una recomendación por cada suelto convertiría la sección en una segunda
+ *  bandeja de sueltos justo encima de la que ya está ahí abajo. */
+const OP_RECO_MIN_SUELTOS = 2;
+const OP_RECO_MIN_PERSONAS_SUELTOS = 2;
+
+/** Cuántas recomendaciones como mucho por clave, antes del tope global. Más de dos franjas o
+ *  dos motivos seguidos se leen como una lista de datos, no como un consejo. */
+const OP_RECO_TOPE_FRANJA = 2;
+const OP_RECO_TOPE_MOTIVO = 2;
+const OP_RECO_TOPE_SUELTOS = 3;
+
+/** "3 reportes" / "1 reporte", sin el "(s)" que delata que lo escribió una máquina. */
+function opRecoPlural_(n, singular, plural) {
+  return n + ' ' + (n === 1 ? singular : plural);
+}
+
+/**
+ * Cuántas VECES volvió: rachas de días consecutivos dentro del conjunto de días con reportes.
+ *
+ * Lunes-martes-jueves son dos episodios, no tres días: entre el martes y el jueves hubo una
+ * jornada de calma y el problema regresó. Es la diferencia entre "sigue roto" y "vuelve", y de
+ * ella depende que esta recomendación no sea un duplicado de la del sistema problemático.
+ */
+function opRecoEpisodios_(dias) {
+  const lista = Object.keys(dias || {}).sort();
+  let episodios = 0;
+  let previo = null;
+  lista.forEach(function (d) {
+    const ms = Date.parse(d + 'T00:00:00Z');
+    if (isNaN(ms)) return;
+    // Día y medio de holgura: separa "el día siguiente" de "dos días después" sin que un
+    // cambio de horario de verano parta una racha en dos.
+    if (previo === null || (ms - previo) > 86400000 * 1.5) episodios++;
+    previo = ms;
+  });
+  return episodios;
+}
+
+/** Contadores vacíos de un tramo (una hora del día, o un sistema entero). */
+function opRecoTramoVacio_() {
+  return { reportes: 0, personas: {}, dias: {} };
+}
+
+function opRecoSumar_(tramo, correo, dia) {
+  tramo.reportes++;
+  if (correo) tramo.personas[correo] = true;
+  if (dia) tramo.dias[dia] = true;
+}
+
+function opRecoCuantos_(obj) {
+  return Object.keys(obj || {}).length;
+}
+
+/**
+ * Recomendaciones para el panel de supervisión.
+ *
+ * Contrato (fijo, hay pantalla escrita contra él):
+ *   { success:true, generado:ISO, periodo:'los últimos 7 días', recomendaciones:[
+ *       { clave, titulo, evidencia, detalle, urgencia, accion } ] }
+ *
+ * Sin nada que recomendar devuelve `recomendaciones: []` y `success:true`: no tener consejos
+ * no es un error, y tratarlo como tal haría que la pantalla pintara una alarma roja los días
+ * buenos.
+ *
+ * La clave de caché no lleva el correo, igual que en `opPanel`: el permiso decide SI recibes
+ * las recomendaciones, no CUÁLES. Aquí no hay ni un solo campo que dependa de quién pregunta.
+ */
+function opRecomendaciones(email) {
+  try {
+    const gate = opGate_(email);
+    if (!gate.ok) return { success: false, message: gate.error };
+
+    return opCacheado_('reco', OP_TTL_RECOMENDACIONES, function () {
+      return opCalcularRecomendaciones_();
+    });
+  } catch (e) {
+    Logger.log('opRecomendaciones: ' + e + ' · ' + e.stack);
+    return { success: false, message: 'No pudimos calcular las recomendaciones en este momento.' };
+  }
+}
+
+function opCalcularRecomendaciones_() {
+  const catalogo = opLeerCatalogo_();
+  const ahora = Date.now();
+  const desdeMs = ahora - OP_RECO_DIAS * 86400000;
+  // La MISMA ventana que usa `opCalcularPanel_` para su lista de sueltos. Tiene que ser la
+  // misma: si aquí se mirara más atrás, se recomendaría agrupar un reporte que no está en la
+  // pantalla, y quien lea la recomendación no encontrará el botón por ningún lado.
+  const desdeSueltosMs = ahora - 24 * 3600 * 1000;
+
+  const nombreSistema = {};
+  const usosCatalogo = {};
+  catalogo.sistemas.forEach(function (s) {
+    nombreSistema[s.clave] = s.nombre;
+    usosCatalogo[s.clave] = {};
+    (catalogo.submotivos[s.clave] || []).forEach(function (m) {
+      usosCatalogo[s.clave][m.clave] = { valor: m.valor, usos: Number(m.usos) || 0 };
+    });
+  });
+
+  // ── PASADA ÚNICA POR LA HOJA DE REPORTES ───────────────────────────────────
+  const sistemas = {};   // clave → { nombre, total, personas, dias, horas[24] }
+  const motivos = {};    // clave de sistema → [ grupos de quejas que son la misma ]
+  const sueltos = [];
+
+  opLeerHoja_(OP_SHEET_REPORTES, OP_COLS_REPORTES).forEach(function (f) {
+    const ms = opMs_(f.Fecha);
+    if (!ms || ms < desdeMs) return;
+
+    const sisClave = String(f.SistemaClave || '');
+    if (!sisClave) return;
+    const correo = String(f.Correo || '').toLowerCase();
+
+    // Día y hora salen de la MISMA clave que usa el gráfico por horas, y en la misma zona
+    // horaria del script. Calcularlos por separado con `new Date().getHours()` metería la
+    // zona del servidor y un reporte de las 8:30 caería en la franja de las 14 h.
+    const hk = opHoraClave_(f.Fecha);
+    const dia = hk.slice(0, 10);
+    const hora = parseInt(hk.slice(11, 13), 10);
+    if (!dia || isNaN(hora)) return;
+
+    if (!sistemas[sisClave]) {
+      const base = opRecoTramoVacio_();
+      base.nombre = nombreSistema[sisClave] || String(f.Sistema || '') || sisClave;
+      base.horas = [];
+      for (let h = 0; h < 24; h++) base.horas.push(opRecoTramoVacio_());
+      sistemas[sisClave] = base;
+    }
+    const S = sistemas[sisClave];
+    opRecoSumar_(S, correo, dia);
+    opRecoSumar_(S.horas[hora], correo, dia);
+
+    // ── El mismo problema escrito de dos maneras ──
+    const texto = String(f.Submotivo || '').trim();
+    if (texto) {
+      if (!motivos[sisClave]) motivos[sisClave] = [];
+      opRecoSumar_(opRecoAgrupar_(motivos[sisClave], texto), correo, dia);
+    }
+
+    if (!String(f.IncidenteId || '') && ms > desdeSueltosMs &&
+        String(f.Estado || '') !== 'descartado') {
+      sueltos.push({
+        id: String(f.ID || ''), ms: ms, correo: correo,
+        sistemaClave: sisClave, sistema: S.nombre,
+        submotivo: texto
+      });
+    }
+  });
+
+  // ── PASADA ÚNICA POR LA HOJA DE INCIDENCIAS ────────────────────────────────
+  const incidentes = opLeerHoja_(OP_SHEET_INCIDENTES, OP_COLS_INCIDENTES)
+    .map(function (f) { return opIncidenteDeFila_(f, catalogo); })
+    .filter(function (i) { return i.id; });
+
+  const confirmadasPorSistema = {};
+  incidentes.forEach(function (i) {
+    // Por la fecha de CONFIRMACIÓN, igual que el historial: es el momento en que se supo que
+    // era real, y así la cifra que se cita coincide con la del gráfico.
+    if (!i.confirmado || opMs_(i.confirmado) < desdeMs) return;
+    confirmadasPorSistema[i.sistemaClave] = (confirmadasPorSistema[i.sistemaClave] || 0) + 1;
+  });
+
+  // Incidencias a las que tiene sentido mandar reportes: las vivas, MENOS las sospechas que
+  // están a punto de apagarse solas. La condición es copia de `opCaducarPosibles_` porque
+  // aquí no se caduca nada (ver la cabecera de esta sección): sin este filtro, la pantalla
+  // propondría agrupar tres reportes en una incidencia que el propio panel va a cerrar en la
+  // misma carga, y el supervisor pulsaría un botón que ya no lleva a ninguna parte.
+  const limiteCaduca = ahora - OP_HORAS_CADUCA_POSIBLE * 3600 * 1000;
+  const vivas = incidentes.filter(function (i) {
+    if (i.cierra) return false;
+    if (i.estado === 'posible' && !i.confirmado) {
+      const ultima = Math.max(opMs_(i.actualizado), opMs_(i.creado));
+      if (ultima && ultima < limiteCaduca) return false;
+    }
+    return true;
+  });
+  const vivasPorSistema = {};
+  vivas.forEach(function (i) {
+    if (!vivasPorSistema[i.sistemaClave]) vivasPorSistema[i.sistemaClave] = [];
+    vivasPorSistema[i.sistemaClave].push(i);
+  });
+
+  const recomendaciones = []
+    .concat(opRecoFranjas_(sistemas, vivasPorSistema))
+    .concat(opRecoSistema_(sistemas, confirmadasPorSistema, vivasPorSistema))
+    .concat(opRecoMotivos_(motivos, sistemas, usosCatalogo, vivasPorSistema))
+    .concat(opRecoSueltos_(sueltos, vivas));
+
+  // ORDEN: primero lo que se puede pulsar, luego lo urgente, luego lo grande. Quien abre esta
+  // sección tiene tres minutos entre dos llamadas; lo que exige una decisión ahora va arriba y
+  // lo que es para pensar el viernes va abajo.
+  const rango = { alta: 3, media: 2, baja: 1 };
+  recomendaciones.sort(function (a, b) {
+    const accA = a.accion ? 1 : 0;
+    const accB = b.accion ? 1 : 0;
+    if (accA !== accB) return accB - accA;
+    const uA = rango[a.urgencia] || 0;
+    const uB = rango[b.urgencia] || 0;
+    if (uA !== uB) return uB - uA;
+    return (b._peso || 0) - (a._peso || 0);
+  });
+
+  const lista = recomendaciones.slice(0, OP_RECO_MAX).map(function (r) {
+    // `_peso` solo ordena; no tiene por qué viajar ni significa nada fuera de aquí.
+    return {
+      clave: r.clave, titulo: r.titulo, evidencia: r.evidencia,
+      detalle: r.detalle || '', urgencia: r.urgencia, accion: r.accion || null
+    };
+  });
+
+  return {
+    success: true,
+    generado: new Date().toISOString(),
+    periodo: OP_RECO_PERIODO,
+    recomendaciones: lista
+  };
+}
+
+/**
+ * Mete una queja en el grupo al que pertenece, creándolo si es la primera.
+ *
+ * Tres criterios, en este orden y por este motivo:
+ *   1. La clave exacta: lo que viene del catálogo cae junto sin gastar nada.
+ *   2. `opSugerirExistente_`, el mismo juez que usa el FORMULARIO para no duplicar opciones.
+ *      Si aquí se agrupara distinto que allí, la pantalla contaría como un problema lo que la
+ *      lista de submotivos enseña como dos, o al revés.
+ *   3. `opMismoMotivo_`, el criterio canónico del módulo —algo más laxo— que es el que decide
+ *      qué reportes cuentan para el umbral y a qué incidencia pertenece cada uno. Agrupar más
+ *      estricto que él haría que esta sección dijera "no hay patrón" de un conjunto de
+ *      reportes que la alerta automática ya considera el mismo problema.
+ */
+function opRecoAgrupar_(lista, texto) {
+  const clave = opClave_(texto);
+
+  let grupo = lista.filter(function (g) { return g.clave === clave; })[0];
+
+  if (!grupo) {
+    const sugerido = opSugerirExistente_(texto, lista.map(function (g) { return g.texto; }));
+    if (sugerido) {
+      grupo = lista.filter(function (g) { return g.texto === sugerido.valor; })[0];
+    }
+  }
+  if (!grupo) {
+    grupo = lista.filter(function (g) { return opMismoMotivo_(texto, g.texto); })[0];
+  }
+  if (!grupo) {
+    grupo = opRecoTramoVacio_();
+    grupo.texto = texto;
+    grupo.clave = clave;
+    lista.push(grupo);
+  }
+  return grupo;
+}
+
+/** ¿Hay algo abierto de este sistema que esté molestando ahora mismo? Sube la urgencia. */
+function opRecoIncidenciaViva_(vivasPorSistema, sisClave) {
+  const lista = (vivasPorSistema[sisClave] || []).filter(function (i) { return i.afecta; });
+  if (!lista.length) return null;
+  // La más grave manda: una confirmada dice más que una sospecha.
+  const orden = { alert: 3, warn: 2, info: 1, ok: 0, neutro: 0 };
+  lista.sort(function (a, b) { return (orden[b.tono] || 0) - (orden[a.tono] || 0); });
+  return lista[0];
+}
+
+/** Acción "abrir esa incidencia". `item` va vacío: aquí no se señala ningún reporte suelto. */
+function opRecoAccionVer_(inc) {
+  if (!inc) return null;
+  return {
+    texto: 'Ver «' + (inc.titulo || opTitulo_(inc.sistema, inc.submotivo)) + '»',
+    tipo: 'ver', item: '', inc: inc.id
+  };
+}
+
+/**
+ * 1 · FRANJA HORARIA · "esto pasa siempre a la misma hora".
+ *
+ * Se recorren franjas de dos horas por sistema y se conserva la mejor de cada uno. Dos horas
+ * porque es el ancho en el que se puede hacer algo con la respuesta: reforzar una hora no da
+ * tiempo a organizarlo y media jornada ya no es una franja.
+ */
+function opRecoFranjas_(sistemas, vivasPorSistema) {
+  const salida = [];
+
+  Object.keys(sistemas).forEach(function (sisClave) {
+    const S = sistemas[sisClave];
+    if (S.reportes < OP_RECO_MIN_REPORTES_FRANJA) return;
+
+    let mejor = null;
+    for (let h = 0; h + OP_RECO_FRANJA_HORAS <= 24; h++) {
+      let reportes = 0;
+      const personas = {};
+      const dias = {};
+      for (let k = 0; k < OP_RECO_FRANJA_HORAS; k++) {
+        const tramo = S.horas[h + k];
+        reportes += tramo.reportes;
+        Object.keys(tramo.personas).forEach(function (c) { personas[c] = true; });
+        Object.keys(tramo.dias).forEach(function (d) { dias[d] = true; });
+      }
+      if (!mejor || reportes > mejor.reportes) {
+        mejor = { desde: h, hasta: h + OP_RECO_FRANJA_HORAS, reportes: reportes,
+                  personas: personas, dias: dias };
+      }
+    }
+    if (!mejor) return;
+
+    const nPersonas = opRecoCuantos_(mejor.personas);
+    const nDias = opRecoCuantos_(mejor.dias);
+    const parte = mejor.reportes / S.reportes;
+
+    if (mejor.reportes < OP_RECO_MIN_REPORTES_FRANJA) return;
+    if (nDias < OP_RECO_MIN_DIAS) return;
+    if (nPersonas < OP_UMBRAL_PERSONAS) return;
+    if (parte < OP_RECO_CONCENTRACION_FRANJA) return;
+
+    const viva = opRecoIncidenciaViva_(vivasPorSistema, sisClave);
+    salida.push({
+      clave: 'franja-horaria',
+      titulo: S.nombre + ' falla sobre todo de ' + mejor.desde + ' a ' + mejor.hasta + ' h',
+      evidencia: opRecoPlural_(mejor.reportes, 'reporte', 'reportes') + ' de ' + S.nombre +
+                 ' entre las ' + mejor.desde + ' y las ' + mejor.hasta + ' h en ' +
+                 OP_RECO_PERIODO,
+      detalle: 'Se repitió en ' + opRecoPlural_(nDias, 'día distinto', 'días distintos') +
+               ', lo reportaron ' + opRecoPlural_(nPersonas, 'persona', 'personas') +
+               ' y es el ' + Math.round(parte * 100) + ' % de todo lo que se reporta de ' +
+               S.nombre + '.',
+      // Alta solo si además hay algo abierto de ese sistema: un patrón horario es material
+      // para organizar el turno, no para levantarse de la silla, salvo que ya esté doliendo.
+      urgencia: viva ? 'alta' : 'media',
+      accion: opRecoAccionVer_(viva),
+      _peso: mejor.reportes
+    });
+  });
+
+  salida.sort(function (a, b) { return b._peso - a._peso; });
+  return salida.slice(0, OP_RECO_TOPE_FRANJA);
+}
+
+/**
+ * 2 · SISTEMA PROBLEMÁTICO · "de todo lo que llega, la mayoría es de este".
+ *
+ * Sale UNA sola, la del líder, y solo si le saca de verdad al segundo. Un podio completo no
+ * es un consejo: es la misma tabla que ya se puede leer en el gráfico.
+ */
+function opRecoSistema_(sistemas, confirmadasPorSistema, vivasPorSistema) {
+  const orden = Object.keys(sistemas).map(function (clave) {
+    const S = sistemas[clave];
+    return { clave: clave, nombre: S.nombre, reportes: S.reportes,
+             personas: opRecoCuantos_(S.personas), dias: opRecoCuantos_(S.dias) };
+  }).sort(function (a, b) { return b.reportes - a.reportes; });
+
+  if (!orden.length) return [];
+  const lider = orden[0];
+  const segundo = orden[1] || { reportes: 0, nombre: '' };
+
+  if (lider.reportes < OP_RECO_MIN_REPORTES_SISTEMA) return [];
+  if (lider.personas < OP_UMBRAL_PERSONAS) return [];
+  if (lider.dias < OP_RECO_MIN_DIAS) return [];
+  if (segundo.reportes > 0 && lider.reportes < segundo.reportes * OP_RECO_VENTAJA_SISTEMA) return [];
+
+  const confirmadas = confirmadasPorSistema[lider.clave] || 0;
+  const viva = opRecoIncidenciaViva_(vivasPorSistema, lider.clave);
+
+  const comparacion = segundo.reportes > 0
+    ? ', frente a ' + opRecoPlural_(segundo.reportes, 'reporte', 'reportes') + ' de ' + segundo.nombre
+    : ', y es el único sistema con reportes';
+
+  const detalle = 'Lo reportaron ' + opRecoPlural_(lider.personas, 'persona', 'personas') +
+                  ' en ' + opRecoPlural_(lider.dias, 'día distinto', 'días distintos') +
+                  (confirmadas
+                    ? '; ' + opRecoPlural_(confirmadas, 'incidencia se confirmó',
+                                           'incidencias se confirmaron') + ' en ese plazo.'
+                    : '; ninguna incidencia se confirmó en ese plazo.');
+
+  return [{
+    clave: 'sistema-problematico',
+    titulo: lider.nombre + ' es el sistema que más se reporta',
+    evidencia: opRecoPlural_(lider.reportes, 'reporte', 'reportes') + ' de ' + lider.nombre +
+               ' en ' + OP_RECO_PERIODO + comparacion,
+    detalle: detalle,
+    // Con algo abierto ahora, o con dos fallas ya confirmadas en la semana, esto deja de ser
+    // una estadística y pasa a ser un problema que alguien tiene que llevar a alguna parte.
+    urgencia: (viva || confirmadas >= 2) ? 'alta' : 'media',
+    accion: opRecoAccionVer_(viva),
+    _peso: lider.reportes
+  }];
+}
+
+/**
+ * 3 · SUBMOTIVO REINCIDENTE · "este fallo concreto ya volvió tres veces".
+ *
+ * Lo interesante no es que haya muchos reportes, sino que haya PAUSAS entre ellos: algo que se
+ * arregla y reaparece no se resuelve con la incidencia de hoy, y esa es la conclusión que
+ * ninguna de las otras tres recomendaciones puede dar.
+ */
+function opRecoMotivos_(motivos, sistemas, usosCatalogo, vivasPorSistema) {
+  const salida = [];
+
+  Object.keys(motivos).forEach(function (sisClave) {
+    const S = sistemas[sisClave];
+    if (!S) return;
+
+    motivos[sisClave].forEach(function (g) {
+      const nPersonas = opRecoCuantos_(g.personas);
+      const nDias = opRecoCuantos_(g.dias);
+      const episodios = opRecoEpisodios_(g.dias);
+
+      if (g.reportes < OP_RECO_MIN_REPORTES_MOTIVO) return;
+      if (nDias < OP_RECO_MIN_DIAS) return;
+      if (nPersonas < OP_UMBRAL_PERSONAS) return;
+      if (episodios < OP_RECO_MIN_EPISODIOS) return;
+
+      // Si el problema existe en el catálogo, se enseña CON LA REDACCIÓN DEL CATÁLOGO: es la
+      // que el equipo entero ve al reportar, y llamarlo aquí de otra forma —la que escribió
+      // quien lo redactó primero a mano— obligaría a traducir mentalmente entre dos pantallas.
+      const enCatalogo = (usosCatalogo[sisClave] || {})[g.clave];
+      const nombreMotivo = enCatalogo ? enCatalogo.valor : opCapitalizar_(g.texto);
+      const usos = enCatalogo ? enCatalogo.usos : 0;
+
+      // Se busca una incidencia viva de ESE motivo con el criterio canónico, no por texto
+      // exacto: si la hay, lo que toca no es abrir otra sino mirar la que está.
+      const viva = (vivasPorSistema[sisClave] || []).filter(function (i) {
+        return opClave_(i.submotivo) === g.clave || opMismoMotivo_(g.texto, i.submotivo);
+      })[0] || null;
+
+      salida.push({
+        clave: 'submotivo-reincidente',
+        titulo: 'El mismo fallo de ' + S.nombre + ' vuelve: «' + nombreMotivo + '»',
+        evidencia: opRecoPlural_(g.reportes, 'reporte', 'reportes') + ' de «' + nombreMotivo +
+                   '» en ' + S.nombre + ' durante ' + OP_RECO_PERIODO + ', repartidos en ' +
+                   opRecoPlural_(nDias, 'día', 'días') + ' y en ' +
+                   opRecoPlural_(episodios, 'ocasión separada', 'ocasiones separadas'),
+        detalle: 'Lo reportaron ' + opRecoPlural_(nPersonas, 'persona', 'personas') + '.' +
+                 (usos ? ' Desde que existe la lista de motivos se ha elegido ' +
+                         opRecoPlural_(usos, 'vez', 'veces') + '.' : ''),
+        // Tres regresos ya no son mala suerte: es algo que se está arreglando mal.
+        urgencia: episodios >= 3 ? 'alta' : 'media',
+        accion: opRecoAccionVer_(viva),
+        _peso: g.reportes
+      });
+    });
+  });
+
+  salida.sort(function (a, b) { return b._peso - a._peso; });
+  return salida.slice(0, OP_RECO_TOPE_MOTIVO);
+}
+
+/**
+ * 4 · SUELTOS AGRUPABLES · "estos reportes ya tienen dueño y nadie los ha juntado".
+ *
+ * Es la única de las cuatro que no describe una tendencia sino un descuido concreto, y por eso
+ * es la que lleva acción: `item` es el reporte suelto y `inc` la incidencia a la que se parece.
+ *
+ * El emparejamiento repite, a propósito, la escalera de `opIncidenteParaReporte_` —clave
+ * exacta, luego motivo parecido, y por último una incidencia de servicio o confirmada que se
+ * lleva cualquier reporte de su sistema—. Si aquí se emparejara de otra manera, la pantalla
+ * propondría agrupaciones que el propio módulo no habría hecho nunca solo, y al revés.
+ */
+function opRecoSueltos_(sueltos, vivas) {
+  if (!sueltos.length || !vivas.length) return [];
+
+  const porIncidencia = {};
+  sueltos.forEach(function (s) {
+    const candidatas = vivas.filter(function (i) { return i.sistemaClave === s.sistemaClave; });
+    if (!candidatas.length) return;
+
+    let inc = candidatas.filter(function (i) {
+      return opClave_(i.submotivo) && opClave_(i.submotivo) === opClave_(s.submotivo);
+    })[0];
+    if (!inc) {
+      inc = candidatas.filter(function (i) {
+        return i.submotivo && opMismoMotivo_(s.submotivo, i.submotivo);
+      })[0];
+    }
+    if (!inc) {
+      // Sin motivo (incidencia de servicio) o ya confirmada: se lleva lo que llegue de su
+      // sistema. Si Connect está caído entero da igual con qué palabras lo cuente cada quien.
+      inc = candidatas.filter(function (i) {
+        return !opClave_(i.submotivo) || i.estado === 'confirmado' || i.estado === 'mantenimiento';
+      })[0];
+    }
+    if (!inc) return;
+
+    if (!porIncidencia[inc.id]) porIncidencia[inc.id] = { inc: inc, reportes: [], personas: {} };
+    porIncidencia[inc.id].reportes.push(s);
+    if (s.correo) porIncidencia[inc.id].personas[s.correo] = true;
+  });
+
+  const salida = [];
+  Object.keys(porIncidencia).forEach(function (id) {
+    const grupo = porIncidencia[id];
+    const nPersonas = opRecoCuantos_(grupo.personas);
+    if (grupo.reportes.length < OP_RECO_MIN_SUELTOS) return;
+    if (nPersonas < OP_RECO_MIN_PERSONAS_SUELTOS) return;
+
+    // El más reciente: es el que encabeza la lista de sueltos del panel, así que quien siga la
+    // recomendación lo tiene delante sin buscar.
+    grupo.reportes.sort(function (a, b) { return b.ms - a.ms; });
+    const cabeza = grupo.reportes[0];
+    const inc = grupo.inc;
+    const titulo = inc.titulo || opTitulo_(inc.sistema, inc.submotivo);
+    const desde = inc.confirmado || inc.creado;
+
+    salida.push({
+      clave: 'sueltos-agrupables',
+      titulo: opRecoPlural_(grupo.reportes.length, 'reporte suelto es', 'reportes sueltos son') +
+              ' la misma falla que «' + titulo + '»',
+      evidencia: opRecoPlural_(grupo.reportes.length, 'reporte', 'reportes') + ' de ' +
+                 cabeza.sistema + ' sin agrupar en las últimas 24 h coinciden con «' + titulo +
+                 '», abierta desde ' + opRecoCuando_(desde),
+      detalle: 'Los enviaron ' + opRecoPlural_(nPersonas, 'persona distinta', 'personas distintas') +
+               '. Agruparlos deja esa incidencia con el peso real que tiene.',
+      // Sobre una falla ya confirmada corre prisa: cada suelto que se queda fuera es un
+      // reporte que no cuenta en lo que se está comunicando al equipo.
+      urgencia: inc.estado === 'confirmado' ? 'alta' : 'media',
+      accion: {
+        texto: 'Agrupar en «' + titulo + '»',
+        tipo: 'elevar',
+        item: cabeza.id,
+        inc: inc.id
+      },
+      _peso: grupo.reportes.length
+    });
+  });
+
+  salida.sort(function (a, b) { return b._peso - a._peso; });
+  return salida.slice(0, OP_RECO_TOPE_SUELTOS);
+}
+
+/** "las 09:14" — la hora local, que es como se habla de esto por WhatsApp. Sin fecha: todo lo
+ *  que cita esta recomendación cabe en las últimas 24 h. */
+function opRecoCuando_(iso) {
+  const ms = opMs_(iso);
+  if (!ms) return 'hace un rato';
+  try {
+    return 'las ' + Utilities.formatDate(new Date(ms), Session.getScriptTimeZone(), 'HH:mm');
+  } catch (e) {
+    return 'hace un rato';
   }
 }
 
