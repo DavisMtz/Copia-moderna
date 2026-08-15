@@ -176,25 +176,11 @@
             to { transform: rotate(360deg); } 
         }
 
-        /* --- ANIMACIÓN DE CARGA PRINCIPAL --- */
-        #loading-overlay {
-            position: absolute;
-            inset: 0;
-            background-color: rgba(255, 255, 255, 0.95);
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            justify-content: center;
-            z-index: 10;
-            transition: opacity 0.4s ease-out, visibility 0.4s ease-out;
-            opacity: 1;
-            visibility: visible;
-        }
-        #loading-overlay.hidden {
-            opacity: 0;
-            visibility: hidden;
-        }
-        
+        /* Aquí vivía #loading-overlay, el velo de carga que tapaba la hoja desde el
+           primer fotograma. Lo sustituye la escena del escáner (VentelFX.section sobre
+           #quote-view-content), que además dice qué folio se está buscando. Sus estilos
+           se van con él para que nadie los reviva sin querer. */
+
         /* --- NUEVA ANIMACIÓN DE REDIRECCIÓN (PANTALLA COMPLETA) --- */
         #redirect-overlay {
             position: fixed; /* Fijo para cubrir toda la pantalla */
@@ -284,8 +270,11 @@
                 page-break-before: auto; 
                 page-break-inside: avoid; 
             }
-            .preview-controls, #view-message-area, #loading-overlay, #redirect-overlay, #printSpinner, #drivePdfSpinner { 
-                display: none !important; 
+            /* Las esperas no se imprimen. La escena del escáner se monta DENTRO de
+               #quote-view-content (que sí es visible al imprimir), así que se nombra
+               aquí: antes ese sitio lo ocupaba #loading-overlay. */
+            .preview-controls, #view-message-area, #redirect-overlay, #printSpinner, #drivePdfSpinner, .vfx-cover, .vfx-overlay {
+                display: none !important;
             }
         }
         @page { 
@@ -363,10 +352,6 @@
     </div>
 
     <div class="container-pdf" id="quote-view-content">
-        <div id="loading-overlay">
-            <div class="modern-spinner"></div>
-            <p class="loading-text">Importando datos de la cotización...</p>
-        </div>
         <div class="pdf-content-wrapper">
             <header>
                 <div class="header-left">
@@ -503,15 +488,6 @@
             link.click();
             document.body.removeChild(link);
             URL.revokeObjectURL(blobUrl);
-        }
-
-        function hideLoader() {
-            const loader = document.getElementById('loading-overlay');
-            if (loader) {
-                loader.classList.add('hidden');
-            }
-            // El loader de marca cubre el arranque (se muestra al incluirse el partial).
-            if (window.VentelLoader) VentelLoader.hide();
         }
 
         function formatCurrencyJS(amount) {
@@ -1018,11 +994,13 @@
             if (folioToView) {
                 if (quoteViewContentContainer) quoteViewContentContainer.classList.remove('hidden');
 
-                /* Una sola capa de espera: se retiran el overlay de marca del arranque y el
-                   disco de #loading-overlay, y sobre la hoja todavía vacía se queda la
-                   escena del escáner, que es literalmente lo que se está haciendo: leer una
-                   clave en la base. */
-                hideLoader();
+                /* Una sola capa de espera sobre la hoja: la escena del escáner, que es
+                   literalmente lo que se está haciendo —leer una clave en la base—.
+                   Aquí se montaba encima de un #loading-overlay heredado que venía
+                   encendido desde el marcado: como el velo de la escena es traslúcido,
+                   su disco se seguía viendo debajo TODO lo que tardara el servidor, y con
+                   el isotipo de arranque delante eran tres esperas para una sola llamada.
+                   El isotipo lo retira ahora el propio montaje de la escena. */
                 const fxFolio = window.VentelFX
                     ? VentelFX.section('#quote-view-content', 'escaner', {
                         mode: 'cover', maxMs: 30000,
@@ -1041,7 +1019,11 @@
                 AppRun.call('getQuoteDetails', [folioToView, AppSession.userEmail], { busy: 'Consultando' })
                     .then(function(response) {
                         fxFolio.done();
-                        hideLoader();
+                        /* Cinturón para el día que el motor de escenas no cargue: sin él
+                           nadie habría retirado el isotipo de arranque, y la respuesta
+                           —incluido el aviso de error— se pintaría debajo. Si la escena
+                           sí se montó, esto no hace nada. */
+                        if (window.VentelLoader) VentelLoader.hide();
                         response = response || {};
                         if (response.success && response.quote) {
                             populateView(response.quote);
@@ -1055,13 +1037,16 @@
                         }
                     }, function(error) {
                         fxFolio.done();
-                        hideLoader();
+                        if (window.VentelLoader) VentelLoader.hide();
                         showViewMessage('No hay conexión con el sistema. Revisa tu internet y recarga la página.', true);
                         if (quoteViewContentContainer) quoteViewContentContainer.innerHTML = '<div class="pdf-content-wrapper"><p class="text-center text-red-600 p-10">No pudimos cargar esta cotización. Revisa tu conexión y recarga la página.</p></div>';
                         console.error("Error en llamada a getQuoteDetails:", error);
                     });
             } else {
-                hideLoader(); 
+                /* Sin folio no hay llamada ni escena que montar, así que nadie retiraría
+                   el isotipo de arranque: se cierra a mano o el aviso se queda debajo de
+                   él hasta que salte el corte de seguridad de 12 s. */
+                if (window.VentelLoader) VentelLoader.hide();
                 showViewMessage('No se especificó un folio de cotización para mostrar.', true);
                 if (quoteViewContentContainer) quoteViewContentContainer.classList.add('hidden'); 
             }

@@ -1460,6 +1460,26 @@
     return null;
   }
 
+  /**
+   * Encender una espera aquí RELEVA al isotipo de arranque, en el acto.
+   *
+   * El overlay de LoaderPartial nace visible con la página y cada pantalla lo apaga
+   * con `hide()`, que lo desvanece en 360 ms. Pero las pantallas apagan y montan su
+   * espera en el mismo tick, así que las dos capas se cruzaban SIEMPRE: durante esos
+   * 360 ms se veían el isotipo y, debajo, el esqueleto o la escena —que es
+   * exactamente el «se ven dos loaders» que se reportó—. Y con `.vfx-cover`, que es
+   * translúcido con desenfoque, el de abajo no quedaba tapado ni siquiera después.
+   *
+   * Se resuelve aquí, en el motor, y no pantalla por pantalla: quien monta una
+   * espera nueva es quien sabe que ya no hace falta la genérica. Una pantalla que se
+   * olvide de llamar a `hide()` también queda cubierta.
+   */
+  function relevarArranque() {
+    try {
+      if (window.VentelLoader && VentelLoader.retirarArranque) VentelLoader.retirarArranque();
+    } catch (e) { /* sin LoaderPartial en esta pantalla no hay nada que relevar */ }
+  }
+
   var VentelFX = {
     themes: THEMES,
     pantallas: PANTALLAS,
@@ -1493,6 +1513,7 @@
      */
     overlay: function (theme, opts) {
       opts = opts || {};
+      relevarArranque();
       if (openOverlay && !openOverlay.isDone()) openOverlay.done();
       var host = D.createElement('div');
       host.className = 'vfx vfx-overlay';
@@ -1516,6 +1537,7 @@
      */
     section: function (target, theme, opts) {
       opts = opts || {};
+      relevarArranque();
       var el = resolve(target);
       if (!el) return mountNoop();
       var mode = opts.mode || 'auto';
@@ -1576,6 +1598,7 @@
      */
     skeleton: function (target, kind, opts) {
       opts = opts || {};
+      relevarArranque();
       var el = resolve(target);
       if (!el) return mountNoop();
       var n = opts.rows || 6;
