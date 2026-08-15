@@ -1339,6 +1339,19 @@ function opEstadoSesion(email) {
     salida.puedeGestionar = (id.bloques || []).indexOf(OP_BLOQUE) !== -1;
     salida.mios = opReportesDeAsesor_(id.email);
     salida.yo = { email: id.email, nombre: id.nombre };
+    // F2 (T2.1) · El conteo de revisiones pendientes para la isla de notificaciones.
+    // Va AQUÍ y no dentro de `base`: la parte cacheada se comparte entre todos los
+    // usuarios, y un dato que depende del permiso de quien pregunta guardado ahí se
+    // le serviría también a quien no lo tiene. Solo viaja si la identidad trae el
+    // bloque 'revisar' —el payload de un asesor sin él no lleva ni el campo— y la
+    // rama pública (opEstadoPublico) jamás pasa por aquí. Si el conteo falla (-1),
+    // el campo se omite y la isla simplemente no pinta el óvalo hasta el siguiente
+    // sondeo. Su caché propia vive en revConteoPendientes_ (Revision.gs), así que
+    // este añadido no encarece la llamada que la isla ya hace cada 120 s.
+    if ((id.bloques || []).indexOf('revisar') !== -1 && typeof revConteoPendientes_ === 'function') {
+      const pendientes = revConteoPendientes_();
+      if (pendientes >= 0) salida.revision = { pendientes: pendientes };
+    }
     return salida;
   } catch (e) {
     Logger.log('opEstadoSesion: ' + e + ' · ' + e.stack);

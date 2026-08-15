@@ -106,12 +106,30 @@
  * Lo único que siguen compartiendo es la gramática de color y el easing.
  */
 
+/* ── La zona de la esquina ─────────────────────────────────────────────────── */
+/*
+ * El anclaje fijo que antes era la propia pastilla. Existe porque la esquina ya no es
+ * UN elemento: es la pastilla de estado MÁS los óvalos de notificación (F2), y lo que
+ * está sujeto a la ventana es el conjunto. En reposo es una fila —pastilla a la
+ * izquierda, óvalos a su derecha—; al apuntarla con notificaciones vivas se vuelve
+ * columna invertida: cada notificación pasa a ser una fila encima de la pastilla, que
+ * es el "crece hacia el lado y hacia arriba" del diseño. El intercambio de sitio lo
+ * anima GSAP con transform (FLIP); aquí solo viven los dos layouts.
+ *
+ * --op-pill-suelo lo pone la pantalla que tenga algo pegado abajo (la barra de
+ * navegación del móvil en Index). Sin él la zona se sienta encima de un botón de esa
+ * barra y tapa justo lo que hay que tocar.
+ */
+.op-zona {
+  position: fixed; left: 8px; bottom: calc(16px + var(--op-pill-suelo, 0px)); z-index: 900;
+  display: flex; flex-direction: row; align-items: flex-end; gap: 6px;
+  max-width: calc(100vw - 16px);
+}
+.op-zona.op-abierta { flex-direction: column-reverse; align-items: flex-start; }
+
 .op-pill {
   --op-tono: var(--op-ok);
-  /* --op-pill-suelo lo pone la pantalla que tenga algo pegado abajo (la barra de
-     navegación del móvil en Index). Sin él la pestaña se sienta encima de un botón de
-     esa barra y tapa justo lo que hay que tocar. */
-  position: fixed; left: 8px; bottom: calc(16px + var(--op-pill-suelo, 0px)); z-index: 900;
+  position: relative;
   display: inline-flex; align-items: center; justify-content: flex-start;
   height: 28px; padding: 0 5px; /* Círculo perfecto de 28x28px al estar cerrado */
   border-radius: 14px; 
@@ -244,6 +262,63 @@
   background: currentColor; font-size: 11px; font-weight: 800; flex: none;
   font-variant-numeric: tabular-nums; }
 .op-cont span { color: var(--op-surface); }
+
+/* ── El óvalo de notificación (F2) ─────────────────────────────────────────── */
+/*
+ * Segundo óvalo de la esquina: el contador de cotizaciones pendientes de revisar,
+ * y de lo que venga después (el registro de fuentes es genérico a propósito).
+ * Vive como HERMANO de la pastilla, no dentro de ella, y eso es una decisión de
+ * supervivencia: la isla del guardado reconstruye el innerHTML de la pastilla
+ * entero, y cualquier cosa que viva dentro muere con cada préstamo. Un hermano
+ * repintado desde su propio registro reaparece intacto.
+ *
+ * Anatomía: relojito + número + rótulo plegado. El color nunca viaja solo (regla
+ * de la casa): icono, cifra y —desplegado— la palabra.
+ *
+ * REPARTO DE DUEÑAS, para que nadie se pise: el CSS es LA dueña de max-width y
+ * opacity del rótulo (transición en el estado base, así pliega y despliega igual
+ * con y sin GSAP); GSAP es LA dueña del transform del óvalo (el FLIP que lo sube a
+ * su fila). El ancho de la pastilla ya tiene sus dos dueñas históricas y aquí no
+ * se le suma ninguna: su despliegue en la zona abierta va por la clase
+ * .op-desplegada de siempre.
+ */
+.op-noti {
+  position: relative;
+  display: inline-flex; align-items: center; justify-content: flex-start;
+  height: 28px; padding: 0 5px; border-radius: 14px; flex: none;
+  background: var(--op-surface);
+  border: 1px solid color-mix(in srgb, var(--op-line) 40%, transparent);
+  color: var(--op-ink);
+  box-shadow: 0 4px 12px -4px rgba(0,0,0,0.12), 0 2px 4px -2px rgba(0,0,0,0.08);
+  cursor: pointer; -webkit-tap-highlight-color: transparent;
+  overflow: hidden; font-family: var(--op-f);
+  transition: background-color .35s ease, color .35s ease, box-shadow .18s ease;
+}
+/* Sin transform en el hover a propósito: el transform del óvalo es de GSAP (FLIP)
+   y no admite dos dueños. La reacción al ratón la dan la sombra y el icono. */
+.op-noti:hover { box-shadow: 0 6px 16px -4px rgba(0,0,0,0.15), 0 4px 8px -4px rgba(0,0,0,0.1); }
+.op-noti:focus-visible { outline: 2px solid var(--op-brand); outline-offset: 3px; }
+
+.op-noti-ic { display: flex; align-items: center; justify-content: center; flex: none;
+  width: 18px; height: 18px; border-radius: 50%; color: var(--op-info);
+  background: color-mix(in srgb, var(--op-info) 12%, transparent);
+  transition: transform 0.3s ease; }
+.op-noti:hover .op-noti-ic { transform: scale(1.1); }
+.op-noti-ic svg { width: 12px; height: 12px; display: block; }
+
+/* El número, con la plantilla visual del contador de sistemas (.op-cont). */
+.op-noti-num { display: inline-flex; align-items: center; justify-content: center;
+  min-width: 19px; height: 19px; margin-left: 4px; padding: 0 5px; border-radius: 6px;
+  background: var(--op-info); font-size: 11px; font-weight: 800; flex: none;
+  font-variant-numeric: tabular-nums; }
+.op-noti-num span { color: var(--op-surface); }
+
+.op-noti-tx { display: block; max-width: 0; margin-left: 0; padding: 0; opacity: 0;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  font-size: 11.5px; font-weight: 600; line-height: 1;
+  transition: max-width 0.5s cubic-bezier(0.19, 1, 0.22, 1), margin-left 0.5s cubic-bezier(0.19, 1, 0.22, 1), padding 0.5s cubic-bezier(0.19, 1, 0.22, 1), opacity 0.3s ease;
+}
+.op-zona.op-abierta .op-noti-tx { max-width: 13rem; margin-left: 6px; padding-right: 4px; opacity: 1; }
 
 /* ── Panel deslizante ──────────────────────────────────────────────────────── */
 
@@ -524,20 +599,23 @@
   /* En el teléfono no hay hover: la pestaña se queda plegada hasta que algo falla, y
      entonces el texto no puede pasar de media pantalla o tapa el contenido. Sigue
      pegada al canto izquierdo; lo único que baja es la separación del suelo. */
-  .op-pill { bottom: calc(16px + var(--op-pill-suelo, 0px)); }
+  .op-zona { bottom: calc(16px + var(--op-pill-suelo, 0px)); }
   .op-pill:hover .op-pill-tx,
   .op-pill:focus-visible .op-pill-tx,
   .op-pill.op-desplegada .op-pill-tx { max-width: 52vw; }
+  /* El óvalo de notificación tampoco tiene hover en el teléfono: un toque abre la
+     zona, el segundo navega (lo cablea el JS). El rótulo respeta el mismo tope. */
+  .op-zona.op-abierta .op-noti-tx { max-width: 52vw; }
 }
 
 /* Ni el indicador ni el panel salen en un PDF de cotización. `.no-print` solo existe en
    cotizacion.html, así que el módulo trae su propia regla. */
 @media print {
-  .op-pill, .op-panel, .op-scrim, .op-avisos { display: none !important; }
+  .op-zona, .op-pill, .op-panel, .op-scrim, .op-avisos { display: none !important; }
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .op-pill, .op-pill-tx, .op-panel, .op-scrim, .op-inc, .op-aviso { transition-duration: .01ms !important; }
+  .op-pill, .op-pill-tx, .op-noti, .op-noti-ic, .op-noti-tx, .op-panel, .op-scrim, .op-inc, .op-aviso { transition-duration: .01ms !important; }
   .op-pill.late::before, .op-sk::after { animation: none !important; }
   /* Sin la luz que recorre el lomo, lo que espera algo necesita otra señal quieta: el
      lomo se ensancha y se queda así. */
@@ -569,7 +647,7 @@
   var CLAVE_CACHE = 'operacion-estado';
 
   var estado = null;            // última respuesta del servidor
-  var raiz = null, pastilla = null, panel = null, scrim = null, cuerpo = null, pie = null;
+  var raiz = null, zona = null, pastilla = null, panel = null, scrim = null, cuerpo = null, pie = null;
   var abierto = false, vista = 'estado', disparador = null;
   var cargando = false, ultimaCarga = 0;
   var scrollPrevio = '';        // overflow que traía la pantalla antes de abrir el panel
@@ -593,7 +671,11 @@
     // cuadrado: si se dibujara en 24×24 quedaría un carril de aire arriba y abajo que
     // desalinearía la pestaña con su propio texto.
     pulso:  '<svg viewBox="0 0 24 12" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M1 6.4h3.6L6.8 2l3 8.2 2.2-4.4 1.5 2.6H23"/></svg>',
-    ver:    '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M2.5 12S6 5.8 12 5.8 21.5 12 21.5 12 18 18.2 12 18.2 2.5 12 2.5 12Z"/><circle cx="12" cy="12" r="2.7"/></svg>'
+    ver:    '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M2.5 12S6 5.8 12 5.8 21.5 12 21.5 12 18 18.2 12 18.2 2.5 12 2.5 12Z"/><circle cx="12" cy="12" r="2.7"/></svg>',
+    // El relojito del óvalo de notificación (F2). Es la geometría `clock` de app_icons
+    // —lienzo 24×24, trazo 1.6— copiada en línea porque este partial no puede depender
+    // de app_icons (el Portal no lo incluye).
+    relojito: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M12 6v6h4.5m4.5 0a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z"/></svg>'
   };
 
   var ICONO_TONO = { ok: IC.ok, warn: IC.reloj, alert: IC.alerta, info: IC.info, neutro: IC.info };
@@ -701,10 +783,15 @@
     raiz = document.createElement('div');
     raiz.className = 'op-root';
     raiz.innerHTML =
-      '<button type="button" class="op-pill" id="op-pill" hidden aria-haspopup="dialog">' +
-        '<span class="op-pill-sig">' + IC.pulso + '</span>' +
-        '<span class="op-pill-tx">Estado de los sistemas</span>' +
-      '</button>' +
+      /* La zona agrupa la pastilla y los óvalos de notificación: el anclaje fijo es
+         del conjunto. Los óvalos se pintan aparte (pintarNotis), como hermanos de la
+         pastilla, para que sobrevivan a los préstamos de la isla. */
+      '<div class="op-zona" id="op-zona">' +
+        '<button type="button" class="op-pill" id="op-pill" hidden aria-haspopup="dialog">' +
+          '<span class="op-pill-sig">' + IC.pulso + '</span>' +
+          '<span class="op-pill-tx">Estado de los sistemas</span>' +
+        '</button>' +
+      '</div>' +
       /* Sala de anuncios para la isla. Va aparte del botón a propósito: marcar el
          rótulo de la pestaña como aria-live haría que el lector de pantalla leyera
          también cada despliegue al pasar el ratón y cada repintado del estado, que
@@ -720,6 +807,7 @@
       '</aside>';
     document.body.appendChild(raiz);
 
+    zona = raiz.querySelector('#op-zona');
     pastilla = raiz.querySelector('#op-pill');
     panel = raiz.querySelector('#op-panel');
     scrim = raiz.querySelector('#op-scrim');
@@ -731,8 +819,12 @@
 
     // El rótulo se despliega al apuntar… salvo mientras la pestaña está prestada al
     // guardado: ahí el ancho lo lleva la isla, y dos dueños animando el mismo max-width
-    // se pisan y dejan el texto cortado a media palabra.
+    // se pisan y dejan el texto cortado a media palabra. Con la zona abierta tampoco:
+    // ahí el despliegue es de la clase .op-desplegada (la pone expandirZona vía
+    // pintarPastilla) y el tween que plegaría al salir dejaría un estilo en línea
+    // ganándole a la clase para siempre.
     pastilla.addEventListener('mouseenter', function() {
+      if (zonaAbierta) return;
       if (window.gsap && !isla.activa && !pastilla.classList.contains('op-desplegada')) {
         gsap.to(pastilla.querySelector('.op-pill-tx'), {
           maxWidth: 240, marginLeft: 6, paddingRight: 4, opacity: 1, duration: 0.5, ease: "expo.out", overwrite: "auto"
@@ -740,11 +832,28 @@
       }
     });
     pastilla.addEventListener('mouseleave', function() {
+      if (zonaAbierta) return;
       if (window.gsap && !isla.activa && !pastilla.classList.contains('op-desplegada')) {
         gsap.to(pastilla.querySelector('.op-pill-tx'), {
           maxWidth: 0, marginLeft: 0, paddingRight: 0, opacity: 0, duration: 0.4, ease: "power2.inOut", overwrite: "auto"
         });
       }
+    });
+
+    // La zona se abre al apuntarla (o al recorrerla con el teclado) SOLO si hay
+    // notificaciones que enseñar; sin ellas, la pastilla se comporta exactamente
+    // como siempre. En pantalla táctil el ratón no existe: ahí abre el primer toque
+    // sobre un óvalo (ver alPulsarNoti) y cierra el toque fuera.
+    zona.addEventListener('mouseenter', function () { if (!esTactil()) expandirZona(); });
+    zona.addEventListener('mouseleave', function () { if (!esTactil()) contraerZona(); });
+    zona.addEventListener('focusin', function (e) {
+      try { if (e.target && e.target.matches(':focus-visible')) expandirZona(); } catch (err) {}
+    });
+    zona.addEventListener('focusout', function (e) {
+      if (!zona.contains(e.relatedTarget)) contraerZona();
+    });
+    document.addEventListener('click', function (e) {
+      if (zonaAbierta && zona && e.target && !zona.contains(e.target)) contraerZona();
     });
 
     // La pestaña se ofrece como indicador del guardado en segundo plano. Va aquí,
@@ -830,6 +939,11 @@
 
   function entrarEnIsla() {
     if (isla.activa || !pastilla) return;
+    // El guardado manda sobre las notificaciones (prioridad 1 del registro): si la
+    // zona estaba abierta se recoge antes de prestar la pastilla, y mientras la isla
+    // esté puesta expandirZona() no abre. Los óvalos siguen a la vista —el dato no
+    // se pierde—, solo dejan de poder desplegarse debajo de un "Enviando…".
+    if (zonaAbierta) contraerZona();
     isla.activa = true;
     isla.clasePrevia = pastilla.className;
     // La pestaña puede estar oculta si el estado todavía no ha llegado del servidor;
@@ -950,6 +1064,192 @@
     }
   }
 
+  /* ═══════════════════════════════════════════════════════════════════════════
+     NOTIFICACIONES · el segundo óvalo de la esquina (F2)
+     ═══════════════════════════════════════════════════════════════════════════
+     La esquina tiene tres inquilinos y este es el orden en que mandan:
+
+       1. GUARDADO EN CURSO — la isla toma la pastilla entera (pintarIsla). Mientras
+          está puesta, la zona no se abre: sus filas de navegación no tienen sentido
+          debajo de un "Enviando…".
+       2. NOTIFICACIONES — los óvalos de este registro. Son nodos HERMANOS de la
+          pastilla a propósito: la isla reconstruye el innerHTML de la pastilla en
+          cada préstamo, y todo lo que viva dentro muere con ella. Un hermano que se
+          repinta desde su registro reaparece intacto al devolverla.
+       3. ESTADO — la pastilla en reposo (pintarPastilla), que es la dueña de sus
+          propios píxeles y no sabe nada de los óvalos.
+
+     El registro es GENÉRICO: la fila de revisiones pendientes es la primera fuente,
+     no la única. Cada fuente declara { id, cuenta, icono, rotulo(n), aria(n), ir },
+     y una cuenta en cero la retira. Las pantallas pueden sumar las suyas con
+     AppOperacion.notificar(fuente).
+
+     La zona abierta es el "crece hacia el lado y hacia arriba": la fila de flex se
+     vuelve columna invertida (cada óvalo, una fila encima de la pastilla), los
+     rótulos se despliegan por CSS y el viaje del óvalo a su fila lo anima GSAP con
+     transform (FLIP). Dueñas repartidas y sin pisarse: CSS tiene el max-width de
+     los rótulos, GSAP el transform de los óvalos. Sin GSAP el cambio de sitio es un
+     salto y los rótulos siguen transicionando; con movimiento reducido, todo llega
+     ya puesto (las transiciones bajan a .01ms en el @media de arriba). */
+
+  var notiFuentes = [];
+  var zonaAbierta = false;
+
+  function esTactil() {
+    return !!(window.matchMedia && window.matchMedia('(hover: none)').matches);
+  }
+
+  function notisEnZona() {
+    return zona ? Array.prototype.slice.call(zona.querySelectorAll('.op-noti')) : [];
+  }
+
+  /** Registra o actualiza una fuente. Cuenta 0 = el óvalo se retira solo. */
+  function ponerNotificacion(fuente) {
+    if (!fuente || !fuente.id) return;
+    var i = -1;
+    notiFuentes.some(function (f, k) { if (f.id === fuente.id) { i = k; return true; } return false; });
+    if (i === -1) notiFuentes.push(fuente); else notiFuentes[i] = fuente;
+    pintarNotis();
+  }
+
+  /** Repinta los óvalos desde el registro. Idempotente: se llama tras cada sondeo. */
+  function pintarNotis() {
+    if (!zona) return;
+
+    // La cuenta anterior de cada óvalo, para animar solo lo que cambió.
+    var previos = {};
+    notisEnZona().forEach(function (n) {
+      previos[n.getAttribute('data-noti')] = n.getAttribute('data-cuenta');
+      n.parentNode.removeChild(n);
+    });
+
+    var vivas = notiFuentes.filter(function (f) { return (f.cuenta | 0) > 0; });
+    if (!vivas.length) { if (zonaAbierta) contraerZona(); return; }
+
+    vivas.forEach(function (f) {
+      var b = document.createElement('button');
+      b.type = 'button';
+      b.className = 'op-noti';
+      b.setAttribute('data-noti', f.id);
+      b.setAttribute('data-cuenta', String(f.cuenta));
+      b.setAttribute('aria-label',
+        f.aria ? f.aria(f.cuenta) : (f.cuenta + ' ' + f.rotulo(f.cuenta)));
+      b.innerHTML =
+        '<span class="op-noti-ic">' + (f.icono || IC.info) + '</span>' +
+        '<span class="op-noti-num"><span>' + (f.cuenta > 99 ? '99+' : f.cuenta) + '</span></span>' +
+        '<span class="op-noti-tx">' + esc(f.rotulo(f.cuenta)) + '</span>';
+      b.addEventListener('click', function () { alPulsarNoti(f); });
+      zona.appendChild(b);
+
+      var previo = previos[f.id];
+      if (previo === undefined && conGsap()) {
+        // Primera aparición: entra desde el canto de la ventana, como la pastilla.
+        gsap.from(b, { x: -24, opacity: 0, duration: .45, ease: 'power3.out',
+                       clearProps: 'transform,opacity' });
+      } else if (previo !== undefined && previo !== String(f.cuenta) && conGsap()) {
+        // El número cambió: un golpecito de escala para que se note de reojo.
+        gsap.from(b.querySelector('.op-noti-num'),
+          { scale: .55, duration: .45, ease: 'back.out(2.4)', clearProps: 'transform' });
+      }
+    });
+  }
+
+  /**
+   * Un toque sobre un óvalo. En escritorio la zona ya está abierta por el hover, así
+   * que el clic navega. En táctil no hay hover: el PRIMER toque abre la zona (se ve
+   * a dónde lleva cada fila) y el segundo navega. Es el gesto obligatorio del plan:
+   * en móvil se llega a ambos destinos por tap —el otro destino es la pastilla misma,
+   * que abre el panel de estado con su toque de siempre—.
+   */
+  function alPulsarNoti(f) {
+    if (esTactil() && !zonaAbierta) { expandirZona(); return; }
+    contraerZona();
+    if (f && typeof f.ir === 'function') f.ir();
+  }
+
+  /**
+   * Abre la zona: fila → columna invertida. El cambio de sitio de cada óvalo se anima
+   * con FLIP (medir antes, cambiar el layout, entrar desde la posición vieja con
+   * transform), que es lo único que GSAP posee aquí. pintarPastilla() se llama para
+   * que la pastilla despliegue su rótulo por la clase de siempre: reconstruye el
+   * innerHTML, así que de paso borra cualquier estilo en línea que el hover hubiera
+   * dejado en el rótulo —sin eso, un max-width:0 en línea le ganaría a la clase—.
+   */
+  function expandirZona() {
+    if (zonaAbierta || !zona || isla.activa) return;
+    var notis = notisEnZona();
+    if (!notis.length) return;
+    zonaAbierta = true;
+
+    var antes = conGsap() ? notis.map(function (n) { return n.getBoundingClientRect(); }) : null;
+    zona.classList.add('op-abierta');
+    pintarPastilla();
+
+    if (antes) {
+      notis.forEach(function (n, i) {
+        var d = n.getBoundingClientRect();
+        gsap.from(n, { x: antes[i].left - d.left, y: antes[i].top - d.top,
+                       duration: .45, ease: 'power3.out', overwrite: 'auto',
+                       clearProps: 'transform' });
+      });
+    }
+  }
+
+  /** Cierra la zona y devuelve cada óvalo a su sitio con el mismo FLIP a la inversa. */
+  function contraerZona() {
+    if (!zonaAbierta || !zona) return;
+    zonaAbierta = false;
+
+    var notis = notisEnZona();
+    var antes = conGsap() ? notis.map(function (n) { return n.getBoundingClientRect(); }) : null;
+    zona.classList.remove('op-abierta');
+    if (!isla.activa) pintarPastilla();
+
+    if (antes) {
+      notis.forEach(function (n, i) {
+        var d = n.getBoundingClientRect();
+        gsap.from(n, { x: antes[i].left - d.left, y: antes[i].top - d.top,
+                       duration: .4, ease: 'power2.inOut', overwrite: 'auto',
+                       clearProps: 'transform' });
+      });
+    }
+  }
+
+  /* ── La fuente 'revision': el conteo que viaja en opEstadoSesion ──────────── */
+
+  /**
+   * T2.4 · Se pinta con canStrict, no con can(): una sesión vieja sin lista de
+   * bloques NO debe ver el contador —can() le daría el beneficio de la duda y le
+   * enseñaría un número de gestión a quien quizá no le toca—. El candado de verdad
+   * sigue siendo el gate del servidor (T2.1): sin el bloque 'revisar', el payload
+   * ni siquiera trae el campo, así que esta condición decide el pintado, no el dato.
+   */
+  function actualizarNotiRevision() {
+    var pendientes = 0;
+    var puede = !!(window.AppSession && AppSession.canStrict && AppSession.canStrict('revisar'));
+    if (puede && estado && estado.revision && typeof estado.revision.pendientes === 'number') {
+      pendientes = Math.max(0, estado.revision.pendientes | 0);
+    }
+    ponerNotificacion({
+      id: 'revision',
+      cuenta: pendientes,
+      icono: IC.relojito,
+      rotulo: function (n) { return n === 1 ? 'revisión pendiente' : 'revisiones pendientes'; },
+      aria: function (n) {
+        return n + (n === 1 ? ' cotización pendiente' : ' cotizaciones pendientes') +
+               ' de revisar. Ir a la cola de revisión.';
+      },
+      ir: irACola
+    });
+  }
+
+  /** A la cola de pendientes del panel avanzado, con el ancla que ya sabe recibir. */
+  function irACola() {
+    if (window.AppUrl && AppUrl.go) { AppUrl.go('inicio_avanzado', { ancla: 'pend-lista' }); return; }
+    var base = (window.__APP__ && window.__APP__.baseUrl) || '';
+    if (base) window.top.location.href = base + '?page=inicio_avanzado&ancla=pend-lista';
+  }
+
   /* ── Pastilla ───────────────────────────────────────────────────────────── */
 
   function pintarPastilla() {
@@ -985,8 +1285,10 @@
     }
 
     // Con incidencias el rótulo se queda desplegado: no se puede pedir que alguien pase
-    // el ratón por encima para enterarse de que un sistema está caído.
-    var desplegada = afectados.length > 0 || presentando;
+    // el ratón por encima para enterarse de que un sistema está caído. Con la zona de
+    // notificaciones abierta también: la pastilla es la fila de abajo y una fila sin
+    // texto no dice a dónde lleva.
+    var desplegada = afectados.length > 0 || presentando || zonaAbierta;
 
     pastilla.className = 'op-pill tono-' + tono + (late ? ' late' : '') +
                          (desplegada ? ' op-desplegada' : '');
@@ -1863,6 +2165,7 @@
           if (!r || r.success === false) { if (!estado) pintarPastilla(); return; }
           estado = r;
           pintarPastilla();
+          actualizarNotiRevision();
           pintarAvisos();
           if (abierto && vista === 'estado') pintarEstado();
         },
@@ -1930,8 +2233,22 @@
       guardarCache(datos);
       montar();
       pintarPastilla();
+      actualizarNotiRevision();
       pintarAvisos();
       if (abierto && vista === 'estado') pintarEstado();
+    },
+
+    /**
+     * Suma (o actualiza) un óvalo de notificación en la esquina.
+     *
+     * El registro es genérico a propósito (F2): la fila de revisiones pendientes es
+     * la primera fuente, no la única. `fuente` es { id, cuenta, icono, rotulo(n),
+     * aria(n), ir }; cuenta 0 retira el óvalo. Quien registre una fuente es dueño de
+     * mantener su cuenta al día —aquí no se sondea nada en su nombre—.
+     */
+    notificar: function (fuente) {
+      montar();
+      ponerNotificacion(fuente);
     }
   };
 

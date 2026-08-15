@@ -972,7 +972,75 @@ y qué se dejó fuera a propósito**. Mismo formato que el registro del document
 
 <!-- Las entradas nuevas van arriba, con la más reciente primero. -->
 
-### 2026-08-14 — F1, primera tanda: 7 de 8 tareas (falta T1.2)
+### 2026-08-15 — F2 completa: la isla dinámica notifica
+
+**Qué se cambió.**
+
+- **T2.1 · Conteo en servidor** (`Revision.gs`). Nacen `revContarPendientes(email)`
+  —puerta pública con gate `secIdentidadConBloque_(email,'revisar')`— y el interno
+  `revConteoPendientes_()`, que cuenta con el MISMO criterio que la cola
+  (`revEsPendiente_` sobre `leerSupervision_`), así el óvalo y la lista dicen lo
+  mismo. Caché en dos capas sin lecturas nuevas: la lista sale de la entrada
+  compartida `'supervision'` del panel (Cache.gs) y el conteo se guarda aparte con
+  la generación de la BD en la clave (patrón `opCacheado_`) — guardar una revisión
+  o una cotización llama a `cotInvalidarCache_`, la generación cambia y la
+  siguiente consulta recuenta. Entrega: dentro de `opEstadoSesion`
+  (`Operacion.gs`), añadido FUERA de la parte cacheada compartida (mismo sitio que
+  `salida.puedeGestionar`) y solo si la identidad trae el bloque; el payload de un
+  asesor sin `revisar` no lleva ni el campo, y `opEstadoPublico` no pasa por ahí.
+  Viaja en la llamada que la isla ya hace cada 120 s: cero viajes nuevos.
+- **T2.2 · Registro de fuentes** (`app_operacion.html`). La esquina deja de ser un
+  elemento y pasa a ser una zona (`.op-zona`) con prioridades escritas: guardado en
+  curso > notificaciones > estado. Los óvalos de notificación son nodos HERMANOS de
+  la pastilla —la isla del guardado reconstruye el innerHTML de la pastilla entero,
+  y un hermano repintado desde su registro sobrevive al préstamo—. El registro es
+  genérico: cada fuente declara `{id, cuenta, icono, rotulo(n), aria(n), ir}`,
+  cuenta 0 la retira, y las pantallas pueden sumar las suyas con
+  `AppOperacion.notificar(fuente)`. La fila de revisiones es la primera fuente, no
+  la única.
+- **T2.3 · UI y animación.** Óvalo con relojito (geometría `clock` de `app_icons`,
+  lienzo 24×24 trazo 1.6, en línea porque el Portal no incluye ese partial),
+  número con la plantilla visual de `.op-cont` y rótulo plegado. Al apuntar la
+  zona, la fila se vuelve columna invertida: cada notificación es una fila encima
+  de la pastilla («1 revisión» arriba, el estado de siempre abajo), el viaje del
+  óvalo lo anima GSAP con FLIP (solo transform, `overwrite:'auto'`,
+  `clearProps` al terminar) y los rótulos se despliegan por CSS. Dueñas repartidas
+  sin pisarse: CSS posee el max-width de los rótulos, GSAP el transform de los
+  óvalos; el ancho de la pastilla conserva sus dos dueñas históricas y no ganó una
+  tercera (su despliegue en zona abierta va por la clase `.op-desplegada` de
+  siempre, y `pintarPastilla` borra de paso cualquier estilo en línea del hover).
+  Click por zonas: fila de revisión → `AppUrl.go('inicio_avanzado',
+  {ancla:'pend-lista'})`; la pastilla sigue abriendo su panel. Fallbacks: sin GSAP
+  el cambio de sitio es un salto y los rótulos transicionan por CSS; con
+  `prefers-reduced-motion` todo llega puesto (transiciones a .01ms); en táctil el
+  primer toque abre la zona y el segundo navega (`hover: none`). En
+  `inicio_avanzado`, llegar con un ancla que vive en la pestaña Revisión activa esa
+  pestaña y relanza `irAncla` — sin eso el ancla apuntaba a un panel con
+  `display:none` y el scroll no movía nada (la cola ya tenía `id="pend-lista"`).
+- **T2.4 · Visibilidad.** El óvalo solo se pinta con
+  `AppSession.canStrict('revisar')` — `can()` daría el beneficio de la duda a
+  sesiones viejas—; el candado real sigue siendo el gate del servidor de T2.1: sin
+  bloque, el dato ni llega al navegador.
+
+**Qué se comprobó.** `node --check` en verde sobre los `.gs` tocados; los bloques
+`<script>` de los dos HTML modificados pasan comprobación de sintaxis; las dos
+suites de `pruebas/` en verde (40 + 44 comprobaciones). Revisión adversarial en
+cuatro lentes (apego al plan, corrección JS, reglas GSAP de la casa, seguridad y
+caché del servidor) con verificación de cada hallazgo. Verificado en código que
+`estado.html` solo oculta `.op-pill`, así que el óvalo también notifica en el
+tablero (donde el estado sí es redundante pero el conteo no).
+
+**Qué se dejó fuera a propósito.**
+
+- El texto de la fila inferior sigue siendo el de la máquina de estado («Sistemas
+  operando», no el literal «Operando con normalidad» de la maqueta): inventar un
+  segundo rótulo para el mismo estado es justo lo que la pastilla evita.
+- Los óvalos siguen visibles durante un guardado (el dato no se pierde); lo que se
+  bloquea con la isla puesta es ABRIR la zona, porque sus filas de navegación no
+  tienen sentido debajo de un «Enviando…».
+- El criterio 1 (el número baja sin recargar) y el gesto táctil se dejan para la
+  comprobación manual sobre el despliegue real de Apps Script, como el resto de
+  criterios que exigen `google.script.*`.
 
 **Qué se cambió.**
 
