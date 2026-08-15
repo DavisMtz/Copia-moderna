@@ -324,6 +324,72 @@ function revListaPendientes(email) {
   }
 }
 
+/**
+ * CUÁNTAS cotizaciones siguen esperando revisión. Es el número de la isla de
+ * notificaciones (F2): viaja dentro de opEstadoSesion para quien tiene el bloque
+ * 'revisar', y esta puerta existe aparte por si alguna pantalla necesita SOLO el
+ * conteo sin cargar el estado de operación completo.
+ *
+ * Mismo criterio que revListaPendientes (revEsPendiente_), para que el número del
+ * óvalo y la cola del panel digan siempre lo mismo.
+ *
+ * @param {string} email Correo de la sesión del Portal (AppSession.userEmail).
+ * @return {{success:boolean, pendientes:number, message:string}}
+ */
+function revContarPendientes(email) {
+  try {
+    const id = secIdentidadConBloque_(email, 'revisar');
+    if (!id.ok) {
+      return { success: false, pendientes: 0, message: id.error || 'No tienes permiso para revisar cotizaciones.' };
+    }
+    const n = revConteoPendientes_();
+    if (n < 0) return { success: false, pendientes: 0, message: 'No se pudieron leer las cotizaciones.' };
+    return { success: true, pendientes: n, message: '' };
+  } catch (e) {
+    Logger.log('revContarPendientes error: ' + e);
+    return { success: false, pendientes: 0, message: 'No pudimos contar la cola de revisión.' };
+  }
+}
+
+/**
+ * El número solo, SIN gate: los llamadores (revContarPendientes y opEstadoSesion) ya
+ * comprobaron el bloque antes de llegar aquí. Devuelve -1 si la hoja no se pudo leer,
+ * para que quien llama distinga "cero pendientes" de "no se sabe".
+ *
+ * Caché en dos capas, ninguna nueva:
+ *   · La lista sale de la MISMA entrada compartida que usa el panel de supervisión
+ *     ('supervision', Cache.gs), así que contar no añade lecturas de hoja.
+ *   · El conteo se guarda aparte con la generación de la BD en la clave (patrón
+ *     opCacheado_): guardar una revisión o una cotización llama a cotInvalidarCache_,
+ *     la generación cambia y la siguiente consulta recuenta. El TTL es solo red de
+ *     seguridad por si alguien edita la hoja a mano.
+ */
+function revConteoPendientes_() {
+  const clave = 'rev_pend_g' + (typeof cotGeneracion_ === 'function' ? cotGeneracion_() : '0');
+  try {
+    const cache = CacheService.getScriptCache();
+    const hit = cache.get(clave);
+    if (hit !== null) return parseInt(hit, 10) || 0;
+    const n = revCalcularPendientes_();
+    if (n >= 0) cache.put(clave, String(n), 300);
+    return n;
+  } catch (e) {
+    return revCalcularPendientes_();
+  }
+}
+
+/** Cuenta de verdad, sobre la lectura (cacheada) del panel de supervisión. */
+function revCalcularPendientes_() {
+  if (typeof leerSupervision_ !== 'function') return -1;
+  const datos = (typeof cotCacheado_ === 'function')
+    ? cotCacheado_('supervision', COT_TTL.supervision, function () { return leerSupervision_(); })
+    : leerSupervision_();
+  if (!datos || !datos.success) return -1;
+  return (datos.quotes || []).filter(function (q) {
+    return revEsPendiente_(q.status, q.revisionEstado);
+  }).length;
+}
+
 /** "En Revisión", "en revision" y "EN  REVISIÓN" son el mismo estado. */
 function revClaveEstado_(valor) {
   return String(valor == null ? '' : valor)

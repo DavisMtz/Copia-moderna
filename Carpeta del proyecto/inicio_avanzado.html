@@ -902,6 +902,22 @@
                     AppUrl.go('consola', { sec: 'miembros', q: AppUrl.param('q') || '' });
                     return;
                 }
+
+                /* F2: la isla de notificaciones llega con ?ancla=pend-lista. La cola
+                   vive en la pestaña Revisión, que no es la que se activa por defecto:
+                   sin este salto el ancla apuntaría a un apartado oculto (display:none)
+                   y el scroll no movería nada. Vale para CUALQUIER ancla que viva en
+                   ese panel, no solo la de la cola. Se relanza irAncla porque el de
+                   app_core pudo correr antes del cambio de pestaña y haberse rendido
+                   sobre el apartado todavía escondido. */
+                const ancla = window.AppUrl ? AppUrl.param('ancla') : '';
+                if (ancla && panels.revision && tabRevision && tabRevision.style.display !== 'none') {
+                    const destino = document.getElementById(ancla);
+                    if (destino && panels.revision.contains(destino)) {
+                        activate('revision');
+                        requestAnimationFrame(() => AppUrl.irAncla());
+                    }
+                }
             })();
 
             // El loader de marca cubre el arranque; se retira en cuanto la pantalla está lista.
