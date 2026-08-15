@@ -7,7 +7,10 @@
      trayendo datos; si se está escribiendo una hoja, se está generando el PDF.
 
      No sustituye a LoaderPartial (el isotipo Liverpool): aquel es el arranque
-     de la página, éste es el trabajo intermedio.
+     de la página, éste es el trabajo intermedio. La única espera que también
+     enseña el isotipo es el CAMBIO DE PANTALLA (tema `isotipo`), y le pide la
+     geometría prestada a LoaderPartial: ahí no hay ninguna operación que
+     ilustrar, solo una webapp recargándose entera.
 
        VentelFX.overlay('camion', {title, sub})   → tapa la pantalla
        VentelFX.section('#tabla', 'percha', {…})  → tapa una sección
@@ -19,7 +22,7 @@
      (maxMs) para no dejar la pantalla tapada si el backend nunca contesta.
 
      TEMAS (uno por familia de espera, ver tabla al final del archivo):
-       camion · caja · percha · sobre · escaner · documento · hoja ·
+       isotipo · camion · caja · percha · sobre · escaner · documento · hoja ·
        radar · etiqueta · bolsa · reportes · asesor
 
      DEGRADACIÓN: si GSAP no cargó (CDN caído) o el usuario pide menos
@@ -1170,6 +1173,143 @@
     }
   };
 
+  /* ── 13 · ISOTIPO · cambiar de pantalla ─────────────────────────────────
+     Las doce escenas de arriba cuentan QUÉ se está haciendo. Ésta cuenta
+     DÓNDE se está entrando, y por eso es la del cambio de pantalla: cuando la
+     webapp entera se está recargando no hay ninguna operación que ilustrar —no
+     se está guardando nada ni trayendo nada— y lo único cierto es «vas al
+     Portal». Un camión ahí contaba una importación que no estaba pasando.
+
+     Ocho puntos giran, se derriten unos en otros y caen cada uno en su pieza
+     del isotipo de Liverpool; después se sueltan y vuelve a empezar. Son ocho
+     y no seis porque el logo tiene ocho piezas: el morph es uno a uno, y así
+     ningún punto tiene que partirse ni sobrar por el camino.
+
+     La geometría se pide prestada a LoaderPartial (`VentelLoader.marca`) en vez
+     de volver a pegar los 4 KB del trazado —misma regla que en `hoja`—, y se lee
+     AL MONTAR, no al cargar el archivo: el orden de los `include()` cambia de
+     una pantalla a otra y en la mitad de ellas `app_loaders` va primero.
+
+     Tres niveles de degradación, y en los tres se ve marca:
+       · con MorphSVG → los puntos se convierten en el logo (lo de arriba).
+       · sin MorphSVG → no se finge un morph con opacidades; el logo YA está en
+                        el marcado y se enciende pieza a pieza. Un trazado no se
+                        interpola sin plugin, pero el resultado final sí se
+                        puede enseñar, que es lo que pide la degradación.
+       · sin la marca → esta pantalla no incluye LoaderPartial: quedan los ocho
+                        puntos girando, naranja y morado. Nunca un hueco. */
+  var ISO_CX = 287.3, ISO_CY = 214.75, ISO_R = 116, ISO_PUNTO = 11;
+
+  /** Geometría del isotipo, o null si esta pantalla no trae LoaderPartial. */
+  function isoMarca() {
+    var M = window.VentelLoader && window.VentelLoader.marca;
+    return (M && M.islas && M.islas.length === 8 && M.anillo && M.anillo.length === 8) ? M : null;
+  }
+
+  SCENES.isotipo = {
+    w: 184, box: '142.3 69.75 290 290',
+    svg: function () {
+      var M = isoMarca(), piezas = '', i;
+      if (M) {
+        // El marcado nace con el LOGO FORMADO, no con los puntos: es el estado
+        // final, y es lo que se queda a la vista si GSAP nunca llega. build()
+        // lo retrocede a puntos antes del primer fotograma.
+        for (i = 0; i < 8; i++) {
+          piezas += '<path data-pieza d="' + M.islas[i] + '" fill="' + M.colorIsla(i) + '"/>';
+        }
+      } else {
+        for (i = 0; i < 8; i++) {
+          var a = (-90 + i * 45) * Math.PI / 180;
+          piezas += '<circle data-pieza r="' + ISO_PUNTO +
+            '" cx="' + (ISO_CX + ISO_R * Math.cos(a)).toFixed(2) +
+            '" cy="' + (ISO_CY + ISO_R * Math.sin(a)).toFixed(2) +
+            '" fill="' + (i % 2 === 0 ? 'var(--vfx-orange)' : 'var(--vfx-purple)') + '"/>';
+        }
+      }
+      /* El filtro «goo»: desenfoca y vuelve a endurecer el alfa, de modo que dos
+         puntos que se acercan se funden en uno en vez de solaparse. Es lo que hace
+         que ocho círculos parezcan líquido y no ocho círculos. Con stdDeviation
+         en 0 —como nace— es una identidad: el logo quieto se ve nítido. */
+      return '' +
+      '<defs><filter id="vfxIso__UID__" x="-60%" y="-60%" width="220%" height="220%" color-interpolation-filters="sRGB">' +
+        '<feGaussianBlur data-goo in="SourceGraphic" stdDeviation="0" result="isoBlur"/>' +
+        '<feColorMatrix in="isoBlur" mode="matrix" values="1 0 0 0 0  0 1 0 0 0  0 0 1 0 0  0 0 0 20 -8" result="isoGoo"/>' +
+        '<feBlend in="SourceGraphic" in2="isoGoo"/>' +
+      '</filter></defs>' +
+      '<g data-anillo filter="url(#vfxIso__UID__)">' + piezas + '</g>';
+    },
+    build: function (root, gsap) {
+      var q = gsap.utils.selector(root);
+      var piezas = q('[data-pieza]');
+      var anillo = q('[data-anillo]')[0];
+      var goo = q('[data-goo]')[0];
+      var M = isoMarca();
+      var puedeMorph = !!(M && window.MorphSVGPlugin);
+      if (puedeMorph) gsap.registerPlugin(window.MorphSVGPlugin);
+
+      // El origen se declara ANTES de la línea de tiempo (misma razón que en
+      // `asesor` y en `hoja`): cambiarlo con una transformación ya puesta arrastra
+      // una compensación que se ve como un salto.
+      gsap.set(anillo, { svgOrigin: ISO_CX + ' ' + ISO_CY });
+
+      if (!puedeMorph) {
+        /* Ciclo de 2,5 s exactos, y por eso el giro dura 2,5: un bucle que no
+           cierra donde empezó da un tirón en cada vuelta. */
+        var tq = gsap.timeline({ repeat: -1 });
+        tq.fromTo(piezas, { opacity: .34 },
+              { opacity: 1, duration: .5, ease: 'sine.out', stagger: { amount: .7, from: 'start' } })
+          .to(piezas, { opacity: .34, duration: .45, ease: 'sine.in',
+              stagger: { amount: .5, from: 'start' } }, '+=.35');
+        if (!M) tq.to(anillo, { rotation: 360, duration: 2.5, ease: 'none' }, 0);
+        return tq;
+      }
+
+      /* Del logo del marcado a los puntos de partida. Va con setAttribute y no con
+         un tween: es un salto deliberado, no una animación, y ocurre en el mismo
+         tick en que se monta la escena —con el anfitrión todavía a opacidad 0, que
+         solo sube después el fundido de entrada—, así que nadie lo ve. */
+      piezas.forEach(function (p, i) {
+        p.setAttribute('d', M.anillo[i]);
+        p.setAttribute('fill', M.colorPunto(i));
+      });
+      goo.setAttribute('stdDeviation', '6');
+
+      /* Ciclo de ~4,5 s con el logo formado a los ~2,4: la ventana de una
+         navegación de Apps Script son 2-5 s, así que da tiempo a ver la marca
+         armarse antes de que la pantalla nueva la releve. */
+      var GIRO = 1.25, PAUSA = .2, FORMA = .85, SOSTEN = 1, SUELTA = .7, HUECO = .2;
+      var t = gsap.timeline({ repeat: -1 });
+
+      // Dos vueltas frenando: el giro termina justo donde empieza a formarse el
+      // logo, de modo que una cosa entrega a la otra en vez de cortarse.
+      t.to(anillo, { rotation: 720, duration: GIRO, ease: 'power2.out' }, 0);
+      t.to(goo, { attr: { stdDeviation: 9 }, duration: GIRO / 2, yoyo: true, repeat: 1, ease: 'sine.inOut' }, 0);
+
+      // Cada punto cae en SU isla y vira al color real que tiene ahí el logo
+      // (morado el costado izquierdo y la base, naranja el superior y el derecho).
+      var f = GIRO + PAUSA;
+      piezas.forEach(function (p, i) {
+        t.to(p, { morphSVG: M.islas[i], duration: FORMA, ease: 'power3.inOut' }, f + i * .022);
+        t.to(p, { fill: M.colorIsla(i), duration: FORMA * .6, ease: 'power2.inOut' }, f + i * .022);
+      });
+      // El desenfoque baja a casi cero cuando las piezas encajan, no antes: es lo
+      // que separa «ocho manchas» de «el logo».
+      t.to(goo, { attr: { stdDeviation: .35 }, duration: FORMA * .7, ease: 'power2.in' }, f + .1);
+
+      var s = f + FORMA + .18;
+      t.to(anillo, { scale: 1.035, duration: SOSTEN / 2, yoyo: true, repeat: 1, ease: 'sine.inOut' }, s);
+
+      var v = s + SOSTEN;
+      t.to(goo, { attr: { stdDeviation: 7 }, duration: SUELTA, ease: 'power2.out' }, v);
+      piezas.forEach(function (p, i) {
+        t.to(p, { morphSVG: M.anillo[i], duration: SUELTA, ease: 'power3.inOut' }, v + i * .018);
+        t.to(p, { fill: M.colorPunto(i), duration: SUELTA * .6, ease: 'power2.inOut' }, v + i * .018);
+      });
+      t.to({}, { duration: HUECO });
+      return t;
+    }
+  };
+
   /* ─────────────────────────────────────────────────────────────────────────
      COPIAS POR TEMA
      El subtítulo rota mientras se espera. No es adorno: cambiar el texto cada
@@ -1177,6 +1317,10 @@
      no avanza y el backend tarda más de lo normal.
      ───────────────────────────────────────────────────────────────────────── */
   var COPY = {
+    // El isotipo cubre cambios de pantalla, y ahí el título y el subtítulo los pone
+    // la ficha del DESTINO (ver PANTALLAS). Esto es solo el respaldo para quien lo
+    // pida a pelo, así que no promete nada que no sepamos.
+    isotipo:   { title: 'Un momento…',              steps: ['Abriendo la pantalla…', 'Trayendo tus herramientas…', 'Ya casi está…'] },
     camion:    { title: 'Trayendo la información…', steps: ['Conectando con la hoja de datos…', 'Cargando registros…', 'Acomodando la mercancía…', 'Casi en la puerta…'] },
     caja:      { title: 'Guardando…',               steps: ['Empaquetando los datos…', 'Escribiendo en la hoja…', 'Cerrando la caja…'] },
     percha:    { title: 'Cargando el catálogo…',    steps: ['Revisando el inventario…', 'Ordenando los artículos…', 'Colgando las novedades…'] },
@@ -1228,9 +1372,9 @@
     login:                { tema: 'escaner',   titulo: 'Entrando…',                 sub: 'Verificando tus credenciales' },
     registro:             { tema: 'escaner',   titulo: 'Creando tu cuenta…',        sub: 'Validando los datos' },
     recuperar:            { tema: 'escaner',   titulo: 'Recuperando el acceso…',    sub: 'Comprobando tu correo' },
-    portal:               { tema: 'camion',    titulo: 'Abriendo el Portal…',       sub: 'Trayendo herramientas y formatos' },
-    dashboard:            { tema: 'camion',    titulo: 'Abriendo el Portal…',       sub: 'Trayendo herramientas y formatos' },
-    portal_contenido:     { tema: 'camion',    titulo: 'Abriendo Contenido…',       sub: 'Cargando el catálogo del Portal' },
+    portal:               { tema: 'isotipo',   titulo: 'Abriendo el Portal…',       sub: 'Trayendo herramientas y formatos' },
+    dashboard:            { tema: 'isotipo',   titulo: 'Abriendo el Portal…',       sub: 'Trayendo herramientas y formatos' },
+    portal_contenido:     { tema: 'isotipo',   titulo: 'Abriendo Contenido…',       sub: 'Cargando el catálogo del Portal' },
     anuncios:             { tema: 'caja',      titulo: 'Abriendo Anuncios…',        sub: 'Recuperando los avisos del equipo' },
     promociones:          { tema: 'etiqueta',  titulo: 'Abriendo Promociones…',     sub: 'Revisando vigencias y precios' },
     atenciones:           { tema: 'bolsa',     titulo: 'Abriendo Atenciones…',      sub: 'Reuniendo los pendientes' },
@@ -1501,7 +1645,9 @@
      */
     para: function (page) {
       var k = String(page || paginaActual || '');
-      return PANTALLAS[k] || { tema: 'camion', titulo: 'Un momento…', sub: 'Abriendo la pantalla' };
+      // Destino sin ficha: la marca es lo único que se puede prometer sin mentir.
+      // Un camión aquí anunciaba una importación de datos que igual no ocurre.
+      return PANTALLAS[k] || { tema: 'isotipo', titulo: 'Un momento…', sub: 'Abriendo la pantalla' };
     },
 
     /** Tema de la pantalla actual (respaldo para el overlay de arranque). */
@@ -1869,8 +2015,15 @@
   /* ══════════════════════════════════════════════════════════════════════════
      QUÉ TEMA USAR DÓNDE (para que la escena signifique algo y no sea adorno)
 
+       isotipo    CAMBIAR DE PANTALLA hacia el Portal, o hacia un destino sin
+                  ficha propia. Es la marca formándose con ocho puntos.
+                  Frente a todos los demás: aquéllos cuentan qué se está
+                  haciendo; éste solo puede contar a dónde vas, porque durante
+                  una navegación no se está haciendo nada más.
        camion     importar/refrescar bloques grandes de datos
                   · Herramientas de contenido · precarga del portal · catálogos
+                  · trazabilidad y accesos rápidos DENTRO del Portal (sigue
+                    siendo el camión: ahí sí se está trayendo una hoja entera)
        caja       guardar, registrar, dar de alta
        percha     catálogo de artículos, inventario, inspector de producto
        sobre      envío de correo (cliente y VENTEL)

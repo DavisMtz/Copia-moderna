@@ -241,6 +241,11 @@
    *     (camión, sobre, documento…). Repetir el isotipo en cada operación no
    *     dice nada: el asesor ya sabe dónde está, lo que no sabe es qué se está
    *     haciendo ni cuánto falta.
+   *   · La excepción es CAMBIAR DE PANTALLA. Ahí no se está haciendo ninguna
+   *     operación —la webapp entera se está recargando—, así que la espera
+   *     vuelve a ser la marca: el tema `isotipo` de VentelFX, que reutiliza la
+   *     geometría publicada abajo en `marca`. Es la misma animación que ves
+   *     aquí, servida por el motor de escenas.
    *
    * Esta delegación es la que hace que las ~20 llamadas a VentelLoader.show()
    * repartidas por el proyecto hereden escena SIN tocarlas una por una.
