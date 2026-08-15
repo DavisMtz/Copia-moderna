@@ -92,12 +92,51 @@
             overflow: hidden;
             margin-bottom: 2rem;
         }
+        /* La cabecera ES el interruptor de la sección. El botón ocupa la primera
+           columna entera —título, resumen y galón—, así que el blanco alrededor del
+           texto también abre; «Descartar cambios» se queda FUERA de él porque un
+           botón dentro de otro no es HTML válido y el navegador no lo deja pulsar.
+           El borde inferior solo se dibuja con la sección abierta: plegada, sería una
+           línea separando la cabecera de nada. */
         .pol-head {
-            display: flex; align-items: flex-start; gap: 1rem; flex-wrap: wrap;
-            padding: 1.25rem 1.5rem; border-bottom: 1px solid var(--line-soft, #EEF2F7);
+            display: grid; grid-template-columns: minmax(0, 1fr) auto;
+            align-items: center; gap: .5rem; padding-right: 1.25rem;
+            border-bottom: 1px solid transparent;
+            transition: border-color .2s ease;
         }
-        .pol-head h3 { margin: 0; font-size: 1.15rem; font-weight: 600; color: var(--ink, #1B2330); }
-        .pol-head p  { margin: .2rem 0 0; font-size: .82rem; color: var(--ink-soft, #5C6B7E); max-width: 46rem; }
+        .pol-card.pol-abierta .pol-head { border-bottom-color: var(--line-soft, #EEF2F7); }
+        .pol-tit-h { margin: 0; font-size: inherit; font-weight: inherit; min-width: 0; }
+        .pol-toggle {
+            display: grid; grid-template-columns: minmax(0, 1fr) auto;
+            align-items: center; gap: 1rem; width: 100%; text-align: left;
+            font-family: inherit; padding: 1.25rem 1rem 1.25rem 1.5rem;
+            background: none; border: 0; color: inherit; cursor: pointer;
+            border-radius: var(--rad-lg, 14px);
+            transition: background-color .18s ease;
+        }
+        .pol-toggle:hover { background: var(--surface-2, #F4F7FA); }
+        .pol-toggle:focus-visible { outline: 2px solid var(--brand, #E10098); outline-offset: -2px; }
+        .pol-tit { display: block; font-size: 1.15rem; font-weight: 600; color: var(--ink, #1B2330); }
+        #pol-resumen { display: block; margin-top: .2rem; font-size: .82rem;
+            color: var(--ink-soft, #5C6B7E); max-width: 46rem; }
+        .pol-marcas { display: inline-flex; align-items: center; gap: .6rem; }
+        .pol-chev { width: 1.15rem; height: 1.15rem; flex: none; color: var(--ink-faint, #94A1B2);
+            transition: transform .2s ease; }
+        .pol-toggle[aria-expanded="true"] .pol-chev { transform: rotate(180deg); }
+        /* Distintivo de borrador: con la sección plegada, la barra de guardado queda
+           dentro y no se ve. Esto es lo que impide plegar y olvidarse. */
+        .pol-chip-sucio {
+            display: inline-flex; align-items: center; padding: .2rem .55rem;
+            border-radius: 999px; font-size: .72rem; font-weight: 700; white-space: nowrap;
+            background: var(--brand-tint, #FDE7F4); color: var(--brand-deep, #A8006F);
+            border: 1px solid var(--brand-soft, #FBD0E9);
+        }
+        /* Plegado con `grid-template-rows`: el mismo patrón que la revisión de
+           cotizaciones (.rev-panel), que anima la altura real sin medirla en JS. */
+        .pol-panel { display: grid; grid-template-rows: 0fr;
+            transition: grid-template-rows .3s cubic-bezier(.2,.8,.2,1); }
+        .pol-panel > div { overflow: hidden; }
+        .pol-panel.open { grid-template-rows: 1fr; }
         .pol-body { padding: 1.25rem 1.5rem; display: grid; gap: 1.25rem; }
 
         /* ── FEED DE SUPERVISIÓN ───────────────────────────────────────────────
@@ -274,6 +313,15 @@
         [data-theme="carbon"] .pol-ver-directo svg { color: #93B4FF; }
         [data-theme="carbon"] .pol-dia.sel     { color: #FF7ACF; }
         [data-theme="carbon"] .pol-guardar .pol-sucio { color: #FF7ACF; }
+        [data-theme="carbon"] .pol-chip-sucio {
+            background: rgba(225,0,152,.22); color: #FF7ACF; border-color: rgba(255,122,207,.38);
+        }
+
+        /* Plegar y desplegar es un cambio de estado, no un adorno: sin movimiento
+           sigue ocurriendo, solo que de golpe. */
+        @media (prefers-reduced-motion: reduce) {
+            .pol-panel, .pol-chev, .pol-toggle, .pol-head { transition-duration: .01ms; }
+        }
 
         /* Interruptor de formatos */
         .v-switch { position: relative; display: inline-flex; align-items: center; cursor: pointer; flex-shrink: 0; }
@@ -472,27 +520,44 @@
           servidor en vez de recalcular por su cuenta.
         -->
         <section id="pol-seccion" class="pol-card" data-animate aria-labelledby="pol-titulo">
+            <!-- Cabecera-interruptor. Nace plegada y la política NO se pide hasta que
+                 alguien la abre: es un apartado que se consulta de vez en cuando y
+                 pedirlo en cada entrada al panel costaba una lectura de hoja y un
+                 editor completo montados para nadie. -->
             <div class="pol-head">
-                <div style="flex:1 1 22rem;min-width:0">
-                    <h3 id="pol-titulo">Política de revisión</h3>
-                    <p id="pol-resumen">Cargando la política…</p>
-                </div>
-                <button id="pol-recargar" class="v-btn v-btn-ghost v-btn-sm" title="Descartar cambios y releer lo guardado">
+                <h3 class="pol-tit-h">
+                    <button type="button" id="pol-toggle" class="pol-toggle"
+                            aria-expanded="false" aria-controls="pol-panel">
+                        <span>
+                            <span class="pol-tit" id="pol-titulo">Política de revisión</span>
+                            <span id="pol-resumen">Decide qué cotizaciones se detienen antes de llegar al cliente. Ábrela para verla o cambiarla.</span>
+                        </span>
+                        <span class="pol-marcas">
+                            <span id="pol-sucio-chip" class="pol-chip-sucio hidden">Cambios sin guardar</span>
+                            <span class="pol-chev" data-icon="chevron" aria-hidden="true"></span>
+                        </span>
+                    </button>
+                </h3>
+                <button id="pol-recargar" class="v-btn v-btn-ghost v-btn-sm hidden" title="Descartar cambios y releer lo guardado">
                     <span class="w-4 h-4 block" data-icon="refresh"></span>
                     Descartar cambios
                 </button>
             </div>
 
-            <div class="pol-body" id="pol-body">
-                <div class="pol-vacio"><div class="v-spinner"></div> Cargando…</div>
-            </div>
+            <div class="pol-panel" id="pol-panel">
+                <div>
+                    <div class="pol-body" id="pol-body">
+                        <div class="pol-vacio"><div class="v-spinner"></div> Cargando…</div>
+                    </div>
 
-            <div id="pol-guardar-barra" class="pol-guardar hidden">
-                <span class="pol-sucio" id="pol-sucio-txt">Hay cambios sin aplicar.</span>
-                <button id="pol-guardar" class="v-btn v-btn-primary v-btn-sm">
-                    <span class="w-4 h-4 block" data-icon="check"></span>
-                    Guardar la política
-                </button>
+                    <div id="pol-guardar-barra" class="pol-guardar hidden">
+                        <span class="pol-sucio" id="pol-sucio-txt">Hay cambios sin aplicar.</span>
+                        <button id="pol-guardar" class="v-btn v-btn-primary v-btn-sm">
+                            <span class="w-4 h-4 block" data-icon="check"></span>
+                            Guardar la política
+                        </button>
+                    </div>
+                </div>
             </div>
         </section>
 
@@ -817,6 +882,17 @@
                 // poder llegar hasta aquí, o tendría el permiso y ningún sitio donde usarlo.
                 equipo:   AppSession.can('sup_equipo')
             };
+
+            /* El ?ancla con el que se ENTRÓ, capturado una sola vez y antes de que nadie
+               lo toque. Tiene TRES consumidores en esta pantalla —el desvío a la consola,
+               la pestaña Revisión y el desplegado de la política—, y el segundo lo BORRA
+               de la barra en cuanto lo aplica, porque si no contradiría al ?sec que se
+               escribe en cada cambio de pestaña (un enlace diciendo sec=metricas y
+               abriendo Revisión; ver initTabs). Sin esta copia, el tercero leía la barra
+               ya limpia —`AppUrl.param` contesta el estado vivo— y un enlace a
+               ?ancla=pol-seccion aterrizaba en la cabecera plegada que ese código existe
+               justamente para desplegar. */
+            const ANCLA_ENTRADA = (window.AppUrl && AppUrl.param('ancla')) || '';
             if (!requireBlock(['supervision', 'revisar', 'politica_revision', 'sup_equipo'], 'inicio_avanzado')) return;
 
             // El título dice a qué vino esta persona. A quien solo puede revisar,
@@ -924,7 +1000,7 @@
                    pestaña a la que llevarlos, así que van directos a la Consola, que es
                    donde está ahora lo que venían a hacer. Redirigir es más honesto que
                    dejarlos en el panel mirando una pestaña que ya no existe. */
-                if (window.AppUrl && AppUrl.param('ancla') === 'eq-seccion' && PUEDE.equipo) {
+                if (window.AppUrl && ANCLA_ENTRADA === 'eq-seccion' && PUEDE.equipo) {
                     AppUrl.go('consola', { sec: 'miembros', q: AppUrl.param('q') || '' });
                     return;
                 }
@@ -941,7 +1017,7 @@
                    ese panel, no solo la de la cola. Se relanza irAncla porque el de
                    app_core pudo correr antes del cambio de pestaña y haberse rendido
                    sobre el apartado todavía escondido. */
-                const ancla = window.AppUrl ? AppUrl.param('ancla') : '';
+                const ancla = ANCLA_ENTRADA;
                 if (ancla && panels.revision && tabRevision && tabRevision.style.display !== 'none') {
                     const destino = document.getElementById(ancla);
                     if (destino && panels.revision.contains(destino)) {
@@ -1671,16 +1747,47 @@
                     });
             };
 
+            /* El resumen de la cabecera describe lo que ESTÁ RIGIENDO —la política
+               guardada—, no el borrador. Con la sección plegada nadie ve el editor, y
+               una cabecera que contara los cambios sin aplicar estaría diciendo que el
+               sistema hace algo que todavía no hace. Que hay borrador sin guardar lo
+               dice el distintivo de al lado, que para eso está. */
+            const polResumenTexto = (p) => {
+                if (!p) return 'Decide qué cotizaciones se detienen antes de llegar al cliente. ' +
+                               'Ábrela para verla o cambiarla.';
+                if (!p.exigirRevision) return 'La revisión está DESACTIVADA: toda cotización se puede enviar en cuanto se guarda.';
+                const activas = (p.reglas || []).filter(r => r.activa).length;
+                return (p.accionPorDefecto === 'revisar' ? 'Por defecto todo pasa a revisión' : 'Por defecto todo se envía sin revisar') +
+                       (activas ? ', con ' + activas + (activas === 1 ? ' criterio que lo modifica.' : ' criterios que lo modifican.')
+                                : ' y no hay criterios configurados.');
+            };
+
+            /* Cabecera y cuerpo se pintan por separado a propósito: la cabecera tiene
+               que poder decir la verdad con el cuerpo plegado —o sin haberse abierto
+               nunca—, y un guardado que llega mientras la sección está cerrada la
+               actualiza igual. */
+            const polPintarCabecera = () => {
+                const res = document.getElementById('pol-resumen');
+                if (res) res.textContent = polResumenTexto(polGuardada);
+                const chip = document.getElementById('pol-sucio-chip');
+                if (chip) chip.classList.toggle('hidden', !polSucio());
+                const rec = document.getElementById('pol-recargar');
+                const abierta = document.getElementById('pol-toggle');
+                // "Descartar cambios" es un control del editor: no se ofrece sobre una
+                // sección cerrada ni antes de que haya nada que descartar.
+                if (rec) rec.classList.toggle('hidden',
+                    !polGuardada || !abierta || abierta.getAttribute('aria-expanded') !== 'true');
+            };
+
             const polPintar = () => {
                 const p = polBorrador;
                 const body = document.getElementById('pol-body');
-                const activas = p.reglas.filter(r => r.activa).length;
+                // Se puede llegar aquí sin política: un reintento de guardado que
+                // termina cuando la sección ya se plegó y se descartó lo leído. La
+                // cabecera sí se refresca; el editor no se inventa.
+                if (!p || !polCatalogo || !body) { polPintarCabecera(); return; }
 
-                document.getElementById('pol-resumen').textContent = !p.exigirRevision
-                    ? 'La revisión está DESACTIVADA: toda cotización se puede enviar en cuanto se guarda.'
-                    : ((p.accionPorDefecto === 'revisar' ? 'Por defecto todo pasa a revisión' : 'Por defecto todo se envía sin revisar') +
-                       (activas ? ', con ' + activas + (activas === 1 ? ' criterio que lo modifica.' : ' criterios que lo modifican.')
-                                : ' y no hay criterios configurados.'));
+                polPintarCabecera();
 
                 body.innerHTML = `
                     ${!p.exigirRevision ? `
@@ -2059,6 +2166,9 @@
                 const barra = document.getElementById('pol-guardar-barra');
                 const sucio = polSucio();
                 barra.classList.toggle('hidden', !sucio);
+                // El distintivo de la cabecera va con la barra: es la misma noticia
+                // para quien tiene la sección plegada.
+                polPintarCabecera();
                 if (sucio) {
                     document.getElementById('pol-sucio-txt').textContent =
                         polBorrador.exigirRevision
@@ -2154,9 +2264,47 @@
             // aquí serían dos indicadores para la misma lectura.
             document.getElementById('pol-recargar').addEventListener('click', polCargar);
 
+            /* ── La política se abre cuando alguien la va a mirar ──────────────────
+               Antes esta sección se pintaba desplegada y llamaba a
+               getPoliticaRevision al inicializar la pantalla, la mirara alguien o no.
+               La política se consulta de tanto en tanto —se ajusta y se deja—, así
+               que lo que pagaba cada entrada al panel era una lectura de hoja, un
+               editor entero montado y una sección larga empujando hacia abajo lo que
+               sí se mira todos los días: la cola de pendientes.
+
+               Ahora la cabecera es el interruptor y la PRIMERA apertura es la que
+               carga. `polCargar` ya era re-entrante (lo usa «Descartar cambios»), así
+               que la bandera solo evita la lectura de más al abrir y cerrar. */
+            const polSeccion = document.getElementById('pol-seccion');
+            const polToggle  = document.getElementById('pol-toggle');
+            const polPanel   = document.getElementById('pol-panel');
+            let polPedida = false;
+
+            const polDesplegar = (abrir) => {
+                polToggle.setAttribute('aria-expanded', String(abrir));
+                polPanel.classList.toggle('open', abrir);
+                polSeccion.classList.toggle('pol-abierta', abrir);
+                if (abrir && !polPedida) { polPedida = true; polCargar(); }
+                polPintarCabecera();
+            };
+
+            polToggle.addEventListener('click', () => {
+                polDesplegar(polToggle.getAttribute('aria-expanded') !== 'true');
+            });
+
             // Mismo criterio que con las métricas: sin el bloque de política, su apartado
             // está oculto y pedirlo solo produce un rechazo del servidor.
-            if (PUEDE.politica) polCargar();
+            if (PUEDE.politica) {
+                polPintarCabecera();
+                /* Llegar con ?ancla=pol-seccion es pedir la política a propósito (un
+                   enlace del buscador, de un chat o de la propia consola): se abre
+                   sola, o quien llega se queda mirando una cabecera plegada
+                   preguntándose qué le querían enseñar.
+                   Se lee de ANCLA_ENTRADA y no de la barra: la política vive DENTRO de
+                   #panel-revision, así que el salto a esa pestaña ya consumió el ?ancla
+                   antes de llegar aquí y preguntarle a la URL devolvería vacío. */
+                if (ANCLA_ENTRADA === 'pol-seccion') polDesplegar(true);
+            }
 
             /* ═══════════════════════════════════════════════════════════════════
                ROLES · se gestionan en la Consola

@@ -45,9 +45,50 @@
             overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; border: 0;
         }
 
-        /* ── Encabezado ───────────────────────────────────────────────────────── */
-        .rev-head { display: flex; flex-wrap: wrap; align-items: flex-start; gap: var(--rs4); margin-bottom: var(--rs5); }
-        .rev-head-main { min-width: 0; flex: 1 1 20rem; }
+        /* ── Encabezado ─────────────────────────────────────────────────────────
+           Lo que no puede perderse de vista mientras se revisa: QUÉ folio se está
+           mirando, en qué ESTADO está y qué opina la auditoría (el ÍNDICE). Con
+           treinta artículos en la lista, esos tres datos quedaban tres pantallas
+           más arriba justo en el momento de decidir, así que la cabecera se queda
+           pegada arriba y lleva el índice consigo.
+           Se mantiene compacta a propósito: una cabecera fija que ocupa media
+           pantalla es peor que ninguna. La frase que explica el índice y la
+           instrucción de la pantalla viven debajo, en la tira de contexto, que sí
+           se va con el scroll —se leen al llegar, no hacen falta a los diez
+           minutos—. */
+        .rev-head {
+            /* `--rev-top` es la altura de la barra del shell, que TAMBIÉN se queda
+               pegada arriba (z-index 40): a top:0 esta cabecera se metería detrás.
+               La mide la pantalla al arrancar y cuando cambia el ancho. */
+            position: sticky; top: var(--rev-top, 0px); z-index: 20;
+            display: flex; flex-wrap: wrap; align-items: center; gap: var(--rs3);
+            padding: var(--rs3) 0; margin-bottom: var(--rs3);
+            /* El material de las barras pegadas de la casa (.topbar del shell,
+               .fp-nav del Portal): el fondo de la app a media opacidad con
+               desenfoque detrás. Pintarlo con un color plano sería apostar a que
+               coincide con el degradado del body, y en el tema oscuro no coincide. */
+            background: color-mix(in srgb, var(--app-bg) 88%, transparent);
+            backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px);
+            border-bottom: 1px solid var(--line-soft);
+        }
+        .rev-head-main { min-width: 0; flex: 1 1 12rem; }
+
+        /* El índice en la cabecera: anillo pequeño y su rótulo. El número es el
+           dato que se consulta de refilón; el porqué lo cuenta la tira. */
+        .rev-head-score { display: flex; align-items: center; gap: var(--rs2); flex: none; }
+        .rev-head-score .rev-score-anillo { width: 3.1rem; height: 3.1rem; }
+        .rev-head-score .rev-score-num { font-size: .95rem; }
+        .rev-head-score-rot {
+            margin: 0; max-width: 5.5rem; font-size: .68rem; line-height: 1.25;
+            font-weight: var(--fw-semibold); letter-spacing: .06em;
+            text-transform: uppercase; color: var(--ink-faint);
+        }
+
+        /* Tira de contexto: el veredicto de la auditoría en palabras y qué se
+           espera de quien revisa. */
+        .rev-tira { display: grid; gap: .25rem; margin-bottom: var(--rs5); }
+        .rev-tira p { margin: 0; font-size: .85rem; line-height: 1.55; color: var(--ink-soft); }
+        .rev-tira .rev-tira-score { color: var(--ink); font-weight: var(--fw-medium); }
         .rev-eyebrow {
             font-size: .75rem; font-weight: var(--fw-semibold); letter-spacing: .08em;
             text-transform: uppercase; color: var(--ink-faint); margin: 0 0 var(--rs1);
@@ -84,8 +125,25 @@
         .rev-grid { display: grid; grid-template-columns: minmax(0, 1fr); gap: var(--rs5); align-items: start; }
         @media (min-width: 1080px) {
             .rev-grid { grid-template-columns: minmax(0, 1fr) 25rem; }
-            .rev-rail { position: sticky; top: var(--rs4); }
+            /* El riel se pega BAJO la cabecera —que también es sticky— y, si su
+               contenido no cabe, scrollea por dentro. Antes se pegaba al borde
+               superior y, cuando la verificación automática traía muchos puntos,
+               el riel era más alto que la pantalla: los botones de decidir se
+               quedaban fuera de alcance por abajo justo cuando se iba a decidir. */
+            .rev-rail {
+                position: sticky;
+                top: calc(var(--rev-top, 0px) + var(--rev-head-h, 4.5rem) + var(--rs4));
+                max-height: calc(100vh - var(--rev-top, 0px) - var(--rev-head-h, 4.5rem) - var(--rs6));
+                /* El eje horizontal se recorta a mano: dejarlo en `visible` con el
+                   vertical en `auto` hace que el navegador lo calcule como `auto`
+                   también, y el temblor de aviso sobre las observaciones sacaría
+                   una barra de scroll de un parpadeo. */
+                overflow-y: auto; overflow-x: hidden; padding-right: var(--rs1);
+            }
         }
+        /* Móvil apaisado y pantallas bajas: dos barras pegadas arriba se comen la
+           mitad del alto útil. Ahí la cabecera vuelve a irse con el scroll. */
+        @media (max-height: 560px) { .rev-head { position: static; } }
         .rev-col { display: grid; gap: var(--rs4); min-width: 0; }
         .rev-rail { display: grid; gap: var(--rs4); min-width: 0; }
 
@@ -93,6 +151,9 @@
         .rev-card {
             background: var(--surface); border: 1px solid var(--line);
             border-radius: var(--rad-lg); box-shadow: var(--sh-sm); overflow: hidden;
+            /* Con la cabecera pegada arriba, cualquier salto a un elemento —un
+               ancla, el foco de un botón— lo dejaría medio tapado por ella. */
+            scroll-margin-top: calc(var(--rev-top, 0px) + 6rem);
         }
         .rev-card-head {
             display: flex; align-items: center; gap: var(--rs2); flex-wrap: wrap;
@@ -128,7 +189,18 @@
             border-top: 1px solid var(--line-soft); background: var(--surface);
         }
 
-        /* ── Datos de la cotización ───────────────────────────────────────────── */
+        /* ── Datos de la cotización ─────────────────────────────────────────────
+           Siete datos seguidos se leen como una lista que hay que recorrer entera.
+           Agrupados —quién es el cliente / qué es esta cotización— se escanean:
+           quien busca el correo va al primer bloque sin leer el resto. */
+        .rev-grupo-rot {
+            margin: 0 0 var(--rs2); font-size: .7rem; font-weight: var(--fw-semibold);
+            letter-spacing: .08em; text-transform: uppercase; color: var(--ink-faint);
+        }
+        .rev-grupo + .rev-grupo {
+            margin-top: var(--rs4); padding-top: var(--rs4);
+            border-top: 1px solid var(--line-soft);
+        }
         .rev-dl { display: grid; grid-template-columns: minmax(0, 1fr); gap: var(--rs3); margin: 0; }
         @media (min-width: 560px) { .rev-dl { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
         .rev-dl > div { min-width: 0; }
@@ -438,10 +510,10 @@
         @keyframes rev-giro { to { transform: rotate(360deg); } }
 
         /* ── Índice de confianza ──────────────────────────────────────────────
-           Es un ORDENADOR DE ATENCIÓN, no una nota: por eso el número va
-           acompañado siempre de la frase que explica qué falta. Un 82 sin
-           contexto invita a aprobar sin mirar. */
-        .rev-score { display: flex; gap: var(--rs4); align-items: center; }
+           Es un ORDENADOR DE ATENCIÓN, no una nota: por eso el número nunca va
+           solo. Un 82 sin contexto invita a aprobar sin mirar, así que la frase
+           que explica qué falta (.rev-tira-score) sigue apareciendo con él, en la
+           tira que hay bajo la cabecera. */
         .rev-score-anillo { position: relative; width: 5.25rem; height: 5.25rem; flex: none; }
         .rev-score-anillo svg { width: 100%; height: 100%; transform: rotate(-90deg); }
         .rev-score-pista { fill: none; stroke: var(--surface-2); stroke-width: 8; }
@@ -456,9 +528,6 @@
             font-size: 1.5rem; font-weight: var(--fw-bold); color: var(--ink);
             font-variant-numeric: tabular-nums; letter-spacing: -.02em;
         }
-        .rev-score-txt { min-width: 0; }
-        .rev-score-txt h3 { margin: 0 0 .15rem; font-size: .82rem; font-weight: var(--fw-semibold); color: var(--ink); }
-        .rev-score-txt p  { margin: 0; font-size: .78rem; line-height: 1.5; color: var(--ink-soft); }
 
         /* ── Punto de verificación ────────────────────────────────────────── */
         .rev-chk-list { list-style: none; margin: 0; padding: 0; display: grid; gap: var(--rs2); }
@@ -514,7 +583,11 @@
         .rev-chk-conf input:focus-visible { outline: 2px solid var(--brand); outline-offset: 2px; }
 
         /* Marcas en línea junto a los datos de la cotización. */
-        .rev-dd-flex { display: flex; align-items: center; gap: var(--rs2); flex-wrap: wrap; }
+        /* La marca de veredicto se va al borde derecho de su celda en vez de
+           pegarse al final del texto: así todas caen en la misma vertical y se
+           ven de una pasada, en lugar de aparecer a la distancia que dicte lo
+           largo que sea cada valor. */
+        .rev-dd-flex { display: flex; align-items: center; justify-content: space-between; gap: var(--rs2); flex-wrap: wrap; }
 
         /* ── Pestañas (hoja y visor) ──────────────────────────────────────── */
         .rev-tabs {
@@ -593,7 +666,16 @@
 
         /* Esta pantalla no es un documento; si alguien la imprime, que no salgan
            las capas flotantes encima del papel. */
-        @media print { .rev-viewer, .rev-head-actions, .rev-decide-btns { display: none !important; } }
+        /* En papel no hay scroll, así que nada se queda pegado ni recortado: un
+           riel con `overflow` impreso deja fuera todo lo que no cupiera en su
+           altura de pantalla. */
+        @media print {
+            .rev-viewer, .rev-head-actions, .rev-decide-btns { display: none !important; }
+            .rev-head, .rev-rail {
+                position: static !important;
+                max-height: none !important; overflow: visible !important;
+            }
+        }
     </style>
 <!-- Utilidades Tailwind compiladas: va al final del head, igual que la hoja que el CDN inyectaba. -->
 <?!= include('app_tailwind'); ?>
@@ -638,10 +720,23 @@
                         <span class="rev-sr">Revisión de la cotización</span>
                         <span class="rev-folio" id="rev-folio">—</span>
                     </h1>
-                    <p class="rev-prog-lbl" style="margin:.4rem 0 0" id="rev-subtitulo">
-                        Verifica cada artículo antes de aprobar o rechazar.
-                    </p>
                 </div>
+
+                <!-- El índice de confianza lo calcula el servidor (AuditoriaCotizacion.gs),
+                     no la pantalla. Aquí va el número; el porqué, en la tira de abajo.
+                     `rev-score-card` conserva su id: es lo que se oculta cuando la
+                     auditoría no pudo calcular índice. -->
+                <div class="rev-head-score" id="rev-score-card">
+                    <div class="rev-score-anillo">
+                        <svg viewBox="0 0 100 100" aria-hidden="true">
+                            <circle class="rev-score-pista" cx="50" cy="50" r="42"></circle>
+                            <circle class="rev-score-arco" id="rev-score-arco" cx="50" cy="50" r="42"></circle>
+                        </svg>
+                        <span class="rev-score-num" id="rev-score-num">—</span>
+                    </div>
+                    <h2 class="rev-head-score-rot">Índice de confianza</h2>
+                </div>
+
                 <div class="rev-head-actions">
                     <span class="v-badge" id="rev-estado-badge">En revisión</span>
                     <button type="button" id="rev-btn-consulta" class="v-btn v-btn-ghost v-btn-sm" title="Ver el documento tal como lo recibirá el cliente">
@@ -652,6 +747,14 @@
                     </button>
                 </div>
             </header>
+
+            <!-- Tira de contexto: qué encontró la auditoría y qué se espera de quien
+                 revisa. Se lee al llegar y se va con el scroll, que es justo lo que
+                 permite que la cabecera de arriba sea corta. -->
+            <div class="rev-tira" data-animate>
+                <p class="rev-tira-score" id="rev-score-txt" role="status">Analizando la cotización…</p>
+                <p id="rev-subtitulo">Verifica cada artículo antes de aprobar o rechazar.</p>
+            </div>
 
             <!-- Resultado de una revisión ya cerrada -->
             <div id="rev-banner" class="rev-banner hidden" role="status">
@@ -677,21 +780,33 @@
                         <div class="rev-card-body">
                             <!-- Cada dato que el sistema sabe comprobar lleva su veredicto AL LADO.
                                  Enterarse de que el correo es dudoso en el riel, a tres tarjetas de
-                                 distancia del correo, es enterarse tarde. -->
-                            <dl class="rev-dl">
-                                <div><p class="rev-dt">Cliente</p>
-                                     <p class="rev-dd rev-dd-flex"><span id="rev-cliente">—</span><span id="rev-marca-cliente-nombre"></span></p></div>
-                                <div><p class="rev-dt">Correo del cliente</p>
-                                     <p class="rev-dd rev-dd-flex"><span id="rev-cliente-correo">—</span><span id="rev-marca-cliente-correo"></span></p></div>
-                                <div><p class="rev-dt">Teléfono</p>
-                                     <p class="rev-dd rev-dd-flex"><span id="rev-cliente-tel">—</span><span id="rev-marca-cliente-telefono"></span></p></div>
-                                <div><p class="rev-dt">Fecha de emisión</p>
-                                     <p class="rev-dd rev-dd-flex"><span id="rev-fecha">—</span><span id="rev-marca-vigencia"></span></p></div>
-                                <div><p class="rev-dt">Asesor</p>
-                                     <p class="rev-dd rev-dd-flex"><span id="rev-asesor">—</span><span id="rev-marca-asesor"></span></p></div>
-                                <div><p class="rev-dt">Formato</p><p class="rev-dd" id="rev-formato">—</p></div>
-                                <div><p class="rev-dt">Artículos</p><p class="rev-dd" id="rev-num-articulos">—</p></div>
-                            </dl>
+                                 distancia del correo, es enterarse tarde.
+                                 Los mismos siete datos de siempre, en dos grupos: a quién va
+                                 dirigida y qué es esta cotización. Buscar el correo del cliente
+                                 deja de ser recorrer la lista entera. -->
+                            <div class="rev-grupo">
+                                <p class="rev-grupo-rot">A quién va dirigida</p>
+                                <dl class="rev-dl">
+                                    <div><p class="rev-dt">Cliente</p>
+                                         <p class="rev-dd rev-dd-flex"><span id="rev-cliente">—</span><span id="rev-marca-cliente-nombre"></span></p></div>
+                                    <div><p class="rev-dt">Correo del cliente</p>
+                                         <p class="rev-dd rev-dd-flex"><span id="rev-cliente-correo">—</span><span id="rev-marca-cliente-correo"></span></p></div>
+                                    <div><p class="rev-dt">Teléfono</p>
+                                         <p class="rev-dd rev-dd-flex"><span id="rev-cliente-tel">—</span><span id="rev-marca-cliente-telefono"></span></p></div>
+                                </dl>
+                            </div>
+
+                            <div class="rev-grupo">
+                                <p class="rev-grupo-rot">Qué es esta cotización</p>
+                                <dl class="rev-dl">
+                                    <div><p class="rev-dt">Fecha de emisión</p>
+                                         <p class="rev-dd rev-dd-flex"><span id="rev-fecha">—</span><span id="rev-marca-vigencia"></span></p></div>
+                                    <div><p class="rev-dt">Asesor</p>
+                                         <p class="rev-dd rev-dd-flex"><span id="rev-asesor">—</span><span id="rev-marca-asesor"></span></p></div>
+                                    <div><p class="rev-dt">Formato</p><p class="rev-dd" id="rev-formato">—</p></div>
+                                    <div><p class="rev-dt">Artículos</p><p class="rev-dd" id="rev-num-articulos">—</p></div>
+                                </dl>
+                            </div>
 
                             <div id="rev-obs-bloque" class="hidden" style="margin-top:1rem">
                                 <p class="rev-dt">Observaciones del asesor</p>
@@ -792,27 +907,12 @@
                     </section>
                 </div>
 
-                <!-- Riel lateral -->
+                <!-- Riel lateral.
+                     El índice de confianza SE MUDÓ a la cabecera: es de los tres datos
+                     que hay que tener siempre delante, y aquí se iba con el scroll.
+                     Lo que queda es lo que se usa mientras se trabaja: cuánto llevas,
+                     qué falta por confirmar y los botones de cerrar. -->
                 <aside class="rev-rail">
-
-                    <!-- Índice de confianza (lo calcula el servidor, no la pantalla) -->
-                    <section class="rev-card" id="rev-score-card" data-animate>
-                        <div class="rev-card-body">
-                            <div class="rev-score">
-                                <div class="rev-score-anillo">
-                                    <svg viewBox="0 0 100 100" aria-hidden="true">
-                                        <circle class="rev-score-pista" cx="50" cy="50" r="42"></circle>
-                                        <circle class="rev-score-arco" id="rev-score-arco" cx="50" cy="50" r="42"></circle>
-                                    </svg>
-                                    <span class="rev-score-num" id="rev-score-num">—</span>
-                                </div>
-                                <div class="rev-score-txt">
-                                    <h3>Índice de confianza</h3>
-                                    <p id="rev-score-txt" role="status">Analizando la cotización…</p>
-                                </div>
-                            </div>
-                        </div>
-                    </section>
 
                     <!-- Avance -->
                     <section class="rev-card" data-animate>
@@ -1487,7 +1587,11 @@
             const txt = document.getElementById('rev-score-txt');
 
             if (auditoria.score == null) {
+                // El anillo vive en la cabecera y su frase en la tira de contexto:
+                // sin índice se retiran los dos, o quedaría un «Analizando la
+                // cotización…» eterno bajo una cabecera sin número.
                 document.getElementById('rev-score-card').classList.add('hidden');
+                txt.classList.add('hidden');
                 return;
             }
             const pct = Math.max(0, Math.min(100, auditoria.score));
@@ -2662,6 +2766,49 @@
             if (!requireBlock('revisar', 'revision_cotizacion')) return;
 
             AppShell.mount({ active: 'revision_cotizacion', title: 'Revisión de cotización' });
+
+            /*
+             * La cabecera de la revisión —folio, estatus e índice— se queda pegada
+             * arriba mientras se recorre la lista de artículos. La barra del shell
+             * hace lo mismo y va por encima (z-index 40), así que hay que anclar la
+             * de aquí JUSTO debajo de ella y no a cero.
+             * Su altura no es una constante: cambia con el ancho, con el zoom del
+             * navegador y con el tamaño de letra del sistema, así que se mide en vez
+             * de suponerse. Si algún día no hubiera barra, el valor es 0 y la
+             * cabecera se pega arriba del todo, que es lo correcto.
+             */
+            (function anclarCabecera() {
+                const raiz = document.documentElement;
+                const barra = document.querySelector('.topbar');
+                const cab = document.querySelector('.rev-head');
+                const alto = function (el) { return el ? Math.round(el.getBoundingClientRect().height) : 0; };
+                const medir = function () {
+                    raiz.style.setProperty('--rev-top', alto(barra) + 'px');
+                    // El riel se pega debajo de la cabecera, así que necesita su
+                    // altura real. Cero significa "todavía oculta" (la revisión aún
+                    // no ha llegado): ahí se conserva el valor anterior en vez de
+                    // anclar el riel a un borde que no existe.
+                    const h = alto(cab);
+                    if (h) raiz.style.setProperty('--rev-head-h', h + 'px');
+                };
+                medir();
+                // Una medida por fotograma como mucho: `resize` dispara en ráfagas
+                // mientras se arrastra el borde de la ventana.
+                let pedido = false;
+                window.addEventListener('resize', function () {
+                    if (pedido) return;
+                    pedido = true;
+                    requestAnimationFrame(function () { pedido = false; medir(); });
+                });
+                // Las dos barras cambian de alto por su cuenta: la del shell cuando
+                // el nombre de la sesión hace salto de línea, la de la revisión
+                // cuando aparece al llegar los datos.
+                if (window.ResizeObserver) {
+                    const ro = new ResizeObserver(medir);
+                    if (barra) ro.observe(barra);
+                    if (cab) ro.observe(cab);
+                }
+            })();
 
             // El isotipo de arranque se retira en cuanto la pantalla está montada: de aquí
             // en adelante quien cuenta la espera de getRevisionCotizacion es el esqueleto de
