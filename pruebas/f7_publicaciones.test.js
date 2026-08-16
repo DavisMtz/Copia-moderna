@@ -304,6 +304,36 @@ console.log('\n5. Publicar: la autoría se fija al crear y no se pisa al editar'
   eq('sigue habiendo una sola fila', anuncios._datos.length, 2);
 }
 
+console.log('\n5 bis. Lo que se publica ahora va PRIMERO');
+{
+  const anuncios = hoja('Anuncios', [HDR]);
+  const ctx = cargar({ Anuncios: anuncios });
+  const c = ctx.portalAnunciosCols_(HDR);
+
+  const a = ctx.publicarAnuncio({ formato: 'tarjeta', activo: true, datos: { titulo: 'La primera' }, asesor: 'quien@publica.com' });
+  eq('la primera publicación nace en 0', Number(anuncios._datos[1][c.orden]), 0);
+
+  const b = ctx.publicarAnuncio({ formato: 'tarjeta', activo: true, datos: { titulo: 'La segunda' }, asesor: 'quien@publica.com' });
+  ok('la segunda nace por DELANTE de la primera',
+    Number(anuncios._datos[2][c.orden]) < Number(anuncios._datos[1][c.orden]),
+    anuncios._datos[2][c.orden] + ' vs ' + anuncios._datos[1][c.orden]);
+
+  ctx.publicarAnuncio({ formato: 'banner', activo: true, datos: { mensaje: 'La tercera' }, asesor: 'quien@publica.com' });
+  const lista = ctx.readPortalAnuncios_(libro({ Anuncios: anuncios }));
+  eq('el Portal las pinta de la más nueva a la más vieja',
+    lista.map((x) => x.titulo || x.mensaje).join(' > '), 'La tercera > La segunda > La primera');
+
+  // Quien escribe un orden concreto manda: eso no se toca.
+  ctx.publicarAnuncio({ formato: 'tarjeta', activo: true, orden: 99, datos: { titulo: 'Al final a mano' }, asesor: 'quien@publica.com' });
+  const lista2 = ctx.readPortalAnuncios_(libro({ Anuncios: anuncios }));
+  eq('un orden escrito a mano se respeta', lista2[lista2.length - 1].titulo, 'Al final a mano');
+
+  // Y EDITAR no mueve de sitio: sería una sorpresa desagradable al corregir una errata.
+  const ordenAntes = Number(anuncios._datos[1][c.orden]);
+  ctx.publicarAnuncio({ id: a.id, formato: 'tarjeta', activo: true, datos: { titulo: 'La primera (corregida)' }, asesor: 'quien@publica.com' });
+  eq('editar no cambia el orden', Number(anuncios._datos[1][c.orden]), ordenAntes);
+}
+
 console.log('\n6. Saneo del servidor sobre la encuesta que llega del navegador');
 {
   const ctx = cargar({});

@@ -1,0 +1,2194 @@
+<!DOCTYPE html>
+<html lang="es" class="h-full">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Artículos · Ventel</title>
+
+<!-- Preferencias de vista (tamaño de letra, contraste) antes que nada, para que la
+     pantalla no parpadee del ajuste por omisión al de la persona. -->
+<?!= include('ViewPrefsPartial'); ?>
+<?!= include('app_theme'); ?>
+
+<style>
+/* ═══════════════════════════════════════════════════════════════════════════
+   ARTÍCULOS · pantalla de LECTURA LARGA
+   ───────────────────────────────────────────────────────────────────────────
+   Es la primera pantalla del sistema pensada para leer y no para operar, y eso
+   cambia las reglas: la medida de línea manda sobre el ancho disponible (65
+   caracteres, que es donde el ojo salta de renglón sin perderse), el interlineado
+   sube a 1.7, y el contraste del cuerpo baja un punto respecto a los títulos para
+   que la página no grite. Todo sale de los tokens de app_theme: aquí no hay ni un
+   color escrito a mano, así que los cuatro temas y el ajuste de contraste de
+   ViewPrefs funcionan sin una sola regla extra.
+═══════════════════════════════════════════════════════════════════════════ */
+
+.art-wrap{max-width:1180px;margin-inline:auto;padding:var(--s4) var(--s3) var(--s6)}
+
+/* ── Índice de artículos ── */
+.art-hd{display:flex;align-items:flex-start;justify-content:space-between;gap:var(--s3);
+  flex-wrap:wrap;margin-bottom:var(--s4)}
+.art-hd h1{font-family:Archivo,inherit;font-size:1.75rem;font-weight:800;letter-spacing:-.01em;
+  color:var(--ink);margin:0}
+.art-hd p{color:var(--ink-soft);font-size:var(--fs-sm);margin:.35rem 0 0;max-width:38rem}
+
+.art-lista{display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:var(--s3)}
+.art-card{display:flex;flex-direction:column;gap:.4rem;text-align:left;width:100%;
+  background:var(--surface);border:1px solid var(--line);border-radius:var(--rad);
+  padding:var(--s3);cursor:pointer;font:inherit;transition:var(--tr)}
+.art-card:hover{border-color:var(--brand-soft);transform:translateY(-2px);box-shadow:var(--sh-sm)}
+.art-card:focus-visible{outline:none;box-shadow:var(--ring)}
+.art-card-tt{font-family:Archivo,inherit;font-size:1.02rem;font-weight:800;line-height:1.3;color:var(--ink)}
+.art-card-rs{font-size:var(--fs-sm);line-height:1.5;color:var(--ink-soft);
+  display:-webkit-box;-webkit-line-clamp:3;-webkit-box-orient:vertical;overflow:hidden}
+.art-card-pie{display:flex;align-items:center;gap:.5rem;flex-wrap:wrap;margin-top:auto;
+  padding-top:.5rem;font-size:var(--fs-xs);color:var(--ink-faint)}
+
+/* ── El artículo ── */
+.art-doc{max-width:none}
+.art-doc-hd{margin-bottom:var(--s4);padding-bottom:var(--s3);border-bottom:1px solid var(--line)}
+.art-doc-hd h1{font-family:Archivo,inherit;font-size:clamp(1.7rem,1.2rem + 1.6vw,2.4rem);
+  font-weight:800;line-height:1.15;letter-spacing:-.02em;color:var(--ink);margin:0 0 .5rem}
+.art-doc-rs{font-size:1.05rem;line-height:1.6;color:var(--ink-soft);margin:0;max-width:38rem}
+.art-firma{display:flex;align-items:center;gap:.6rem;flex-wrap:wrap;margin-top:var(--s3);
+  font-size:var(--fs-xs);color:var(--ink-faint)}
+.art-firma b{color:var(--ink-soft);font-weight:700}
+
+/* El cuerpo: la medida de línea es la regla, no el ancho de la ventana.
+   En REM y no en `ch`: `ch` mide el ancho del cero de la fuente ACTIVA, así que
+   mientras Archivo e Instrument Sans no han llegado —o si el CDN de fuentes está
+   bloqueado— se calcula con la fuente del sistema y sale una medida distinta. En el
+   iPad se veían renglones de 730 px, que es media línea de más de lo que el ojo
+   sigue sin perderse. 40rem son 640 px: unos 70 caracteres con nuestra tipografía. */
+.art-cuerpo{max-width:40rem}
+.art-cuerpo > * + *{margin-top:1.15rem}
+.art-p{font-size:1.02rem;line-height:1.75;color:var(--ink);margin:0}
+.art-h2{font-family:Archivo,inherit;font-size:1.35rem;font-weight:800;line-height:1.25;
+  color:var(--ink);margin:2.2rem 0 0;letter-spacing:-.01em}
+.art-h3{font-family:Archivo,inherit;font-size:1.1rem;font-weight:700;line-height:1.3;
+  color:var(--ink);margin:1.8rem 0 0}
+.art-cuerpo a{color:var(--brand-deep);text-decoration:underline;text-underline-offset:2px;
+  text-decoration-thickness:1px}
+.art-cuerpo a:hover{color:var(--brand)}
+.art-ul,.art-ol{margin:0;padding-left:1.4rem;display:flex;flex-direction:column;gap:.45rem}
+.art-ul li,.art-ol li{font-size:1.02rem;line-height:1.7;color:var(--ink)}
+.art-sep{border:0;border-top:1px solid var(--line);margin:2rem 0}
+
+.art-fig{margin:0}
+.art-fig img{display:block;width:100%;height:auto;border-radius:var(--rad-sm);
+  border:1px solid var(--line);background:var(--surface-2)}
+.art-fig figcaption{font-size:var(--fs-xs);color:var(--ink-faint);margin-top:.45rem;text-align:center}
+
+/* ── Tablas ───────────────────────────────────────────────────────────────────
+   Se desplazan dentro de su caja: una tabla ancha no puede empujar la página entera
+   a la derecha, que es lo que rompe la lectura en el móvil.
+
+   La clave está en `width:max-content`, y es lo que faltaba. Con `width:100%` la
+   tabla se COMPRIME para caber en la columna de lectura: siete columnas pegadas de
+   una hoja de cálculo acababan en tiras de dos centímetros con las palabras partidas
+   una por renglón —así se veía la tabla de cumpleaños en el iPad, ilegible—. Ahora la
+   tabla pide el ancho que necesita y, si no cabe, se arrastra; el `min-width:100%`
+   evita que una tabla de dos columnas quede encogida a la izquierda.
+
+   Las tablas de un artículo casi siempre vienen pegadas de Sheets, así que el ancho
+   real lo mandan los datos y no nosotros: por eso `min-width` por celda y `nowrap` en
+   los encabezados, que son los que peor se leen partidos. */
+.art-tabla-caja{overflow-x:auto;border:1px solid var(--line);border-radius:var(--rad-sm);
+  -webkit-overflow-scrolling:touch}
+.art-tabla{border-collapse:collapse;width:max-content;min-width:100%;font-size:var(--fs-sm)}
+.art-tabla th,.art-tabla td{padding:.5rem .7rem;text-align:left;border-bottom:1px solid var(--line);
+  vertical-align:top;white-space:pre-wrap;min-width:7rem;max-width:22rem}
+.art-tabla th{background:var(--surface-2);font-weight:700;color:var(--ink);white-space:nowrap}
+.art-tabla tr:last-child td{border-bottom:0}
+.art-tabla tbody tr:nth-child(even){background:var(--surface-2)}
+/* Un aviso de que la tabla sigue: sin él, una tabla cortada por el borde parece una
+   tabla incompleta y nadie prueba a arrastrarla. */
+.art-tabla-caja{position:relative;background:
+  linear-gradient(to right, var(--surface) 30%, transparent),
+  linear-gradient(to left, var(--surface) 30%, transparent) 100% 0,
+  radial-gradient(farthest-side at 0 50%, rgba(27,35,48,.14), transparent),
+  radial-gradient(farthest-side at 100% 50%, rgba(27,35,48,.14), transparent) 100% 0;
+  background-repeat:no-repeat;background-size:36px 100%,36px 100%,14px 100%,14px 100%;
+  background-attachment:local,local,scroll,scroll}
+
+/* Documentos incrustados */
+.art-doc-emb{border:1px solid var(--line);border-radius:var(--rad);overflow:hidden;background:var(--surface)}
+.art-doc-bar{display:flex;align-items:center;gap:.5rem;padding:.55rem .75rem;
+  background:var(--surface-2);border-bottom:1px solid var(--line);font-size:var(--fs-xs);
+  font-weight:700;color:var(--ink-soft)}
+.art-doc-bar .ic{width:15px;height:15px;flex:none}
+.art-doc-bar .art-doc-tt{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.art-doc-emb iframe{display:block;width:100%;height:min(70vh,560px);border:0;background:var(--surface-2)}
+/* El aviso va SIEMPRE visible, no solo cuando falla: un iframe de Google al que no
+   tienes acceso no avisa de nada —se queda en blanco— y desde fuera no hay forma de
+   saberlo. Es la lección del iframe de la revisión, y aquí se repite a propósito. */
+.art-doc-nota{padding:.5rem .75rem;font-size:var(--fs-xs);line-height:1.5;color:var(--ink-faint);
+  border-top:1px solid var(--line);background:var(--surface)}
+.art-doc-nota a{color:var(--brand-deep);font-weight:700}
+
+/* ── VISOR: progreso, índice, zoom ────────────────────────────────────────── */
+
+/* La barra de progreso nace en scaleX(0)… pero solo si GSAP la va a mover: sin él,
+   `transform` no se toca y una barra al 0 % es invisible igual. Nunca esconde
+   contenido, que es la regla de la casa para el movimiento. */
+.art-progreso{position:sticky;top:0;z-index:15;height:3px;background:transparent;margin:0 0 var(--s2)}
+.art-progreso i{display:block;height:100%;background:var(--brand);border-radius:0 2px 2px 0;
+  transform:scaleX(0);transform-origin:left center}
+.art-lee-barra{margin-bottom:var(--s4);flex-wrap:wrap}
+
+/* Lectura con índice: el artículo manda y el índice acompaña. Por debajo de 1100px
+   desaparece —no se colapsa ni se convierte en un desplegable— porque en esa anchura
+   el artículo ya cabe de una pasada y un índice pegado arriba solo roba altura. */
+.art-lectura{display:grid;grid-template-columns:minmax(0,1fr) 200px;gap:var(--s5);align-items:start}
+@media (max-width:1100px){
+  .art-lectura{grid-template-columns:minmax(0,1fr)}
+  .art-indice{display:none}
+}
+.art-indice{position:sticky;top:var(--s5);border-left:1px solid var(--line);padding-left:var(--s3)}
+.art-indice-lista{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:.15rem}
+.art-indice a{display:block;font-size:var(--fs-xs);line-height:1.45;color:var(--ink-faint);
+  text-decoration:none;padding:.25rem .3rem;border-radius:6px;border-left:2px solid transparent;
+  margin-left:-.3rem;transition:color .15s,border-color .15s,background .15s}
+.art-indice a:hover{color:var(--ink-soft);background:var(--surface-2)}
+.art-indice a.es-hijo{padding-left:.9rem}
+.art-indice a.es-aqui{color:var(--brand-deep);border-left-color:var(--brand);font-weight:700}
+.art-indice a:focus-visible{outline:none;box-shadow:var(--ring)}
+
+.art-fig img.es-ampliable{cursor:zoom-in}
+.art-zoom{position:fixed;inset:0;z-index:1300;display:flex;align-items:center;justify-content:center;
+  padding:var(--s4);background:rgba(12,14,20,.86);backdrop-filter:blur(3px)}
+.art-zoom img{max-width:100%;max-height:92vh;border-radius:var(--rad-sm);box-shadow:0 24px 60px rgba(0,0,0,.5)}
+.art-zoom-x{position:absolute;top:var(--s3);right:var(--s3);width:38px;height:38px;border-radius:999px;
+  border:0;background:rgba(255,255,255,.92);color:#111;font-size:22px;line-height:1;cursor:pointer}
+.art-zoom-x:focus-visible{outline:none;box-shadow:var(--ring)}
+
+/* ── DIAGRAMAS (draw.io) ──────────────────────────────────────────────────── */
+.art-diag{position:relative;background:var(--surface-2)}
+.art-diag-frame{display:block;width:100%;border:0;background:var(--surface-2)}
+.art-diag.es-full{flex:1;min-height:0}
+.art-diag.es-full .art-diag-frame{height:100%}
+/* Mientras diagrams.net no ha dicho «init» se ve el fondo del lienzo, no un hueco
+   blanco: el marco tarda lo suyo y un rectángulo en blanco parece un fallo. */
+.art-diag:not(.is-listo)::after{content:'Cargando el diagrama…';position:absolute;inset:0;
+  display:flex;align-items:center;justify-content:center;font-size:var(--fs-xs);
+  color:var(--ink-faint);pointer-events:none}
+.art-diag.sin-red::after{content:none}
+.art-diag-nota{padding:var(--s3);font-size:var(--fs-xs);line-height:1.55;color:var(--warn);
+  background:var(--warn-bg)}
+.art-diag-ampliar{font:inherit;font-size:var(--fs-xs);font-weight:700;color:var(--brand-deep);
+  background:none;border:0;cursor:pointer;padding:.1rem .2rem;border-radius:4px}
+.art-diag-ampliar:hover{text-decoration:underline}
+.art-diag-ampliar:focus-visible{outline:none;box-shadow:var(--ring)}
+
+.art-diag-full{position:fixed;inset:0;z-index:1300;display:flex;flex-direction:column;
+  background:rgba(12,14,20,.9);backdrop-filter:blur(3px);padding:var(--s3)}
+.art-diag-full-bar{display:flex;align-items:center;gap:var(--s3);flex-wrap:wrap;
+  padding:0 0 var(--s2);color:#fff}
+.art-diag-full-tt{font-family:Archivo,inherit;font-weight:800;font-size:1.05rem;color:#fff;flex:1;min-width:0}
+.art-diag-full-bar .art-ayuda{color:rgba(255,255,255,.72);margin:0}
+.art-diag-full-bar .v-btn-ghost{color:#fff;border-color:rgba(255,255,255,.35)}
+.art-diag-full-bar .v-btn-ghost:hover{background:rgba(255,255,255,.12);color:#fff}
+.art-diag-full .art-diag{border-radius:var(--rad);overflow:hidden;background:var(--surface)}
+/* El documento a pantalla completa usa el MISMO fondo y la misma barra que el diagrama:
+   es el mismo gesto y tiene que sentirse igual; solo cambia lo que va dentro del marco. */
+.art-doc-full-marco{flex:1;min-height:0;border-radius:var(--rad);overflow:hidden;background:var(--surface-2)}
+.art-doc-full-marco iframe{display:block;width:100%;height:100%;border:0}
+.art-diag-full-bar a{color:#fff;font-weight:700;text-decoration:underline}
+
+.art-diag-hueco{margin-bottom:.2rem}
+.art-diag-vacio{display:flex;flex-direction:column;align-items:center;text-align:center;
+  gap:.2rem;padding:var(--s5) var(--s3);border:1px dashed var(--line);border-radius:var(--rad);
+  background:var(--surface-2);color:var(--ink-faint)}
+.art-diag-vacio .ic{width:26px;height:26px;opacity:.6;margin-bottom:.2rem}
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   EDITOR
+   ───────────────────────────────────────────────────────────────────────────
+   La idea que ordena todo el rediseño: EL EDITOR SE PARECE AL ARTÍCULO.
+
+   La primera versión pintaba cada bloque en una caja gris idéntica con su
+   rótulo encima —un párrafo, un subtítulo y una tabla se veían igual—, así que
+   para saber cómo iba a quedar el artículo había que imaginárselo. Aquí cada
+   bloque se escribe con LA MISMA tipografía con la que se va a leer: el
+   subtítulo se teclea grande y en Archivo, el párrafo con su medida y su
+   interlineado de lectura. No es adorno; es lo que quita el paso de imaginar.
+
+   El «chrome» del bloque —el rótulo del tipo y los botones de mover y quitar—
+   aparece al pasar el ratón o al enfocar, y desaparece el resto del tiempo. Con
+   el chrome siempre visible, el lienzo se lee como un formulario; sin él, se lee
+   como lo que es: un artículo a medio escribir.
+═══════════════════════════════════════════════════════════════════════════ */
+
+/* Barra de trabajo: lo que hay que saber SIEMPRE (dónde estoy, si está guardado)
+   y la única acción primaria. Se queda pegada arriba porque en un artículo largo
+   se escribe lejos del principio, y bajar a buscar «Guardar» rompe la escritura. */
+.art-barra{position:sticky;top:0;z-index:20;display:flex;align-items:center;gap:var(--s3);
+  flex-wrap:wrap;padding:var(--s2) 0;margin-bottom:var(--s4);
+  background:var(--content-bg,var(--app-bg));border-bottom:1px solid var(--line)}
+.art-barra-izq{display:flex;align-items:center;gap:var(--s2);min-width:0}
+.art-barra-der{display:flex;align-items:center;gap:var(--s2);margin-left:auto}
+.art-estado{display:inline-flex;align-items:center;gap:.35rem;font-size:var(--fs-xs);
+  font-weight:600;color:var(--ink-faint);white-space:nowrap}
+.art-estado::before{content:'';width:7px;height:7px;border-radius:999px;background:currentColor;flex:none}
+.art-estado.guardado{color:var(--ok)}
+.art-estado.sucio{color:var(--warn)}
+
+.art-editor{display:grid;grid-template-columns:minmax(0,1fr) 260px;gap:var(--s5);align-items:start}
+@media (max-width:1040px){ .art-editor{grid-template-columns:minmax(0,1fr)} }
+
+/* El lienzo: mismo ancho de lectura que el artículo publicado, y centrado en su
+   columna. Pegado a la izquierda dejaba un vacío raro a la derecha en pantallas
+   anchas y el texto se leía descolgado del panel. */
+.art-lienzo{max-width:40rem;margin-inline:auto}
+
+/* Cabecera: el título del artículo se escribe con el tamaño del título. */
+.art-campo-titulo{width:100%;font-family:Archivo,inherit;
+  font-size:clamp(1.6rem,1.2rem + 1.4vw,2.2rem);font-weight:800;line-height:1.15;
+  letter-spacing:-.02em;color:var(--ink);background:transparent;border:0;padding:0;margin:0}
+.art-campo-titulo::placeholder{color:var(--ink-faint);opacity:.55}
+.art-campo-resumen{width:100%;font:inherit;font-size:1.05rem;line-height:1.6;color:var(--ink-soft);
+  background:transparent;border:0;padding:0;margin:.6rem 0 0;resize:none;overflow:hidden}
+.art-campo-resumen::placeholder{color:var(--ink-faint);opacity:.7}
+.art-campo-titulo:focus,.art-campo-resumen:focus{outline:none}
+.art-cabecera{padding-bottom:var(--s3);border-bottom:1px solid var(--line);margin-bottom:var(--s2)}
+/* El foco se marca con una guía a la izquierda y no con un recuadro: un recuadro
+   alrededor del título convierte el lienzo en un formulario otra vez. */
+.art-cabecera:focus-within{box-shadow:-12px 0 0 -10px var(--brand)}
+
+.art-bloques{display:flex;flex-direction:column}
+
+.art-bloque{position:relative;padding:.5rem 0;border-radius:var(--rad-sm);transition:background .15s}
+.art-bloque:focus-within{background:var(--surface-2)}
+.art-bloque:focus-within,.art-bloque:hover{box-shadow:-12px 0 0 -10px var(--brand-soft)}
+.art-bloque:focus-within{box-shadow:-12px 0 0 -10px var(--brand)}
+
+/* Chrome del bloque: en el MARGEN IZQUIERDO, fuera del texto, y solo cuando hace falta.
+   Primero se puso arriba a la derecha, dentro de la caja, y tapaba las últimas palabras
+   de la primera línea justo al enfocar el bloque —o sea, exactamente cuando se está
+   escribiendo ahí—. Reservarle sitio dentro habría estrechado la medida de lectura, y
+   empujar el contenido al aparecer habría hecho saltar el texto bajo el cursor. En el
+   margen no estorba a nada, que es donde lo ponen los editores por bloques.
+
+   El rótulo del tipo se quitó a la vez: si el editor se parece al artículo —y de eso va
+   este rediseño—, un subtítulo ya se ve que es un subtítulo y la etiqueta sobra. Los
+   botones llevan su `aria-label`, así que para el lector de pantalla no se pierde nada. */
+.art-bloque-hd{position:absolute;top:.35rem;left:-2.3rem;display:flex;flex-direction:column;gap:.2rem;
+  opacity:0;transform:translateX(3px);transition:opacity .15s,transform .15s;pointer-events:none}
+.art-bloque:hover .art-bloque-hd,.art-bloque:focus-within .art-bloque-hd{opacity:1;transform:none;pointer-events:auto}
+.art-bloque-tipo{display:none}
+.art-bloque-ac{display:flex;flex-direction:column;gap:.2rem}
+.art-bloque-ac button{width:26px;height:26px;display:flex;align-items:center;justify-content:center;
+  border:1px solid var(--line);background:var(--surface);border-radius:6px;cursor:pointer;
+  color:var(--ink-faint);transition:var(--tr)}
+.art-bloque-ac button:hover:not(:disabled){border-color:var(--brand-soft);color:var(--brand-deep);background:var(--brand-tint)}
+.art-bloque-ac button:disabled{opacity:.3;cursor:default}
+.art-bloque-ac button:focus-visible{outline:none;box-shadow:var(--ring)}
+.art-bloque-ac .ic{width:13px;height:13px}
+
+/* Los campos del lienzo no parecen campos: parecen el texto que van a ser. */
+.art-esc{width:100%;font:inherit;background:transparent;border:0;padding:0;margin:0;resize:none;
+  color:var(--ink);overflow:hidden}
+.art-esc:focus{outline:none}
+.art-esc::placeholder{color:var(--ink-faint);opacity:.6}
+.art-esc.es-parrafo{font-size:1.02rem;line-height:1.75}
+/* Los subtítulos respiran arriba como en el artículo: son la señal de que empieza
+   otra parte, y sin ese aire el lienzo se lee como una lista de campos. */
+.art-esc.es-titulo2{font-family:Archivo,inherit;font-size:1.35rem;font-weight:800;line-height:1.25;letter-spacing:-.01em}
+.art-esc.es-titulo3{font-family:Archivo,inherit;font-size:1.1rem;font-weight:700;line-height:1.3}
+.art-bloque:has(.es-titulo2),.art-bloque:has(.es-titulo3){margin-top:1.2rem}
+/* Un textarea no puede llevar viñetas, así que la lista se señala con una guía a la
+   izquierda: sin ella, cinco renglones sueltos no se distinguen de cinco párrafos. */
+.art-esc.es-lista{font-size:1.02rem;line-height:1.7;border-left:2px solid var(--line);
+  padding-left:.7rem}
+.art-bloque:focus-within .art-esc.es-lista{border-left-color:var(--brand-soft)}
+.art-esc.es-mono{font-family:'JetBrains Mono',ui-monospace,monospace;font-size:.82rem;line-height:1.6;
+  background:var(--surface-2);border:1px solid var(--line);border-radius:var(--rad-sm);padding:.5rem .6rem}
+
+/* Los campos accesorios (enlace, pie, alt) sí son campos, y se ven como tales,
+   pero en gris y pequeños: son ajustes, no el contenido. */
+.art-sub{display:flex;flex-direction:column;gap:.35rem;margin-top:.5rem}
+/* Y los que son OPCIONALES —el enlace de un párrafo, el nivel de un subtítulo, si la
+   lista va numerada— se esconden hasta que el bloque tiene el foco. Con ellos siempre
+   a la vista, cada párrafo arrastraba un campo vacío debajo y el lienzo volvía a
+   parecer un formulario, que es justo lo que este rediseño vino a quitar. Siguen
+   visibles si ya llevan algo escrito (`:has`), para que nada quede escondido; donde
+   `:has` no exista, se ven al enfocar, que es cuando hacen falta. */
+.art-sub-op{display:none}
+.art-bloque:focus-within .art-sub-op{display:flex}
+.art-sub-op:has(input[type=text]:not(:placeholder-shown)){display:flex}
+.art-sub-op:has(input[type=checkbox]:checked){display:flex}
+.art-sub input[type=text]{width:100%;font:inherit;font-size:var(--fs-xs);color:var(--ink-soft);
+  background:var(--surface);border:1px solid var(--line);border-radius:var(--rad-sm);padding:.35rem .55rem}
+.art-sub input[type=text]:focus{outline:none;border-color:var(--brand);box-shadow:var(--ring)}
+.art-ayuda{font-size:var(--fs-xs);color:var(--ink-faint);margin:.3rem 0 0;line-height:1.5}
+.art-ayuda b{color:var(--ink-soft);font-weight:700}
+
+/* Insertar ENTRE bloques: la línea aparece al acercarse. Es donde la gente
+   quiere añadir algo —justo aquí, no al final— y evita el viaje al panel. */
+.art-entre{position:relative;height:14px;display:flex;align-items:center;justify-content:center}
+.art-entre::before{content:'';position:absolute;left:0;right:0;height:1px;background:var(--brand-soft);
+  opacity:0;transition:opacity .15s}
+.art-entre:hover::before,.art-entre:focus-within::before{opacity:1}
+.art-mas{width:22px;height:22px;border-radius:999px;border:1px solid var(--line);background:var(--surface);
+  color:var(--ink-faint);display:flex;align-items:center;justify-content:center;cursor:pointer;
+  opacity:0;transition:opacity .15s,transform .15s;font-size:15px;line-height:1;padding:0}
+.art-entre:hover .art-mas,.art-entre:focus-within .art-mas{opacity:1}
+.art-mas:hover{border-color:var(--brand);color:var(--brand-deep);transform:scale(1.1)}
+.art-mas:focus-visible{opacity:1;outline:none;box-shadow:var(--ring)}
+
+/* Panel lateral: contexto y herramientas, nunca la acción primaria.
+   Las cajas eran blancas sobre un fondo casi blanco (`--surface` #FFF sobre
+   `--content-bg` #F7F9FB) con un borde de 1 px que a esa distancia no se ve: en el
+   iPad los rótulos en mayúsculas parecían flotar sueltos por la derecha, sin caja
+   que los contuviera, y el panel se leía como cuatro trozos sin relación. Ahora la
+   caja va en el tono de superficie secundaria, que es el mecanismo que el proyecto ya
+   usa para «esto es un apartado», y el borde se refuerza. Un solo mecanismo de
+   separación: fondo. Nada de fondo + borde fuerte + sombra a la vez. */
+.art-panel{position:sticky;top:calc(var(--s6) + var(--s2));display:flex;flex-direction:column;gap:var(--s3)}
+.art-panel-caja{border:1px solid var(--line);border-radius:var(--rad);
+  background:var(--surface-2);padding:var(--s3)}
+.art-panel-t{font-size:10px;font-weight:800;text-transform:uppercase;letter-spacing:.06em;
+  color:var(--ink-faint);margin:0 0 .6rem;padding-bottom:.4rem;border-bottom:1px solid var(--line)}
+
+/* Ficha de estado: cifras tabulares para que no bailen al escribir. */
+.art-cifras{display:flex;flex-direction:column;gap:.4rem}
+.art-cifra{display:flex;align-items:baseline;justify-content:space-between;gap:var(--s2);
+  font-size:var(--fs-xs);color:var(--ink-faint)}
+.art-cifra b{font-size:var(--fs-sm);font-weight:800;color:var(--ink);font-variant-numeric:tabular-nums}
+
+.art-insertar{display:flex;flex-direction:column;gap:.2rem}
+.art-insertar button{display:flex;align-items:center;gap:.5rem;padding:.45rem .5rem;font:inherit;
+  font-size:var(--fs-sm);font-weight:600;color:var(--ink);background:var(--surface);
+  border:1px solid var(--line);border-radius:var(--rad-sm);cursor:pointer;text-align:left;width:100%;
+  transition:var(--tr)}
+.art-insertar button:hover{border-color:var(--brand-soft);background:var(--brand-tint);color:var(--brand-deep)}
+.art-insertar button:focus-visible{outline:none;box-shadow:var(--ring)}
+.art-insertar .ic{width:15px;height:15px;flex:none;color:var(--ink-faint)}
+.art-insertar button:hover .ic{color:var(--brand-deep)}
+.art-insertar .art-atajo{margin-left:auto;font-size:10px;font-weight:700;color:var(--ink-faint);
+  border:1px solid var(--line);border-radius:4px;padding:0 .25rem}
+
+/* Menú flotante de inserción (el que abre el «+» entre bloques).
+   `fixed` y no `absolute`: se coloca con las coordenadas de `getBoundingClientRect`,
+   que ya son relativas a la ventana. Con `absolute` había que sumarle el scroll, y
+   dentro del iframe de Apps Script quien scrollea no siempre es el `body`, así que el
+   menú aparecía despegado del «+» que lo abrió. */
+.art-menu{position:fixed;z-index:30;min-width:210px;background:var(--surface);
+  border:1px solid var(--line);border-radius:var(--rad);box-shadow:var(--sh-lg,0 20px 40px rgba(0,0,0,.18));
+  padding:.35rem;display:flex;flex-direction:column;gap:.1rem}
+.art-menu button{display:flex;align-items:center;gap:.5rem;padding:.45rem .5rem;font:inherit;
+  font-size:var(--fs-sm);font-weight:600;color:var(--ink);background:transparent;border:0;
+  border-radius:var(--rad-sm);cursor:pointer;text-align:left;width:100%}
+.art-menu button:hover,.art-menu button:focus-visible{background:var(--brand-tint);color:var(--brand-deep);outline:none}
+.art-menu .ic{width:15px;height:15px;flex:none;color:var(--ink-faint)}
+.art-menu small{display:block;font-size:10px;font-weight:500;color:var(--ink-faint)}
+
+/* Vista previa dentro del editor: el artículo tal cual, sin salir de la pantalla. */
+.art-previa{border:1px dashed var(--brand-soft);border-radius:var(--rad);padding:var(--s4);
+  background:var(--surface)}
+.art-previa-nota{font-size:var(--fs-xs);font-weight:700;color:var(--brand-deep);
+  text-transform:uppercase;letter-spacing:.06em;margin:0 0 var(--s3)}
+
+/* Por debajo de 1200px el margen del lienzo ya no da para el chrome, así que vuelve
+   al flujo, en fila y arriba a la derecha. Y sin hover que valga: en una pantalla
+   táctil no existe «pasar el ratón», así que lo que solo aparece al pasar, no existe. */
+@media (max-width:1200px){
+  .art-bloque-hd{opacity:1;transform:none;pointer-events:auto;position:static;
+    flex-direction:row;justify-content:flex-end;margin-bottom:.3rem}
+  .art-bloque-ac{flex-direction:row}
+  .art-mas{opacity:1}
+  .art-sub-op{display:flex}
+}
+@media (max-width:1040px){
+  .art-panel{position:static}
+}
+
+.art-vacio{text-align:center;padding:var(--s5) var(--s3);color:var(--ink-faint)}
+.art-vacio .ic{width:30px;height:30px;opacity:.5;margin:0 auto var(--s2);display:block}
+.art-vacio-t{font-size:var(--fs-md);font-weight:700;color:var(--ink-soft);margin-bottom:.35rem}
+.art-vacio-s{font-size:var(--fs-sm);line-height:1.55;max-width:26rem;margin-inline:auto}
+
+.art-badge{display:inline-flex;align-items:center;gap:.3rem;font-size:var(--fs-xs);font-weight:700;
+  border-radius:999px;padding:.15rem .5rem}
+.art-badge.borrador{background:var(--warn-bg);color:var(--warn)}
+.art-badge.publicado{background:var(--ok-bg);color:var(--ok)}
+
+.art-acciones{display:flex;gap:.5rem;flex-wrap:wrap;align-items:center}
+.art-oculto{display:none!important}
+
+/* Lectores */
+.art-lectores{display:flex;flex-direction:column;gap:.35rem;max-height:280px;overflow-y:auto}
+.art-lector{display:flex;align-items:baseline;justify-content:space-between;gap:.5rem;
+  font-size:var(--fs-xs);color:var(--ink-soft)}
+.art-lector b{color:var(--ink);font-weight:600}
+.art-lector span{color:var(--ink-faint);white-space:nowrap}
+
+@media (prefers-reduced-motion: reduce){
+  .art-card:hover{transform:none}
+}
+</style>
+<?!= include('app_tailwind'); ?>
+</head>
+<body class="h-full text-slate-800">
+<div class="app-aurora"></div>
+<div id="operacion-avisos"></div>
+
+<main id="main-content" class="art-wrap">
+  <div id="vista"></div>
+</main>
+
+<script>window.__APP__ = <?!= APP_JSON ?>;</script>
+<?!= include('app_core'); ?>
+<?!= include('app_prefs'); ?>
+<?!= include('app_guardado'); ?>
+<?!= include('app_buscar'); ?>
+<?!= include('app_indices'); ?>
+<?!= include('app_icons'); ?>
+<?!= include('app_motion'); ?>
+<?!= include('app_loaders'); ?>
+<!-- ScrollTrigger: lo necesita el revelado del visor. Misma version fijada (3.13.0) y
+     mismo origen (cdnjs) que el resto del proyecto; el registro va defendido porque el
+     CDN puede no llegar. -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.13.0/ScrollTrigger.min.js"></script>
+<script>if (window.gsap && window.ScrollTrigger) gsap.registerPlugin(ScrollTrigger);</script>
+<script>if (window.VentelFX) VentelFX.pagina("articulo");</script>
+<?!= include('app_shell'); ?>
+<?!= include('app_aura'); ?>
+<?!= include('app_comando'); ?>
+<?!= include('app_precarga'); ?>
+<?!= include('LoaderPartial'); ?>
+<?!= include('app_operacion'); ?>
+<?!= include('app_atenciones'); ?>
+
+<script>
+(function () {
+  'use strict';
+
+  /* ═══════════════════════════════════════════════════════════════════════
+     ARTÍCULOS — lector y editor de la misma vista
+     ───────────────────────────────────────────────────────────────────────
+     LA DECISIÓN TÉCNICA, declarada antes de escribir (la fase la pedía):
+
+     El editor es un FORMULARIO POR BLOQUES, no un `contenteditable`.
+
+     Un contenteditable produce el HTML que se le antoje al navegador —y cada
+     navegador el suyo—, así que guardarlo obliga a limpiar HTML ajeno, que es
+     precisamente el trabajo que nadie gana. Con un campo por bloque, lo que se
+     escribe es TEXTO y lo que se guarda es un objeto de forma conocida: no hay
+     ningún punto del camino donde el contenido pueda convertirse en marcado.
+     Se paga con un editor menos «de revista» —no se escribe en negrita a mitad
+     de frase—, y a cambio el artículo se pinta igual dentro y fuera, hoy y
+     cuando el modelo cambie de versión.
+
+     Y el pintado NUNCA usa innerHTML con contenido del artículo: cada bloque se
+     construye con createElement y textContent. Es la otra mitad de lo mismo.
+  ═══════════════════════════════════════════════════════════════════════ */
+
+  function icono(nombre){
+    var svg = document.createElement('span');
+    svg.setAttribute('data-icon', nombre);
+    svg.className = 'ic';
+    return svg;
+  }
+  /** Crea un elemento con texto. El texto SIEMPRE por textContent: es la regla. */
+  function el(tag, clase, texto){
+    var n = document.createElement(tag);
+    if (clase) n.className = clase;
+    if (texto != null) n.textContent = String(texto);
+    return n;
+  }
+
+  /* ── URLs seguras, del lado del cliente ────────────────────────────────
+     El servidor ya sanea al guardar (artUrlSegura_), pero el cliente pinta
+     también lo que tiene en memoria mientras se edita, y una copia local vieja
+     podría traer cualquier cosa. Es la misma regla escrita dos veces a
+     propósito: solo https, y ninguna de las formas de disfrazar otra cosa. */
+  function urlSegura(u){
+    var s = String(u == null ? '' : u).trim();
+    if (!/^https:\/\/[^\s"'<>]+$/i.test(s)) return '';
+    return s.length > 2000 ? '' : s;
+  }
+
+  var DOC_VISOR = {
+    documento:    { ruta: 'document',     nombre: 'Documento de Google',    icono: 'document' },
+    presentacion: { ruta: 'presentation', nombre: 'Presentación de Google', icono: 'presentation' },
+    hoja:         { ruta: 'spreadsheets', nombre: 'Hoja de cálculo',        icono: 'chart' },
+    archivo:      { ruta: 'file',         nombre: 'Archivo de Drive',       icono: 'folder' }
+  };
+  function urlVisor(clase, docId){
+    var f = DOC_VISOR[clase] || DOC_VISOR.archivo;
+    return 'https://docs.google.com/' + f.ruta + '/d/' + encodeURIComponent(docId) + '/preview';
+  }
+  function urlAbrir(clase, docId){
+    var f = DOC_VISOR[clase] || DOC_VISOR.archivo;
+    var base = f.ruta === 'file' ? 'https://drive.google.com/file/d/' : 'https://docs.google.com/' + f.ruta + '/d/';
+    return base + encodeURIComponent(docId) + (f.ruta === 'file' ? '/view' : '/edit');
+  }
+  /** Extrae {clase, docId} de una URL pegada de Google. Gemela de artDocDeUrl_ del servidor. */
+  function docDeUrl(url){
+    var s = String(url || '').trim();
+    if (!/^https:\/\/(docs|drive)\.google\.com\//i.test(s)) return null;
+    var m = s.match(/\/(document|presentation|spreadsheets|file)\/d\/([a-zA-Z0-9_-]{10,})/);
+    if (!m) return null;
+    var clase = m[1] === 'document' ? 'documento'
+              : m[1] === 'presentation' ? 'presentacion'
+              : m[1] === 'spreadsheets' ? 'hoja' : 'archivo';
+    return { clase: clase, docId: m[2] };
+  }
+
+  /* ── Parser de pegado tabular (TSV) ────────────────────────────────────
+     Gemelo del de portal_contenido.html: mismas comillas, mismos saltos. No se
+     comparte todavía porque aquel vive dentro del <script> de su pantalla y
+     moverlo a un include obliga a tocar y volver a probar esa pantalla; queda
+     anotado como deuda con nombre. Si se toca uno, se tocan los dos. */
+  function parsearTSV(texto){
+    var filas = [], celda = '', fila = [], enComillas = false;
+    var t = String(texto || '').replace(/\r\n/g, '\n').replace(/\r/g, '\n');
+    for (var i = 0; i < t.length; i++) {
+      var ch = t[i];
+      if (enComillas) {
+        if (ch === '"') {
+          if (t[i + 1] === '"') { celda += '"'; i++; }
+          else enComillas = false;
+        } else celda += ch;
+      } else if (ch === '"') enComillas = true;
+      else if (ch === '\t') { fila.push(celda); celda = ''; }
+      else if (ch === '\n') { fila.push(celda); filas.push(fila); fila = []; celda = ''; }
+      else celda += ch;
+    }
+    if (celda !== '' || fila.length) { fila.push(celda); filas.push(fila); }
+    return filas.filter(function (f) { return f.some(function (c) { return String(c).trim() !== ''; }); });
+  }
+
+  /* ═══════════════════════════════════════════════════════════════════════
+     PINTAR UN ARTÍCULO (lector)
+     Cada bloque se construye a mano. Ni un innerHTML con contenido del artículo.
+  ═══════════════════════════════════════════════════════════════════════ */
+
+  /** Un párrafo: nodos de texto y <a> con href ya validado. */
+  function pintarPartes(destino, partes){
+    (partes || []).forEach(function (p){
+      var txt = String(p.t == null ? '' : p.t);
+      var url = urlSegura(p.url);
+      if (!url) { destino.appendChild(document.createTextNode(txt)); return; }
+      var a = el('a', null, txt);
+      a.href = url;
+      a.target = '_blank';
+      a.rel = 'noopener noreferrer';
+      destino.appendChild(a);
+    });
+  }
+
+  function pintarBloque(b){
+    if (b.tipo === 'titulo') return el(b.nivel === 3 ? 'h3' : 'h2', b.nivel === 3 ? 'art-h3' : 'art-h2', b.texto);
+
+    if (b.tipo === 'texto') {
+      var p = el('p', 'art-p');
+      pintarPartes(p, b.partes);
+      return p;
+    }
+
+    if (b.tipo === 'lista') {
+      var lista = el(b.ordenada ? 'ol' : 'ul', b.ordenada ? 'art-ol' : 'art-ul');
+      (b.items || []).forEach(function (partes){
+        var li = document.createElement('li');
+        pintarPartes(li, partes);
+        lista.appendChild(li);
+      });
+      return lista;
+    }
+
+    if (b.tipo === 'imagen') {
+      var url = urlSegura(b.url);
+      if (!url) return null;
+      var fig = el('figure', 'art-fig');
+      var img = document.createElement('img');
+      img.src = url;
+      img.alt = String(b.alt || '');
+      img.loading = 'lazy';
+      fig.appendChild(img);
+      if (b.pie) fig.appendChild(el('figcaption', null, b.pie));
+      return fig;
+    }
+
+    if (b.tipo === 'tabla') {
+      var caja = el('div', 'art-tabla-caja');
+      var tabla = el('table', 'art-tabla');
+      var filas = b.filas || [];
+      var desde = 0;
+      if (b.encabezado !== false && filas.length) {
+        var thead = document.createElement('thead');
+        var trh = document.createElement('tr');
+        (filas[0] || []).forEach(function (c){ trh.appendChild(el('th', null, c)); });
+        thead.appendChild(trh);
+        tabla.appendChild(thead);
+        desde = 1;
+      }
+      var tbody = document.createElement('tbody');
+      for (var i = desde; i < filas.length; i++) {
+        var tr = document.createElement('tr');
+        (filas[i] || []).forEach(function (c){ tr.appendChild(el('td', null, c)); });
+        tbody.appendChild(tr);
+      }
+      tabla.appendChild(tbody);
+      caja.appendChild(tabla);
+      return caja;
+    }
+
+    if (b.tipo === 'documento') {
+      var ficha = DOC_VISOR[b.clase] || DOC_VISOR.archivo;
+      var caja2 = el('div', 'art-doc-emb');
+
+      var barra = el('div', 'art-doc-bar');
+      barra.appendChild(icono(ficha.icono));
+      barra.appendChild(el('span', 'art-doc-tt', b.titulo || ficha.nombre));
+      /* PANTALLA COMPLETA, que es lo que pide T8.3 y lo que pide el sentido común: una
+         presentación o una hoja de cálculo dentro de la columna de lectura de un artículo
+         se ve a media escala, y el recurso de «abrir en Google» saca al lector del artículo
+         y de su sitio. El diagrama y la imagen ya lo tenían; el documento incrustado —que
+         es justo el bloque que más falta le hace— se había quedado sin él. */
+      var ampliarDoc = el('button', 'art-diag-ampliar', 'Pantalla completa');
+      ampliarDoc.type = 'button';
+      ampliarDoc.addEventListener('click', function (){ abrirDocumentoGrande(b); });
+      barra.appendChild(ampliarDoc);
+
+      var abrir = el('a', null, 'Abrir en Google');
+      abrir.href = urlAbrir(b.clase, b.docId);
+      abrir.target = '_blank';
+      abrir.rel = 'noopener noreferrer';
+      abrir.style.color = 'var(--brand-deep)';
+      abrir.style.fontWeight = '700';
+      barra.appendChild(abrir);
+      caja2.appendChild(barra);
+
+      var fr = document.createElement('iframe');
+      fr.src = urlVisor(b.clase, b.docId);
+      fr.title = b.titulo || ficha.nombre;
+      fr.setAttribute('referrerpolicy', 'no-referrer');
+      fr.setAttribute('loading', 'lazy');
+      caja2.appendChild(fr);
+
+      /* El aviso va SIEMPRE, no solo si falla. Un documento de Drive al que no
+         tienes permiso se queda en blanco dentro del marco y no avisa de nada:
+         desde fuera no hay forma de distinguirlo de «está cargando». Decirlo
+         antes evita el rato de mirar un rectángulo vacío pensando que es lento. */
+      var nota = el('div', 'art-doc-nota');
+      nota.appendChild(document.createTextNode(
+        'Si el recuadro se queda en blanco es que tu cuenta no tiene permiso sobre este documento: ' +
+        'los permisos los da Drive, no el Portal. Pídeselos a quien lo compartió, o '));
+      var abrir2 = el('a', null, 'ábrelo en Google');
+      abrir2.href = urlAbrir(b.clase, b.docId);
+      abrir2.target = '_blank';
+      abrir2.rel = 'noopener noreferrer';
+      nota.appendChild(abrir2);
+      nota.appendChild(document.createTextNode(' para ver el motivo exacto.'));
+      caja2.appendChild(nota);
+      return caja2;
+    }
+
+    if (b.tipo === 'diagrama') return cajaDiagrama(b, false);
+
+    if (b.tipo === 'separador') return el('hr', 'art-sep');
+    return null;   // tipo desconocido: no se pinta y no se rompe nada
+  }
+
+  /* ═══════════════════════════════════════════════════════════════════════
+     DIAGRAMAS · draw.io (diagrams.net), incrustado
+     ───────────────────────────────────────────────────────────────────────
+     Se guarda el XML del diagrama y se dibuja dentro de un IFRAME de
+     diagrams.net, nunca en nuestro DOM. Dos motivos, y el segundo es el que
+     manda: un diagrama exportado a SVG trae `foreignObject`, estilos y a veces
+     guiones, así que meterlo en la página sería justo lo que el resto de esta
+     fase evita; dentro del iframe, por mucho que traiga, se queda ahí.
+
+     El mismo componente sirve para leer y para editar: cambia el `chrome`. Así
+     lo que se ve mientras se dibuja es exactamente lo que verá quien lea.
+
+     La conversación con el iframe es la documentada por diagrams.net
+     (`proto=json`): él avisa con `init` cuando está listo, nosotros mandamos el
+     XML, y él devuelve `save` y `exit`. Se comprueba SIEMPRE el `origin`: un
+     `message` puede mandarlo cualquier ventana, y este maneja el contenido de un
+     artículo del equipo. */
+  var DRAWIO = 'https://embed.diagrams.net';
+
+  function urlDrawio(editable){
+    // ui=min y spin=1 vienen del manual de diagrams.net; lang=es porque el equipo
+    // trabaja en español y el editor tiene traducción completa.
+    return DRAWIO + '/?embed=1&proto=json&spin=1&lang=es&ui=min&libraries=1'
+      + (editable ? '&chrome=1&modified=unsavedChanges&saveAndExit=1&noExitBtn=0' : '&chrome=0&lightbox=1');
+  }
+
+  /**
+   * Monta un diagrama. Devuelve {el, destruir}.
+   * @param {object} b     bloque {xml, titulo, alto}
+   * @param {boolean} edit si true, el iframe trae las herramientas de dibujo
+   * @param {function=} alGuardar  recibe el XML nuevo (solo en modo edición)
+   */
+  function montarDiagrama(b, edit, alGuardar){
+    var caja = el('div', 'art-diag');
+    var fr = document.createElement('iframe');
+    fr.className = 'art-diag-frame';
+    fr.title = b.titulo || 'Diagrama';
+    fr.setAttribute('referrerpolicy', 'no-referrer');
+    fr.style.height = (Number(b.alto) || 420) + 'px';
+
+    /* Aviso de red bloqueada. diagrams.net es un dominio externo, igual que el CDN
+       de GSAP, y en esta red corporativa a veces no pasa. Si a los seis segundos no
+       ha dicho `init`, el marco vacío no explica nada: se dice qué pasó y se ofrece
+       lo único que queda, que es el propio XML para abrirlo por fuera. */
+    var listo = false;
+    var reloj = setTimeout(function (){
+      if (listo) return;
+      caja.classList.add('sin-red');
+      var nota = el('div', 'art-diag-nota',
+        'No pudimos cargar el editor de diagramas (diagrams.net). Puede ser la red de la oficina. ' +
+        'El diagrama sigue guardado: vuelve a intentarlo más tarde o ábrelo desde app.diagrams.net.');
+      caja.appendChild(nota);
+    }, 6000);
+
+    function alMensaje(e){
+      if (e.origin !== DRAWIO) return;                 // solo hablamos con él
+      if (e.source !== fr.contentWindow) return;       // y solo con ESTE marco
+      var msg = null;
+      try { msg = JSON.parse(e.data); } catch (err) { return; }
+      if (!msg || !msg.event) return;
+
+      if (msg.event === 'init') {
+        listo = true;
+        clearTimeout(reloj);
+        caja.classList.add('is-listo');
+        fr.contentWindow.postMessage(JSON.stringify({
+          action: 'load', autosave: 0, xml: b.xml || ''
+        }), DRAWIO);
+        return;
+      }
+      if (msg.event === 'save' && edit && typeof alGuardar === 'function') {
+        alGuardar(String(msg.xml || ''));
+        return;
+      }
+      if (msg.event === 'exit' && edit && typeof alGuardar === 'function') {
+        alGuardar(null);   // salir sin guardar
+      }
+    }
+    window.addEventListener('message', alMensaje);
+
+    fr.src = urlDrawio(edit);
+    caja.appendChild(fr);
+
+    return {
+      el: caja,
+      destruir: function (){
+        clearTimeout(reloj);
+        window.removeEventListener('message', alMensaje);
+        if (fr.parentNode) fr.parentNode.removeChild(fr);
+      }
+    };
+  }
+
+  /** El bloque de diagrama tal como se ve al LEER: barra, lienzo y pantalla completa. */
+  function cajaDiagrama(b, edit){
+    var caja = el('div', 'art-doc-emb art-diag-caja');
+
+    var barra = el('div', 'art-doc-bar');
+    barra.appendChild(icono('layers'));
+    barra.appendChild(el('span', 'art-doc-tt', b.titulo || 'Diagrama'));
+    var ampliar = el('button', 'art-diag-ampliar', 'Pantalla completa');
+    ampliar.type = 'button';
+    ampliar.addEventListener('click', function (){ abrirDiagramaGrande(b); });
+    barra.appendChild(ampliar);
+    caja.appendChild(barra);
+
+    var montaje = montarDiagrama(b, edit === true, null);
+    caja.appendChild(montaje.el);
+    return caja;
+  }
+
+  /* Pantalla completa: un diagrama de flujo con quince cajas no se lee en 420 px de
+     alto, y hacer zoom con la rueda dentro del artículo pelea con el scroll de la
+     página. Aquí se abre grande, y al cerrar el foco vuelve a donde estaba. */
+  function abrirDiagramaGrande(b){
+    var overlay = el('div', 'art-diag-full');
+    overlay.setAttribute('role', 'dialog');
+    overlay.setAttribute('aria-modal', 'true');
+    overlay.setAttribute('aria-label', b.titulo || 'Diagrama');
+    var quienAbrio = document.activeElement;
+
+    var barra = el('div', 'art-diag-full-bar');
+    barra.appendChild(el('span', 'art-diag-full-tt', b.titulo || 'Diagrama'));
+    var cerrar = el('button', 'v-btn v-btn-ghost', 'Cerrar');
+    cerrar.type = 'button';
+    barra.appendChild(cerrar);
+    overlay.appendChild(barra);
+
+    var montaje = montarDiagrama({ xml: b.xml, titulo: b.titulo, alto: 0 }, false, null);
+    montaje.el.classList.add('es-full');
+    overlay.appendChild(montaje.el);
+    document.body.appendChild(overlay);
+
+    function fuera(){
+      montaje.destruir();
+      document.removeEventListener('keydown', porEsc);
+      if (overlay.parentNode) overlay.parentNode.removeChild(overlay);
+      if (quienAbrio && quienAbrio.focus) quienAbrio.focus();
+    }
+    function porEsc(e){ if (e.key === 'Escape') fuera(); }
+    cerrar.addEventListener('click', fuera);
+    overlay.addEventListener('click', function (e){ if (e.target === overlay) fuera(); });
+    document.addEventListener('keydown', porEsc);
+    cerrar.focus();
+
+    // La entrada la pone AppMotion si está; si no, el overlay ya nace visible.
+    if (window.AppMotion && AppMotion.modalIn) AppMotion.modalIn(overlay, montaje.el);
+  }
+
+  /* El documento a tamaño de pantalla. Mismo esqueleto que abrirDiagramaGrande —overlay,
+     barra, Escape, clic fuera, foco devuelto a quien abrió— porque son el mismo gesto y
+     dos diálogos que se cierran distinto se aprenden dos veces.
+
+     El aviso de permisos viaja también aquí, y no por copiar: a pantalla completa el
+     rectángulo en blanco es más grande, no más explicativo. */
+  function abrirDocumentoGrande(b){
+    var ficha = DOC_VISOR[b.clase] || DOC_VISOR.archivo;
+    var titulo = b.titulo || ficha.nombre;
+
+    var overlay = el('div', 'art-diag-full');
+    overlay.setAttribute('role', 'dialog');
+    overlay.setAttribute('aria-modal', 'true');
+    overlay.setAttribute('aria-label', titulo);
+    var quienAbrio = document.activeElement;
+
+    var barra = el('div', 'art-diag-full-bar');
+    barra.appendChild(el('span', 'art-diag-full-tt', titulo));
+    barra.appendChild(el('span', 'art-ayuda', 'Si se queda en blanco, tu cuenta no tiene permiso en Drive.'));
+    var enGoogle = el('a', null, 'Abrir en Google');
+    enGoogle.href = urlAbrir(b.clase, b.docId);
+    enGoogle.target = '_blank';
+    enGoogle.rel = 'noopener noreferrer';
+    barra.appendChild(enGoogle);
+    var cerrar = el('button', 'v-btn v-btn-ghost', 'Cerrar');
+    cerrar.type = 'button';
+    barra.appendChild(cerrar);
+    overlay.appendChild(barra);
+
+    var marco = el('div', 'art-doc-full-marco');
+    var fr = document.createElement('iframe');
+    fr.src = urlVisor(b.clase, b.docId);
+    fr.title = titulo;
+    fr.setAttribute('referrerpolicy', 'no-referrer');
+    marco.appendChild(fr);
+    overlay.appendChild(marco);
+    document.body.appendChild(overlay);
+
+    function fuera(){
+      document.removeEventListener('keydown', porEsc);
+      if (overlay.parentNode) overlay.parentNode.removeChild(overlay);
+      if (quienAbrio && quienAbrio.focus) quienAbrio.focus();
+    }
+    function porEsc(e){ if (e.key === 'Escape') fuera(); }
+    cerrar.addEventListener('click', fuera);
+    /* Solo el fondo cierra, nunca el marco: dentro hay un iframe de Google con el que se
+       interactúa (pasar diapositiva, desplazar la hoja), y un clic ahí no es «he terminado». */
+    overlay.addEventListener('click', function (e){ if (e.target === overlay) fuera(); });
+    document.addEventListener('keydown', porEsc);
+    cerrar.focus();
+
+    if (window.AppMotion && AppMotion.modalIn) AppMotion.modalIn(overlay, marco);
+  }
+
+  function pintarCuerpo(contenido){
+    var cuerpo = el('div', 'art-cuerpo');
+    ((contenido && contenido.bloques) || []).forEach(function (b){
+      var n = pintarBloque(b);
+      if (n) cuerpo.appendChild(n);
+    });
+    if (!cuerpo.firstChild) {
+      cuerpo.appendChild(el('p', 'art-p', 'Este artículo todavía no tiene contenido.'));
+    }
+    return cuerpo;
+  }
+
+  window.ArticuloRender = { pintarBloque: pintarBloque, pintarCuerpo: pintarCuerpo, urlSegura: urlSegura,
+                            docDeUrl: docDeUrl, parsearTSV: parsearTSV,
+                            montarDiagrama: montarDiagrama, abrirDiagramaGrande: abrirDiagramaGrande,
+                            abrirDocumentoGrande: abrirDocumentoGrande,
+                            el: el, icono: icono };
+})();
+</script>
+<script>
+/* La interfaz (lista, lector, editor y guardado) va en su propio bloque para que el
+   render —que es la pieza con implicaciones de seguridad— se lea entero de una vez. */
+(function () {
+  'use strict';
+  var R = window.ArticuloRender;
+  var vista = document.getElementById('vista');
+
+  var st = { modo: 'lista', id: '', articulo: null, lista: [], puedeEditar: false, sucio: false, bloques: [] };
+
+  function correo(){ return (window.AppSession && AppSession.userEmail) || ''; }
+  function param(n){ return (window.AppUrl && AppUrl.param) ? (AppUrl.param(n) || '') : ''; }
+  function reflejar(p, apilar){
+    if (window.AppUrl && AppUrl.reflejar) AppUrl.reflejar(p, apilar ? { apilar: true } : null);
+  }
+  function aviso(m, t){ if (window.AppMotion && AppMotion.toast) AppMotion.toast(m, t || 'info'); }
+  function el(tag, clase, texto){
+    var n = document.createElement(tag);
+    if (clase) n.className = clase;
+    if (texto != null) n.textContent = String(texto);
+    return n;
+  }
+  function vaciar(n){ while (n.firstChild) n.removeChild(n.firstChild); }
+  function icono(nombre, clase){
+    var s = document.createElement('span');
+    s.setAttribute('data-icon', nombre);
+    s.className = 'ic' + (clase ? ' ' + clase : '');
+    return s;
+  }
+  function iconos(){ if (window.Icons) Icons.render(vista); }
+
+  /* ── Lista ─────────────────────────────────────────────────────────── */
+  function cargarLista(){
+    var fx = window.VentelFX ? VentelFX.skeleton('#vista', 'lista', { rows: 4 }) : null;
+    AppRun.call('artListar', [correo(), {}], { busy: false })
+      .then(function (r){
+        if (fx) fx.done();
+        if (!r || r.status !== 'ok') { pintarError(r && r.error); return; }
+        st.lista = r.articulos || [];
+        st.puedeEditar = !!r.puedeEditar;
+        pintarLista();
+      }, function (){ if (fx) fx.done(); pintarError(); });
+  }
+
+  function pintarLista(){
+    st.modo = 'lista';
+    vaciar(vista);
+
+    var hd = el('div', 'art-hd');
+    var izq = document.createElement('div');
+    izq.appendChild(el('h1', null, 'Artículos'));
+    izq.appendChild(el('p', null,
+      'Lo que hay que saber explicado con calma: guías, procedimientos y todo lo que no cabe en un anuncio.'));
+    hd.appendChild(izq);
+
+    if (st.puedeEditar) {
+      var nuevo = el('button', 'v-btn v-btn-primary', 'Escribir artículo');
+      nuevo.type = 'button';
+      nuevo.addEventListener('click', function (){ abrirEditor(null); });
+      hd.appendChild(nuevo);
+    }
+    vista.appendChild(hd);
+
+    if (!st.lista.length) {
+      var vacio = el('div', 'art-vacio');
+      vacio.appendChild(icono('document'));
+      vacio.appendChild(el('div', 'art-vacio-t', 'Todavía no hay artículos'));
+      vacio.appendChild(el('div', 'art-vacio-s', st.puedeEditar
+        ? 'Escribe el primero: una guía, un procedimiento, la explicación de un caso que se repite.'
+        : 'Cuando el equipo publique alguno, aparecerá aquí.'));
+      vista.appendChild(vacio);
+      iconos();
+      return;
+    }
+
+    var grid = el('div', 'art-lista');
+    st.lista.forEach(function (a){
+      var card = el('button', 'art-card');
+      card.type = 'button';
+      card.appendChild(el('div', 'art-card-tt', a.titulo || '(sin título)'));
+      if (a.resumen) card.appendChild(el('div', 'art-card-rs', a.resumen));
+      var pie = el('div', 'art-card-pie');
+      if (a.estado !== 'publicado') {
+        pie.appendChild(el('span', 'art-badge borrador', 'Borrador'));
+      }
+      if (a.minutos) pie.appendChild(el('span', null, a.minutos + ' min de lectura'));
+      if (a.autores) pie.appendChild(el('span', null, '· ' + a.autores));
+      card.appendChild(pie);
+      card.addEventListener('click', function (){ abrirArticulo(a.id, true); });
+      grid.appendChild(card);
+    });
+    vista.appendChild(grid);
+    iconos();
+    entrada(hd, { y: 10, duration: .35 });
+    entrada(grid.children, { delay: .06 });
+    reflejar({ art: '' });
+  }
+
+  function pintarError(msg){
+    vaciar(vista);
+    var v = el('div', 'art-vacio');
+    v.appendChild(icono('chat'));
+    v.appendChild(el('div', 'art-vacio-t', 'No pudimos cargar los artículos'));
+    v.appendChild(el('div', 'art-vacio-s', msg || 'Revisa tu conexión y vuelve a intentarlo.'));
+    vista.appendChild(v);
+    iconos();
+  }
+
+  /* ── Lector ────────────────────────────────────────────────────────── */
+  function abrirArticulo(id, apilar){
+    if (!id) return;
+    var fx = window.VentelFX ? VentelFX.skeleton('#vista', 'lista', { rows: 3 }) : null;
+    AppRun.call('artObtener', [id, correo()], { busy: false })
+      .then(function (r){
+        if (fx) fx.done();
+        if (!r || r.status !== 'ok') { pintarError(r && r.error); return; }
+        st.articulo = r.articulo;
+        st.id = id;
+        st.puedeEditar = !!r.puedeEditar;
+        pintarLectura();
+        reflejar({ art: id }, apilar);
+      }, function (){ if (fx) fx.done(); pintarError(); });
+  }
+
+  function pintarLectura(){
+    st.modo = 'lee';
+    var a = st.articulo;
+    matarEscena();
+    vaciar(vista);
+
+    /* Progreso de lectura. En un artículo largo dentro del iframe de Apps Script no
+       hay barra de desplazamiento de la ventana que sirva de referencia, así que sin
+       esto no se sabe si queda un párrafo o quince. Es una línea de 3 px; se mueve con
+       transform y, sin GSAP, sencillamente no aparece. */
+    var progreso = el('div', 'art-progreso');
+    var barraProg = el('i', null, null);
+    progreso.appendChild(barraProg);
+    vista.appendChild(progreso);
+
+    var acciones = el('div', 'art-acciones art-lee-barra');
+    var volver = el('button', 'v-btn v-btn-ghost', '← Todos los artículos');
+    volver.type = 'button';
+    volver.addEventListener('click', function (){ st.id = ''; cargarLista(); });
+    acciones.appendChild(volver);
+    if (st.puedeEditar) {
+      var editar = el('button', 'v-btn v-btn-ghost', 'Editar');
+      editar.type = 'button';
+      editar.addEventListener('click', function (){ abrirEditor(a); });
+      acciones.appendChild(editar);
+      var lectores = el('button', 'v-btn v-btn-ghost', 'Quién lo ha leído');
+      lectores.type = 'button';
+      lectores.addEventListener('click', function (){ verLectores(a.id); });
+      acciones.appendChild(lectores);
+    }
+    var copiar = el('button', 'v-btn v-btn-ghost', 'Copiar enlace');
+    copiar.type = 'button';
+    copiar.addEventListener('click', function (){
+      if (!(window.AppUrl && AppUrl.copyLink)) return;
+      AppUrl.copyLink('articulo', { art: a.id }).then(function (ok){
+        aviso(ok ? 'Enlace copiado.' : 'No pudimos copiar el enlace.', ok ? 'ok' : 'warn');
+      });
+    });
+    acciones.appendChild(copiar);
+    vista.appendChild(acciones);
+
+    var doc = el('article', 'art-doc');
+    var hd = el('div', 'art-doc-hd');
+    if (a.estado !== 'publicado') hd.appendChild(el('span', 'art-badge borrador', 'Borrador · solo lo ves tú'));
+    hd.appendChild(el('h1', null, a.titulo || '(sin título)'));
+    if (a.resumen) hd.appendChild(el('p', 'art-doc-rs', a.resumen));
+
+    var firma = el('div', 'art-firma');
+    if (a.autores) { firma.appendChild(el('b', null, a.autores)); }
+    if (a.creado) firma.appendChild(el('span', null, '· ' + a.creado));
+    if (a.minutos) firma.appendChild(el('span', null, '· ' + a.minutos + ' min de lectura'));
+    if (a.editadoPor && a.editado && a.editado !== a.creado) {
+      firma.appendChild(el('span', null, '· última edición ' + a.editado + ' por ' + a.editadoPor));
+    }
+    hd.appendChild(firma);
+    doc.appendChild(hd);
+
+    var cuerpo = R.pintarCuerpo(a.contenido);
+    doc.appendChild(cuerpo);
+
+    /* Índice del artículo. Solo si hay al menos dos subtítulos: con uno no es un índice,
+       es un enlace suelto. Se arma leyendo el DOM ya pintado, así que no hay una segunda
+       fuente de verdad que se pueda desincronizar del contenido. */
+    var indice = construirIndice(cuerpo);
+    if (indice) {
+      var conIndice = el('div', 'art-lectura');
+      conIndice.appendChild(doc);
+      conIndice.appendChild(indice);
+      vista.appendChild(conIndice);
+    } else {
+      vista.appendChild(doc);
+    }
+
+    iconos();
+    entrada(acciones, { y: 8, duration: .3 });
+    if (indice) entrada(indice, { y: 10, delay: .12 });
+    montarZoomImagenes(cuerpo);
+    montarEscena(cuerpo, barraProg);
+    if (window.AppUrl && AppUrl.irAncla) AppUrl.irAncla();
+  }
+
+  /** Tabla de contenidos a partir de los subtítulos ya pintados. */
+  function construirIndice(cuerpo){
+    var titulos = cuerpo.querySelectorAll('.art-h2, .art-h3');
+    if (titulos.length < 2) return null;
+    var nav = el('nav', 'art-indice');
+    nav.setAttribute('aria-label', 'Contenido del artículo');
+    nav.appendChild(el('p', 'art-panel-t', 'En este artículo'));
+    var lista = el('ul', 'art-indice-lista');
+    Array.prototype.forEach.call(titulos, function (t, i){
+      var id = 'art-sec-' + i;
+      t.id = id;
+      var li = document.createElement('li');
+      var a = el('a', t.className === 'art-h3' ? 'es-hijo' : null, t.textContent);
+      a.href = '#' + id;
+      a.dataset.destino = id;
+      a.addEventListener('click', function (e){
+        e.preventDefault();
+        t.scrollIntoView({ behavior: mueve() ? 'smooth' : 'auto', block: 'start' });
+      });
+      li.appendChild(a);
+      lista.appendChild(li);
+    });
+    nav.appendChild(lista);
+    return nav;
+  }
+
+  /** ¿Se puede animar? Mismo guardián que app_motion: sin GSAP o con movimiento
+      reducido, el resultado final se enseña de inmediato y no se anima nada. */
+  function mueve(){
+    var reducido = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+    return typeof window.gsap !== 'undefined' && !reducido;
+  }
+
+  /* Entrada de una vista. Siempre `from`: se parte de VISIBLE y se anima hacia el
+     sitio, así que si el CDN no llega no se ejecuta y no pasa nada — nunca al revés.
+
+     Y nunca se anima un contenedor que tenga dentro algo `position:sticky`: un
+     `transform` en un ancestro crea un contexto de apilamiento y el sticky deja de
+     pegarse mientras dura la animación. Por eso se animan los hijos concretos y no
+     `#vista` entera, que es donde vive la barra de trabajo del editor.
+
+     El escalonado va por `amount` con techo, no por escalón fijo: una lista de tres
+     artículos y una de treinta tienen que terminar de entrar en el mismo rato. */
+  function entrada(nodos, opts){
+    if (!mueve() || !nodos) return;
+    var lista = nodos.length !== undefined ? Array.prototype.slice.call(nodos) : [nodos];
+    if (!lista.length) return;
+    opts = opts || {};
+    gsap.from(lista, {
+      opacity: 0,
+      y: opts.y === undefined ? 14 : opts.y,
+      duration: opts.duration || .45,
+      ease: 'power3.out',
+      delay: opts.delay || 0,
+      stagger: { amount: Math.min(.4, lista.length * .05) },
+      overwrite: 'auto',
+      clearProps: 'transform,opacity'
+    });
+  }
+
+  var escena = null;
+  function matarEscena(){
+    if (escena) { try { escena.revert(); } catch (e) {} escena = null; }
+    if (window.ScrollTrigger) ScrollTrigger.getAll().forEach(function (t){ t.kill(); });
+  }
+
+  /* Las animaciones del visor, todas dentro de un `gsap.context` para poder matarlas
+     de una vez: esta pantalla repinta el artículo entero al cambiar de uno a otro, y
+     los ScrollTriggers de la lectura anterior se quedarían midiendo nodos muertos. */
+  function montarEscena(cuerpo, barraProg){
+    if (!mueve()) return;
+
+    escena = gsap.context(function (){
+      // Cabecera: entra una vez, corta.
+      gsap.from('.art-doc-hd > *', {
+        opacity: 0, y: 14, duration: .5, ease: 'power3.out',
+        stagger: { amount: .18 }, clearProps: 'transform,opacity'
+      });
+
+      if (!window.ScrollTrigger) return;
+
+      /* Revelado por bloques. El estado oculto lo pone JavaScript AQUÍ y no el CSS:
+         si el CDN no llega, no se ejecuta esta línea y el artículo se lee entero. */
+      var bloques = cuerpo.children;
+      gsap.set(bloques, { opacity: 0, y: 16 });
+      ScrollTrigger.batch(bloques, {
+        start: 'top 90%',
+        onEnter: function (lote){
+          gsap.to(lote, {
+            opacity: 1, y: 0, duration: .5, ease: 'power2.out',
+            stagger: { amount: Math.min(.3, lote.length * .05) },
+            overwrite: 'auto', clearProps: 'transform'
+          });
+        }
+      });
+      // Lo que ya está en pantalla al abrir no espera al scroll.
+      gsap.to(Array.prototype.filter.call(bloques, function (n){
+        return n.getBoundingClientRect().top < window.innerHeight * .9;
+      }), { opacity: 1, y: 0, duration: .5, ease: 'power2.out',
+            stagger: { amount: .25 }, clearProps: 'transform' });
+
+      // Progreso: quickTo reutiliza un tween en vez de crear uno por evento de scroll.
+      var mueveBarra = gsap.quickTo(barraProg, 'scaleX', { duration: .2, ease: 'none' });
+      gsap.set(barraProg, { transformOrigin: 'left center', scaleX: 0 });
+      ScrollTrigger.create({
+        start: 0, end: 'max',
+        onUpdate: function (self){ mueveBarra(self.progress); }
+      });
+
+      // Scroll-spy del índice: marca dónde vas sin recalcular en cada scroll.
+      var enlaces = vista.querySelectorAll('.art-indice a');
+      if (enlaces.length) {
+        Array.prototype.forEach.call(enlaces, function (a){
+          var destino = document.getElementById(a.dataset.destino);
+          if (!destino) return;
+          ScrollTrigger.create({
+            trigger: destino, start: 'top 30%', end: 'bottom 30%',
+            onToggle: function (self){ a.classList.toggle('es-aqui', self.isActive); }
+          });
+        });
+      }
+    }, vista);
+
+    // Después de pintar y en el frame siguiente: medir un layout a medio hacer da
+    // posiciones equivocadas y los revelados disparan todos a la vez.
+    requestAnimationFrame(function (){ if (window.ScrollTrigger) ScrollTrigger.refresh(); });
+  }
+
+  /* Zoom de imágenes: una captura de pantalla dentro de una columna de 68ch no se lee.
+     Al pulsarla se abre a tamaño completo, con Esc y clic fuera para cerrar. */
+  function montarZoomImagenes(cuerpo){
+    var imgs = cuerpo.querySelectorAll('.art-fig img');
+    Array.prototype.forEach.call(imgs, function (img){
+      img.classList.add('es-ampliable');
+      img.setAttribute('role', 'button');
+      img.setAttribute('tabindex', '0');
+      img.setAttribute('aria-label', 'Ampliar la imagen' + (img.alt ? ': ' + img.alt : ''));
+      var abrir = function (){ ampliarImagen(img); };
+      img.addEventListener('click', abrir);
+      img.addEventListener('keydown', function (e){
+        if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); abrir(); }
+      });
+    });
+  }
+
+  function ampliarImagen(img){
+    var overlay = el('div', 'art-zoom');
+    overlay.setAttribute('role', 'dialog');
+    overlay.setAttribute('aria-modal', 'true');
+    overlay.setAttribute('aria-label', img.alt || 'Imagen ampliada');
+    var quienAbrio = document.activeElement;
+    var grande = document.createElement('img');
+    grande.src = img.src;
+    grande.alt = img.alt || '';
+    overlay.appendChild(grande);
+    var cerrar = el('button', 'art-zoom-x', '×');
+    cerrar.type = 'button';
+    cerrar.setAttribute('aria-label', 'Cerrar');
+    overlay.appendChild(cerrar);
+    document.body.appendChild(overlay);
+
+    function fuera(){
+      document.removeEventListener('keydown', porEsc);
+      if (overlay.parentNode) overlay.parentNode.removeChild(overlay);
+      if (quienAbrio && quienAbrio.focus) quienAbrio.focus();
+    }
+    function porEsc(e){ if (e.key === 'Escape') fuera(); }
+    cerrar.addEventListener('click', fuera);
+    overlay.addEventListener('click', function (e){ if (e.target === overlay) fuera(); });
+    document.addEventListener('keydown', porEsc);
+    cerrar.focus();
+    if (mueve()) gsap.from(grande, { opacity: 0, scale: .96, duration: .28, ease: 'power3.out' });
+  }
+
+  function verLectores(id){
+    AppRun.call('artLectores', [id, correo()], { busy: 'Consultando lectores' })
+      .then(function (r){
+        if (!r || r.status !== 'ok') { aviso((r && r.error) || 'No pudimos consultarlo.', 'warn'); return; }
+        var caja = el('div', 'art-panel-caja');
+        caja.style.marginTop = 'var(--s3)';
+        caja.appendChild(el('p', 'art-panel-t', r.total === 1 ? '1 persona lo ha leído' : r.total + ' personas lo han leído'));
+        var lista = el('div', 'art-lectores');
+        (r.lectores || []).forEach(function (l){
+          var fila = el('div', 'art-lector');
+          fila.appendChild(el('b', null, l.nombre || l.correo));
+          fila.appendChild(el('span', null, l.primera + (l.veces > 1 ? ' · ' + l.veces + ' veces' : '')));
+          lista.appendChild(fila);
+        });
+        if (!r.total) lista.appendChild(el('div', 'art-lector', 'Todavía nadie.'));
+        caja.appendChild(lista);
+        vista.appendChild(caja);
+      }, function (){ aviso('No pudimos consultarlo.', 'warn'); });
+  }
+
+  /* ── Editor ────────────────────────────────────────────────────────── */
+  var TIPOS = [
+    { t: 'texto',      n: 'Párrafo',    i: 'document',     d: 'Texto corrido' },
+    { t: 'titulo',     n: 'Subtítulo',  i: 'textsize',     d: 'Separa las partes' },
+    { t: 'lista',      n: 'Lista',      i: 'layers',       d: 'Un punto por renglón' },
+    { t: 'imagen',     n: 'Imagen',     i: 'folder',       d: 'Se sube a Drive' },
+    { t: 'tabla',      n: 'Tabla',      i: 'chart',        d: 'Pegada de Sheets' },
+    { t: 'documento',  n: 'Documento',  i: 'presentation', d: 'Docs, Slides u hoja' },
+    { t: 'diagrama',   n: 'Diagrama',   i: 'layers',       d: 'Flujo con draw.io' },
+    { t: 'separador',  n: 'Separador',  i: 'minus',        d: 'Una línea de descanso' }
+  ];
+
+  function abrirEditor(a){
+    st.modo = 'edita';
+    st.articulo = a || { id: '', titulo: '', resumen: '', estado: 'borrador', contenido: { v: 1, bloques: [] } };
+    st.id = st.articulo.id || '';
+    st.bloques = ((st.articulo.contenido && st.articulo.contenido.bloques) || []).slice();
+    if (!st.bloques.length) st.bloques.push({ tipo: 'texto', partes: [{ t: '' }] });
+    st.sucio = false;
+    st.previa = false;
+    st.foco = null;          // bloque al que llevar el cursor tras repintar
+    pintarEditor();
+    reflejar({ art: st.id, action: st.id ? 'edit' : 'nueva' }, true);
+  }
+
+  function marcar(){
+    st.sucio = true;
+    pintarCifras();
+    pintarEstado();
+  }
+
+  /* Un textarea que crece con lo que se escribe. Sin esto, el lienzo tiene barras de
+     desplazamiento dentro de cada párrafo y deja de parecerse a un artículo. */
+  function autoAlto(ta){
+    ta.style.height = 'auto';
+    ta.style.height = (ta.scrollHeight + 2) + 'px';
+  }
+  function conAutoAlto(ta){
+    ta.addEventListener('input', function (){ autoAlto(this); });
+    setTimeout(function (){ autoAlto(ta); }, 0);
+    return ta;
+  }
+
+  /* ── Las cifras del artículo, en vivo ─────────────────────────────────
+     Cuántas palabras llevas y cuánto se tarda en leerlo es lo que de verdad
+     contesta «¿me estoy pasando?», y hasta ahora había que guardar y salir para
+     saberlo. Se calcula sobre los bloques en memoria, sin ir al servidor. */
+  function palabrasDe(bloques){
+    var partes = [];
+    (bloques || []).forEach(function (b){
+      if (b.tipo === 'titulo') partes.push(b.texto || '');
+      else if (b.tipo === 'texto') partes.push((b.partes || []).map(function (p){ return p.t; }).join(''));
+      else if (b.tipo === 'lista') (b.items || []).forEach(function (it){
+        partes.push((it || []).map(function (p){ return p.t; }).join(''));
+      });
+      else if (b.tipo === 'tabla') (b.filas || []).forEach(function (f){ partes.push(f.join(' ')); });
+      else if (b.tipo === 'imagen') partes.push(b.pie || '');
+    });
+    var t = partes.join(' ').replace(/\s+/g, ' ').trim();
+    return t ? t.split(' ').length : 0;
+  }
+
+  function pintarCifras(){
+    var caja = document.getElementById('artCifras');
+    if (!caja) return;
+    var pal = palabrasDe(st.bloques);
+    var datos = [
+      ['Palabras', pal],
+      ['Lectura', Math.max(1, Math.round(pal / 200)) + ' min'],
+      ['Bloques', st.bloques.length]
+    ];
+    vaciar(caja);
+    datos.forEach(function (d){
+      var fila = el('div', 'art-cifra');
+      fila.appendChild(el('span', null, d[0]));
+      fila.appendChild(el('b', null, d[1]));
+      caja.appendChild(fila);
+    });
+  }
+
+  function pintarEstado(){
+    var n = document.getElementById('artEstado');
+    if (!n) return;
+    var antes = n.className;
+    n.className = 'art-estado ' + (st.sucio ? 'sucio' : 'guardado');
+    n.textContent = st.sucio ? 'Sin guardar' : (st.id ? 'Guardado' : 'Nuevo');
+    /* Pasar de «sin guardar» a «guardado» es la confirmación que se busca con el
+       rabillo del ojo tras pulsar Ctrl+S, y un cambio de color sin movimiento se
+       pierde. El pop lo pone AppMotion, que es la pieza de la casa para esto. */
+    if (antes.indexOf('sucio') > -1 && !st.sucio && window.AppMotion && AppMotion.pop) AppMotion.pop(n);
+  }
+
+  function pintarEditor(){
+    vaciar(vista);
+
+    /* ── Barra de trabajo ───────────────────────────────────────────────
+       Lo que hay que saber siempre a la izquierda (dónde estoy, en qué estado,
+       si hay cambios sin guardar) y a la derecha UNA sola acción primaria. */
+    var barra = el('div', 'art-barra');
+    var izq = el('div', 'art-barra-izq');
+    var salir = el('button', 'v-btn v-btn-ghost', '← Salir');
+    salir.type = 'button';
+    salir.addEventListener('click', salirDelEditor);
+    izq.appendChild(salir);
+    izq.appendChild(el('span', 'art-badge ' + (st.articulo.estado === 'publicado' ? 'publicado' : 'borrador'),
+      st.articulo.estado === 'publicado' ? 'Publicado' : 'Borrador'));
+    var estado = el('span', 'art-estado', '');
+    estado.id = 'artEstado';
+    estado.setAttribute('aria-live', 'polite');
+    izq.appendChild(estado);
+    barra.appendChild(izq);
+
+    var der = el('div', 'art-barra-der');
+    var previa = el('button', 'v-btn v-btn-ghost', st.previa ? 'Seguir escribiendo' : 'Vista previa');
+    previa.type = 'button';
+    previa.addEventListener('click', function (){ st.previa = !st.previa; pintarEditor(); });
+    der.appendChild(previa);
+    var guardar = el('button', 'v-btn v-btn-ghost', 'Guardar');
+    guardar.type = 'button';
+    guardar.title = 'Ctrl + S';
+    guardar.addEventListener('click', function (){ guardarArticulo(st.articulo.estado || 'borrador'); });
+    der.appendChild(guardar);
+    var publicar = el('button', 'v-btn v-btn-primary',
+      st.articulo.estado === 'publicado' ? 'Guardar y retirar' : 'Publicar');
+    publicar.type = 'button';
+    publicar.addEventListener('click', function (){
+      guardarArticulo(st.articulo.estado === 'publicado' ? 'borrador' : 'publicado');
+    });
+    der.appendChild(publicar);
+    barra.appendChild(der);
+    vista.appendChild(barra);
+
+    var grid = el('div', 'art-editor');
+    var col = document.createElement('div');
+
+    if (st.previa) {
+      /* Vista previa: el render REAL, el mismo que verá quien lo lea. No una
+         imitación —eso es lo que acaba mintiendo— sino la misma función. */
+      var caja = el('div', 'art-previa');
+      caja.appendChild(el('p', 'art-previa-nota', 'Así se verá'));
+      var doc = el('article', 'art-doc');
+      var hdp = el('div', 'art-doc-hd');
+      hdp.appendChild(el('h1', null, st.articulo.titulo || '(sin título)'));
+      if (st.articulo.resumen) hdp.appendChild(el('p', 'art-doc-rs', st.articulo.resumen));
+      doc.appendChild(hdp);
+      doc.appendChild(R.pintarCuerpo({ v: 1, bloques: st.bloques }));
+      caja.appendChild(doc);
+      col.appendChild(caja);
+    } else {
+      var lienzo = el('div', 'art-lienzo');
+
+      var cab = el('div', 'art-cabecera');
+      var tTitulo = document.createElement('input');
+      tTitulo.type = 'text';
+      tTitulo.className = 'art-campo-titulo';
+      tTitulo.value = st.articulo.titulo || '';
+      tTitulo.placeholder = 'Título del artículo';
+      tTitulo.maxLength = 160;
+      tTitulo.setAttribute('aria-label', 'Título del artículo');
+      tTitulo.addEventListener('input', function (){ st.articulo.titulo = this.value; marcar(); });
+      cab.appendChild(tTitulo);
+      var tRes = document.createElement('textarea');
+      tRes.className = 'art-campo-resumen';
+      tRes.rows = 1;
+      tRes.value = st.articulo.resumen || '';
+      tRes.placeholder = 'Resumen en una o dos líneas. Es lo que se lee en la lista y en el buscador.';
+      tRes.maxLength = 400;
+      tRes.setAttribute('aria-label', 'Resumen del artículo');
+      tRes.addEventListener('input', function (){ st.articulo.resumen = this.value; marcar(); });
+      cab.appendChild(conAutoAlto(tRes));
+      lienzo.appendChild(cab);
+
+      var caja2 = el('div', 'art-bloques');
+      st.bloques.forEach(function (b, i){
+        caja2.appendChild(editorDeBloque(b, i));
+        caja2.appendChild(zonaInsertar(i + 1));
+      });
+      lienzo.appendChild(caja2);
+      col.appendChild(lienzo);
+    }
+    grid.appendChild(col);
+
+    // ── Panel lateral: contexto y herramientas. Nunca la acción primaria.
+    var panel = el('div', 'art-panel');
+
+    var fichaCaja = el('div', 'art-panel-caja');
+    fichaCaja.appendChild(el('p', 'art-panel-t', 'Este artículo'));
+    var cifras = el('div', 'art-cifras');
+    cifras.id = 'artCifras';
+    fichaCaja.appendChild(cifras);
+    panel.appendChild(fichaCaja);
+
+    var insertar = el('div', 'art-panel-caja');
+    insertar.appendChild(el('p', 'art-panel-t', 'Añadir al final'));
+    var botones = el('div', 'art-insertar');
+    TIPOS.forEach(function (t){
+      var b = el('button', null, null);
+      b.type = 'button';
+      b.appendChild(icono(t.i));
+      b.appendChild(document.createTextNode(t.n));
+      b.addEventListener('click', function (){ anadirBloque(t.t); });
+      botones.appendChild(b);
+    });
+    insertar.appendChild(botones);
+    insertar.appendChild(el('p', 'art-ayuda', 'También puedes usar el + que aparece entre dos bloques para insertar justo ahí.'));
+    panel.appendChild(insertar);
+
+    var ayuda = el('div', 'art-panel-caja');
+    ayuda.appendChild(el('p', 'art-panel-t', 'Cómo se pegan las cosas'));
+    ayuda.appendChild(el('p', 'art-ayuda',
+      'Copia un rango de Sheets o Excel y pégalo en un bloque de tabla: se reparte solo en columnas. ' +
+      'Pega el enlace de un Docs, Slides o Sheets en un bloque de documento y se incrusta. ' +
+      'Las imágenes se suben a la carpeta del Portal en Drive.'));
+    panel.appendChild(ayuda);
+
+    var borrarCaja = el('div', 'art-panel-caja');
+    borrarCaja.appendChild(el('p', 'art-panel-t', 'Zona de riesgo'));
+    var borrar = el('button', 'v-btn v-btn-ghost', 'Borrar este artículo');
+    borrar.type = 'button';
+    borrar.disabled = !st.id;
+    borrar.addEventListener('click', borrarArticulo);
+    borrarCaja.appendChild(borrar);
+    if (!st.id) borrarCaja.appendChild(el('p', 'art-ayuda', 'Todavía no se ha guardado, así que no hay nada que borrar.'));
+    panel.appendChild(borrarCaja);
+
+    grid.appendChild(panel);
+    vista.appendChild(grid);
+    pintarCifras();
+    pintarEstado();
+    iconos();
+    entrada(col.firstChild ? col.firstChild.children : null, { y: 10, duration: .38 });
+    entrada(panel.children, { y: 12, delay: .08 });
+
+    /* El cursor vuelve donde estaba: tras insertar o mover un bloque, repintar y
+       dejar el foco en el body obliga a buscar con el ratón dónde ibas. Y el bloque
+       en cuestión se señala con una entrada corta: cuando se inserta en medio de un
+       artículo largo, sin eso no se sabe cuál de los quince es el nuevo. */
+    if (st.foco != null) {
+      var campos = vista.querySelectorAll('.art-bloque .art-esc');
+      var destino = campos[st.foco];
+      if (destino) {
+        destino.focus();
+        if (destino.setSelectionRange) { var n = destino.value.length; destino.setSelectionRange(n, n); }
+        var bloque = destino.closest('.art-bloque');
+        if (bloque && mueve()) {
+          gsap.from(bloque, { opacity: 0, y: -8, duration: .32, ease: 'power3.out',
+                              overwrite: 'auto', clearProps: 'transform,opacity' });
+        }
+      }
+      st.foco = null;
+    }
+  }
+
+  function salirDelEditor(){
+    if (st.sucio && !window.confirm('Se perderá lo que has escrito desde el último guardado. ¿Salir igualmente?')) return;
+    if (st.id) abrirArticulo(st.id); else cargarLista();
+  }
+
+  function borrarArticulo(){
+    if (!st.id) return;
+    if (!window.confirm('Se borrará el artículo del Portal. Esta acción no se puede deshacer.')) return;
+    AppRun.call('artEliminar', [st.id, correo()], { busy: 'Borrando el artículo' })
+      .then(function (r){
+        if (!r || r.status !== 'ok') { aviso((r && r.error) || 'No pudimos borrarlo.', 'warn'); return; }
+        st.sucio = false; st.id = '';
+        aviso('Artículo borrado.', 'ok');
+        cargarLista();
+      }, function (){ aviso('No pudimos borrarlo.', 'warn'); });
+  }
+
+  /* Zona de inserción entre dos bloques: una línea con un «+» que solo aparece al
+     acercarse. Es donde la gente quiere añadir algo —justo ahí— y evita tener que
+     añadir al final y subir el bloque a base de flechas. */
+  function zonaInsertar(pos){
+    var zona = el('div', 'art-entre');
+    var mas = el('button', 'art-mas', '+');
+    mas.type = 'button';
+    mas.setAttribute('aria-label', 'Insertar un bloque aquí');
+    mas.addEventListener('click', function (e){ abrirMenuInsertar(e.currentTarget, pos); });
+    zona.appendChild(mas);
+    return zona;
+  }
+
+  function abrirMenuInsertar(anclaje, pos){
+    cerrarMenu();
+    var menu = el('div', 'art-menu');
+    menu.id = 'artMenuInsertar';
+    TIPOS.forEach(function (t){
+      var b = el('button', null, null);
+      b.type = 'button';
+      b.appendChild(icono(t.i));
+      var txt = document.createElement('span');
+      txt.appendChild(document.createTextNode(t.n));
+      txt.appendChild(el('small', null, t.d));
+      b.appendChild(txt);
+      b.addEventListener('click', function (){ cerrarMenu(); anadirBloque(t.t, pos); });
+      menu.appendChild(b);
+    });
+    document.body.appendChild(menu);
+    var r = anclaje.getBoundingClientRect();
+    // Si no cabe debajo, se abre hacia arriba: pulsar el «+» del último bloque no
+    // puede dejar el menú medio fuera de la pantalla.
+    var alto = menu.offsetHeight || 280;
+    var abajo = r.bottom + 6;
+    menu.style.top = (abajo + alto > window.innerHeight - 8 ? Math.max(8, r.top - alto - 6) : abajo) + 'px';
+    menu.style.left = Math.max(8, Math.min(window.innerWidth - 230, r.left - 90)) + 'px';
+    if (window.Icons) Icons.render(menu);
+    if (mueve()) gsap.from(menu, { opacity: 0, y: -6, duration: .18, ease: 'power2.out', clearProps: 'transform,opacity' });
+    var primero = menu.querySelector('button');
+    if (primero) primero.focus();
+    setTimeout(function (){
+      document.addEventListener('click', cerrarMenuFuera);
+      // Al desplazarse, el menú se queda donde estaba y el «+» se va: se cierra.
+      window.addEventListener('scroll', cerrarMenu, true);
+    }, 0);
+  }
+  function cerrarMenu(){
+    var m = document.getElementById('artMenuInsertar');
+    if (m && m.parentNode) m.parentNode.removeChild(m);
+    document.removeEventListener('click', cerrarMenuFuera);
+    window.removeEventListener('scroll', cerrarMenu, true);
+  }
+  function cerrarMenuFuera(e){
+    var m = document.getElementById('artMenuInsertar');
+    if (m && !m.contains(e.target)) cerrarMenu();
+  }
+
+  /** `pos` = dónde insertarlo. Sin ella, al final. */
+  function anadirBloque(tipo, pos){
+    var nuevo = tipo === 'texto' ? { tipo: 'texto', partes: [{ t: '' }] }
+      : tipo === 'titulo' ? { tipo: 'titulo', texto: '', nivel: 2 }
+      : tipo === 'lista' ? { tipo: 'lista', items: [[{ t: '' }]], ordenada: false }
+      : tipo === 'imagen' ? { tipo: 'imagen', url: '', alt: '', pie: '' }
+      : tipo === 'tabla' ? { tipo: 'tabla', filas: [], encabezado: true }
+      : tipo === 'documento' ? { tipo: 'documento', clase: '', docId: '', titulo: '' }
+      : tipo === 'diagrama' ? { tipo: 'diagrama', xml: '', titulo: '', alto: 420 }
+      : { tipo: 'separador' };
+    var destino = (pos == null || pos > st.bloques.length) ? st.bloques.length : pos;
+    st.bloques.splice(destino, 0, nuevo);
+    st.foco = destino;          // el cursor cae dentro del bloque recién creado
+    marcar();
+    pintarEditor();
+  }
+
+  function moverBloque(i, dir){
+    var j = i + dir;
+    if (j < 0 || j >= st.bloques.length) return;
+    var tmp = st.bloques[i]; st.bloques[i] = st.bloques[j]; st.bloques[j] = tmp;
+    st.foco = j;                // el foco viaja CON el bloque, no se queda en su hueco
+    marcar();
+    pintarEditor();
+  }
+
+  function quitarBloque(i){
+    st.bloques.splice(i, 1);
+    if (!st.bloques.length) st.bloques.push({ tipo: 'texto', partes: [{ t: '' }] });
+    st.foco = Math.max(0, i - 1);
+    marcar();
+    pintarEditor();
+  }
+
+  /** El texto de un párrafo se edita como TEXTO PLANO; los enlaces se escriben aparte. */
+  function textoDePartes(partes){
+    return (partes || []).map(function (p){ return p.t; }).join('');
+  }
+
+  function editorDeBloque(b, i){
+    var caja = el('div', 'art-bloque');
+    caja.setAttribute('data-i', String(i));
+
+    // Chrome flotante: rótulo del tipo y acciones. Solo se ve al pasar o enfocar.
+    var hd = el('div', 'art-bloque-hd');
+    var ficha = TIPOS.filter(function (t){ return t.t === b.tipo; })[0];
+    hd.appendChild(el('span', 'art-bloque-tipo', (ficha && ficha.n) || b.tipo));
+    var ac = el('div', 'art-bloque-ac');
+    [['arrow', -1, 'Subir'], ['chevdown', 1, 'Bajar']].forEach(function (m){
+      var btn = document.createElement('button');
+      btn.type = 'button';
+      btn.title = m[2];
+      btn.setAttribute('aria-label', m[2] + ' este bloque');
+      btn.appendChild(icono(m[0]));
+      btn.disabled = (m[1] === -1 && i === 0) || (m[1] === 1 && i === st.bloques.length - 1);
+      btn.addEventListener('click', function (){ moverBloque(i, m[1]); });
+      ac.appendChild(btn);
+    });
+    var borrar = document.createElement('button');
+    borrar.type = 'button';
+    borrar.title = 'Quitar bloque';
+    borrar.setAttribute('aria-label', 'Quitar este bloque');
+    borrar.appendChild(icono('trash'));
+    borrar.addEventListener('click', function (){ quitarBloque(i); });
+    ac.appendChild(borrar);
+    hd.appendChild(ac);
+    caja.appendChild(hd);
+
+    if (b.tipo === 'texto') {
+      var ta = document.createElement('textarea');
+      ta.className = 'art-esc es-parrafo';
+      ta.rows = 1;
+      ta.value = textoDePartes(b.partes);
+      ta.placeholder = 'Escribe aquí…';
+      ta.setAttribute('aria-label', 'Párrafo ' + (i + 1));
+      ta.addEventListener('input', function (){
+        var u = (b.partes || []).filter(function (p){ return p.url; })[0];
+        b.partes = u ? [{ t: this.value, url: u.url }] : [{ t: this.value }];
+        marcar();
+      });
+      /* Enter al final de un párrafo abre el siguiente, como en cualquier editor.
+         Con Shift+Enter se parte la línea dentro del mismo párrafo, que es la otra
+         mitad de la convención. */
+      ta.addEventListener('keydown', function (e){
+        if (e.key !== 'Enter' || e.shiftKey) return;
+        if (this.selectionStart !== this.value.length) return;
+        e.preventDefault();
+        anadirBloque('texto', i + 1);
+      });
+      caja.appendChild(conAutoAlto(ta));
+
+      var sub = el('div', 'art-sub art-sub-op');
+      var enl = document.createElement('input');
+      enl.type = 'text';
+      enl.placeholder = 'Enlace para todo el párrafo (https://…), opcional';
+      enl.setAttribute('aria-label', 'Enlace del párrafo ' + (i + 1));
+      var urlActual = (b.partes || []).filter(function (p){ return p.url; })[0];
+      enl.value = urlActual ? urlActual.url : '';
+      enl.addEventListener('input', function (){
+        var u = R.urlSegura(this.value);
+        var txt = textoDePartes(b.partes);
+        b.partes = u ? [{ t: txt, url: u }] : [{ t: txt }];
+        var pista = caja.querySelector('.art-ayuda');
+        if (pista) pista.textContent = this.value.trim() && !u
+          ? 'Ese enlace no vale: solo se admiten direcciones que empiecen por https://'
+          : '';
+        marcar();
+      });
+      sub.appendChild(enl);
+      sub.appendChild(el('p', 'art-ayuda', ''));
+      caja.appendChild(sub);
+    }
+
+    else if (b.tipo === 'titulo') {
+      var ti = document.createElement('input');
+      ti.type = 'text';
+      ti.className = 'art-esc ' + (b.nivel === 3 ? 'es-titulo3' : 'es-titulo2');
+      ti.value = b.texto || '';
+      ti.placeholder = b.nivel === 3 ? 'Subtítulo menor' : 'Subtítulo';
+      ti.setAttribute('aria-label', 'Subtítulo');
+      ti.addEventListener('input', function (){ b.texto = this.value; marcar(); });
+      caja.appendChild(ti);
+      var nivel = el('div', 'art-sub art-sub-op');
+      var lbl = document.createElement('label');
+      lbl.style.display = 'flex';
+      lbl.style.alignItems = 'center';
+      lbl.style.gap = '.4rem';
+      lbl.style.fontSize = 'var(--fs-xs)';
+      lbl.style.color = 'var(--ink-faint)';
+      var chkN = document.createElement('input');
+      chkN.type = 'checkbox';
+      chkN.checked = b.nivel === 3;
+      chkN.addEventListener('change', function (){ b.nivel = this.checked ? 3 : 2; marcar(); pintarEditor(); });
+      lbl.appendChild(chkN);
+      lbl.appendChild(document.createTextNode('Subtítulo de segundo nivel (más pequeño)'));
+      nivel.appendChild(lbl);
+      caja.appendChild(nivel);
+    }
+
+    else if (b.tipo === 'lista') {
+      var tl = document.createElement('textarea');
+      tl.className = 'art-esc es-lista';
+      tl.rows = 1;
+      tl.value = (b.items || []).map(function (it){ return textoDePartes(it); }).join('\n');
+      tl.placeholder = 'Un punto por renglón.';
+      tl.setAttribute('aria-label', 'Lista');
+      tl.addEventListener('input', function (){
+        b.items = this.value.split('\n').map(function (t){ return [{ t: t }]; });
+        marcar();
+      });
+      caja.appendChild(conAutoAlto(tl));
+      var subL = el('div', 'art-sub art-sub-op');
+      var lblL = document.createElement('label');
+      lblL.style.display = 'flex';
+      lblL.style.alignItems = 'center';
+      lblL.style.gap = '.4rem';
+      lblL.style.fontSize = 'var(--fs-xs)';
+      lblL.style.color = 'var(--ink-faint)';
+      var chkL = document.createElement('input');
+      chkL.type = 'checkbox';
+      chkL.checked = b.ordenada === true;
+      chkL.addEventListener('change', function (){ b.ordenada = this.checked; marcar(); });
+      lblL.appendChild(chkL);
+      lblL.appendChild(document.createTextNode('Numerada (1, 2, 3…)'));
+      subL.appendChild(lblL);
+      caja.appendChild(subL);
+    }
+
+    else if (b.tipo === 'imagen') {
+      /* La imagen se ve TAL CUAL va a quedar, con su pie debajo: es el bloque donde
+         más se agradece no tener que imaginar, porque lo que se sube desde el móvil
+         suele venir con otra proporción de la que uno recuerda. */
+      if (b.url) {
+        var fig = el('figure', 'art-fig');
+        var prev = document.createElement('img');
+        prev.src = R.urlSegura(b.url);
+        prev.alt = b.alt || '';
+        fig.appendChild(prev);
+        if (b.pie) fig.appendChild(el('figcaption', null, b.pie));
+        caja.appendChild(fig);
+      } else {
+        caja.appendChild(el('p', 'art-ayuda', 'Todavía sin imagen. Elige un archivo y se sube a la carpeta del Portal en Drive.'));
+      }
+      var subI = el('div', 'art-sub');
+      var file = document.createElement('input');
+      file.type = 'file';
+      file.accept = 'image/*';
+      file.setAttribute('aria-label', 'Archivo de imagen');
+      file.style.fontSize = 'var(--fs-xs)';
+      file.addEventListener('change', function (){ subirImagen(this.files && this.files[0], b); });
+      subI.appendChild(file);
+      var pie = document.createElement('input');
+      pie.type = 'text';
+      pie.placeholder = 'Pie de imagen (opcional)';
+      pie.value = b.pie || '';
+      pie.setAttribute('aria-label', 'Pie de imagen');
+      pie.addEventListener('input', function (){
+        b.pie = this.value;
+        var f = caja.querySelector('figcaption');
+        if (f) f.textContent = this.value;
+        marcar();
+      });
+      subI.appendChild(pie);
+      var alt = document.createElement('input');
+      alt.type = 'text';
+      alt.placeholder = 'Descripción para quien no puede ver la imagen';
+      alt.value = b.alt || '';
+      alt.setAttribute('aria-label', 'Texto alternativo');
+      alt.addEventListener('input', function (){ b.alt = this.value; marcar(); });
+      subI.appendChild(alt);
+      caja.appendChild(subI);
+    }
+
+    else if (b.tipo === 'tabla') {
+      /* Dos mitades: donde se pega y lo que va a quedar. Pegar cien celdas y ver
+         solo el texto separado por tabuladores no dice si las columnas cuadran. */
+      var tt = document.createElement('textarea');
+      tt.className = 'art-esc es-mono';
+      tt.rows = 3;
+      tt.value = (b.filas || []).map(function (f){ return f.join('\t'); }).join('\n');
+      tt.placeholder = 'Pega aquí el rango copiado de Sheets o Excel.';
+      tt.setAttribute('aria-label', 'Contenido de la tabla');
+      var repintaTabla = function (){
+        var vieja = caja.querySelector('.art-tabla-caja');
+        if (vieja) vieja.parentNode.removeChild(vieja);
+        if (!(b.filas || []).length) return;
+        var nueva = R.pintarBloque(b);
+        if (nueva) caja.insertBefore(nueva, caja.querySelector('.art-sub'));
+      };
+      tt.addEventListener('input', function (){
+        b.filas = R.parsearTSV(this.value);
+        autoAlto(this);
+        var n = caja.querySelector('.art-ayuda');
+        if (n) n.textContent = b.filas.length
+          ? b.filas.length + ' filas × ' + (b.filas[0] ? b.filas[0].length : 0) + ' columnas'
+          : 'Pega el rango y se reparte solo en columnas.';
+        repintaTabla();
+        marcar();
+      });
+      caja.appendChild(conAutoAlto(tt));
+      if ((b.filas || []).length) {
+        var tablaPrev = R.pintarBloque(b);
+        if (tablaPrev) caja.appendChild(tablaPrev);
+      }
+      var subT = el('div', 'art-sub');
+      var chk = document.createElement('label');
+      chk.style.display = 'flex';
+      chk.style.alignItems = 'center';
+      chk.style.gap = '.4rem';
+      chk.style.fontSize = 'var(--fs-xs)';
+      chk.style.color = 'var(--ink-faint)';
+      var ci = document.createElement('input');
+      ci.type = 'checkbox';
+      ci.checked = b.encabezado !== false;
+      ci.addEventListener('change', function (){ b.encabezado = this.checked; marcar(); repintaTabla(); });
+      chk.appendChild(ci);
+      chk.appendChild(document.createTextNode('La primera fila son los encabezados'));
+      subT.appendChild(chk);
+      subT.appendChild(el('p', 'art-ayuda', (b.filas || []).length
+        ? b.filas.length + ' filas × ' + (b.filas[0] ? b.filas[0].length : 0) + ' columnas'
+        : 'Pega el rango y se reparte solo en columnas.'));
+      caja.appendChild(subT);
+    }
+
+    else if (b.tipo === 'documento') {
+      var estadoDoc = el('p', 'art-ayuda', '');
+      var pintaDoc = function (){
+        var viejo = caja.querySelector('.art-doc-emb');
+        if (viejo) viejo.parentNode.removeChild(viejo);
+        if (!b.docId) return;
+        var visor = R.pintarBloque(b);
+        if (visor) caja.insertBefore(visor, caja.querySelector('.art-sub'));
+      };
+      if (b.docId) {
+        var visorIni = R.pintarBloque(b);
+        if (visorIni) caja.appendChild(visorIni);
+      } else {
+        caja.appendChild(el('p', 'art-ayuda', 'Pega abajo el enlace y el documento aparecerá aquí mismo.'));
+      }
+      var subD = el('div', 'art-sub');
+      var du = document.createElement('input');
+      du.type = 'text';
+      du.placeholder = 'Enlace del Documento, Presentación u Hoja de Google';
+      du.value = b.docId ? 'https://docs.google.com/' + ((DOC_RUTA[b.clase]) || 'file') + '/d/' + b.docId + '/edit' : '';
+      du.setAttribute('aria-label', 'Enlace del documento de Google');
+      du.addEventListener('input', function (){
+        var d = R.docDeUrl(this.value);
+        if (d) { b.clase = d.clase; b.docId = d.docId; marcar(); pintaDoc(); }
+        estadoDoc.textContent = d
+          ? 'Reconocido: ' + NOMBRE_DOC[d.clase] + '.'
+          : (this.value.trim() ? 'No reconozco ese enlace. Tiene que ser de docs.google.com o drive.google.com.' : '');
+      });
+      subD.appendChild(du);
+      var dt = document.createElement('input');
+      dt.type = 'text';
+      dt.placeholder = 'Cómo llamarlo en el artículo (opcional)';
+      dt.value = b.titulo || '';
+      dt.setAttribute('aria-label', 'Nombre del documento en el artículo');
+      dt.addEventListener('input', function (){ b.titulo = this.value; marcar(); });
+      subD.appendChild(dt);
+      estadoDoc.textContent = b.docId ? 'Reconocido: ' + (NOMBRE_DOC[b.clase] || 'archivo de Drive') + '.' : '';
+      subD.appendChild(estadoDoc);
+      subD.appendChild(el('p', 'art-ayuda',
+        'Quien lea el artículo verá el documento solo si Drive le da permiso: compártelo con el equipo antes de publicar.'));
+      caja.appendChild(subD);
+    }
+
+    else if (b.tipo === 'diagrama') {
+      /* En el editor se ve el MISMO visor que verá quien lea, y el dibujo se hace en
+         una ventana aparte a pantalla completa. Poner el editor de draw.io dentro del
+         lienzo —a 420 px, con su barra de herramientas y su paleta— dejaba el artículo
+         reducido a una rendija y el diagrama tampoco se dibujaba a gusto. */
+      var lienzoD = el('div', 'art-diag-hueco');
+      var pintaDiag = function (){
+        vaciar(lienzoD);
+        if (b.xml) {
+          lienzoD.appendChild(R.pintarBloque(b));
+        } else {
+          var vacio = el('div', 'art-diag-vacio');
+          vacio.appendChild(icono('layers'));
+          vacio.appendChild(el('div', 'art-vacio-t', 'Diagrama en blanco'));
+          vacio.appendChild(el('div', 'art-vacio-s',
+            'Dibuja un flujo con cajas, flechas y textos. Se guarda dentro del artículo y se puede volver a editar cuando quieras.'));
+          lienzoD.appendChild(vacio);
+        }
+      };
+      pintaDiag();
+      caja.appendChild(lienzoD);
+
+      var subG = el('div', 'art-sub');
+      var abrirEd = el('button', 'v-btn v-btn-primary', b.xml ? 'Editar el diagrama' : 'Dibujar el diagrama');
+      abrirEd.type = 'button';
+      abrirEd.addEventListener('click', function (){
+        abrirEditorDiagrama(b, function (xmlNuevo){
+          if (xmlNuevo == null) return;      // salió sin guardar
+          b.xml = xmlNuevo;
+          marcar();
+          pintaDiag();
+          abrirEd.textContent = 'Editar el diagrama';
+        });
+      });
+      subG.appendChild(abrirEd);
+      var dtG = document.createElement('input');
+      dtG.type = 'text';
+      dtG.placeholder = 'Cómo llamar al diagrama (opcional)';
+      dtG.value = b.titulo || '';
+      dtG.setAttribute('aria-label', 'Nombre del diagrama');
+      dtG.addEventListener('input', function (){
+        b.titulo = this.value;
+        var tt = lienzoD.querySelector('.art-doc-tt');
+        if (tt) tt.textContent = this.value || 'Diagrama';
+        marcar();
+      });
+      subG.appendChild(dtG);
+      subG.appendChild(el('p', 'art-ayuda',
+        'El diagrama se dibuja con draw.io y se guarda dentro del artículo, no en Drive: quien lo lea lo verá sin pedir permisos a nadie.'));
+      caja.appendChild(subG);
+    }
+
+    else if (b.tipo === 'separador') {
+      caja.appendChild(el('hr', 'art-sep'));
+    }
+
+    return caja;
+  }
+
+  /* El editor de diagramas, a pantalla completa. Se cierra desde el propio draw.io
+     («Guardar y salir» manda `save` y luego `exit`), y también con Esc o el botón. */
+  function abrirEditorDiagrama(b, alTerminar){
+    var overlay = el('div', 'art-diag-full es-editor');
+    overlay.setAttribute('role', 'dialog');
+    overlay.setAttribute('aria-modal', 'true');
+    overlay.setAttribute('aria-label', 'Editor de diagramas');
+    var quienAbrio = document.activeElement;
+    var guardado = null;
+
+    var barra = el('div', 'art-diag-full-bar');
+    barra.appendChild(el('span', 'art-diag-full-tt', b.titulo || 'Diagrama del artículo'));
+    barra.appendChild(el('span', 'art-ayuda', 'Dibuja y pulsa «Guardar y salir» dentro del editor.'));
+    var cerrar = el('button', 'v-btn v-btn-ghost', 'Cerrar');
+    cerrar.type = 'button';
+    barra.appendChild(cerrar);
+    overlay.appendChild(barra);
+
+    var montaje = R.montarDiagrama({ xml: b.xml, titulo: b.titulo, alto: 0 }, true, function (xml){
+      if (xml == null) { fuera(); return; }   // `exit` sin guardar
+      guardado = xml;
+      alTerminar(xml);
+      aviso('Diagrama guardado en el artículo.', 'ok');
+      fuera();
+    });
+    montaje.el.classList.add('es-full');
+    overlay.appendChild(montaje.el);
+    document.body.appendChild(overlay);
+
+    function fuera(){
+      montaje.destruir();
+      document.removeEventListener('keydown', porEsc);
+      if (overlay.parentNode) overlay.parentNode.removeChild(overlay);
+      if (quienAbrio && quienAbrio.focus) quienAbrio.focus();
+      if (guardado == null) alTerminar(null);
+    }
+    function porEsc(e){ if (e.key === 'Escape') fuera(); }
+    cerrar.addEventListener('click', fuera);
+    document.addEventListener('keydown', porEsc);
+    if (window.AppMotion && AppMotion.modalIn) AppMotion.modalIn(overlay, montaje.el);
+  }
+
+  var DOC_RUTA = { documento: 'document', presentacion: 'presentation', hoja: 'spreadsheets', archivo: 'file' };
+  var NOMBRE_DOC = { documento: 'un Documento de Google', presentacion: 'una Presentación',
+                     hoja: 'una Hoja de cálculo', archivo: 'un archivo de Drive' };
+
+  /**
+   * PEGAR UNA IMAGEN EN EL EDITOR (T8.2 · criterio 1 de la fase, «dos imágenes pegadas»).
+   *
+   * Hasta ahora el único camino era el selector de archivo, y eso obligaba a un rodeo justo
+   * en el caso más frecuente: nueve de cada diez imágenes de una guía son un recorte de
+   * pantalla, y con el recorte en el portapapeles había que guardarlo antes en el disco
+   * para poder elegirlo.
+   *
+   * Solo se queda el pegado cuando de verdad viene un archivo de imagen. Pegar texto en un
+   * párrafo, o el TSV de una hoja de cálculo en la caja de una tabla, tiene que seguir
+   * funcionando exactamente igual — y ese TSV llega como texto, no como archivo, así que la
+   * comprobación de `kind` los separa sin ambigüedad.
+   */
+  function pegarImagen(e){
+    if (st.modo !== 'edita') return;
+    var dt = e.clipboardData || window.clipboardData;
+    if (!dt || !dt.items) return;
+
+    var imagenes = [];
+    for (var i = 0; i < dt.items.length; i++) {
+      var it = dt.items[i];
+      if (it.kind === 'file' && String(it.type || '').indexOf('image/') === 0) {
+        var f = it.getAsFile();
+        if (f) imagenes.push(f);
+      }
+    }
+    if (!imagenes.length) return;
+    e.preventDefault();
+
+    /* Detrás del bloque en el que se está, que es donde se está mirando; al final si no hay
+       ninguno enfocado. Varias imágenes de un mismo pegado entran EN ORDEN y no todas en el
+       sitio de la primera, que es lo que pasaría reusando la misma posición. */
+    var base = (typeof st.foco === 'number' && st.foco >= 0) ? st.foco + 1 : st.bloques.length;
+    imagenes.forEach(function (f, n){
+      var destino = Math.min(base + n, st.bloques.length);   // mismo tope que anadirBloque
+      anadirBloque('imagen', destino);
+      subirImagen(f, st.bloques[destino]);
+    });
+    /* Se avisa porque el bloque nuevo nace VACÍO —la imagen llega cuando el servidor
+       contesta— y sin una palabra parece que el pegado no hizo nada. */
+    aviso(imagenes.length === 1 ? 'Imagen pegada: subiéndola…'
+                                : 'Pegadas ' + imagenes.length + ' imágenes: subiéndolas…');
+  }
+
+  function subirImagen(file, bloque){
+    if (!file) return;
+    if (file.size > 8 * 1024 * 1024) { aviso('La imagen supera los 8 MB.', 'warn'); return; }
+    var lector = new FileReader();
+    lector.onload = function (){
+      AppRun.call('artSubirImagen', [{ dataUrl: lector.result, nombre: file.name, asesor: correo() }],
+        { busy: 'Subiendo la imagen' })
+        .then(function (r){
+          if (!r || r.status !== 'ok') { aviso((r && r.error) || 'No pudimos subir la imagen.', 'warn'); return; }
+          bloque.url = r.url;
+          marcar();
+          pintarEditor();
+        }, function (){ aviso('No pudimos subir la imagen.', 'warn'); });
+    };
+    lector.readAsDataURL(file);
+  }
+
+  function guardarArticulo(estado){
+    var titulo = String(st.articulo.titulo || '').trim();
+    if (!titulo) { aviso('El artículo necesita un título.', 'warn'); return; }
+
+    var payload = {
+      id: st.id || '',
+      titulo: titulo,
+      resumen: String(st.articulo.resumen || '').trim(),
+      contenido: { v: 1, bloques: st.bloques },
+      estado: estado,
+      asesor: correo()
+    };
+
+    AppGuardado.guardar({
+      clave: 'articulo:' + (payload.id || 'nuevo'),
+      etiqueta: payload.id ? 'Guardando el artículo' : 'Creando el artículo',
+      hecho: estado === 'publicado' ? 'Artículo publicado.' : 'Artículo guardado.',
+      fn: 'artGuardar',
+      args: [payload],
+      /* Con id es una actualización —repetirla deja el mismo resultado, así que se puede
+         reintentar—; sin id, cada intento CREA un artículo, y reintentar publicaría el
+         mismo dos veces. Es el mismo criterio que el constructor de anuncios. */
+      reintentos: payload.id ? 2 : 0,
+      valida: function (res){ return !!(res && res.status === 'ok'); },
+      alLograr: function (res){
+        st.id = res.id;
+        st.articulo.id = res.id;
+        st.articulo.estado = res.estado;
+        st.sucio = false;
+        abrirArticulo(res.id);
+      }
+    });
+  }
+
+  /* ── Arranque y estado en la URL ───────────────────────────────────── */
+  function aplicarUrl(){
+    var id = param('art');
+    if (id && id !== st.id) { abrirArticulo(id); return; }
+    if (!id && st.modo !== 'lista') cargarLista();
+  }
+
+  document.addEventListener('DOMContentLoaded', function () {
+    // Leer artículos no pide bloque: pide sesión. El editor aparece solo si el servidor
+    // dice que esta persona puede (artListar/artObtener devuelven `puedeEditar`).
+    if (!requireSession('articulo')) return;
+
+    AppShell.mount({ active: 'articulo', title: 'Artículos' });
+    if (window.VentelLoader) VentelLoader.hide();
+
+    var id = param('art');
+    if (id) abrirArticulo(id); else cargarLista();
+
+    if (window.AppUrl && AppUrl.alCambiarUrl) AppUrl.alCambiarUrl(aplicarUrl);
+
+    window.addEventListener('beforeunload', function (e){
+      if (st.modo === 'edita' && st.sucio) { e.preventDefault(); e.returnValue = ''; }
+    });
+
+    /* Ctrl/Cmd + S guarda, y Esc cierra el menú de insertar. Lo primero porque quien
+       escribe algo largo lo pulsa por reflejo cada pocos minutos, y sin atajo el
+       navegador ofrece «guardar la página», que no es lo que nadie quiere. */
+    document.addEventListener('keydown', function (e){
+      if (e.key === 'Escape') { cerrarMenu(); return; }
+      if ((e.ctrlKey || e.metaKey) && String(e.key).toLowerCase() === 's') {
+        if (st.modo !== 'edita') return;
+        e.preventDefault();
+        guardarArticulo(st.articulo.estado || 'borrador');
+      }
+    });
+
+    /* Pegar una imagen. Va en `document` y no en el lienzo porque el lienzo se vuelve a
+       pintar entero en cada cambio y el escuchador se iría con él; la guarda de modo hace
+       el resto. */
+    document.addEventListener('paste', pegarImagen);
+  });
+})();
+</script>
+</body>
+</html>

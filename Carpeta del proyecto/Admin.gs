@@ -268,6 +268,160 @@ function revisionMaestra() {
     return url ? 'configurado' : 'apagado (opcional) · los reportes se guardan igual';
   });
 
+  // ── 8c. CONTENIDO DEL EQUIPO: ARTÍCULOS, PUBLICACIONES Y GRUPOS ───────────
+  //
+  // Todo lo que este bloque mira son hojas que SE CREAN SOLAS al primer uso, así que
+  // "no existe todavía" es un estado sano y sale en verde con esas palabras. Lo que sí
+  // es un fallo es que el módulo no esté desplegado o que su pantalla no esté registrada:
+  // eso deja una entrada de menú que no lleva a ninguna parte.
+  check('Contenido', 'Artículos (Articulos.gs)', function () {
+    if (typeof artListar !== 'function' || typeof ART_SHEET === 'undefined') {
+      throw new Error('Articulos.gs no está en el proyecto: la pantalla ?page=articulo se quedará vacía.');
+    }
+    if (!PAGES['articulo']) {
+      throw new Error('La página "articulo" no está registrada en PAGES (Code.gs).');
+    }
+    if (PERM_IDS.indexOf('articulos') === -1) {
+      throw new Error('Falta el bloque "articulos" en el catálogo de Permisos.gs: nadie podría publicar.');
+    }
+    const sheet = portalSS_().getSheetByName(ART_SHEET);
+    if (!sheet) return 'módulo listo · la hoja "' + ART_SHEET + '" se creará con el primer artículo';
+    return Math.max(0, sheet.getLastRow() - 1) + ' artículo(s) en el libro del Portal';
+  });
+  check('Contenido', 'Lecturas de artículos', function () {
+    if (typeof ART_VISTAS_SHEET === 'undefined') throw new Error('Articulos.gs no está en el proyecto.');
+    const sheet = portalSS_().getSheetByName(ART_VISTAS_SHEET);
+    if (!sheet) return 'aún sin registrar ninguna lectura (la hoja se crea sola)';
+    return Math.max(0, sheet.getLastRow() - 1) + ' registro(s) de lectura';
+  });
+  check('Contenido', 'Votos de publicaciones (Publicaciones.gs)', function () {
+    if (typeof PUB_VOTOS_SHEET === 'undefined') {
+      throw new Error('Publicaciones.gs no está en el proyecto: las encuestas del Portal no funcionarán.');
+    }
+    const sheet = portalSS_().getSheetByName(PUB_VOTOS_SHEET);
+    if (!sheet) return 'aún sin votos (la hoja "' + PUB_VOTOS_SHEET + '" se crea con el primero)';
+    return Math.max(0, sheet.getLastRow() - 1) + ' voto(s)';
+  });
+  check('Contenido', 'Grupos de personas (Grupos.gs)', function () {
+    if (typeof grpListar !== 'function' || typeof GRP_SHEET === 'undefined') {
+      throw new Error('Grupos.gs no está en el proyecto: la consola no podrá agrupar personas ni difundir correo.');
+    }
+    const sheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName(GRP_SHEET);
+    const ventel = grpVentel_().miembros.length;
+    if (!sheet) return 'sin grupos propios todavía · «Ventel» (virtual) alcanza a ' + ventel + ' persona(s)';
+    return Math.max(0, sheet.getLastRow() - 1) + ' grupo(s) · «Ventel» (virtual) alcanza a ' + ventel + ' persona(s)';
+  });
+
+  // ── 8d. MÉTRICAS Y REGISTROS DE ACTIVIDAD ─────────────────────────────────
+  check('Métricas', 'Hoja de correos enviados', function () {
+    if (typeof MET_HEADERS === 'undefined') {
+      throw new Error('Metricas.gs no está en el proyecto: los envíos no se están midiendo.');
+    }
+    const sheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName(MET_SHEET_NAME);
+    if (!sheet) return 'aún sin envíos registrados (la hoja se crea con el primero)';
+    // Las columnas se comprueban contra lo que el código conoce, no al revés: la hoja es
+    // vieja y va ganando columnas (T9.4 añadió "PlantillaModificada"). metCabecera_ las
+    // repara al escribir, así que aquí solo se informa de cuáles faltan todavía.
+    const hdr = sheet.getRange(1, 1, 1, Math.max(sheet.getLastColumn(), 1)).getValues()[0]
+      .map(function (x) { return String(x || '').trim(); });
+    const faltan = MET_HEADERS.filter(function (h) { return hdr.indexOf(h) === -1; });
+    return Math.max(0, sheet.getLastRow() - 1) + ' envío(s) · ' +
+      (faltan.length ? 'columnas por crear al próximo envío: ' + faltan.join(', ') : 'columnas completas');
+  });
+  check('Métricas', 'Registro de búsquedas', function () {
+    if (typeof monBusquedasHoja_ !== 'function') {
+      throw new Error('Monitoreo.gs no está en el proyecto: no se guardará qué busca el equipo.');
+    }
+    const sheet = monBusquedasHoja_(false);
+    if (!sheet) return 'aún sin búsquedas registradas (la hoja se crea con la primera)';
+    return Math.max(0, sheet.getLastRow() - 1) + ' búsqueda(s) registradas';
+  });
+  check('Métricas', 'Sección Monitoreo de la consola', function () {
+    if (typeof monPanorama !== 'function') {
+      throw new Error('Monitoreo.gs no está en el proyecto: la pestaña Métricas de la consola no tendrá datos.');
+    }
+    if (PERM_IDS.indexOf('metricas') === -1) {
+      throw new Error('Falta el bloque "metricas" en el catálogo de Permisos.gs: la pestaña no se le abriría a nadie.');
+    }
+    const seccion = CONSOLA_SECCIONES.filter(function (s) { return s.id === 'metricas'; })[0];
+    if (!seccion) throw new Error('Falta la sección "metricas" en CONSOLA_SECCIONES (Consola.gs).');
+    return 'API lista · abre con: ' + seccion.bloques.join(' o ');
+  });
+  check('Métricas', 'Copia oculta global', function () {
+    if (typeof correoCcoGlobal_ !== 'function') {
+      throw new Error('Correos.gs no está actualizado: falta correoCcoGlobal_ (T9.6).');
+    }
+    const buzones = correoCcoGlobal_();
+    if (!buzones.length) return 'apagada (opcional) · los correos van solo a sus destinatarios';
+    // Un CCO mal escrito no da error al guardarse: rebota en cada envío, y el rebote llega
+    // a la cuenta del sistema, que no lee nadie.
+    const malos = buzones.filter(function (c) { return !/^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(c); });
+    if (malos.length) throw new Error(malos.length + ' dirección(es) no son correos válidos');
+    /* Se dice CUÁNTOS, no cuáles. revisionMaestra() no tiene gate a propósito —se ejecuta desde
+       el editor— y su reporte se puede pedir desde el navegador, así que lo que se escriba aquí
+       hay que darlo por público dentro del dominio. Quién vigila el correo del equipo no es un
+       dato que deba salir en un diagnóstico; para verlo está la pestaña de Ajustes, con su gate. */
+    return 'activa hacia ' + buzones.length + ' buzón(es) · los correos de seguridad NO se copian';
+  });
+
+  // ── 8e. MÓDULOS QUE NADIE MIRABA ──────────────────────────────────────────
+  // Trazabilidad, Preferencias, Atenciones, Revisión y Auditoría llevaban desde su
+  // estreno sin una sola comprobación: el día que una de sus hojas cambia de nombre,
+  // la revisión maestra seguía diciendo "todo en orden".
+  check('Módulos', 'Trazabilidad', function () {
+    if (typeof trazInvalidarCache !== 'function' || typeof trazSheetId_ !== 'function') {
+      throw new Error('Trazabilidad.gs no está en el proyecto: no se guardará el rastro de cambios.');
+    }
+    const id = secConfig_('TRAZ_SHEET_ID', typeof TRAZ_SHEET_ID === 'string' ? TRAZ_SHEET_ID : '');
+    if (!id) return 'sin hoja propia configurada · el rastro se guarda donde el código decida';
+    const ss = SpreadsheetApp.openById(id);   // si el id es malo, lanza y sale en rojo
+    return 'libro "' + ss.getName() + '" accesible';
+  });
+  check('Módulos', 'Preferencias de usuario', function () {
+    if (typeof PREFS_HOJA === 'undefined') {
+      throw new Error('Preferencias.gs no está en el proyecto: cada pantalla arrancará con sus valores por omisión.');
+    }
+    const sheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName(PREFS_HOJA);
+    if (!sheet) return 'aún sin preferencias guardadas (la hoja se crea con la primera)';
+    return Math.max(0, sheet.getLastRow() - 1) + ' persona(s) con preferencias guardadas';
+  });
+  check('Módulos', 'Atenciones pendientes', function () {
+    if (typeof atencionesPanorama !== 'function') {
+      throw new Error('Atenciones.gs no está en el proyecto: no se podrá rescatar a los clientes de una caída.');
+    }
+    if (!PAGES['atenciones']) throw new Error('La página "atenciones" no está registrada en PAGES (Code.gs).');
+    if (PERM_IDS.indexOf('atenciones') === -1) {
+      throw new Error('Falta el bloque "atenciones" en el catálogo de Permisos.gs.');
+    }
+    return 'módulo y pantalla registrados';
+  });
+  check('Módulos', 'Revisión y su política', function () {
+    if (typeof revPuedeEnviarse_ !== 'function' || typeof revpolLeer_ !== 'function') {
+      throw new Error('Revision.gs o PoliticaRevision.gs no están en el proyecto: las cotizaciones saldrían sin control.');
+    }
+    if (!PAGES['revision_cotizacion']) {
+      throw new Error('La página "revision_cotizacion" no está registrada en PAGES (Code.gs).');
+    }
+    const pol = revpolLeer_();
+    const reglas = (pol && pol.reglas) ? pol.reglas.length : 0;
+    const activas = (pol && pol.reglas) ? pol.reglas.filter(function (r) { return r.activa !== false; }).length : 0;
+    return 'política cargada · ' + reglas + ' regla(s), ' + activas + ' activa(s)';
+  });
+  check('Módulos', 'Auditoría de cotizaciones', function () {
+    if (typeof audAuditar_ !== 'function') {
+      throw new Error('AuditoriaCotizacion.gs no está en el proyecto: se pierde la comprobación previa al envío.');
+    }
+    return 'módulo cargado';
+  });
+  check('Módulos', 'Caché de identidad', function () {
+    if (typeof idcLeer_ !== 'function' || typeof idcGuardar_ !== 'function') {
+      throw new Error('CacheIdentidad.gs no está en el proyecto: cada llamada releerá la hoja "Registros" entera.');
+    }
+    const antes = idcLeer_('registros');
+    return antes ? 'caliente: la identidad se resuelve sin releer "Registros"'
+                 : 'fría: se llenará sola en la próxima entrada de alguien';
+  });
+
   // ── 9. INFRAESTRUCTURA ────────────────────────────────────────────────────
   check('Infra', 'CacheService', function () {
     const c = CacheService.getScriptCache();

@@ -91,6 +91,20 @@
      no un número suelto en medio del CSS. */
   --fw-normal: 400; --fw-medium: 500; --fw-semibold: 600; --fw-bold: 700;
 
+  /* ESCALA DE ESPACIO Y DE TAMAÑO DE TEXTO.
+     Existían de hecho en cuatro pantallas —anuncios, portal_contenido, app_auth y
+     Promociones las declaran cada una en su propio :root— pero NO aquí, y articulo.html
+     las usa 59 veces sin declararlas: `padding: var(--s4) var(--s3) var(--s6)` con las
+     variables sin definir es una declaración inválida, así que el visor de artículos se
+     estaba pintando sin un solo margen y con los tamaños heredados. Se suben al tema,
+     que es donde tenían que estar desde el principio. Las cuatro pantallas que traen su
+     copia la declaran DESPUÉS de este include y siguen mandando ellas: no cambia nada de
+     lo que ya se veía bien.
+     En rem y no en px para el tamaño de texto: la escala de --textscale se aplica sobre
+     el font-size del <html> (abajo), y un token en px se quedaría sordo a ese ajuste. */
+  --s1: 4px; --s2: 8px; --s3: 12px; --s4: 16px; --s5: 24px; --s6: 32px; --s7: 48px; --s8: 64px;
+  --fs-xs: .75rem; --fs-sm: .8125rem; --fs-md: .875rem; --fs-base: 1rem; --fs-lg: 1.0625rem;
+
   /* ---- ALIAS de compatibilidad (tokens antiguos → nuevos) ---- */
   --bg: var(--app-bg);
   --radius: var(--rad-lg);

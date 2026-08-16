@@ -757,15 +757,20 @@ function revNotificarAsesor_(quote, folio, estado, revisor, notas, fecha) {
     (urlConsulta ? '\n\nVer la cotización: ' + urlConsulta : '');
 
   const opciones = { htmlBody: html, name: 'Sistema de cotizaciones Ventel' };
+  // Copia oculta global (T9.6). Este aviso cuenta que una cotización se aprobó o se rechazó y
+  // con qué observaciones: es justo lo que se querrá poder releer cuando alguien pregunte por
+  // qué salió o por qué no. Con typeof porque Correos.gs podría no estar desplegado.
+  if (typeof correoAplicarCco_ === 'function') correoAplicarCco_(opciones, [para]);
+
   let alias = false;
   try {
-    alias = GmailApp.getAliases().indexOf(MAIL_ALIAS) !== -1;
+    alias = GmailApp.getAliases().indexOf(mailAlias_()) !== -1;
   } catch (e) {
     Logger.log('revNotificarAsesor_: sin acceso a los alias de Gmail: ' + e.message);
   }
   if (alias) {
     try {
-      GmailApp.sendEmail(para, asunto, plano, Object.assign({}, opciones, { from: MAIL_ALIAS }));
+      GmailApp.sendEmail(para, asunto, plano, Object.assign({}, opciones, { from: mailAlias_() }));
       Logger.log('Aviso de revisión enviado a ' + para + ' para ' + folio);
       return '';
     } catch (e) {

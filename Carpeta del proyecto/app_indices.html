@@ -454,6 +454,17 @@
       icono:'layers', page:'portal_contenido', bloques:['portal_contenido'],
       kw:'administrar editar catalogo herramientas formatos ligas contenido promos' },
 
+    /* SIN `bloques`, y es la diferencia con «Anuncios del Portal» de aquí arriba.
+       El bloque `articulos` guarda ESCRIBIR; leer un artículo no pide permiso (T8.1), así
+       que la pantalla se ofrece a cualquiera con sesión y dentro aparece «Escribir
+       artículo» solo a quien puede. Ponerle el bloque aquí habría escondido la biblioteca
+       del equipo a todo el equipo, dejando la puerta abierta únicamente a quien la
+       escribe. La entrada del MENÚ (app_core, AppFunciones.GESTION) sí lleva el bloque,
+       porque el menú de Gestión es para administrar, y ahí Artículos es administrar. */
+    { id:'articulos', nombre:'Artículos', sub:'Guías y procedimientos escritos por el equipo',
+      icono:'book', page:'articulo',
+      kw:'articulo articulos guia guias documentacion procedimiento procedimientos manual manuales instructivo apuntes biblioteca leer lectura escribir redactar' },
+
     { id:'operacion', nombre:'Estado de operación', sub:'Fallas que reporta el equipo',
       icono:'bolt', page:'operacion', bloques:['operacion'],
       kw:'incidencias caido fallas confirmar sistemas problemas operacion atender' },
@@ -469,6 +480,14 @@
     { id:'consola', nombre:'Consola', sub:'Personas, permisos y ajustes del sistema',
       icono:'lock', page:'consola', bloques:['adm_miembros','adm_permisos','adm_ajustes'], maestro:true,
       kw:'administracion usuarios altas bajas roles bitacora salud modulos consola ajustes' },
+
+    /* Métricas y monitoreo (F9). Lleva su bloque propio, `metricas`, y NO `maestro`: la
+       abre también una supervisión, con su alcance jerárquico recortado en el servidor.
+       Marcarla de maestro escondería justo la pantalla a la que ese bloque da acceso. */
+    { id:'monitoreo', nombre:'Métricas y monitoreo', sub:'Cotizaciones, correos, búsquedas y cambios',
+      icono:'chart', page:'consola', params:{ sec:'metricas' }, bloques:['metricas'],
+      kw:'metricas monitoreo informe informes reporte reportes csv descargar cuantas cotizaciones ' +
+         'correos enviados busquedas cambios auditoria cifras periodo rango fechas' },
 
     { id:'atenciones', nombre:'Atenciones pendientes', sub:'Clientes por retomar cuando algo falló',
       icono:'clock', page:'atenciones', bloques:['atenciones'],
@@ -519,6 +538,17 @@
       icono:'chart', page:'estado', publica:true,
       kw:'historial grafico barras fechas dias reportes incidencias confirmadas caidas tendencia semana mes estadistica' },
 
+    /* «Acerca de» (T10.1). SIN `bloques` —es informativa— y `fuera:['acerca']` por el
+       mismo motivo que «Portal Ventel» lleva `fuera:['portal']`: estando ya dentro,
+       ofrecerse a sí misma es ruido. No lleva `publica`: sin sesión, su mitad principal
+       —«qué puedes hacer TÚ»— no tiene nada que decir, así que el buscador general no la
+       ofrece a un visitante; el del Portal sí, y ese sí tiene puente al login. */
+    { id:'acerca', nombre:'Acerca del Portal', sub:'Qué es, qué puedes hacer tú y quiénes lo hicieron',
+      icono:'info', page:'acerca', fuera:['acerca'],
+      kw:'acerca informacion ayuda que es esto para que sirve quienes creditos autores equipo ' +
+         'extension chrome instalar navegador soporte contacto version manual guia permisos ' +
+         'que puedo hacer funciones sistema portal ventel' },
+
     /* Reportar NO cambia de pantalla: el panel de operación se abre encima de donde
        estés. Es la acción con más prisa del catálogo —se busca con algo ya roto
        delante— y cobrarle una carga completa de Apps Script es el motivo por el que la
@@ -560,6 +590,15 @@
    *   · En el buscador general solo lo `publica`. Ahí no hay ese puente al login —una
    *     pantalla que exige sesión aparecería y no llevaría a ninguna parte—, así que
    *     ofrecerla sería prometer una puerta cerrada.
+   *
+   * SUPERFICIES VIVAS: 'portal' (buscador del Portal), 'cmdk' (buscador general) y
+   * 'acerca' (la lista «qué puedes hacer tú» de la pantalla «Acerca de», T10.2). La
+   * tercera pide la lista COMPLETA a propósito y por eso es una superficie propia y no
+   * un `funciones('portal', …)` reaprovechado: con 'portal' se caerían «Portal Ventel»
+   * y «Monitor de promociones», que llevan `fuera:['portal']` porque allí se está
+   * parado encima de ellas —y son justo dos de las cosas que un asesor nuevo tiene que
+   * enterarse de que puede abrir—. Una lista que se titula «qué puedes hacer tú» y se
+   * deja dos fuera es peor que no tenerla.
    *
    * `ctx` = { conSesion, esMaestro, puede(bloque) }.
    */

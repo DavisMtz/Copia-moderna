@@ -218,6 +218,19 @@ a{text-decoration:none;color:inherit}
 .side-link.ext .ext-arrow{margin-left:auto;color:var(--side-faint)}
 
 .side-foot{margin-top:auto;padding-top:.8rem;border-top:1px solid var(--side-line);display:flex;flex-direction:column;gap:.6rem}
+/* Enlace discreto del pie (T10.1). Copia exacta del de app_shell: el Portal no incluye
+   ese partial —tiene su propia barra— y las dos hojas se mantienen a la par a mano,
+   igual que ya pasa con .side-foot, .theme-switch y .view-prefs de aquí abajo. */
+.side-foot-link{
+  display:flex;align-items:center;gap:.5rem;width:100%;
+  font:inherit;font-size:.78rem;font-weight:600;text-align:left;text-decoration:none;
+  padding:.5rem .6rem;border-radius:10px;cursor:pointer;
+  background:rgba(255,255,255,.1);color:var(--side-ink);
+  border:1px solid var(--side-line);transition:background .18s
+}
+.side-foot-link:hover{background:rgba(255,255,255,.2)}
+.side-foot-link .ic{width:16px;height:16px;flex:none}
+.side-foot-link:focus-visible{outline:2px solid #fff;outline-offset:2px}
 .theme-switch{display:flex;gap:.3rem;background:rgba(0,0,0,.18);border-radius:12px;padding:.28rem}
 .theme-btn{
   flex:1;display:flex;flex-direction:column;align-items:center;gap:.25rem;
@@ -557,6 +570,11 @@ main{flex:1}
 .dash-label:first-of-type{margin-top:.3rem}
 .dash-label .ic{width:19px;height:19px;color:var(--brand)}
 .dash-label .dl-line{flex:1;height:1px;background:var(--line)}
+/* Enlace al final de un rótulo de franja («Ver los 14»). Tipografía de texto y no de
+   título: es una salida, no un encabezado, y con el peso del rótulo competiría con él. */
+.dash-label .dl-mas{font-family:var(--f-sans);font-size:.8rem;font-weight:600;color:var(--brand);background:none;border:0;padding:.15rem .3rem;border-radius:6px;cursor:pointer;white-space:nowrap}
+.dash-label .dl-mas:hover{background:var(--surface-2);text-decoration:underline}
+.dash-label .dl-mas:focus-visible{outline:2px solid var(--brand);outline-offset:2px}
 
 .stat-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(184px,1fr));gap:1.05rem}
 .stat-card{
@@ -898,6 +916,23 @@ a:focus-visible,button:focus-visible,input:focus-visible,[tabindex]:focus-visibl
 .anc-card-zoom .ic{width:15px;height:15px;margin:0}
 .anc-card{position:relative}
 .anc-card:hover .anc-card-zoom,.anc-card:focus-visible .anc-card-zoom{opacity:1;transform:scale(1)}
+
+/* ── Carril de artículos (fase 8) ─────────────────────────────────────────────
+   Los artículos tienen pantalla propia; aquí solo está la puerta. Se pintan como
+   fichas de texto y no como tarjetas con foto a propósito: lo que invita a leer un
+   artículo es de qué trata y cuánto se tarda, no una imagen decorativa. */
+.art-carril{display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:1rem;margin-bottom:1.4rem}
+.art-carril:empty{display:none}
+.art-ficha{display:flex;flex-direction:column;gap:.35rem;text-align:left;width:100%;font:inherit;
+  background:var(--card,#fff);border:1px solid var(--line,#e5e7eb);border-left:3px solid var(--brand,#E10098);
+  border-radius:12px;padding:.85rem 1rem;cursor:pointer;transition:transform .2s,box-shadow .2s,border-color .2s}
+.art-ficha:hover{transform:translateY(-2px);box-shadow:var(--sh-md,0 10px 26px rgba(20,20,40,.12))}
+.art-ficha:focus-visible{outline:none;box-shadow:var(--ring)}
+.art-ficha-tt{font-family:Archivo,inherit;font-weight:800;font-size:.98rem;line-height:1.3;color:var(--ink)}
+.art-ficha-rs{font-size:.84rem;line-height:1.5;color:var(--ink-soft,#4b5563);
+  display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+.art-ficha-pie{display:flex;gap:.4rem;flex-wrap:wrap;font-size:.72rem;font-weight:600;color:var(--ink-faint,#9aa1ad)}
+@media (prefers-reduced-motion: reduce){ .art-ficha:hover{transform:none} }
 
 /* ── Jerarquía: UNA principal, el resto especiales ─────────────────────────────
    La principal ocupa dos columnas y sube la foto a 200 px; las especiales se quedan
@@ -1581,6 +1616,16 @@ table.ds-matrix{width:100%;border-collapse:separate;border-spacing:0;min-width:5
   <a class="side-link ext" id="promoNavLink" href="<?= APP_URL ?>?page=promociones" target="_top" onclick="handlePromoNav(event,this)"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3l2.3 6.2L21 11l-6 2 6 2-6.7 1.8L12 21l-2.3-4.2L3 15l6-2-6-2 6.7-1.8Z"/></svg> Monitor Promos <span class="ext-arrow"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M7 17 17 7M8 7h9v9"/></svg></span></a>
 
   <div class="side-foot">
+    <!-- T10.1 · «Acerca de». Es la misma entrada que el pie de la barra de la app
+         (app_shell), en el mismo sitio, para que el Portal y las pantallas con shell
+         no se contradigan. Se ofrece TAMBIÉN sin sesión, como el resto de los enlaces
+         de este menú: quien la pulse sin haber entrado pasa por el login y aterriza
+         aquí mismo (?next=acerca), que es el puente que ya usa todo el Portal. -->
+    <a class="side-foot-link" id="acercaNavLink" href="<?= APP_URL ?>?page=acerca" target="_top">
+      <svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 11v5.5"/><path d="M12 7.6h.01"/></svg>
+      <span>Acerca del Portal</span>
+    </a>
+
     <!-- El recorrido guiado sale solo la primera vez; este botón es la puerta de
          vuelta para quien lo saltó o quiere repasarlo. Nace oculto y AppOnboarding
          lo enseña solo si esta pantalla tiene recorrido registrado. -->
@@ -1685,6 +1730,11 @@ table.ds-matrix{width:100%;border-collapse:separate;border-spacing:0;min-width:5
 
     <div class="dash-label" id="anunciosLabel" style="display:none"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M3 11v3a1 1 0 0 0 1 1h2l4 4V6L6 10H4a1 1 0 0 0-1 1Z"/><path d="M14 7.5a5 5 0 0 1 0 7M17.5 5a9 9 0 0 1 0 12"/></svg> Anuncios del equipo <span class="dl-line"></span></div>
     <div class="anuncios-cards" id="anunciosCards"></div>
+
+    <!-- Artículos recientes (fase 8). Nace oculto y solo aparece si hay alguno
+         publicado: una franja vacía con un rótulo es peor que no tener franja. -->
+    <div class="dash-label" id="articulosLabel" style="display:none"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M6 3h9l4 4v14H6z"/><path d="M14 3v5h5M9 12h7M9 16h5"/></svg> Artículos del equipo <span class="dl-line"></span><button type="button" class="dl-mas" id="articulosVerTodos" style="display:none"></button></div>
+    <div class="art-carril" id="articulosCarril"></div>
 
     <div class="dash-label"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3l2.3 6.2L21 11l-6 2 6 2-6.7 1.8L12 21l-2.3-4.2L3 15l6-2-6-2 6.7-1.8Z"/></svg> Hoy en promociones <span class="dl-line"></span></div>
     <div class="promo-strip" id="promoStrip">
@@ -2868,6 +2918,13 @@ const ICONS = {
   presentation:'<rect x="3" y="4" width="18" height="12" rx="1.6"/><path d="M12 16v4M8.5 20h7"/>',
   package:'<path d="M21 7.5 12 12 3 7.5 12 3l9 4.5Z"/><path d="M3 7.5v9L12 21l9-4.5v-9M12 12v9"/>',
   document:'<rect x="5" y="3" width="14" height="18" rx="2"/><path d="M9 7h6M9 11h6M9 15h4"/>',
+  /* Libro abierto para los artículos: `document` ya es la hoja de los formatos, y con el
+     mismo dibujo el grupo de artículos habría que leerlo para distinguirlo. */
+  book:'<path d="M12 6.6C10.5 5.1 8.5 4.3 6 4.3H3.5v13H6c2.5 0 4.5.8 6 2.4 1.5-1.6 3.5-2.4 6-2.4h2.5v-13H18c-2.5 0-4.5.8-6 2.3Z"/><path d="M12 6.6v13.1"/>',
+  /* La «i» en círculo de «Acerca de». Espejo de IC.info en app_comando: los dos
+     buscadores tienen que saber pintar todos los iconos del catálogo compartido, y sin
+     esta línea la entrada salía aquí con la llave inglesa de ICONS.tools. */
+  info:'<circle cx="12" cy="12" r="9"/><path d="M12 11v5.5"/><path d="M12 7.6h.01"/>',
   card:'<rect x="2.5" y="5" width="19" height="14" rx="2.5"/><path d="M2.5 9.5h19"/>',
   money:'<rect x="2.5" y="6" width="19" height="12" rx="2.5"/><circle cx="12" cy="12" r="2.6"/><path d="M6 9.5h.5M18 14.5h-.5"/>',
   mail:'<rect x="3" y="5" width="18" height="14" rx="2"/><path d="m3.5 7 8.5 6 8.5-6"/>',
@@ -3186,6 +3243,7 @@ document.addEventListener('DOMContentLoaded', () => {
     }
     if (it.dataset.copyNum) { copyText(it.dataset.copyNum, null); return; }
     if (it.dataset.anc) { const id = it.dataset.anc; saveRecent(gs.value); clearGlobalSearch(); openAnuncioDesdeBuscador(id); return; }
+    if (it.dataset.art) { const ida = it.dataset.art; saveRecent(gs.value); clearGlobalSearch(); abreArticuloDesdeBuscador(ida); return; }
     if (it.dataset.app !== undefined && it.dataset.app !== '') {
       saveRecent(gs.value); clearGlobalSearch();
       goAppAction(APP_ACTIONS[Number(it.dataset.app)]);
@@ -3781,6 +3839,7 @@ function showLoader(id){
 /* ──────── DASHBOARD ──────── */
 function renderDashboard(){
   renderAnuncios();
+  renderArticulos();
 
   // Accesos rápidos personalizados: fijados primero, luego los más usados
   const qg = document.getElementById('qaGrid');
@@ -3912,9 +3971,12 @@ function encuestaCuerpoHtml(a){
     (cerrada ? '' : (miVoto ? `<p class="pub-enc-pie">Puedes cambiar tu voto hasta el cierre.
         <button type="button" class="pub-enc-link" data-enc-volver="${esc(a.id)}">Cambiar</button></p>` : ''));
   } else {
+    // El `disabled` se emite en el HTML y no se pone después: así el candado de un voto
+    // en vuelo sobrevive a este repintado, que es justo el que antes lo abría.
+    const bloqueado = pubVotando[a.id] ? ' disabled' : '';
     cuerpo = `<div class="pub-enc-ops" role="group" aria-label="${esc(e.pregunta)}">` +
       e.opciones.map((op, i) =>
-        `<button type="button" class="pub-op" data-enc-votar="${esc(a.id)}" data-op="${i}">${esc(op)}</button>`
+        `<button type="button" class="pub-op"${bloqueado} data-enc-votar="${esc(a.id)}" data-op="${i}">${esc(op)}</button>`
       ).join('') + `</div>`;
   }
 
@@ -3947,6 +4009,12 @@ function pintarEncuesta(id){
    viaje al servidor por cada tarjeta del inicio. Al votar se refresca con la respuesta
    del propio voto, que es el único momento en que el resultado cambia para quien mira. */
 const pubPedidos = {};
+/* Qué encuestas tienen un voto EN VUELO. Vive fuera del DOM a propósito: el `disabled`
+   de los botones se lo lleva por delante cualquier repintado —y aquí repinta media
+   pantalla: los datos frescos del Portal, abrir el modal, fijar un acceso—, así que un
+   candado que viva solo en los botones se abre solo un instante después de cerrarse. */
+const pubVotando = {};
+
 function pedirResultados(id, forzar){
   if (!id || (!forzar && pubPedidos[id])) return;
   if (!(window.AppRun && window.google && google.script && google.script.run)) return;
@@ -3954,13 +4022,27 @@ function pedirResultados(id, forzar){
   AppRun.call('pubResultados', [id, (window.AppSession && AppSession.userEmail) || ''], { busy: false })
     .then(res => {
       if (!res || res.status !== 'ok') return;
+      /* Esta respuesta se calculó ANTES de que la persona votara, y las dos llamadas
+         viajan por separado: si llega después del voto, contarlo sería devolver la
+         encuesta a «sin votar» con el voto ya guardado en la hoja —la pantalla mentiría
+         y encima invitaría a votar otra vez—. Se descarta si hay un voto en vuelo o si
+         lo que ya sabemos (tengo voto) es más nuevo que lo que trae (no lo tienes). */
+      if (pubVotando[id]) return;
+      if (pubVotos[id] && pubVotos[id].miVoto && !res.miVoto) return;
       pubVotos[id] = { total: res.total || 0, conteo: res.conteo || {}, miVoto: res.miVoto || '' };
       pintarEncuesta(id);
     }, () => {});
 }
 
-/* Vota. El botón se apaga mientras el servidor contesta: sin eso, dos clics seguidos
-   mandaban dos votos y el segundo llegaba a una hoja que el primero estaba escribiendo. */
+/* Vota. Dos candados, y hacen falta los dos:
+   · `pubVotando` impide un segundo voto mientras el primero viaja. No basta con apagar
+     los botones, porque el siguiente repintado los devuelve encendidos.
+   · La clave de AppRun lleva la OPCIÓN. AppRun fusiona las llamadas que comparten clave
+     y devuelve la promesa de la primera SIN mandar la segunda: con la clave puesta solo
+     en el id, votar A y enseguida B mandaba A, se tragaba B y contestaba «Voto
+     registrado» pintando A. Confirmación de éxito con el voto equivocado.
+   Y hacen falta juntos: solo la clave dejaría dos escrituras en vuelo sobre la misma
+   fila de la hoja, y el resultado quedaría a merced de cuál llegue antes. */
 function votarEncuesta(id, indice){
   const a = pubDe(id);
   const e = a && a.encuesta;
@@ -3968,14 +4050,17 @@ function votarEncuesta(id, indice){
   const opcion = e.opciones[indice];
   if (!opcion) return;
   if (!(window.AppRun && window.google && google.script && google.script.run)) return;
+  if (pubVotando[id]) return;
 
   const apagar = (v) => bloquesEncuesta(id).forEach(bl =>
     bl.querySelectorAll('.pub-op').forEach(b => { b.disabled = v; }));
+  pubVotando[id] = true;
   apagar(true);
 
   AppRun.call('pubVotar', [{ id: id, opcion: opcion, asesor: (window.AppSession && AppSession.userEmail) || '' }],
-      { key: 'pub-votar:' + id })
+      { key: 'pub-votar:' + id + ':' + opcion })
     .then(res => {
+      delete pubVotando[id];
       if (!res || res.status !== 'ok') {
         apagar(false);
         showToast(null, (res && res.error) || 'No pudimos registrar tu voto.');
@@ -3985,6 +4070,7 @@ function votarEncuesta(id, indice){
       pintarEncuesta(id);
       showToast(null, 'Voto registrado · ¡gracias!');
     }, () => {
+      delete pubVotando[id];
       apagar(false);
       showToast(null, 'No pudimos registrar tu voto. Revisa tu conexión.');
     });
@@ -4002,9 +4088,158 @@ function volverAEncuesta(id){
     <p class="pub-enc-q">${esc(e.pregunta)}</p>
     <div class="pub-enc-ops" role="group" aria-label="${esc(e.pregunta)}">` +
     e.opciones.map((op, i) =>
-      `<button type="button" class="pub-op${op === res.miVoto ? ' mia' : ''}" data-enc-votar="${esc(id)}" data-op="${i}">${esc(op)}</button>`
+      `<button type="button" class="pub-op${op === res.miVoto ? ' mia' : ''}"${pubVotando[id] ? ' disabled' : ''} data-enc-votar="${esc(id)}" data-op="${i}">${esc(op)}</button>`
     ).join('') + `</div>`;
   bloquesEncuesta(id).forEach(bl => { bl.innerHTML = html; });
+}
+
+/* ═══════════════════════════════════════════════════════════
+   ARTÍCULOS EN EL PORTAL (fase 8)
+   ───────────────────────────────────────────────────────────
+   El Portal es donde entra el equipo, así que es donde tiene que estar la puerta a
+   los artículos: la entrada del menú de Gestión solo la ve quien PUBLICA, y sin este
+   carril un asesor no tendría por dónde llegar más que buscándolos.
+
+   Se piden aparte de fetchToolsData, con su propia caché de una hora: los artículos
+   cambian de mes en mes, no de minuto en minuto, y meterlos en la carga del Portal
+   habría hecho más lenta la pantalla que todo el mundo abre primero por un contenido
+   que casi nadie estrena cada día.
+═══════════════════════════════════════════════════════════ */
+function renderArticulos(){
+  const carril = document.getElementById('articulosCarril');
+  const lbl = document.getElementById('articulosLabel');
+  if (!carril || !(window.AppRun && window.google && google.script && google.script.run)) return;
+  /* Sin sesión no se pregunta. El Portal es una landing pública y los artículos son
+     documentación interna: sus títulos y los nombres de quienes los escriben no son cosa
+     de un visitante. El candado está en el servidor (artHaySesion_); esto es no gastar
+     una llamada en una respuesta que va a venir vacía. */
+  if (!(window.AppSession && AppSession.isLoggedIn())) { if (lbl) lbl.style.display = 'none'; return; }
+
+  AppRun.swr('portal-articulos-v1', 'artListar', [(window.AppSession && AppSession.userEmail) || '', { tope: 6 }], {
+    ttl: 60 * 60 * 1000,
+    busy: false,
+    accept: r => !!(r && r.status === 'ok'),
+    onData: (r) => {
+      // Solo publicados: un borrador es trabajo a medias y esta es la portada.
+      const arts = ((r && r.articulos) || []).filter(a => a.estado === 'publicado');
+      carril.textContent = '';
+      if (lbl) lbl.style.display = arts.length ? '' : 'none';
+
+      /* PUERTA A LOS DEMÁS. El carril enseña los seis más recientes, y la entrada del menú
+         a la pantalla de artículos solo la ve quien publica: sin este enlace, quien
+         únicamente lee no tiene por dónde llegar al séptimo. La pantalla sí es suya —el
+         lector es cualquier sesión—, lo que faltaba era la puerta.
+         Se dice CUÁNTOS hay, que es lo que hace decidir si vale la pena entrar, y solo
+         aparece cuando de verdad hay más de los que se están viendo. */
+      const mas = document.getElementById('articulosVerTodos');
+      if (mas) {
+        const total = Number(r && r.total) || 0;
+        const hayMas = total > ((r && r.articulos) || []).length;
+        mas.style.display = (arts.length && hayMas) ? '' : 'none';
+        mas.textContent = 'Ver los ' + total;
+        mas.onclick = () => { if (window.AppUrl && AppUrl.base) AppUrl.go('articulo'); };
+      }
+
+      if (!arts.length) return;
+      arts.forEach(a => {
+        const b = document.createElement('button');
+        b.type = 'button';
+        b.className = 'art-ficha';
+        b.setAttribute('aria-label', 'Leer el artículo: ' + (a.titulo || ''));
+        const tt = document.createElement('div');
+        tt.className = 'art-ficha-tt';
+        tt.textContent = a.titulo || '(sin título)';
+        b.appendChild(tt);
+        if (a.resumen) {
+          const rs = document.createElement('div');
+          rs.className = 'art-ficha-rs';
+          rs.textContent = a.resumen;
+          b.appendChild(rs);
+        }
+        const pie = document.createElement('div');
+        pie.className = 'art-ficha-pie';
+        if (a.minutos) pie.appendChild(Object.assign(document.createElement('span'), { textContent: a.minutos + ' min' }));
+        if (a.autores) pie.appendChild(Object.assign(document.createElement('span'), { textContent: '· ' + a.autores }));
+        b.appendChild(pie);
+        b.addEventListener('click', () => {
+          if (window.AppUrl && AppUrl.base) AppUrl.go('articulo', { art: a.id });
+        });
+        carril.appendChild(b);
+      });
+    },
+    onError: () => { if (lbl) lbl.style.display = 'none'; }
+  });
+}
+
+/* ═══════════════════════════════════════════════════════════
+   ARTÍCULOS EN EL BUSCADOR DEL PORTAL (fase 8, T8.5)
+   ───────────────────────────────────────────────────────────
+   El carril y el buscador quieren cosas distintas del mismo contenido, y por eso son dos
+   llamadas y no una: el carril enseña los seis más recientes con sus minutos y sus
+   autores, y el buscador necesita TODOS los publicados con su texto dentro —que es la
+   parte pesada y la que el carril no usa para nada—.
+
+   Se pide en la primera búsqueda de verdad y no al montar la pantalla. El Portal es lo
+   primero que abre todo el mundo por la mañana, y cargarle el cuerpo de cada artículo
+   para que la mayoría de las visitas no busque nada sería pagar la lentitud donde más se
+   nota. Cuando llega, la búsqueda que lo pidió se vuelve a pintar sola. */
+const ART_INDICE_TTL = 30 * 60 * 1000;
+let artIndiceBusq = [];
+let artIndiceListo = false;
+let artIndicePidiendo = false;
+
+/* Los cuerpos llegan recortados a 1200 caracteres desde el servidor y aun así son el
+   campo más largo que este buscador puntúa; se preparan UNA vez, al armar el índice, por
+   la misma razón que los `kw` de trazabilidad (ver puntuaIndice). */
+function normalizaArtIndice(d){
+  const B = window.AppBuscar;
+  return ((d && d.articulos) || []).filter(a => a && a.id).map(a => {
+    const texto = String(a.texto || '');
+    return {
+      id: a.id,
+      name: String(a.titulo || '').trim() || '(sin título)',
+      sub: String(a.resumen || '').trim(),
+      texto,
+      textoCampo: (B && texto) ? B.campo(texto) : null
+    };
+  });
+}
+
+function pideArtIndice(alLlegar){
+  /* La guarda es una bandera y no `artIndiceBusq.length`: un Portal sin artículos
+     todavía es una respuesta legítima, y con la longitud por guarda se volvería a
+     preguntar en cada búsqueda para recibir siempre la misma lista vacía. */
+  if (artIndiceListo || artIndicePidiendo) return;
+  if (!(window.AppRun && window.AppCache)) return;
+  if (!(window.AppSession && AppSession.isLoggedIn())) return;   // ver renderArticulos
+
+  const guardado = AppCache.get('portal-art-indice', ART_INDICE_TTL);
+  if (guardado && guardado.data) {
+    /* Con la caché caliente el índice queda puesto ANTES de volver, así que quien llamó
+       lo lee en esta misma búsqueda. Avisar aquí sería pintar dos veces la misma
+       respuesta y, peor, volver a entrar en doGlobalSearch desde dentro de sí mismo. */
+    artIndiceBusq = normalizaArtIndice(guardado.data);
+    artIndiceListo = true;
+    return;
+  }
+
+  artIndicePidiendo = true;
+  AppRun.call('artIndiceBuscador', [(window.AppSession && AppSession.userEmail) || ''],
+              { key: 'portal-art-indice', busy: false })
+    .then(d => {
+      artIndicePidiendo = false;
+      if (!d || d.status === 'error') return;
+      AppCache.set('portal-art-indice', d, { ttl: ART_INDICE_TTL });
+      artIndiceBusq = normalizaArtIndice(d);
+      artIndiceListo = true;
+      alLlegar();
+    }, () => { artIndicePidiendo = false; });
+}
+
+/* Abre el artículo desde un resultado del buscador. Por ID y no por título: el enlace
+   tiene que seguir llevando al mismo sitio cuando alguien corrija el encabezado. */
+function abreArticuloDesdeBuscador(id){
+  if (window.AppUrl && AppUrl.base) AppUrl.go('articulo', { art: id });
 }
 
 function renderAnuncios(){
@@ -4189,8 +4424,17 @@ function expandTarjeta(id, opts){
 function abrirPublicacion(id, sinUrl, intentos){
   if (!id) return;
   pubPendiente = id;
-  const enPortal = (store.anuncios || []).find(x => x.id === id);
-  if (enPortal) { pubPendiente = ''; expandTarjeta(id, { sinUrl: sinUrl }); return; }
+  /* El store puede venir de la copia local de SIETE DÍAS, y mientras no conteste Apps
+     Script no sirve para decidir esto. Sin la guarda de frescura, un enlace a algo que
+     entretanto expiró —o que quien administra OCULTÓ porque traía un dato equivocado—
+     se abría desde esa copia: sin el aviso de vigencia que esta fase construyó, con sus
+     botones activos, y saltándose la decisión de retirarlo (pubPorId se niega a servir
+     las ocultas justamente para que retirar algo signifique algo). El coste de esperar
+     es un cuarto de segundo; el de no hacerlo, enseñar lo retirado como vigente. */
+  if (dataIsFresh) {
+    const enPortal = (store.anuncios || []).find(x => x.id === id);
+    if (enPortal) { pubPendiente = ''; expandTarjeta(id, { sinUrl: sinUrl }); return; }
+  }
   const n = intentos || 0;
   // Se reintenta solo mientras esta siga siendo la publicación que se quiere: si entre
   // dos intentos se cerró el modal o se pidió otra, la espera vieja se abandona en vez
@@ -4200,12 +4444,24 @@ function abrirPublicacion(id, sinUrl, intentos){
     return;
   }
   if (!(window.AppRun && window.google && google.script && google.script.run)) { pubPendiente = ''; return; }
+  /* Los dos manejadores comprueban que ESTA sigue siendo la publicación que se quiere,
+     igual que el reintento de arriba. El viaje a pubPorId dura lo suyo (lee la hoja
+     entera), y en ese hueco la persona puede haber abierto otra tarjeta o cerrado el
+     modal: sin la guarda, la respuesta tardía se pintaba encima de lo que estuviera
+     mirando —dejando la barra diciendo una publicación y la pantalla enseñando otra— y,
+     si venía con error, borraba el estado de la publicación ajena que sí estaba abierta.
+     `closeAnuncioModal` pone pubPendiente a vacío precisamente para cancelar esto. */
   AppRun.call('pubPorId', [id, (window.AppSession && AppSession.userEmail) || ''], { busy: false })
     .then(res => {
+      if (pubPendiente !== id) return;
       pubPendiente = '';
       if (res && res.status === 'ok' && res.pub) { expandTarjeta(id, { pub: res.pub, sinUrl: sinUrl }); return; }
       pubAvisoSuelto((res && res.error) || 'No encontramos esa publicación.');
-    }, () => { pubPendiente = ''; pubAvisoSuelto('No pudimos abrir esa publicación. Revisa tu conexión.'); });
+    }, () => {
+      if (pubPendiente !== id) return;
+      pubPendiente = '';
+      pubAvisoSuelto('No pudimos abrir esa publicación. Revisa tu conexión.');
+    });
 }
 
 /* Lo que se enseña cuando el enlace no lleva a ninguna parte. La barra se limpia
@@ -5096,7 +5352,7 @@ function goAppAction(entrada){
      consola— sin dar ninguna señal de que el parámetro se había perdido por el
      camino. El fallo se veía como "el buscador te deja en el sitio equivocado", que
      no lleva a nadie hasta esta línea. La lista es la misma de PARAMS_VISTA. */
-  const PASAN = ['tpl', 'sec', 'action', 'folio', 'q', 'buscar', 'ancla', 'inc', 'promo', 'item', 'rango', 'estatus', 'dir', 'origen', 'pub'];
+  const PASAN = ['tpl', 'sec', 'action', 'folio', 'q', 'buscar', 'ancla', 'inc', 'promo', 'item', 'rango', 'estatus', 'dir', 'origen', 'pub', 'art'];
   const params = {};
   PASAN.forEach(function (k) { if (act[k]) params[k] = act[k]; });
 
@@ -5181,6 +5437,24 @@ function doGlobalSearch(){
     .sort((a, b) => b.score - a.score)
     .slice(0, 5);
   if (ancMatches.length) results.push({ key: '__anuncio', matches: ancMatches });
+
+  /* ARTÍCULOS DEL EQUIPO → abren la pantalla del artículo.
+     El índice se pide aquí, en la primera búsqueda con algo escrito, y no al montar la
+     pantalla (ver pideArtIndice). Cuando llega tarde se repinta la búsqueda, pero solo
+     si en pantalla sigue habiendo la MISMA: contestar a la pregunta anterior mientras se
+     está escribiendo la siguiente es cambiarle la lista a alguien bajo el dedo. */
+  if (q.length >= 2) {
+    pideArtIndice(() => {
+      const caja = document.getElementById('globalSearch');
+      if (caja && caja.value.trim() === input && drop.classList.contains('open')) doGlobalSearch();
+    });
+  }
+  const artMatches = artIndiceBusq
+    .map(a => ({ name: a.name, sub: a.sub, texto: a.texto, artId: a.id, score: puntuaArticulo(Q, a) }))
+    .filter(r => r.score > 0)
+    .sort((a, b) => b.score - a.score)
+    .slice(0, 4);
+  if (artMatches.length) results.push({ key: '__articulo', matches: artMatches });
 
   /* ÍNDICES DE SECCIÓN (formas de pago, devoluciones SAP y las seis de trazabilidad).
      Eran ocho bloques copiados letra por letra que solo se diferenciaban en el índice,
@@ -5311,6 +5585,29 @@ function doGlobalSearch(){
           </div>
           <span class="sd-go">${icon('maximize')}</span>
         </div>`).join('');
+      }
+      if (key === '__articulo') {
+        return `<div class="sd-group-label">${icon('book')} Artículos<span class="sd-count">${matches.length}</span></div>` +
+          matches.map((r, ri) => {
+            /* La segunda línea enseña el RESUMEN salvo cuando lo escrito no aparece en él
+               y sí en el cuerpo: ahí va el trozo del cuerpo donde está. Es lo que contesta
+               «¿por qué sale este artículo?», y con el resumen fijo esa pregunta se
+               quedaba sin respuesta justo en el caso para el que se indexó el cuerpo. */
+            const enResumen = !!r.sub && window.AppBuscar && AppBuscar.coincide(r.sub, q);
+            const linea = enResumen ? r.sub : (r.texto || r.sub || '');
+            const corte = window.AppBuscar
+              ? AppBuscar.extracto(linea, q, 90)
+              : linea.substring(0, 90) + (linea.length > 90 ? '…' : '');
+            return `
+        <div class="sd-item sd-nav${gi === 0 && ri === 0 ? ' sd-top' : ''}" data-art="${esc(r.artId)}" role="option">
+          <div class="sd-emoji">${icon('book')}</div>
+          <div style="min-width:0;">
+            <div class="sd-name">${hilite(r.name, q)}</div>
+            ${corte ? `<div class="sd-sub">${hilite(corte, q)}</div>` : ''}
+          </div>
+          <span class="sd-go">${icon('arrow')}</span>
+        </div>`;
+          }).join('');
       }
       if (key === '__app') {
         return `<div class="sd-group-label">${icon('external')} Funciones de la app<span class="sd-count">${matches.length}</span></div>` +
@@ -5745,6 +6042,19 @@ function puntuaIndice(Q, it){
   if (!window.AppBuscar || !Q || Q.vacia) return 0;
   const kw = it.kwCampo ? { campo: it.kwCampo, p: 1.4 } : { t: it.kw || '', p: 1.4 };
   return AppBuscar.puntua(Q, [{ t: it.name || '', p: 3 }, { t: it.sub || '', p: 1 }, kw], OPTS_PORTAL);
+}
+
+/* Un artículo se puntúa por su título, su resumen y —flojo— su cuerpo.
+   El cuerpo pesa .55 a propósito: es el campo que encuentra el artículo del que no se
+   recuerda cómo se titulaba, pero mil doscientos caracteres coinciden con casi cualquier
+   palabra corriente, y con más peso un artículo que menciona «devolución» de pasada le
+   quitaría el sitio a la herramienta del Portal que se llama así. Mismos pesos que el
+   grupo de artículos del buscador general (app_comando.html): son el mismo contenido, y
+   si los dos lo puntúan distinto la paridad de F6 se rompe por donde se arregló. */
+function puntuaArticulo(Q, a){
+  if (!window.AppBuscar || !Q || Q.vacia) return 0;
+  const cuerpo = a.textoCampo ? { campo: a.textoCampo, p: .55 } : { t: a.texto || '', p: .55 };
+  return AppBuscar.puntua(Q, [{ t: a.name || '', p: 3 }, { t: a.sub || '', p: 1.4 }, cuerpo], OPTS_PORTAL);
 }
 /* AQUÍ VIVÍAN `levLE` y `fuzzyHit`, las dos piezas de tolerancia a erratas del motor
    viejo. Se fueron con su único usuario, scoreTiendaCR, a app_indices.html. El resto de

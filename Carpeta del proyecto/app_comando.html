@@ -332,7 +332,16 @@
     cerrar:  ic('<path d="M18 6 6 18M6 6l12 12"/>'),
     externo: ic('<path d="M14 4h6v6"/><path d="M20 4 11 13"/><path d="M18 14v5a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V7a1 1 0 0 1 1-1h5"/>'),
     liga:    ic('<path d="M10 13.5a4 4 0 0 0 5.7 0l2.8-2.8a4 4 0 1 0-5.7-5.7L11.5 6.3"/><path d="M14 10.5a4 4 0 0 0-5.7 0l-2.8 2.8a4 4 0 1 0 5.7 5.7l1.3-1.3"/>'),
-    reloj:   ic('<circle cx="12" cy="12" r="9"/><path d="M12 7.5V12l3 1.8"/>')
+    reloj:   ic('<circle cx="12" cy="12" r="9"/><path d="M12 7.5V12l3 1.8"/>'),
+    /* Libro abierto para los artículos. No reutiliza `doc` a propósito: esa hoja con
+       renglones ya es la de las cotizaciones y la de los formatos, y tres grupos con el
+       mismo dibujo obligan a leer el rótulo para saber en cuál se está. */
+    libro:   ic('<path d="M12 6.6C10.5 5.1 8.5 4.3 6 4.3H3.5v13H6c2.5 0 4.5.8 6 2.4 1.5-1.6 3.5-2.4 6-2.4h2.5v-13H18c-2.5 0-4.5.8-6 2.3Z"/><path d="M12 6.6v13.1"/>'),
+    /* La «i» en círculo de «Acerca de». Es el único glifo universal para "información
+       sobre esto" y por eso no se reaprovecha ninguno: `libro` ya es Artículos y con el
+       mismo dibujo las dos entradas se confundirían justo en la lista donde una lleva a
+       la biblioteca del equipo y la otra a la ficha del sistema. */
+    info:    ic('<circle cx="12" cy="12" r="9"/><path d="M12 11v5.5"/><path d="M12 7.6h.01"/>')
   };
 
   function esc(s) { return window.AppBuscar ? AppBuscar.escapa(s) : String(s == null ? '' : s); }
@@ -356,7 +365,7 @@
     home:IC.casa, document:IC.doc, send:IC.correo, mail:IC.correop, chart:IC.grafica,
     check:IC.check, gear:IC.engrane, megaphone:IC.megafono, layers:IC.capas,
     bolt:IC.pulso, lock:IC.llave, key:IC.llave, clock:IC.reloj, globe:IC.globo,
-    sparkle:IC.estrella, wifi:IC.pulso, flag:IC.pulso
+    sparkle:IC.estrella, wifi:IC.pulso, flag:IC.pulso, book:IC.libro, info:IC.info
   };
 
   /* Acciones locales del catálogo: las que NO cambian de pantalla. En el catálogo
@@ -521,6 +530,13 @@
     { id:'sec-bitacora', nombre:'Bitácora', sub:'Quién cambió qué y cuándo',
       icono:IC.reloj, page:'consola', params:{ sec:'bitacora' }, bloques:['adm_bitacora','sup_equipo'],
       kw:'auditoria historial registro rastro cambios log quien cuando' },
+    /* Sin `maestro:true`: la abre una supervisión con el bloque `metricas`, y el recorte
+       por jerarquía lo hace el servidor. El id es `sec-monitoreo` y no `sec-metricas`
+       porque ese ya es el del panel de supervisión, que es otra pantalla. */
+    { id:'sec-monitoreo', nombre:'Métricas y monitoreo', sub:'Cotizaciones, correos, búsquedas y cambios',
+      icono:IC.grafica, page:'consola', params:{ sec:'metricas' }, bloques:['metricas'],
+      kw:'monitoreo informe informes reporte csv descargar cuantas cotizaciones correos enviados ' +
+         'busquedas cambios auditoria periodo rango fechas' },
     { id:'sec-ajustes', nombre:'Ajustes del sistema', sub:'Autenticación, dominio, webhook y hojas',
       icono:IC.engrane, page:'consola', params:{ sec:'ajustes' }, bloques:['adm_ajustes'], maestro:true,
       kw:'configuracion dominio webhook hoja identificador correo autenticacion' },
@@ -960,6 +976,73 @@
     return window.AppIndices ? AppIndices.indexaTraz(d) : [];
   }
 
+  /* ── ARTÍCULOS DEL EQUIPO (fase 8) ──
+     Un artículo es documentación que se escribe una vez y se cita durante meses, así que
+     la pregunta que lo busca casi nunca es su título: es una frase que sale en el cuerpo
+     («¿dónde decía lo de las devoluciones parciales?»). Por eso el índice trae el texto
+     además del título, y por eso los artículos no podían quedarse fuera del buscador:
+     hasta ahora solo se llegaba a ellos por el carril del Portal, o sea sabiendo ya que
+     existían.
+
+     Solo los PUBLICADOS: el servidor descarta los borradores antes de servir el índice,
+     que es donde tiene que decidirse —un borrador filtrado en el cliente es un borrador
+     que viajó—. Leerlos no pide permiso, así que este grupo no lleva guarda de bloque. */
+  var ART_TTL = 30 * 60 * 1000;
+  var artPidiendo = false;
+  var artListo = false;
+  var artIndice = [];
+
+  function pideArticulos(alLlegar) {
+    /* La guarda es una BANDERA y no `artIndice.length`, que es como se guardan las demás
+       fuentes de este archivo. Aquí no vale: un equipo que todavía no ha escrito ningún
+       artículo tiene un índice vacío como respuesta legítima y correcta, y con la longitud
+       por guarda esa respuesta no se recuerda nunca — se volvería a preguntar al servidor
+       en cada pausa de tecleo, para siempre y para nada. */
+    if (artListo || artPidiendo) return;
+    if (!(window.AppRun && window.AppCache)) return;
+    /* Leer artículos no pide permiso, pero sí pide haber entrado: el servidor sirve el
+       índice solo con sesión (artHaySesion_), y este buscador vive también en el Portal
+       público. Sin la guarda se gastaría una llamada por visitante para recibir vacío. */
+    if (!conSesion()) return;
+
+    var guardado = AppCache.get('cmdk-art', ART_TTL);
+    if (guardado && guardado.data) {
+      artIndice = indexaArticulos(guardado.data);
+      artListo = true;
+      alLlegar();
+      return;
+    }
+
+    artPidiendo = true;
+    AppRun.call('artIndiceBuscador', [correoSesion()], { key: 'cmdk-art', busy: false }).then(function (d) {
+      artPidiendo = false;
+      if (!d || d.status === 'error') return;
+      AppCache.set('cmdk-art', d, { ttl: ART_TTL });
+      artIndice = indexaArticulos(d);
+      artListo = true;
+      alLlegar();
+    }, function () { artPidiendo = false; });
+  }
+
+  /* El cuerpo llega recortado a 1200 caracteres desde el servidor y aun así es, con
+     diferencia, el campo más largo que este buscador puntúa. Se PREPARA aquí, una vez al
+     armar el índice, por la misma razón que las palabras clave de trazabilidad: la memoria
+     de campos de AppBuscar solo guarda textos cortos, así que un cuerpo sin preparar se
+     volvería a tokenizar en cada tecla y por cada artículo. */
+  function indexaArticulos(d) {
+    var B = window.AppBuscar;
+    return ((d && d.articulos) || []).filter(function (a) { return a && a.id; }).map(function (a) {
+      var texto = String(a.texto || '');
+      return {
+        id: a.id,
+        titulo: String(a.titulo || '').trim() || '(sin título)',
+        resumen: String(a.resumen || '').trim(),
+        texto: texto,
+        textoCampo: (B && texto) ? B.campo(texto) : null
+      };
+    });
+  }
+
   function pidePortal(alLlegar) {
     if (Directorio.hayPortal() || portalPidiendo) return;
     if (!(window.AppRun && window.AppCache)) return;
@@ -1191,6 +1274,7 @@
       relojTecleo = setTimeout(function () {
         pidePortal(pinta);
         pideTraz(pinta);
+        pideArticulos(pinta);
         pideGente(pinta);
         pideCots(t, pinta);
       }, 240);
@@ -1248,6 +1332,10 @@
     { id: 'cot',    rotulo: 'Cotizaciones',  alias: ['cot', 'cots', 'cotizacion', 'cotizaciones', 'folio', 'folios'] },
     { id: 'portal', rotulo: 'Portal',        alias: ['portal', 'herramienta', 'herramientas', 'formato', 'formatos'] },
     { id: 'traz',   rotulo: 'Procesos',      alias: ['proceso', 'procesos', 'traz', 'trazabilidad', 'tiempos'] },
+    /* Sin «guía» ni «doc» entre los alias, por mucho que sea como se les llama de viva
+       voz: en el Portal hay guías y formatos que no son artículos, y «guia: dhl» tiene
+       que seguir buscando la guía de la paquetería y no quedarse a cero. */
+    { id: 'art',    rotulo: 'Artículos',     alias: ['art', 'articulo', 'articulos'] },
     { id: 'gente',  rotulo: 'Personas',      alias: ['gente', 'persona', 'personas', 'equipo', 'asesor', 'asesores'] },
     { id: 'op',     rotulo: 'Fallas',        alias: ['falla', 'fallas', 'estado', 'incidencia', 'incidencias'] },
     /* El catálogo de tiendas solo sale solo cuando la consulta trae un número; con el
@@ -1407,6 +1495,21 @@
     }, { limite: 5, conPuntaje: true });
     if (tz.length) grupos.push({ tipo: 'traz', titulo: 'Procesos y tiempos', icono: IC.caja,
                                  mejor: tz[0].score, filas: tz.map(function (r) { return r.item; }) });
+
+    /* 3c) ARTÍCULOS. Van fuera de la guarda de sesión —leerlos no pide permiso— y en su
+       propio grupo: un artículo no es un enlace del Portal ni un procedimiento de la hoja,
+       es texto largo que alguien del equipo escribió para explicarlo.
+
+       El cuerpo pesa POCO (.55) contra el título: es el campo que encuentra lo que no se
+       sabía cómo se titulaba, pero mil doscientos caracteres coinciden con casi cualquier
+       palabra corriente, y con más peso un artículo largo que menciona «devolución» de
+       pasada le ganaría el sitio a la herramienta del Portal que se llama así. */
+    var arts = (esCotizacion || !deja('art')) ? [] : B.filtra(artIndice, q, function (a) {
+      var cuerpo = a.textoCampo ? { campo: a.textoCampo, p: .55 } : { t: a.texto || '', p: .55 };
+      return [{ t: a.titulo, p: 3 }, { t: a.resumen, p: 1.4 }, cuerpo];
+    }, { limite: 4, exigirTodas: variasPalabras, conPuntaje: true });
+    if (arts.length) grupos.push({ tipo: 'articulo', titulo: 'Artículos', icono: IC.libro,
+                                   mejor: arts[0].score, filas: arts.map(function (r) { return r.item; }) });
 
     if (conSesion()) {
       /* 4) GENTE. Un correo escrito entero busca una cotización de ese cliente, no a un
@@ -1709,6 +1812,21 @@
             (r.estado ? '<span class="cmdk-tag">' + esc(r.estado) + '</span>' : '') +
             '<span class="cmdk-enter">↵ Editar</span><span class="cmdk-go">' + IC.flecha + '</span>');
 
+        } else if (g.tipo === 'articulo') {
+          /* La segunda línea enseña el RESUMEN salvo cuando lo escrito no aparece en él y
+             sí en el cuerpo: ahí se enseña el trozo del cuerpo donde está. Es la línea que
+             contesta «¿y por qué sale este artículo?», y con el resumen fijo esa pregunta
+             se quedaba sin respuesta justo en el caso para el que se indexó el cuerpo. */
+          var enResumen = !!r.resumen && B.coincide(r.resumen, q);
+          var linea = enResumen ? r.resumen : (r.texto || r.resumen || '');
+          html += fila('',
+            '<span class="cmdk-chip">' + IC.libro + '</span>' +
+            '<span class="cmdk-tx">' +
+              '<span class="cmdk-name">' + B.resalta(r.titulo, q) + '</span>' +
+              '<span class="cmdk-sub">' + B.resalta(B.extracto(linea, q, 90), q) + '</span>' +
+            '</span>' +
+            '<span class="cmdk-enter">↵ Leer</span><span class="cmdk-go">' + IC.flecha + '</span>');
+
         } else {
           html += fila('',
             '<span class="cmdk-chip">' + r.icono + '</span>' +
@@ -1842,6 +1960,9 @@
       return;
     }
     if (f.tipo === 'anuncio') { navega('anuncios', { q: f.dato.titulo }); return; }
+    /* Al artículo por su ID y no por su título: el enlace tiene que seguir llevando al
+       mismo sitio cuando alguien le corrija la errata al encabezado. */
+    if (f.tipo === 'articulo') { navega('articulo', { art: f.dato.id }); return; }
     if (f.tipo === 'portal') {
       var p = f.dato;
       // La sección del Portal, filtrada por lo que se escribió y con el elemento

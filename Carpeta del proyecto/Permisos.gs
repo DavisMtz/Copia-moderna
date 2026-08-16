@@ -108,12 +108,27 @@ const PERM_BLOQUES = [
   { id: 'portal_contenido',  nombre: 'Contenido del Portal',     grupo: 'Supervisión',
     detalle: 'Editar herramientas, plantillas, formatos y promociones del Portal.',
     pagina: 'portal_contenido',    admin: false, fijo: false },
+  // Publicar artículos es un permiso aparte de 'anuncios' a propósito: un anuncio cabe en
+  // una tarjeta y se retira solo; un artículo es documentación que el equipo va a citar
+  // durante meses. LEER no necesita bloque —los artículos son para todos—; esto solo
+  // abre el editor y la lista de quién ha leído cada uno.
+  { id: 'articulos',         nombre: 'Publicar artículos',       grupo: 'Supervisión',
+    detalle: 'Escribir, publicar y retirar los artículos largos del Portal, y ver quién los ha leído.',
+    pagina: 'articulo',            admin: false, fijo: false },
   // REPORTAR una falla no necesita bloque: lo puede hacer cualquiera con sesión, y ponerle
   // permiso sería tanto como pedir autorización para avisar de que algo no funciona. Este
   // bloque es solo para el otro lado del mostrador: decidir qué se le dice al equipo.
   { id: 'operacion',         nombre: 'Estado de operación',      grupo: 'Supervisión',
     detalle: 'Confirmar, descartar y actualizar las fallas que reporta el equipo.',
     pagina: 'operacion',           admin: false, fijo: false },
+  // Ver cuánto y quién: cotizaciones, correos, búsquedas y cambios de personas. Es un bloque
+  // aparte de 'supervision' porque responden preguntas distintas: el panel de supervisión mira
+  // el trabajo del equipo de hoy, y esto mira el RASTRO de todo el mundo —a quién se le escribió,
+  // qué buscó, a qué hora—. Lo trae el rol supervisor con su alcance jerárquico recortado en el
+  // servidor; el maestro lo ve entero, como todo.
+  { id: 'metricas',          nombre: 'Métricas y monitoreo',     grupo: 'Supervisión',
+    detalle: 'Consultar las métricas del sistema: cotizaciones, correos enviados, búsquedas y cambios de personas, con descarga en CSV.',
+    pagina: 'consola',             admin: false, fijo: false },
   // Gestión de roles SIN ser maestro. Da entrada a la Consola —solo a Roles y
   // Bitácora— y deja gestionar a quien esté en el MISMO nivel o por debajo: ver
   // permVetoJerarquia_ más abajo, que es donde vive esa regla para toda la app.
@@ -192,7 +207,7 @@ const PERM_ROLES = {
     bloques: ['portal', 'promociones', 'cotizar', 'consultar', 'enviar_cotizacion', 'correos_cliente',
               'atenciones',
               'supervision', 'revisar', 'politica_revision', 'trazabilidad', 'anuncios', 'portal_contenido',
-              'operacion', 'sup_equipo']
+              'articulos', 'metricas', 'operacion', 'sup_equipo']
   },
   maestro: {
     id: 'maestro',

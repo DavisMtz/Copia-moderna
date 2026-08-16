@@ -7,7 +7,84 @@
 // Alias institucional desde el que salen las cotizaciones. Debe estar dado de alta
 // como "Enviar como" en la cuenta de Gmail que ejecuta el script; si no lo está,
 // el envío cae de vuelta a la cuenta propia (ver sendQuoteByEmail).
-const MAIL_ALIAS = 'cotizacion@liverpool.com.mx';
+//
+// T9.7 lo sacó del código: ahora manda el ajuste MAIL_ALIAS de la consola y esto es solo el
+// respaldo de fábrica. Se lee por mailAlias_(), nunca por la constante, para que cambiarlo
+// no exija desplegar. Sigue escrito aquí a propósito: una instalación recién clonada, sin
+// ninguna propiedad puesta, tiene que comportarse exactamente como antes.
+const MAIL_ALIAS_RESPALDO = 'cotizacion@liverpool.com.mx';
+
+/** Memo de esta ejecución: el alias se consulta varias veces por envío. */
+var MAIL_ALIAS_MEMO = null;
+
+/**
+ * El alias con el que sale el correo del sistema.
+ *
+ * Se resuelve perezosamente y no en una constante global: los .gs se cargan enteros en CADA
+ * petición, y leer una propiedad del script al cargar el archivo cobraría ese viaje también
+ * a las pantallas que no mandan ningún correo.
+ */
+function mailAlias_() {
+  if (MAIL_ALIAS_MEMO === null) {
+    MAIL_ALIAS_MEMO = (typeof secConfig_ === 'function')
+      ? (secConfig_('MAIL_ALIAS', MAIL_ALIAS_RESPALDO) || MAIL_ALIAS_RESPALDO)
+      : MAIL_ALIAS_RESPALDO;
+  }
+  return MAIL_ALIAS_MEMO;
+}
+
+// ── COPIA OCULTA GLOBAL (T9.6) ───────────────────────────────────────────────
+//
+// Un buzón que recibe copia de todo lo que el sistema manda hacia fuera. Lo pide quien tiene
+// que poder auditar qué se le dijo a un cliente sin pedirle su bandeja a nadie.
+//
+// LA REGLA QUE NO SE ROMPE: los correos de SEGURIDAD no se copian. Contraseñas temporales y
+// códigos de verificación viajan en el cuerpo, y mandar una copia de eso a un buzón compartido
+// convierte una medida de vigilancia en un almacén de credenciales de todo el equipo. Por eso
+// el CCO NO se mete dentro de la función que envía (cuentasEnviarCorreo_ la comparten los
+// correos de seguridad y los avisos): se aplica ruta por ruta, y quien no lo pida no lo lleva.
+// Falla cerrado.
+
+/** Buzones configurados en el ajuste CORREO_CCO_GLOBAL. Lista vacía = apagado. */
+function correoCcoGlobal_() {
+  try {
+    const crudo = (typeof secConfig_ === 'function') ? secConfig_('CORREO_CCO_GLOBAL', '') : '';
+    if (!crudo) return [];
+    return String(crudo).split(/[,;\s]+/)
+      .map(function (x) { return String(x || '').trim().toLowerCase(); })
+      .filter(function (x) { return x && x.indexOf('@') > 0; });
+  } catch (e) {
+    Logger.log('correoCcoGlobal_: ' + e);
+    return [];
+  }
+}
+
+/**
+ * Añade la copia oculta global a un objeto de opciones de MailApp/GmailApp, respetando el
+ * bcc que ya llevara (el que teclea el asesor en la pantalla de plantillas) y sin repetir
+ * a nadie que ya estuviera en el correo.
+ *
+ * @param {Object} opciones  objeto de opciones; se modifica en el sitio.
+ * @param {Array<string>=} yaVan  destinatarios que ya reciben el correo (para/cc), para no
+ *                                mandarle a alguien dos veces el mismo mensaje.
+ * @return {number} cuántos buzones se añadieron, para que la métrica cuente la verdad.
+ */
+function correoAplicarCco_(opciones, yaVan) {
+  const global = correoCcoGlobal_();
+  if (!global.length || !opciones) return 0;
+
+  const previos = String(opciones.bcc || '').split(/[,;\s]+/)
+    .map(function (x) { return x.trim().toLowerCase(); }).filter(Boolean);
+  const ocupados = previos.concat((yaVan || []).map(function (x) {
+    return String(x || '').trim().toLowerCase();
+  }));
+
+  const nuevos = global.filter(function (c) { return ocupados.indexOf(c) === -1; });
+  if (!nuevos.length) return 0;
+
+  opciones.bcc = previos.concat(nuevos).join(',');
+  return nuevos.length;
+}
 
 /**
  * Indica al cliente desde qué remitente saldrán los correos, para mostrarlo en la
@@ -16,7 +93,12 @@ const MAIL_ALIAS = 'cotizacion@liverpool.com.mx';
 function getMailSenderInfo() {
   // Los alias de Gmail de una cuenta no cambian de un día para otro y la consulta cuesta una
   // llamada al servicio: se guarda por USUARIO (getUserCache, nunca compartida entre cuentas).
-  const CLAVE_ALIAS = 'mail_sender_v1';
+  //
+  // El alias entra en la CLAVE desde T9.7. Ahora se puede cambiar desde la consola, y con una
+  // clave fija cada asesor habría seguido viendo el remitente anterior hasta seis horas —sin
+  // forma de forzarlo, porque la caché es suya y no del script—. Con el alias dentro, cambiarlo
+  // deja la entrada vieja sin dueño y la nueva se calcula al primer uso.
+  const CLAVE_ALIAS = 'mail_sender_v1_' + mailAlias_();
   try {
     const hit = CacheService.getUserCache().get(CLAVE_ALIAS);
     if (hit) return JSON.parse(hit);
@@ -36,15 +118,15 @@ function getMailSenderInfo() {
 /** Consulta real de los alias de Gmail (sin caché). */
 function calcularMailSenderInfo_() {
   try {
-    const aliasAvailable = GmailApp.getAliases().indexOf(MAIL_ALIAS) !== -1;
+    const aliasAvailable = GmailApp.getAliases().indexOf(mailAlias_()) !== -1;
     return {
       success: true,
-      alias: MAIL_ALIAS,
+      alias: mailAlias_(),
       aliasAvailable: aliasAvailable,
-      effectiveSender: aliasAvailable ? MAIL_ALIAS : (Session.getActiveUser() ? Session.getActiveUser().getEmail() : '')
+      effectiveSender: aliasAvailable ? mailAlias_() : (Session.getActiveUser() ? Session.getActiveUser().getEmail() : '')
     };
   } catch (e) {
-    return { success: false, alias: MAIL_ALIAS, aliasAvailable: false, message: e.message };
+    return { success: false, alias: mailAlias_(), aliasAvailable: false, message: e.message };
   }
 }
 
@@ -701,20 +783,25 @@ function sendQuoteByEmail(emailData) {
     };
     if (quote.advisorEmail) options.replyTo = quote.advisorEmail;
 
+    // Copia oculta global (T9.6): la cotización es exactamente el correo que alguien va a
+    // querer releer meses después. No se le manda al asesor aunque esté configurado —ya la
+    // tiene en su bandeja— ni se duplica si el buzón ya está en el "Para".
+    const ccoGlobal = correoAplicarCco_(options, destinatarios.concat([quote.advisorEmail || '']));
+
     let sentFrom = '';
     let aliasAvailable = false;
     try {
       // Requiere el permiso de Gmail (https://mail.google.com/ en appsscript.json).
       // Si el permiso o el alias no están, se registra y se envía por la vía clásica.
-      aliasAvailable = GmailApp.getAliases().indexOf(MAIL_ALIAS) !== -1;
+      aliasAvailable = GmailApp.getAliases().indexOf(mailAlias_()) !== -1;
     } catch (e) {
       Logger.log('Sin acceso a los alias de Gmail (falta permiso o alias): ' + e.message);
     }
 
     if (aliasAvailable) {
       try {
-        GmailApp.sendEmail(paraFinal, emailData.subject, '', Object.assign({}, options, { from: MAIL_ALIAS }));
-        sentFrom = MAIL_ALIAS;
+        GmailApp.sendEmail(paraFinal, emailData.subject, '', Object.assign({}, options, { from: mailAlias_() }));
+        sentFrom = mailAlias_();
       } catch (e) {
         Logger.log('Fallo el envío con alias, se reintenta por la vía clásica: ' + e.message);
         aliasAvailable = false;
@@ -765,7 +852,7 @@ function sendQuoteByEmail(emailData) {
       asesorEmail: asesorMet.email, asesorNombre: asesorMet.nombre,
       para: paraFinal,
       destinatarios: destinatarios.length,
-      cc: 0, cco: 0, asunto: emailData.subject, adjuntos: 1, remitente: sentFrom,
+      cc: 0, cco: ccoGlobal, asunto: emailData.subject, adjuntos: 1, remitente: sentFrom,
       aliasUsado: aliasAvailable, resultado: 'Enviado', detalle: ''
     });
 
@@ -774,8 +861,8 @@ function sendQuoteByEmail(emailData) {
       sentFrom: sentFrom,
       aliasUsed: aliasAvailable,
       message: aliasAvailable
-        ? `Correo enviado desde ${MAIL_ALIAS}.`
-        : `Correo enviado (el alias ${MAIL_ALIAS} aún no está configurado en la cuenta; se usó la cuenta del sistema).`
+        ? `Correo enviado desde ${mailAlias_()}.`
+        : `Correo enviado (el alias ${mailAlias_()} aún no está configurado en la cuenta; se usó la cuenta del sistema).`
     };
 
   } catch (error) {

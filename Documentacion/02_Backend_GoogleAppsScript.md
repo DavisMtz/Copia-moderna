@@ -1,4 +1,4 @@
-# 02 · Backend · los 24 archivos `.gs`
+# 02 · Backend · los 28 archivos `.gs`
 
 Referencia archivo por archivo. Para cada uno: **qué hace**, **qué expone al cliente**,
 **qué no puedes romper** y **dónde tocar** si vienes a cambiar algo.
@@ -23,7 +23,7 @@ cliente**, y por tanto **necesita su gate de permisos dentro**.
 | **Identidad y permisos** | `Seguridad.gs`, `Permisos.gs`, `Cuentas.gs`, `Consola.gs`, `Equipo.gs` |
 | **Cotizaciones** | `Code.gs`, `Formatos.gs`, `Correos.gs`, `CorreoCliente.gs`, `Metricas.gs` |
 | **Revisión y calidad** | `Revision.gs`, `AuditoriaCotizacion.gs`, `PoliticaRevision.gs` |
-| **Portal** | `Portal.gs`, `Publicaciones.gs`, `PortalContenido.gs`, `PortalPromosComercial.gs`, `Trazabilidad.gs`, `DiagnosticoPromos.gs` |
+| **Portal** | `Portal.gs`, `Publicaciones.gs`, `Articulos.gs`, `PortalContenido.gs`, `PortalPromosComercial.gs`, `Trazabilidad.gs`, `DiagnosticoPromos.gs` |
 | **Operación y atenciones** | `Operacion.gs`, `Atenciones.gs` |
 | **Infraestructura** | `Cache.gs`, `Preferencias.gs`, `Onboarding.gs`, `Admin.gs` |
 
@@ -42,9 +42,9 @@ el motor de búsqueda difusa.
 | `HASH_SALT` | 29 | Sal de contraseñas. **Respaldo**: manda la propiedad de script del mismo nombre |
 | `WEBHOOK_URL` | 30 | Webhook de Chat para cotización nueva. **Respaldo**, igual que la anterior |
 | `LOGIN_MAX_INTENTOS` / `LOGIN_VENTANA_SEGUNDOS` | 33–34 | 8 intentos fallidos → bloqueo de 15 minutos |
-| `PAGES` | 56 | **16 pantallas con sesión** |
+| `PAGES` | 56 | **17 pantallas con sesión** |
 | `PORTAL_PAGES` | 89 | **3 pantallas públicas**: `portal`, `promociones`, `estado` |
-| `PARAMS_VISTA` | 124 | **17 parámetros** del contrato de URLs |
+| `PARAMS_VISTA` | 124 | **18 parámetros** del contrato de URLs |
 
 **Contrato de `PARAMS_VISTA`** — el criterio de qué va en cada uno, para que la lista no se
 llene de sinónimos:
@@ -65,6 +65,7 @@ llene de sinónimos:
 | `estatus` | Filtro por estatus de la tabla de supervisión |
 | `dir`, `origen` | Filtros por dirección y por origen del Monitor de promociones |
 | `pub` | **Identidad** de una publicación del Portal, abierta en grande. Como `promo`, sale de la hoja y no de la posición de la fila. Va aparte de `item` porque `item` señala DENTRO de una sección y una publicación se abre venga uno de donde venga |
+| `art` | **Identidad** de un artículo. Como `pub`, sale de la hoja. Va aparte porque una publicación se abre encima del Portal y un artículo tiene pantalla propia |
 
 > `next` solo acepta claves de la lista blanca `AppUrl.PAGINAS_TRAS_LOGIN` del cliente. Es
 > lo que impide usarlo como redirección abierta hacia fuera del sistema.
@@ -489,7 +490,145 @@ Tres cosas, y cada una resuelve un problema que se veía como «el enlace no fun
    y su doble caché (10 min de script + 7 días en el navegador): una gráfica de votos con
    esa edad no está desactualizada, miente.
 
-Pruebas: `pruebas/f7_publicaciones.test.js` (94 comprobaciones sobre los fuentes reales).
+Pruebas: `pruebas/f7_publicaciones.test.js` (99 comprobaciones sobre los fuentes reales).
+
+---
+
+## 15 ter. `Articulos.gs` — publicaciones largas del equipo (fase 8)
+
+Documentación que se escribe una vez y se cita durante meses: guías, procedimientos, la
+explicación de un caso que se repite. Va aparte de los anuncios a propósito —un anuncio cabe
+en una tarjeta y se retira solo— y, como todo `.gs` nuevo, con prefijo propio: `art`.
+
+**Expuestas:** `artListar(email, opts)`, `artObtener(id, email)`, `artGuardar(payload)`,
+`artPublicar(id, publicado, email)`, `artEliminar(id, email)`, `artLectores(id, email)`,
+`artSubirImagen(payload)`, `artIndiceBuscador(email)`.
+
+**Dos hojas:** `Articulos` (ID, título, resumen, contenido, estado, autores, fechas, último
+editor) y `ArticulosVistas` (una fila por persona y artículo). Ver el documento 04.
+
+**Las decisiones que ordenan todo lo demás:**
+
+1. **El contenido es JSON de bloques versionado** (`{v:1, bloques:[…]}`), nunca HTML del
+   editor. Guardar el HTML de un editor sería guardar código de terceros para pintarlo en la
+   pantalla del equipo entero. Con bloques, el servidor sabe qué campos existen y descarta
+   el resto (`artSanearContenido_` es la aduana), y el cliente construye nodos en vez de
+   asignar `innerHTML`. Tipos: `titulo`, `texto`, `lista`, `tabla`, `imagen`, `documento`,
+   `diagrama`, `separador`.
+2. **Escribir pasa por el bloque `articulos`; leer pide sesión pero no permiso.**
+   `artGate_` guarda la escritura. `artHaySesion_` guarda las **tres** puertas de lectura
+   (`artListar`, `artObtener`, `artIndiceBuscador`) — y esa mitad faltaba: como el carril
+   vive en el Portal, que es una landing **pública**, un visitante cualquiera recibía la
+   biblioteca interna con títulos, resúmenes y autores, y con un id a la vista el artículo
+   entero. En `artIndiceBuscador` la guarda va **antes de la caché**, o el índice que dejó
+   caliente alguien con sesión se le serviría al siguiente visitante; y ahí devuelve vacío
+   en vez de error, para que buscar desde el Portal público no saque un aviso rojo.
+3. **Solo `https:` en los enlaces** (`artUrlSegura_`): ni `javascript:`, ni `data:`, ni
+   protocolo relativo. La regla está escrita **dos veces a propósito** —aquí y en el
+   cliente—, porque el servidor sanea al guardar pero el cliente pinta también lo que tiene
+   en memoria mientras se edita. `revUrlArticuloSegura_` **no** servía para reutilizar:
+   tiene los hosts cableados a liverpool.com.mx.
+4. **De un documento de Google se guarda el ID, no la URL**, que arrastra `/edit`,
+   `#slide=` y a veces el correo de quien la copió.
+5. **La lectura se registra en el servidor**, dentro de `artObtener`, y no en una llamada
+   aparte que se puede no hacer: lo que cuenta como leído es lo que el servidor sirvió. Con
+   una ventana de media hora, para que refrescar cinco veces no cuente cinco lecturas.
+6. **La autoría se fija al crear.** Quien corrige la errata de un artículo ajeno no pasa a
+   ser su autor; queda como último editor.
+
+**`artIndiceBuscador(email)`** es lo que comen los dos buscadores (T8.5): id, título, resumen
+y el **texto plano del cuerpo recortado a 1200 caracteres** —el contenido entero pesaría más
+que todo el resto del índice junto—. Solo los **publicados**: un borrador se descarta aquí,
+en el servidor, y no en el cliente, porque un borrador filtrado en el cliente es un borrador
+que viajó. Caché de script de cinco minutos, que `artInvalidarCache_` tira al guardar,
+publicar o borrar; sin eso, un artículo recién publicado no se encontraría hasta cinco
+minutos después, que es justo cuando su autor lo va a buscar.
+
+**`artListar`** devuelve además `total`: cuántos podía ver esa persona antes de aplicar el
+tope. Lo necesita el carril del Portal para ofrecer «Ver los N» solo cuando de verdad hay más
+de los que se están enseñando.
+
+Pruebas: `pruebas/f8_articulos.test.js` (178 comprobaciones), con **dos** bancos de contenido
+hostil: uno contra la aduana del servidor y otro contra el **render del cliente**, que es la
+única defensa mientras se edita —el editor pinta lo que tiene en memoria sin pasar por aquí—.
+El segundo corre sobre un DOM fingido, igual que la hoja de cálculo fingida: el nodo guarda
+lo que le hacen y no interpreta nada, así que un `innerHTML` quedaría como cadena a la vista.
+
+---
+
+## 15 quater. `Grupos.gs` — listas de personas (fase 9)
+
+Un grupo es una lista de personas con nombre: «Turno matutino», «Coordinación». Sirve para dos
+cosas y ninguna más: copiar sus correos de un clic y elegirlo como destinatario de una difusión.
+
+> **Un grupo NO da permisos.** Conviene leerlo antes de que a alguien le parezca buena idea:
+> los permisos se conceden por bloque y por persona (`Permisos.gs`), y una segunda vía
+> convertiría «¿por qué esta persona puede hacer esto?» en dos listas que hay que cruzar.
+
+**Expuestas:** `grpListar(email)`, `grpGuardar(email, datos)`, `grpEliminar(email, id)`,
+`grpFijarMiembros(email, id, correos)`. Helper interno para la difusión: `grpCorreosDe_(id)`.
+
+**Hoja `Grupos`** en el libro 1, con las membresías en una columna JSON. Ver el documento 04.
+
+**Tres decisiones:**
+
+1. **«Ventel» es virtual.** No tiene fila: se calcula de `secIndiceRegistros_` con la gente
+   activa. Es la lista que más se usa y la única que sería un error mantener a mano.
+2. **El gate es por NIVEL (≥ 2, supervisor), no por bloque**, y también para leer. El bloque
+   `sup_equipo` se le puede conceder a un asesor por excepción, y eso no debe convertirlo en
+   dueño de las listas de correo de la empresa. Leer también se cierra porque una lista de
+   destinatarios recortada por jerarquía saldría incompleta sin que nadie se entere.
+3. **El grupo devuelve nombre y correo, nunca rol ni bloques.** Lo que la regla de jerarquía
+   protege es el mapa de quién manda, no la existencia de un compañero.
+
+---
+
+## 15 quinquies. `Difusion.gs` — comunicados internos (fase 9)
+
+Escribir un correo y mandárselo a un grupo con el formato del sistema, sin salir de la consola.
+
+**Expuestas:** `difPreparar(email)`, `difPrevia(email, payload)`, `difEnviar(email, payload)`.
+
+- **El cuerpo viaja como BLOQUES, no como HTML** (misma doctrina que `Articulos.gs`): párrafo,
+  título, lista, nota, botón, imagen y separador. `difSanear_` es la aduana y descarta lo que no
+  reconoce; el HTML lo construye el servidor con las piezas de `Cuentas.gs`, que escapan todo.
+- **La libertad es del cuerpo; el marco lo pone el sistema.** Logo, cabecera y pie no se editan,
+  para que toda difusión salga formal sin depender del pulso de quien redacta.
+- **Los destinatarios van en copia oculta** y el «Para» es quien escribe.
+- **La cuota se comprueba antes de mandar:** cada persona en CCO cuenta una, y Gmail rechaza el
+  envío entero, no a medias.
+- Hay **envío de prueba** a uno mismo. El envío real no es idempotente y por eso pide
+  confirmación y se bloquea mientras sube: dos llamadas son dos correos a cuarenta personas.
+- Las imágenes viajan **en línea (cid)**, no enlazadas desde Drive: una imagen de Drive solo se
+  ve si el archivo es público, y en un correo interno eso es una imagen rota o un archivo abierto
+  a internet.
+
+---
+
+## 15 sexies. `Monitoreo.gs` — la sección «Métricas» de la consola (fase 9)
+
+Responde a «¿cuánto y quién?» sobre cuatro rastros que el sistema ya dejaba y que no se podían
+consultar desde ninguna pantalla.
+
+**Expuestas:** `monPanorama(email)`, `monCotizaciones`, `monCorreos`, `monBusquedas`,
+`monCambios` (todas con la firma `(email, filtros)`). Interno: `monRegistrarBusqueda_`.
+
+**Tres reglas que ordenan el archivo:**
+
+1. **Nada se calcula al abrir la consola.** Cada consulta la pide el usuario: leer
+   «Cotizaciones» entera es lo más caro de la app y `consolaPanorama` no debe engordar.
+2. **Se lee por la cola de la hoja, por lotes**, parando cuando un lote entero queda por debajo
+   del rango. Hay tope de filas devueltas y techo de filas leídas, y los dos se le cuentan al
+   usuario cuando se alcanzan.
+3. **El recorte jerárquico es del servidor** y se resuelve una vez por consulta en un mapa de
+   correos; hacerlo fila a fila sobre miles de filas tardaba medio minuto.
+
+Las cuatro consultas contestan con **la misma forma** (`monRespuesta_`), que es lo que permite
+que la pantalla tenga una sola tabla y un solo CSV.
+
+**El registro de búsquedas** (hoja `MetricasBusquedas`) se apunta en `getQuotesForUser`
+—`buscarCotizaciones` delega en ella— y **fuera** de `cotCacheado_`, con ventana antirrepetición
+de 45 s. No llama a `cotInvalidarCache_`: una búsqueda no cambia nada.
 
 ---
 
