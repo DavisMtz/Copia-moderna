@@ -13,32 +13,41 @@
  * `chrome.storage.local`: sobrevive al desvío por el inicio de sesión y no tiene
  * límite práctico de tamaño.
  *
- * CÓMO CONVERSAN LAS DOS PARTES
- * -----------------------------
- *   1. La pantalla de cotización (cotizacion.html) anuncia que está lista:
- *        { source: 'ventel-cotizador', type: 'VENTEL_BOLSA_PIDE' }
- *   2. Este puente responde con la bolsa pendiente, si la hay:
- *        { source: 'ventel-extension', type: 'VENTEL_BOLSA_ENTREGA', payload }
- *      o con VENTEL_BOLSA_VACIA para que la pantalla deje de preguntar.
- *   3. Cuando la pantalla confirma que la importó:
- *        { source: 'ventel-cotizador', type: 'VENTEL_BOLSA_IMPORTADA' }
- *      la bolsa se borra del almacenamiento. Una bolsa se cotiza una vez.
+ * CÓMO CONVERSAN LAS DOS PARTES (v2)
+ * -----------------------------------
+ * La v1 usaba `window.postMessage` entre este content script (mundo aislado) y
+ * el script de la pantalla (mundo principal). En producción no llegaba: el
+ * asesor seguía viendo el modal manual de "Importar → Aceptar". Un mundo
+ * aislado NO comparte objetos de JavaScript con la página, así que depender de
+ * que ambos lados coincidan en la identidad exacta de `window` para un mensaje
+ * es frágil. Lo único que un content script SÍ comparte de verdad con la
+ * página es el DOM, así que ahora la entrega es un elemento del DOM:
  *
- * El puente HABLA PRIMERO NUNCA. Se inyecta en todo *.googleusercontent.com
- * —el subdominio del iframe de Apps Script cambia en cada carga, así que no se
- * puede acotar más— pero mientras nadie se identifique como la pantalla de
- * cotización, no lee el almacenamiento ni emite un solo mensaje. Lo más que
- * podría conseguir otra webapp de Apps Script que imitara el saludo es la lista
- * de artículos de Liverpool: datos públicos de catálogo, sin nada del asesor ni
- * de sus clientes. Ahí se detiene el alcance de este archivo.
+ *   1. Este puente lee `chrome.storage.local['bolsaParaCotizar']` en cuanto el
+ *      documento está listo.
+ *   2. Si hay una bolsa vigente (menos de 15 minutos), la borra del
+ *      almacenamiento (se entrega una sola vez) y escribe su JSON dentro de
+ *      `<script type="application/json" id="ventel-bolsa-datos">` al final del
+ *      `<head>`. Ese tipo de `<script>` no se ejecuta nunca — es solo un lugar
+ *      donde dejar datos que la página SÍ puede leer con un `document.getElementById`
+ *      normal, sin permisos ni orígenes de por medio.
+ *   3. La pantalla de cotización (cotizacion.html) busca ese elemento con un
+ *      `setInterval` corto tras arrancar; si aparece, lo lee, lo borra del DOM y
+ *      sigue con lo suyo. Si no aparece en unos segundos, asume que no hay
+ *      extensión (o no hay bolsa) y no vuelve a intentarlo.
  *
- * Hecho por su gran amigo David Martínez "El escritor" · v1.4
+ * Ámbito: lo más que podría conseguir otra webapp de Apps Script que se cargara
+ * en un `*.googleusercontent.com` es la lista de artículos de Liverpool que el
+ * propio asesor puso en su bolsa — datos públicos de catálogo, sin nada del
+ * asesor ni de sus clientes.
+ *
+ * Hecho por su gran amigo David Martínez "El escritor" · v2.0
  */
-
 (function () {
   'use strict';
 
   const CLAVE = 'bolsaParaCotizar';
+  const ID_ELEMENTO = 'ventel-bolsa-datos';
 
   /**
    * Una bolsa vieja no se entrega: los precios y las promociones de Liverpool
@@ -48,27 +57,23 @@
    */
   const VIGENCIA_MS = 15 * 60 * 1000;
 
-  /** Responde al mismo marco que preguntó, a su origen exacto. */
-  function responder(evento, mensaje) {
-    const destino = (evento.origin && evento.origin !== 'null') ? evento.origin : '*';
-    try {
-      evento.source.postMessage(Object.assign({ source: 'ventel-extension' }, mensaje), destino);
-    } catch (e) { /* el marco se fue mientras leíamos el almacenamiento */ }
-  }
+  function entregarSiHay() {
+    // Ya se entregó en esta misma carga de página (no debería llamarse dos
+    // veces, pero por si acaso: entregar dos elementos sería peor que ninguno).
+    if (document.getElementById(ID_ELEMENTO)) return;
 
-  function entregar(evento) {
     let almacen;
     try {
       almacen = chrome.storage && chrome.storage.local;
     } catch (e) {
       almacen = null;
     }
-    if (!almacen) { responder(evento, { type: 'VENTEL_BOLSA_VACIA' }); return; }
+    if (!almacen) return;
 
     almacen.get(CLAVE, function (guardado) {
       // El contexto de la extensión puede haberse recargado bajo los pies del
       // content script (una actualización, un "Recargar" en chrome://extensions).
-      if (chrome.runtime.lastError) { responder(evento, { type: 'VENTEL_BOLSA_VACIA' }); return; }
+      if (chrome.runtime.lastError) return;
 
       const bolsa = guardado && guardado[CLAVE];
       const vigente = bolsa && bolsa.data &&
@@ -76,27 +81,28 @@
 
       if (!vigente) {
         if (bolsa) { try { almacen.remove(CLAVE); } catch (e) {} }
-        responder(evento, { type: 'VENTEL_BOLSA_VACIA' });
         return;
       }
 
-      responder(evento, { type: 'VENTEL_BOLSA_ENTREGA', payload: bolsa.data });
+      // Se borra ANTES de escribirla en el DOM: una bolsa se cotiza una vez.
+      // Si la pestaña se cerrara justo después, es preferible perder esa
+      // bolsa a que reaparezca duplicada en la siguiente cotización.
+      try { almacen.remove(CLAVE); } catch (e) {}
+
+      let json;
+      try { json = JSON.stringify(bolsa.data); } catch (e) { return; }
+
+      const elemento = document.createElement('script');
+      elemento.type = 'application/json';
+      elemento.id = ID_ELEMENTO;
+      elemento.textContent = json;
+      (document.head || document.documentElement).appendChild(elemento);
     });
   }
 
-  function olvidar() {
-    try { chrome.storage.local.remove(CLAVE); } catch (e) {}
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', entregarSiHay);
+  } else {
+    entregarSiHay();
   }
-
-  window.addEventListener('message', function (evento) {
-    // Solo se atiende a este mismo marco: un iframe anidado o una ventana ajena
-    // no puede pedir la bolsa en nombre de la pantalla de cotización.
-    if (evento.source !== window) return;
-
-    const datos = evento.data;
-    if (!datos || typeof datos !== 'object' || datos.source !== 'ventel-cotizador') return;
-
-    if (datos.type === 'VENTEL_BOLSA_PIDE') entregar(evento);
-    else if (datos.type === 'VENTEL_BOLSA_IMPORTADA') olvidar();
-  }, false);
 })();

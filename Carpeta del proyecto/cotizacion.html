@@ -1592,27 +1592,32 @@
          * =====================================================================
          * Cuando el asesor pulsa "Cotizar" en la extensión, su bolsa queda
          * esperando en el almacenamiento de la extensión y se abre esta pantalla.
-         * Aquí no se lee ese almacenamiento —una página web no puede—: se pregunta
-         * en voz alta y el puente de la extensión (bridge.js), que está inyectado
-         * en este mismo marco, responde con la bolsa.
+         * Aquí no se lee ese almacenamiento —una página web no puede—: el puente
+         * de la extensión (bridge.js), que está inyectado en este mismo marco,
+         * la escribe en el DOM apenas la encuentra.
          *
-         * Por qué se pregunta SIEMPRE, y no solo con un ?bolsa=1 en la URL:
-         * entre el clic en la extensión y esta pantalla puede haberse cruzado el
-         * inicio de sesión, y un parámetro no sobrevive a ese rodeo con la certeza
-         * que hace falta. Preguntar es gratis: si no hay extensión, si no hay bolsa
-         * o si la que hay ya caducó, nadie contesta y la pantalla sigue como si
-         * nada. Una bolsa se entrega una sola vez y caduca a los 15 minutos, así
-         * que tampoco puede aparecer sola dos días después.
+         * v2: la v1 pedía la bolsa con `window.postMessage` y bridge.js contestaba
+         * igual. En producción no llegaba — el asesor seguía viendo el modal manual
+         * de "Importar → Aceptar". Un content script vive en un "mundo aislado" que
+         * NO comparte objetos de JavaScript con esta página (ni siquiera `window`
+         * es garantizado el mismo objeto para los dos lados); lo único que un
+         * content script comparte de verdad con la página es el DOM. Por eso ahora
+         * no se pregunta nada: se busca directamente el elemento
+         * `#ventel-bolsa-datos` que bridge.js deja escrito si había algo para
+         * entregar, con un `setInterval` corto por si el puente tarda un instante
+         * en escribirlo.
          *
-         * La pregunta NO se lanza hasta que el borrador está resuelto: si no, los
+         * Se entrega una sola vez y caduca a los 15 minutos (lo controla
+         * bridge.js, que borra el almacenamiento de la extensión ANTES de
+         * escribir el elemento), así que tampoco puede aparecer sola dos días
+         * después ni duplicarse si el asesor abre dos pestañas.
+         *
+         * La búsqueda NO se lanza hasta que el borrador está resuelto: si no, los
          * artículos entrarían en un formulario que el asesor todavía está a punto
          * de reemplazar por su borrador.
          */
         const BolsaExtension = (function () {
-            // El marco de Apps Script tiene origen propio; si algún día fuera opaco
-            // ('null'), '*' sigue siendo seguro porque este mensaje no lleva datos:
-            // es solo "¿hay algo para mí?".
-            const ORIGEN = (location.origin && location.origin !== 'null') ? location.origin : '*';
+            const ID_ELEMENTO = 'ventel-bolsa-datos';
             const MAX_INTENTOS = 10;
             const ESPERA_MS = 300;
 
@@ -1620,38 +1625,40 @@
             let temporizador = null;
             let terminado = false;
 
-            function enviar(mensaje) {
-                try {
-                    window.postMessage(Object.assign({ source: 'ventel-cotizador' }, mensaje), ORIGEN);
-                } catch (e) { /* sin puente, no pasa nada */ }
-            }
-
             function parar() {
                 terminado = true;
                 if (temporizador) { clearTimeout(temporizador); temporizador = null; }
             }
 
             /**
-             * Se insiste unas cuantas veces porque el puente puede tardar un
-             * instante en quedar escuchando. Tres segundos y se deja de preguntar:
-             * lo normal es que no haya extensión instalada.
+             * Se insiste unas cuantas veces porque bridge.js puede tardar un
+             * instante en leer `chrome.storage.local` y escribir el elemento.
+             * Tres segundos y se deja de buscar: lo normal es que no haya
+             * extensión instalada, o no haya bolsa esperando.
              */
-            function preguntar() {
+            function buscar() {
                 if (terminado) return;
-                enviar({ type: 'VENTEL_BOLSA_PIDE' });
+
+                const elemento = document.getElementById(ID_ELEMENTO);
+                if (elemento) {
+                    terminado = true;
+                    if (temporizador) { clearTimeout(temporizador); temporizador = null; }
+                    let bolsa = null;
+                    try { bolsa = JSON.parse(elemento.textContent); } catch (e) { bolsa = null; }
+                    elemento.remove();
+                    recibir(bolsa);
+                    return;
+                }
+
                 intentos++;
                 if (intentos >= MAX_INTENTOS) { parar(); return; }
-                temporizador = setTimeout(preguntar, ESPERA_MS);
+                temporizador = setTimeout(buscar, ESPERA_MS);
             }
 
             function recibir(bolsa) {
-                parar();
                 if (!bolsa || !Array.isArray(bolsa.products) || bolsa.products.length === 0) return;
 
                 const resumen = importarProductos(bolsa);
-                // La bolsa ya está en el formulario: que la extensión la olvide, para
-                // que no reaparezca en la siguiente cotización.
-                enviar({ type: 'VENTEL_BOLSA_IMPORTADA' });
                 // Lo importado cuenta como trabajo: si el asesor se va ahora, el
                 // borrador ya tiene los artículos.
                 Borrador.programar();
@@ -1665,17 +1672,7 @@
                 }
             }
 
-            window.addEventListener('message', function (ev) {
-                // Solo se escucha a este mismo marco, y solo al puente.
-                if (ev.source !== window) return;
-                const d = ev.data;
-                if (!d || typeof d !== 'object' || d.source !== 'ventel-extension') return;
-
-                if (d.type === 'VENTEL_BOLSA_ENTREGA') recibir(d.payload);
-                else if (d.type === 'VENTEL_BOLSA_VACIA') parar();
-            }, false);
-
-            return { pedir: preguntar };
+            return { pedir: buscar };
         })();
 
         // --- Modal de importación ---
