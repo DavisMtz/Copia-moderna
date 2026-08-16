@@ -148,6 +148,23 @@ function artQuienLee_(email) {
   return dominio ? { ok: true, correo: dominio, nombre: '' } : { ok: false };
 }
 
+/**
+ * Puerta de LECTURA. No pide bloque —los artículos son para todo el equipo— pero sí pide
+ * haber entrado.
+ *
+ * Faltaba, y se notaba donde peor: el Portal es una landing **pública**, y su carril de
+ * artículos preguntaba igual sin sesión. Un visitante cualquiera se llevaba la biblioteca
+ * interna con sus títulos, sus resúmenes y los nombres de quienes la escriben; y con el id
+ * a la vista, el contenido entero. T8.1 dice «lectura para cualquier SESIÓN»: el permiso
+ * sobra, la sesión no. El cliente además deja de preguntar, pero eso es cortesía — esto es
+ * el candado, porque el payload de google.script.run se fabrica a mano.
+ */
+function artHaySesion_(email) {
+  try { return artQuienLee_(email).ok === true; } catch (e) { return false; }
+}
+
+var ART_SIN_SESION = 'Entra al sistema para leer los artículos del equipo.';
+
 // ── SANEO DEL CONTENIDO ──────────────────────────────────────────────────────
 // Esta es la pieza de seguridad del módulo. Todo lo que llega del navegador pasa por aquí
 // ANTES de tocar la hoja, y lo que no encaje en la forma conocida se descarta. El cliente
@@ -377,6 +394,9 @@ function artDeFila_(row, c, tz, conContenido) {
 function artListar(email, opts) {
   try {
     opts = opts || {};
+    if (!artHaySesion_(email)) {
+      return { status: 'error', error: ART_SIN_SESION, articulos: [], total: 0, puedeEditar: false };
+    }
     const puedeEditar = artGate_(email).ok;
     const ss = portalSS_();
     const sheet = artSheet_(ss, false);
@@ -419,6 +439,7 @@ function artObtener(id, email) {
   try {
     const clave = String(id || '').trim();
     if (!clave) return { status: 'error', error: 'Falta el identificador del artículo.' };
+    if (!artHaySesion_(email)) return { status: 'error', error: ART_SIN_SESION, sinSesion: true };
     const puedeEditar = artGate_(email).ok;
 
     const ss = portalSS_();
@@ -725,6 +746,12 @@ function artSubirImagen(payload) {
  */
 function artIndiceBuscador(email) {
   try {
+    /* La guarda va ANTES de la caché, o el índice cacheado se serviría a quien no ha
+       entrado. Y devuelve vacío en vez de error: quien busca desde el Portal público
+       sencillamente no ve artículos entre los resultados, que es la degradación correcta —
+       un error ahí sería un aviso rojo por buscar «devoluciones» en una página pública. */
+    if (!artHaySesion_(email)) return { status: 'ok', articulos: [] };
+
     const cacheado = portalCacheGet_('artIndice_v1');
     if (cacheado) return cacheado;
 

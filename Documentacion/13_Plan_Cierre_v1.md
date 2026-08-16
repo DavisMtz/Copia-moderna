@@ -966,12 +966,153 @@ R16→F8 · R17→F12+F13.
 
 ---
 
+## 17 bis. Pendientes vivos — foto del 15 de agosto de 2026
+
+Lo que sigue abierto **de verdad**, tras auditar el plan entero contra el código el
+15/08/2026. La auditoría fue fase por fase y criterio por criterio, con una regla: no creerse
+el §18. Si el registro dice «hecho» y el `grep` no encuentra nada, está pendiente. Cada
+hallazgo pasó después por una segunda lectura cuyo único encargo era **refutarlo**; de
+veinticuatro, ocho se cayeron por ser lecturas demasiado literales de la prosa del plan y no
+huecos reales. Estos son los que sobrevivieron.
+
+> Esta sección **caduca**: es una foto, no un inventario que se mantenga solo. Al cerrar
+> cualquiera de estas líneas, se tacha aquí y se cuenta en el §18.
+
+### Código pendiente
+
+| # | Qué | Dónde | Fase |
+| --- | --- | --- | --- |
+| 1 | **`revision_cotizacion.html` no escribe nada en la URL**, y tiene dos juegos de pestañas reales (`:845-850` hoja/google y `:1028-1033` comparación/página). Cambiar de pestaña no sobrevive a F5 ni al botón «atrás». `cotizado_preview.html` tampoco escribe estado. Es el criterio 1 de F1 sin cumplir en dos pantallas | `revision_cotizacion.html`, `cotizado_preview.html` | F1 |
+| 2 | **T12.1 sin empezar**: `portal_contenido.html` ni siquiera incluye `app_onboarding`. Es uno de los cinco puntos de la «vía rápida» del §2 | `portal_contenido.html` | F12 |
+| 3 | **T11.2 a medias**: el botón de un clic a la página de Liverpool existe (por triplicado), pero falta **el precio de la última captura en caché con su antigüedad rotulada** cuando responde 403 | `Revision.gs:961-974`, `revision_cotizacion.html:1978-1986` | F11 |
+| 4 | **T6.4 solo cerró la mitad**: el DOM del panel ya está diferido, pero los ~157 KB de `app_comando` + `app_indices` **siguen viajando** en las 17 pantallas, porque `include()` pega el partial en el HTML servido. El §18 lo deja como decisión del creador | los 17 `include('app_comando')` | F6 |
+
+### Pruebas que faltan
+
+| # | Qué | Fase |
+| --- | --- | --- |
+| 5 | **F5 no dejó ninguna prueba**, pese a que su entrada del §18 afirma que «cada agente montó su banco» (caché del panel, umbrales, CSV). No existe en el repositorio, ni en esta rama ni en las otras. Es el caso exacto que la regla de oro busca | F5 |
+| 6 | **Nada vigila el espejo cliente/servidor de la búsqueda** (`normalizeText_`, `searchTokens_` de `Code.gs` contra `AppBuscar`). Hoy coinciden —se comprobó—, pero si alguien toca uno, nada avisa | F6 |
+
+### Validaciones que solo se cierran en el despliegue real
+
+| # | Qué | Fase |
+| --- | --- | --- |
+| 7 | **T3.2: la maqueta validada con quien revisa a diario.** No es código: el refactor está hecho y comprobado; falta enseñárselo a quien usa esa pantalla todos los días | F3 |
+| 8 | **El visor de artículos no se ha visto en pantalla** (la extensión del navegador se desconectó a mitad de aquella revisión). El editor sí | F8 |
+| 9 | **Los diagramas no se han probado contra Apps Script.** El iframe anidado y el `postMessage` deberían comportarse como el iframe de Google Sheets de la revisión, que ahí ya funciona, pero es una dependencia externa nueva | F8 |
+| 10 | **Grabación antes/después de los dos buscadores** (criterio F6.2) y el «<1 s» del tablero de F5 | F5 · F6 |
+
+### Higiene del registro §18
+
+| # | Qué |
+| --- | --- |
+| 11 | El **saneamiento de F7** que viajó dentro del commit `64467cb` (+137 líneas en `Index.html`) no tiene entrada propia: la entrada «F7 completa» describe un estado del código anterior a esas correcciones |
+| 12 | Los cuatro commits **«Auto»** que reescribieron `app_aura` y lo repartieron por 14 pantallas no se mencionan ni una vez. Hay que decidirlo y dejarlo escrito: o entrada propia, o una nota de que los commits «Auto» del creador quedan fuera de este registro |
+
+### Lo que la auditoría revisó y **no** era un hueco
+
+Se anota para que no se vuelva a levantar: el espejo `PARAMS_VISTA`/`PASAN` (la lista `PASAN`
+es un **subconjunto deliberado**, sin `next` ni `format`, y hay una prueba que lo declara);
+T4.1 y los criterios de loaders F4.1 y F4.2 (verificados, el segundo incluso en un navegador
+sin CDN y con `prefers-reduced-motion`); el criterio F3.3; F5.1 y F5.2; F6.3; y el
+responsable de F7 en formato banner, que sí se ve al ampliar la publicación.
+
+También se levantó como desajuste que la entrada de F7 dijera «94 comprobaciones» cuando la
+batería reporta 99, y la de F8 «95» cuando reporta 110. **No es un desajuste**: las dos cifras
+eran ciertas el día que se escribieron, y las baterías crecieron después —a la de F7 le
+añadieron casos las tandas de F8—. Una entrada de registro cuenta lo que pasó entonces; si se
+reescribiera cada vez que cambia un número, dejaría de ser un registro. Se anota aquí para
+que la siguiente lectura no lo vuelva a levantar.
+
+---
+
 ## 18. Registro de ejecución
 
 Lo que se ha hecho de verdad, en orden. Cada entrada dice **qué se cambió, qué se comprobó
 y qué se dejó fuera a propósito**. Mismo formato que el registro del documento 12.
 
 <!-- Las entradas nuevas van arriba, con la más reciente primero. -->
+
+### 2026-08-15 — F8, quinta tanda: lo que la auditoría del plan encontró que faltaba
+
+**Por qué esta tanda.** Antes de seguir se auditó el plan entero contra el código, fase por
+fase y criterio por criterio, con la regla de no creerse el §18: si el registro dice «hecho»
+y el `grep` no encuentra nada, está pendiente. Cada pendiente encontrado pasó después por
+alguien cuyo único encargo era **refutarlo**. De veinticuatro, ocho se cayeron —eran lecturas
+demasiado literales de la prosa del plan, no huecos—; el resto se confirmó. Esta tanda cierra
+los que son de F8. El balance completo, incluidos los de otras fases, va abajo.
+
+**Qué se cambió.**
+
+- **Leer un artículo pide sesión, y no la pedía.** Es el hallazgo serio. T8.1 dice «lectura
+  para cualquier **sesión**» y el código solo había implementado la primera mitad: no pedía
+  permiso —correcto— pero tampoco pedía haber entrado. Como el carril vive en el **Portal,
+  que es una landing pública**, cualquier visitante del `/exec` recibía la biblioteca interna
+  del equipo: títulos, resúmenes, minutos de lectura y los nombres de quienes la escriben. Y
+  con un id a la vista, `artObtener` le entregaba el artículo **entero**. Ahora las tres
+  puertas de lectura (`artListar`, `artObtener`, `artIndiceBuscador`) pasan por
+  `artHaySesion_`. En el índice la guarda va **antes de la caché** —si no, el índice que
+  dejó caliente alguien con sesión se le serviría al siguiente visitante— y devuelve vacío
+  en vez de error: quien busca en el Portal público simplemente no ve artículos, que es la
+  degradación correcta; un aviso rojo por escribir «devoluciones» en una página pública no
+  lo es. El cliente además deja de preguntar, pero eso es cortesía: el candado es el
+  servidor, porque el payload de `google.script.run` se fabrica a mano.
+- **«Artículos» se puede encontrar por su nombre.** Faltaba la entrada en el catálogo
+  compartido (`app_indices.html`), que es de donde los **dos** buscadores sacan las
+  pantallas: escribir «artículos» no ofrecía la pantalla en ninguno. Va **sin `bloques`**, y
+  esa es la diferencia con «Anuncios del Portal»: el bloque `articulos` guarda *escribir*, no
+  *leer*, y ponérselo aquí habría escondido la biblioteca del equipo a todo el equipo
+  dejándole la puerta abierta solo a quien la redacta. La entrada del **menú** de Gestión sí
+  lo lleva, porque el menú de Gestión es para administrar.
+- **Pegar imágenes** (T8.2). El criterio 1 de la fase dice «dos imágenes **pegadas**» y el
+  único camino era el selector de archivo. Nueve de cada diez imágenes de una guía son un
+  recorte de pantalla, así que con el recorte ya en el portapapeles había que guardarlo antes
+  en el disco para poder elegirlo. El manejador escucha en `document` —el lienzo se vuelve a
+  pintar entero en cada cambio y se lo llevaría por delante— y solo se queda el pegado cuando
+  viene un **archivo** de imagen: el TSV de una hoja de cálculo llega como texto, así que
+  pegar una tabla sigue funcionando igual. Varias imágenes de un mismo pegado entran en orden
+  detrás del bloque enfocado, no todas en el sitio de la primera.
+- **Pantalla completa del documento incrustado** (T8.3). El plan lo pide con esas palabras y
+  era el único bloque sin él: el diagrama y la imagen ya lo tenían, y justo el documento —una
+  presentación o una hoja dentro de la columna de lectura, a media escala— es al que más
+  falta le hacía. Mismo esqueleto que el del diagrama (overlay, Escape, clic fuera, foco
+  devuelto), porque son el mismo gesto y dos diálogos que se cierran distinto se aprenden dos
+  veces. Solo cierra el fondo, nunca el marco: dentro hay un iframe de Google con el que se
+  interactúa, y pasar una diapositiva no es «he terminado». El aviso de permisos de Drive
+  viaja también aquí: a pantalla completa el rectángulo en blanco es más grande, no más
+  explicativo.
+- **Dos defectos del shell en la pantalla de artículos.** El enlace del menú salía con el
+  engrane genérico —la única entrada de gestión sin icono propio— y, estando **dentro** de
+  Artículos, el conmutador de área marcaba «Cotizaciones». Lo segundo venía de una lista de
+  pantallas de gestión escrita a mano en `app_shell` que se quedó sin `articulo` cuando F8
+  estrenó la pantalla. En vez de añadir la palabra, esa lista **se sustituye por el
+  catálogo**, que es lo que manda la regla T1.8 escrita en `AppFunciones`: así deja de haber
+  una segunda copia y la siguiente pantalla que se añada no repite el fallo. Y de paso sale
+  gratis el caso raro de Artículos: se compara contra lo que **esta persona** puede abrir, de
+  modo que para quien publica es Gestión y para quien solo lee no lo es —es contenido al que
+  se llega desde el Portal—, sin encenderle a un asesor un área de administración que no
+  tiene.
+
+**Qué se comprobó.** La batería de F8 pasa de 144 a **178 comprobaciones** (389 en total).
+Lo nuevo, además de lo de arriba: un **banco hostil contra el render del cliente**, que era
+la mitad que le faltaba al criterio 2. Hasta ahora solo estaba probada la aduana del
+servidor, y no es redundante — el editor pinta lo que tiene en memoria **sin pasar por el
+servidor**, así que mientras se escribe el render es la única defensa. Como el repositorio no
+tiene dependencias a propósito, se finge un DOM mínimo igual que se finge la hoja de cálculo:
+el nodo **guarda** lo que le hacen y no interpreta nada, así que si algún día alguien pintara
+con `innerHTML` quedaría como una cadena y la prueba lo vería. Cubre las doce formas de URL
+hostil, que un `<script>` escrito en un párrafo siga siendo texto y no se pierda, que una
+parte con `javascript:` se pinte sin enlace, listas y tablas con lo mismo dentro, un tipo de
+bloque inventado, y las URLs falsas de Google.
+
+**Qué se dejó fuera a propósito.**
+
+- **No se comprueba en el servidor si el lector puede ver el documento de Drive** al pegar el
+  enlace, como sugería T8.3. Se decidió que no: exigiría permiso de Drive para el script y
+  una llamada más por documento, para acabar diciendo lo mismo que ya dice el aviso —que está
+  siempre visible, precisamente porque un iframe sin permiso no avisa de nada—. Queda
+  declarado aquí, que es lo que faltaba: era una desviación sin declarar.
 
 ### 2026-08-15 — F8, cuarta tanda: los artículos por fin se pueden buscar (T8.5 cerrada)
 

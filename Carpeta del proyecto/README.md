@@ -254,11 +254,12 @@ La caja aparece y se va sola según cambia el estado, sin recargar nada: se susc
 
 #### Decisiones que se dejan como están (Portal)
 
-- **El Portal conserva su propio motor de búsqueda.** `AppBuscar` unificó el criterio de
-  coincidencia del resto de la aplicación, y este archivo se quedó fuera. El suyo es bueno
-  —tolera erratas, entiende sinónimos y frases, y admite ámbitos por sección—, pero es una
-  segunda implementación. Migrarlo es una tarea propia, con sus quince índices y su
-  resaltado, y no cabe dentro de una revisión: queda anotado.
+- ~~**El Portal conserva su propio motor de búsqueda.**~~ **Hecho (Fase 6).** Era una
+  segunda implementación —buena: toleraba erratas, entendía sinónimos y admitía ámbitos por
+  sección— y quedó anotada aquí como tarea propia. Esa tarea fue la Fase 6 del plan de
+  cierre: el Portal puntúa ya con `AppBuscar` (`puntuaPortal`/`puntuaIndice`) y conserva
+  intacta su presentación. `pruebas/f6_buscador_paridad.test.js` compara el motor nuevo
+  contra una copia congelada del viejo y falla si algún resultado se pierde.
 - ~~**Los datos siguen guardándose con `lsGet`/`lsSet` y no con `AppCache`.**~~ **Hecho.**
   Las tres copias (Portal, Trazabilidad y el recuento de promociones) pasaron a `AppCache`
   a través de `AppRun.swr`, que es quien las lee, las pinta, revalida y guarda. Se ganan
@@ -455,8 +456,10 @@ Eso destapó dos fallos en el enlace profundo del Portal, ya corregidos:
 - **La memoria de uso vive en `localStorage`, no en la cuenta.** Es una preferencia de este
   equipo y de esta persona, no un dato del negocio, y subirla costaría una escritura por cada
   resultado abierto para ahorrar medio segundo de tecleo.
-- **Sigue habiendo dos motores de búsqueda.** Este usa `AppBuscar`; el del Portal tiene el
-  suyo. Ya quedó anotado en la revisión del Portal: migrarlo es tarea propia.
+- ~~**Sigue habiendo dos motores de búsqueda.**~~ **Hecho (Fase 6).** Los dos puntúan ya con
+  `AppBuscar`. Siguen siendo dos **armados** de resultados —cada superficie enseña lo suyo a
+  su manera—, así que una fuente nueva son **dos altas** y ninguna de las dos avisa si
+  falta; y si las dos puntúan el mismo contenido, los pesos tienen que coincidir.
 - **No se propone «¿quisiste decir…?».** `AppBuscar` ya tolera erratas por distancia de
   edición dentro del propio filtro, así que la corrección ocurre sin decirlo. Un cartel de
   sugerencia encima de resultados que ya son los correctos sobra.

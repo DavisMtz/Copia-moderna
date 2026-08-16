@@ -189,6 +189,11 @@
 .art-diag-full-bar .v-btn-ghost{color:#fff;border-color:rgba(255,255,255,.35)}
 .art-diag-full-bar .v-btn-ghost:hover{background:rgba(255,255,255,.12);color:#fff}
 .art-diag-full .art-diag{border-radius:var(--rad);overflow:hidden;background:var(--surface)}
+/* El documento a pantalla completa usa el MISMO fondo y la misma barra que el diagrama:
+   es el mismo gesto y tiene que sentirse igual; solo cambia lo que va dentro del marco. */
+.art-doc-full-marco{flex:1;min-height:0;border-radius:var(--rad);overflow:hidden;background:var(--surface-2)}
+.art-doc-full-marco iframe{display:block;width:100%;height:100%;border:0}
+.art-diag-full-bar a{color:#fff;font-weight:700;text-decoration:underline}
 
 .art-diag-hueco{margin-bottom:.2rem}
 .art-diag-vacio{display:flex;flex-direction:column;align-items:center;text-align:center;
@@ -637,6 +642,16 @@
       var barra = el('div', 'art-doc-bar');
       barra.appendChild(icono(ficha.icono));
       barra.appendChild(el('span', 'art-doc-tt', b.titulo || ficha.nombre));
+      /* PANTALLA COMPLETA, que es lo que pide T8.3 y lo que pide el sentido común: una
+         presentación o una hoja de cálculo dentro de la columna de lectura de un artículo
+         se ve a media escala, y el recurso de «abrir en Google» saca al lector del artículo
+         y de su sitio. El diagrama y la imagen ya lo tenían; el documento incrustado —que
+         es justo el bloque que más falta le hace— se había quedado sin él. */
+      var ampliarDoc = el('button', 'art-diag-ampliar', 'Pantalla completa');
+      ampliarDoc.type = 'button';
+      ampliarDoc.addEventListener('click', function (){ abrirDocumentoGrande(b); });
+      barra.appendChild(ampliarDoc);
+
       var abrir = el('a', null, 'Abrir en Google');
       abrir.href = urlAbrir(b.clase, b.docId);
       abrir.target = '_blank';
@@ -826,6 +841,60 @@
     if (window.AppMotion && AppMotion.modalIn) AppMotion.modalIn(overlay, montaje.el);
   }
 
+  /* El documento a tamaño de pantalla. Mismo esqueleto que abrirDiagramaGrande —overlay,
+     barra, Escape, clic fuera, foco devuelto a quien abrió— porque son el mismo gesto y
+     dos diálogos que se cierran distinto se aprenden dos veces.
+
+     El aviso de permisos viaja también aquí, y no por copiar: a pantalla completa el
+     rectángulo en blanco es más grande, no más explicativo. */
+  function abrirDocumentoGrande(b){
+    var ficha = DOC_VISOR[b.clase] || DOC_VISOR.archivo;
+    var titulo = b.titulo || ficha.nombre;
+
+    var overlay = el('div', 'art-diag-full');
+    overlay.setAttribute('role', 'dialog');
+    overlay.setAttribute('aria-modal', 'true');
+    overlay.setAttribute('aria-label', titulo);
+    var quienAbrio = document.activeElement;
+
+    var barra = el('div', 'art-diag-full-bar');
+    barra.appendChild(el('span', 'art-diag-full-tt', titulo));
+    barra.appendChild(el('span', 'art-ayuda', 'Si se queda en blanco, tu cuenta no tiene permiso en Drive.'));
+    var enGoogle = el('a', null, 'Abrir en Google');
+    enGoogle.href = urlAbrir(b.clase, b.docId);
+    enGoogle.target = '_blank';
+    enGoogle.rel = 'noopener noreferrer';
+    barra.appendChild(enGoogle);
+    var cerrar = el('button', 'v-btn v-btn-ghost', 'Cerrar');
+    cerrar.type = 'button';
+    barra.appendChild(cerrar);
+    overlay.appendChild(barra);
+
+    var marco = el('div', 'art-doc-full-marco');
+    var fr = document.createElement('iframe');
+    fr.src = urlVisor(b.clase, b.docId);
+    fr.title = titulo;
+    fr.setAttribute('referrerpolicy', 'no-referrer');
+    marco.appendChild(fr);
+    overlay.appendChild(marco);
+    document.body.appendChild(overlay);
+
+    function fuera(){
+      document.removeEventListener('keydown', porEsc);
+      if (overlay.parentNode) overlay.parentNode.removeChild(overlay);
+      if (quienAbrio && quienAbrio.focus) quienAbrio.focus();
+    }
+    function porEsc(e){ if (e.key === 'Escape') fuera(); }
+    cerrar.addEventListener('click', fuera);
+    /* Solo el fondo cierra, nunca el marco: dentro hay un iframe de Google con el que se
+       interactúa (pasar diapositiva, desplazar la hoja), y un clic ahí no es «he terminado». */
+    overlay.addEventListener('click', function (e){ if (e.target === overlay) fuera(); });
+    document.addEventListener('keydown', porEsc);
+    cerrar.focus();
+
+    if (window.AppMotion && AppMotion.modalIn) AppMotion.modalIn(overlay, marco);
+  }
+
   function pintarCuerpo(contenido){
     var cuerpo = el('div', 'art-cuerpo');
     ((contenido && contenido.bloques) || []).forEach(function (b){
@@ -841,6 +910,7 @@
   window.ArticuloRender = { pintarBloque: pintarBloque, pintarCuerpo: pintarCuerpo, urlSegura: urlSegura,
                             docDeUrl: docDeUrl, parsearTSV: parsearTSV,
                             montarDiagrama: montarDiagrama, abrirDiagramaGrande: abrirDiagramaGrande,
+                            abrirDocumentoGrande: abrirDocumentoGrande,
                             el: el, icono: icono };
 })();
 </script>
@@ -1982,6 +2052,50 @@
   var NOMBRE_DOC = { documento: 'un Documento de Google', presentacion: 'una Presentación',
                      hoja: 'una Hoja de cálculo', archivo: 'un archivo de Drive' };
 
+  /**
+   * PEGAR UNA IMAGEN EN EL EDITOR (T8.2 · criterio 1 de la fase, «dos imágenes pegadas»).
+   *
+   * Hasta ahora el único camino era el selector de archivo, y eso obligaba a un rodeo justo
+   * en el caso más frecuente: nueve de cada diez imágenes de una guía son un recorte de
+   * pantalla, y con el recorte en el portapapeles había que guardarlo antes en el disco
+   * para poder elegirlo.
+   *
+   * Solo se queda el pegado cuando de verdad viene un archivo de imagen. Pegar texto en un
+   * párrafo, o el TSV de una hoja de cálculo en la caja de una tabla, tiene que seguir
+   * funcionando exactamente igual — y ese TSV llega como texto, no como archivo, así que la
+   * comprobación de `kind` los separa sin ambigüedad.
+   */
+  function pegarImagen(e){
+    if (st.modo !== 'edita') return;
+    var dt = e.clipboardData || window.clipboardData;
+    if (!dt || !dt.items) return;
+
+    var imagenes = [];
+    for (var i = 0; i < dt.items.length; i++) {
+      var it = dt.items[i];
+      if (it.kind === 'file' && String(it.type || '').indexOf('image/') === 0) {
+        var f = it.getAsFile();
+        if (f) imagenes.push(f);
+      }
+    }
+    if (!imagenes.length) return;
+    e.preventDefault();
+
+    /* Detrás del bloque en el que se está, que es donde se está mirando; al final si no hay
+       ninguno enfocado. Varias imágenes de un mismo pegado entran EN ORDEN y no todas en el
+       sitio de la primera, que es lo que pasaría reusando la misma posición. */
+    var base = (typeof st.foco === 'number' && st.foco >= 0) ? st.foco + 1 : st.bloques.length;
+    imagenes.forEach(function (f, n){
+      var destino = Math.min(base + n, st.bloques.length);   // mismo tope que anadirBloque
+      anadirBloque('imagen', destino);
+      subirImagen(f, st.bloques[destino]);
+    });
+    /* Se avisa porque el bloque nuevo nace VACÍO —la imagen llega cuando el servidor
+       contesta— y sin una palabra parece que el pegado no hizo nada. */
+    aviso(imagenes.length === 1 ? 'Imagen pegada: subiéndola…'
+                                : 'Pegadas ' + imagenes.length + ' imágenes: subiéndolas…');
+  }
+
   function subirImagen(file, bloque){
     if (!file) return;
     if (file.size > 8 * 1024 * 1024) { aviso('La imagen supera los 8 MB.', 'warn'); return; }
@@ -2068,6 +2182,11 @@
         guardarArticulo(st.articulo.estado || 'borrador');
       }
     });
+
+    /* Pegar una imagen. Va en `document` y no en el lienzo porque el lienzo se vuelve a
+       pintar entero en cada cambio y el escuchador se iría con él; la guarda de modo hace
+       el resto. */
+    document.addEventListener('paste', pegarImagen);
   });
 })();
 </script>

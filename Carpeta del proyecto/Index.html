@@ -4082,6 +4082,11 @@ function renderArticulos(){
   const carril = document.getElementById('articulosCarril');
   const lbl = document.getElementById('articulosLabel');
   if (!carril || !(window.AppRun && window.google && google.script && google.script.run)) return;
+  /* Sin sesión no se pregunta. El Portal es una landing pública y los artículos son
+     documentación interna: sus títulos y los nombres de quienes los escriben no son cosa
+     de un visitante. El candado está en el servidor (artHaySesion_); esto es no gastar
+     una llamada en una respuesta que va a venir vacía. */
+  if (!(window.AppSession && AppSession.isLoggedIn())) { if (lbl) lbl.style.display = 'none'; return; }
 
   AppRun.swr('portal-articulos-v1', 'artListar', [(window.AppSession && AppSession.userEmail) || '', { tope: 6 }], {
     ttl: 60 * 60 * 1000,
@@ -4179,6 +4184,7 @@ function pideArtIndice(alLlegar){
      preguntar en cada búsqueda para recibir siempre la misma lista vacía. */
   if (artIndiceListo || artIndicePidiendo) return;
   if (!(window.AppRun && window.AppCache)) return;
+  if (!(window.AppSession && AppSession.isLoggedIn())) return;   // ver renderArticulos
 
   const guardado = AppCache.get('portal-art-indice', ART_INDICE_TTL);
   if (guardado && guardado.data) {

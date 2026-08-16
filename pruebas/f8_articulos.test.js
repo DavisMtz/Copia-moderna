@@ -606,6 +606,195 @@ console.log('\n13. Los artículos entran en los DOS buscadores (T8.5, cliente)')
      'herramienta ' + herramienta + ' vs artículo ' + puntua(art, 'transaccion'));
 }
 
+console.log('\n14. Leer no pide permiso, pero sí pide haber entrado');
+{
+  /* El Portal es una landing PÚBLICA y su carril de artículos preguntaba igual sin sesión:
+     un visitante se llevaba la biblioteca interna con títulos, resúmenes y los nombres de
+     quienes la escriben — y con el id a la vista, el contenido entero. T8.1 dice «lectura
+     para cualquier SESIÓN»: el permiso sobra, la sesión no. */
+  const cuerpo = JSON.stringify({ v: 1, bloques: [{ tipo: 'texto', partes: [{ t: 'secreto del equipo' }] }] });
+  const arts = hoja('Articulos', [
+    ART_HDR(),
+    ['art-9', 'Guía interna', 'Solo para el equipo', cuerpo, 'publicado', 'Ana', new Date(), new Date(), 'Ana']
+  ]);
+  const ctx = cargar({ Articulos: arts });   // usuarioActivo vacío = visitante
+
+  const lista = ctx.artListar('', {});
+  eq('un visitante no recibe la lista', lista.status, 'error');
+  eq('y no se le cuela ni un artículo', (lista.articulos || []).length, 0);
+  ok('con un motivo que se entiende', /Entra al sistema/.test(lista.error || ''), lista.error);
+
+  const uno = ctx.artObtener('art-9', '');
+  eq('ni el contenido de uno concreto, aunque sepa el id', uno.status, 'error');
+  ok('y se dice que es por la sesión, no que no exista', uno.sinSesion === true, JSON.stringify(uno));
+
+  const idx = ctx.artIndiceBuscador('');
+  eq('el buscador público contesta bien, no con un error rojo', idx.status, 'ok');
+  eq('pero sin artículos dentro', idx.articulos.length, 0);
+
+  /* La guarda tiene que ir ANTES de la caché, o el índice que dejó caliente alguien con
+     sesión se le serviría al siguiente visitante. */
+  const conSesion = cargar({ Articulos: arts });
+  eq('con sesión sí hay índice', conSesion.artIndiceBuscador(LECTOR).articulos.length, 1);
+  eq('y el visitante que llega después del cacheado sigue sin ver nada',
+     conSesion.artIndiceBuscador('').articulos.length, 0);
+
+  // Y con sesión, lo de siempre.
+  eq('con sesión, la lista llega entera', ctx.artListar(LECTOR, {}).articulos.length, 1);
+  eq('y el artículo también', ctx.artObtener('art-9', LECTOR).status, 'ok');
+}
+
+/* ── DOM fingido, en la misma línea que la hoja de cálculo de arriba ──────────
+   El criterio 2 de la fase nombra «revisión de seguridad DEL RENDER», y hasta aquí solo
+   estaba probada la aduana del servidor. Falta la otra mitad, y no es redundante: el
+   editor pinta lo que tiene en memoria SIN pasar por el servidor, así que el render es la
+   única defensa mientras se escribe.
+
+   No hay jsdom ni forma de instalarlo (este repositorio no tiene dependencias, a propósito),
+   así que se finge lo justo. El nodo GUARDA lo que le hacen —hijos, atributos, propiedades—
+   y no interpreta nada: si el código pintara con innerHTML, aquí quedaría como una cadena y
+   la prueba lo vería, que es exactamente lo que se quiere vigilar. */
+function nodoFalso(tag) {
+  const n = {
+    _tag: String(tag).toLowerCase(),
+    nodeType: 1,
+    hijos: [],
+    attrs: {},
+    style: {},
+    dataset: {},
+    className: '',
+    _texto: '',
+    appendChild(c) { n.hijos.push(c); return c; },
+    removeChild(c) { const i = n.hijos.indexOf(c); if (i > -1) n.hijos.splice(i, 1); return c; },
+    setAttribute(k, v) { n.attrs[String(k)] = String(v); },
+    getAttribute(k) { return Object.prototype.hasOwnProperty.call(n.attrs, k) ? n.attrs[k] : null; },
+    addEventListener() {},
+    querySelector() { return null; },
+    querySelectorAll() { return []; },
+    classList: {
+      add(c) { n.className = (n.className ? n.className + ' ' : '') + c; },
+      remove() {}, contains(c) { return n.className.split(/\s+/).indexOf(c) > -1; }
+    }
+  };
+  Object.defineProperty(n, 'firstChild', { get: () => n.hijos[0] || null });
+  Object.defineProperty(n, 'textContent', {
+    get() {
+      if (n._texto) return n._texto;
+      return n.hijos.map((h) => (h.textContent === undefined ? '' : h.textContent)).join('');
+    },
+    set(v) { n.hijos = []; n._texto = String(v); }
+  });
+  return n;
+}
+
+function cargaRender() {
+  const html = fs.readFileSync(path.join(PROY, 'articulo.html'), 'utf8');
+  const bloques = [];
+  const re = /<script>([\s\S]*?)<\/script>/g;
+  let m;
+  while ((m = re.exec(html))) bloques.push(m[1]);
+  const js = bloques.filter((b) => b.indexOf('ArticuloRender =') > -1)[0];
+  if (!js) throw new Error('no encontré el bloque de render en articulo.html');
+
+  const doc = {
+    createElement: (t) => nodoFalso(t),
+    createTextNode: (t) => ({ nodeType: 3, textContent: String(t), hijos: [] }),
+    getElementById: () => null,
+    addEventListener() {},
+    body: nodoFalso('body')
+  };
+  const ctx = { console, Math, JSON, String, Number, Object, Array, RegExp, Date, parseInt,
+                parseFloat, encodeURIComponent, decodeURIComponent, setTimeout, clearTimeout,
+                document: doc };
+  ctx.window = ctx;
+  vm.createContext(ctx);
+  vm.runInContext(js, ctx, { filename: 'articulo.html' });
+  if (!ctx.ArticuloRender) throw new Error('articulo.html no publicó window.ArticuloRender');
+  return ctx.ArticuloRender;
+}
+
+/** Recorre el árbol pintado y devuelve todos los nodos con esa etiqueta. */
+function porEtiqueta(n, tag) {
+  const out = [];
+  (function anda(x) {
+    if (!x || x.nodeType === 3) return;
+    if (x._tag === tag) out.push(x);
+    (x.hijos || []).forEach(anda);
+  })(n);
+  return out;
+}
+
+console.log('\n15. BANCO HOSTIL · el RENDER del cliente (criterio 2, la otra mitad)');
+{
+  const R = cargaRender();
+
+  // — urlSegura del cliente: la misma regla que artUrlSegura_ del servidor —
+  const malas = ['javascript:alert(1)', 'JavaScript:alert(1)', '  javascript:alert(1)',
+                 'java\tscript:alert(1)', 'data:text/html,<script>x</script>', '//evil.example/x',
+                 'http://sin-tls.example', 'vbscript:x', 'https://ok.example/a"onload=x',
+                 "https://ok.example/a'x", 'https://ok.example/con espacio', 'https://ok.example/<b>'];
+  let coladas = malas.filter((u) => R.urlSegura(u) !== '');
+  ok('el cliente rechaza las ' + malas.length + ' URLs hostiles', coladas.length === 0, coladas.join(' | '));
+  eq('y deja pasar una https normal', R.urlSegura('https://docs.google.com/a'), 'https://docs.google.com/a');
+  eq('una URL absurdamente larga tampoco pasa', R.urlSegura('https://x.example/' + 'a'.repeat(2100)), '');
+
+  // — Un <script> escrito en el texto se queda como TEXTO —
+  const p = R.pintarBloque({ tipo: 'texto', partes: [{ t: '<script>alert(1)</script> y <b>negritas</b>' }] });
+  eq('un párrafo con etiquetas dentro no crea ni un <script>', porEtiqueta(p, 'script').length, 0);
+  eq('ni una <b>', porEtiqueta(p, 'b').length, 0);
+  ok('y el texto se conserva entero, sin perderse',
+     p.textContent.indexOf('<script>alert(1)</script>') > -1, p.textContent);
+
+  // — Una parte con URL hostil se pinta como texto, nunca como enlace —
+  const conMala = R.pintarBloque({ tipo: 'texto', partes: [{ t: 'pincha aquí', url: 'javascript:alert(1)' }] });
+  eq('una parte con javascript: no produce enlace', porEtiqueta(conMala, 'a').length, 0);
+  eq('pero su texto sigue ahí', conMala.textContent, 'pincha aquí');
+
+  const conBuena = R.pintarBloque({ tipo: 'texto', partes: [{ t: 'la guía', url: 'https://ok.example/g' }] });
+  const enlaces = porEtiqueta(conBuena, 'a');
+  eq('una parte con https sí produce enlace', enlaces.length, 1);
+  eq('con su href', enlaces[0].href, 'https://ok.example/g');
+  eq('y sin regalarle la pestaña de origen', enlaces[0].rel, 'noopener noreferrer');
+
+  // — Listas y tablas: el mismo texto, la misma regla —
+  const li = R.pintarBloque({ tipo: 'lista', items: [[{ t: '<img onerror=x>', url: 'javascript:1' }]] });
+  eq('una lista con contenido hostil no crea imágenes', porEtiqueta(li, 'img').length, 0);
+  eq('ni enlaces', porEtiqueta(li, 'a').length, 0);
+
+  const tb = R.pintarBloque({ tipo: 'tabla', filas: [['<script>a</script>', 'b']], encabezado: true });
+  eq('una tabla con una etiqueta en una celda no la ejecuta', porEtiqueta(tb, 'script').length, 0);
+  ok('y la celda conserva su texto', tb.textContent.indexOf('<script>a</script>') > -1, tb.textContent);
+
+  // — Un tipo de bloque inventado no se pinta y no revienta —
+  eq('un tipo desconocido no pinta nada', R.pintarBloque({ tipo: 'inventado', texto: 'x' }), null);
+
+  // — El extractor de documentos de Google, en el cliente —
+  const falsas = ['https://docs.google.com.evil.example/document/d/abcdefghij12/edit',
+                  'http://docs.google.com/document/d/abcdefghij12/edit',
+                  'https://evil.example/docs.google.com/document/d/abcdefghij12/edit',
+                  'https://docs.google.com/document/d/corto/edit'];
+  coladas = falsas.filter((u) => R.docDeUrl(u) !== null);
+  ok('ninguna URL falsa de Google pasa por documento', coladas.length === 0, coladas.join(' | '));
+  const buena = R.docDeUrl('https://docs.google.com/presentation/d/1AbCdEfGhIjK/edit#slide=id.p1');
+  ok('y una de verdad da su clase y su id', buena && buena.clase === 'presentacion' && buena.docId === '1AbCdEfGhIjK',
+     JSON.stringify(buena));
+
+  // — El visor a pantalla completa existe también para los documentos (T8.3) —
+  ok('el documento incrustado tiene pantalla completa, como el diagrama y la imagen',
+     typeof R.abrirDocumentoGrande === 'function');
+
+  /* — Pegar imágenes (T8.2, criterio 1) —
+     El manejador vive en el bloque de interfaz, que necesita media pantalla para cargarse;
+     se comprueba sobre el fuente, que es lo que la casa ya hace en el apartado 13. */
+  const AH = fs.readFileSync(path.join(PROY, 'articulo.html'), 'utf8');
+  ok('el editor escucha el pegado', /addEventListener\('paste', pegarImagen\)/.test(AH));
+  ok('solo se queda con lo que es un ARCHIVO de imagen (el TSV de una hoja llega como texto)',
+     /it\.kind === 'file' && String\(it\.type \|\| ''\)\.indexOf\('image\/'\) === 0/.test(AH));
+  ok('y solo interviene con el editor abierto', /function pegarImagen\(e\)\{\s*\n\s*if \(st\.modo !== 'edita'\) return;/.test(AH));
+  ok('varias imágenes de un pegado entran en orden, no una encima de otra',
+     /Math\.min\(base \+ n, st\.bloques\.length\)/.test(AH));
+}
+
 function ART_HDR() {
   return ['ID', 'Titulo', 'Resumen', 'Contenido (JSON)', 'Estado', 'Autores', 'Creado', 'Editado', 'Editado por'];
 }

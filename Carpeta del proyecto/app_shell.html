@@ -244,8 +244,10 @@
    */
   var IC_PULSO = '<svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12h4l2.5-6 4 12L16 12h5"/></svg>';
 
+  var IC_LIBRO = '<svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M12 6.6C10.5 5.1 8.5 4.3 6 4.3H3.5v13H6c2.5 0 4.5.8 6 2.4 1.5-1.6 3.5-2.4 6-2.4h2.5v-13H18c-2.5 0-4.5.8-6 2.3Z"/><path d="M12 6.6v13.1"/></svg>';
+
   var ICONO_GESTION = { inicio_avanzado: IC_CHART, anuncios: IC_MEGA, portal_contenido: IC_STACK,
-                        operacion: IC_PULSO, consola: IC_SHIELD };
+                        articulo: IC_LIBRO, operacion: IC_PULSO, consola: IC_SHIELD };
 
   /** Las de gestión que ESTA persona puede abrir. Vacío = no se dibuja el área. */
   function gestionDisponible() {
@@ -260,10 +262,23 @@
   // Conmutador de área compartido: mismo bloque, mismas etiquetas y mismo orden
   // que el del Portal y Promociones, para que se sienta una sola app.
   function appSwitchHTML(active) {
-    var esGestion = ['inicio_avanzado', 'anuncios', 'portal_contenido', 'operacion', 'consola'].indexOf(active) !== -1;
+    var gestion = gestionDisponible();
+
+    /* EL ÁREA SALE DEL CATÁLOGO, ya no de una lista escrita a mano aquí. La lista suelta
+       se quedó sin 'articulo' cuando F8 estrenó la pantalla, así que estando DENTRO de
+       Artículos el conmutador marcaba «Cotizaciones»; con una lista a mano eso vuelve a
+       pasar con la siguiente pantalla que se añada. La regla del proyecto (T1.8, escrita
+       en AppFunciones) es que toda pantalla de gestión entra por el catálogo: aquí se lee
+       de ahí y deja de haber una segunda copia que mantener.
+
+       Se compara contra lo que ESTA persona puede abrir, y eso resuelve de paso el caso
+       raro de Artículos: para quien publica es gestión, y para quien solo lee no lo es
+       —es lo que es, contenido al que se llega desde el Portal—, así que a un asesor no se
+       le enciende un área de administración que no tiene. */
+    var esGestion = gestion.some(function (g) { return g.page === active; });
     var area = esGestion ? 'gestion'
              : (active === 'correo_cliente') ? 'correos'
-             : (active === 'portal' || active === 'promociones') ? 'portal'
+             : (active === 'portal' || active === 'promociones' || active === 'articulo') ? 'portal'
              : 'cotizaciones';
     function it(a, page, icon, name, sub) {
       // El área donde estamos parados nunca se esconde: quitar de debajo de los pies
@@ -279,7 +294,6 @@
         '<span class="asw-tx"><b>' + name + '</b><small>' + sub + '</small></span></a>';
     }
 
-    var gestion = gestionDisponible();
     var bloqueGestion = '';
     if (gestion.length) {
       // El área entra por la primera pantalla que esta persona sí puede abrir: para un

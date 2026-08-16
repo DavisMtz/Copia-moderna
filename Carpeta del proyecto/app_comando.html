@@ -360,7 +360,7 @@
     home:IC.casa, document:IC.doc, send:IC.correo, mail:IC.correop, chart:IC.grafica,
     check:IC.check, gear:IC.engrane, megaphone:IC.megafono, layers:IC.capas,
     bolt:IC.pulso, lock:IC.llave, key:IC.llave, clock:IC.reloj, globe:IC.globo,
-    sparkle:IC.estrella, wifi:IC.pulso, flag:IC.pulso
+    sparkle:IC.estrella, wifi:IC.pulso, flag:IC.pulso, book:IC.libro
   };
 
   /* Acciones locales del catálogo: las que NO cambian de pantalla. En el catálogo
@@ -988,6 +988,10 @@
        en cada pausa de tecleo, para siempre y para nada. */
     if (artListo || artPidiendo) return;
     if (!(window.AppRun && window.AppCache)) return;
+    /* Leer artículos no pide permiso, pero sí pide haber entrado: el servidor sirve el
+       índice solo con sesión (artHaySesion_), y este buscador vive también en el Portal
+       público. Sin la guarda se gastaría una llamada por visitante para recibir vacío. */
+    if (!conSesion()) return;
 
     var guardado = AppCache.get('cmdk-art', ART_TTL);
     if (guardado && guardado.data) {

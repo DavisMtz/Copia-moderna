@@ -454,6 +454,17 @@
       icono:'layers', page:'portal_contenido', bloques:['portal_contenido'],
       kw:'administrar editar catalogo herramientas formatos ligas contenido promos' },
 
+    /* SIN `bloques`, y es la diferencia con «Anuncios del Portal» de aquí arriba.
+       El bloque `articulos` guarda ESCRIBIR; leer un artículo no pide permiso (T8.1), así
+       que la pantalla se ofrece a cualquiera con sesión y dentro aparece «Escribir
+       artículo» solo a quien puede. Ponerle el bloque aquí habría escondido la biblioteca
+       del equipo a todo el equipo, dejando la puerta abierta únicamente a quien la
+       escribe. La entrada del MENÚ (app_core, AppFunciones.GESTION) sí lleva el bloque,
+       porque el menú de Gestión es para administrar, y ahí Artículos es administrar. */
+    { id:'articulos', nombre:'Artículos', sub:'Guías y procedimientos escritos por el equipo',
+      icono:'book', page:'articulo',
+      kw:'articulo articulos guia guias documentacion procedimiento procedimientos manual manuales instructivo apuntes biblioteca leer lectura escribir redactar' },
+
     { id:'operacion', nombre:'Estado de operación', sub:'Fallas que reporta el equipo',
       icono:'bolt', page:'operacion', bloques:['operacion'],
       kw:'incidencias caido fallas confirmar sistemas problemas operacion atender' },

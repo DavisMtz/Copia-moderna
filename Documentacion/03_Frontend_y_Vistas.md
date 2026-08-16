@@ -322,9 +322,10 @@ donde mirar.
 
 ## 7. `app_comando` — el buscador general
 
-Se abre con **Ctrl+K** o **`/`** desde cualquier pantalla. Encuentra funciones de la app,
-cotizaciones, contenido del Portal, procesos de trazabilidad, personas, fallas abiertas y
-clientes esperando llamada.
+Se abre con **Ctrl+K** o **`/`** desde cualquier pantalla. Encuentra funciones de la app y
+apartados dentro de ellas, cotizaciones, contenido del Portal, procesos de trazabilidad,
+**artículos del equipo**, personas, fallas abiertas, clientes esperando llamada, anuncios
+publicados (solo quien los administra) y el catálogo de tiendas y centros de reparto.
 
 **Aprende de lo que abres.** Guarda las **veces** y la **última vez**, y ambas empujan el
 puntaje. Las cuatro decisiones del algoritmo, que conviene no deshacer sin leerlas:
@@ -342,13 +343,26 @@ puntaje. Las cuatro decisiones del algoritmo, que conviene no deshacer sin leerl
    coincidía.
 
 Además: la pantalla en la que ya estás baja al final (gastar el primer resultado en «ir a
-donde ya estoy» es gastarlo en no hacer nada), y hay **ámbitos** — `portal:`, `cot:`,
-`procesos:`, `gente:`, `fallas:` — que se anuncian en el panel vacío, porque un prefijo que
-no se enseña existe para quien lea el código y para nadie más.
+donde ya estoy» es gastarlo en no hacer nada), y hay **ámbitos** — `fn:`, `cot:`, `portal:`,
+`procesos:`, `art:`, `gente:`, `fallas:`, `tienda:` — que se anuncian en el panel vacío,
+porque un prefijo que no se enseña existe para quien lea el código y para nadie más. Cada
+uno acepta su forma corta y su nombre entero (`cot:` y `cotizaciones:`), porque las dos se
+teclean.
 
-> **Hay dos motores de búsqueda en el sistema.** El general usa `app_buscar`; el Portal
-> conserva el suyo. Está anotado como deuda consciente en `Carpeta del proyecto/README.md`:
-> migrarlo es una tarea propia, con sus quince índices y su resaltado.
+> **Un solo motor, dos vestidos.** Hasta la Fase 6 había dos implementaciones y esta guía
+> lo anotaba como deuda. Ya no: el buscador del Portal (`Index.html`) puntúa con
+> **`AppBuscar`** a través de `puntuaPortal`/`puntuaIndice`, igual que el general. Lo que
+> sigue siendo distinto —y a propósito— es la **presentación**: el Portal enseña sus
+> resultados en su desplegable con sus secciones, y el general en su paleta. La prueba
+> `pruebas/f6_buscador_paridad.test.js` es la que sostiene la unificación: compara el motor
+> nuevo contra una copia congelada del viejo y falla si algún resultado se pierde.
+>
+> **Una fuente nueva son dos altas, no una.** Los dos buscadores arman sus grupos por
+> separado y **ninguno avisa si falta**: en `Index.html` se añade un grupo en
+> `doGlobalSearch` con su rama de pintado y su rama en el manejador de clic; en
+> `app_comando.html`, una fuente en `calcula`, su rama en `pinta` y su destino en `ejecuta`.
+> Si los dos puntúan el mismo contenido, **los pesos tienen que ser los mismos** — es lo que
+> comprueba la sección 13 de `pruebas/f8_articulos.test.js` para los artículos.
 
 ---
 

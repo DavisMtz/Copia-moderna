@@ -490,7 +490,69 @@ Tres cosas, y cada una resuelve un problema que se veía como «el enlace no fun
    y su doble caché (10 min de script + 7 días en el navegador): una gráfica de votos con
    esa edad no está desactualizada, miente.
 
-Pruebas: `pruebas/f7_publicaciones.test.js` (94 comprobaciones sobre los fuentes reales).
+Pruebas: `pruebas/f7_publicaciones.test.js` (99 comprobaciones sobre los fuentes reales).
+
+---
+
+## 15 ter. `Articulos.gs` — publicaciones largas del equipo (fase 8)
+
+Documentación que se escribe una vez y se cita durante meses: guías, procedimientos, la
+explicación de un caso que se repite. Va aparte de los anuncios a propósito —un anuncio cabe
+en una tarjeta y se retira solo— y, como todo `.gs` nuevo, con prefijo propio: `art`.
+
+**Expuestas:** `artListar(email, opts)`, `artObtener(id, email)`, `artGuardar(payload)`,
+`artPublicar(id, publicado, email)`, `artEliminar(id, email)`, `artLectores(id, email)`,
+`artSubirImagen(payload)`, `artIndiceBuscador(email)`.
+
+**Dos hojas:** `Articulos` (ID, título, resumen, contenido, estado, autores, fechas, último
+editor) y `ArticulosVistas` (una fila por persona y artículo). Ver el documento 04.
+
+**Las decisiones que ordenan todo lo demás:**
+
+1. **El contenido es JSON de bloques versionado** (`{v:1, bloques:[…]}`), nunca HTML del
+   editor. Guardar el HTML de un editor sería guardar código de terceros para pintarlo en la
+   pantalla del equipo entero. Con bloques, el servidor sabe qué campos existen y descarta
+   el resto (`artSanearContenido_` es la aduana), y el cliente construye nodos en vez de
+   asignar `innerHTML`. Tipos: `titulo`, `texto`, `lista`, `tabla`, `imagen`, `documento`,
+   `diagrama`, `separador`.
+2. **Escribir pasa por el bloque `articulos`; leer pide sesión pero no permiso.**
+   `artGate_` guarda la escritura. `artHaySesion_` guarda las **tres** puertas de lectura
+   (`artListar`, `artObtener`, `artIndiceBuscador`) — y esa mitad faltaba: como el carril
+   vive en el Portal, que es una landing **pública**, un visitante cualquiera recibía la
+   biblioteca interna con títulos, resúmenes y autores, y con un id a la vista el artículo
+   entero. En `artIndiceBuscador` la guarda va **antes de la caché**, o el índice que dejó
+   caliente alguien con sesión se le serviría al siguiente visitante; y ahí devuelve vacío
+   en vez de error, para que buscar desde el Portal público no saque un aviso rojo.
+3. **Solo `https:` en los enlaces** (`artUrlSegura_`): ni `javascript:`, ni `data:`, ni
+   protocolo relativo. La regla está escrita **dos veces a propósito** —aquí y en el
+   cliente—, porque el servidor sanea al guardar pero el cliente pinta también lo que tiene
+   en memoria mientras se edita. `revUrlArticuloSegura_` **no** servía para reutilizar:
+   tiene los hosts cableados a liverpool.com.mx.
+4. **De un documento de Google se guarda el ID, no la URL**, que arrastra `/edit`,
+   `#slide=` y a veces el correo de quien la copió.
+5. **La lectura se registra en el servidor**, dentro de `artObtener`, y no en una llamada
+   aparte que se puede no hacer: lo que cuenta como leído es lo que el servidor sirvió. Con
+   una ventana de media hora, para que refrescar cinco veces no cuente cinco lecturas.
+6. **La autoría se fija al crear.** Quien corrige la errata de un artículo ajeno no pasa a
+   ser su autor; queda como último editor.
+
+**`artIndiceBuscador(email)`** es lo que comen los dos buscadores (T8.5): id, título, resumen
+y el **texto plano del cuerpo recortado a 1200 caracteres** —el contenido entero pesaría más
+que todo el resto del índice junto—. Solo los **publicados**: un borrador se descarta aquí,
+en el servidor, y no en el cliente, porque un borrador filtrado en el cliente es un borrador
+que viajó. Caché de script de cinco minutos, que `artInvalidarCache_` tira al guardar,
+publicar o borrar; sin eso, un artículo recién publicado no se encontraría hasta cinco
+minutos después, que es justo cuando su autor lo va a buscar.
+
+**`artListar`** devuelve además `total`: cuántos podía ver esa persona antes de aplicar el
+tope. Lo necesita el carril del Portal para ofrecer «Ver los N» solo cuando de verdad hay más
+de los que se están enseñando.
+
+Pruebas: `pruebas/f8_articulos.test.js` (178 comprobaciones), con **dos** bancos de contenido
+hostil: uno contra la aduana del servidor y otro contra el **render del cliente**, que es la
+única defensa mientras se edita —el editor pinta lo que tiene en memoria sin pasar por aquí—.
+El segundo corre sobre un DOM fingido, igual que la hoja de cálculo fingida: el nodo guarda
+lo que le hacen y no interpreta nada, así que un `innerHTML` quedaría como cadena a la vista.
 
 ---
 
