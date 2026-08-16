@@ -525,6 +525,13 @@
     { id:'sec-bitacora', nombre:'Bitácora', sub:'Quién cambió qué y cuándo',
       icono:IC.reloj, page:'consola', params:{ sec:'bitacora' }, bloques:['adm_bitacora','sup_equipo'],
       kw:'auditoria historial registro rastro cambios log quien cuando' },
+    /* Sin `maestro:true`: la abre una supervisión con el bloque `metricas`, y el recorte
+       por jerarquía lo hace el servidor. El id es `sec-monitoreo` y no `sec-metricas`
+       porque ese ya es el del panel de supervisión, que es otra pantalla. */
+    { id:'sec-monitoreo', nombre:'Métricas y monitoreo', sub:'Cotizaciones, correos, búsquedas y cambios',
+      icono:IC.grafica, page:'consola', params:{ sec:'metricas' }, bloques:['metricas'],
+      kw:'monitoreo informe informes reporte csv descargar cuantas cotizaciones correos enviados ' +
+         'busquedas cambios auditoria periodo rango fechas' },
     { id:'sec-ajustes', nombre:'Ajustes del sistema', sub:'Autenticación, dominio, webhook y hojas',
       icono:IC.engrane, page:'consola', params:{ sec:'ajustes' }, bloques:['adm_ajustes'], maestro:true,
       kw:'configuracion dominio webhook hoja identificador correo autenticacion' },

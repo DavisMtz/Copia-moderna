@@ -15,7 +15,21 @@
  * la pantalla "Enviar correo" (correoventel.html / sendQuoteByEmail).
  */
 
-const CC_SENDER_NAME = 'Centro de Contacto Liverpool | Ventel';
+// Nombre visible del remitente. Como el alias, T9.7 lo movió al ajuste CC_SENDER_NAME de la
+// consola y esto es el respaldo de fábrica: se lee con ccSenderName_(), nunca la constante.
+const CC_SENDER_NAME_RESPALDO = 'Centro de Contacto Liverpool | Ventel';
+
+/** Memo por ejecución: el nombre del remitente se pide una vez por envío. */
+var CC_SENDER_NAME_MEMO = null;
+
+function ccSenderName_() {
+  if (CC_SENDER_NAME_MEMO === null) {
+    CC_SENDER_NAME_MEMO = (typeof secConfig_ === 'function')
+      ? (secConfig_('CC_SENDER_NAME', CC_SENDER_NAME_RESPALDO) || CC_SENDER_NAME_RESPALDO)
+      : CC_SENDER_NAME_RESPALDO;
+  }
+  return CC_SENDER_NAME_MEMO;
+}
 const CC_PLANTILLAS_VALIDAS = ['ticket', 'edodecuenta', 'edodecuentaextranjera', 'validacionexitosa', 'formato', 'textoplano'];
 const CC_EMAIL_RX = /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/;
 const CC_BITACORA_SHEET = 'CorreosEnviados';
@@ -92,11 +106,29 @@ function enviarCorreoPlantilla(payload) {
     // Las respuestas del cliente van al asesor con sesión (verificado por el gate).
     const advisorEmail = asesorMet.email;
 
-    const options = { htmlBody: htmlBody, name: CC_SENDER_NAME };
+    const options = { htmlBody: htmlBody, name: ccSenderName_() };
     if (cc.length)  options.cc  = cc.join(',');
     if (cco.length) options.bcc = cco.join(',');
     if (attachments.length) options.attachments = attachments;
     if (advisorEmail) options.replyTo = advisorEmail;
+
+    // Copia oculta global (T9.6). Va DESPUÉS del cco que teclea el asesor y sin pisarlo:
+    // correoAplicarCco_ conserva lo que ya hubiera y no repite a nadie que ya reciba el correo.
+    const ccoGlobal = correoAplicarCco_(options, to.concat(cc).concat(cco).concat([advisorEmail]));
+
+    /* ¿Se tocó lo que proponía la plantilla? (T9.4)
+       El plan pedía comparar el CUERPO contra la plantilla base. Al ir a hacerlo se vio que
+       hoy el cuerpo no se puede tocar: correo_cliente.html lo construye entero con
+       buildEmailHtml() a partir de los campos, y no hay ningún editor de texto libre. Lo único
+       que el asesor sí reescribe es el ASUNTO, que la plantilla propone ya redactado. Eso es,
+       literalmente, «se modificó la plantilla», y es lo que se compara aquí.
+       El asunto propuesto lo manda el cliente porque el catálogo de plantillas vive allí y el
+       servidor no tiene copia. Es una MÉTRICA, no un candado: quien fabrique el payload a mano
+       puede mentir, y por eso no decide nada. Sin dato se apunta '' —columna en blanco—, que
+       es más honesto que un «No» inventado. */
+    let plantillaModificada = '';
+    const asuntoPropuesto = String(payload.asuntoPlantilla || '').trim();
+    if (asuntoPropuesto) plantillaModificada = (asuntoPropuesto === asunto) ? 'No' : 'Sí';
 
     // Mismo esquema que sendQuoteByEmail (Correos.gs): se intenta el alias
     // institucional y, si el permiso de Gmail o el alias fallan, se cae a
@@ -104,15 +136,15 @@ function enviarCorreoPlantilla(payload) {
     let sentFrom = '';
     let aliasAvailable = false;
     try {
-      aliasAvailable = GmailApp.getAliases().indexOf(MAIL_ALIAS) !== -1;
+      aliasAvailable = GmailApp.getAliases().indexOf(mailAlias_()) !== -1;
     } catch (e) {
       Logger.log('Sin acceso a los alias de Gmail (falta permiso o alias): ' + e.message);
     }
 
     if (aliasAvailable) {
       try {
-        GmailApp.sendEmail(to.join(','), asunto, '', Object.assign({}, options, { from: MAIL_ALIAS }));
-        sentFrom = MAIL_ALIAS;
+        GmailApp.sendEmail(to.join(','), asunto, '', Object.assign({}, options, { from: mailAlias_() }));
+        sentFrom = mailAlias_();
       } catch (e) {
         Logger.log('Falló el envío con alias, se reintenta por la vía clásica: ' + e.message);
         aliasAvailable = false;
@@ -129,9 +161,10 @@ function enviarCorreoPlantilla(payload) {
     metRegistrarEnvio_({
       tipo: 'Plantilla cliente', referencia: plantilla,
       asesorEmail: asesorMet.email, asesorNombre: asesorMet.nombre,
-      para: to.join(', '), destinatarios: to.length, cc: cc.length, cco: cco.length,
+      para: to.join(', '), destinatarios: to.length, cc: cc.length, cco: cco.length + ccoGlobal,
       asunto: asunto, adjuntos: attachments.length, remitente: sentFrom,
-      aliasUsado: aliasAvailable, resultado: 'Enviado', detalle: ''
+      aliasUsado: aliasAvailable, resultado: 'Enviado', detalle: '',
+      plantillaModificada: plantillaModificada
     });
 
     return { status: 'ok', sentFrom: sentFrom };

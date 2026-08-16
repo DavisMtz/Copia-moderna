@@ -23,7 +23,9 @@ const MET_SHEET_NAME = 'MetricasCorreos';
 const MET_HEADERS = [
   'Fecha', 'Tipo', 'Referencia', 'AsesorEmail', 'AsesorNombre',
   'Para', 'Destinatarios', 'CC', 'CCO', 'Asunto', 'Adjuntos',
-  'Remitente', 'AliasUsado', 'Resultado', 'Detalle'
+  'Remitente', 'AliasUsado', 'Resultado', 'Detalle',
+  // T9.4: 'Sí' | 'No' | '' cuando no se puede saber. Ver enviarCorreoPlantilla (CorreoCliente.gs).
+  'PlantillaModificada'
 ];
 
 /**
@@ -45,6 +47,37 @@ function metVerificarAsesor_(email) {
 }
 
 /**
+ * Encabezados reales de la hoja, añadiendo las columnas que el código conoce y la hoja no
+ * tiene todavía. Devuelve la cabecera ya completa, en el orden en que está EN LA HOJA —que no
+ * tiene por qué ser el de MET_HEADERS: alguien pudo mover una columna, y mover una columna es
+ * algo que la gente hace en una hoja de cálculo.
+ */
+function metCabecera_(sheet) {
+  const ancho = Math.max(sheet.getLastColumn(), 1);
+  let hdr = sheet.getRange(1, 1, 1, ancho).getValues()[0].map(function (x) { return String(x || '').trim(); });
+
+  // Fuera las columnas vacías del final: son el ancho por omisión de la hoja, no columnas.
+  while (hdr.length && hdr[hdr.length - 1] === '') hdr.pop();
+
+  const faltan = MET_HEADERS.filter(function (h) { return hdr.indexOf(h) === -1; });
+  if (faltan.length) {
+    /* Primero se ESTIRA la hoja si hace falta. Una hoja a la que alguien le borró las columnas
+       sobrantes de la derecha tiene exactamente las que usa, y `getRange` más allá del último
+       borde no escribe nada: lanza. Y como todo esto vive dentro del try/catch de
+       metRegistrarEnvio_ —que nunca revienta el envío—, el fallo se lo tragaba el Logger y las
+       métricas dejaban de escribirse en silencio. */
+    const necesarias = hdr.length + faltan.length;
+    const maximas = sheet.getMaxColumns();
+    if (maximas < necesarias) sheet.insertColumnsAfter(maximas, necesarias - maximas);
+
+    sheet.getRange(1, hdr.length + 1, 1, faltan.length).setValues([faltan]);
+    sheet.getRange(1, hdr.length + 1, 1, faltan.length).setFontWeight('bold');
+    hdr = hdr.concat(faltan);
+  }
+  return hdr;
+}
+
+/**
  * Escribe una fila de métrica de envío. Nunca lanza: si falla, solo lo registra en
  * el Logger para no tumbar el envío (que ya se realizó).
  * @param {Object} ev {
@@ -63,23 +96,36 @@ function metRegistrarEnvio_(ev) {
       sheet.getRange(1, 1, 1, MET_HEADERS.length).setFontWeight('bold');
       sheet.setFrozenRows(1);
     }
-    sheet.appendRow([
-      new Date(),
-      ev.tipo || '',
-      ev.referencia || '',
-      ev.asesorEmail || '',
-      ev.asesorNombre || '',
-      ev.para || '',
-      ev.destinatarios || 0,
-      ev.cc || 0,
-      ev.cco || 0,
-      ev.asunto || '',
-      ev.adjuntos || 0,
-      ev.remitente || '',
-      ev.aliasUsado ? 'Sí' : 'No',
-      ev.resultado || '',
-      ev.detalle || ''
-    ]);
+
+    /* La fila se arma POR NOMBRE de columna y no por posición, y la hoja se repara sola si le
+       falta alguna de las que el código conoce.
+       Las dos cosas son la misma lección: la autocreación de arriba solo actúa cuando la hoja
+       NO existe, así que el día que este archivo estrenó la columna 'PlantillaModificada' las
+       instalaciones vivas se quedaron con quince columnas y un appendRow de dieciséis valores
+       habría empezado a escribir cada dato una casilla corrido. Es el patrón auto-reparable de
+       'Formato' en Code.gs. */
+    const hdr = metCabecera_(sheet);
+    const valores = {
+      'Fecha': new Date(),
+      'Tipo': ev.tipo || '',
+      'Referencia': ev.referencia || '',
+      'AsesorEmail': ev.asesorEmail || '',
+      'AsesorNombre': ev.asesorNombre || '',
+      'Para': ev.para || '',
+      'Destinatarios': ev.destinatarios || 0,
+      'CC': ev.cc || 0,
+      'CCO': ev.cco || 0,
+      'Asunto': ev.asunto || '',
+      'Adjuntos': ev.adjuntos || 0,
+      'Remitente': ev.remitente || '',
+      'AliasUsado': ev.aliasUsado ? 'Sí' : 'No',
+      'Resultado': ev.resultado || '',
+      'Detalle': ev.detalle || '',
+      'PlantillaModificada': ev.plantillaModificada || ''
+    };
+    sheet.appendRow(hdr.map(function (nombre) {
+      return Object.prototype.hasOwnProperty.call(valores, nombre) ? valores[nombre] : '';
+    }));
     // Hay un envío más: el resumen cacheado (Cache.gs) ya no es el vigente.
     if (typeof cotInvalidarCache_ === 'function') cotInvalidarCache_();
   } catch (e) {

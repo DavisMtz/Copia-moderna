@@ -60,6 +60,38 @@ el servidor renderiza con `include()`, y la lógica de servidor vive en los `.gs
 Se va revisando la aplicación por partes. Cada apartado deja escrito qué se comprobó,
 qué se corrigió y qué queda como está a propósito.
 
+### Consola: grupos, difusión y monitoreo — nuevo (fase 9)
+
+Tres archivos nuevos y una pestaña nueva. Lo que hay que saber antes de tocarlos:
+
+- **`Grupos.gs`** — listas de personas. Un grupo **no da permisos** y no debe darlos nunca:
+  los permisos son por bloque y por persona, y una segunda vía convierte «¿por qué esta persona
+  puede hacer esto?» en dos listas que hay que cruzar. Las membresías van en una **columna JSON**
+  y no en una segunda hoja (se consideró): un grupo cabe en una celda, es el patrón que ya usa
+  `_PermisosSistema`, y así no hay filas huérfanas ni dos escrituras a medias. El grupo
+  **«Ventel» es virtual**: se calcula de `Registros`, con la gente activa, y por eso no hay que
+  acordarse de nada cuando alguien entra al equipo.
+- **`Difusion.gs`** — comunicados. El cuerpo llega como **bloques y nunca como HTML**, igual que
+  los artículos y por lo mismo. Los destinatarios van **en CCO** y el «Para» es quien escribe.
+  La cuota se comprueba **antes**: cada persona en CCO cuenta una y Gmail rechaza el envío
+  entero. Hay envío de prueba porque el envío real no es idempotente.
+- **`Monitoreo.gs`** — la pestaña Métricas. **Nada se calcula al abrir la consola**; cada
+  consulta la pide el usuario. Se lee **por la cola de la hoja y por lotes**, con tope de filas
+  devueltas y techo de filas leídas, y los dos se le cuentan al usuario cuando se alcanzan. El
+  recorte jerárquico se resuelve una vez por consulta, no fila a fila.
+- **El gate de grupos y difusión es por NIVEL (≥ 2)**, no por bloque: `sup_equipo` se le puede
+  dar a un asesor por excepción y eso no debe hacerle dueño de las listas de correo.
+- **La copia oculta global (`CORREO_CCO_GLOBAL`) es opt-in ruta por ruta.** No está dentro de
+  `cuentasEnviarCorreo_` a propósito: por ahí pasan también la contraseña temporal y el código de
+  verificación. Si escribes un correo nuevo y no pides `{cco:true}`, sale sin copia — que es el
+  error inofensivo de los dos.
+- **El alias y el nombre del remitente ya no son constantes:** `mailAlias_()` y `ccSenderName_()`,
+  con la constante `*_RESPALDO` como valor de fábrica. No los leas de la constante o te saltarás
+  lo que diga la consola.
+- **`MetricasCorreos` se repara sola.** Añadir una columna es añadirla a `MET_HEADERS`: la fila
+  se escribe por nombre y `metCabecera_` crea lo que falte. La autocreación de la hoja solo actúa
+  cuando no existe, así que sin esto una instalación viva se habría descolocado entera.
+
 ### Atenciones pendientes — revisado
 
 El módulo que guarda los datos de un cliente cuando una plataforma se cae, para poder

@@ -90,12 +90,32 @@ Las páginas **públicas** (`Index`, `Promociones`, `estado`) reciben `APP_URL` 
 | `anuncios` | `anuncios.html` | Constructor de anuncios | `anuncios` |
 | `portal_contenido` | `portal_contenido.html` | Gestión del contenido del Portal | `portal_contenido` |
 | `operacion` | `operacion.html` | Bandeja de supervisión de fallas | `operacion` |
-| `consola` | `consola.html` | Consola de administración | `adm_*` / `sup_equipo` |
+| `consola` | `consola.html` | Consola de administración | `adm_*` / `sup_equipo` / `metricas` |
 | `atenciones` | `atenciones.html` | Atenciones pendientes | `atenciones` |
 
 > El cascarón de `consola`, `portal_contenido` y `atenciones` **se sirve a cualquiera que lo
 > pida**, igual que las demás. No enseña nada hasta que el servidor confirma el bloque en
 > cada llamada. Servir el cascarón no filtra nada y evita tener dos formas de rutear.
+
+**Las nueve pestañas de la consola** (`?sec=`) y qué las abre. Añadir una exige tocar **cuatro
+sitios a la vez** —fila en `CONSOLA_SECCIONES` (`Consola.gs`), botón con `data-panel` y
+`data-seccion`, `<section id="panel-…">` y el id en `CNS_PANELES` (`consola.html`)—; si falta
+el último, un enlace `?sec=…` compartido no abre nada y no avisa.
+
+| `?sec=` | Pestaña | La abre |
+| --- | --- | --- |
+| *(vacío)* | Resumen | cualquiera que entre a la consola |
+| `miembros` | Roles *(y los **grupos**, F9)* | `adm_miembros` · `adm_permisos` · `sup_equipo` |
+| `permisos` | Matriz de accesos | los mismos que Roles |
+| `modulos` | Módulos | `adm_modulos` |
+| `ajustes` | Ajustes | `adm_ajustes` |
+| `formatos` | Formatos | `adm_formatos` |
+| `salud` | Salud | `adm_salud` |
+| `metricas` | **Métricas y monitoreo** (F9) | `metricas` |
+| `bitacora` | Bitácora *(con consulta por fechas, F9)* | `adm_bitacora` · `sup_equipo` |
+
+Dos pestañas comparten sección de servidor (`miembros` y `permisos` son ambas `roles`): el
+`?sec=` viaja con el **panel**, no con la sección.
 
 ### Públicas (`PORTAL_PAGES`)
 

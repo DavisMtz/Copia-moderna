@@ -106,7 +106,7 @@ bloques del rol  →  + los de "mas"  →  − los de "menos"  →  − los mód
 un módulo por mantenimiento también dejara fuera al maestro, nadie podría volver a
 encenderlo.
 
-### 4.3 Los 22 bloques
+### 4.3 Los 24 bloques
 
 | Grupo | `id` | Nombre en pantalla | Abre la página |
 | --- | --- | --- | --- |
@@ -123,6 +123,8 @@ encenderlo.
 | | `trazabilidad` | Trazabilidad | — |
 | | `anuncios` | Anuncios del Portal | `anuncios` |
 | | `portal_contenido` | Contenido del Portal | `portal_contenido` |
+| | `articulos` | Publicar artículos | `articulo` |
+| | `metricas` | Métricas y monitoreo | `consola` *(pestaña Métricas)* |
 | | `operacion` | Estado de operación | `operacion` |
 | | `sup_equipo` | Roles y accesos | `consola` |
 | **Administración** *(solo maestros)* | `adm_miembros` | Miembros | **fijo** |
@@ -143,6 +145,17 @@ Dos decisiones de reparto que conviene entender:
 - **Reportar una falla NO necesita bloque.** Lo puede hacer cualquiera con sesión. Ponerle
   permiso sería pedir autorización para avisar de que algo no funciona. El bloque `operacion`
   es solo para el otro lado del mostrador: decidir qué se le dice al equipo.
+- **`articulos` guarda ESCRIBIR, no leer.** Los artículos los lee cualquiera con sesión; el
+  bloque abre el editor y la lista de quién los ha leído.
+- **`metricas` es un bloque de supervisión, no de administración.** Un supervisor entra y ve su
+  alcance jerárquico —el recorte lo hace el servidor en cada consulta, no la pantalla—; el
+  maestro lo ve todo. Es la primera sección de la consola que abre un bloque que no empieza
+  por `adm_`.
+
+**Los grupos y la difusión NO tienen bloque propio, a propósito** (F9). Se gatean por **nivel**:
+supervisor (2) o superior. El motivo: `sup_equipo` se le puede conceder a un asesor por excepción
+para que dé de alta a quien entra el lunes, y eso no debe convertirlo en dueño de las listas de
+correo de toda la empresa ni en quien puede mandarle un comunicado a cuarenta personas.
 
 ### 4.4 Los tres roles
 
@@ -252,12 +265,31 @@ bruta si alguien obtuviera además la hoja `Registros`.
 | Plantillas a clientes | `CorreosEnviados` | Bitácora aditiva |
 | Revisiones | Columnas `Revision*` de `Cotizaciones` | Quién aprobó o rechazó, cuándo y con qué notas |
 | Reportes de falla | `OperacionReportes` | Quién reportó qué y cuándo |
+| Búsquedas | `MetricasBusquedas` | Qué escribió cada quien en el buscador de cotizaciones (F9) |
+| Difusiones | `MetricasCorreos` + `BitacoraConsola` | Asunto, grupo y número de destinatarios (F9) |
 | Errores del servidor | Cloud Logging (`STACKDRIVER`) | Excepciones con traza |
 | Ejecuciones | Panel de ejecuciones de Apps Script | Quién ejecutó qué función y con qué resultado |
 
 **No queda registrado**, y conviene saberlo: los inicios de sesión correctos, las lecturas de
 datos (quién consultó qué cotización) y las ediciones hechas a mano en las hojas — para eso
 está el historial de versiones de Google Sheets.
+
+### 8 bis. La copia oculta global y los correos que NUNCA se copian
+
+El ajuste `CORREO_CCO_GLOBAL` (solo maestro) manda copia oculta de todo lo que el sistema envía
+hacia fuera: cotizaciones con PDF, plantillas a clientes, avisos de cuenta y avisos de revisión.
+Es una medida de vigilancia legítima —poder releer qué se le dijo a un cliente sin pedirle la
+bandeja a nadie— con **una exclusión que no es configurable**:
+
+> Los correos de **seguridad** no se copian nunca: la contraseña temporal de bienvenida, la del
+> restablecimiento y el código de verificación. Las tres llevan el secreto en el cuerpo, y
+> copiarlas a un buzón compartido convertiría el monitoreo en un almacén de credenciales de
+> todo el equipo.
+
+Cómo está cerrado, y por qué así: el CCO **no** vive dentro de `cuentasEnviarCorreo_`, que es la
+función que comparten los correos de seguridad y los avisos normales. Se pide ruta por ruta con
+`{cco:true}`, de modo que **quien no lo pide, no lo lleva**. Falla cerrado: un correo nuevo que
+alguien escriba mañana sin pensar en esto sale sin copia, que es el error inofensivo de los dos.
 
 ---
 

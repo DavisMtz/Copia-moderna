@@ -979,8 +979,14 @@ function cuentasMailNota_(titulo, texto, tono) {
  * Envía con el alias institucional si está dado de alta ("Enviar como" en Gmail) y, si no,
  * por la vía clásica: el correo del código SIEMPRE tiene que salir. Mismo criterio que
  * Correos.gs, pero con su propio remitente visible porque esto no es una cotización.
+ *
+ * @param {{cco:boolean, adjuntos:Array, bcc:string}=} extra
+ *        `cco:true` PIDE la copia oculta global (T9.6). Es opt-in y no al revés, y eso es lo
+ *        único que impide que una contraseña temporal acabe en un buzón compartido: por aquí
+ *        pasan los correos de seguridad (códigos y contraseñas) y los avisos normales, y solo
+ *        los segundos la piden. Quien escriba un correo nuevo y no diga nada, no la lleva.
  */
-function cuentasEnviarCorreo_(para, asunto, html, textoPlano) {
+function cuentasEnviarCorreo_(para, asunto, html, textoPlano, extra) {
   // Modo captura (lo activa cuentasPreviaCorreos): el correo se guarda en vez de enviarse.
   // Así se puede revisar el diseño de las cuatro variantes sin dar de alta cuentas de
   // prueba ni gastar cuota de envío.
@@ -990,16 +996,26 @@ function cuentasEnviarCorreo_(para, asunto, html, textoPlano) {
   }
 
   const opciones = { htmlBody: html, name: 'Sistema de cotizaciones Ventel' };
+  extra = extra || {};
+  if (extra.bcc) opciones.bcc = extra.bcc;
+  if (extra.adjuntos && extra.adjuntos.length) opciones.attachments = extra.adjuntos;
+  if (extra.inline) opciones.inlineImages = extra.inline;
+  if (extra.responderA) opciones.replyTo = extra.responderA;
+  if (extra.remitente) opciones.name = extra.remitente;
+  if (extra.cco === true && typeof correoAplicarCco_ === 'function') {
+    correoAplicarCco_(opciones, [para]);
+  }
+
   let alias = false;
   try {
-    alias = GmailApp.getAliases().indexOf(MAIL_ALIAS) !== -1;
+    alias = GmailApp.getAliases().indexOf(mailAlias_()) !== -1;
   } catch (e) {
     Logger.log('Sin acceso a los alias de Gmail: ' + e.message);
   }
   if (alias) {
     try {
-      GmailApp.sendEmail(para, asunto, textoPlano, Object.assign({}, opciones, { from: MAIL_ALIAS }));
-      return MAIL_ALIAS;
+      GmailApp.sendEmail(para, asunto, textoPlano, Object.assign({}, opciones, { from: mailAlias_() }));
+      return mailAlias_();
     } catch (e) {
       Logger.log('Fallo el envío con alias, se reintenta por la vía clásica: ' + e.message);
     }
@@ -1133,7 +1149,11 @@ function cuentasEnviarAviso_(correo, nombre, textos) {
     textos.cierre || ''
   ].join('\n');
 
-  return cuentasEnviarCorreo_(correo, textos.asunto || 'Aviso de tu cuenta · Ventel', html, plano);
+  // Estos avisos SÍ llevan la copia oculta global: dicen que una cuenta se creó o que su
+  // contraseña cambió, nunca cuál es. Los otros dos correos de este archivo —el código de
+  // verificación y la contraseña temporal— llaman a la misma función sin pedirla.
+  return cuentasEnviarCorreo_(correo, textos.asunto || 'Aviso de tu cuenta · Ventel', html, plano,
+                              { cco: true });
 }
 
 /**
@@ -1250,8 +1270,8 @@ function cuentasDiagnostico(correoPrueba) {
   }
 
   try {
-    const alias = GmailApp.getAliases().indexOf(MAIL_ALIAS) !== -1;
-    Logger.log((alias ? '✔' : '·') + ' Alias ' + MAIL_ALIAS + (alias ? ' disponible.' : ' NO configurado: los códigos saldrán de la cuenta del sistema.'));
+    const alias = GmailApp.getAliases().indexOf(mailAlias_()) !== -1;
+    Logger.log((alias ? '✔' : '·') + ' Alias ' + mailAlias_() + (alias ? ' disponible.' : ' NO configurado: los códigos saldrán de la cuenta del sistema.'));
   } catch (e) {
     Logger.log('· Sin acceso a los alias de Gmail (se usará MailApp): ' + e.message);
   }

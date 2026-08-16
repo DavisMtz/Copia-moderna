@@ -121,6 +121,14 @@ const PERM_BLOQUES = [
   { id: 'operacion',         nombre: 'Estado de operación',      grupo: 'Supervisión',
     detalle: 'Confirmar, descartar y actualizar las fallas que reporta el equipo.',
     pagina: 'operacion',           admin: false, fijo: false },
+  // Ver cuánto y quién: cotizaciones, correos, búsquedas y cambios de personas. Es un bloque
+  // aparte de 'supervision' porque responden preguntas distintas: el panel de supervisión mira
+  // el trabajo del equipo de hoy, y esto mira el RASTRO de todo el mundo —a quién se le escribió,
+  // qué buscó, a qué hora—. Lo trae el rol supervisor con su alcance jerárquico recortado en el
+  // servidor; el maestro lo ve entero, como todo.
+  { id: 'metricas',          nombre: 'Métricas y monitoreo',     grupo: 'Supervisión',
+    detalle: 'Consultar las métricas del sistema: cotizaciones, correos enviados, búsquedas y cambios de personas, con descarga en CSV.',
+    pagina: 'consola',             admin: false, fijo: false },
   // Gestión de roles SIN ser maestro. Da entrada a la Consola —solo a Roles y
   // Bitácora— y deja gestionar a quien esté en el MISMO nivel o por debajo: ver
   // permVetoJerarquia_ más abajo, que es donde vive esa regla para toda la app.
@@ -199,7 +207,7 @@ const PERM_ROLES = {
     bloques: ['portal', 'promociones', 'cotizar', 'consultar', 'enviar_cotizacion', 'correos_cliente',
               'atenciones',
               'supervision', 'revisar', 'politica_revision', 'trazabilidad', 'anuncios', 'portal_contenido',
-              'articulos', 'operacion', 'sup_equipo']
+              'articulos', 'metricas', 'operacion', 'sup_equipo']
   },
   maestro: {
     id: 'maestro',

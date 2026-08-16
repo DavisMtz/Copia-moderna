@@ -863,6 +863,13 @@ function confirmarEnvio(){
     cc:  parseEmails($id('inpCc').value),
     cco: parseEmails($id('inpCco').value),
     asunto: $id('inpSubject').value.trim(),
+    /* El asunto TAL COMO lo propone la plantilla, para que el servidor pueda apuntar en las
+       métricas si se reescribió (T9.4). Se recalcula aquí y no se guarda de antes: los campos
+       han podido cambiar después de que el asesor tocara el asunto, y lo que interesa comparar
+       es lo que la plantilla propondría ahora mismo. Es un dato de medición, no un permiso. */
+    asuntoPlantilla: (function () {
+      try { return TEMPLATES[tplId].asunto(fields); } catch (e) { return ''; }
+    })(),
     htmlBody: buildEmailHtml(),
     adjuntos: adjuntos.map(a => ({ nombre:a.nombre, mime:a.mime, base64:a.base64 })),
     asesor: (window.AppSession && AppSession.userEmail) || ''

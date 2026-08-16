@@ -2056,7 +2056,13 @@
          una de sus siete pestañas. Al revés, el supervisor únicamente tiene la
          segunda, así que lee el rótulo que describe lo que él sí va a encontrar. */
       { bloque: 'adm_miembros',      page: 'consola',         nombre: 'Consola',              corto: 'consola',            sub: 'Personas, permisos y ajustes' },
-      { bloque: 'sup_equipo',        page: 'consola',         nombre: 'Roles y accesos',      corto: 'roles',              sub: 'Altas, roles y accesos de tu equipo' }
+      { bloque: 'sup_equipo',        page: 'consola',         nombre: 'Roles y accesos',      corto: 'roles',              sub: 'Altas, roles y accesos de tu equipo' },
+      /* Tercera entrada a la misma pantalla, y va la ÚLTIMA por la misma regla de arriba: quien
+         tenga también `adm_miembros` o `sup_equipo` ya la tiene anunciada con un rótulo de más
+         alcance. Esta es para quien solo tiene `metricas` —el caso que el bloque contempla: se
+         le concede a alguien para que consulte cifras sin darle la gestión de nadie—, y sin ella
+         tenía el permiso y ninguna puerta en el menú. */
+      { bloque: 'metricas',          page: 'consola',         nombre: 'Métricas y monitoreo', corto: 'métricas',           sub: 'Cotizaciones, correos, búsquedas y cambios' }
     ];
 
     function porId(id) {

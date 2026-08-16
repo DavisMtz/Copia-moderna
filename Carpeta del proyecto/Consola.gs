@@ -30,9 +30,11 @@
 // añadir un ajuste nuevo es añadir una entrada aquí y nada más.
 //
 //   clave       nombre de la propiedad de script.
-//   tipo        'opcion' | 'texto' | 'secreto' | 'id_hoja' | 'id_calendario' | 'id_carpeta'
+//   tipo        'opcion' | 'texto' | 'secreto' | 'correo' | 'lista_correos' |
+//               'id_hoja' | 'id_calendario' | 'id_carpeta'
 //   secreto     true = su valor nunca viaja al cliente; solo se dice si está puesto.
 //   soloLectura true = se muestra pero no se guarda desde la consola.
+//   soloMaestro true = ni siquiera con el bloque 'adm_ajustes'; hace falta ser maestro.
 
 const CONSOLA_AJUSTES = [
   {
@@ -57,6 +59,33 @@ const CONSOLA_AJUSTES = [
     clave: 'HASH_SALT', nombre: 'Sal de contraseñas', grupo: 'Identidad',
     detalle: 'Secreto con el que se cifran las contraseñas. Cambiarlo invalidaría la de todo el mundo, así que desde aquí solo se consulta si está puesto.',
     tipo: 'secreto', secreto: true, soloLectura: true
+  },
+  {
+    clave: 'MAIL_ALIAS', nombre: 'Remitente de las cotizaciones', grupo: 'Correo',
+    detalle: 'Alias «Enviar como» con el que salen las cotizaciones y los avisos del sistema. ' +
+             'Tiene que estar dado de alta en la cuenta de Gmail que ejecuta el sistema; si no lo está, ' +
+             'el correo sale igual desde esa cuenta y solo se pierde el remitente bonito.',
+    tipo: 'correo', marcador: 'ventel@liverpool.com.mx'
+  },
+  {
+    clave: 'CC_SENDER_NAME', nombre: 'Nombre visible en los correos a clientes', grupo: 'Correo',
+    detalle: 'Cómo ve el cliente al remitente en su bandeja: "Ventel Liverpool", no la dirección.',
+    tipo: 'texto', marcador: 'Ventel Liverpool'
+  },
+  {
+    // Solo maestro, y esa marca hace un trabajo que hoy parece de más: consolaGate_ ya exige el
+    // rol maestro para CUALQUIER ajuste, así que ahora mismo es redundante. Se declara igual
+    // porque la consola lleva un año abriéndose a más perfiles —Roles y Bitácora ya son de
+    // supervisión— y el día que Ajustes siga ese camino, «quién recibe copia de todo el correo
+    // del sistema» no puede irse con el resto del grupo sin que nadie lo note.
+    clave: 'CORREO_CCO_GLOBAL', nombre: 'Copia oculta global', grupo: 'Correo',
+    detalle: 'Buzón que recibe copia oculta de todo lo que el sistema manda: cotizaciones, plantillas ' +
+             'a cliente y avisos. Varios, separados por coma. Los correos de SEGURIDAD —contraseñas ' +
+             'temporales y códigos de verificación— nunca se copian, y eso no es configurable.',
+    // `opcional`: no tenerlo puesto NO es un pendiente. Sin esto, una instalación que decide
+    // legítimamente no usar copia oculta se comía un «está sin configurar» en el resumen cada
+    // vez que abría la consola, sin forma de quitarlo salvo configurando algo que no quiere.
+    tipo: 'lista_correos', soloMaestro: true, opcional: true, marcador: 'monitoreo@liverpool.com.mx'
   },
   {
     clave: 'WEBHOOK_URL', nombre: 'Webhook de cotizaciones', grupo: 'Avisos',
@@ -102,7 +131,27 @@ const CONSOLA_AJUSTES = [
 ];
 
 /** Orden de los grupos de ajustes en pantalla. */
-const CONSOLA_GRUPOS_AJUSTES = ['Identidad', 'Avisos', 'Fuentes de datos'];
+const CONSOLA_GRUPOS_AJUSTES = ['Identidad', 'Correo', 'Avisos', 'Fuentes de datos'];
+
+/**
+ * Configuraciones que YA tienen su pantalla y que desde Ajustes solo se enlazan (T9.7).
+ *
+ * La tentación era traérselas aquí para que «todo esté en un sitio». Sería una copia: dos
+ * pantallas que escriben lo mismo acaban discrepando, y la que se quede sin mantenimiento es
+ * la que alguien usará el día que importe. Se enlazan, que es la otra forma de que todo esté
+ * en un sitio: desde Ajustes se ve QUE existen y se llega de un clic.
+ *
+ *   panel   pestaña de esta misma consola.
+ *   pagina  pantalla de la app (clave de PAGES), para las que viven fuera.
+ */
+const CONSOLA_AJUSTES_ENLACES = [
+  { nombre: 'Formatos de cotización', detalle: 'Qué formatos se pueden usar y cuál sale por defecto.',
+    panel: 'formatos', bloque: 'adm_formatos' },
+  { nombre: 'Política de revisión', detalle: 'Las reglas que mandan una cotización a revisión: montos, descuentos y excepciones.',
+    pagina: 'revision_cotizacion', bloque: 'politica_revision' },
+  { nombre: 'Módulos en mantenimiento', detalle: 'Apagar y encender bloques enteros mientras se arregla algo.',
+    panel: 'modulos', bloque: 'adm_modulos' }
+];
 
 /** Hosts a los que se permite apuntar el webhook. Un webhook es una URL que el SERVIDOR
  *  visita: dejarlo libre convertiría la consola en un trampolín para alcanzar cualquier
@@ -115,6 +164,22 @@ const CONSOLA_BITACORA_COLUMNAS = ['Fecha', 'Quien', 'Accion', 'Objetivo', 'Deta
 
 /** Cuántos renglones de bitácora se mandan a la pantalla. */
 const CONSOLA_BITACORA_LIMITE = 150;
+
+/** Tope de la consulta por fechas: hasta aquí llega una descarga, y se avisa si se corta. */
+const CONSOLA_BITACORA_TOPE_RANGO = 2000;
+
+/** Filas que se leen de golpe al recorrer la hoja hacia atrás en la consulta por fechas. */
+const CONSOLA_BITACORA_LOTE = 800;
+
+/**
+ * Techo duro de filas leídas por consulta, pase lo que pase.
+ *
+ * Sin esto, pedir «enero del año pasado» sobre una bitácora de sesenta mil apuntes recorría la
+ * hoja entera hacia atrás: el corte por «lote entero anterior al rango» solo salta cuando se
+ * LLEGA al periodo, y hasta entonces cada lote trae fechas posteriores y el bucle sigue. Con el
+ * techo, la consulta contesta lo que alcanzó a leer y lo dice en vez de tardar dos minutos.
+ */
+const CONSOLA_BITACORA_MAX_LEIDAS = 12000;
 
 // ── BITÁCORA ─────────────────────────────────────────────────────────────────
 
@@ -180,22 +245,145 @@ function consolaBitacoraLeer_(limite, quien) {
     }).reverse();
 
     if (esMaestro) return filas.slice(0, pedidos);
-
-    // Un supervisor ve su propio rastro y el de la gente a la que alcanza. No ve los
-    // cambios de ajustes, módulos ni salud —no son suyos y describen la instalación—,
-    // ni nada que le hayan hecho a alguien por encima de su nivel. La bitácora sigue
-    // siendo completa en la hoja: lo que se recorta es quién la lee.
-    const miNivel = permNivelUsuario_(quien);
-    return filas.filter(function (r) {
-      if (permMismoCorreo_(r.quien, quien.email)) return true;
-      if (!r.objetivo) return false;   // apunte del sistema, no de una persona
-      const u = permUsuario_(r.objetivo);
-      if (!u.encontrado) return false;
-      return permNivelUsuario_(u) <= miNivel;
-    }).slice(0, pedidos);
+    return filas.filter(consolaBitacoraFiltro_(quien)).slice(0, pedidos);
   } catch (e) {
     Logger.log('consolaBitacoraLeer_ error: ' + e);
     return [];
+  }
+}
+
+/**
+ * El recorte jerárquico de la bitácora, en UNA sola función.
+ *
+ * Un supervisor ve su propio rastro y el de la gente a la que alcanza. No ve los cambios de
+ * ajustes, módulos ni salud —no son suyos y describen la instalación—, ni nada que le hayan
+ * hecho a alguien por encima de su nivel. La bitácora sigue siendo completa en la hoja: lo
+ * que se recorta es quién la lee.
+ *
+ * Vive aparte porque la leen dos caminos —los últimos movimientos y la consulta por fechas—
+ * y una regla de seguridad copiada en dos sitios es una regla que un día solo se corrige en
+ * uno. Devuelve un predicado ya cerrado sobre el nivel de quien pregunta.
+ */
+function consolaBitacoraFiltro_(quien) {
+  const miNivel = permNivelUsuario_(quien);
+  const yo = (quien && quien.email) || '';
+  return function (r) {
+    if (permMismoCorreo_(r.quien, yo)) return true;
+    if (!r.objetivo) return false;   // apunte del sistema, no de una persona
+    const u = permUsuario_(r.objetivo);
+    if (!u.encontrado) return false;
+    return permNivelUsuario_(u) <= miNivel;
+  };
+}
+
+/**
+ * Interpreta las dos fechas que manda la pantalla (yyyy-MM-dd, las de un <input type="date">)
+ * como el DÍA COMPLETO en la zona horaria del script.
+ *
+ * Es lo que la gente quiere decir: «del 1 al 5» incluye todo el día 5. Tomar las fechas como
+ * medianoche a secas dejaría fuera el último día entero y produciría el clásico «faltan los
+ * cambios de hoy» que nadie sabe explicar.
+ *
+ * @return {{ok:boolean, desde:Date, hasta:Date, error:string}}
+ */
+function consolaRangoFechas_(desde, hasta) {
+  const partes = function (texto) {
+    const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(String(texto || '').trim());
+    return m ? { a: Number(m[1]), me: Number(m[2]), d: Number(m[3]) } : null;
+  };
+  const a = partes(desde), b = partes(hasta);
+  if (!a || !b) return { ok: false, error: 'Elige las dos fechas del rango.' };
+
+  const ini = new Date(a.a, a.me - 1, a.d, 0, 0, 0, 0);
+  const fin = new Date(b.a, b.me - 1, b.d, 23, 59, 59, 999);
+  if (isNaN(ini.getTime()) || isNaN(fin.getTime())) return { ok: false, error: 'Esas fechas no son válidas.' };
+  if (ini > fin) return { ok: false, error: 'La fecha de inicio es posterior a la de fin.' };
+  return { ok: true, desde: ini, hasta: fin, error: '' };
+}
+
+/**
+ * Movimientos entre dos fechas, del más reciente al más viejo.
+ *
+ * Se lee DESDE EL FINAL y por lotes, igual que consolaBitacoraLeer_ y por el mismo motivo: la
+ * hoja crece sin tope y nadie la vacía nunca, así que leerla entera para enseñar una semana
+ * sería cada mes un poco más lento hasta agotar el tiempo de ejecución. Al encontrar el primer
+ * lote entero por debajo del rango se para: la hoja está en orden de escritura, de modo que
+ * más atrás solo hay cosas aún más viejas.
+ */
+function consolaBitacoraEnRango_(desde, hasta, quien) {
+  const vacio = { filas: [], truncado: false, leidas: 0 };
+  const sheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName(CONSOLA_BITACORA_SHEET);
+  if (!sheet || sheet.getLastRow() < 2) return vacio;
+
+  const esMaestro = !!(quien && quien.maestro === true);
+  const visible = esMaestro ? function () { return true; } : consolaBitacoraFiltro_(quien);
+
+  let fin = sheet.getLastRow();   // última fila del lote que toca leer
+  let leidas = 0, truncado = false;
+  const out = [];
+
+  while (fin >= 2 && !truncado) {
+    const ini = Math.max(2, fin - CONSOLA_BITACORA_LOTE + 1);
+    const datos = sheet.getRange(ini, 1, fin - ini + 1, CONSOLA_BITACORA_COLUMNAS.length).getValues();
+    leidas += datos.length;
+
+    // Se cuenta en vez de levantar una bandera: un lote entero con la fecha ilegible no
+    // puede detener el recorrido y esconder lo que hay más atrás. Ver Monitoreo.gs.
+    let conFecha = 0, anteriores = 0;
+    for (let i = datos.length - 1; i >= 0; i--) {
+      const f = datos[i];
+      const cuando = (f[0] instanceof Date) ? f[0] : new Date(f[0]);
+      if (isNaN(cuando.getTime())) continue;
+      conFecha++;
+      if (cuando < desde) anteriores++;
+      if (cuando < desde || cuando > hasta) continue;
+
+      const fila = {
+        fecha: cuando.toISOString(),
+        quien: String(f[1] || ''),
+        accion: String(f[2] || ''),
+        objetivo: String(f[3] || ''),
+        detalle: String(f[4] || '')
+      };
+      if (!visible(fila)) continue;
+      if (out.length >= CONSOLA_BITACORA_TOPE_RANGO) { truncado = true; break; }
+      out.push(fila);
+    }
+
+    if (conFecha > 0 && anteriores === conFecha) break;   // lote entero anterior: más atrás, peor
+    if (leidas >= CONSOLA_BITACORA_MAX_LEIDAS) { truncado = true; break; }
+    fin = ini - 1;
+  }
+
+  return { filas: out, truncado: truncado, leidas: leidas,
+           // true = se paró por el techo sin haber llegado al periodo: no es que no haya nada,
+           // es que está más atrás de lo que se puede leer de una vez.
+           sinLlegar: truncado && out.length === 0 };
+}
+
+function consolaBitacoraRango(email, desde, hasta) {
+  try {
+    const acc = consolaAcceso_(email, 'bitacora');
+    if (!acc.ok) return consolaError_(acc.error);
+
+    const rango = consolaRangoFechas_(desde, hasta);
+    if (!rango.ok) return consolaError_(rango.error);
+
+    const r = consolaBitacoraEnRango_(rango.desde, rango.hasta, acc.usuario);
+    return {
+      success: true,
+      bitacora: r.filas,
+      truncado: r.truncado,
+      sinLlegar: r.sinLlegar === true,
+      leidas: r.leidas,
+      // Se devuelven las fechas ya resueltas para que el nombre del CSV y el rótulo de la
+      // pantalla digan exactamente el rango que se consultó, no el que se tecleó.
+      desde: rango.desde.toISOString(),
+      hasta: rango.hasta.toISOString()
+    };
+  } catch (e) {
+    Logger.log('consolaBitacoraRango error: ' + e);
+    return consolaError_('No pudimos leer la bitácora de esas fechas. Inténtalo de nuevo en un momento.');
   }
 }
 
@@ -241,7 +429,12 @@ const CONSOLA_SECCIONES = [
   { id: 'ajustes',  nombre: 'Ajustes',  bloques: ['adm_ajustes'] },
   { id: 'formatos', nombre: 'Formatos', bloques: ['adm_formatos'] },
   { id: 'salud',    nombre: 'Salud',    bloques: ['adm_salud'] },
-  { id: 'bitacora', nombre: 'Bitácora', bloques: ['adm_bitacora', 'sup_equipo'] }
+  { id: 'bitacora', nombre: 'Bitácora', bloques: ['adm_bitacora', 'sup_equipo'] },
+  // Métricas es la primera sección que abre un bloque de SUPERVISIÓN y no uno de
+  // administración: un supervisor entra con 'metricas' y ve su alcance jerárquico; el maestro
+  // lo ve todo. El recorte no lo hace esta tabla —solo dice quién pasa—, sino cada consulta
+  // de Monitoreo.gs, que es donde se sabe de quién es cada fila.
+  { id: 'metricas', nombre: 'Métricas', bloques: ['metricas'] }
 ];
 
 /** ¿Alguno de los bloques que abren esta sección está entre los de la persona? */
@@ -318,6 +511,8 @@ function consolaPanorama(email) {
 
     const yo = acc.usuario;
     const tiene = function (s) { return acc.secciones.indexOf(s) !== -1; };
+    // Se leen UNA vez y se reparten: los usan el apartado `ajustes` y las recomendaciones.
+    const ajustes = tiene('ajustes') ? consolaLeerAjustes_(acc.maestro) : [];
 
     // Cada apartado se calcula SOLO si esta persona lo va a ver. No es solo higiene de
     // datos: leer ajustes, formatos y salud son viajes a PropertiesService y a la hoja,
@@ -334,16 +529,242 @@ function consolaPanorama(email) {
       // Recortado a su alcance: ver permCatalogoPara_.
       catalogo: permCatalogoPara_(yo),
       miembros:      tiene('roles')    ? consolaListaMiembros_(yo) : [],
-      ajustes:       tiene('ajustes')  ? consolaLeerAjustes_() : [],
+      ajustes:       ajustes,
       gruposAjustes: tiene('ajustes')  ? CONSOLA_GRUPOS_AJUSTES.slice() : [],
+      enlacesAjustes: tiene('ajustes') ? consolaEnlacesAjustes_(yo.bloques) : [],
+      // Los grupos son pequeños y los pide la misma pestaña de Roles; se mandan con el
+      // panorama en vez de en una segunda llamada. Solo para quien puede administrarlos.
+      //
+      // El `typeof` va PRIMERO y el nivel se lee con otro `typeof`: si Grupos.gs no está
+      // desplegado, `GRP_NIVEL_MINIMO` no existe, y leerlo aquí no daría un panorama sin
+      // grupos —daría un ReferenceError que el catch de abajo convierte en «no pudimos cargar
+      // la consola». Un archivo que falta no puede tumbar la pantalla entera.
+      grupos:        (typeof grpListar === 'function' && tiene('roles') &&
+                      acc.nivel >= (typeof GRP_NIVEL_MINIMO === 'number' ? GRP_NIVEL_MINIMO : 2))
+                       ? (grpListar(acc.email).grupos || []) : [],
       formatos:      tiene('formatos') ? consolaLeerFormatos_(acc.email) : [],
       resumen:       consolaResumen_(yo),
+      recomendaciones: consolaRecomendaciones_(acc, ajustes),
       bitacora:      tiene('bitacora') ? consolaBitacoraLeer_(50, yo) : []
     };
   } catch (e) {
     Logger.log('consolaPanorama error: ' + e + ' · ' + e.stack);
     return consolaError_('No pudimos cargar la consola. Inténtalo de nuevo en un momento.');
   }
+}
+
+// ── RECOMENDACIONES DEL RESUMEN (T9.9) ───────────────────────────────────────
+//
+// Antes esto lo calculaba el cliente con lo que ya tenía a mano (consola.html): secretos en el
+// código y módulos apagados. Se sube al servidor por dos motivos, y el segundo es el que manda:
+//
+//   · aquí hay datos que el cliente no tiene ni debe tener —los envíos fallidos, cuántos días
+//     lleva apagado un módulo, quién no ha entrado nunca—, y
+//   · un aviso calculado en el navegador es un aviso que solo ve quien tenga esa pantalla
+//     abierta con esa versión del archivo. La consola es donde se mira si el sistema está bien;
+//     su lista de pendientes no puede depender de qué copia del JavaScript se cargó.
+//
+// Cada recomendación trae SU ACCIÓN: sin «a dónde ir», un aviso es una queja.
+
+/** Propiedad donde queda la foto de la última revisión de salud, para poder citarla barata. */
+const CONSOLA_PROP_SALUD = 'CONSOLA_ULTIMA_SALUD';
+
+/** Propiedad con el momento en que se apagó cada módulo: {bloqueId: ISO}. */
+const CONSOLA_PROP_MODULOS_DESDE = 'CONSOLA_MODULOS_DESDE';
+
+/** Días que un módulo puede estar apagado antes de que la consola pregunte por él. */
+const CONSOLA_MODULO_DIAS_AVISO = 7;
+
+/** Correos que quedan en el día por debajo de los cuales conviene avisar. */
+const CONSOLA_CUOTA_BAJA = 60;
+
+function consolaModulosDesde_() {
+  try {
+    const crudo = PropertiesService.getScriptProperties().getProperty(CONSOLA_PROP_MODULOS_DESDE);
+    const obj = crudo ? JSON.parse(crudo) : {};
+    return (obj && typeof obj === 'object') ? obj : {};
+  } catch (e) {
+    return {};
+  }
+}
+
+/** Apunta cuándo se apagó un módulo (y lo borra al encenderlo). Nunca revienta la operación. */
+function consolaMarcarModuloDesde_(bloqueId, apagado) {
+  try {
+    const mapa = consolaModulosDesde_();
+    if (apagado) mapa[bloqueId] = new Date().toISOString();
+    else delete mapa[bloqueId];
+    PropertiesService.getScriptProperties().setProperty(CONSOLA_PROP_MODULOS_DESDE, JSON.stringify(mapa));
+  } catch (e) {
+    Logger.log('consolaMarcarModuloDesde_: ' + e);
+  }
+}
+
+/**
+ * Cuánto correo queda hoy, preguntado UNA vez por ejecución.
+ * Lo piden el resumen y las recomendaciones en la misma apertura de la consola, y cada
+ * `getRemainingDailyQuota` es una llamada al servicio de correo.
+ */
+var CONSOLA_CUOTA_MEMO = null;
+
+function consolaCuotaCorreo_() {
+  if (CONSOLA_CUOTA_MEMO === null) {
+    try { CONSOLA_CUOTA_MEMO = MailApp.getRemainingDailyQuota(); } catch (e) { CONSOLA_CUOTA_MEMO = -1; }
+  }
+  return CONSOLA_CUOTA_MEMO;
+}
+
+/** Días enteros transcurridos desde una fecha ISO, o -1 si no se sabe. */
+function consolaDiasDesde_(iso) {
+  if (!iso) return -1;
+  const d = new Date(iso);
+  if (isNaN(d.getTime())) return -1;
+  return Math.floor((Date.now() - d.getTime()) / (24 * 60 * 60 * 1000));
+}
+
+/**
+ * La lista de «esto conviene mirarlo». Todo lo de aquí tiene que ser BARATO: se calcula en
+ * cada apertura de la consola, así que nada de leer hojas enteras ni de correr la revisión
+ * maestra —que tarda y se pide con un botón—. De la salud se cita la última foto guardada.
+ *
+ * @return {Array<{texto:string, tono:string, accion:string, panel:string, pagina:string}>}
+ */
+function consolaRecomendaciones_(acc, ajustesYaLeidos) {
+  const out = [];
+  const tiene = function (s) { return acc.secciones.indexOf(s) !== -1; };
+
+  /* Qué sección abre cada panel, para no ofrecerle a nadie un botón que no le va a funcionar:
+     un supervisor con `sup_equipo` ve el aviso de un módulo apagado —le afecta a su equipo— pero
+     no tiene la pestaña Módulos, y el botón «Ir a Módulos» no hacía nada al pulsarlo. */
+  const SECCION_DE_PANEL = { miembros: 'roles', permisos: 'roles', modulos: 'modulos',
+                             ajustes: 'ajustes', formatos: 'formatos', salud: 'salud',
+                             metricas: 'metricas', bitacora: 'bitacora' };
+
+  const añadir = function (texto, tono, accion, destino) {
+    const panel = (destino && destino.panel) || '';
+    const seccion = SECCION_DE_PANEL[panel];
+    const alcanzable = !panel || !seccion || tiene(seccion);
+    out.push({
+      texto: texto, tono: tono || 'aviso',
+      accion: alcanzable ? (accion || '') : '',
+      panel: alcanzable ? panel : '',
+      pagina: (destino && destino.pagina) || ''
+    });
+  };
+
+  // 1. Ajustes sin poner o secretos que siguen en el código fuente.
+  //    Se reciben ya leídos cuando quien llama acaba de leerlos: cada lectura son quince
+  //    `getProperty` y el panorama los pedía dos veces por la misma apertura de consola.
+  if (tiene('ajustes')) {
+    try {
+      (ajustesYaLeidos || consolaLeerAjustes_(acc.maestro)).forEach(function (a) {
+        if (a.enCodigo && a.secreto) {
+          añadir('«' + a.nombre + '» todavía vive en el código fuente en vez de en las propiedades del script.',
+                 'aviso', 'Ir a Ajustes', { panel: 'ajustes' });
+        } else if (!a.configurado && !a.soloLectura && !a.opcional) {
+          añadir('«' + a.nombre + '» está sin configurar.', 'aviso', 'Ir a Ajustes', { panel: 'ajustes' });
+        }
+      });
+    } catch (e) { Logger.log('recomendaciones/ajustes: ' + e); }
+  }
+
+  // 2. Módulos apagados, con el tiempo que llevan así. Un módulo apagado es una decisión
+  //    temporal por definición; el que lleva un mes apagado es casi siempre un olvido.
+  try {
+    const desde = consolaModulosDesde_();
+    permModulosApagados_().forEach(function (id) {
+      const b = permBloque_(id);
+      const nombre = (b && b.nombre) || id;
+      const dias = consolaDiasDesde_(desde[id]);
+      if (dias >= CONSOLA_MODULO_DIAS_AVISO) {
+        añadir('«' + nombre + '» lleva ' + dias + ' días apagado por mantenimiento: nadie del equipo lo ve.',
+               'malo', 'Ir a Módulos', { panel: 'modulos' });
+      } else {
+        añadir('«' + nombre + '» está apagado por mantenimiento: nadie del equipo lo ve.',
+               'aviso', 'Ir a Módulos', { panel: 'modulos' });
+      }
+    });
+  } catch (e) { Logger.log('recomendaciones/modulos: ' + e); }
+
+  // De aquí para abajo son cifras de la instalación, y esa conversación es de maestros.
+  if (!acc.maestro) return out;
+
+  // 3. Envíos fallidos recientes. Se leen SOLO las últimas filas de la hoja: la pregunta es
+  //    «¿algo se rompió últimamente?», y para eso no hace falta la hoja entera.
+  try {
+    const sheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName(MET_SHEET_NAME);
+    if (sheet && sheet.getLastRow() > 1) {
+      const cuantas = Math.min(sheet.getLastRow() - 1, 200);
+      const ancho = Math.max(sheet.getLastColumn(), 1);
+      const hdr = sheet.getRange(1, 1, 1, ancho).getValues()[0].map(String);
+      const iFecha = hdr.indexOf('Fecha'), iRes = hdr.indexOf('Resultado');
+      if (iFecha > -1 && iRes > -1) {
+        const datos = sheet.getRange(sheet.getLastRow() - cuantas + 1, 1, cuantas, ancho).getValues();
+        const corte = Date.now() - 7 * 24 * 60 * 60 * 1000;
+        let fallos = 0;
+        datos.forEach(function (f) {
+          const d = (f[iFecha] instanceof Date) ? f[iFecha] : new Date(f[iFecha]);
+          if (isNaN(d.getTime()) || d.getTime() < corte) return;
+          if (!/enviad/i.test(String(f[iRes] || ''))) fallos++;
+        });
+        if (fallos) {
+          añadir(fallos + ' correo(s) fallaron en los últimos siete días.', 'malo',
+                 'Ver en Métricas', { panel: 'metricas' });
+        }
+      }
+    }
+  } catch (e) { Logger.log('recomendaciones/correos: ' + e); }
+
+  // 4. La última revisión de salud. No se corre aquí —tarda y toca Drive, Gmail y calendario—:
+  //    se cita la foto que dejó la última, y si nunca se ha corrido, se dice eso.
+  try {
+    const crudo = PropertiesService.getScriptProperties().getProperty(CONSOLA_PROP_SALUD);
+    const foto = crudo ? JSON.parse(crudo) : null;
+    if (!foto) {
+      añadir('La revisión del sistema no se ha corrido nunca desde la consola.', 'aviso',
+             'Ir a Salud', { panel: 'salud' });
+    } else if (foto.fallos > 0) {
+      const dias = consolaDiasDesde_(foto.fecha);
+      añadir('La última revisión del sistema (' + (dias <= 0 ? 'hoy' : 'hace ' + dias + ' día(s)') +
+             ') dejó ' + foto.fallos + ' problema(s) sin resolver.', 'malo', 'Ir a Salud', { panel: 'salud' });
+    } else if (consolaDiasDesde_(foto.fecha) > 30) {
+      añadir('Hace más de un mes que no se corre la revisión del sistema.', 'aviso',
+             'Ir a Salud', { panel: 'salud' });
+    }
+  } catch (e) { Logger.log('recomendaciones/salud: ' + e); }
+
+  // 5. Cuota de correo. Quedarse sin cuota no da un error claro: las cotizaciones simplemente
+  //    dejan de salir, y el asesor cree que las mandó.
+  try {
+    const quedan = consolaCuotaCorreo_();
+    if (quedan >= 0 && quedan <= CONSOLA_CUOTA_BAJA) {
+      añadir('Quedan ' + quedan + ' correos de la cuota de hoy. Al agotarse, los envíos fallan sin aviso al asesor.',
+             'malo', '', {});
+    }
+  } catch (e) {}
+
+  // 6. Altas que nunca entraron. La columna PasswordTemporal se limpia sola en cuanto la
+  //    persona entra y cambia su contraseña, así que un «Sí» viejo es alguien a quien se dio
+  //    de alta y nunca llegó a usar el sistema — o a quien no le llegó el correo.
+  try {
+    const sheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName(REGISTROS_SHEET_NAME);
+    if (sheet && sheet.getLastRow() > 1 && typeof CUENTAS_COL_TEMPORAL === 'string') {
+      const ancho = Math.max(sheet.getLastColumn(), 1);
+      const hdr = sheet.getRange(1, 1, 1, ancho).getValues()[0].map(String);
+      const iTemp = hdr.indexOf(CUENTAS_COL_TEMPORAL);
+      if (iTemp > -1) {
+        const valores = sheet.getRange(2, iTemp + 1, sheet.getLastRow() - 1, 1).getValues();
+        let pendientes = 0;
+        valores.forEach(function (v) { if (String(v[0] || '').trim()) pendientes++; });
+        if (pendientes) {
+          añadir(pendientes + ' persona(s) siguen con la contraseña temporal: nunca han entrado.',
+                 'aviso', 'Ir a Roles', { panel: 'miembros' });
+        }
+      }
+    }
+  } catch (e) { Logger.log('recomendaciones/altas: ' + e); }
+
+  return out;
 }
 
 /** Cifras de una ojeada: cuánta gente hay, de qué rol, y qué tan grande es la base. */
@@ -389,7 +810,7 @@ function consolaResumen_(quien) {
 
   try { resumen.urlApp = ScriptApp.getService().getUrl() || ''; } catch (e) {}
   try { resumen.zonaHoraria = Session.getScriptTimeZone() || ''; } catch (e) {}
-  try { resumen.cuotaCorreo = MailApp.getRemainingDailyQuota(); } catch (e) {}
+  resumen.cuotaCorreo = consolaCuotaCorreo_();
 
   return resumen;
 }
@@ -965,8 +1386,12 @@ function consolaCorreoReset_(correo, nombre, temporal, quien) {
  * si están puestos y cuántos caracteres miden, que es lo único que hace falta para
  * saber si hay que configurarlos.
  */
-function consolaLeerAjustes_() {
+function consolaLeerAjustes_(esMaestro) {
   const props = PropertiesService.getScriptProperties();
+  // Sin dato, se asume lo prudente: los ajustes de solo maestro se pintan en modo consulta.
+  // Hoy a esta función solo llegan maestros —consolaGate_ no deja pasar a nadie más—, así que
+  // esto es la red por si mañana Ajustes se abre a supervisión.
+  const maestro = esMaestro !== false;
 
   return CONSOLA_AJUSTES.map(function (a) {
     const enPropiedades = props.getProperty(a.clave);
@@ -976,7 +1401,10 @@ function consolaLeerAjustes_() {
     const salida = {
       clave: a.clave, nombre: a.nombre, detalle: a.detalle, grupo: a.grupo, tipo: a.tipo,
       opciones: a.opciones || null, marcador: a.marcador || '',
-      secreto: a.secreto === true, soloLectura: a.soloLectura === true,
+      secreto: a.secreto === true,
+      soloMaestro: a.soloMaestro === true,
+      opcional: a.opcional === true,
+      soloLectura: a.soloLectura === true || (a.soloMaestro === true && !maestro),
       // 'enCodigo' avisa de un secreto que todavía vive en el archivo fuente en vez
       // de en las propiedades del script: es una observación de seguridad, no un error.
       enPropiedades: enPropiedades !== null && enPropiedades !== '',
@@ -986,6 +1414,19 @@ function consolaLeerAjustes_() {
     salida.valor = a.secreto ? '' : String(efectivo || '');
     salida.pista = a.secreto && efectivo ? ('configurado · ' + String(efectivo).length + ' caracteres') : '';
     return salida;
+  });
+}
+
+/**
+ * Los enlaces del §Ajustes que esta persona puede seguir. Se filtran por bloque: enseñar un
+ * atajo a una pantalla que va a rechazarte es peor que no enseñarlo.
+ */
+function consolaEnlacesAjustes_(bloques) {
+  const mios = bloques || [];
+  return CONSOLA_AJUSTES_ENLACES.filter(function (e) {
+    return !e.bloque || mios.indexOf(e.bloque) !== -1;
+  }).map(function (e) {
+    return { nombre: e.nombre, detalle: e.detalle, panel: e.panel || '', pagina: e.pagina || '' };
   });
 }
 
@@ -1002,6 +1443,11 @@ function consolaRespaldoEnCodigo_(clave) {
     case 'CCL_TEMPLATE_SHEET_ID':   return typeof CCL_TEMPLATE_SHEET_ID === 'string' ? CCL_TEMPLATE_SHEET_ID : '';
     case 'PORTAL_CALENDAR_ID':      return typeof PORTAL_CALENDAR_ID === 'string' ? PORTAL_CALENDAR_ID : '';
     case 'CUENTAS_DOMINIO':         return typeof CUENTAS_DOMINIO_RESPALDO === 'string' ? CUENTAS_DOMINIO_RESPALDO : '';
+    // Los dos que T9.7 sacó del código fuente. Siguen escritos en Correos.gs y CorreoCliente.gs
+    // como respaldo: la propiedad manda, y si nunca se toca el sistema se comporta igual que antes.
+    case 'MAIL_ALIAS':              return typeof MAIL_ALIAS_RESPALDO === 'string' ? MAIL_ALIAS_RESPALDO : '';
+    case 'CC_SENDER_NAME':          return typeof CC_SENDER_NAME_RESPALDO === 'string' ? CC_SENDER_NAME_RESPALDO : '';
+    case 'CORREO_CCO_GLOBAL':       return '';
     case 'AUTH_MODO':               return 'portal';
     default:                        return '';
   }
@@ -1012,7 +1458,9 @@ function consolaAjustes(email) {
   try {
     const gate = consolaGate_(email, 'adm_ajustes');
     if (!gate.ok) return consolaError_(gate.error);
-    return { success: true, ajustes: consolaLeerAjustes_(), grupos: CONSOLA_GRUPOS_AJUSTES.slice() };
+    return { success: true, ajustes: consolaLeerAjustes_(gate.maestro === true),
+             grupos: CONSOLA_GRUPOS_AJUSTES.slice(),
+             enlaces: consolaEnlacesAjustes_(gate.bloques) };
   } catch (e) {
     return consolaError_('No pudimos leer los ajustes. Inténtalo de nuevo en un momento.');
   }
@@ -1031,6 +1479,10 @@ function consolaGuardarAjuste(email, clave, valor) {
     const def = CONSOLA_AJUSTES.filter(function (a) { return a.clave === clave; })[0];
     if (!def) return consolaError_('El ajuste "' + clave + '" no existe.');
     if (def.soloLectura) return consolaError_('"' + def.nombre + '" no se puede cambiar desde aquí.');
+    // El candado por ajuste, exigido en el servidor y no solo pintado en gris (T9.6).
+    if (def.soloMaestro && gate.maestro !== true) {
+      return consolaError_('"' + def.nombre + '" solo lo cambia una cuenta maestra.');
+    }
 
     const nuevo = String(valor == null ? '' : valor).trim();
     const validacion = consolaValidarAjuste_(def, nuevo);
@@ -1060,7 +1512,7 @@ function consolaGuardarAjuste(email, clave, valor) {
       success: true,
       message: '"' + def.nombre + '" guardado.',
       aviso: validacion.aviso || '',
-      ajustes: consolaLeerAjustes_()
+      ajustes: consolaLeerAjustes_(gate.maestro === true)
     };
   } catch (e) {
     Logger.log('consolaGuardarAjuste error: ' + e);
@@ -1106,6 +1558,33 @@ function consolaValidarAjuste_(def, valor) {
     const validas = (def.opciones || []).map(function (o) { return o.valor; });
     if (validas.indexOf(valor) === -1) return mal('"' + valor + '" no es una opción válida.');
     return bien(valor);
+  }
+
+  // Un correo suelto (el alias del remitente). No se comprueba que exista —eso lo dirá Gmail
+  // al primer envío—, pero sí que tenga forma de dirección: un alias mal tecleado hace que el
+  // sistema intente enviar "como" algo que no es un correo y el envío se cae entero.
+  if (def.tipo === 'correo') {
+    if (!valor) return bien('', 'Sin alias: los correos saldrán desde la cuenta que ejecuta el sistema.');
+    if (!/^[^\s@,;]+@[a-z0-9.-]+\.[a-z]{2,}$/i.test(valor)) return mal('"' + valor + '" no parece un correo.');
+    return bien(valor.toLowerCase());
+  }
+
+  // Lista de correos separados por coma (el CCO global). El tope es corto a propósito: una
+  // copia oculta es para vigilar, y una lista larga es una fuga de datos con buena intención.
+  if (def.tipo === 'lista_correos') {
+    if (!valor) return bien('', 'Sin copia oculta: los correos del sistema van solo a sus destinatarios.');
+    const trozos = valor.split(/[,;]/).map(function (x) { return x.trim(); }).filter(Boolean);
+    const malos = trozos.filter(function (x) { return !/^[^\s@,;]+@[a-z0-9.-]+\.[a-z]{2,}$/i.test(x); });
+    if (malos.length) return mal('Esto no parece un correo: ' + malos.join(', '));
+    if (trozos.length > 5) return mal('Como mucho cinco buzones en copia oculta. Si hacen falta más, usa una lista de distribución.');
+    const limpios = [];
+    trozos.forEach(function (x) {
+      const c = x.toLowerCase();
+      if (limpios.indexOf(c) === -1) limpios.push(c);
+    });
+    return bien(limpios.join(','),
+      'A partir de ahora ' + limpios.join(', ') + ' recibe copia oculta de las cotizaciones, las ' +
+      'plantillas a cliente y los avisos. Los correos de seguridad siguen sin copiarse.');
   }
 
   if (def.clave === 'CUENTAS_DOMINIO') {
@@ -1172,6 +1651,13 @@ function consolaValidarAjuste_(def, valor) {
     }
   }
 
+  if (def.tipo === 'texto') {
+    // Fuera saltos de línea y tabuladores. Alguno de estos textos acaba en una cabecera de
+    // correo (el nombre del remitente), y un salto de línea ahí es la forma clásica de colar
+    // un destinatario de más. Cortar aquí sale gratis y cierra el paso para todos.
+    return bien(valor.replace(/[\r\n\t]+/g, ' ').replace(/\s+/g, ' ').trim().slice(0, 120));
+  }
+
   return bien(valor);
 }
 
@@ -1207,6 +1693,8 @@ function consolaGuardarModulo(email, bloqueId, apagado) {
       : actuales.filter(function (id) { return id !== bloqueId; });
 
     const guardados = permFijarModulosApagados_(nuevos);
+    // Desde cuándo está así, para que el resumen pueda decir «lleva 12 días apagado» (T9.9).
+    consolaMarcarModuloDesde_(bloqueId, quiereApagar);
     consolaBitacoraApuntar_(gate.email, quiereApagar ? 'Módulo apagado' : 'Módulo encendido',
       bloque.nombre, quiereApagar ? 'en mantenimiento para todos menos los maestros' : 'de vuelta en servicio');
 
@@ -1270,6 +1758,17 @@ function consolaSalud(email) {
     const fallos = (reporte.checks || []).filter(function (c) { return !c.ok; }).length;
     consolaBitacoraApuntar_(gate.email, 'Revisión del sistema', '',
       fallos ? fallos + ' problema(s)' : 'todo en orden');
+
+    /* Foto de esta corrida para el resumen (T9.9). Se guarda el marcador, no el reporte: lo
+       que el resumen necesita saber es «cuándo fue la última y cómo salió», y meter el reporte
+       entero en una propiedad de script sería guardar kilobytes que nadie va a leer de ahí. */
+    try {
+      PropertiesService.getScriptProperties().setProperty(CONSOLA_PROP_SALUD, JSON.stringify({
+        fecha: new Date().toISOString(), fallos: fallos, total: (reporte.checks || []).length
+      }));
+    } catch (e) {
+      Logger.log('No se pudo guardar la foto de la revisión: ' + e);
+    }
 
     return { success: true, reporte: reporte };
   } catch (e) {

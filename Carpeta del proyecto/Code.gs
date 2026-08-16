@@ -761,6 +761,17 @@ function getQuotesForUser(callingUserEmail, searchTerm, forzarRecarga) {
   const termino = String(searchTerm || '').trim();
   const correo = String(callingUserEmail || '').trim().toLowerCase();
 
+  /* T9.4: se apunta QUÉ se buscó, y se apunta aquí — fuera de la caché.
+     Dentro del productor de cotCacheado_ solo se ejecutaría cuando la caché falla (TTL de 90 s),
+     así que dos personas buscando lo mismo dejarían una sola fila y el registro contaría de
+     menos. Aquí pasa por cada búsqueda real; la repetición mientras se teclea la absorbe la
+     ventana de monRegistrarBusqueda_, que además nunca revienta ni frena esta llamada.
+     Este es el ÚNICO punto de registro: buscarCotizaciones delega en esta función, y apuntarlo
+     también allí duplicaría cada fila. */
+  if (termino && typeof monRegistrarBusqueda_ === 'function') {
+    monRegistrarBusqueda_(termino, callingUserEmail, 'cotizaciones');
+  }
+
   if (typeof cotCacheado_ !== 'function' || (!termino && !correo)) {
     return leerCotizacionesDeUsuario_(callingUserEmail, searchTerm);
   }

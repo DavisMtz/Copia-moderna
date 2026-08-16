@@ -556,6 +556,82 @@ lo que le hacen y no interpreta nada, así que un `innerHTML` quedaría como cad
 
 ---
 
+## 15 quater. `Grupos.gs` — listas de personas (fase 9)
+
+Un grupo es una lista de personas con nombre: «Turno matutino», «Coordinación». Sirve para dos
+cosas y ninguna más: copiar sus correos de un clic y elegirlo como destinatario de una difusión.
+
+> **Un grupo NO da permisos.** Conviene leerlo antes de que a alguien le parezca buena idea:
+> los permisos se conceden por bloque y por persona (`Permisos.gs`), y una segunda vía
+> convertiría «¿por qué esta persona puede hacer esto?» en dos listas que hay que cruzar.
+
+**Expuestas:** `grpListar(email)`, `grpGuardar(email, datos)`, `grpEliminar(email, id)`,
+`grpFijarMiembros(email, id, correos)`. Helper interno para la difusión: `grpCorreosDe_(id)`.
+
+**Hoja `Grupos`** en el libro 1, con las membresías en una columna JSON. Ver el documento 04.
+
+**Tres decisiones:**
+
+1. **«Ventel» es virtual.** No tiene fila: se calcula de `secIndiceRegistros_` con la gente
+   activa. Es la lista que más se usa y la única que sería un error mantener a mano.
+2. **El gate es por NIVEL (≥ 2, supervisor), no por bloque**, y también para leer. El bloque
+   `sup_equipo` se le puede conceder a un asesor por excepción, y eso no debe convertirlo en
+   dueño de las listas de correo de la empresa. Leer también se cierra porque una lista de
+   destinatarios recortada por jerarquía saldría incompleta sin que nadie se entere.
+3. **El grupo devuelve nombre y correo, nunca rol ni bloques.** Lo que la regla de jerarquía
+   protege es el mapa de quién manda, no la existencia de un compañero.
+
+---
+
+## 15 quinquies. `Difusion.gs` — comunicados internos (fase 9)
+
+Escribir un correo y mandárselo a un grupo con el formato del sistema, sin salir de la consola.
+
+**Expuestas:** `difPreparar(email)`, `difPrevia(email, payload)`, `difEnviar(email, payload)`.
+
+- **El cuerpo viaja como BLOQUES, no como HTML** (misma doctrina que `Articulos.gs`): párrafo,
+  título, lista, nota, botón, imagen y separador. `difSanear_` es la aduana y descarta lo que no
+  reconoce; el HTML lo construye el servidor con las piezas de `Cuentas.gs`, que escapan todo.
+- **La libertad es del cuerpo; el marco lo pone el sistema.** Logo, cabecera y pie no se editan,
+  para que toda difusión salga formal sin depender del pulso de quien redacta.
+- **Los destinatarios van en copia oculta** y el «Para» es quien escribe.
+- **La cuota se comprueba antes de mandar:** cada persona en CCO cuenta una, y Gmail rechaza el
+  envío entero, no a medias.
+- Hay **envío de prueba** a uno mismo. El envío real no es idempotente y por eso pide
+  confirmación y se bloquea mientras sube: dos llamadas son dos correos a cuarenta personas.
+- Las imágenes viajan **en línea (cid)**, no enlazadas desde Drive: una imagen de Drive solo se
+  ve si el archivo es público, y en un correo interno eso es una imagen rota o un archivo abierto
+  a internet.
+
+---
+
+## 15 sexies. `Monitoreo.gs` — la sección «Métricas» de la consola (fase 9)
+
+Responde a «¿cuánto y quién?» sobre cuatro rastros que el sistema ya dejaba y que no se podían
+consultar desde ninguna pantalla.
+
+**Expuestas:** `monPanorama(email)`, `monCotizaciones`, `monCorreos`, `monBusquedas`,
+`monCambios` (todas con la firma `(email, filtros)`). Interno: `monRegistrarBusqueda_`.
+
+**Tres reglas que ordenan el archivo:**
+
+1. **Nada se calcula al abrir la consola.** Cada consulta la pide el usuario: leer
+   «Cotizaciones» entera es lo más caro de la app y `consolaPanorama` no debe engordar.
+2. **Se lee por la cola de la hoja, por lotes**, parando cuando un lote entero queda por debajo
+   del rango. Hay tope de filas devueltas y techo de filas leídas, y los dos se le cuentan al
+   usuario cuando se alcanzan.
+3. **El recorte jerárquico es del servidor** y se resuelve una vez por consulta en un mapa de
+   correos; hacerlo fila a fila sobre miles de filas tardaba medio minuto.
+
+Las cuatro consultas contestan con **la misma forma** (`monRespuesta_`), que es lo que permite
+que la pantalla tenga una sola tabla y un solo CSV.
+
+**El registro de búsquedas** (hoja `MetricasBusquedas`) se apunta en `getQuotesForUser`
+—`buscarCotizaciones` delega en ella— y **fuera** de `cotCacheado_`, con ventana antirrepetición
+de 45 s. No llama a `cotInvalidarCache_`: una búsqueda no cambia nada.
+
+---
+
 ## 16. `PortalContenido.gs` — backend de **escritura** del Portal (1 299 líneas)
 
 Antes, para cambiar una herramienta o una plantilla había que abrir el Google Sheet a mano:

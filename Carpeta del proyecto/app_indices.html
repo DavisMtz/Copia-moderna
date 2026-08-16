@@ -481,6 +481,14 @@
       icono:'lock', page:'consola', bloques:['adm_miembros','adm_permisos','adm_ajustes'], maestro:true,
       kw:'administracion usuarios altas bajas roles bitacora salud modulos consola ajustes' },
 
+    /* Métricas y monitoreo (F9). Lleva su bloque propio, `metricas`, y NO `maestro`: la
+       abre también una supervisión, con su alcance jerárquico recortado en el servidor.
+       Marcarla de maestro escondería justo la pantalla a la que ese bloque da acceso. */
+    { id:'monitoreo', nombre:'Métricas y monitoreo', sub:'Cotizaciones, correos, búsquedas y cambios',
+      icono:'chart', page:'consola', params:{ sec:'metricas' }, bloques:['metricas'],
+      kw:'metricas monitoreo informe informes reporte reportes csv descargar cuantas cotizaciones ' +
+         'correos enviados busquedas cambios auditoria cifras periodo rango fechas' },
+
     { id:'atenciones', nombre:'Atenciones pendientes', sub:'Clientes por retomar cuando algo falló',
       icono:'clock', page:'atenciones', bloques:['atenciones'],
       kw:'atencion pendiente pospuesta cliente telefono llamar retomar rescate rescatar guardar datos ' +

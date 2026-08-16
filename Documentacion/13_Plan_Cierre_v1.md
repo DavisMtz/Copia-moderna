@@ -986,6 +986,7 @@ huecos reales. Estos son los que sobrevivieron.
 | 2 | **T12.1 sin empezar**: `portal_contenido.html` ni siquiera incluye `app_onboarding`. Es uno de los cinco puntos de la «vía rápida» del §2 | `portal_contenido.html` | F12 |
 | 3 | **T11.2 a medias**: el botón de un clic a la página de Liverpool existe (por triplicado), pero falta **el precio de la última captura en caché con su antigüedad rotulada** cuando responde 403 | `Revision.gs:961-974`, `revision_cotizacion.html:1978-1986` | F11 |
 | 4 | **T6.4 solo cerró la mitad**: el DOM del panel ya está diferido, pero los ~157 KB de `app_comando` + `app_indices` **siguen viajando** en las 17 pantallas, porque `include()` pega el partial en el HTML servido. El §18 lo deja como decisión del creador | los 17 `include('app_comando')` | F6 |
+| 17 | **`revisionMaestra()` no tiene gate y su reporte se puede pedir desde el navegador.** Es anterior a F9 —se ejecuta desde el editor, y la puerta está en `consolaSalud`—, pero el reporte describe la instalación entera: hojas, alias, webhooks recortados, cuántos maestros hay. F9 dejó de escribir en él lo que no debe leerse; falta cerrarlo de verdad sin romper su uso desde el editor | `Admin.gs:19`, `Admin.gs:390` | F13 |
 
 ### Pruebas que faltan
 
@@ -1002,6 +1003,10 @@ huecos reales. Estos son los que sobrevivieron.
 | 8 | **El visor de artículos no se ha visto en pantalla** (la extensión del navegador se desconectó a mitad de aquella revisión). El editor sí | F8 |
 | 9 | **Los diagramas no se han probado contra Apps Script.** El iframe anidado y el `postMessage` deberían comportarse como el iframe de Google Sheets de la revisión, que ahí ya funciona, pero es una dependencia externa nueva | F8 |
 | 10 | **Grabación antes/después de los dos buscadores** (criterio F6.2) y el «<1 s» del tablero de F5 | F5 · F6 |
+| 13 | **La difusión no se ha enviado de verdad todavía.** El envío está probado contra un Gmail fingido; falta mandar uno real a un grupo pequeño y ver cómo llega la imagen en línea a una bandeja de Outlook y a otra de Gmail (criterio F9.2) | F9 |
+| 14 | **El CCO global no se ha configurado en producción.** Falta la comprobación con dos cuentas del criterio F9.4: que la cotización y la plantilla lleguen copiadas y que el correo de reset **no** | F9 |
+| 15 | **Monitoreo no se ha medido sobre la hoja real.** El «<5 s» del criterio F9.3 está razonado (lectura por la cola, topes) pero no cronometrado contra «Cotizaciones» de producción | F9 |
+| 16 | **`revisionMaestra()` con las áreas nuevas no se ha corrido en el proyecto real** (criterio F9.5) | F9 |
 
 ### Higiene del registro §18
 
@@ -1033,6 +1038,203 @@ Lo que se ha hecho de verdad, en orden. Cada entrada dice **qué se cambió, qu�
 y qué se dejó fuera a propósito**. Mismo formato que el registro del documento 12.
 
 <!-- Las entradas nuevas van arriba, con la más reciente primero. -->
+
+### 2026-08-15 — F9 completa: la consola cierra el círculo administrativo
+
+**Qué es esta fase.** La consola sabía gestionar personas y ajustes, pero no responder a las
+tres preguntas que se le hacen a diario: «¿a quién le mando esto?», «¿cuánto y quién?» y «¿qué
+pasó en esta semana concreta?». F9 añade lo que faltaba: grupos de personas, difusión de correo
+interno, una sección de métricas con cuatro rastros consultables, la bitácora por fechas, la
+copia oculta global, los dos ajustes que seguían escritos en el código, once áreas nuevas en la
+revisión maestra y las recomendaciones del resumen calculadas donde están los datos.
+
+**Qué se cambió.**
+
+- **Grupos** (T9.1 y T9.2), en `Grupos.gs`, hoja nueva `Grupos` del libro de cotizaciones. Un
+  grupo es una lista de personas con nombre y **no da permisos**: eso se dice en la cabecera del
+  archivo para que a nadie le parezca buena idea después, porque dos vías para «¿por qué esta
+  persona puede hacer esto?» son una vía de más. El grupo **«Ventel» es virtual**: se calcula de
+  `secIndiceRegistros_` y solo con la gente activa, que es la única forma de que el que entra al
+  equipo el lunes reciba el comunicado del martes sin que nadie se acuerde de añadirlo.
+  Las **membresías van en una columna JSON y no en una segunda hoja** —se consideró y se
+  descartó—: un grupo cabe de sobra en una celda, es el patrón que ya usa la columna «Permisos»
+  de `_PermisosSistema`, y con una sola hoja no hay filas huérfanas que limpiar ni dos
+  escrituras que puedan quedarse a medias. El botón de **copiar correos** pega la lista separada
+  por comas, que es lo que Gmail acepta directo en Para o CCO, y copia **solo a los alcanzables**:
+  pegar a alguien dado de baja es un rebote garantizado.
+- **El gate de los grupos es por NIVEL, no por bloque**, como pedía el plan, y también para
+  **leer**. Esa segunda mitad es una decisión de esta tanda: una lista de destinatarios recortada
+  por jerarquía —sin la gente por encima de quien mira— es peor que ninguna, porque el correo
+  saldría sin ellos y nadie se enteraría. A cambio, el grupo devuelve nombre y correo pero
+  **nunca rol, nivel ni bloques**: lo que la regla de jerarquía protege es el mapa de quién
+  manda, no la existencia de un compañero.
+- **Difusión** (T9.3), en `Difusion.gs`. Asunto y cuerpo libre con párrafos, títulos, listas,
+  notas, un botón e imágenes; el marco —logo, cabecera, pie— lo pone el sistema y no se edita.
+  Los destinatarios van **en copia oculta** y el «Para» es quien escribe: cuarenta direcciones a
+  la vista son una lista interna repartida en cuarenta bandejas y un «responder a todos» de
+  cuarenta. La **cuota se comprueba antes** de mandar, porque cada persona en CCO cuenta una y
+  Gmail rechaza el envío entero, no a medias. Hay **envío de prueba** a uno mismo, y el envío
+  real pide confirmación con el número de destinatarios delante.
+- **La vista previa la pinta el servidor**, con el correo de verdad, y la consola la enseña en un
+  `iframe` con `srcdoc` y `sandbox`. No es paranoia: un correo trae sus propias tablas y estilos
+  y con `innerHTML` se comería la maquetación de la consola.
+- **Sección «Métricas» con Monitoreo** (T9.4), en `Monitoreo.gs` y en una pestaña nueva de la
+  consola. Cuatro consultas —cotizaciones, correos, búsquedas y cambios— con la **misma forma de
+  respuesta**, que es lo que permite que las pinte una sola tabla y que el CSV salga de un solo
+  sitio. Nada se calcula al abrir la consola: cada consulta la pide el usuario. Se lee **por la
+  cola de la hoja y por lotes**, parando cuando un lote entero queda por debajo del rango, que es
+  el patrón que ya usaba la bitácora; hay tope de filas devueltas y techo de filas leídas, y los
+  dos se le **cuentan al usuario** cuando se alcanzan en vez de devolver una lista corta sin
+  explicación. El recorte jerárquico se resuelve **una vez por consulta** en un mapa de correos:
+  hacerlo fila a fila con `permUsuario_` sobre miles de filas era la forma segura de tardar medio
+  minuto.
+- **Las búsquedas por fin se guardan.** No se registraban en ningún sitio (`Logger.log` efímero).
+  Ahora hay hoja `MetricasBusquedas` y un registro que se apunta en **un solo punto**
+  —`getQuotesForUser`, porque `buscarCotizaciones` delega en ella y hacerlo en las dos duplicaba
+  cada fila— y **fuera de la caché**: dentro del productor de `cotCacheado_` solo se ejecutaría
+  cuando la caché falla, así que se habrían contado menos búsquedas de las reales. Trae ventana
+  antirrepetición de 45 segundos por persona y término, porque el buscador de la paleta dispara
+  mientras se teclea. Y **no llama a `cotInvalidarCache_`**: una búsqueda no cambia nada, y tirar
+  la caché de cotizaciones en cada búsqueda haría lento justo lo que se está midiendo.
+- **La hoja de correos ganó una columna y aprendió a repararse sola.** `PlantillaModificada` es
+  nueva, y la autocreación de `Metricas.gs` solo actúa cuando la hoja NO existe: en una
+  instalación viva la columna 16 no aparece sola y un `appendRow` de dieciséis valores habría
+  empezado a escribir cada dato una casilla corrido. Ahora la fila se arma **por nombre de
+  columna** y las que falten se crean al vuelo.
+- **Bitácora por fechas** (T9.5): `consolaBitacoraRango`, con el mismo recorte jerárquico
+  extraído a **una sola función** —`consolaBitacoraFiltro_`— porque una regla de seguridad
+  copiada en dos sitios es una regla que un día solo se corrige en uno. El día final entra
+  completo: «del 1 al 5» incluye todo el día 5, y tomarlo como medianoche a secas produce el
+  clásico «faltan los cambios de hoy» que nadie sabe explicar. Con descarga en CSV.
+- **Copia oculta global** (T9.6). Ajuste `CORREO_CCO_GLOBAL` con validación de lista de correos,
+  campo nuevo `soloMaestro` en el catálogo y su exigencia en el servidor. Se aplica en las
+  **cuatro rutas** de envío. La cuarta no estaba donde decía el plan: el aviso de revisión vive
+  en `Revision.gs:759`, no en 695 —ahí está `revChecklistTexto_`—.
+- **Y el candado que ordena ese diseño:** el CCO **no se metió dentro de la función que envía**.
+  `cuentasEnviarCorreo_` la comparten los correos de seguridad —contraseña temporal, código de
+  verificación— y los avisos normales, así que un CCO ahí dentro habría convertido un buzón de
+  vigilancia en un almacén de credenciales de todo el equipo. Se pide con `{cco:true}`, ruta por
+  ruta: **quien no lo pide, no lo lleva**. Falla cerrado, y las pruebas comprueban eso y no solo
+  que funcione cuando se pide.
+- **Ajustes centralizados** (T9.7). `MAIL_ALIAS` y `CC_SENDER_NAME` salieron del código a la
+  consola, con la constante de siempre como respaldo de fábrica para que una instalación recién
+  clonada se comporte exactamente igual. Se leen con `mailAlias_()` y `ccSenderName_()`, con memo
+  por ejecución y **no en una constante global**: los `.gs` se cargan enteros en cada petición y
+  leer una propiedad al cargar el archivo se lo cobraría también a las pantallas que no mandan
+  ningún correo. El alias entró además en la **clave de la caché** de `getMailSenderInfo`: con la
+  clave fija, cambiarlo habría dejado a cada asesor viendo el remitente anterior hasta seis
+  horas, sin forma de forzarlo porque esa caché es suya y no del script. Lo que ya tiene pantalla
+  propia —formatos, política de revisión, módulos— se **enlaza** desde Ajustes en vez de
+  duplicarse.
+- **Salud al día** (T9.8): once comprobaciones nuevas en tres áreas —Contenido, Métricas y
+  Módulos— sobre lo que llevaba desde su estreno sin vigilancia: artículos, lecturas, votos,
+  grupos, correos, búsquedas, CCO, trazabilidad, preferencias, atenciones, revisión y política,
+  auditoría y caché de identidad. Van en **bloques contiguos** porque la consola agrupa por área
+  comparando solo con la anterior, y un área partida en dos pinta dos cabeceras iguales. Las
+  hojas que se crean solas usan el patrón «opcional»: «aún no existe» sale en verde con esas
+  palabras, que es la verdad en una instalación nueva y sana.
+- **Recomendaciones del resumen** (T9.9), movidas del cliente al servidor y ampliadas con lo que
+  el navegador no puede saber: cuántos días lleva apagado un módulo —hay una propiedad nueva que
+  apunta cuándo se apagó—, cuántos correos fallaron esta semana, cómo salió la última revisión de
+  salud, si la cuota de correo va corta y **quién sigue con la contraseña temporal**, que es la
+  columna que ya distingue a quien nunca ha entrado. Cada recomendación trae su acción y el panel
+  al que lleva.
+- **Módulos** (T9.10): revisado. Los dos bloques nuevos de este plan —`articulos` y `metricas`—
+  salen solos en la pestaña porque nacen con `fijo:false` y `admin:false`, y las pantallas nuevas
+  respetan el apagado porque el gate parte de `permUsuario_().bloques`, que ya viene con los
+  módulos apagados restados. Sin cambios, y con una prueba que lo vigila.
+
+**Qué encontró la revisión, antes de dar la fase por hecha.** El código de la fase pasó por cinco
+lentes independientes —seguridad, corrección, cliente, rendimiento y fidelidad al plan— y cada
+hallazgo por alguien cuyo único encargo era **refutarlo**. De treinta y cinco, veinticinco se
+cayeron; los diez que sobrevivieron están corregidos, y tres merecen contarse:
+
+- **Una fórmula viva en el libro de cotizaciones.** El término de búsqueda se escribía tal cual
+  en la hoja, y una celda que empieza por `=` no es texto para Sheets: es una fórmula que se
+  evalúa con los permisos de quien abra el libro. Como `getQuotesForUser` no tiene gate —la
+  búsqueda de folios es global a propósito— y la webapp se sirve a todo el dominio, cualquiera
+  con una cuenta del dominio, **sin estar dado de alta**, podía dejar ahí un `IMPORTXML` que
+  leyera `Registros` y lo mandara fuera. Ahora el registro **exige sesión resuelta**, el texto
+  se guarda inerte, y hay tope por persona y hora como en la otra escritura abierta del proyecto
+  (`reportBrokenLink`). Era el hallazgo crítico y venía de esta fase.
+- **Un periodo pasado devolvía «no hay nada».** Monitoreo recorría la hoja hacia atrás por lotes
+  y paraba al bajar del rango; para «los últimos treinta días» va bien, pero al pedir «enero del
+  año pasado» ninguna fila intermedia es anterior al rango, así que leía hasta el techo y
+  contestaba **vacío** sin haber llegado. Se cambió el método: primero se lee **solo la columna
+  de fechas** —una celda por fila— y después las filas completas de las que caen dentro. Es
+  exacto además de barato, y de paso desaparece la suposición de que la hoja está en orden, que
+  no lo está: una cotización editada conserva su sitio y estrena fecha.
+- **Dos personas editando el mismo grupo se pisaban.** El cliente mandaba la lista entera que
+  tenía delante, así que quien guardaba segundo borraba, sin enterarse, lo que el primero
+  acababa de añadir. Ahora manda también la lista **de partida** y el servidor aplica solo la
+  diferencia sobre lo que hay. El veto jerárquico se aplica a las **altas** y no a la lista
+  entera: un supervisor no puede meter a un maestro en un grupo, pero editar un grupo tampoco
+  expulsa al que ya estaba.
+
+El resto: el CSV descargado neutraliza las celdas que empiezan por `=`, `+`, `-` o `@` (lo mismo
+que la hoja, porque acaba en un Excel); la revisión maestra dice **cuántos** buzones vigilan y no
+cuáles (no tiene gate y su reporte se puede pedir desde el navegador); la hoja de métricas se
+estira antes de escribir la columna nueva —si alguien le borró las columnas sobrantes, escribir
+más allá del borde lanzaba y el fallo se lo tragaba el try/catch del envío—; media fecha ya no se
+ignora en silencio; el envío avisa en ámbar si el servidor descartó bloques; la negrita al
+principio de una línea de lista ya no pierde su asterisco; el redactor devuelve el foco y atrapa
+el tabulador; las imágenes se leen todas antes de repintar y se pintan con la URL del archivo en
+vez de con dos megas de base64 en el DOM.
+
+**Qué se comprobó.** Batería nueva `pruebas/f9_consola.test.js` con **263 comprobaciones**; el
+total del repositorio pasa a **652**. Todas las demás suites siguen en verde y `node
+scripts/sintaxis.js` no encuentra nada en los 77 archivos. Cada uno de los tres hallazgos de
+arriba dejó su prueba de regresión: el término con forma de fórmula, el periodo de hace un año
+bajo trece mil filas más recientes, y los dos supervisores guardando el mismo grupo. Lo que la batería mira con más saña
+son las dos cosas que hacen daño si fallan: que **la copia oculta no toque un correo de
+seguridad** por ningún camino, y que **el cuerpo de una difusión nunca sea HTML ajeno** (banco
+hostil con `javascript:`, etiquetas, tipos de bloque inventados y una «imagen» que no lo es).
+También se comprueba el recorte jerárquico con tres niveles de cuenta, que un asesor con
+`sup_equipo` no toque grupos ni difusión, la reparación de la hoja de métricas con las columnas
+movidas de sitio, y que la sección nueva esté declarada **en los cuatro sitios** que hacen falta
+—si falta el id en `CNS_PANELES`, un enlace `?sec=metricas` no abre nada y no avisa—.
+
+**Qué se dejó fuera a propósito, o se hizo distinto.**
+
+- **El redactor de la difusión NO es un `contenteditable`**, que es lo que proponía el plan. Se
+  hace por bloques, como el editor de artículos de F8 y por el motivo escrito allí: un
+  contenteditable produce el HTML que se le antoje al navegador y convertirlo después es el
+  trabajo que nadie gana. La libertad que sí hacía falta —negrita, cursiva y enlaces dentro de
+  una frase— la dan tres botones que envuelven lo seleccionado en el propio campo; lo que queda
+  debajo sigue siendo texto y el cliente lo convierte en partes antes de mandarlo. Dos editores
+  que se comportan distinto en la misma app son peor que uno que se comporta igual.
+- **«Si se modificó la plantilla» compara el ASUNTO, no el cuerpo.** El plan pedía comparar el
+  cuerpo contra la plantilla base; al ir a hacerlo se vio que el cuerpo **no se edita**:
+  `correo_cliente.html` lo construye entero desde los campos de la plantilla y no hay ningún
+  editor de texto libre sobre el resultado. Lo que el asesor sí reescribe es el asunto, que la
+  plantilla propone ya redactado, y eso es literalmente «se modificó la plantilla». El asunto
+  propuesto lo manda el cliente porque el catálogo de plantillas vive allí; es una **métrica y
+  no un candado**, y por eso no decide nada.
+  **Con una excepción que la revisión señaló y conviene tener escrita:** la plantilla «Texto
+  plano» no propone asunto —el asesor lo escribe entero, igual que el cuerpo—, así que ahí la
+  columna se queda **en blanco**. Es correcto en el sentido de «no se puede saber si se desvió
+  de algo», pero es justo la plantilla donde más se escribe a mano. Queda declarado; medirla
+  exigiría subir el catálogo de plantillas al servidor, que es una tarea con su propio motivo.
+- **Solo se registran las búsquedas que pasan por el servidor** (las de cotizaciones). El
+  buscador general del Portal resuelve en el cliente contra el índice, así que registrarlo
+  exigiría una llamada al servidor por búsqueda: pagar una petición por tecla para medir el
+  buscador es empeorarlo. Queda declarado aquí.
+- **No se implementó muestreo** para el registro de búsquedas. El plan lo pedía «si el volumen
+  pega al rendimiento, medido y no supuesto»: hoy no hay medida, y entre la ventana que afina el
+  prefijo y el tope por hora, lo que llega a la hoja es una fila por búsqueda de verdad. Cuando
+  la hoja crezca lo suficiente para medirlo, se decide.
+- **El filtro admite horas además de fechas**, como pedía T9.4, pero solo un intervalo por día
+  («de las 14:00 a las 18:00» dentro del rango elegido), no un horario distinto por jornada.
+- **`revisionMaestra()` sigue sin gate**, y eso es anterior a esta fase: se ejecuta desde el
+  editor y su puerta está en `consolaSalud`. Cualquiera del dominio puede pedir el reporte desde
+  el navegador, así que F9 dejó de escribir en él datos que no deban leerse (los buzones del CCO
+  ahora se cuentan, no se nombran). **Gatearlo de verdad es trabajo de F13** y queda anotado en
+  el §17 bis: no se hizo aquí porque cambia el contrato de una función que usan el editor, la
+  consola y `getSystemHealth`.
+- **El grupo «Ventel» no se puede editar ni borrar** y sus miembros no se quitan a mano: para
+  sacar a alguien se le da de baja en Roles. Es lo que lo hace fiable.
+- **Sin bloque `grupos`**, como el plan dejaba por defecto: la regla de nivel ≥ 2 basta y un
+  bloque más es un bloque que administrar.
 
 ### 2026-08-15 — F8, quinta tanda: lo que la auditoría del plan encontró que faltaba
 
