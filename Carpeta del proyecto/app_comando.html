@@ -336,7 +336,12 @@
     /* Libro abierto para los artículos. No reutiliza `doc` a propósito: esa hoja con
        renglones ya es la de las cotizaciones y la de los formatos, y tres grupos con el
        mismo dibujo obligan a leer el rótulo para saber en cuál se está. */
-    libro:   ic('<path d="M12 6.6C10.5 5.1 8.5 4.3 6 4.3H3.5v13H6c2.5 0 4.5.8 6 2.4 1.5-1.6 3.5-2.4 6-2.4h2.5v-13H18c-2.5 0-4.5.8-6 2.3Z"/><path d="M12 6.6v13.1"/>')
+    libro:   ic('<path d="M12 6.6C10.5 5.1 8.5 4.3 6 4.3H3.5v13H6c2.5 0 4.5.8 6 2.4 1.5-1.6 3.5-2.4 6-2.4h2.5v-13H18c-2.5 0-4.5.8-6 2.3Z"/><path d="M12 6.6v13.1"/>'),
+    /* La «i» en círculo de «Acerca de». Es el único glifo universal para "información
+       sobre esto" y por eso no se reaprovecha ninguno: `libro` ya es Artículos y con el
+       mismo dibujo las dos entradas se confundirían justo en la lista donde una lleva a
+       la biblioteca del equipo y la otra a la ficha del sistema. */
+    info:    ic('<circle cx="12" cy="12" r="9"/><path d="M12 11v5.5"/><path d="M12 7.6h.01"/>')
   };
 
   function esc(s) { return window.AppBuscar ? AppBuscar.escapa(s) : String(s == null ? '' : s); }
@@ -360,7 +365,7 @@
     home:IC.casa, document:IC.doc, send:IC.correo, mail:IC.correop, chart:IC.grafica,
     check:IC.check, gear:IC.engrane, megaphone:IC.megafono, layers:IC.capas,
     bolt:IC.pulso, lock:IC.llave, key:IC.llave, clock:IC.reloj, globe:IC.globo,
-    sparkle:IC.estrella, wifi:IC.pulso, flag:IC.pulso, book:IC.libro
+    sparkle:IC.estrella, wifi:IC.pulso, flag:IC.pulso, book:IC.libro, info:IC.info
   };
 
   /* Acciones locales del catálogo: las que NO cambian de pantalla. En el catálogo

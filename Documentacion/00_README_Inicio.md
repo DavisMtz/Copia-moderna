@@ -52,7 +52,7 @@ Conteo real de archivos, hecho sobre el repositorio, no estimado.
 | Ubicación | Contenido | Cantidad |
 | --- | --- | --- |
 | `Carpeta del proyecto/` | Backend Apps Script (`.gs`) | **31** |
-| `Carpeta del proyecto/` | Pantallas y módulos (`.html`) | **46** |
+| `Carpeta del proyecto/` | Pantallas y módulos (`.html`) | **49** |
 | `Carpeta del proyecto/` | Manifiesto `appsscript.json` | 1 |
 | `Carpeta del proyecto/` | `README.md`, `.gitattributes`, `.claude/settings.json` | 3 |
 | `Extencion para chrome/` | Código de la extensión (`.js`, `.html`, `.css`, `manifest.json`) | **13** |
@@ -65,7 +65,7 @@ Cifras clave del modelo, también verificadas contra el código:
 - **3 roles**: `normal` (Asesor), `avanzado` (Supervisor), `maestro`.
 - **4 modos de autenticación**: `portal`, `auto`, `estricto`, `legado`.
 - **18 parámetros de vista** en el contrato de URLs (`PARAMS_VISTA`, `Code.gs`).
-- **17 páginas de app** con sesión + **3 páginas públicas** del Portal.
+- **18 páginas de app** con sesión + **3 páginas públicas** del Portal.
 - **~45 comprobaciones** en 13 áreas dentro de `revisionMaestra()` (el total exacto varía:
   hay dos bucles que generan un check por pestaña del Portal).
 - **3 libros de Google Sheets** en uso + 1 plantilla + 1 archivo externo de comercial.

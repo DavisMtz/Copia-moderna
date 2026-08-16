@@ -985,7 +985,7 @@ huecos reales. Estos son los que sobrevivieron.
 | 1 | **`revision_cotizacion.html` no escribe nada en la URL**, y tiene dos juegos de pestañas reales (`:845-850` hoja/google y `:1028-1033` comparación/página). Cambiar de pestaña no sobrevive a F5 ni al botón «atrás». `cotizado_preview.html` tampoco escribe estado. Es el criterio 1 de F1 sin cumplir en dos pantallas | `revision_cotizacion.html`, `cotizado_preview.html` | F1 |
 | 2 | **T12.1 sin empezar**: `portal_contenido.html` ni siquiera incluye `app_onboarding`. Es uno de los cinco puntos de la «vía rápida» del §2 | `portal_contenido.html` | F12 |
 | 3 | **T11.2 a medias**: el botón de un clic a la página de Liverpool existe (por triplicado), pero falta **el precio de la última captura en caché con su antigüedad rotulada** cuando responde 403 | `Revision.gs:961-974`, `revision_cotizacion.html:1978-1986` | F11 |
-| 4 | **T6.4 solo cerró la mitad**: el DOM del panel ya está diferido, pero los ~157 KB de `app_comando` + `app_indices` **siguen viajando** en las 17 pantallas, porque `include()` pega el partial en el HTML servido. El §18 lo deja como decisión del creador | los 17 `include('app_comando')` | F6 |
+| 4 | **T6.4 solo cerró la mitad**: el DOM del panel ya está diferido, pero los ~157 KB de `app_comando` + `app_indices` **siguen viajando** en cada pantalla que los lleva, porque `include()` pega el partial en el HTML servido. El §18 lo deja como decisión del creador. *(Recuento al 16/08/2026, tras F10: **17** `include('app_comando')` y **18** `include('app_indices')`. La cifra sube con cada pantalla nueva; si vuelve a quedar desfasada, se cuenta y ya.)* | los `include('app_comando')` | F6 |
 | 17 | **`revisionMaestra()` no tiene gate y su reporte se puede pedir desde el navegador.** Es anterior a F9 —se ejecuta desde el editor, y la puerta está en `consolaSalud`—, pero el reporte describe la instalación entera: hojas, alias, webhooks recortados, cuántos maestros hay. F9 dejó de escribir en él lo que no debe leerse; falta cerrarlo de verdad sin romper su uso desde el editor | `Admin.gs:19`, `Admin.gs:390` | F13 |
 
 ### Pruebas que faltan
@@ -1038,6 +1038,145 @@ Lo que se ha hecho de verdad, en orden. Cada entrada dice **qué se cambió, qu�
 y qué se dejó fuera a propósito**. Mismo formato que el registro del documento 12.
 
 <!-- Las entradas nuevas van arriba, con la más reciente primero. -->
+
+### 2026-08-16 — F10 completa: el Portal por fin se explica, y a cada quien la suya
+
+**Qué es esta fase.** El sistema tenía diecinueve pantallas y ningún sitio donde dijera qué
+es. Quien entraba nuevo aprendía por el menú —que enseña las puertas, no lo que hay
+detrás—, y las tres preguntas que se hacen siempre no tenían respuesta escrita en ninguna
+parte: «¿esto qué es?», «¿yo qué puedo hacer aquí?» y «¿quién lo hizo?». La segunda es la
+que de verdad dolía, porque la respuesta **cambia según quién pregunta** y hasta ahora la
+contestaba un compañero de memoria. F10 la contesta con el mismo criterio con el que se
+dibuja el menú: la sesión que hay abierta.
+
+**Qué se cambió.**
+
+- **Pantalla nueva `acerca`** (T10.1), en `acerca.html`, dada de alta en `PAGES`
+  (`Code.gs`), en `AppUrl.PAGINAS` y en `PAGINAS_TRAS_LOGIN` (`app_core.html`). Va en
+  `PAGES` y no en `PORTAL_PAGES` porque **exige sesión** —lo pide ella misma con
+  `requireSession('acerca')`, sin bloque, que es lo que el plan pedía—, y está en la lista
+  de después del login para que un enlace compartido aterrice aquí y no en el panel. Sin
+  ella en `AppUrl.PAGINAS` la pantalla ni siquiera escribiría su propia URL:
+  `declararPagina` descarta lo que no conoce y `reflejar()` se calla.
+- **La entrada va en el PIE de la barra y no en el menú**, con clase propia
+  `.side-foot-link`. Las dos mitades son decisiones. El pie porque el menú es la lista de
+  lo que hay que hacer hoy, y una pantalla que se visita una vez —al llegar al equipo, o
+  cuando alguien pregunta «¿y esto qué hace?»— estorba ahí los otros trescientos días; el
+  pie ya es el cajón de lo que se consulta y no se opera. Y clase propia, aunque se vea
+  igual que el lanzador del tutorial que tiene al lado, porque **el estilo de ese lanzador
+  vive en `app_onboarding`, que solo llega a 3 de las 11 pantallas con shell**:
+  reutilizarlo habría dejado el botón sin forma en las otras ocho. `sideFootHTML` pasa a
+  recibir la pantalla activa para poder marcarse, con `aria-current`.
+- **En el Portal, la misma entrada en el mismo sitio.** El plan decía «footer» y hay que
+  decirlo: **el Portal no tiene footer**; `grep '<footer' Index.html` no devuelve nada. Lo
+  que tiene es un `.side-foot` que es el espejo exacto del de `app_shell` —mismo tutorial,
+  mismos temas, mismos ajustes de vista—, y ahí es donde va, con su copia del estilo,
+  porque el Portal no incluye ese partial y las dos hojas se mantienen a la par a mano
+  desde siempre. Se ofrece **también sin sesión**: quien la pulse pasa por el login y
+  vuelve aquí, que es el puente que ya usa todo el Portal.
+- **«Qué puedes hacer tú» sale del catálogo unificado de T6.3**, filtrado por `AppSession`
+  igual que el menú, y **con superficie propia `'acerca'`** en `AppIndices.funciones`. Lo
+  fácil habría sido reaprovechar `funciones('portal', …)`, y habría estado mal: «Portal
+  Ventel» y «Monitor de promociones» llevan `fuera:['portal']` porque allí se está parado
+  encima de ellas, así que la lista habría salido sin dos de las cosas que precisamente
+  tiene que descubrir alguien nuevo. Una lista que se titula «qué puedes hacer tú» y se
+  deja dos fuera es peor que no tenerla.
+- **Los instructivos, en `app_instructivos.html`**, keados por el `id` del catálogo. No van
+  dentro del catálogo porque ese archivo viaja en **18 pantallas** y este texto lo lee
+  una; no van dentro de `acerca.html` porque son datos, y los datos de esta casa viven
+  aparte de quien los pinta. La juntura la vigila la prueba: **toda entrada del catálogo
+  tiene que tener instructivo**, y ninguno puede ser una copia del `sub`. Es lo único que
+  evita que la función que alguien dé de alta el año que viene aparezca aquí muda.
+- **Los créditos, en `app_creditos.html`**, y en constante y no en hoja. El plan dejaba
+  elegir, y lo decide el criterio 2 de la fase: una hoja obliga a un viaje al servidor
+  —con su espera, su caché que invalidar y su forma de fallar— para pintar dos nombres que
+  cambian una vez al año. El archivo está escrito para que lo edite quien no programa: una
+  persona es una línea con tres campos y no hay ni una etiqueta de HTML que romper.
+- **La pantalla no llama al servidor.** Es el criterio 2 y se cumple literalmente: lo que
+  pinta sale del catálogo, que viaja en el HTML, y de la sesión, que ya está en
+  `localStorage`. Por eso **no incluye `app_operacion`** —que pide el estado del servicio
+  900 ms después de cargar en toda pantalla que lo lleve— **ni `app_atenciones`**, que trae
+  su propia caché. La consecuencia se declara aquí: estando en esta pantalla, «Reportar
+  una falla» del buscador general navega al tablero de estado en vez de abrir el panel
+  encima, que es exactamente el respaldo que esa acción ya tiene escrito.
+- **Y la única llamada que sí se hace, que es la que la hace correcta.** Cuando la sesión
+  no sabe qué bloques tiene —una abierta antes de que existieran, o a medio refrescar—,
+  `AppSession.can()` contesta que sí a todo **por diseño**: es el beneficio de la duda del
+  menú, que prefiere ofrecer de más a esconder de más. En un menú eso es aceptable; en una
+  pantalla que se titula «qué puedes hacer TÚ» es una lista falsa. Así que en ese caso, y
+  solo en ese, se pregunta una vez y se repinta. También se repinta al oír el `storage` de
+  otra pestaña: si te ascienden con esto abierto, la lista deja de ser verdad.
+- **Las seis plantillas de correo van agrupadas** y no como seis tarjetas más. Son seis
+  puertas a la misma pantalla con el formato ya elegido, y en la rejilla ocupaban un quinto
+  del listado repitiendo la palabra «Plantilla». Se distinguen por el prefijo `tpl-` de su
+  id —el contrato que el propio catálogo ya usa para nombrarlas— y no por una segunda lista
+  escrita en la pantalla.
+- **Entrada GSAP sobria** (T10.2). Las secciones entran solas con `[data-animate]`, que es
+  `AppMotion.enter` y ya degrada sin CDN y con `prefers-reduced-motion`; encima va una
+  línea de tiempo de tres pasos para la portada, que no lo lleva. Es el patrón de
+  `estado.html` **sin sus halos, sin SplitText y sin ScrollTrigger**: una pantalla de texto
+  no necesita una portada de cine, y la tarea pedía «ligera».
+- **T10.3 · Los artículos se enlazan, no se duplican.** La sección los presenta y el botón
+  lleva a la pantalla `articulo` con `AppUrl.build`/`go` —nunca concatenando—, con `href`
+  real puesto además del `onclick` para que «abrir en otra pestaña» y «copiar la dirección»
+  funcionen, que es justo el enlace que la gente comparte por chat.
+- **Dos arreglos que salieron al hacerla, y que no eran de esta fase.**
+  - **`app_icons` no sabía dibujar ocho de los diecinueve iconos del catálogo**
+    (`chart`, `gear`, `megaphone`, `layers`, `book`, `wifi`, `flag`, y el `info` que
+    estrena esta fase). No se notaba porque las dos superficies que consumían el catálogo
+    tienen cada una su propio juego de glifos; en cuanto una tercera pantalla lo pinta con
+    `Icons.svg`, un tercio de las entradas salía con un marco vacío. Se completan en el
+    registro compartido, que es lo que evita una cuarta copia de los mismos dibujos.
+  - **`app_theme` no declaraba la escala `--s*` / `--fs-*`, y `articulo.html` la usa 59
+    veces.** `padding: var(--s4) var(--s3) var(--s6)` con las variables sin declarar es una
+    declaración **inválida**: el visor de artículos se estaba pintando sin un solo margen y
+    con los tamaños heredados. Existía de hecho en cuatro pantallas, cada una con su copia
+    en su propio `:root`; se sube al tema, que es donde tenía que estar. Las cuatro que
+    traen copia la declaran **después** de este include y siguen mandando ellas, así que no
+    cambia nada de lo que ya se veía bien.
+
+**Qué se comprobó.** Batería nueva `pruebas/f10_acerca.test.js` con **160 comprobaciones**;
+el total del repositorio pasa a **812**. El criterio 1 se mide con el filtro real cargado
+del partial de verdad, contra cuatro sesiones —visitante, asesor, supervisión y maestro—, y
+no solo comprobando que las listas difieran: se comprueba que cada una **no** traiga lo que
+esa persona no puede abrir, que es la mitad que hace daño si falla. El criterio 2 se prueba
+por ausencia: ni un `AppRun.call` en la pantalla, y ni `app_operacion` ni `app_atenciones`
+entre sus includes. Se cotejan además los cinco espejos del alta —y de paso que **las 21
+pantallas** del enrutador estén en `AppUrl.PAGINAS`—, que los tres mapas de iconos sepan
+pintar los diecinueve del catálogo, y que el CSS de la pantalla no escriba ni un color a
+mano. Las siete baterías previas siguen en verde y `node scripts/sintaxis.js` no encuentra
+nada en los 80 archivos. `scripts/peso.js` da **754,6 KB** servidos para `acerca.html`: la
+más ligera de las que llevan shell, contra una media de 974 KB.
+
+**Qué se dejó fuera a propósito, o se hizo distinto.**
+
+- **Sin recorrido guiado**, y no es un olvido: el plan lo asigna a T12.2, que nombra
+  literalmente «las pantallas nuevas (articulo, acerca)». Añadirlo aquí habría obligado a
+  incluir `app_onboarding`, que ni siquiera `articulo.html` trae.
+- **Los créditos acreditan a una persona y al equipo.** Se buscó en la documentación y en
+  el historial y el único nombre que el repositorio declara es el del creador
+  (`00_README_Inicio.md:194`). Inventar una lista de participantes en la pantalla que ve el
+  equipo entero es exactamente lo que no se puede hacer; el archivo está preparado para que
+  se añada a quien corresponda, y esa es una decisión de quien conoce al equipo, no del
+  código.
+- **La ficha dice «v0.9 · pruebas de control»**, que es lo que el sistema es hoy. Se
+  actualiza a mano al cerrar la versión: este plan la lleva a 1.0 en F13, y entonces se
+  cambia esa línea.
+- **`acerca` no entra en `AppFunciones.GESTION`.** Habría metido la pantalla en el apartado
+  «Gestión» de la barra, en el conmutador de áreas y en los fijables del feed. T10.1 dice
+  «sin bloque»: es informativa, no se administra. Sí se añade al conmutador **como área
+  «Portal»**, porque una pantalla que no está en ninguna rama hace que el conmutador marque
+  «Cotizaciones» estando en otro sitio —el fallo que F8 ya arregló para `articulo`—.
+- **El catálogo del buscador la ofrece, pero no como `publica`.** Sin sesión, la mitad
+  principal de la pantalla no tiene nada que decir, así que el buscador general no se la
+  ofrece a un visitante; el del Portal sí, y ese sí tiene puente al login.
+- **Sube a 17 el número de `include('app_comando')`** (y a 18 el de `app_indices`) que la
+  fila 4 del §17 bis contabiliza. Se incluye a propósito: dejar «Acerca de» como la única
+  pantalla del sistema sin Ctrl+K, para ahorrar unos kilobytes en la pantalla que menos se
+  abre, es un ahorro en el sitio equivocado. La fila queda actualizada allí.
+- **No se tocó `articulo.html`.** El arreglo de la escala llega solo por el tema, que es de
+  donde tenía que salir; lo que ese archivo haga con los márgenes ya bien puestos es una
+  revisión visual de F8 y no de esta fase.
 
 ### 2026-08-15 — F9 completa: la consola cierra el círculo administrativo
 

@@ -70,7 +70,7 @@ Las páginas **públicas** (`Index`, `Promociones`, `estado`) reciben `APP_URL` 
 
 ---
 
-## 3. Las 19 pantallas (16 con sesión + 3 públicas)
+## 3. Las 21 pantallas (18 con sesión + 3 públicas)
 
 ### Con sesión (`PAGES` en `Code.gs`)
 
@@ -92,10 +92,20 @@ Las páginas **públicas** (`Index`, `Promociones`, `estado`) reciben `APP_URL` 
 | `operacion` | `operacion.html` | Bandeja de supervisión de fallas | `operacion` |
 | `consola` | `consola.html` | Consola de administración | `adm_*` / `sup_equipo` / `metricas` |
 | `atenciones` | `atenciones.html` | Atenciones pendientes | `atenciones` |
+| `articulo` | `articulo.html` | Artículos: lector y editor de la misma vista *(F8)* | *(sesión para leer;* `articulos` *para escribir)* |
+| `acerca` | `acerca.html` | «Acerca de»: qué es el Portal, qué puede hacer quien mira, la extensión y los créditos *(F10)* | *(sesión)* |
 
 > El cascarón de `consola`, `portal_contenido` y `atenciones` **se sirve a cualquiera que lo
 > pida**, igual que las demás. No enseña nada hasta que el servidor confirma el bloque en
 > cada llamada. Servir el cascarón no filtra nada y evita tener dos formas de rutear.
+
+> **`acerca` no llama al servidor.** Es la única pantalla de app que se pinta entera con lo
+> que ya viaja en el HTML —el catálogo de funciones de `app_indices`, los instructivos de
+> `app_instructivos` y los créditos de `app_creditos`— más la sesión de `localStorage`. Por
+> eso **no incluye `app_operacion` ni `app_atenciones`**: los dos traen datos por su cuenta
+> al cargar. La única llamada posible es `AppSession.refrescar()`, y solo cuando la sesión
+> no sabe qué bloques tiene: mientras no los sepa, `AppSession.can()` contesta que sí a
+> todo y la lista «qué puedes hacer tú» sería falsa.
 
 **Las nueve pestañas de la consola** (`?sec=`) y qué las abre. Añadir una exige tocar **cuatro
 sitios a la vez** —fila en `CONSOLA_SECCIONES` (`Consola.gs`), botón con `data-panel` y

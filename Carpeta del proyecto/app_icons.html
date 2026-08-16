@@ -88,7 +88,36 @@
     globe:
       '<path stroke-linecap="round" stroke-linejoin="round" d="M12 21a9 9 0 1 0 0-18 9 9 0 0 0 0 18Zm0 0c2.5-2.4 3.75-5.4 3.75-9S14.5 5.4 12 3m0 18c-2.5-2.4-3.75-5.4-3.75-9S9.5 5.4 12 3M3.6 9h16.8M3.6 15h16.8"/>',
     star:
-      '<path stroke-linecap="round" stroke-linejoin="round" d="M12 3l2.3 6.2L21 11l-6 2 6 2-6.7 1.8L12 21l-2.3-4.2L3 15l6-2-6-2 6.7-1.8Z"/>'
+      '<path stroke-linecap="round" stroke-linejoin="round" d="M12 3l2.3 6.2L21 11l-6 2 6 2-6.7 1.8L12 21l-2.3-4.2L3 15l6-2-6-2 6.7-1.8Z"/>',
+
+    /* ── Los ocho que le faltaban al registro (F10) ──────────────────────────────
+       El catálogo compartido de funciones (app_indices) nombra diecinueve iconos y
+       este registro solo sabía dibujar once: `chart`, `gear`, `megaphone`, `layers`,
+       `book`, `wifi`, `flag` e `info` no estaban. No se notaba porque las dos
+       superficies que lo consumían —el buscador general y el del Portal— tienen cada
+       una su propio juego de glifos; en cuanto una tercera pantalla pinta el catálogo
+       con Icons.svg (la lista de «Acerca de»), un tercio de las entradas salía con un
+       marco vacío. Se completan aquí, que es el sitio donde tenían que estar: el
+       registro compartido es el que evita una cuarta copia de los mismos dibujos.
+       Misma geometría y mismo trazo que los de arriba. */
+    chart:
+      '<path stroke-linecap="round" stroke-linejoin="round" d="M3.75 3v16.5a.75.75 0 0 0 .75.75H21M7.5 15.75V12m4.5 3.75V8.25m4.5 7.5v-5.25"/>',
+    gear:
+      '<path stroke-linecap="round" stroke-linejoin="round" d="M9.594 3.94c.09-.542.56-.94 1.11-.94h2.593c.55 0 1.02.398 1.11.94l.213 1.28c.063.375.313.687.645.87.074.04.147.083.22.127.324.196.72.257 1.075.124l1.217-.456a1.125 1.125 0 0 1 1.37.49l1.296 2.247a1.125 1.125 0 0 1-.26 1.431l-1.003.827c-.293.241-.438.613-.43.992a7.03 7.03 0 0 1 0 .255c-.008.378.137.75.43.991l1.004.828c.424.35.534.954.26 1.43l-1.298 2.247a1.125 1.125 0 0 1-1.369.491l-1.217-.456c-.355-.133-.75-.072-1.076.124a6.47 6.47 0 0 1-.22.128c-.331.183-.581.495-.644.869l-.213 1.281c-.09.543-.56.94-1.11.94h-2.594c-.55 0-1.019-.398-1.11-.94l-.213-1.281c-.062-.374-.312-.686-.644-.87a6.52 6.52 0 0 1-.22-.127c-.325-.196-.72-.257-1.076-.124l-1.217.456a1.125 1.125 0 0 1-1.369-.49l-1.297-2.247a1.125 1.125 0 0 1 .26-1.431l1.004-.827c.292-.241.437-.613.43-.992a6.932 6.932 0 0 1 0-.255c.007-.378-.138-.75-.43-.991l-1.004-.828a1.125 1.125 0 0 1-.26-1.43l1.297-2.247a1.125 1.125 0 0 1 1.37-.491l1.216.456c.356.133.751.072 1.076-.124.072-.044.146-.086.22-.128.332-.183.582-.495.644-.869l.214-1.28Z"/><path stroke-linecap="round" stroke-linejoin="round" d="M15 12a3 3 0 1 1-6 0 3 3 0 0 1 6 0Z"/>',
+    megaphone:
+      '<path stroke-linecap="round" stroke-linejoin="round" d="M10.34 15.84a48.4 48.4 0 0 1 8.198 3.9 1.5 1.5 0 0 0 2.209-1.31V5.57a1.5 1.5 0 0 0-2.21-1.312 48.4 48.4 0 0 1-8.197 3.9m0 7.681V8.16m0 7.681a45.9 45.9 0 0 0-3.34.815V7.346a45.9 45.9 0 0 0 3.34.814M7 16.155a45.4 45.4 0 0 0-2.076.68A2.25 2.25 0 0 1 3 14.702V9.298c0-1.02.68-1.92 1.664-2.133.7-.15 1.393-.377 2.076-.68m0 9.67V6.485m0 9.67a48 48 0 0 1 1.043 4.135.75.75 0 0 1-.658.844l-1.107.11a.75.75 0 0 1-.79-.516 51.8 51.8 0 0 0-1.244-3.44"/>',
+    layers:
+      '<path stroke-linecap="round" stroke-linejoin="round" d="m12 3 9 4.5-9 4.5-9-4.5L12 3Zm9 8.7-9 4.5-9-4.5m18 4.8-9 4.5-9-4.5"/>',
+    book:
+      '<path stroke-linecap="round" stroke-linejoin="round" d="M12 6.6C10.5 5.1 8.5 4.3 6 4.3H3.5v13H6c2.5 0 4.5.8 6 2.4 1.5-1.6 3.5-2.4 6-2.4h2.5v-13H18c-2.5 0-4.5.8-6 2.3Zm0 0v13.1"/>',
+    wifi:
+      '<path stroke-linecap="round" stroke-linejoin="round" d="M8.288 15.038a5.25 5.25 0 0 1 7.424 0M5.106 11.856c3.807-3.808 9.98-3.808 13.788 0M1.924 8.674c5.565-5.565 14.587-5.565 20.152 0M12.53 18.22l-.53.53-.53-.53a.75.75 0 0 1 1.06 0Z"/>',
+    flag:
+      '<path stroke-linecap="round" stroke-linejoin="round" d="M3 3v18M3 4.6h13.5l-2.2 3.9 2.2 3.9H3"/>',
+    /* La «i» en círculo de «Acerca de». Espejo de IC.info (app_comando) e ICONS.info
+       (Index): las tres superficies que pintan el catálogo tienen que saber dibujarla. */
+    info:
+      '<path stroke-linecap="round" stroke-linejoin="round" d="M12 21a9 9 0 1 0 0-18 9 9 0 0 0 0 18Zm0-9.75v5.25m0-8.65h.008v.008H12V7.85Z"/>'
   };
 
   function svg(name, cls) {

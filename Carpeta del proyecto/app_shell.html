@@ -84,8 +84,25 @@
 .side-link.active .ic { color: var(--side-active-ink); }
 .side-link.active::before { content: ''; position: absolute; left: -1rem; top: 50%; transform: translateY(-50%); width: 4px; height: 21px; border-radius: 0 4px 4px 0; background: #fff; }
 
-/* ── Pie de barra: tema + ajustes de vista ── */
+/* ── Pie de barra: «Acerca de» + tema + ajustes de vista ── */
 .side-foot { margin-top: auto; padding-top: .8rem; border-top: 1px solid var(--side-line); display: flex; flex-direction: column; gap: .6rem; }
+
+/* Enlace discreto del pie (T10.1). Clase PROPIA y no `.onb-lanzador`, aunque se vea
+   igual: el estilo del lanzador del tutorial vive en app_onboarding, que solo llega a
+   3 de las 11 pantallas con shell, así que reutilizarlo habría dejado el botón sin
+   forma en las otras ocho. Se dibuja aquí, donde está el resto del pie. */
+.side-foot-link {
+  display: flex; align-items: center; gap: .5rem; width: 100%;
+  font: inherit; font-size: .78rem; font-weight: 600; text-align: left;
+  padding: .5rem .6rem; border-radius: 10px; cursor: pointer;
+  background: rgba(255,255,255,.1); color: var(--side-ink);
+  border: 1px solid var(--side-line);
+  transition: background .18s;
+}
+.side-foot-link:hover { background: rgba(255,255,255,.2); }
+.side-foot-link .ic { width: 16px; height: 16px; flex: none; }
+.side-foot-link:focus-visible { outline: 2px solid #fff; outline-offset: 2px; }
+.side-foot-link.active { background: var(--side-active-bg); color: var(--side-active-ink); border-color: rgba(255,255,255,.34); }
 .theme-switch { display: flex; gap: .3rem; background: rgba(0,0,0,.18); border-radius: 12px; padding: .28rem; }
 .theme-btn {
   flex: 1; display: flex; flex-direction: column; align-items: center; gap: .25rem;
@@ -278,7 +295,8 @@
     var esGestion = gestion.some(function (g) { return g.page === active; });
     var area = esGestion ? 'gestion'
              : (active === 'correo_cliente') ? 'correos'
-             : (active === 'portal' || active === 'promociones' || active === 'articulo') ? 'portal'
+             : (active === 'portal' || active === 'promociones' || active === 'articulo' ||
+                active === 'acerca') ? 'portal'
              : 'cotizaciones';
     function it(a, page, icon, name, sub) {
       // El área donde estamos parados nunca se esconde: quitar de debajo de los pies
@@ -402,14 +420,27 @@
       apartado('Portal Ventel', [
         ['promociones', 'promociones', 'Monitor Promos', IC_STAR]
       ]) +
-      sideFootHTML();
+      sideFootHTML(active);
   }
 
   var IC_AYUDA = '<svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M9.6 9.4a2.5 2.5 0 0 1 4.8.9c0 1.7-2.4 2.1-2.4 3.6"/><path d="M12 17.2h.01"/></svg>';
+  var IC_INFO  = '<svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 11v5.5"/><path d="M12 7.6h.01"/></svg>';
 
-  function sideFootHTML() {
+  function sideFootHTML(active) {
+    /* T10.1 · «Acerca de» entra por el PIE y no por el menú, y es una decisión, no un
+       descuido: el menú es la lista de lo que hay que hacer hoy, y una pantalla que se
+       visita una vez —al llegar al equipo, o cuando alguien pregunta «¿y esto qué hace?»—
+       compite mal ahí y estorba todos los demás días. El pie ya es el cajón de lo que se
+       consulta y no se opera: el tutorial, los temas, los ajustes de vista. Va en primer
+       lugar dentro del pie porque el tutorial de encima nace oculto en 8 de las 11
+       pantallas con shell (AppOnboarding solo lo enseña donde hay recorrido), así que
+       ponerla debajo la habría dejado casi siempre pegada al selector de temas. */
+    var acercaCls = 'side-foot-link' + (active === 'acerca' ? ' active' : '');
     return '' +
       '<div class="side-foot">' +
+        '<button type="button" class="' + acercaCls + '"' +
+          (active === 'acerca' ? ' aria-current="page"' : '') +
+          ' onclick="AppShell.nav(\'acerca\')">' + IC_INFO + '<span>Acerca del Portal</span></button>' +
         /* Puerta de vuelta al recorrido guiado. Nace oculto y AppOnboarding lo enseña
            solo en las pantallas que tienen recorrido: un botón de ayuda que no hace
            nada al pulsarlo enseña a desconfiar del resto de la barra. */
