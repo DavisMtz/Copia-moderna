@@ -973,6 +973,118 @@ y qué se dejó fuera a propósito**. Mismo formato que el registro del document
 
 <!-- Las entradas nuevas van arriba, con la más reciente primero. -->
 
+### 2026-08-15 — F8, cuarta tanda: los artículos por fin se pueden buscar (T8.5 cerrada)
+
+**Por qué esta tanda.** Era el pendiente que las dos entradas anteriores señalaban con el
+mismo dedo: los artículos existían, se leían y se escribían, pero **no se encontraban**. La
+única puerta era el carril del Portal, o sea saber ya que un artículo estaba ahí. Con eso el
+criterio 3 de la fase se quedaba a medias —la URL compartida sí funcionaba; buscar el
+artículo, no— y un archivo de documentación que no se busca es un archivo que no se usa.
+
+**Qué se cambió.**
+
+- **Un defecto de fábrica en `Articulos.gs`, antes que nada.** La línea 175 —el saneador
+  `artTexto_`, el que quita caracteres de control del texto de los artículos— tenía los
+  caracteres de control **escritos crudos dentro de la expresión regular**: un NUL, un
+  retroceso, una tabulación vertical y dos más, en vez de `\x00`, `\x08`, `\x0b`… Es
+  JavaScript válido, por eso `scripts/sintaxis.js` nunca dijo nada, y precisamente por eso
+  llevaba dos tandas ahí. Lo que sí decía algo era git: el archivo se trataba como
+  **binario**, así que sus diferencias no se veían en ningún diff y `grep` lo saltaba —dos
+  herramientas ciegas sobre el módulo más nuevo del repositorio—. Y el riesgo de verdad
+  está al desplegar: un byte NUL en un fuente es justo lo que una API puede recortar por su
+  cuenta, y si lo recorta la clase de la expresión regular cambia de significado sin que
+  nadie lo note, en la pieza que limpia lo que va a leer el equipo entero. Mismo error en
+  dos líneas de `pruebas/f8_articulos.test.js`. Los tres sitios llevan ya las secuencias de
+  escape, con el mismo comportamiento y sin un solo byte de control en todo el proyecto.
+- **Los artículos entran en los DOS buscadores**, que es lo que decía la tanda anterior que
+  faltaba y por qué era doble: `app_comando` (Ctrl+K) y el Index tienen armados distintos y
+  ninguno de los dos avisa cuando falta una fuente. En los dos son **grupo propio** —un
+  artículo no es un enlace del Portal ni un procedimiento de la hoja— y en los dos se abre
+  **por su ID**, para que el resultado siga llevando al mismo sitio cuando alguien corrija
+  la errata del encabezado.
+- **El índice se pide tarde y se guarda.** No al montar la pantalla: en la primera búsqueda
+  con algo escrito. El Portal es lo primero que abre todo el mundo por la mañana, y
+  cargarle el cuerpo de cada artículo para que la mayoría de las visitas no busque nada
+  sería pagar la lentitud donde más se nota. Media hora de caché en el cliente sobre los
+  cinco minutos que ya tenía el servidor. La guarda de «ya lo pedí» es una **bandera y no la
+  longitud de la lista**, que es como están escritas las otras fuentes del archivo: un
+  equipo que todavía no ha escrito ningún artículo tiene el índice vacío como respuesta
+  correcta, y con la longitud por guarda esa respuesta no se recuerda nunca —se volvería a
+  preguntar al servidor en cada pausa de tecleo, para siempre y para nada—.
+- **El cuerpo pesa poco, y es una decisión.** Título 3, resumen 1.4, cuerpo **0.55**. El
+  cuerpo es lo que encuentra el artículo del que no se recuerda cómo se titulaba, que es
+  media razón de indexarlo; pero mil doscientos caracteres coinciden con casi cualquier
+  palabra corriente, y con más peso un artículo que menciona «devolución» de pasada le
+  quitaría el sitio a la herramienta del Portal que se llama así. Los tres pesos son **los
+  mismos en las dos superficies**, y hay una prueba que lo comprueba leyendo los dos
+  archivos: es la lección de F6, donde puntuar el mismo contenido con pesos distintos
+  obligaba a arreglar la paridad caso por caso para siempre.
+- **La segunda línea del resultado dice por qué sale.** Enseña el resumen, salvo cuando lo
+  escrito no aparece en él y sí en el cuerpo: ahí va el trozo del cuerpo donde está. Con el
+  resumen fijo, la pregunta «¿y por qué me sale este artículo?» se quedaba sin contestar
+  justo en el caso para el que se indexó el cuerpo.
+- **Ámbito `art:`** en el Ctrl+K, como `portal:` o `cot:`. Sin «guía» ni «doc» entre los
+  alias por mucho que sea como se les llama de viva voz: en el Portal hay guías y formatos
+  que no son artículos, y «guia: dhl» tiene que seguir encontrando la de la paquetería.
+- **Icono propio de libro** en las dos superficies. `document` ya es la hoja de los formatos
+  y de las cotizaciones; con el mismo dibujo, el grupo de artículos habría que leerlo para
+  saber cuál es.
+- **«Ver los N» en el carril del Portal.** Al mirar la distribución de cerca apareció un
+  hueco que no estaba anotado: el carril enseña los seis más recientes y la entrada del menú
+  a la pantalla de artículos vive en **Gestión**, donde solo entra quien publica. La
+  pantalla es de cualquiera —leer no pide permiso, y el servidor la sirve así—, pero **quien
+  solo lee no tenía puerta al séptimo artículo**. Ahora el rótulo de la franja ofrece «Ver
+  los 14» cuando de verdad hay más de los que se ven, para lo cual `artListar` devuelve
+  también el `total` de los que esa persona puede ver: sin ese dato el carril solo podía
+  elegir entre no ofrecerlo nunca u ofrecerlo siempre, incluso enseñándolos ya todos.
+
+**Qué se comprobó.** La batería de F8 sube de 110 a **144 comprobaciones** (355 en total con
+las otras cinco, más la paridad de F6, que sigue intacta). Las nuevas cubren el índice del
+servidor —que un borrador no se busca, que el cuerpo viaja recortado, que publicar invalida
+la caché o el artículo recién escrito no aparecería hasta cinco minutos después, que es
+justo cuando su autor lo va a buscar—, las dos altas de cliente, que `art` viaja en las
+**tres listas espejo**, la paridad de pesos entre superficies, y el motor de verdad: que una
+frase que solo está en el cuerpo encuentra el artículo, que el título le gana al cuerpo, y
+que una mención de pasada no le gana a la herramienta que se llama igual. `sintaxis.js`
+limpio sobre los 74 archivos.
+
+**Qué se dejó fuera a propósito.**
+
+- **No hay «Seguir buscando en los artículos»** en el Ctrl+K, aunque las demás fuentes sí lo
+  tengan. Esa salida abre el destino con el término ya puesto, y la pantalla de artículos
+  **no filtra por texto**: la lista se sirve sin el cuerpo (pesa demasiado para una lista),
+  así que un filtro ahí solo podría mirar título y resumen. Prometer «seguir buscando» y
+  entregar una búsqueda más pobre que la que se acaba de dejar es peor que no ofrecerla. Con
+  el grupo de resultados y el «Ver los N» del carril, las dos puertas que faltaban están.
+- **Los artículos no salen en las búsquedas acotadas del Portal** (`herramientas: …`), igual
+  que los anuncios: el ámbito ahí nombra secciones de la portada y los artículos no son una.
+
+**Qué queda de la fase.** Lo que ya decía la tanda anterior y esta no toca: **el visor no se
+ha visto en pantalla** (la extensión del navegador se desconectó a mitad de aquella revisión)
+y **los diagramas no se han probado contra Apps Script** —el iframe anidado y el
+`postMessage` deberían comportarse como el de Google Sheets de la revisión, que ahí ya
+funciona, pero es una dependencia externa nueva y hay que verla en `/dev`—. Las dos son
+comprobaciones en el despliegue real, no código pendiente.
+
+### 2026-08-15 — F8, tercera tanda: pulido del visor y del editor con lo visto en pantalla real
+
+*(Entrada escrita después, al detectarse que esta tanda se subió sin registro. Se levanta de
+su propio commit, `113964e`, que sí lo cuenta entero; se resume aquí para que el §18 no tenga
+un agujero. La regla del encabezado del documento sigue siendo la de siempre: la entrada se
+escribe al terminar la tanda, no dos tandas después.)*
+
+**Qué se cambió**, sobre capturas del sistema funcionando en un iPad y no sobre suposiciones:
+la medida de lectura pasa de `ch` a **rem** —`ch` mide el cero de la fuente *activa*, así que
+mientras Archivo e Instrument Sans no habían llegado los renglones salían de 730 px—; las
+tablas dejan de comprimirse dentro de la columna de lectura (`width:max-content` con mínimo
+por celda, y se arrastran si no caben) en vez de partir las palabras una por renglón; el
+panel se despega del fondo con superficie secundaria en lugar de tres mecanismos de
+separación a la vez; el menú de bloques pasa de `absolute` con `scrollY` a `fixed` con las
+coordenadas del rect, porque dentro del iframe de Apps Script quien desplaza no siempre es el
+`body` y el menú aparecía despegado del `+` que lo abrió; y entran las animaciones de la
+lista, del lector y del editor, todas con `from` —se parte de visible—, con techo, `overwrite`
+automático y `clearProps`, y sin animar nunca un ancestro de algo `sticky`.
+
 ### 2026-08-15 — F8, segunda tanda: el editor deja de parecer un formulario, y los artículos dibujan
 
 **Por qué esta tanda.** El editor de la tanda anterior funcionaba y se leía mal: cada bloque

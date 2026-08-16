@@ -210,7 +210,7 @@ console.log('\n2. BANCO HOSTIL · el texto sigue siendo texto');
       { tipo: 'imagen', url: 'javascript:alert(1)', alt: 'x' },
       { tipo: 'imagen', url: 'https://drive.google.com/thumbnail?id=abc', alt: '"><script>' },
       { tipo: 'guion', src: 'https://evil.example.com/x.js' },
-      { tipo: 'texto', partes: [{ t: 'con control  dentro' }] }
+      { tipo: 'texto', partes: [{ t: 'con control\x00\x08 dentro' }] }
     ]
   });
 
@@ -234,7 +234,7 @@ console.log('\n2. BANCO HOSTIL · el texto sigue siendo texto');
     !c.bloques.some((b) => b.tipo === 'guion'), JSON.stringify(c.bloques.map((b) => b.tipo)));
 
   const conControl = c.bloques[c.bloques.length - 1].partes[0].t;
-  ok('los caracteres de control se limpian', conControl.indexOf(' ') === -1 && conControl.indexOf('') === -1,
+  ok('los caracteres de control se limpian', conControl.indexOf('\x00') === -1 && conControl.indexOf('\x08') === -1,
     JSON.stringify(conControl));
 }
 
@@ -486,6 +486,124 @@ console.log('\n11. El texto plano que alimenta al buscador');
   ok('el contenido de la tabla', plano.indexOf('FBL5N') > -1, plano);
   ok('el pie de la imagen', plano.indexOf('Pantalla de ejemplo') > -1, plano);
   ok('y el título del documento', plano.indexOf('Matriz de rechazos') > -1, plano);
+}
+
+console.log('\n12. El índice que se sirve al buscador (T8.5, servidor)');
+{
+  const cuerpo = (txt) => JSON.stringify({ v: 1, bloques: [{ tipo: 'texto', partes: [{ t: txt }] }] });
+  const arts = hoja('Articulos', [
+    ART_HDR(),
+    ['art-1', 'Devoluciones por SAP', 'Cómo se devuelve', cuerpo('La transacción FBL5N abre el estado de cuenta'), 'publicado', 'Ana', new Date(), new Date(), 'Ana'],
+    ['art-2', 'Guía a medias', 'Todavía no', cuerpo('esto no debería buscarse'), 'borrador', 'Ana', new Date(), new Date(), 'Ana'],
+    ['art-3', 'Muy largo', '', cuerpo('z'.repeat(4000)), 'publicado', 'Ana', new Date(), new Date(), 'Ana']
+  ]);
+  const ctx = cargar({ Articulos: arts });
+  const idx = ctx.artIndiceBuscador(LECTOR);
+
+  eq('el índice contesta bien', idx.status, 'ok');
+  const ids = idx.articulos.map((a) => a.id).sort().join(',');
+  eq('solo van los publicados: un borrador todavía no existe para nadie', ids, 'art-1,art-3');
+
+  const uno = idx.articulos.filter((a) => a.id === 'art-1')[0];
+  eq('con su título', uno.titulo, 'Devoluciones por SAP');
+  eq('con su resumen', uno.resumen, 'Cómo se devuelve');
+  ok('y con el cuerpo, que es como se busca lo que no se sabe cómo se titula',
+     uno.texto.indexOf('FBL5N') > -1, uno.texto);
+
+  const largo = idx.articulos.filter((a) => a.id === 'art-3')[0];
+  ok('el cuerpo viaja recortado: el índice lo piden todas las pantallas',
+     largo.texto.length <= 1200, 'llegaron ' + largo.texto.length + ' caracteres');
+
+  /* Publicar tiene que tirar el índice cacheado. Sin esto un artículo recién publicado no
+     se encuentra hasta cinco minutos después, y quien lo acaba de escribir prueba a
+     buscarlo justo entonces: la primera impresión sería que el buscador no lo ve. */
+  /* El carril del Portal necesita saber cuántos hay para ofrecer «Ver los N»: sin el total
+     no puede distinguir «los estoy enseñando todos» de «hay treinta más». */
+  const lista = ctx.artListar(LECTOR, { tope: 1 });
+  eq('la lista con tope devuelve solo los pedidos', lista.articulos.length, 1);
+  eq('pero dice cuántos hay en total para esa persona', lista.total, 2);
+  const sinTope = ctx.artListar(LECTOR, {});
+  eq('y sin tope el total cuadra con lo servido', sinTope.total, sinTope.articulos.length);
+  const comoAutor = cargar({ Articulos: arts }, { conPermiso: [AUTOR] }).artListar(AUTOR, {});
+  eq('quien publica cuenta también sus borradores', comoAutor.total, 3);
+
+  const conPerm = cargar({ Articulos: arts }, { conPermiso: [AUTOR] });
+  const antes = conPerm.artIndiceBuscador(LECTOR).articulos.map((a) => a.id).sort().join(',');
+  eq('antes de publicarlo, el borrador no está (y el índice queda cacheado)', antes, 'art-1,art-3');
+  conPerm.artPublicar('art-2', true, AUTOR);
+  const despues = conPerm.artIndiceBuscador(LECTOR).articulos.map((a) => a.id).sort().join(',');
+  ok('y al publicarlo el índice ya lo trae: la caché se invalidó', despues.indexOf('art-2') > -1, despues);
+}
+
+console.log('\n13. Los artículos entran en los DOS buscadores (T8.5, cliente)');
+{
+  const CMDK = fs.readFileSync(path.join(PROY, 'app_comando.html'), 'utf8');
+  const INDEX = fs.readFileSync(path.join(PROY, 'Index.html'), 'utf8');
+  const CORE = fs.readFileSync(path.join(PROY, 'app_core.html'), 'utf8');
+  const CODE = fs.readFileSync(path.join(PROY, 'Code.gs'), 'utf8');
+
+  // — El buscador general (Ctrl+K) —
+  ok('el Ctrl+K pide el índice al servidor', /AppRun\.call\('artIndiceBuscador'/.test(CMDK));
+  ok('y lo pide al teclear, con las demás fuentes', /pideArticulos\(pinta\);/.test(CMDK));
+  ok('los artículos son un grupo propio y no se mezclan con el Portal',
+     /tipo: 'articulo', titulo: 'Artículos'/.test(CMDK));
+  ok('un resultado abre el artículo por su ID',
+     /f\.tipo === 'articulo'.*navega\('articulo', \{ art: f\.dato\.id \}\)/.test(CMDK));
+  ok('y se puede acotar la búsqueda con «art:»', /id: 'art',\s+rotulo: 'Artículos'/.test(CMDK));
+
+  // — El buscador del Portal —
+  ok('el Portal pide el mismo índice al servidor', /AppRun\.call\('artIndiceBuscador'/.test(INDEX));
+  ok('los artículos son su propio grupo de resultados', /key: '__articulo'/.test(INDEX));
+  ok('con su fila pintada y su identificador', /data-art="\$\{esc\(r\.artId\)\}"/.test(INDEX));
+  ok('y al pulsarla se abre el artículo', /if \(it\.dataset\.art\)/.test(INDEX));
+  ok('el carril ofrece «Ver los N» a quien solo lee, que no tiene entrada en el menú',
+     /articulosVerTodos/.test(INDEX) && /AppUrl\.go\('articulo'\)/.test(INDEX));
+  ok('y solo cuando de verdad hay más de los que se ven', /const hayMas = total >/.test(INDEX));
+  ok('por AppUrl y por ID, no por título',
+     /AppUrl\.go\('articulo', \{ art: id \}\)/.test(INDEX));
+
+  /* La lección de F6: si los dos buscadores puntúan el MISMO contenido con pesos
+     distintos, la paridad hay que arreglarla caso a caso para siempre. */
+  const zonaIdx = (INDEX.match(/function puntuaArticulo\(Q, a\)\{[\s\S]*?\n\}/) || [''])[0];
+  const zonaCmdk = (CMDK.match(/var arts = \(esCotizacion[\s\S]*?if \(arts\.length\)/) || [''])[0];
+  const pesos = (s) => [...new Set((s.match(/p:\s*\.?\d+(?:\.\d+)?/g) || [])
+    .map((x) => parseFloat(x.replace(/p:\s*/, ''))))].sort((a, b) => a - b).join(',');
+  ok('hay un puntuador de artículos en el Portal', !!zonaIdx);
+  ok('y un grupo de artículos en el Ctrl+K', !!zonaCmdk);
+  eq('los dos pesan igual título, resumen y cuerpo', pesos(zonaCmdk), pesos(zonaIdx));
+  eq('y son los pesos decididos (cuerpo flojo)', pesos(zonaIdx), '0.55,1.4,3');
+
+  // — El parámetro tiene que existir en las TRES listas espejo o se pierde sin aviso —
+  const listaCore = new Function('return ' + CORE.match(/const PARAMS_VISTA = (\[[^\]]*\]);/)[1])();
+  const listaCode = new Function('return ' + CODE.match(/const PARAMS_VISTA = (\[[^\]]*\]);/)[1])();
+  const listaPasan = new Function('return ' + INDEX.match(/const PASAN = (\[[^\]]*\]);/)[1])();
+  ok('«art» viaja en PARAMS_VISTA de Code.gs', listaCode.indexOf('art') > -1);
+  ok('«art» viaja en PARAMS_VISTA de app_core.html', listaCore.indexOf('art') > -1);
+  ok('«art» viaja en la lista PASAN de Index.html', listaPasan.indexOf('art') > -1);
+
+  // — Y el motor de verdad, con los pesos de verdad —
+  const js = fs.readFileSync(path.join(PROY, 'app_buscar.html'), 'utf8').match(/<script>([\s\S]*?)<\/script>/)[1];
+  const bctx = { console, Math, JSON, String, Number, Object, Array, RegExp, Date, parseInt, parseFloat };
+  bctx.window = bctx;
+  vm.createContext(bctx);
+  vm.runInContext(js, bctx, { filename: 'app_buscar.html' });
+  const B = bctx.AppBuscar;
+  const OPTS = { exigirTodas: false };
+  const puntua = (a, q) => B.puntua(B.consulta(q),
+    [{ t: a.titulo, p: 3 }, { t: a.resumen, p: 1.4 }, { t: a.texto, p: .55 }], OPTS);
+
+  const art = { titulo: 'Devoluciones por SAP', resumen: 'Cómo se devuelve una compra',
+                texto: 'La transacción FBL5N abre el estado de cuenta del cliente' };
+
+  ok('se encuentra por una frase que solo sale en el CUERPO', puntua(art, 'fbl5n') > 0);
+  ok('el título pesa más que el cuerpo', puntua(art, 'devoluciones') > puntua(art, 'fbl5n'));
+
+  /* El porqué del .55: un artículo que menciona «transacción» de pasada no puede quitarle
+     el sitio a la herramienta del Portal que se llama así. */
+  const herramienta = B.puntua(B.consulta('transaccion'), [{ t: 'Transacciones SAP', p: 3 }], OPTS);
+  ok('y una mención de pasada no le gana a la herramienta que se llama así',
+     herramienta > puntua(art, 'transaccion'),
+     'herramienta ' + herramienta + ' vs artículo ' + puntua(art, 'transaccion'));
 }
 
 function ART_HDR() {

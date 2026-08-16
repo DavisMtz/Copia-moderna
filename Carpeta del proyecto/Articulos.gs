@@ -172,7 +172,7 @@ function artUrlSegura_(u) {
 /** Texto plano acotado: sin caracteres de control, con la longitud que le toque. */
 function artTexto_(v, max) {
   return String(v == null ? '' : v)
-    .replace(/[ --]/g, '')
+    .replace(/[\x00-\x08\x0b\x0c\x0e-\x1f]/g, '')
     .slice(0, max || ART_MAX_TEXTO);
 }
 
@@ -397,8 +397,13 @@ function artListar(email, opts) {
     }
     // Lo más reciente primero: un artículo se lee cuando sale, no cuando toca por orden.
     out.sort(function (a, b) { return String(b.editado || b.creado).localeCompare(String(a.editado || a.creado)); });
+    /* `total` es cuántos podía ver ESTA persona, antes del tope. Lo necesita el carril del
+       Portal para saber si tiene que ofrecer un «Ver todos»: sin el dato solo puede elegir
+       entre no ofrecerlo nunca —y entonces quien lee no tiene puerta a los demás— u
+       ofrecerlo siempre, incluso cuando el carril ya los está enseñando todos. */
     const tope = Number(opts.tope) || 0;
-    return { status: 'ok', articulos: tope ? out.slice(0, tope) : out, puedeEditar: puedeEditar };
+    return { status: 'ok', articulos: tope ? out.slice(0, tope) : out,
+             total: out.length, puedeEditar: puedeEditar };
   } catch (error) {
     return { status: 'error', error: error.toString() };
   }
