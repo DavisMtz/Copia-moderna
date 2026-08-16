@@ -358,6 +358,73 @@ console.log('\n8 · Créditos mantenibles fuera del markup');
 }
 
 /* ═══════════════════════════════════════════════════════════════════════════
+   8 bis · LA FIRMA ANIMADA
+   ═══════════════════════════════════════════════════════════════════════════
+   Lo que se prueba aquí no es que se vea bonita —eso se mira en pantalla— sino los tres
+   candados de la casa: que sin GSAP la firma NO se quede invisible, que respete el
+   movimiento reducido, y que no escriba un color a mano (si no, en el tema carbón se
+   firma en negro sobre negro).
+   ═══════════════════════════════════════════════════════════════════════════ */
+console.log('\n8 bis · La firma del creador');
+{
+  const FIRMA = leer('app_firma.html');
+
+  ok('existe app_firma.html y publica AppFirma', /window\.AppFirma\s*=/.test(FIRMA));
+  ok('acerca.html la incluye y la usa',
+     /include\('app_firma'\)/.test(ACERCA) && /AppFirma\.pintar\(/.test(ACERCA));
+  ok('la firma va ENCIMA del nombre en la tarjeta de créditos',
+     /data-firma[\s\S]{0,120}ac-persona-n/.test(ACERCA));
+  ok('solo se pinta a quien la declara con `firma`', /p\.firma \?/.test(ACERCA));
+
+  const cre = leer('app_creditos.html');
+  ok('David Martínez la tiene declarada',
+     /David Martínez[\s\S]{0,900}firma: true/.test(cre));
+  ok('AppCreditos deja pasar el campo `firma` en la copia que devuelve',
+     CRE.personas().some((p) => p.firma === true));
+
+  /* EL CANDADO QUE MÁS IMPORTA: sin GSAP la firma tiene que verse ENTERA. Eso exige que
+     el escondite (strokeDasharray/Dashoffset) se ponga desde JS y nunca desde el CSS, y
+     que el SVG no nazca con visibility:hidden ni opacity:0. */
+  const css = FIRMA.match(/<style>([\s\S]*?)<\/style>/)[1];
+  ok('el CSS NO esconde el SVG (si no, sin CDN la firma no existe)',
+     !/\.firma-svg\s*\{[^}]*(visibility:\s*hidden|opacity:\s*0)/.test(css));
+  ok('el CSS NO pone strokeDasharray (el escondite lo pone JS, en el mismo turno)',
+     !/stroke-dasharray/i.test(css));
+  ok('la punta sí nace oculta (es el acompañamiento, no el trazo)',
+     /\.firma-punta\s*\{[^}]*visibility:\s*hidden/.test(css));
+  ok('sin GSAP se sale antes de esconder nada', /if \(!conGsap\(\)\) return true;/.test(FIRMA));
+  ok('respeta prefers-reduced-motion', /prefers-reduced-motion: reduce/.test(FIRMA));
+
+  ok('MotionPathPlugin se registra defendido y su ausencia solo quita la punta',
+     /var conPunta = !!window\.MotionPathPlugin/.test(FIRMA) &&
+     /catch \(e\) \{ conPunta = false; \}/.test(FIRMA));
+  ok('el plugin va con la versión fijada del proyecto (3.13.0) y desde cdnjs',
+     /cdnjs\.cloudflare\.com\/ajax\/libs\/gsap\/3\.13\.0\/MotionPathPlugin\.min\.js/.test(ACERCA));
+
+  const colores = (css.match(/#[0-9a-fA-F]{3,8}\b/g) || []);
+  ok('la firma no escribe ni un color a mano (usa --ink y --brand)',
+     colores.length === 0, colores.join(', '));
+  ok('la tinta toma el color del tema', /stroke:\s*var\(--ink\)/.test(css));
+
+  ok('se traza al entrar en pantalla, no al cargar', /IntersectionObserver/.test(FIRMA));
+  ok('y se traza UNA sola vez', /yaTrazada/.test(FIRMA) && /obs\.disconnect\(\)/.test(FIRMA));
+
+  /* El viewBox tiene que ir ceñido a la tinta: con el lienzo original de 612×396 la firma
+     se pintaba pequeña dentro de un rectángulo casi vacío. */
+  const vb = (FIRMA.match(/viewBox="([^"]+)"/) || [])[1];
+  ok('el viewBox va ceñido a la tinta y no al lienzo original',
+     vb && vb !== '0 0 612 396', 'viewBox=' + vb);
+
+  const trazos = (FIRMA.match(/class="firma-trazo"/g) || []).length;
+  const enTelemetria = (FIRMA.match(/id: '#firma-trazo-\d+'/g) || []).length;
+  eq('los trazos dibujados y los de la telemetría son los mismos', trazos, enTelemetria);
+  ok('hay los cuatro trazos de la firma', trazos === 4, 'hay ' + trazos);
+
+  ok('el SVG se anuncia como imagen con su descripción',
+     /role="img"/.test(FIRMA) && /aria-label="Firma de/.test(FIRMA));
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════
    9 · LOS TOKENS QUE FALTABAN EN EL TEMA
    ═══════════════════════════════════════════════════════════════════════════
    articulo.html usa --s* y --fs-* cincuenta y nueve veces y app_theme no las definía:

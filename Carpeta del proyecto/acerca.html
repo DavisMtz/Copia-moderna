@@ -343,6 +343,12 @@
 <?!= include('app_creditos'); ?>
 <?!= include('app_icons'); ?>
 <?!= include('app_motion'); ?>
+<!-- MotionPathPlugin: lo necesita la punta de la pluma de la firma para recorrer el trazo.
+     Misma versión fijada (3.13.0) y mismo origen (cdnjs) que el resto del proyecto. El
+     registro va DENTRO de app_firma y defendido, porque el CDN puede no llegar: sin este
+     archivo la tinta se traza igual y solo se pierde la punta. -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.13.0/MotionPathPlugin.min.js"></script>
+<?!= include('app_firma'); ?>
 <?!= include('app_loaders'); ?>
 <script>if (window.VentelFX) VentelFX.pagina("acerca");</script>
 <?!= include('app_shell'); ?>
@@ -541,13 +547,27 @@
     if (!window.AppCreditos) return;
     var cont = $('ac-creditos');
     if (cont) {
-      cont.innerHTML = AppCreditos.personas().map(function (p) {
+      var personas = AppCreditos.personas();
+      cont.innerHTML = personas.map(function (p, i) {
+        /* El hueco de la firma se deja SIEMPRE que la persona la declare, y lo rellena
+           AppFirma después. Va vacío en el markup y no con el SVG dentro porque son mil
+           caracteres de trazos que solo entiende ese partial. */
         return '<article class="ac-persona">' +
+                 (p.firma ? '<div data-firma="' + i + '"></div>' : '') +
                  '<div class="ac-persona-n">' + esc(p.nombre) + '</div>' +
                  '<div class="ac-persona-p">' + esc(p.papel) + '</div>' +
                  '<div class="ac-persona-d">' + esc(p.detalle) + '</div>' +
                '</article>';
       }).join('');
+
+      /* La firma se traza sola al entrar en pantalla (los créditos están al final, y una
+         animación de seis segundos que arranca con la página arriba no la ve nadie). Sin
+         GSAP o con movimiento reducido se queda dibujada y quieta. */
+      if (window.AppFirma) {
+        Array.prototype.forEach.call(cont.querySelectorAll('[data-firma]'), function (h) {
+          AppFirma.pintar(h);
+        });
+      }
     }
     var ficha = AppCreditos.ficha();
     var fCont = $('ac-ficha');

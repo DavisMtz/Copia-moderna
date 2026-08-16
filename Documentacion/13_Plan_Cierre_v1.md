@@ -1120,6 +1120,24 @@ dibuja el menú: la sesión que hay abierta.
   lleva a la pantalla `articulo` con `AppUrl.build`/`go` —nunca concatenando—, con `href`
   real puesto además del `onclick` para que «abrir en otra pestaña» y «copiar la dirección»
   funcionen, que es justo el enlace que la gente comparte por chat.
+- **La firma del creador, trazada delante de quien mira**, encima de su nombre en los
+  créditos (`app_firma.html`). Cada trazo se esconde poniendo el guion discontinuo tan
+  largo como el propio trazo y desplazándolo entero fuera de la vista; animar ese
+  desplazamiento a cero descubre la tinta de principio a fin. Es la misma técnica del
+  anillo de `estado.html`, así que no estrena nada. La punta de la pluma va aparte,
+  recorriendo el mismo `path` con MotionPathPlugin, y **se apaga entre trazo y trazo**:
+  sin eso se vería saltar de donde acaba una letra a donde empieza la siguiente, que es
+  justo lo que la mano no hace. Los tiempos son los del pulso real con el que se escribió y
+  no se reparten a partes iguales: eso convierte una firma en una animación.
+  Tres candados, y los tres son la regla del documento 11: **sin GSAP —el CDN bloqueado,
+  que pasa en la red de tienda— la firma se ve entera y quieta**, y por eso el escondite lo
+  pone el guion desde JS y nunca el CSS; con `prefers-reduced-motion`, lo mismo; y si
+  MotionPathPlugin no llega pero GSAP sí, la tinta se traza igual y lo único que falta es
+  la punta. **Arranca al entrar en pantalla y no al cargar**, con un `IntersectionObserver`
+  —nativo, sin una librería más—: los créditos están al final, y seis segundos de firma
+  que empiezan con la página todavía arriba son seis segundos que no ve nadie.
+  El campo `firma` de `app_creditos` es opcional y hoy solo lo tiene él: una firma es de
+  quien la firma.
 - **Dos arreglos que salieron al hacerla, y que no eran de esta fase.**
   - **`app_icons` no sabía dibujar ocho de los diecinueve iconos del catálogo**
     (`chart`, `gear`, `megaphone`, `layers`, `book`, `wifi`, `flag`, y el `info` que
@@ -1135,8 +1153,8 @@ dibuja el menú: la sesión que hay abierta.
     traen copia la declaran **después** de este include y siguen mandando ellas, así que no
     cambia nada de lo que ya se veía bien.
 
-**Qué se comprobó.** Batería nueva `pruebas/f10_acerca.test.js` con **160 comprobaciones**;
-el total del repositorio pasa a **812**. El criterio 1 se mide con el filtro real cargado
+**Qué se comprobó.** Batería nueva `pruebas/f10_acerca.test.js` con **181 comprobaciones**;
+el total del repositorio pasa a **833**. El criterio 1 se mide con el filtro real cargado
 del partial de verdad, contra cuatro sesiones —visitante, asesor, supervisión y maestro—, y
 no solo comprobando que las listas difieran: se comprueba que cada una **no** traiga lo que
 esa persona no puede abrir, que es la mitad que hace daño si falla. El criterio 2 se prueba
@@ -1144,9 +1162,13 @@ por ausencia: ni un `AppRun.call` en la pantalla, y ni `app_operacion` ni `app_a
 entre sus includes. Se cotejan además los cinco espejos del alta —y de paso que **las 21
 pantallas** del enrutador estén en `AppUrl.PAGINAS`—, que los tres mapas de iconos sepan
 pintar los diecinueve del catálogo, y que el CSS de la pantalla no escriba ni un color a
-mano. Las siete baterías previas siguen en verde y `node scripts/sintaxis.js` no encuentra
-nada en los 80 archivos. `scripts/peso.js` da **754,6 KB** servidos para `acerca.html`: la
-más ligera de las que llevan shell, contra una media de 974 KB.
+mano. De la firma se prueban los tres candados —que sin GSAP **no** se quede invisible, que
+respete el movimiento reducido y que no escriba un color a mano, que en el tema carbón
+sería firmar en negro sobre negro—, además de que los trazos dibujados y los de la
+telemetría sean los mismos. Las siete baterías previas siguen en verde y
+`node scripts/sintaxis.js` no encuentra nada en los 81 archivos. `scripts/peso.js` da
+**754,6 KB** servidos para `acerca.html`: la más ligera de las que llevan shell, contra una
+media de 974 KB.
 
 **Qué se dejó fuera a propósito, o se hizo distinto.**
 
