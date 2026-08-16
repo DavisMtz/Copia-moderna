@@ -279,6 +279,15 @@
             setButtonLoadingState(button, true);
             button.disabled = true;
 
+            // Se le escribe algo dentro mientras el servidor prepara el enlace: la pestaña
+            // en blanco de 3-15 s es justo donde la gente cree que se rompió algo (igual
+            // que en inicio_avanzado.html). Si falla, el aviso se queda EN esa pestaña
+            // -que es donde está mirando quien pulsó- además del toast de aquí.
+            const fxTab = VentelFX.tab(tab, {
+                title: 'Abriendo ' + escapeHtml(folio) + '…',
+                sub: 'Preparando el formato CCL en Google Sheets'
+            });
+
             // `busy: 'Abriendo'` en vez del rótulo genérico: lo que se está esperando
             // no es una consulta, es que se arme el documento en Sheets.
             AppRun.call('openQuoteInSheets', [folio, AppSession.userEmail], { busy: 'Abriendo' })
@@ -287,18 +296,19 @@
                     button.disabled = false;
                     if (response && response.success) {
                         if (tab) {
+                            fxTab.done();
                             tab.location.href = response.url;
                         } else {
                             AppMotion.toast('El navegador bloqueó la pestaña nueva. Permite las ventanas emergentes para este sitio e intenta de nuevo.', 'warn');
                         }
                     } else {
-                        if (tab) tab.close();
+                        fxTab.fail(escapeHtml((response && response.message) || 'No se pudo abrir el documento.'));
                         AppMotion.toast((response && response.message) || 'No se pudo abrir el documento.', 'error');
                     }
                 }, error => {
                     setButtonLoadingState(button, false);
                     button.disabled = false;
-                    if (tab) tab.close();
+                    fxTab.fail('No pudimos abrir el documento. Inténtalo de nuevo en un momento.');
                     console.error('openQuoteInSheets:', error);
                     AppMotion.toast('No pudimos abrir el documento. Inténtalo de nuevo en un momento.', 'error');
                 });
