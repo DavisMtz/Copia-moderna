@@ -230,9 +230,10 @@
   /**
    * Crea el botón "Cotizar". El tamaño/tipografía copian los valores calculados
    * del botón "Comprar" (padding 12px 24px, 15px, radio 4px) para que ocupe el
-   * mismo espacio visual; el color es el morado de marca de Ventel (no el rosa
-   * de Liverpool) a propósito, para que nadie lo confunda con un botón nativo
-   * de la tienda ni lo pulse pensando que va a pagar.
+   * mismo espacio visual, y el color usa el mismo rosa de Liverpool
+   * (rgb(225,0,152), que además es el rosa de marca de Ventel) para que se vea
+   * nativo de la tienda. El ícono de documento y el texto "Cotizar" son lo que
+   * lo distingue de "Comprar", no el color.
    */
   function crearBoton() {
     const boton = document.createElement('button');
@@ -257,8 +258,8 @@
       border: 'none',
       cursor: 'pointer',
       color: '#ffffff',
-      background: 'linear-gradient(135deg, #a855f7, #7c3aed)',
-      boxShadow: '0 2px 8px rgba(124, 58, 237, .35)',
+      background: 'linear-gradient(135deg, #e10098, #c10080)',
+      boxShadow: '0 2px 8px rgba(225, 0, 152, .35)',
       transition: 'filter .15s ease'
     });
 
