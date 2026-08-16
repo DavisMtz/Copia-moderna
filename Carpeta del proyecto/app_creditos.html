@@ -1,0 +1,76 @@
+<script>
+/**
+ * =====================================================================================
+ * CRÉDITOS DEL PORTAL | Sistema de cotizaciones Ventel   ·   T10.2
+ * =====================================================================================
+ * QUIÉNES HICIERON ESTO. Es el único archivo que hay que abrir para añadir a alguien, y
+ * está escrito para que lo edite quien no programa: una entrada es una línea, los campos
+ * se llaman como lo que significan y no hay ni una etiqueta de HTML que romper.
+ *
+ * POR QUÉ AQUÍ Y NO EN UNA HOJA. El plan (T10.2) dejaba elegir entre «una hoja o una
+ * constante», y el criterio 2 de la fase decide: «la pantalla carga sin llamadas pesadas
+ * (contenido estático + sesión local)». Una hoja obliga a un viaje al servidor —con su
+ * espera, su caché que invalidar y su modo de fallar— para pintar seis nombres que
+ * cambian una vez al año. La constante se sirve con el HTML, ya está ahí cuando la
+ * pantalla se dibuja y no puede fallar a medias.
+ *
+ * POR QUÉ EN SU PROPIO ARCHIVO Y NO DENTRO DE acerca.html. Porque eso es exactamente lo
+ * que el plan prohíbe —«no hardcodeada en el markup»— y porque el archivo tiene un solo
+ * trabajo: quien viene a añadirse no tiene que encontrar su nombre entre mil líneas de
+ * pantalla. Es el mismo criterio con el que el catálogo de funciones vive en
+ * app_indices.html: son DATOS, y los datos se guardan aparte de quien los pinta.
+ *
+ * CÓMO AÑADIR A ALGUIEN
+ *   1. Copia una línea de PERSONAS y cámbiale los tres campos.
+ *   2. `papel` es lo que hizo, en dos o tres palabras y en minúscula. No es el puesto.
+ *   3. Ya está. La pantalla se dibuja sola a partir de esta lista.
+ *
+ * REGLA QUE NO SE SALTA: aquí solo van personas que participaron de verdad, con el
+ * nombre con el que quieren aparecer. Esta pantalla la ve el equipo entero.
+ */
+(function () {
+  'use strict';
+
+  /* Quién hizo el sistema. El orden es el de la lista: no se reordena solo. */
+  var PERSONAS = [
+    {
+      nombre: 'David Martínez',
+      papel: 'Creador del proyecto',
+      detalle: 'Asesor Ventel. Ideó el sistema, lo diseñó y lo escribió: desde la primera ' +
+               'cotización hasta el Portal, la consola y la extensión del navegador.',
+      /* `firma: true` pone su firma de puño y letra encima del nombre, trazada delante de
+         quien mira (app_firma.html). Es un campo opcional y hoy solo la tiene él: una
+         firma es de quien la firma, así que no se reparte por defecto. Quien quiera la
+         suya tiene que aportar sus propios trazos al partial. */
+      firma: true
+    },
+    {
+      nombre: 'El equipo Ventel',
+      papel: 'Pruebas y criterio',
+      detalle: 'Los asesores y supervisores que usaron cada pantalla antes que nadie y ' +
+               'dijeron qué faltaba. Casi todo lo que hoy funciona bien está así porque ' +
+               'alguien del piso avisó de que no lo hacía.'
+    }
+  ];
+
+  /* La ficha del sistema. Se enseña junto a los créditos porque es la primera pregunta
+     de quien tiene que dar soporte: «¿qué versión es esto y sobre qué corre?».
+     `version` se actualiza a mano al cerrar una versión; el plan 13 la lleva a 1.0. */
+  var FICHA = {
+    version: 'v0.9 · pruebas de control',
+    plataforma: 'Google Apps Script + Google Sheets',
+    organizacion: 'El Puerto de Liverpool · Equipo Ventel',
+    desde: 'Mayo de 2025'
+  };
+
+  window.AppCreditos = {
+    personas: function () { return PERSONAS.slice(); },
+    ficha: function () {
+      /* Copia, no la referencia: quien pinte esto no debe poder cambiar la ficha para
+         todos los demás sin querer. */
+      return { version: FICHA.version, plataforma: FICHA.plataforma,
+               organizacion: FICHA.organizacion, desde: FICHA.desde };
+    }
+  };
+})();
+</script>

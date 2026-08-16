@@ -182,6 +182,10 @@ var PORTAL_ANUNCIOS_SHEET    = 'Anuncios';
 var PORTAL_ANUNCIOS_FORMATOS = ['banner', 'destacado', 'tarjeta', 'modal'];
 
 // Localiza las columnas por encabezado (mismo criterio flexible que readPortalSheet_).
+// Es la MISMA lista que portalAnunciosColsW_ (escritura): se dejan las dos porque la
+// lectura pública no necesita saber de autoría para pintar un banner, pero desde que
+// cada publicación lleva responsable visible, autor/responsable/creado también entran
+// aquí. Quien añada una columna las toca las dos.
 function portalAnunciosCols_(hdr) {
   const h = hdr.map(x => x.toString().toLowerCase().trim());
   return {
@@ -191,8 +195,32 @@ function portalAnunciosCols_(hdr) {
     orden:   h.findIndex(x => x.includes('orden')),
     desde:   h.findIndex(x => x.includes('desde') || x.includes('inicio')),
     hasta:   h.findIndex(x => x.includes('hasta') || x.includes('vigen') || x.includes('fecha')),
-    datos:   h.findIndex(x => x.includes('dato') || x.includes('json'))
+    datos:   h.findIndex(x => x.includes('dato') || x.includes('json')),
+    autor:   h.findIndex(x => x.includes('autor')),
+    responsable: h.findIndex(x => x.includes('responsable')),
+    creado:  h.findIndex(x => x.includes('creado') || x.includes('creacion'))
   };
+}
+
+/**
+ * Nombre legible de quien publicó, para pintarlo en el Portal.
+ *
+ * Manda la columna "Responsable" (el nombre con el que la persona está dada de alta,
+ * que publicarAnuncio guarda desde ahora). Las filas de antes solo tienen el correo:
+ * de él se saca un nombre presentable en vez de enseñar la dirección entera, porque
+ * el Portal lo ven todos los asesores y un correo ahí es un dato de contacto que
+ * nadie pidió publicar. "maria.lopez@…" → "Maria Lopez".
+ */
+function portalNombreResponsable_(nombre, correo) {
+  const n = String(nombre || '').trim();
+  if (n) return n;
+  const c = String(correo || '').trim();
+  if (!c) return '';
+  const usuario = c.split('@')[0].replace(/[._-]+/g, ' ').trim();
+  if (!usuario) return '';
+  return usuario.split(/\s+/).map(function (p) {
+    return p.charAt(0).toUpperCase() + p.slice(1);
+  }).join(' ');
 }
 
 function portalEsActivo_(v) {
@@ -215,6 +243,10 @@ function readPortalAnuncios_(ss) {
 
   const sheet = ss.getSheetByName(PORTAL_ANUNCIOS_SHEET);
   if (sheet) {
+    // Antes de leer, se le pone ID a lo que no lo tenga: sin esto una fila escrita a
+    // mano en el Sheet solo tenía identidad por su POSICIÓN, y ese es el enlace que se
+    // rompe en silencio cuando alguien inserta una fila más arriba (ver pubAsegurarIdsAnuncios_).
+    pubAsegurarIdsAnuncios_(sheet);
     const data = sheet.getDataRange().getValues();
     if (data.length > 1) {
       const c = portalAnunciosCols_(data[0]);
@@ -230,11 +262,19 @@ function readPortalAnuncios_(ss) {
         const formato = c.formato > -1 && row[c.formato]
           ? String(row[c.formato]).trim().toLowerCase() : 'banner';
         if (PORTAL_ANUNCIOS_FORMATOS.indexOf(formato) < 0) continue;
-        out.push(Object.assign({
-          id:      c.id > -1 && row[c.id] ? String(row[c.id]).trim() : 'anc-row-' + i,
+        // `datos` va PRIMERO y las claves de la fila después: la columna manda sobre el
+        // JSON. Un `id` o un `responsable` escritos dentro del JSON —a mano, o por una
+        // versión futura del constructor— no pueden suplantar los de la hoja.
+        out.push(Object.assign({}, datos, {
+          id:      pubIdDeFila_(c.id > -1 ? row[c.id] : '', row, c, i),
           formato: formato,
-          orden:   c.orden > -1 && row[c.orden] !== '' ? Number(row[c.orden]) || 0 : 0
-        }, datos));
+          orden:   c.orden > -1 && row[c.orden] !== '' ? Number(row[c.orden]) || 0 : 0,
+          responsable: portalNombreResponsable_(
+            c.responsable > -1 ? row[c.responsable] : '',
+            c.autor > -1 ? row[c.autor] : ''),
+          creado: c.creado > -1 && row[c.creado] instanceof Date
+            ? Utilities.formatDate(row[c.creado], Session.getScriptTimeZone(), 'yyyy-MM-dd') : ''
+        }));
       }
     }
   }
@@ -253,7 +293,11 @@ function readPortalAnuncios_(ss) {
         if (iMsg < 0 || !row[iMsg] || !row[iMsg].toString().trim()) continue;
         if (iHasta > -1 && row[iHasta] instanceof Date && row[iHasta] < hoy0) continue;
         out.push({
-          id:      'avi-' + i,
+          // La hoja legacy no tiene columna ID y no se le añade una: es de solo lectura
+          // y está en vías de desaparecer. Su identidad sale del CONTENIDO, no de la
+          // fila, para que insertar un aviso arriba no le cambie el id —y con él el
+          // enlace compartido y el "no volver a mostrarme esto"— a todos los de abajo.
+          id:      'avi-' + pubHashCorto_(String(row[iMsg]).trim()),
           formato: 'banner',
           orden:   1000 + i,
           tono:    iTipo > -1 && row[iTipo] ? String(row[iTipo]).trim().toLowerCase() : 'info',
@@ -452,7 +496,7 @@ function monthIdx_(name) {
 // ID (portalSS_) — el mismo destino que lee readPortalAnuncios_.
 // Gate: el que edita debe ser un usuario registrado y AVANZADO (metVerificarAsesor_).
 
-var PORTAL_ANUNCIOS_HEADERS = ['ID', 'Formato', 'Activo', 'Orden', 'Desde', 'Hasta', 'Datos (JSON)', 'Autor', 'Creado'];
+var PORTAL_ANUNCIOS_HEADERS = ['ID', 'Formato', 'Activo', 'Orden', 'Desde', 'Hasta', 'Datos (JSON)', 'Autor', 'Responsable', 'Creado'];
 
 // Carpeta destino de las imágenes de anuncios.
 // Manda el ID (fijo y estable); el nombre solo se usa como respaldo si el ID
@@ -482,21 +526,21 @@ function portalGateAvanzado_(email) {
   }
 }
 
-// Columnas de la hoja Anuncios para ESCRITURA (incluye autor/creado).
+// Columnas de la hoja Anuncios para ESCRITURA (incluye autor/responsable/creado).
 function portalAnunciosColsW_(hdr) {
-  const h = hdr.map(x => x.toString().toLowerCase().trim());
-  return {
-    id:      h.findIndex(x => x.includes('id')),
-    formato: h.findIndex(x => x.includes('formato')),
-    activo:  h.findIndex(x => x.includes('activo')),
-    orden:   h.findIndex(x => x.includes('orden')),
-    desde:   h.findIndex(x => x.includes('desde') || x.includes('inicio')),
-    hasta:   h.findIndex(x => x.includes('hasta') || x.includes('vigen') || x.includes('fecha')),
-    datos:   h.findIndex(x => x.includes('dato') || x.includes('json')),
-    autor:   h.findIndex(x => x.includes('autor')),
-    creado:  h.findIndex(x => x.includes('creado') || x.includes('creacion'))
-  };
+  return portalAnunciosCols_(hdr);
 }
+
+/* Columnas que la hoja tiene que traer sí o sí, con el criterio que las reconoce.
+   Existe porque las hojas de antes no las tenían: "Desde" se añadió al programar
+   publicaciones y "Responsable" al pintar el autor en el Portal, y en los dos casos
+   la alternativa era que el administrador editara el encabezado a mano. */
+var PORTAL_ANUNCIOS_COLS_REQ = [
+  { nombre: 'Desde',       test: function (s) { return s.includes('desde') || s.includes('inicio'); } },
+  { nombre: 'Autor',       test: function (s) { return s.includes('autor'); } },
+  { nombre: 'Responsable', test: function (s) { return s.includes('responsable'); } },
+  { nombre: 'Creado',      test: function (s) { return s.includes('creado') || s.includes('creacion'); } }
+];
 
 function portalAnunciosSheetW_(ss) {
   let sheet = ss.getSheetByName(PORTAL_ANUNCIOS_SHEET);
@@ -505,11 +549,25 @@ function portalAnunciosSheetW_(ss) {
     sheet.appendRow(PORTAL_ANUNCIOS_HEADERS);
     sheet.getRange(1, 1, 1, PORTAL_ANUNCIOS_HEADERS.length).setFontWeight('bold');
     sheet.setFrozenRows(1);
+    return sheet;
   }
-  // Garantiza la columna "Desde" (hojas viejas no la tenían).
-  const hdr = sheet.getRange(1, 1, 1, sheet.getLastColumn()).getValues()[0];
-  const hasDesde = hdr.some(x => { const s = String(x).toLowerCase(); return s.includes('desde') || s.includes('inicio'); });
-  if (!hasDesde) sheet.getRange(1, sheet.getLastColumn() + 1).setValue('Desde').setFontWeight('bold');
+  // Garantiza las columnas que las hojas viejas no traían. Se añaden de una vez y al
+  // final: insertarlas en medio movería de sitio datos que ya están escritos.
+  let hdr = sheet.getRange(1, 1, 1, sheet.getLastColumn()).getValues()[0];
+  const faltan = PORTAL_ANUNCIOS_COLS_REQ.filter(function (req) {
+    return !hdr.some(function (x) { return req.test(String(x).toLowerCase()); });
+  });
+  if (faltan.length) {
+    const desde = sheet.getLastColumn() + 1;
+    const maxCols = sheet.getMaxColumns();
+    // Una hoja recortada a sus columnas justas no tiene dónde crecer, y getRange()
+    // más allá del último borde revienta en vez de estirarla (mismo cuidado que
+    // pcAsegurarIds_ en PortalContenido.gs).
+    if (desde + faltan.length - 1 > maxCols) sheet.insertColumnsAfter(maxCols, desde + faltan.length - 1 - maxCols);
+    sheet.getRange(1, desde, 1, faltan.length)
+      .setValues([faltan.map(function (f) { return f.nombre; })])
+      .setFontWeight('bold');
+  }
   return sheet;
 }
 
@@ -576,10 +634,37 @@ function publicarAnuncio(payload) {
     const width = sheet.getLastColumn();
     const c = portalAnunciosColsW_(sheet.getRange(1, 1, 1, width).getValues()[0]);
 
-    const datos = payload.datos && typeof payload.datos === 'object' ? payload.datos : {};
+    const datos = pubSanearDatos_(payload.datos && typeof payload.datos === 'object' ? payload.datos : {});
     const activo = payload.activo === undefined ? true : !!payload.activo;
-    const orden = Number(payload.orden) || 0;
-    const id = payload.id && String(payload.id).trim() ? String(payload.id).trim() : 'anc-' + Date.now().toString(36);
+    let orden = Number(payload.orden) || 0;
+    const id = payload.id && String(payload.id).trim() ? String(payload.id).trim() : pubNuevoIdAnuncio_();
+
+    const rowIdx = portalFindAnuncioRow_(sheet, c, id);
+
+    /* LO NUEVO VA PRIMERO. Hasta ahora una publicación nueva nacía con orden 0 —igual
+       que todas las demás—, y como el desempate es el orden de las filas y `appendRow`
+       escribe al final, el anuncio recién publicado aparecía el ÚLTIMO del Portal:
+       justo debajo de los de la semana pasada. Quien acaba de publicar algo espera
+       verlo arriba, y encima ahora la primera tarjeta es la PRINCIPAL (F7), así que el
+       sitio de honor se lo quedaba lo más viejo.
+
+       Solo aplica al CREAR y solo si no se pidió un orden concreto: quien escribe un
+       número en el constructor manda, y editar una publicación no la mueve de sitio. */
+    if (rowIdx < 0 && !Number(payload.orden)) orden = pubOrdenParaNueva_(sheet, c);
+
+    /* Autoría y fecha de alta se fijan al CREAR y no se vuelven a tocar. Hasta ahora
+       "Creado" se reescribía en cada guardado, así que la columna decía "modificado por
+       última vez" con el nombre de "Creado", y desde que el Portal enseña el responsable
+       eso significaría que corregir una errata en el anuncio de otra persona te lo
+       adjudica a ti. Si la fila viene de antes y no tiene autor, lo pone quien edita:
+       un dato aproximado es mejor que la esquina vacía. */
+    let autorPrevio = '', respPrevio = '', creadoPrevio = '';
+    if (rowIdx > 0) {
+      const previa = sheet.getRange(rowIdx, 1, 1, width).getValues()[0];
+      if (c.autor > -1)       autorPrevio  = String(previa[c.autor] || '').trim();
+      if (c.responsable > -1) respPrevio   = String(previa[c.responsable] || '').trim();
+      if (c.creado > -1)      creadoPrevio = previa[c.creado] instanceof Date ? previa[c.creado] : '';
+    }
 
     const rowValues = [];
     rowValues[c.id]      = id;
@@ -589,10 +674,12 @@ function publicarAnuncio(payload) {
     if (c.desde > -1) rowValues[c.desde] = portalParseFechaLocal_(payload.desde, true);
     rowValues[c.hasta]   = portalParseFechaLocal_(payload.hasta);
     rowValues[c.datos]   = JSON.stringify(datos);
-    if (c.autor > -1)  rowValues[c.autor]  = gate.email;
-    if (c.creado > -1) rowValues[c.creado] = new Date();
+    if (c.autor > -1)       rowValues[c.autor]       = autorPrevio || gate.email;
+    // El nombre legible es lo que se pinta en el Portal; el correo se queda en la hoja
+    // para saber a quién preguntarle, pero no viaja a la pantalla pública.
+    if (c.responsable > -1) rowValues[c.responsable] = respPrevio || gate.nombre || '';
+    if (c.creado > -1)      rowValues[c.creado]      = creadoPrevio || new Date();
 
-    const rowIdx = portalFindAnuncioRow_(sheet, c, id);
     if (rowIdx > 0) sheet.getRange(rowIdx, 1, 1, width).setValues([portalFillRow_(rowValues, width)]);
     else sheet.appendRow(portalFillRow_(rowValues, width));
 
@@ -611,6 +698,7 @@ function getAnunciosAdmin(email) {
     const ss = portalSS_();
     const sheet = ss.getSheetByName(PORTAL_ANUNCIOS_SHEET);
     if (!sheet) return { status: 'ok', anuncios: [] };
+    pubAsegurarIdsAnuncios_(sheet);
     const data = sheet.getDataRange().getValues();
     if (data.length < 2) return { status: 'ok', anuncios: [] };
     const c = portalAnunciosColsW_(data[0]);
@@ -631,6 +719,7 @@ function getAnunciosAdmin(email) {
       else if (desde && desde > now) estado = 'programado';
       else if (hasta && hasta < hoy0) estado = 'expirado';
       else estado = 'activo';
+      const creado = c.creado > -1 && row[c.creado] instanceof Date ? row[c.creado] : null;
       anuncios.push({
         id:      String(row[c.id]).trim(),
         formato: c.formato > -1 ? String(row[c.formato]).trim().toLowerCase() : 'banner',
@@ -639,7 +728,15 @@ function getAnunciosAdmin(email) {
         orden:   c.orden > -1 ? (Number(row[c.orden]) || 0) : 0,
         desde:   desde ? Utilities.formatDate(desde, tz, 'yyyy-MM-dd') : '',
         hasta:   hasta ? Utilities.formatDate(hasta, tz, 'yyyy-MM-dd') : '',
-        datos:   datos
+        datos:   datos,
+        // Quién y cuándo. Aquí SÍ va el correo —es la pantalla de administración, y
+        // saber a quién preguntarle por un anuncio ajeno es media razón para abrirla—;
+        // en el Portal público solo viaja el nombre (portalNombreResponsable_).
+        autor:       c.autor > -1 ? String(row[c.autor] || '').trim() : '',
+        responsable: portalNombreResponsable_(
+          c.responsable > -1 ? row[c.responsable] : '',
+          c.autor > -1 ? row[c.autor] : ''),
+        creado:  creado ? Utilities.formatDate(creado, tz, 'yyyy-MM-dd') : ''
       });
     }
     anuncios.sort((a, b) => (a.orden || 0) - (b.orden || 0));

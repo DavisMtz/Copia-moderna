@@ -521,7 +521,8 @@ que la abre en grande, y la tarjeta puede ser una **encuesta** con resultados en
   orden existente (columna Orden + regla «solo un modal»), elegida para no inventar un
   segundo criterio de prioridad que choque con el que ya hay; **validar la maqueta con el
   creador antes de cerrar la tarea** por si su intención era jerarquía por formato (todo
-  el formato tarjeta = principal). El responsable va pequeño en la esquina inferior
+  el formato tarjeta = principal). *(Validado el 15/08/2026: el creador eligió esta misma
+  interpretación entre las tres que se le enseñaron. Ver el §18.)* El responsable va pequeño en la esquina inferior
   derecha de cada plantilla (tarjeta 3771-3781, destacado 3745-3753, modal 3799-3808;
   CSS junto a `.anc-card` 879-894).
 - **T7.3 — ID compartible.** Parámetro nuevo `pub` en las tres listas espejo
@@ -965,12 +966,892 @@ R16→F8 · R17→F12+F13.
 
 ---
 
+## 17 bis. Pendientes vivos — foto del 15 de agosto de 2026
+
+Lo que sigue abierto **de verdad**, tras auditar el plan entero contra el código el
+15/08/2026. La auditoría fue fase por fase y criterio por criterio, con una regla: no creerse
+el §18. Si el registro dice «hecho» y el `grep` no encuentra nada, está pendiente. Cada
+hallazgo pasó después por una segunda lectura cuyo único encargo era **refutarlo**; de
+veinticuatro, ocho se cayeron por ser lecturas demasiado literales de la prosa del plan y no
+huecos reales. Estos son los que sobrevivieron.
+
+> Esta sección **caduca**: es una foto, no un inventario que se mantenga solo. Al cerrar
+> cualquiera de estas líneas, se tacha aquí y se cuenta en el §18.
+
+### Código pendiente
+
+| # | Qué | Dónde | Fase |
+| --- | --- | --- | --- |
+| 1 | **`revision_cotizacion.html` no escribe nada en la URL**, y tiene dos juegos de pestañas reales (`:845-850` hoja/google y `:1028-1033` comparación/página). Cambiar de pestaña no sobrevive a F5 ni al botón «atrás». `cotizado_preview.html` tampoco escribe estado. Es el criterio 1 de F1 sin cumplir en dos pantallas | `revision_cotizacion.html`, `cotizado_preview.html` | F1 |
+| 2 | **T12.1 sin empezar**: `portal_contenido.html` ni siquiera incluye `app_onboarding`. Es uno de los cinco puntos de la «vía rápida» del §2 | `portal_contenido.html` | F12 |
+| 3 | **T11.2 a medias**: el botón de un clic a la página de Liverpool existe (por triplicado), pero falta **el precio de la última captura en caché con su antigüedad rotulada** cuando responde 403 | `Revision.gs:961-974`, `revision_cotizacion.html:1978-1986` | F11 |
+| 4 | **T6.4 solo cerró la mitad**: el DOM del panel ya está diferido, pero los ~157 KB de `app_comando` + `app_indices` **siguen viajando** en cada pantalla que los lleva, porque `include()` pega el partial en el HTML servido. El §18 lo deja como decisión del creador. *(Recuento al 16/08/2026, tras F10: **17** `include('app_comando')` y **18** `include('app_indices')`. La cifra sube con cada pantalla nueva; si vuelve a quedar desfasada, se cuenta y ya.)* | los `include('app_comando')` | F6 |
+| 17 | **`revisionMaestra()` no tiene gate y su reporte se puede pedir desde el navegador.** Es anterior a F9 —se ejecuta desde el editor, y la puerta está en `consolaSalud`—, pero el reporte describe la instalación entera: hojas, alias, webhooks recortados, cuántos maestros hay. F9 dejó de escribir en él lo que no debe leerse; falta cerrarlo de verdad sin romper su uso desde el editor | `Admin.gs:19`, `Admin.gs:390` | F13 |
+
+### Pruebas que faltan
+
+| # | Qué | Fase |
+| --- | --- | --- |
+| 5 | **F5 no dejó ninguna prueba**, pese a que su entrada del §18 afirma que «cada agente montó su banco» (caché del panel, umbrales, CSV). No existe en el repositorio, ni en esta rama ni en las otras. Es el caso exacto que la regla de oro busca | F5 |
+| 6 | **Nada vigila el espejo cliente/servidor de la búsqueda** (`normalizeText_`, `searchTokens_` de `Code.gs` contra `AppBuscar`). Hoy coinciden —se comprobó—, pero si alguien toca uno, nada avisa | F6 |
+
+### Validaciones que solo se cierran en el despliegue real
+
+| # | Qué | Fase |
+| --- | --- | --- |
+| 7 | **T3.2: la maqueta validada con quien revisa a diario.** No es código: el refactor está hecho y comprobado; falta enseñárselo a quien usa esa pantalla todos los días | F3 |
+| 8 | **El visor de artículos no se ha visto en pantalla** (la extensión del navegador se desconectó a mitad de aquella revisión). El editor sí | F8 |
+| 9 | **Los diagramas no se han probado contra Apps Script.** El iframe anidado y el `postMessage` deberían comportarse como el iframe de Google Sheets de la revisión, que ahí ya funciona, pero es una dependencia externa nueva | F8 |
+| 10 | **Grabación antes/después de los dos buscadores** (criterio F6.2) y el «<1 s» del tablero de F5 | F5 · F6 |
+| 13 | **La difusión no se ha enviado de verdad todavía.** El envío está probado contra un Gmail fingido; falta mandar uno real a un grupo pequeño y ver cómo llega la imagen en línea a una bandeja de Outlook y a otra de Gmail (criterio F9.2) | F9 |
+| 14 | **El CCO global no se ha configurado en producción.** Falta la comprobación con dos cuentas del criterio F9.4: que la cotización y la plantilla lleguen copiadas y que el correo de reset **no** | F9 |
+| 15 | **Monitoreo no se ha medido sobre la hoja real.** El «<5 s» del criterio F9.3 está razonado (lectura por la cola, topes) pero no cronometrado contra «Cotizaciones» de producción | F9 |
+| 16 | **`revisionMaestra()` con las áreas nuevas no se ha corrido en el proyecto real** (criterio F9.5) | F9 |
+
+### Higiene del registro §18
+
+| # | Qué |
+| --- | --- |
+| 11 | El **saneamiento de F7** que viajó dentro del commit `64467cb` (+137 líneas en `Index.html`) no tiene entrada propia: la entrada «F7 completa» describe un estado del código anterior a esas correcciones |
+| 12 | Los cuatro commits **«Auto»** que reescribieron `app_aura` y lo repartieron por 14 pantallas no se mencionan ni una vez. Hay que decidirlo y dejarlo escrito: o entrada propia, o una nota de que los commits «Auto» del creador quedan fuera de este registro |
+
+### Lo que la auditoría revisó y **no** era un hueco
+
+Se anota para que no se vuelva a levantar: el espejo `PARAMS_VISTA`/`PASAN` (la lista `PASAN`
+es un **subconjunto deliberado**, sin `next` ni `format`, y hay una prueba que lo declara);
+T4.1 y los criterios de loaders F4.1 y F4.2 (verificados, el segundo incluso en un navegador
+sin CDN y con `prefers-reduced-motion`); el criterio F3.3; F5.1 y F5.2; F6.3; y el
+responsable de F7 en formato banner, que sí se ve al ampliar la publicación.
+
+También se levantó como desajuste que la entrada de F7 dijera «94 comprobaciones» cuando la
+batería reporta 99, y la de F8 «95» cuando reporta 110. **No es un desajuste**: las dos cifras
+eran ciertas el día que se escribieron, y las baterías crecieron después —a la de F7 le
+añadieron casos las tandas de F8—. Una entrada de registro cuenta lo que pasó entonces; si se
+reescribiera cada vez que cambia un número, dejaría de ser un registro. Se anota aquí para
+que la siguiente lectura no lo vuelva a levantar.
+
+---
+
 ## 18. Registro de ejecución
 
 Lo que se ha hecho de verdad, en orden. Cada entrada dice **qué se cambió, qué se comprobó
 y qué se dejó fuera a propósito**. Mismo formato que el registro del documento 12.
 
 <!-- Las entradas nuevas van arriba, con la más reciente primero. -->
+
+### 2026-08-16 — F10 completa: el Portal por fin se explica, y a cada quien la suya
+
+**Qué es esta fase.** El sistema tenía diecinueve pantallas y ningún sitio donde dijera qué
+es. Quien entraba nuevo aprendía por el menú —que enseña las puertas, no lo que hay
+detrás—, y las tres preguntas que se hacen siempre no tenían respuesta escrita en ninguna
+parte: «¿esto qué es?», «¿yo qué puedo hacer aquí?» y «¿quién lo hizo?». La segunda es la
+que de verdad dolía, porque la respuesta **cambia según quién pregunta** y hasta ahora la
+contestaba un compañero de memoria. F10 la contesta con el mismo criterio con el que se
+dibuja el menú: la sesión que hay abierta.
+
+**Qué se cambió.**
+
+- **Pantalla nueva `acerca`** (T10.1), en `acerca.html`, dada de alta en `PAGES`
+  (`Code.gs`), en `AppUrl.PAGINAS` y en `PAGINAS_TRAS_LOGIN` (`app_core.html`). Va en
+  `PAGES` y no en `PORTAL_PAGES` porque **exige sesión** —lo pide ella misma con
+  `requireSession('acerca')`, sin bloque, que es lo que el plan pedía—, y está en la lista
+  de después del login para que un enlace compartido aterrice aquí y no en el panel. Sin
+  ella en `AppUrl.PAGINAS` la pantalla ni siquiera escribiría su propia URL:
+  `declararPagina` descarta lo que no conoce y `reflejar()` se calla.
+- **La entrada va en el PIE de la barra y no en el menú**, con clase propia
+  `.side-foot-link`. Las dos mitades son decisiones. El pie porque el menú es la lista de
+  lo que hay que hacer hoy, y una pantalla que se visita una vez —al llegar al equipo, o
+  cuando alguien pregunta «¿y esto qué hace?»— estorba ahí los otros trescientos días; el
+  pie ya es el cajón de lo que se consulta y no se opera. Y clase propia, aunque se vea
+  igual que el lanzador del tutorial que tiene al lado, porque **el estilo de ese lanzador
+  vive en `app_onboarding`, que solo llega a 3 de las 11 pantallas con shell**:
+  reutilizarlo habría dejado el botón sin forma en las otras ocho. `sideFootHTML` pasa a
+  recibir la pantalla activa para poder marcarse, con `aria-current`.
+- **En el Portal, la misma entrada en el mismo sitio.** El plan decía «footer» y hay que
+  decirlo: **el Portal no tiene footer**; `grep '<footer' Index.html` no devuelve nada. Lo
+  que tiene es un `.side-foot` que es el espejo exacto del de `app_shell` —mismo tutorial,
+  mismos temas, mismos ajustes de vista—, y ahí es donde va, con su copia del estilo,
+  porque el Portal no incluye ese partial y las dos hojas se mantienen a la par a mano
+  desde siempre. Se ofrece **también sin sesión**: quien la pulse pasa por el login y
+  vuelve aquí, que es el puente que ya usa todo el Portal.
+- **«Qué puedes hacer tú» sale del catálogo unificado de T6.3**, filtrado por `AppSession`
+  igual que el menú, y **con superficie propia `'acerca'`** en `AppIndices.funciones`. Lo
+  fácil habría sido reaprovechar `funciones('portal', …)`, y habría estado mal: «Portal
+  Ventel» y «Monitor de promociones» llevan `fuera:['portal']` porque allí se está parado
+  encima de ellas, así que la lista habría salido sin dos de las cosas que precisamente
+  tiene que descubrir alguien nuevo. Una lista que se titula «qué puedes hacer tú» y se
+  deja dos fuera es peor que no tenerla.
+- **Los instructivos, en `app_instructivos.html`**, keados por el `id` del catálogo. No van
+  dentro del catálogo porque ese archivo viaja en **18 pantallas** y este texto lo lee
+  una; no van dentro de `acerca.html` porque son datos, y los datos de esta casa viven
+  aparte de quien los pinta. La juntura la vigila la prueba: **toda entrada del catálogo
+  tiene que tener instructivo**, y ninguno puede ser una copia del `sub`. Es lo único que
+  evita que la función que alguien dé de alta el año que viene aparezca aquí muda.
+- **Los créditos, en `app_creditos.html`**, y en constante y no en hoja. El plan dejaba
+  elegir, y lo decide el criterio 2 de la fase: una hoja obliga a un viaje al servidor
+  —con su espera, su caché que invalidar y su forma de fallar— para pintar dos nombres que
+  cambian una vez al año. El archivo está escrito para que lo edite quien no programa: una
+  persona es una línea con tres campos y no hay ni una etiqueta de HTML que romper.
+- **La pantalla no llama al servidor.** Es el criterio 2 y se cumple literalmente: lo que
+  pinta sale del catálogo, que viaja en el HTML, y de la sesión, que ya está en
+  `localStorage`. Por eso **no incluye `app_operacion`** —que pide el estado del servicio
+  900 ms después de cargar en toda pantalla que lo lleve— **ni `app_atenciones`**, que trae
+  su propia caché. La consecuencia se declara aquí: estando en esta pantalla, «Reportar
+  una falla» del buscador general navega al tablero de estado en vez de abrir el panel
+  encima, que es exactamente el respaldo que esa acción ya tiene escrito.
+- **Y la única llamada que sí se hace, que es la que la hace correcta.** Cuando la sesión
+  no sabe qué bloques tiene —una abierta antes de que existieran, o a medio refrescar—,
+  `AppSession.can()` contesta que sí a todo **por diseño**: es el beneficio de la duda del
+  menú, que prefiere ofrecer de más a esconder de más. En un menú eso es aceptable; en una
+  pantalla que se titula «qué puedes hacer TÚ» es una lista falsa. Así que en ese caso, y
+  solo en ese, se pregunta una vez y se repinta. También se repinta al oír el `storage` de
+  otra pestaña: si te ascienden con esto abierto, la lista deja de ser verdad.
+- **Las seis plantillas de correo van agrupadas** y no como seis tarjetas más. Son seis
+  puertas a la misma pantalla con el formato ya elegido, y en la rejilla ocupaban un quinto
+  del listado repitiendo la palabra «Plantilla». Se distinguen por el prefijo `tpl-` de su
+  id —el contrato que el propio catálogo ya usa para nombrarlas— y no por una segunda lista
+  escrita en la pantalla.
+- **Entrada GSAP sobria** (T10.2). Las secciones entran solas con `[data-animate]`, que es
+  `AppMotion.enter` y ya degrada sin CDN y con `prefers-reduced-motion`; encima va una
+  línea de tiempo de tres pasos para la portada, que no lo lleva. Es el patrón de
+  `estado.html` **sin sus halos, sin SplitText y sin ScrollTrigger**: una pantalla de texto
+  no necesita una portada de cine, y la tarea pedía «ligera».
+- **T10.3 · Los artículos se enlazan, no se duplican.** La sección los presenta y el botón
+  lleva a la pantalla `articulo` con `AppUrl.build`/`go` —nunca concatenando—, con `href`
+  real puesto además del `onclick` para que «abrir en otra pestaña» y «copiar la dirección»
+  funcionen, que es justo el enlace que la gente comparte por chat.
+- **La firma del creador, trazada delante de quien mira**, encima de su nombre en los
+  créditos (`app_firma.html`). Cada trazo se esconde poniendo el guion discontinuo tan
+  largo como el propio trazo y desplazándolo entero fuera de la vista; animar ese
+  desplazamiento a cero descubre la tinta de principio a fin. Es la misma técnica del
+  anillo de `estado.html`, así que no estrena nada. La punta de la pluma va aparte,
+  recorriendo el mismo `path` con MotionPathPlugin, y **se apaga entre trazo y trazo**:
+  sin eso se vería saltar de donde acaba una letra a donde empieza la siguiente, que es
+  justo lo que la mano no hace. Los tiempos son los del pulso real con el que se escribió y
+  no se reparten a partes iguales: eso convierte una firma en una animación.
+  Tres candados, y los tres son la regla del documento 11: **sin GSAP —el CDN bloqueado,
+  que pasa en la red de tienda— la firma se ve entera y quieta**, y por eso el escondite lo
+  pone el guion desde JS y nunca el CSS; con `prefers-reduced-motion`, lo mismo; y si
+  MotionPathPlugin no llega pero GSAP sí, la tinta se traza igual y lo único que falta es
+  la punta. **Arranca al entrar en pantalla y no al cargar**, con un `IntersectionObserver`
+  —nativo, sin una librería más—: los créditos están al final, y seis segundos de firma
+  que empiezan con la página todavía arriba son seis segundos que no ve nadie.
+  El campo `firma` de `app_creditos` es opcional y hoy solo lo tiene él: una firma es de
+  quien la firma.
+- **Dos arreglos que salieron al hacerla, y que no eran de esta fase.**
+  - **`app_icons` no sabía dibujar ocho de los diecinueve iconos del catálogo**
+    (`chart`, `gear`, `megaphone`, `layers`, `book`, `wifi`, `flag`, y el `info` que
+    estrena esta fase). No se notaba porque las dos superficies que consumían el catálogo
+    tienen cada una su propio juego de glifos; en cuanto una tercera pantalla lo pinta con
+    `Icons.svg`, un tercio de las entradas salía con un marco vacío. Se completan en el
+    registro compartido, que es lo que evita una cuarta copia de los mismos dibujos.
+  - **`app_theme` no declaraba la escala `--s*` / `--fs-*`, y `articulo.html` la usa 59
+    veces.** `padding: var(--s4) var(--s3) var(--s6)` con las variables sin declarar es una
+    declaración **inválida**: el visor de artículos se estaba pintando sin un solo margen y
+    con los tamaños heredados. Existía de hecho en cuatro pantallas, cada una con su copia
+    en su propio `:root`; se sube al tema, que es donde tenía que estar. Las cuatro que
+    traen copia la declaran **después** de este include y siguen mandando ellas, así que no
+    cambia nada de lo que ya se veía bien.
+
+**Qué se comprobó.** Batería nueva `pruebas/f10_acerca.test.js` con **181 comprobaciones**;
+el total del repositorio pasa a **833**. El criterio 1 se mide con el filtro real cargado
+del partial de verdad, contra cuatro sesiones —visitante, asesor, supervisión y maestro—, y
+no solo comprobando que las listas difieran: se comprueba que cada una **no** traiga lo que
+esa persona no puede abrir, que es la mitad que hace daño si falla. El criterio 2 se prueba
+por ausencia: ni un `AppRun.call` en la pantalla, y ni `app_operacion` ni `app_atenciones`
+entre sus includes. Se cotejan además los cinco espejos del alta —y de paso que **las 21
+pantallas** del enrutador estén en `AppUrl.PAGINAS`—, que los tres mapas de iconos sepan
+pintar los diecinueve del catálogo, y que el CSS de la pantalla no escriba ni un color a
+mano. De la firma se prueban los tres candados —que sin GSAP **no** se quede invisible, que
+respete el movimiento reducido y que no escriba un color a mano, que en el tema carbón
+sería firmar en negro sobre negro—, además de que los trazos dibujados y los de la
+telemetría sean los mismos. Las siete baterías previas siguen en verde y
+`node scripts/sintaxis.js` no encuentra nada en los 81 archivos. `scripts/peso.js` da
+**754,6 KB** servidos para `acerca.html`: la más ligera de las que llevan shell, contra una
+media de 974 KB.
+
+**Qué se dejó fuera a propósito, o se hizo distinto.**
+
+- **Sin recorrido guiado**, y no es un olvido: el plan lo asigna a T12.2, que nombra
+  literalmente «las pantallas nuevas (articulo, acerca)». Añadirlo aquí habría obligado a
+  incluir `app_onboarding`, que ni siquiera `articulo.html` trae.
+- **Los créditos acreditan a una persona y al equipo.** Se buscó en la documentación y en
+  el historial y el único nombre que el repositorio declara es el del creador
+  (`00_README_Inicio.md:194`). Inventar una lista de participantes en la pantalla que ve el
+  equipo entero es exactamente lo que no se puede hacer; el archivo está preparado para que
+  se añada a quien corresponda, y esa es una decisión de quien conoce al equipo, no del
+  código.
+- **La ficha dice «v0.9 · pruebas de control»**, que es lo que el sistema es hoy. Se
+  actualiza a mano al cerrar la versión: este plan la lleva a 1.0 en F13, y entonces se
+  cambia esa línea.
+- **`acerca` no entra en `AppFunciones.GESTION`.** Habría metido la pantalla en el apartado
+  «Gestión» de la barra, en el conmutador de áreas y en los fijables del feed. T10.1 dice
+  «sin bloque»: es informativa, no se administra. Sí se añade al conmutador **como área
+  «Portal»**, porque una pantalla que no está en ninguna rama hace que el conmutador marque
+  «Cotizaciones» estando en otro sitio —el fallo que F8 ya arregló para `articulo`—.
+- **El catálogo del buscador la ofrece, pero no como `publica`.** Sin sesión, la mitad
+  principal de la pantalla no tiene nada que decir, así que el buscador general no se la
+  ofrece a un visitante; el del Portal sí, y ese sí tiene puente al login.
+- **Sube a 17 el número de `include('app_comando')`** (y a 18 el de `app_indices`) que la
+  fila 4 del §17 bis contabiliza. Se incluye a propósito: dejar «Acerca de» como la única
+  pantalla del sistema sin Ctrl+K, para ahorrar unos kilobytes en la pantalla que menos se
+  abre, es un ahorro en el sitio equivocado. La fila queda actualizada allí.
+- **No se tocó `articulo.html`.** El arreglo de la escala llega solo por el tema, que es de
+  donde tenía que salir; lo que ese archivo haga con los márgenes ya bien puestos es una
+  revisión visual de F8 y no de esta fase.
+
+### 2026-08-15 — F9 completa: la consola cierra el círculo administrativo
+
+**Qué es esta fase.** La consola sabía gestionar personas y ajustes, pero no responder a las
+tres preguntas que se le hacen a diario: «¿a quién le mando esto?», «¿cuánto y quién?» y «¿qué
+pasó en esta semana concreta?». F9 añade lo que faltaba: grupos de personas, difusión de correo
+interno, una sección de métricas con cuatro rastros consultables, la bitácora por fechas, la
+copia oculta global, los dos ajustes que seguían escritos en el código, once áreas nuevas en la
+revisión maestra y las recomendaciones del resumen calculadas donde están los datos.
+
+**Qué se cambió.**
+
+- **Grupos** (T9.1 y T9.2), en `Grupos.gs`, hoja nueva `Grupos` del libro de cotizaciones. Un
+  grupo es una lista de personas con nombre y **no da permisos**: eso se dice en la cabecera del
+  archivo para que a nadie le parezca buena idea después, porque dos vías para «¿por qué esta
+  persona puede hacer esto?» son una vía de más. El grupo **«Ventel» es virtual**: se calcula de
+  `secIndiceRegistros_` y solo con la gente activa, que es la única forma de que el que entra al
+  equipo el lunes reciba el comunicado del martes sin que nadie se acuerde de añadirlo.
+  Las **membresías van en una columna JSON y no en una segunda hoja** —se consideró y se
+  descartó—: un grupo cabe de sobra en una celda, es el patrón que ya usa la columna «Permisos»
+  de `_PermisosSistema`, y con una sola hoja no hay filas huérfanas que limpiar ni dos
+  escrituras que puedan quedarse a medias. El botón de **copiar correos** pega la lista separada
+  por comas, que es lo que Gmail acepta directo en Para o CCO, y copia **solo a los alcanzables**:
+  pegar a alguien dado de baja es un rebote garantizado.
+- **El gate de los grupos es por NIVEL, no por bloque**, como pedía el plan, y también para
+  **leer**. Esa segunda mitad es una decisión de esta tanda: una lista de destinatarios recortada
+  por jerarquía —sin la gente por encima de quien mira— es peor que ninguna, porque el correo
+  saldría sin ellos y nadie se enteraría. A cambio, el grupo devuelve nombre y correo pero
+  **nunca rol, nivel ni bloques**: lo que la regla de jerarquía protege es el mapa de quién
+  manda, no la existencia de un compañero.
+- **Difusión** (T9.3), en `Difusion.gs`. Asunto y cuerpo libre con párrafos, títulos, listas,
+  notas, un botón e imágenes; el marco —logo, cabecera, pie— lo pone el sistema y no se edita.
+  Los destinatarios van **en copia oculta** y el «Para» es quien escribe: cuarenta direcciones a
+  la vista son una lista interna repartida en cuarenta bandejas y un «responder a todos» de
+  cuarenta. La **cuota se comprueba antes** de mandar, porque cada persona en CCO cuenta una y
+  Gmail rechaza el envío entero, no a medias. Hay **envío de prueba** a uno mismo, y el envío
+  real pide confirmación con el número de destinatarios delante.
+- **La vista previa la pinta el servidor**, con el correo de verdad, y la consola la enseña en un
+  `iframe` con `srcdoc` y `sandbox`. No es paranoia: un correo trae sus propias tablas y estilos
+  y con `innerHTML` se comería la maquetación de la consola.
+- **Sección «Métricas» con Monitoreo** (T9.4), en `Monitoreo.gs` y en una pestaña nueva de la
+  consola. Cuatro consultas —cotizaciones, correos, búsquedas y cambios— con la **misma forma de
+  respuesta**, que es lo que permite que las pinte una sola tabla y que el CSV salga de un solo
+  sitio. Nada se calcula al abrir la consola: cada consulta la pide el usuario. Se lee **por la
+  cola de la hoja y por lotes**, parando cuando un lote entero queda por debajo del rango, que es
+  el patrón que ya usaba la bitácora; hay tope de filas devueltas y techo de filas leídas, y los
+  dos se le **cuentan al usuario** cuando se alcanzan en vez de devolver una lista corta sin
+  explicación. El recorte jerárquico se resuelve **una vez por consulta** en un mapa de correos:
+  hacerlo fila a fila con `permUsuario_` sobre miles de filas era la forma segura de tardar medio
+  minuto.
+- **Las búsquedas por fin se guardan.** No se registraban en ningún sitio (`Logger.log` efímero).
+  Ahora hay hoja `MetricasBusquedas` y un registro que se apunta en **un solo punto**
+  —`getQuotesForUser`, porque `buscarCotizaciones` delega en ella y hacerlo en las dos duplicaba
+  cada fila— y **fuera de la caché**: dentro del productor de `cotCacheado_` solo se ejecutaría
+  cuando la caché falla, así que se habrían contado menos búsquedas de las reales. Trae ventana
+  antirrepetición de 45 segundos por persona y término, porque el buscador de la paleta dispara
+  mientras se teclea. Y **no llama a `cotInvalidarCache_`**: una búsqueda no cambia nada, y tirar
+  la caché de cotizaciones en cada búsqueda haría lento justo lo que se está midiendo.
+- **La hoja de correos ganó una columna y aprendió a repararse sola.** `PlantillaModificada` es
+  nueva, y la autocreación de `Metricas.gs` solo actúa cuando la hoja NO existe: en una
+  instalación viva la columna 16 no aparece sola y un `appendRow` de dieciséis valores habría
+  empezado a escribir cada dato una casilla corrido. Ahora la fila se arma **por nombre de
+  columna** y las que falten se crean al vuelo.
+- **Bitácora por fechas** (T9.5): `consolaBitacoraRango`, con el mismo recorte jerárquico
+  extraído a **una sola función** —`consolaBitacoraFiltro_`— porque una regla de seguridad
+  copiada en dos sitios es una regla que un día solo se corrige en uno. El día final entra
+  completo: «del 1 al 5» incluye todo el día 5, y tomarlo como medianoche a secas produce el
+  clásico «faltan los cambios de hoy» que nadie sabe explicar. Con descarga en CSV.
+- **Copia oculta global** (T9.6). Ajuste `CORREO_CCO_GLOBAL` con validación de lista de correos,
+  campo nuevo `soloMaestro` en el catálogo y su exigencia en el servidor. Se aplica en las
+  **cuatro rutas** de envío. La cuarta no estaba donde decía el plan: el aviso de revisión vive
+  en `Revision.gs:759`, no en 695 —ahí está `revChecklistTexto_`—.
+- **Y el candado que ordena ese diseño:** el CCO **no se metió dentro de la función que envía**.
+  `cuentasEnviarCorreo_` la comparten los correos de seguridad —contraseña temporal, código de
+  verificación— y los avisos normales, así que un CCO ahí dentro habría convertido un buzón de
+  vigilancia en un almacén de credenciales de todo el equipo. Se pide con `{cco:true}`, ruta por
+  ruta: **quien no lo pide, no lo lleva**. Falla cerrado, y las pruebas comprueban eso y no solo
+  que funcione cuando se pide.
+- **Ajustes centralizados** (T9.7). `MAIL_ALIAS` y `CC_SENDER_NAME` salieron del código a la
+  consola, con la constante de siempre como respaldo de fábrica para que una instalación recién
+  clonada se comporte exactamente igual. Se leen con `mailAlias_()` y `ccSenderName_()`, con memo
+  por ejecución y **no en una constante global**: los `.gs` se cargan enteros en cada petición y
+  leer una propiedad al cargar el archivo se lo cobraría también a las pantallas que no mandan
+  ningún correo. El alias entró además en la **clave de la caché** de `getMailSenderInfo`: con la
+  clave fija, cambiarlo habría dejado a cada asesor viendo el remitente anterior hasta seis
+  horas, sin forma de forzarlo porque esa caché es suya y no del script. Lo que ya tiene pantalla
+  propia —formatos, política de revisión, módulos— se **enlaza** desde Ajustes en vez de
+  duplicarse.
+- **Salud al día** (T9.8): once comprobaciones nuevas en tres áreas —Contenido, Métricas y
+  Módulos— sobre lo que llevaba desde su estreno sin vigilancia: artículos, lecturas, votos,
+  grupos, correos, búsquedas, CCO, trazabilidad, preferencias, atenciones, revisión y política,
+  auditoría y caché de identidad. Van en **bloques contiguos** porque la consola agrupa por área
+  comparando solo con la anterior, y un área partida en dos pinta dos cabeceras iguales. Las
+  hojas que se crean solas usan el patrón «opcional»: «aún no existe» sale en verde con esas
+  palabras, que es la verdad en una instalación nueva y sana.
+- **Recomendaciones del resumen** (T9.9), movidas del cliente al servidor y ampliadas con lo que
+  el navegador no puede saber: cuántos días lleva apagado un módulo —hay una propiedad nueva que
+  apunta cuándo se apagó—, cuántos correos fallaron esta semana, cómo salió la última revisión de
+  salud, si la cuota de correo va corta y **quién sigue con la contraseña temporal**, que es la
+  columna que ya distingue a quien nunca ha entrado. Cada recomendación trae su acción y el panel
+  al que lleva.
+- **Módulos** (T9.10): revisado. Los dos bloques nuevos de este plan —`articulos` y `metricas`—
+  salen solos en la pestaña porque nacen con `fijo:false` y `admin:false`, y las pantallas nuevas
+  respetan el apagado porque el gate parte de `permUsuario_().bloques`, que ya viene con los
+  módulos apagados restados. Sin cambios, y con una prueba que lo vigila.
+
+**Qué encontró la revisión, antes de dar la fase por hecha.** El código de la fase pasó por cinco
+lentes independientes —seguridad, corrección, cliente, rendimiento y fidelidad al plan— y cada
+hallazgo por alguien cuyo único encargo era **refutarlo**. De treinta y cinco, veinticinco se
+cayeron; los diez que sobrevivieron están corregidos, y tres merecen contarse:
+
+- **Una fórmula viva en el libro de cotizaciones.** El término de búsqueda se escribía tal cual
+  en la hoja, y una celda que empieza por `=` no es texto para Sheets: es una fórmula que se
+  evalúa con los permisos de quien abra el libro. Como `getQuotesForUser` no tiene gate —la
+  búsqueda de folios es global a propósito— y la webapp se sirve a todo el dominio, cualquiera
+  con una cuenta del dominio, **sin estar dado de alta**, podía dejar ahí un `IMPORTXML` que
+  leyera `Registros` y lo mandara fuera. Ahora el registro **exige sesión resuelta**, el texto
+  se guarda inerte, y hay tope por persona y hora como en la otra escritura abierta del proyecto
+  (`reportBrokenLink`). Era el hallazgo crítico y venía de esta fase.
+- **Un periodo pasado devolvía «no hay nada».** Monitoreo recorría la hoja hacia atrás por lotes
+  y paraba al bajar del rango; para «los últimos treinta días» va bien, pero al pedir «enero del
+  año pasado» ninguna fila intermedia es anterior al rango, así que leía hasta el techo y
+  contestaba **vacío** sin haber llegado. Se cambió el método: primero se lee **solo la columna
+  de fechas** —una celda por fila— y después las filas completas de las que caen dentro. Es
+  exacto además de barato, y de paso desaparece la suposición de que la hoja está en orden, que
+  no lo está: una cotización editada conserva su sitio y estrena fecha.
+- **Dos personas editando el mismo grupo se pisaban.** El cliente mandaba la lista entera que
+  tenía delante, así que quien guardaba segundo borraba, sin enterarse, lo que el primero
+  acababa de añadir. Ahora manda también la lista **de partida** y el servidor aplica solo la
+  diferencia sobre lo que hay. El veto jerárquico se aplica a las **altas** y no a la lista
+  entera: un supervisor no puede meter a un maestro en un grupo, pero editar un grupo tampoco
+  expulsa al que ya estaba.
+
+El resto: el CSV descargado neutraliza las celdas que empiezan por `=`, `+`, `-` o `@` (lo mismo
+que la hoja, porque acaba en un Excel); la revisión maestra dice **cuántos** buzones vigilan y no
+cuáles (no tiene gate y su reporte se puede pedir desde el navegador); la hoja de métricas se
+estira antes de escribir la columna nueva —si alguien le borró las columnas sobrantes, escribir
+más allá del borde lanzaba y el fallo se lo tragaba el try/catch del envío—; media fecha ya no se
+ignora en silencio; el envío avisa en ámbar si el servidor descartó bloques; la negrita al
+principio de una línea de lista ya no pierde su asterisco; el redactor devuelve el foco y atrapa
+el tabulador; las imágenes se leen todas antes de repintar y se pintan con la URL del archivo en
+vez de con dos megas de base64 en el DOM.
+
+**Qué se comprobó.** Batería nueva `pruebas/f9_consola.test.js` con **263 comprobaciones**; el
+total del repositorio pasa a **652**. Todas las demás suites siguen en verde y `node
+scripts/sintaxis.js` no encuentra nada en los 77 archivos. Cada uno de los tres hallazgos de
+arriba dejó su prueba de regresión: el término con forma de fórmula, el periodo de hace un año
+bajo trece mil filas más recientes, y los dos supervisores guardando el mismo grupo. Lo que la batería mira con más saña
+son las dos cosas que hacen daño si fallan: que **la copia oculta no toque un correo de
+seguridad** por ningún camino, y que **el cuerpo de una difusión nunca sea HTML ajeno** (banco
+hostil con `javascript:`, etiquetas, tipos de bloque inventados y una «imagen» que no lo es).
+También se comprueba el recorte jerárquico con tres niveles de cuenta, que un asesor con
+`sup_equipo` no toque grupos ni difusión, la reparación de la hoja de métricas con las columnas
+movidas de sitio, y que la sección nueva esté declarada **en los cuatro sitios** que hacen falta
+—si falta el id en `CNS_PANELES`, un enlace `?sec=metricas` no abre nada y no avisa—.
+
+**Qué se dejó fuera a propósito, o se hizo distinto.**
+
+- **El redactor de la difusión NO es un `contenteditable`**, que es lo que proponía el plan. Se
+  hace por bloques, como el editor de artículos de F8 y por el motivo escrito allí: un
+  contenteditable produce el HTML que se le antoje al navegador y convertirlo después es el
+  trabajo que nadie gana. La libertad que sí hacía falta —negrita, cursiva y enlaces dentro de
+  una frase— la dan tres botones que envuelven lo seleccionado en el propio campo; lo que queda
+  debajo sigue siendo texto y el cliente lo convierte en partes antes de mandarlo. Dos editores
+  que se comportan distinto en la misma app son peor que uno que se comporta igual.
+- **«Si se modificó la plantilla» compara el ASUNTO, no el cuerpo.** El plan pedía comparar el
+  cuerpo contra la plantilla base; al ir a hacerlo se vio que el cuerpo **no se edita**:
+  `correo_cliente.html` lo construye entero desde los campos de la plantilla y no hay ningún
+  editor de texto libre sobre el resultado. Lo que el asesor sí reescribe es el asunto, que la
+  plantilla propone ya redactado, y eso es literalmente «se modificó la plantilla». El asunto
+  propuesto lo manda el cliente porque el catálogo de plantillas vive allí; es una **métrica y
+  no un candado**, y por eso no decide nada.
+  **Con una excepción que la revisión señaló y conviene tener escrita:** la plantilla «Texto
+  plano» no propone asunto —el asesor lo escribe entero, igual que el cuerpo—, así que ahí la
+  columna se queda **en blanco**. Es correcto en el sentido de «no se puede saber si se desvió
+  de algo», pero es justo la plantilla donde más se escribe a mano. Queda declarado; medirla
+  exigiría subir el catálogo de plantillas al servidor, que es una tarea con su propio motivo.
+- **Solo se registran las búsquedas que pasan por el servidor** (las de cotizaciones). El
+  buscador general del Portal resuelve en el cliente contra el índice, así que registrarlo
+  exigiría una llamada al servidor por búsqueda: pagar una petición por tecla para medir el
+  buscador es empeorarlo. Queda declarado aquí.
+- **No se implementó muestreo** para el registro de búsquedas. El plan lo pedía «si el volumen
+  pega al rendimiento, medido y no supuesto»: hoy no hay medida, y entre la ventana que afina el
+  prefijo y el tope por hora, lo que llega a la hoja es una fila por búsqueda de verdad. Cuando
+  la hoja crezca lo suficiente para medirlo, se decide.
+- **El filtro admite horas además de fechas**, como pedía T9.4, pero solo un intervalo por día
+  («de las 14:00 a las 18:00» dentro del rango elegido), no un horario distinto por jornada.
+- **`revisionMaestra()` sigue sin gate**, y eso es anterior a esta fase: se ejecuta desde el
+  editor y su puerta está en `consolaSalud`. Cualquiera del dominio puede pedir el reporte desde
+  el navegador, así que F9 dejó de escribir en él datos que no deban leerse (los buzones del CCO
+  ahora se cuentan, no se nombran). **Gatearlo de verdad es trabajo de F13** y queda anotado en
+  el §17 bis: no se hizo aquí porque cambia el contrato de una función que usan el editor, la
+  consola y `getSystemHealth`.
+- **El grupo «Ventel» no se puede editar ni borrar** y sus miembros no se quitan a mano: para
+  sacar a alguien se le da de baja en Roles. Es lo que lo hace fiable.
+- **Sin bloque `grupos`**, como el plan dejaba por defecto: la regla de nivel ≥ 2 basta y un
+  bloque más es un bloque que administrar.
+
+### 2026-08-15 — F8, quinta tanda: lo que la auditoría del plan encontró que faltaba
+
+**Por qué esta tanda.** Antes de seguir se auditó el plan entero contra el código, fase por
+fase y criterio por criterio, con la regla de no creerse el §18: si el registro dice «hecho»
+y el `grep` no encuentra nada, está pendiente. Cada pendiente encontrado pasó después por
+alguien cuyo único encargo era **refutarlo**. De veinticuatro, ocho se cayeron —eran lecturas
+demasiado literales de la prosa del plan, no huecos—; el resto se confirmó. Esta tanda cierra
+los que son de F8. El balance completo, incluidos los de otras fases, va abajo.
+
+**Qué se cambió.**
+
+- **Leer un artículo pide sesión, y no la pedía.** Es el hallazgo serio. T8.1 dice «lectura
+  para cualquier **sesión**» y el código solo había implementado la primera mitad: no pedía
+  permiso —correcto— pero tampoco pedía haber entrado. Como el carril vive en el **Portal,
+  que es una landing pública**, cualquier visitante del `/exec` recibía la biblioteca interna
+  del equipo: títulos, resúmenes, minutos de lectura y los nombres de quienes la escriben. Y
+  con un id a la vista, `artObtener` le entregaba el artículo **entero**. Ahora las tres
+  puertas de lectura (`artListar`, `artObtener`, `artIndiceBuscador`) pasan por
+  `artHaySesion_`. En el índice la guarda va **antes de la caché** —si no, el índice que
+  dejó caliente alguien con sesión se le serviría al siguiente visitante— y devuelve vacío
+  en vez de error: quien busca en el Portal público simplemente no ve artículos, que es la
+  degradación correcta; un aviso rojo por escribir «devoluciones» en una página pública no
+  lo es. El cliente además deja de preguntar, pero eso es cortesía: el candado es el
+  servidor, porque el payload de `google.script.run` se fabrica a mano.
+- **«Artículos» se puede encontrar por su nombre.** Faltaba la entrada en el catálogo
+  compartido (`app_indices.html`), que es de donde los **dos** buscadores sacan las
+  pantallas: escribir «artículos» no ofrecía la pantalla en ninguno. Va **sin `bloques`**, y
+  esa es la diferencia con «Anuncios del Portal»: el bloque `articulos` guarda *escribir*, no
+  *leer*, y ponérselo aquí habría escondido la biblioteca del equipo a todo el equipo
+  dejándole la puerta abierta solo a quien la redacta. La entrada del **menú** de Gestión sí
+  lo lleva, porque el menú de Gestión es para administrar.
+- **Pegar imágenes** (T8.2). El criterio 1 de la fase dice «dos imágenes **pegadas**» y el
+  único camino era el selector de archivo. Nueve de cada diez imágenes de una guía son un
+  recorte de pantalla, así que con el recorte ya en el portapapeles había que guardarlo antes
+  en el disco para poder elegirlo. El manejador escucha en `document` —el lienzo se vuelve a
+  pintar entero en cada cambio y se lo llevaría por delante— y solo se queda el pegado cuando
+  viene un **archivo** de imagen: el TSV de una hoja de cálculo llega como texto, así que
+  pegar una tabla sigue funcionando igual. Varias imágenes de un mismo pegado entran en orden
+  detrás del bloque enfocado, no todas en el sitio de la primera.
+- **Pantalla completa del documento incrustado** (T8.3). El plan lo pide con esas palabras y
+  era el único bloque sin él: el diagrama y la imagen ya lo tenían, y justo el documento —una
+  presentación o una hoja dentro de la columna de lectura, a media escala— es al que más
+  falta le hacía. Mismo esqueleto que el del diagrama (overlay, Escape, clic fuera, foco
+  devuelto), porque son el mismo gesto y dos diálogos que se cierran distinto se aprenden dos
+  veces. Solo cierra el fondo, nunca el marco: dentro hay un iframe de Google con el que se
+  interactúa, y pasar una diapositiva no es «he terminado». El aviso de permisos de Drive
+  viaja también aquí: a pantalla completa el rectángulo en blanco es más grande, no más
+  explicativo.
+- **Dos defectos del shell en la pantalla de artículos.** El enlace del menú salía con el
+  engrane genérico —la única entrada de gestión sin icono propio— y, estando **dentro** de
+  Artículos, el conmutador de área marcaba «Cotizaciones». Lo segundo venía de una lista de
+  pantallas de gestión escrita a mano en `app_shell` que se quedó sin `articulo` cuando F8
+  estrenó la pantalla. En vez de añadir la palabra, esa lista **se sustituye por el
+  catálogo**, que es lo que manda la regla T1.8 escrita en `AppFunciones`: así deja de haber
+  una segunda copia y la siguiente pantalla que se añada no repite el fallo. Y de paso sale
+  gratis el caso raro de Artículos: se compara contra lo que **esta persona** puede abrir, de
+  modo que para quien publica es Gestión y para quien solo lee no lo es —es contenido al que
+  se llega desde el Portal—, sin encenderle a un asesor un área de administración que no
+  tiene.
+
+**Qué se comprobó.** La batería de F8 pasa de 144 a **178 comprobaciones** (389 en total).
+Lo nuevo, además de lo de arriba: un **banco hostil contra el render del cliente**, que era
+la mitad que le faltaba al criterio 2. Hasta ahora solo estaba probada la aduana del
+servidor, y no es redundante — el editor pinta lo que tiene en memoria **sin pasar por el
+servidor**, así que mientras se escribe el render es la única defensa. Como el repositorio no
+tiene dependencias a propósito, se finge un DOM mínimo igual que se finge la hoja de cálculo:
+el nodo **guarda** lo que le hacen y no interpreta nada, así que si algún día alguien pintara
+con `innerHTML` quedaría como una cadena y la prueba lo vería. Cubre las doce formas de URL
+hostil, que un `<script>` escrito en un párrafo siga siendo texto y no se pierda, que una
+parte con `javascript:` se pinte sin enlace, listas y tablas con lo mismo dentro, un tipo de
+bloque inventado, y las URLs falsas de Google.
+
+**Qué se dejó fuera a propósito.**
+
+- **No se comprueba en el servidor si el lector puede ver el documento de Drive** al pegar el
+  enlace, como sugería T8.3. Se decidió que no: exigiría permiso de Drive para el script y
+  una llamada más por documento, para acabar diciendo lo mismo que ya dice el aviso —que está
+  siempre visible, precisamente porque un iframe sin permiso no avisa de nada—. Queda
+  declarado aquí, que es lo que faltaba: era una desviación sin declarar.
+
+### 2026-08-15 — F8, cuarta tanda: los artículos por fin se pueden buscar (T8.5 cerrada)
+
+**Por qué esta tanda.** Era el pendiente que las dos entradas anteriores señalaban con el
+mismo dedo: los artículos existían, se leían y se escribían, pero **no se encontraban**. La
+única puerta era el carril del Portal, o sea saber ya que un artículo estaba ahí. Con eso el
+criterio 3 de la fase se quedaba a medias —la URL compartida sí funcionaba; buscar el
+artículo, no— y un archivo de documentación que no se busca es un archivo que no se usa.
+
+**Qué se cambió.**
+
+- **Un defecto de fábrica en `Articulos.gs`, antes que nada.** La línea 175 —el saneador
+  `artTexto_`, el que quita caracteres de control del texto de los artículos— tenía los
+  caracteres de control **escritos crudos dentro de la expresión regular**: un NUL, un
+  retroceso, una tabulación vertical y dos más, en vez de `\x00`, `\x08`, `\x0b`… Es
+  JavaScript válido, por eso `scripts/sintaxis.js` nunca dijo nada, y precisamente por eso
+  llevaba dos tandas ahí. Lo que sí decía algo era git: el archivo se trataba como
+  **binario**, así que sus diferencias no se veían en ningún diff y `grep` lo saltaba —dos
+  herramientas ciegas sobre el módulo más nuevo del repositorio—. Y el riesgo de verdad
+  está al desplegar: un byte NUL en un fuente es justo lo que una API puede recortar por su
+  cuenta, y si lo recorta la clase de la expresión regular cambia de significado sin que
+  nadie lo note, en la pieza que limpia lo que va a leer el equipo entero. Mismo error en
+  dos líneas de `pruebas/f8_articulos.test.js`. Los tres sitios llevan ya las secuencias de
+  escape, con el mismo comportamiento y sin un solo byte de control en todo el proyecto.
+- **Los artículos entran en los DOS buscadores**, que es lo que decía la tanda anterior que
+  faltaba y por qué era doble: `app_comando` (Ctrl+K) y el Index tienen armados distintos y
+  ninguno de los dos avisa cuando falta una fuente. En los dos son **grupo propio** —un
+  artículo no es un enlace del Portal ni un procedimiento de la hoja— y en los dos se abre
+  **por su ID**, para que el resultado siga llevando al mismo sitio cuando alguien corrija
+  la errata del encabezado.
+- **El índice se pide tarde y se guarda.** No al montar la pantalla: en la primera búsqueda
+  con algo escrito. El Portal es lo primero que abre todo el mundo por la mañana, y
+  cargarle el cuerpo de cada artículo para que la mayoría de las visitas no busque nada
+  sería pagar la lentitud donde más se nota. Media hora de caché en el cliente sobre los
+  cinco minutos que ya tenía el servidor. La guarda de «ya lo pedí» es una **bandera y no la
+  longitud de la lista**, que es como están escritas las otras fuentes del archivo: un
+  equipo que todavía no ha escrito ningún artículo tiene el índice vacío como respuesta
+  correcta, y con la longitud por guarda esa respuesta no se recuerda nunca —se volvería a
+  preguntar al servidor en cada pausa de tecleo, para siempre y para nada—.
+- **El cuerpo pesa poco, y es una decisión.** Título 3, resumen 1.4, cuerpo **0.55**. El
+  cuerpo es lo que encuentra el artículo del que no se recuerda cómo se titulaba, que es
+  media razón de indexarlo; pero mil doscientos caracteres coinciden con casi cualquier
+  palabra corriente, y con más peso un artículo que menciona «devolución» de pasada le
+  quitaría el sitio a la herramienta del Portal que se llama así. Los tres pesos son **los
+  mismos en las dos superficies**, y hay una prueba que lo comprueba leyendo los dos
+  archivos: es la lección de F6, donde puntuar el mismo contenido con pesos distintos
+  obligaba a arreglar la paridad caso por caso para siempre.
+- **La segunda línea del resultado dice por qué sale.** Enseña el resumen, salvo cuando lo
+  escrito no aparece en él y sí en el cuerpo: ahí va el trozo del cuerpo donde está. Con el
+  resumen fijo, la pregunta «¿y por qué me sale este artículo?» se quedaba sin contestar
+  justo en el caso para el que se indexó el cuerpo.
+- **Ámbito `art:`** en el Ctrl+K, como `portal:` o `cot:`. Sin «guía» ni «doc» entre los
+  alias por mucho que sea como se les llama de viva voz: en el Portal hay guías y formatos
+  que no son artículos, y «guia: dhl» tiene que seguir encontrando la de la paquetería.
+- **Icono propio de libro** en las dos superficies. `document` ya es la hoja de los formatos
+  y de las cotizaciones; con el mismo dibujo, el grupo de artículos habría que leerlo para
+  saber cuál es.
+- **«Ver los N» en el carril del Portal.** Al mirar la distribución de cerca apareció un
+  hueco que no estaba anotado: el carril enseña los seis más recientes y la entrada del menú
+  a la pantalla de artículos vive en **Gestión**, donde solo entra quien publica. La
+  pantalla es de cualquiera —leer no pide permiso, y el servidor la sirve así—, pero **quien
+  solo lee no tenía puerta al séptimo artículo**. Ahora el rótulo de la franja ofrece «Ver
+  los 14» cuando de verdad hay más de los que se ven, para lo cual `artListar` devuelve
+  también el `total` de los que esa persona puede ver: sin ese dato el carril solo podía
+  elegir entre no ofrecerlo nunca u ofrecerlo siempre, incluso enseñándolos ya todos.
+
+**Qué se comprobó.** La batería de F8 sube de 110 a **144 comprobaciones** (355 en total con
+las otras cinco, más la paridad de F6, que sigue intacta). Las nuevas cubren el índice del
+servidor —que un borrador no se busca, que el cuerpo viaja recortado, que publicar invalida
+la caché o el artículo recién escrito no aparecería hasta cinco minutos después, que es
+justo cuando su autor lo va a buscar—, las dos altas de cliente, que `art` viaja en las
+**tres listas espejo**, la paridad de pesos entre superficies, y el motor de verdad: que una
+frase que solo está en el cuerpo encuentra el artículo, que el título le gana al cuerpo, y
+que una mención de pasada no le gana a la herramienta que se llama igual. `sintaxis.js`
+limpio sobre los 74 archivos.
+
+**Qué se dejó fuera a propósito.**
+
+- **No hay «Seguir buscando en los artículos»** en el Ctrl+K, aunque las demás fuentes sí lo
+  tengan. Esa salida abre el destino con el término ya puesto, y la pantalla de artículos
+  **no filtra por texto**: la lista se sirve sin el cuerpo (pesa demasiado para una lista),
+  así que un filtro ahí solo podría mirar título y resumen. Prometer «seguir buscando» y
+  entregar una búsqueda más pobre que la que se acaba de dejar es peor que no ofrecerla. Con
+  el grupo de resultados y el «Ver los N» del carril, las dos puertas que faltaban están.
+- **Los artículos no salen en las búsquedas acotadas del Portal** (`herramientas: …`), igual
+  que los anuncios: el ámbito ahí nombra secciones de la portada y los artículos no son una.
+
+**Qué queda de la fase.** Lo que ya decía la tanda anterior y esta no toca: **el visor no se
+ha visto en pantalla** (la extensión del navegador se desconectó a mitad de aquella revisión)
+y **los diagramas no se han probado contra Apps Script** —el iframe anidado y el
+`postMessage` deberían comportarse como el de Google Sheets de la revisión, que ahí ya
+funciona, pero es una dependencia externa nueva y hay que verla en `/dev`—. Las dos son
+comprobaciones en el despliegue real, no código pendiente.
+
+### 2026-08-15 — F8, tercera tanda: pulido del visor y del editor con lo visto en pantalla real
+
+*(Entrada escrita después, al detectarse que esta tanda se subió sin registro. Se levanta de
+su propio commit, `113964e`, que sí lo cuenta entero; se resume aquí para que el §18 no tenga
+un agujero. La regla del encabezado del documento sigue siendo la de siempre: la entrada se
+escribe al terminar la tanda, no dos tandas después.)*
+
+**Qué se cambió**, sobre capturas del sistema funcionando en un iPad y no sobre suposiciones:
+la medida de lectura pasa de `ch` a **rem** —`ch` mide el cero de la fuente *activa*, así que
+mientras Archivo e Instrument Sans no habían llegado los renglones salían de 730 px—; las
+tablas dejan de comprimirse dentro de la columna de lectura (`width:max-content` con mínimo
+por celda, y se arrastran si no caben) en vez de partir las palabras una por renglón; el
+panel se despega del fondo con superficie secundaria en lugar de tres mecanismos de
+separación a la vez; el menú de bloques pasa de `absolute` con `scrollY` a `fixed` con las
+coordenadas del rect, porque dentro del iframe de Apps Script quien desplaza no siempre es el
+`body` y el menú aparecía despegado del `+` que lo abrió; y entran las animaciones de la
+lista, del lector y del editor, todas con `from` —se parte de visible—, con techo, `overwrite`
+automático y `clearProps`, y sin animar nunca un ancestro de algo `sticky`.
+
+### 2026-08-15 — F8, segunda tanda: el editor deja de parecer un formulario, y los artículos dibujan
+
+**Por qué esta tanda.** El editor de la tanda anterior funcionaba y se leía mal: cada bloque
+en una caja gris idéntica con su rótulo encima, de modo que un párrafo, un subtítulo y una
+tabla se veían igual y había que **imaginarse** el artículo. Encima era incoherente con la
+propia casa: el constructor de anuncios tiene vista previa desde siempre.
+
+**Qué se cambió.**
+
+- **El editor se parece al artículo.** Cada bloque se escribe con la misma tipografía con la
+  que se va a leer: el subtítulo se teclea grande y en Archivo, el párrafo con su medida y su
+  interlineado. El «chrome» del bloque —mover, quitar— se fue al **margen izquierdo** y solo
+  aparece al enfocar o pasar por encima. Primero se puso arriba a la derecha y **tapaba las
+  últimas palabras de la primera línea justo al enfocar el bloque**, o sea exactamente cuando
+  se está escribiendo ahí; reservarle sitio dentro habría estrechado la medida de lectura y
+  empujarlo al aparecer habría hecho saltar el texto bajo el cursor. El rótulo del tipo se
+  quitó a la vez: si el editor se parece al resultado, un subtítulo ya se ve que lo es.
+- **Los ajustes opcionales se esconden.** El enlace de un párrafo, el nivel de un subtítulo y
+  el «numerada» de una lista solo salen con el bloque enfocado —o si ya llevan algo—. Con
+  ellos siempre a la vista, cada párrafo arrastraba un campo vacío debajo.
+- **Vista previa, barra de trabajo y cifras en vivo.** La previa usa **la misma función de
+  render** que el lector, no una imitación —una imitación es lo que acaba mintiendo—. La barra
+  fija de arriba dice dónde estás, si hay cambios sin guardar, y tiene una sola acción
+  primaria. Y el panel cuenta palabras, minutos de lectura y bloques según se escribe, que es
+  lo que contesta «¿me estoy pasando?» sin tener que guardar y salir.
+- **Insertar entre bloques**, con un `+` que aparece al acercarse: es donde la gente quiere
+  añadir algo, y evita añadir al final y subirlo a base de flechas. El cursor cae dentro del
+  bloque nuevo, y al mover uno el foco viaja con él. `Enter` al final de un párrafo abre el
+  siguiente; `Ctrl+S` guarda, porque quien escribe algo largo lo pulsa por reflejo y sin
+  atajo el navegador ofrece «guardar la página».
+- **Motor de diagramas (draw.io / diagrams.net).** Bloque nuevo `diagrama` para dibujar
+  flujos, con sus cajas, flechas y textos editables. Se guarda **el XML**, no una imagen: un
+  flujo se corrige más veces de las que se dibuja, y así no hay que subir y versionar un PNG
+  por cada retoque. Se dibuja a pantalla completa y se lee incrustado, y el visor es **el
+  mismo componente** que el editor cambiando un parámetro, así que lo que se ve mientras se
+  dibuja es lo que verá quien lea. La conversación con el iframe es el protocolo `proto=json`
+  de diagrams.net, **comprobando el `origin` en cada mensaje**: un `message` lo puede mandar
+  cualquier ventana y este maneja el contenido de un artículo del equipo. Si diagrams.net no
+  responde en seis segundos —la red de la oficina bloquea dominios—, se dice con esas
+  palabras en vez de dejar un marco en blanco.
+- **Visor con oficio.** Barra de progreso de lectura (dentro del iframe de Apps Script no hay
+  barra de la ventana que sirva de referencia), índice de subtítulos con scroll-spy, revelado
+  de bloques al entrar en pantalla, y zoom de imágenes. Todo bajo las reglas del documento 11
+  y de la skill `gsap-ventel`: **el contenido es visible sin GSAP** —el estado oculto lo pone
+  JavaScript y solo si GSAP cargó—, `prefers-reduced-motion` enseña el resultado final sin
+  movimiento, el escalonado usa `amount` con techo, todo vive en un `gsap.context` que se
+  revierte al cambiar de artículo, y `ScrollTrigger` se carga de cdnjs en la **misma versión
+  fijada (3.13.0)** con el registro defendido.
+- **Lo nuevo va primero** (`pubOrdenParaNueva_`). Una publicación nueva nacía con orden 0 como
+  todas, y al desempatar por posición de fila aparecía la ÚLTIMA del Portal, debajo de las de
+  la semana pasada. Ahora nace con uno menos que el menor que haya: una escritura en vez de
+  renumerar la hoja entera. Solo al crear, y solo si no se pidió un orden concreto —quien
+  escribe un número manda, y editar no mueve de sitio—. Importa el doble desde F7, porque la
+  primera tarjeta es la **principal**: el sitio de honor se lo quedaba lo más viejo.
+
+**Qué se comprobó.** Las baterías suben a **209 comprobaciones** (99 en F7 + 110 en F8), con
+casos nuevos para el orden —incluido que editar no reordene y que un orden a mano se respete—
+y para el diagrama: XML válido en sus dos formas, alto acotado por arriba y por abajo, y
+rechazo de lo que no es un diagrama (`<script>`, un SVG con manejador, HTML suelto, texto
+libre y uno de 25 000 caracteres que reventaría la celda). El editor se revisó **en el
+navegador** con el CSS real a 1568 px, y de ahí salieron los tres arreglos de arriba.
+
+**Qué queda pendiente y hay que decir.**
+
+- **El visor no se ha visto en pantalla**: la extensión del navegador se desconectó a mitad de
+  la revisión. El editor sí se revisó así; el visor comparte tokens y patrones con lo ya
+  verificado, pero no es lo mismo que haberlo mirado.
+- **Los diagramas no se han probado contra Apps Script.** El iframe anidado y el `postMessage`
+  deberían comportarse como el iframe de Google Sheets de la revisión, que ya funciona ahí,
+  pero es una dependencia externa nueva y hay que verla en `/dev` antes de contarlo como
+  cerrado.
+- Sigue faltando lo mismo que la tanda anterior: **el alta en el buscador general**, que son
+  dos altas (Ctrl+K e Index tienen armados distintos).
+
+### 2026-08-15 — F8, primera tanda: los artículos existen (falta repartirlos)
+
+**Qué se cambió.**
+
+- **T8.1 · Modelo y permiso.** `Articulos.gs` (nuevo) con dos hojas —`Articulos` y
+  `ArticulosVistas`— y el contenido guardado como **JSON de bloques versionado**
+  (`{v:1, bloques:[…]}`), nunca HTML. La decisión ordena todo lo demás: guardar el HTML de
+  un editor sería guardar código de terceros para pintarlo en la pantalla de todo el
+  equipo. Con bloques, el servidor sabe qué campos existen y descarta el resto, y el
+  cliente construye nodos en vez de asignar `innerHTML`. Bloque de permiso `articulos`
+  («Publicar artículos», grupo Supervisión, en el rol avanzado): **escribir** pasa por él,
+  **leer** no —los artículos son para todos—. Va aparte de `anuncios` a propósito: un
+  anuncio cabe en una tarjeta y se retira solo; un artículo es documentación que el equipo
+  va a citar durante meses.
+- **T8.2 · Render seguro.** Cada bloque se pinta con `createElement` + `textContent`; los
+  hipervínculos son `<a>` con el `href` ya validado. Solo `https:` — ni `javascript:`, ni
+  `data:`, ni `//host` (protocolo relativo, el disfraz clásico), ni URLs con comillas o
+  espacios, que son las que se escapan del atributo. La regla está escrita **dos veces a
+  propósito**, en el servidor (`artUrlSegura_`) y en el cliente (`urlSegura`): el servidor
+  sanea al guardar, pero el cliente pinta también lo que tiene en memoria mientras se
+  edita. Se comprobó que `revUrlArticuloSegura_` **no** servía para reutilizar: tiene los
+  hosts cableados a liverpool.com.mx, así que habría devuelto vacío para todo enlace de un
+  artículo, docs.google.com incluido.
+- **T8.3 · Documentos incrustados.** Al pegar un enlace de Docs, Slides, Sheets o Drive se
+  extrae **el ID** —no la URL, que arrastra `/edit`, `#slide=`, `?usp=sharing` y a veces el
+  correo de quien la copió— y se arma el visor `/preview` con `referrerpolicy="no-referrer"`.
+  El aviso de «si esto se queda en blanco es que Drive no te da permiso» va **siempre
+  visible**, no solo al fallar: un iframe sin permiso no avisa de nada, se queda en blanco,
+  y desde fuera no se distingue de «está cargando». Es la lección del iframe de la revisión,
+  repetida a conciencia; y de paso se descubrió que `VentelFX.section().fail(msg)` **ignora
+  el mensaje** (`app_loaders.html`), así que apoyarse en él habría sido no avisar de nada.
+- **T8.4 · Lector y editor, una sola vista.** Pantalla `articulo` registrada en `PAGES`,
+  `AppUrl.PAGINAS`, `PAGINAS_TRAS_LOGIN` y `NOMBRES_PAGINA`, con `art` añadido a las **tres
+  listas espejo**. El lector pinta los bloques; quien tiene el permiso ve «Editar» y la
+  misma vista se vuelve editable. **El editor es un formulario por bloques y no un
+  `contenteditable`**, y es la decisión técnica que la fase pedía declarar: un
+  contenteditable produce el HTML que se le antoje a cada navegador, así que guardarlo
+  obliga a limpiar HTML ajeno —el trabajo que nadie gana—. Se paga con un editor menos «de
+  revista» y se cobra que el artículo se pinta igual dentro y fuera. Guardado por
+  `AppGuardado` con el motivo de los reintentos escrito: con id es actualización y se puede
+  repetir; sin id, cada intento **crea** un artículo. La firma sale de la hoja y la autoría
+  se fija al crear: quien corrige la errata de un artículo ajeno no pasa a ser su autor. La
+  lectura se registra en el servidor —no en una llamada aparte que se puede no hacer— con
+  una ventana de media hora para que refrescar cinco veces no cuente cinco lecturas.
+- **T8.5 · A medias: el carril del Portal, sí; el buscador, no.** El Portal tiene ya su
+  franja «Artículos del equipo», que es el camino de los lectores: la entrada del menú de
+  Gestión solo la ve quien publica. Se pide aparte de `fetchToolsData`, con caché de una
+  hora, porque los artículos cambian de mes en mes y no había por qué hacer más lenta la
+  pantalla que todo el mundo abre primero.
+
+**Qué se comprobó.** `pruebas/f8_articulos.test.js` (nuevo): **95 comprobaciones** sobre
+los fuentes reales. La mitad es el **banco de contenido hostil** que pedía el criterio 2:
+`javascript:` en todas sus formas (mayúsculas, con espacios delante, tras un tabulador,
+partido por un salto de línea), `data:text/html`, protocolo relativo, `vbscript:`, comillas
+que cierran el atributo, `<script>` dentro del texto —que se guarda como texto y no se
+pierde—, tipos de bloque inventados, y URLs falsas de Google (`docs.google.com.evil.example`,
+la misma sobre http, y la que lleva `docs.google.com` en el camino y no en el host). La otra
+mitad cubre permisos (borradores que no se listan ni se sirven), autoría que no se reescribe,
+el registro de lectura y el tope de tamaño, que **se dice en vez de truncar en silencio**.
+Pasan también las cinco baterías previas y `scripts/sintaxis.js` sobre los 74 archivos.
+
+**Qué queda de esta fase.** El alta en el **buscador general**, que son dos altas y no una:
+`app_comando` (Ctrl+K) tiene su propio armado y el Index el suyo (`FUENTES_INDICE`), y
+ninguno avisa si falta. El servidor ya sirve lo que hace falta (`artIndiceBuscador`, con
+título, resumen y el texto plano del cuerpo), así que es trabajo de cliente. Con eso se
+cierra el criterio 3 de la fase, que hoy está a medias: la URL compartida sí funciona
+—`art` viaja en las tres listas y sobrevive al login—, pero el artículo todavía no aparece
+al buscarlo.
+
+**Qué se dejó fuera a propósito.**
+
+- **El parser de pegado tabular está duplicado**, no compartido. El de
+  `portal_contenido.html` vive dentro del `<script>` de su pantalla, y moverlo a un include
+  obliga a tocar y volver a probar esa pantalla entera. Queda anotado con nombre y con la
+  regla escrita al lado: si se toca uno, se tocan los dos.
+- **Un enlace por párrafo, no por frase.** Enlazar tres palabras sueltas dentro de un
+  párrafo exigiría un editor de texto rico, que es justo lo que esta fase decidió no ser.
+  El modelo ya lo admite (las partes de un párrafo son independientes); lo que falta es la
+  interfaz, y puede llegar después sin migrar nada.
+- **Reordenar bloques es con flechas, no arrastrando.** El FLIP del constructor de anuncios
+  se miró y está atado a su lista (llama a `moverAnuncio`, usa su selector y su clave de
+  cola); reescribirlo aquí era más riesgo que valor para una lista que casi siempre tiene
+  menos de veinte elementos.
+
+### 2026-08-15 — F7 completa: cada publicación tiene nombre, sitio y quien responde por ella
+
+**Qué se cambió.**
+
+- **T7.1 · Saneo del modelo** (`Portal.gs`, `Publicaciones.gs` nuevo). Hasta hoy una fila
+  escrita a mano en el Sheet no tenía identidad propia: se le daba `anc-row-`+i, o sea **su
+  posición**. Eso convertía «insertar una fila arriba» en «cambiarle el identificador a
+  todas las de abajo», y desde que una publicación tiene enlace propio eso es un enlace que
+  empieza a llevar a otra publicación —sin error, sin aviso y sin forma de enterarse—.
+  Ahora `pubAsegurarIdsAnuncios_` le escribe un ID a lo que no lo tenga, también desde la
+  lectura pública del Portal, con `LockService` para que dos visitantes a la vez no se
+  pisen los huecos; si no consigue el candado **no escribe** y la lectura sigue con un id
+  derivado del CONTENIDO de la fila, que tampoco es posicional. Los avisos legacy de la hoja
+  `Avisos` pasan de `avi-`+i a `avi-`+huella del mensaje por la misma razón.
+  Se añadió la columna **`Responsable`** (el nombre legible; el correo se queda en `Autor`),
+  y las dos lecturas —la pública y la de administración— ya devuelven autoría y fecha de
+  alta. En el Portal se pinta el **nombre**: el correo es un dato de contacto que nadie pidió
+  publicar en una pantalla que ve todo el equipo.
+  De paso se corrigió algo que la tarea no pedía y que el requisito volvía urgente:
+  `publicarAnuncio` reescribía `Creado` en **cada** guardado, así que la columna decía
+  «modificado por última vez» con nombre de «Creado». Con el responsable a la vista, eso
+  significaría que corregir una errata en el anuncio de otra persona **te lo adjudica**.
+  Autoría y fecha se fijan ahora al crear y no se vuelven a tocar.
+- **T7.2 · Principal y especiales.** La primera tarjeta por columna Orden se pinta al doble
+  de ancho, con la imagen mayor y un distintivo; las demás quedan como especiales. Se leyó
+  la jerarquía del **orden que ya existía** en vez de añadir una casilla «es la principal»
+  al constructor: dos criterios de prioridad sobre la misma rejilla acaban
+  contradiciéndose, y el día que la casilla y el orden no coincidan ninguno de los dos
+  explica lo que se ve. **Validado con el creador el 15 de agosto de 2026**, como pedía la
+  tarea: se le enseñaron las tres maquetas —una principal por orden, todo el formato tarjeta
+  como principal, y una casilla en el constructor— y eligió la primera, que es la
+  implementada. La tarea queda cerrada; si algún día se prefiere otra, se decide en la
+  función `esPrincipal` de `renderAnuncios` y el CSS ya distingue las dos clases.
+- **T7.3 · ID compartible.** Parámetro `pub` en las tres listas espejo (`Code.gs`,
+  `app_core.html`, `PASAN` de Index) y endpoint `pubPorId`, que sirve una publicación por su
+  id **incluidas las expiradas y las programadas**, diciendo en qué estado están para que el
+  modal lo escriba con palabras. Las **ocultas** no se sirven: apagar una publicación es la
+  forma que tiene quien administra de retirarla, y servirla por la puerta de atrás dejaría
+  esa decisión sin efecto. Botón «Copiar enlace» en el modal y en cada fila del constructor.
+  La pantalla aparte no se construyó, como decía el plan.
+- **T7.4 · Encuestas.** Subtipo de la tarjeta —no un formato nuevo—, que es lo que hace que
+  un cliente con la copia local de hace seis días la siga pintando como la tarjeta
+  informativa que también es. Hasta seis opciones, tiempo estimado y cierre. **Los votos van
+  en su propia hoja** (`Votos`, una fila por voto) porque `publicarAnuncio` reescribe la fila
+  del anuncio entera y editar el anuncio se los llevaría por delante. Escritura con
+  `LockService`, un voto por persona **cambiable hasta el cierre**, y límite de 40 por
+  persona y hora clonado de `reportBrokenLink`, que era hasta hoy la única escritura abierta
+  del Portal. Los resultados se leen con una llamada propia de **30 segundos** de caché,
+  fuera de `fetchToolsData` y su doble caché (10 min de script + 7 días en el navegador):
+  una gráfica de votos servida con esa edad no está desactualizada, miente. La gráfica son
+  dos `div` y un porcentaje con los tokens del tema —una librería entera para pintar seis
+  rectángulos es peso servido en todas las visitas al Portal a cambio de nada—.
+- **T7.5 · Llenado asistido** (`anuncios.html`). Cuatro plantillas de arranque
+  (mantenimiento, promoción, comunicado, encuesta) que dejan resueltos formato, tono y
+  estructura —la parte cara de publicar no es teclear el texto, es decidir qué formato le
+  toca a un aviso—; atajos de vigencia («solo hoy», «hasta el domingo», «un mes»), que es
+  donde se colaba la errata al escribir `yyyy-mm-dd` a mano; una **revisión en vivo** que
+  avisa de lo que el servidor acepta pero en el Portal se lee mal (tarjeta sin imagen, botón
+  con texto y sin enlace, fecha ya pasada, dos opciones iguales en una encuesta); y
+  «Duplicar», que ya existía, promovido en la ayuda del bloque de plantillas.
+
+**Qué se comprobó.** `pruebas/f7_publicaciones.test.js` (nuevo): **94 comprobaciones** que
+cargan `Portal.gs` y `Publicaciones.gs` reales sobre una hoja de cálculo fingida, en el
+mismo contexto, que es como conviven en Apps Script. Cubren los criterios de aceptación que
+no exigen desplegar: que insertar una fila a mano **no le cambie el ID a nadie** (criterio
+2); que dos personas votando a la vez **no pierdan votos**, que editar el anuncio después no
+borre resultados y que nadie vote dos veces con la misma sesión (criterio 3); que las
+expiradas se sirvan y las ocultas no; que la respuesta de resultados **no diga quién votó
+qué**; y que `pub` esté en las tres listas espejo. Pasan también las cuatro baterías que ya
+había (`estado_inicial`, `f6_buscador_paridad`, `ttl_cache`, `cache_identidad`) y
+`scripts/sintaxis.js` sobre los 72 archivos.
+
+**Cuatro fallos encontrados revisando lo escrito, antes de subir.**
+
+- **El modal de bienvenida tapaba el enlace compartido.** Los dos usan el mismo overlay, y
+  como los datos del Portal llegan *después* de leer la URL, quien abría
+  `?page=portal&pub=…` veía aparecer encima el saludo automático —que además se marcaba como
+  visto, así que tampoco volvía a salir—. Ahora el saludo se calla si hay una publicación
+  pedida por enlace.
+- **La carga inicial abría la publicación dos veces**: una al leer los parámetros que
+  inyecta el servidor y otra cuando contestaba `getLocation`, porque entre las dos la
+  variable de «publicación abierta» seguía vacía y las dos se creían la primera.
+- **Votar desde el modal apagaba los botones de la tarjeta de detrás.** La misma encuesta
+  está en dos sitios a la vez; todo lo que la toca trabaja ahora sobre los dos.
+- **Los avisos no se veían.** Se habían escrito con `AppMotion.toast`, y el Portal no
+  incluye `app_motion`: eran mensajes que nadie iba a leer. Van por `showToast`, que es el
+  aviso de esa pantalla.
+
+**Qué se dejó fuera a propósito.**
+
+- **La casilla «es la principal» en el constructor**, que era la tercera maqueta que se le
+  enseñó al creador. Se descartó por lo mismo que la descartaba el plan: convive con la
+  columna Orden, así que serían dos criterios de prioridad sobre la misma rejilla, y el día
+  que no coincidan ninguno de los dos explica lo que se ve en el inicio.
+- **Los banners legacy descartados vuelven a aparecer una vez.** Su id cambia de posicional
+  a huella del mensaje, y el «no volver a mostrarme esto» del navegador va por id. Es el
+  precio de una sola vez por arreglar un identificador que se rompía en cada inserción de
+  fila; se prefirió eso a conservar un id que no significaba nada.
+- **La encuesta no manda avisos ni recuerda votar.** No estaba pedido y toca el terreno que
+  el alcance dejó fuera (§1: nada de correos ni relojes que revisen pendientes).
+- **Los resultados no se refrescan solos** mientras se mira la tarjeta. Se piden una vez por
+  carga y se actualizan con la respuesta del propio voto, que es el único momento en que el
+  número cambia para quien está mirando. Una encuesta que se repinta sola cada pocos
+  segundos es una llamada al servidor por cada tarjeta del inicio a cambio de un número que
+  nadie está esperando.
 
 ### 2026-08-15 — F6 completa: un solo motor de búsqueda, dos vestidos
 

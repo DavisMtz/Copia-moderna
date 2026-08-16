@@ -57,7 +57,7 @@ Además hay tres recursos de Drive y un calendario:
 
 ---
 
-## 3. Libro 1 · BD Cotizaciones (15 pestañas)
+## 3. Libro 1 · BD Cotizaciones (17 pestañas)
 
 ### 3.1 `Registros` — las personas
 
@@ -131,7 +131,9 @@ Una fila por artículo. Se identifican por `FolioCotizacion`.
 | `_PermisosSistema` **(oculta)** | `Email`, `Rol`, `Permisos`, `Activo`, `Actualizado`, `Por` | `Permisos.gs` | Rol y ajustes por persona. `Permisos` es JSON: `{"mas":["revisar"],"menos":["anuncios"]}` |
 | `_PreferenciasUsuario` | `Email`, `Preferencias`, `Version`, `Actualizado` | `Preferencias.gs` | Una línea por persona. Tema, texto, densidad, accesos fijados |
 | `BitacoraConsola` | `Fecha`, `Quien`, `Accion`, `Objetivo`, `Detalle` | `Consola.gs` | Quién cambió qué en la consola. Se leen los últimos 150 |
-| `MetricasCorreos` | `Fecha`, `Tipo`, `Referencia`, `AsesorEmail`, `AsesorNombre`, `Para`, `Destinatarios`, `CC`, `CCO`, `Asunto`, `Adjuntos`, `Remitente`, `AliasUsado`, `Resultado`, `Detalle` | `Metricas.gs` | **Fuente única** de métricas de los dos canales de correo |
+| `MetricasCorreos` | `Fecha`, `Tipo`, `Referencia`, `AsesorEmail`, `AsesorNombre`, `Para`, `Destinatarios`, `CC`, `CCO`, `Asunto`, `Adjuntos`, `Remitente`, `AliasUsado`, `Resultado`, `Detalle`, `PlantillaModificada` | `Metricas.gs` | **Fuente única** de métricas de los tres canales de correo (cotización, plantilla y difusión). `PlantillaModificada` (F9) dice si el asesor reescribió el asunto que proponía la plantilla; en blanco = no se pudo saber. La hoja **se repara sola**: `metCabecera_` añade las columnas que el código conoce y la hoja no tiene, y la fila se escribe por nombre de columna |
+| `MetricasBusquedas` | `Fecha`, `Termino`, `Quien`, `Nombre`, `Origen`, `Resultados` | `Monitoreo.gs` | **Nueva en F9.** Qué busca el equipo. Se apunta en `getQuotesForUser` con una ventana de 45 s por persona y término, para que teclear en la paleta no deje doce filas. `Quien` va vacío si la sesión no se pudo resolver |
+| `Grupos` | `ID`, `Nombre`, `Detalle`, `Miembros (JSON)`, `Creado`, `Creado por`, `Actualizado`, `Actualizado por` | `Grupos.gs` | **Nueva en F9.** Listas de personas para copiar correos y difundir. Las membresías van en una celda JSON, no en una segunda hoja. El grupo **«Ventel» no está aquí**: es virtual y se calcula de `Registros` |
 | `CorreosEnviados` | `Fecha`, `Plantilla`, `Para`, `CC`, `CCO`, `Asunto`, `Asesor`, `Remitente`, `Adjuntos` | `CorreoCliente.gs` | Bitácora de plantillas a clientes. **Aditiva**, no reemplaza a la anterior |
 | `Onboarding` | `Correo`, `Pantalla`, `Version`, `Estado`, `PasoFinal`, `TotalPasos`, `Actualizado` | `Onboarding.gs` | Qué tutorial vio cada persona. **No es un candado** |
 | `AtencionesPendientes` | `ID`, `Fecha`, `Asesor`, `AsesorNombre`, `Cliente`, `Telefono`, `Correo`, `Tipo`, `Notas`, `HoraPromesa`, `LiberarEn`, `Estado`, `RescatadaPor`, `RescatadaEn`, `CerradaPor`, `CerradaEn`, `Resultado` | `Atenciones.gs` | **Datos personales de clientes.** Ver §6 |
@@ -143,7 +145,7 @@ Una fila por artículo. Se identifican por `FolioCotizacion`.
 
 ---
 
-## 4. Libro 2 · Hoja del Portal (11 pestañas)
+## 4. Libro 2 · Hoja del Portal (14 pestañas)
 
 Es la que edita el equipo desde la pantalla **Contenido del Portal** (`portal_contenido`).
 
@@ -155,7 +157,10 @@ Es la que edita el equipo desde la pantalla **Contenido del Portal** (`portal_co
 | `Formatos` | Acceso · Observaciones · Liga | |
 | `PdePago` | Nombre · Detalles · Liga | |
 | `Plantillas` | Título · Tipo · Asunto · Cuerpo · Consideraciones | Ya traía columna `ID` |
-| `Anuncios` | `ID` · `Formato` · `Activo` · `Orden` · `Desde` · `Hasta` · `Datos` (JSON) · `Autor` · `Creado` | Formatos: `banner`, `destacado`, `tarjeta`, `modal` |
+| `Anuncios` | `ID` · `Formato` · `Activo` · `Orden` · `Desde` · `Hasta` · `Datos` (JSON) · `Autor` · `Responsable` · `Creado` | Formatos: `banner`, `destacado`, `tarjeta`, `modal`. Una tarjeta con `encuesta` dentro de `Datos` es una encuesta |
+| `Votos` | `Fecha` · `Publicación` · `Correo` · `Opción` | Una fila por voto. La crea sola `pubVotar` (`Publicaciones.gs`) |
+| `Articulos` | `ID` · `Titulo` · `Resumen` · `Contenido (JSON)` · `Estado` · `Autores` · `Creado` · `Editado` · `Editado por` | Fase 8. El contenido es JSON de bloques versionado, nunca HTML: `titulo`, `texto`, `lista`, `imagen`, `tabla`, `documento`, `diagrama` (XML de draw.io) y `separador`. Estados: `borrador`, `publicado` |
+| `ArticulosVistas` | `ID articulo` · `Correo` · `Nombre` · `Primera vez` · `Ultima vez` · `Veces` | Una fila por persona y artículo. La escribe sola `artObtener` al servir un artículo publicado |
 | `Avisos` | *(legado)* | Respaldo antiguo de banners |
 | `Promociones` | Dirección · Categoría · Promoción · Marca · Vigencia · Liga | **Tiene columnas que la app NO toca** (SKUS Mercaderías, banners de home) |
 | `MKP` | Dirección · Categoría · Promoción MKT · Promoción (respaldo) · Vigencia · Liga | Marketplace |
@@ -174,6 +179,26 @@ los encabezados los escriban personas.
 > `Portal.gs` localizan sus columnas por encabezado, así que ninguna se entera. El motivo:
 > el número de fila cambia en cuanto alguien inserta una fila desde el Sheet, y entonces la
 > app editaría o borraría la fila equivocada.
+
+> **`Anuncios` va un paso más allá: las FILAS sin ID también lo reciben**
+> (`pubAsegurarIdsAnuncios_`, `Publicaciones.gs`), y no solo desde la pantalla de gestión:
+> también desde la lectura pública del Portal, con `LockService` para que dos visitantes a la
+> vez no se pisen. Hacía falta porque una fila creada a mano en el Sheet se identificaba por
+> su POSICIÓN, y desde que una publicación tiene enlace propio (`?page=portal&pub=…`) eso
+> significaba un enlace que empieza a llevar a otra publicación en cuanto alguien inserta una
+> fila más arriba — sin error y sin forma de enterarse. Si el candado no se consigue, no se
+> escribe: la lectura sigue con un id derivado del CONTENIDO de la fila, que tampoco es
+> posicional.
+
+> **`Autor` guarda el correo y `Responsable` el nombre legible.** El Portal pinta el nombre;
+> el correo se queda en la hoja y en la pantalla de administración, que es donde sirve para
+> saber a quién preguntarle. Las dos, junto con `Creado`, se escriben al CREAR y no se pisan
+> al editar: si no, corregir una errata en el anuncio de otra persona te lo adjudicaría.
+
+> **Los votos NO viven en la fila del anuncio.** `publicarAnuncio` reescribe la fila entera
+> con `setValues`, así que editar el anuncio se los llevaría por delante. Van en su propia
+> hoja `Votos`, una fila por voto, con dedupe por correo (un voto por persona, cambiable
+> hasta el cierre), `LockService` en la escritura y límite de 40 votos por persona y hora.
 
 ---
 

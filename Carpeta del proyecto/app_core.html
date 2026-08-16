@@ -247,7 +247,9 @@
     'login':               'el inicio de sesión',
     'registro':            'la creación de cuenta',
     'recuperar':           'la recuperación de contraseña',
-    'portal':              'el portal'
+    'portal':              'el portal',
+    'articulo':            'los artículos',
+    'acerca':              'la pantalla «Acerca de»'
   };
 
   /**
@@ -752,10 +754,15 @@
    * Son facetas, no identidades, así que van aparte de `q` —que es el texto libre del
    * buscador— y se escriben REEMPLAZANDO, nunca apilando.
    *
+   * `pub` es la publicación del Portal que se abre en grande. Es una identidad, como
+   * `folio` o `promo`, y por eso apila historial al abrirse: el modal de una publicación
+   * es un sitio del que se vuelve con «atrás». Viaja en esta lista para que sobreviva al
+   * login —quien recibe el enlace sin sesión aterriza en la publicación, no en el inicio—.
+   *
    * Quien añada un nombre aquí lo añade también en Code.gs y en la lista PASAN del
    * Index: son tres listas espejo y el sistema no avisa cuando dejan de decir lo mismo.
    */
-  const PARAMS_VISTA = ['folio', 'action', 'format', 'q', 'buscar', 'tpl', 'sec', 'ancla', 'inc', 'next', 'promo', 'item', 'rango', 'estatus', 'dir', 'origen'];
+  const PARAMS_VISTA = ['folio', 'action', 'format', 'q', 'buscar', 'tpl', 'sec', 'ancla', 'inc', 'next', 'promo', 'item', 'rango', 'estatus', 'dir', 'origen', 'pub', 'art'];
 
   /** Parámetros de campaña que ensucian un enlace compartido y no significan nada aquí. */
   const PARAMS_BASURA = /^(utm_|fbclid$|gclid$|mc_eid$|_ga$)/i;
@@ -811,7 +818,7 @@
       'dashboard', 'inicio_avanzado', 'cotizacion', 'cotizado_preview', 'consulta_cotizacion',
       'revision_cotizacion', 'correoventel', 'correo_cliente', 'anuncios', 'portal_contenido',
       'operacion', 'consola', 'atenciones',
-      'portal', 'promociones', 'estado'
+      'portal', 'promociones', 'estado', 'articulo', 'acerca'
     ],
 
     /**
@@ -1015,7 +1022,8 @@
     PAGINAS_TRAS_LOGIN: [
       'cotizacion', 'cotizado_preview', 'consulta_cotizacion', 'revision_cotizacion',
       'correoventel', 'correo_cliente', 'anuncios', 'portal_contenido', 'dashboard',
-      'inicio_avanzado', 'consola', 'operacion', 'estado', 'atenciones'
+      'inicio_avanzado', 'consola', 'operacion', 'estado', 'atenciones', 'articulo',
+      'acerca'
     ],
 
     /**
@@ -2027,6 +2035,7 @@
       { bloque: 'politica_revision', page: 'inicio_avanzado', nombre: 'Política de revisión', corto: 'reglas de revisión', sub: 'Reglas de revisión' },
       { bloque: 'anuncios',          page: 'anuncios',        nombre: 'Anuncios del Portal',  corto: 'anuncios',           sub: 'Anuncios del Portal' },
       { bloque: 'portal_contenido',  page: 'portal_contenido', nombre: 'Contenido del Portal', corto: 'contenido del Portal', sub: 'Herramientas, plantillas y promos' },
+      { bloque: 'articulos',         page: 'articulo',        nombre: 'Artículos',            corto: 'artículos',          sub: 'Guías largas del equipo' },
       { bloque: 'operacion',         page: 'operacion',       nombre: 'Estado de operación',  corto: 'estado de operación', sub: 'Fallas reportadas por el equipo' },
       /* LA CONSOLA ENTRA POR DOS LLAVES, y esa es toda la unificación vista desde el
          menú. 'adm_miembros' es la del maestro y 'sup_equipo' la de la supervisión;
@@ -2049,7 +2058,13 @@
          una de sus siete pestañas. Al revés, el supervisor únicamente tiene la
          segunda, así que lee el rótulo que describe lo que él sí va a encontrar. */
       { bloque: 'adm_miembros',      page: 'consola',         nombre: 'Consola',              corto: 'consola',            sub: 'Personas, permisos y ajustes' },
-      { bloque: 'sup_equipo',        page: 'consola',         nombre: 'Roles y accesos',      corto: 'roles',              sub: 'Altas, roles y accesos de tu equipo' }
+      { bloque: 'sup_equipo',        page: 'consola',         nombre: 'Roles y accesos',      corto: 'roles',              sub: 'Altas, roles y accesos de tu equipo' },
+      /* Tercera entrada a la misma pantalla, y va la ÚLTIMA por la misma regla de arriba: quien
+         tenga también `adm_miembros` o `sup_equipo` ya la tiene anunciada con un rótulo de más
+         alcance. Esta es para quien solo tiene `metricas` —el caso que el bloque contempla: se
+         le concede a alguien para que consulte cifras sin darle la gestión de nadie—, y sin ella
+         tenía el permiso y ninguna puerta en el menú. */
+      { bloque: 'metricas',          page: 'consola',         nombre: 'Métricas y monitoreo', corto: 'métricas',           sub: 'Cotizaciones, correos, búsquedas y cambios' }
     ];
 
     function porId(id) {

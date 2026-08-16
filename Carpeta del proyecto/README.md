@@ -60,6 +60,38 @@ el servidor renderiza con `include()`, y la lógica de servidor vive en los `.gs
 Se va revisando la aplicación por partes. Cada apartado deja escrito qué se comprobó,
 qué se corrigió y qué queda como está a propósito.
 
+### Consola: grupos, difusión y monitoreo — nuevo (fase 9)
+
+Tres archivos nuevos y una pestaña nueva. Lo que hay que saber antes de tocarlos:
+
+- **`Grupos.gs`** — listas de personas. Un grupo **no da permisos** y no debe darlos nunca:
+  los permisos son por bloque y por persona, y una segunda vía convierte «¿por qué esta persona
+  puede hacer esto?» en dos listas que hay que cruzar. Las membresías van en una **columna JSON**
+  y no en una segunda hoja (se consideró): un grupo cabe en una celda, es el patrón que ya usa
+  `_PermisosSistema`, y así no hay filas huérfanas ni dos escrituras a medias. El grupo
+  **«Ventel» es virtual**: se calcula de `Registros`, con la gente activa, y por eso no hay que
+  acordarse de nada cuando alguien entra al equipo.
+- **`Difusion.gs`** — comunicados. El cuerpo llega como **bloques y nunca como HTML**, igual que
+  los artículos y por lo mismo. Los destinatarios van **en CCO** y el «Para» es quien escribe.
+  La cuota se comprueba **antes**: cada persona en CCO cuenta una y Gmail rechaza el envío
+  entero. Hay envío de prueba porque el envío real no es idempotente.
+- **`Monitoreo.gs`** — la pestaña Métricas. **Nada se calcula al abrir la consola**; cada
+  consulta la pide el usuario. Se lee **por la cola de la hoja y por lotes**, con tope de filas
+  devueltas y techo de filas leídas, y los dos se le cuentan al usuario cuando se alcanzan. El
+  recorte jerárquico se resuelve una vez por consulta, no fila a fila.
+- **El gate de grupos y difusión es por NIVEL (≥ 2)**, no por bloque: `sup_equipo` se le puede
+  dar a un asesor por excepción y eso no debe hacerle dueño de las listas de correo.
+- **La copia oculta global (`CORREO_CCO_GLOBAL`) es opt-in ruta por ruta.** No está dentro de
+  `cuentasEnviarCorreo_` a propósito: por ahí pasan también la contraseña temporal y el código de
+  verificación. Si escribes un correo nuevo y no pides `{cco:true}`, sale sin copia — que es el
+  error inofensivo de los dos.
+- **El alias y el nombre del remitente ya no son constantes:** `mailAlias_()` y `ccSenderName_()`,
+  con la constante `*_RESPALDO` como valor de fábrica. No los leas de la constante o te saltarás
+  lo que diga la consola.
+- **`MetricasCorreos` se repara sola.** Añadir una columna es añadirla a `MET_HEADERS`: la fila
+  se escribe por nombre y `metCabecera_` crea lo que falte. La autocreación de la hoja solo actúa
+  cuando no existe, así que sin esto una instalación viva se habría descolocado entera.
+
 ### Atenciones pendientes — revisado
 
 El módulo que guarda los datos de un cliente cuando una plataforma se cae, para poder
@@ -180,7 +212,7 @@ no usa el shell ni el motor de búsqueda compartidos —tiene los suyos— y sí
 | Punto | Estado |
 |---|---|
 | Enlaces al sitio correcto | Menú lateral, conmutador de áreas, tarjetas y buscador. Un fallo grave corregido (ver abajo) |
-| Accesible e interpretable por URL | `?sec=`, `?q=` e `?item=`, con hash, atrás/adelante y ahora también salida a la barra de direcciones |
+| Accesible e interpretable por URL | `?sec=`, `?q=`, `?item=` y `?pub=` (la publicación abierta en grande), con hash, atrás/adelante y salida a la barra de direcciones |
 | Las funciones en el buscador general | Catálogo de pantallas de la app, secciones, promociones y anuncios. Faltaban dos entradas y el icono de una |
 | Caché y almacenamiento local | Tres copias locales con stale-while-revalidate (Portal, Trazabilidad, promos); a la principal le faltaban versión y caducidad |
 | Lenguaje no técnico | Revisado: avisos, vacíos y errores hablan de conexión y de datos, no de peticiones ni de caché |
@@ -254,11 +286,12 @@ La caja aparece y se va sola según cambia el estado, sin recargar nada: se susc
 
 #### Decisiones que se dejan como están (Portal)
 
-- **El Portal conserva su propio motor de búsqueda.** `AppBuscar` unificó el criterio de
-  coincidencia del resto de la aplicación, y este archivo se quedó fuera. El suyo es bueno
-  —tolera erratas, entiende sinónimos y frases, y admite ámbitos por sección—, pero es una
-  segunda implementación. Migrarlo es una tarea propia, con sus quince índices y su
-  resaltado, y no cabe dentro de una revisión: queda anotado.
+- ~~**El Portal conserva su propio motor de búsqueda.**~~ **Hecho (Fase 6).** Era una
+  segunda implementación —buena: toleraba erratas, entendía sinónimos y admitía ámbitos por
+  sección— y quedó anotada aquí como tarea propia. Esa tarea fue la Fase 6 del plan de
+  cierre: el Portal puntúa ya con `AppBuscar` (`puntuaPortal`/`puntuaIndice`) y conserva
+  intacta su presentación. `pruebas/f6_buscador_paridad.test.js` compara el motor nuevo
+  contra una copia congelada del viejo y falla si algún resultado se pierde.
 - ~~**Los datos siguen guardándose con `lsGet`/`lsSet` y no con `AppCache`.**~~ **Hecho.**
   Las tres copias (Portal, Trazabilidad y el recuento de promociones) pasaron a `AppCache`
   a través de `AppRun.swr`, que es quien las lee, las pinta, revalida y guarda. Se ganan
@@ -455,8 +488,10 @@ Eso destapó dos fallos en el enlace profundo del Portal, ya corregidos:
 - **La memoria de uso vive en `localStorage`, no en la cuenta.** Es una preferencia de este
   equipo y de esta persona, no un dato del negocio, y subirla costaría una escritura por cada
   resultado abierto para ahorrar medio segundo de tecleo.
-- **Sigue habiendo dos motores de búsqueda.** Este usa `AppBuscar`; el del Portal tiene el
-  suyo. Ya quedó anotado en la revisión del Portal: migrarlo es tarea propia.
+- ~~**Sigue habiendo dos motores de búsqueda.**~~ **Hecho (Fase 6).** Los dos puntúan ya con
+  `AppBuscar`. Siguen siendo dos **armados** de resultados —cada superficie enseña lo suyo a
+  su manera—, así que una fuente nueva son **dos altas** y ninguna de las dos avisa si
+  falta; y si las dos puntúan el mismo contenido, los pesos tienen que coincidir.
 - **No se propone «¿quisiste decir…?».** `AppBuscar` ya tolera erratas por distancia de
   edición dentro del propio filtro, así que la corrección ocurre sin decirlo. Un cartel de
   sugerencia encima de resultados que ya son los correctos sobra.

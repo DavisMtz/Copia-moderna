@@ -81,7 +81,20 @@ const PAGES = {
   // Atenciones pospuestas y pendientes. Se sirve a quien la pida —igual que las demás—
   // y no enseña nada hasta que el servidor confirma el bloque 'atenciones' en cada
   // llamada: aquí dentro hay teléfonos de clientes y esa puerta la guarda Atenciones.gs.
-  'atenciones':          { file: 'atenciones',          title: 'Atenciones pendientes - Sistema Ventel' }
+  'atenciones':          { file: 'atenciones',          title: 'Atenciones pendientes - Sistema Ventel' },
+
+  // Artículos: documentación larga del equipo. La pantalla es LECTOR para cualquiera con
+  // sesión y EDITOR para quien tenga el bloque 'articulos'; son la misma vista, y por eso
+  // hay una sola entrada. Como el resto, servir el cascarón no filtra nada: quién puede
+  // escribir lo decide Articulos.gs en cada llamada.
+  'articulo':            { file: 'articulo',            title: 'Artículos - Sistema Ventel' },
+
+  // «Acerca de»: qué es el Portal, qué puede hacer QUIEN LO ESTÁ VIENDO, la extensión y
+  // quiénes lo hicieron. Es informativa y no tiene bloque propio a propósito: lo que
+  // enseña de más o de menos lo decide la sesión del navegador, no un permiso nuevo que
+  // haya que repartir. Exige sesión —la pide la propia pantalla con requireSession— porque
+  // su mitad principal es «qué puedes hacer TÚ», y sin saber quién eres no dice nada.
+  'acerca':              { file: 'acerca',              title: 'Acerca del Portal - Sistema Ventel' }
 };
 
 // Páginas públicas del Portal Ventel (sin sesión). El Portal es la landing por
@@ -128,8 +141,16 @@ const PORTAL_PAGES = {
  *   estatus filtro por estatus de la tabla de supervisión.
  *   dir     filtro por dirección (departamento) del Monitor de promociones.
  *   origen  filtro por origen del Monitor de promociones ('Promociones', 'Marketplace').
+ *   art     IDENTIDAD de un artículo. Igual que `pub`, sale de la hoja y no de la posición
+ *           de la fila. Va aparte de `pub` porque son dos cosas distintas: una publicación
+ *           se abre ENCIMA del Portal y un artículo tiene pantalla propia.
+ *   pub     IDENTIDAD de una publicación del Portal, abierta en grande. Como `promo`, es
+ *           una identidad y no una posición: el id vive en la hoja (columna ID) y una
+ *           fila insertada más arriba no se lo cambia. Va aparte de `item` porque `item`
+ *           señala DENTRO de una sección —hay que decir también en cuál— y una
+ *           publicación se abre encima del Portal, venga uno de donde venga.
  */
-const PARAMS_VISTA = ['folio', 'action', 'format', 'q', 'buscar', 'tpl', 'sec', 'ancla', 'inc', 'next', 'promo', 'item', 'rango', 'estatus', 'dir', 'origen'];
+const PARAMS_VISTA = ['folio', 'action', 'format', 'q', 'buscar', 'tpl', 'sec', 'ancla', 'inc', 'next', 'promo', 'item', 'rango', 'estatus', 'dir', 'origen', 'pub', 'art'];
 
 /**
  * El estado inicial que recibe el navegador, serializado y listo para pegarse dentro de
@@ -746,6 +767,17 @@ function saveQuoteAndGoToPreview(quoteDataFromClient) {
 function getQuotesForUser(callingUserEmail, searchTerm, forzarRecarga) {
   const termino = String(searchTerm || '').trim();
   const correo = String(callingUserEmail || '').trim().toLowerCase();
+
+  /* T9.4: se apunta QUÉ se buscó, y se apunta aquí — fuera de la caché.
+     Dentro del productor de cotCacheado_ solo se ejecutaría cuando la caché falla (TTL de 90 s),
+     así que dos personas buscando lo mismo dejarían una sola fila y el registro contaría de
+     menos. Aquí pasa por cada búsqueda real; la repetición mientras se teclea la absorbe la
+     ventana de monRegistrarBusqueda_, que además nunca revienta ni frena esta llamada.
+     Este es el ÚNICO punto de registro: buscarCotizaciones delega en esta función, y apuntarlo
+     también allí duplicaría cada fila. */
+  if (termino && typeof monRegistrarBusqueda_ === 'function') {
+    monRegistrarBusqueda_(termino, callingUserEmail, 'cotizaciones');
+  }
 
   if (typeof cotCacheado_ !== 'function' || (!termino && !correo)) {
     return leerCotizacionesDeUsuario_(callingUserEmail, searchTerm);

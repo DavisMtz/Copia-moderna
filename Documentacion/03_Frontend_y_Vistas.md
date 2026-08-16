@@ -70,7 +70,7 @@ Las páginas **públicas** (`Index`, `Promociones`, `estado`) reciben `APP_URL` 
 
 ---
 
-## 3. Las 19 pantallas (16 con sesión + 3 públicas)
+## 3. Las 21 pantallas (18 con sesión + 3 públicas)
 
 ### Con sesión (`PAGES` en `Code.gs`)
 
@@ -90,12 +90,42 @@ Las páginas **públicas** (`Index`, `Promociones`, `estado`) reciben `APP_URL` 
 | `anuncios` | `anuncios.html` | Constructor de anuncios | `anuncios` |
 | `portal_contenido` | `portal_contenido.html` | Gestión del contenido del Portal | `portal_contenido` |
 | `operacion` | `operacion.html` | Bandeja de supervisión de fallas | `operacion` |
-| `consola` | `consola.html` | Consola de administración | `adm_*` / `sup_equipo` |
+| `consola` | `consola.html` | Consola de administración | `adm_*` / `sup_equipo` / `metricas` |
 | `atenciones` | `atenciones.html` | Atenciones pendientes | `atenciones` |
+| `articulo` | `articulo.html` | Artículos: lector y editor de la misma vista *(F8)* | *(sesión para leer;* `articulos` *para escribir)* |
+| `acerca` | `acerca.html` | «Acerca de»: qué es el Portal, qué puede hacer quien mira, la extensión y los créditos *(F10)* | *(sesión)* |
 
 > El cascarón de `consola`, `portal_contenido` y `atenciones` **se sirve a cualquiera que lo
 > pida**, igual que las demás. No enseña nada hasta que el servidor confirma el bloque en
 > cada llamada. Servir el cascarón no filtra nada y evita tener dos formas de rutear.
+
+> **`acerca` no llama al servidor.** Es la única pantalla de app que se pinta entera con lo
+> que ya viaja en el HTML —el catálogo de funciones de `app_indices`, los instructivos de
+> `app_instructivos` y los créditos de `app_creditos`— más la sesión de `localStorage`. Por
+> eso **no incluye `app_operacion` ni `app_atenciones`**: los dos traen datos por su cuenta
+> al cargar. La única llamada posible es `AppSession.refrescar()`, y solo cuando la sesión
+> no sabe qué bloques tiene: mientras no los sepa, `AppSession.can()` contesta que sí a
+> todo y la lista «qué puedes hacer tú» sería falsa.
+
+**Las nueve pestañas de la consola** (`?sec=`) y qué las abre. Añadir una exige tocar **cuatro
+sitios a la vez** —fila en `CONSOLA_SECCIONES` (`Consola.gs`), botón con `data-panel` y
+`data-seccion`, `<section id="panel-…">` y el id en `CNS_PANELES` (`consola.html`)—; si falta
+el último, un enlace `?sec=…` compartido no abre nada y no avisa.
+
+| `?sec=` | Pestaña | La abre |
+| --- | --- | --- |
+| *(vacío)* | Resumen | cualquiera que entre a la consola |
+| `miembros` | Roles *(y los **grupos**, F9)* | `adm_miembros` · `adm_permisos` · `sup_equipo` |
+| `permisos` | Matriz de accesos | los mismos que Roles |
+| `modulos` | Módulos | `adm_modulos` |
+| `ajustes` | Ajustes | `adm_ajustes` |
+| `formatos` | Formatos | `adm_formatos` |
+| `salud` | Salud | `adm_salud` |
+| `metricas` | **Métricas y monitoreo** (F9) | `metricas` |
+| `bitacora` | Bitácora *(con consulta por fechas, F9)* | `adm_bitacora` · `sup_equipo` |
+
+Dos pestañas comparten sección de servidor (`miembros` y `permisos` son ambas `roles`): el
+`?sec=` viaja con el **panel**, no con la sección.
 
 ### Públicas (`PORTAL_PAGES`)
 
@@ -198,6 +228,17 @@ barra para siempre y contradice al resto del estado.
 > **El Portal (`Index.html`) es la excepción deliberada**: tiene maquinaria propia
 > (`navUrl`/`restore`/`setChangeHandler`) que ya cumple esta convención. No se migró porque
 > funciona y reescribirla es riesgo sin ganancia.
+>
+> Su estado son tres cosas: la sección (`sec`), el filtro de esa sección (`q`) y la
+> **publicación abierta en grande** (`pub`, fase 7). Las tres se escriben en `navUrl`, y no
+> donde se decide cada una, porque `google.script.history` reemplaza el juego de parámetros
+> ENTERO: lo que no se le pase desaparece de la barra. Antes de centralizarlo, teclear una
+> letra en el filtro borraba el `?pub=` que alguien estaba a medio copiar.
+>
+> Abrir una publicación **apila** historial (es un sitio, se vuelve con «atrás»); cerrarla
+> **reemplaza** (si apilara, «atrás» la volvería a abrir). El modal de bienvenida no escribe
+> nada: sale solo al entrar, y una dirección que cambia sin que nadie la pida convierte el
+> botón atrás en una trampa.
 
 ### `AppSession`
 
@@ -311,9 +352,10 @@ donde mirar.
 
 ## 7. `app_comando` — el buscador general
 
-Se abre con **Ctrl+K** o **`/`** desde cualquier pantalla. Encuentra funciones de la app,
-cotizaciones, contenido del Portal, procesos de trazabilidad, personas, fallas abiertas y
-clientes esperando llamada.
+Se abre con **Ctrl+K** o **`/`** desde cualquier pantalla. Encuentra funciones de la app y
+apartados dentro de ellas, cotizaciones, contenido del Portal, procesos de trazabilidad,
+**artículos del equipo**, personas, fallas abiertas, clientes esperando llamada, anuncios
+publicados (solo quien los administra) y el catálogo de tiendas y centros de reparto.
 
 **Aprende de lo que abres.** Guarda las **veces** y la **última vez**, y ambas empujan el
 puntaje. Las cuatro decisiones del algoritmo, que conviene no deshacer sin leerlas:
@@ -331,13 +373,26 @@ puntaje. Las cuatro decisiones del algoritmo, que conviene no deshacer sin leerl
    coincidía.
 
 Además: la pantalla en la que ya estás baja al final (gastar el primer resultado en «ir a
-donde ya estoy» es gastarlo en no hacer nada), y hay **ámbitos** — `portal:`, `cot:`,
-`procesos:`, `gente:`, `fallas:` — que se anuncian en el panel vacío, porque un prefijo que
-no se enseña existe para quien lea el código y para nadie más.
+donde ya estoy» es gastarlo en no hacer nada), y hay **ámbitos** — `fn:`, `cot:`, `portal:`,
+`procesos:`, `art:`, `gente:`, `fallas:`, `tienda:` — que se anuncian en el panel vacío,
+porque un prefijo que no se enseña existe para quien lea el código y para nadie más. Cada
+uno acepta su forma corta y su nombre entero (`cot:` y `cotizaciones:`), porque las dos se
+teclean.
 
-> **Hay dos motores de búsqueda en el sistema.** El general usa `app_buscar`; el Portal
-> conserva el suyo. Está anotado como deuda consciente en `Carpeta del proyecto/README.md`:
-> migrarlo es una tarea propia, con sus quince índices y su resaltado.
+> **Un solo motor, dos vestidos.** Hasta la Fase 6 había dos implementaciones y esta guía
+> lo anotaba como deuda. Ya no: el buscador del Portal (`Index.html`) puntúa con
+> **`AppBuscar`** a través de `puntuaPortal`/`puntuaIndice`, igual que el general. Lo que
+> sigue siendo distinto —y a propósito— es la **presentación**: el Portal enseña sus
+> resultados en su desplegable con sus secciones, y el general en su paleta. La prueba
+> `pruebas/f6_buscador_paridad.test.js` es la que sostiene la unificación: compara el motor
+> nuevo contra una copia congelada del viejo y falla si algún resultado se pierde.
+>
+> **Una fuente nueva son dos altas, no una.** Los dos buscadores arman sus grupos por
+> separado y **ninguno avisa si falta**: en `Index.html` se añade un grupo en
+> `doGlobalSearch` con su rama de pintado y su rama en el manejador de clic; en
+> `app_comando.html`, una fuente en `calcula`, su rama en `pinta` y su destino en `ejecuta`.
+> Si los dos puntúan el mismo contenido, **los pesos tienen que ser los mismos** — es lo que
+> comprueba la sección 13 de `pruebas/f8_articulos.test.js` para los artículos.
 
 ---
 

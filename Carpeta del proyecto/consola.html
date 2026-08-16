@@ -383,11 +383,88 @@
     .cns-confirm-tx { font-size: .88rem; color: var(--ink-soft); line-height: 1.6; margin: 0 0 1rem; }
     .cns-confirm-tx strong { color: var(--ink); }
 
+    /* ── Grupos (F9) ── */
+    .cns-grupo { padding: .85rem 0; border-top: 1px solid var(--line-soft); }
+    .cns-grupo:first-child { border-top: 0; padding-top: 0; }
+    .cns-grupo-top { display: flex; align-items: baseline; gap: .6rem; flex-wrap: wrap; }
+    .cns-grupo-top b { font-size: .92rem; font-weight: var(--fw-semibold); color: var(--ink); }
+    .cns-grupo-top .cuenta { font-size: .78rem; color: var(--ink-faint); font-variant-numeric: tabular-nums; }
+    .cns-grupo p.det { margin: .15rem 0 .6rem; font-size: .81rem; color: var(--ink-soft); line-height: 1.55; max-width: 68ch; }
+    .cns-grupo-acciones { display: flex; gap: .4rem; flex-wrap: wrap; margin-left: auto; }
+    .cns-grupo-gente { display: flex; flex-wrap: wrap; gap: .35rem; margin-top: .5rem; }
+    .cns-grupo-chip { display: inline-flex; align-items: center; gap: .35rem; padding: .2rem .55rem; border-radius: 999px;
+                      background: var(--surface-2); border: 1px solid var(--line-soft); font-size: .76rem; color: var(--ink-soft); }
+    .cns-grupo-chip.baja { text-decoration: line-through; color: var(--ink-faint); }
+    .cns-grupo-chip button { border: 0; background: none; padding: 0; cursor: pointer; color: var(--ink-faint); line-height: 1; font-size: .9rem; }
+    .cns-grupo-chip button:hover { color: var(--alert); }
+    .cns-grupo-editor { margin-top: .6rem; padding: .75rem; border: 1px solid var(--line-soft); border-radius: var(--rad-sm); background: var(--surface-2); }
+    .cns-grupo-editor .fila { display: flex; gap: .5rem; flex-wrap: wrap; align-items: flex-start; }
+    .cns-grupo-editor .fila .v-input, .cns-grupo-editor .fila .v-select { flex: 1 1 14rem; min-width: 0; }
+
+    /* ── Monitoreo (F9) ── */
+    .cns-mon-vistas { display: flex; gap: .35rem; flex-wrap: wrap; margin-bottom: 1rem; }
+    .cns-mon-vista { border: 1px solid var(--line-soft); background: var(--surface); color: var(--ink-soft);
+                     padding: .35rem .85rem; border-radius: 999px; font-size: .82rem; cursor: pointer; }
+    .cns-mon-vista[aria-selected="true"] { background: var(--brand-tint); border-color: transparent; color: var(--brand-deep); font-weight: var(--fw-semibold); }
+    .cns-mon-vista:focus-visible { outline: none; box-shadow: var(--ring); }
+    .cns-mon-filtros { display: flex; gap: .7rem; flex-wrap: wrap; align-items: flex-end; }
+    .cns-mon-campo { display: flex; flex-direction: column; gap: .25rem; flex: 0 1 11rem; }
+    .cns-mon-campo.ancho { flex: 1 1 16rem; }
+    .cns-mon-campo.botones { flex-direction: row; gap: .4rem; align-items: center; flex: 0 0 auto; }
+    .cns-mon-campo > span { font-size: .74rem; font-weight: var(--fw-semibold); letter-spacing: .04em;
+                            text-transform: uppercase; color: var(--ink-faint); }
+    .cns-mon-nota { margin: .8rem 0 0; font-size: .8rem; color: var(--ink-soft); line-height: 1.5; }
+    .cns-mon-nota.aviso { color: var(--warn); }
+    .cns-mon-nota.mal { color: var(--alert); }
+
+    /* ── Difusión (F9) ── */
+    .cns-dif-fondo { position: fixed; inset: 0; z-index: 70; background: rgba(15, 20, 28, .55);
+                     display: flex; align-items: stretch; justify-content: center; padding: 1.2rem; }
+    .cns-dif { background: var(--surface); border-radius: var(--rad); width: min(72rem, 100%);
+               display: flex; flex-direction: column; overflow: hidden; box-shadow: var(--sh-lg); }
+    .cns-dif-head { display: flex; align-items: flex-start; gap: 1rem; padding: 1.1rem 1.25rem; border-bottom: 1px solid var(--line-soft); }
+    .cns-dif-head h2 { margin: 0; font-size: 1.05rem; font-weight: var(--fw-semibold); color: var(--ink); }
+    .cns-dif-head p { margin: .15rem 0 0; font-size: .82rem; color: var(--ink-soft); }
+    .cns-dif-head .cns-cajon-cerrar { margin-left: auto; }
+    .cns-dif-cuerpo { display: flex; gap: 1rem; padding: 1.1rem 1.25rem; overflow: auto; flex: 1 1 auto; }
+    .cns-dif-col { flex: 1 1 50%; min-width: 0; display: flex; flex-direction: column; gap: .8rem; }
+    .cns-dif-col.previa { flex: 1 1 45%; }
+    .cns-dif-barra { display: flex; gap: .35rem; flex-wrap: wrap; }
+    .cns-dif-bloques { display: flex; flex-direction: column; gap: .6rem; }
+    .cns-dif-bloque { border: 1px solid var(--line-soft); border-radius: var(--rad-sm); padding: .6rem .7rem; background: var(--surface-2); }
+    .cns-dif-bloque-top { display: flex; align-items: center; gap: .5rem; margin-bottom: .4rem; }
+    .cns-dif-bloque-top .et { font-size: .72rem; font-weight: var(--fw-bold); letter-spacing: .06em;
+                              text-transform: uppercase; color: var(--ink-faint); }
+    .cns-dif-bloque-top .acc { margin-left: auto; display: flex; gap: .25rem; }
+    .cns-dif-bloque-top button { border: 0; background: none; cursor: pointer; color: var(--ink-faint); font-size: .85rem; padding: .1rem .3rem; border-radius: var(--rad-sm); }
+    .cns-dif-bloque-top button:hover { background: var(--surface); color: var(--ink); }
+    .cns-dif-bloque textarea { width: 100%; min-height: 4.5rem; resize: vertical; }
+    .cns-dif-bloque .fila { display: flex; gap: .4rem; flex-wrap: wrap; }
+    .cns-dif-bloque .fila .v-input { flex: 1 1 10rem; min-width: 0; }
+    .cns-dif-bloque img { max-width: 100%; border-radius: var(--rad-sm); display: block; margin-bottom: .4rem; }
+    .cns-dif-ayuda { font-size: .74rem; color: var(--ink-faint); line-height: 1.5; margin: .3rem 0 0; }
+    .cns-dif-previa-head { display: flex; align-items: center; gap: .6rem; }
+    .cns-dif-previa-head b { font-size: .78rem; font-weight: var(--fw-bold); letter-spacing: .06em;
+                             text-transform: uppercase; color: var(--ink-faint); }
+    .cns-dif-previa-head .v-btn { margin-left: auto; }
+    .cns-dif-previa { width: 100%; flex: 1 1 auto; min-height: 26rem; border: 1px solid var(--line-soft);
+                      border-radius: var(--rad-sm); background: #fff; }
+    .cns-dif-pie { display: flex; gap: .8rem; align-items: flex-end; flex-wrap: wrap;
+                   padding: .9rem 1.25rem; border-top: 1px solid var(--line-soft); background: var(--surface-2); }
+    .cns-dif-cuota { font-size: .78rem; color: var(--ink-faint); }
+    .cns-dif-pie-botones { margin-left: auto; display: flex; gap: .4rem; flex-wrap: wrap; }
+
+    @media (max-width: 900px) {
+        .cns-dif-cuerpo { flex-direction: column; }
+        .cns-dif-previa { min-height: 18rem; }
+    }
+
     @media (max-width: 640px) {
         .cns-head-acciones { margin-left: 0; width: 100%; }
         .cns-datos div { flex-direction: column; gap: .15rem; }
         .cns-datos dt { width: auto; }
         .cns-cajon { width: 100%; }
+        .cns-mon-campo { flex: 1 1 100%; }
     }
     </style>
 <?!= include('app_tailwind'); ?>
@@ -447,6 +524,7 @@
             <button class="cns-tab" role="tab" id="tab-ajustes"  aria-controls="panel-ajustes"  aria-selected="false" data-panel="ajustes"  data-seccion="ajustes"><span class="ic" data-icon="shield"></span>Ajustes</button>
             <button class="cns-tab" role="tab" id="tab-formatos" aria-controls="panel-formatos" aria-selected="false" data-panel="formatos" data-seccion="formatos"><span class="ic" data-icon="document"></span>Formatos</button>
             <button class="cns-tab" role="tab" id="tab-salud"    aria-controls="panel-salud"    aria-selected="false" data-panel="salud"    data-seccion="salud"><span class="ic" data-icon="sparkle"></span>Salud</button>
+            <button class="cns-tab" role="tab" id="tab-metricas" aria-controls="panel-metricas" aria-selected="false" data-panel="metricas" data-seccion="metricas"><span class="ic" data-icon="clipboard"></span>Métricas</button>
             <button class="cns-tab" role="tab" id="tab-bitacora" aria-controls="panel-bitacora" aria-selected="false" data-panel="bitacora" data-seccion="bitacora"><span class="ic" data-icon="clock"></span>Bitácora</button>
         </nav>
 
@@ -517,6 +595,28 @@
                     </div>
                     <div id="cns-miembros-vacio" class="cns-vacio" hidden></div>
                 </div>
+            </div>
+
+            <!-- ══ GRUPOS (F9 · T9.1, T9.2 y T9.3) ═══════════════════════════
+                 Vive dentro de Roles y no en una pestaña propia: un grupo es una lista de
+                 personas, y se arma justo donde se ve quién hay. El bloque entero se esconde
+                 para quien no llega al nivel de supervisión — el servidor lo vuelve a exigir
+                 en cada llamada de Grupos.gs, esto solo evita enseñar un botón que va a decir
+                 que no. -->
+            <div class="cns-bloque" id="cns-grupos-bloque" hidden>
+                <div class="cns-bloque-head">
+                    <div>
+                        <h2>Grupos</h2>
+                        <p>Listas de personas con nombre, para copiar sus correos o mandarles un comunicado. Un grupo no da permisos: eso sigue siendo cosa de cada ficha.</p>
+                    </div>
+                    <div class="cns-head-acciones">
+                        <button type="button" id="cns-grupo-nuevo" class="v-btn v-btn-ghost v-btn-sm">
+                            <span class="w-4 h-4 block" data-icon="plus"></span>
+                            Grupo nuevo
+                        </button>
+                    </div>
+                </div>
+                <div class="cns-bloque-cuerpo" id="cns-grupos"></div>
             </div>
         </section>
 
@@ -618,6 +718,97 @@
             </div>
         </section>
 
+        <!-- ══ MÉTRICAS · MONITOREO (F9 · T9.4) ═════════════════════════════
+             Cuatro consultas con la MISMA forma de respuesta, así que una sola tabla las
+             pinta todas. Nada se pide al abrir la consola: cada consulta la pide el usuario,
+             porque leer «Cotizaciones» entera es lo más caro que hay en esta app. -->
+        <section class="cns-panel" id="panel-metricas" role="tabpanel" aria-labelledby="tab-metricas" tabindex="-1" hidden>
+            <div class="cns-bloque">
+                <div class="cns-bloque-head">
+                    <div>
+                        <h2>Monitoreo</h2>
+                        <p id="cns-mon-alcance">Cuánto y quién: cotizaciones, correos, búsquedas y cambios de personas.</p>
+                    </div>
+                    <div class="cns-head-acciones">
+                        <button type="button" id="cns-mon-csv" class="v-btn v-btn-ghost v-btn-sm" disabled>
+                            <span class="w-4 h-4 block" data-icon="download"></span>
+                            Descargar CSV
+                        </button>
+                    </div>
+                </div>
+
+                <div class="cns-bloque-cuerpo">
+                    <div class="cns-mon-vistas" role="tablist" aria-label="Qué se consulta">
+                        <button type="button" class="cns-mon-vista" role="tab" aria-selected="true"  data-vista="cotizaciones">Cotizaciones</button>
+                        <button type="button" class="cns-mon-vista" role="tab" aria-selected="false" data-vista="correos">Correos</button>
+                        <button type="button" class="cns-mon-vista" role="tab" aria-selected="false" data-vista="busquedas">Búsquedas</button>
+                        <button type="button" class="cns-mon-vista" role="tab" aria-selected="false" data-vista="cambios">Cambios</button>
+                    </div>
+
+                    <div class="cns-mon-filtros">
+                        <label class="cns-mon-campo">
+                            <span>Desde</span>
+                            <input type="date" id="cns-mon-desde" class="v-input">
+                        </label>
+                        <label class="cns-mon-campo">
+                            <span>Hasta</span>
+                            <input type="date" id="cns-mon-hasta" class="v-input">
+                        </label>
+                        <!-- Las horas son opcionales (T9.4 pide «rango de fechas y horas»).
+                             Vacías = el día completo, que es lo que la gente quiere decir
+                             cuando escribe dos fechas y nada más. -->
+                        <label class="cns-mon-campo" style="flex:0 1 7rem">
+                            <span>Hora desde</span>
+                            <input type="time" id="cns-mon-hora-desde" class="v-input">
+                        </label>
+                        <label class="cns-mon-campo" style="flex:0 1 7rem">
+                            <span>Hora hasta</span>
+                            <input type="time" id="cns-mon-hora-hasta" class="v-input">
+                        </label>
+                        <label class="cns-mon-campo">
+                            <span>Persona</span>
+                            <select id="cns-mon-asesor" class="v-select"><option value="">Todas</option></select>
+                        </label>
+                        <label class="cns-mon-campo" id="cns-mon-campo-tipo" hidden>
+                            <span>Tipo</span>
+                            <select id="cns-mon-tipo" class="v-select"><option value="">Todos</option></select>
+                        </label>
+                        <label class="cns-mon-campo" id="cns-mon-campo-cliente" hidden>
+                            <span>Correo del cliente</span>
+                            <input type="search" id="cns-mon-cliente" class="v-input" placeholder="parte del correo">
+                        </label>
+                        <label class="cns-mon-campo" id="cns-mon-campo-tel" hidden>
+                            <span>Teléfono</span>
+                            <input type="search" id="cns-mon-telefono" class="v-input" placeholder="con o sin guiones">
+                        </label>
+                        <label class="cns-mon-campo ancho">
+                            <span id="cns-mon-texto-et">Folio o cliente</span>
+                            <input type="search" id="cns-mon-texto" class="v-input" placeholder="texto libre">
+                        </label>
+                        <div class="cns-mon-campo botones">
+                            <button type="button" id="cns-mon-consultar" class="v-btn v-btn-primary v-btn-sm">
+                                <span class="w-4 h-4 block" data-icon="search"></span>
+                                Consultar
+                            </button>
+                        </div>
+                    </div>
+
+                    <p class="cns-mon-nota" id="cns-mon-nota" hidden></p>
+                </div>
+
+                <div class="cns-bloque-cuerpo sin-aire">
+                    <div class="cns-tabla-wrap">
+                        <table class="cns-tabla" id="cns-mon-tabla">
+                            <caption class="sr-only">Resultado de la consulta de métricas</caption>
+                            <thead><tr id="cns-mon-thead"></tr></thead>
+                            <tbody id="cns-mon-tbody"></tbody>
+                        </table>
+                    </div>
+                    <div id="cns-mon-vacio" class="cns-vacio">Elige un periodo y pulsa «Consultar».</div>
+                </div>
+            </div>
+        </section>
+
         <!-- ══ BITÁCORA ═════════════════════════════════════════════════════ -->
         <section class="cns-panel" id="panel-bitacora" role="tabpanel" aria-labelledby="tab-bitacora" tabindex="-1" hidden>
             <div class="cns-bloque">
@@ -632,6 +823,31 @@
                             Actualizar
                         </button>
                     </div>
+                </div>
+                <!-- Consulta por fechas (F9 · T9.5). «Actualizar» de arriba trae los últimos
+                     movimientos; esto busca en un periodo concreto y se puede descargar. -->
+                <div class="cns-bloque-cuerpo">
+                    <div class="cns-mon-filtros">
+                        <label class="cns-mon-campo">
+                            <span>Desde</span>
+                            <input type="date" id="cns-bit-desde" class="v-input">
+                        </label>
+                        <label class="cns-mon-campo">
+                            <span>Hasta</span>
+                            <input type="date" id="cns-bit-hasta" class="v-input">
+                        </label>
+                        <div class="cns-mon-campo botones">
+                            <button type="button" id="cns-bit-consultar" class="v-btn v-btn-primary v-btn-sm">
+                                <span class="w-4 h-4 block" data-icon="search"></span>
+                                Consultar periodo
+                            </button>
+                            <button type="button" id="cns-bit-csv" class="v-btn v-btn-ghost v-btn-sm" disabled>
+                                <span class="w-4 h-4 block" data-icon="download"></span>
+                                CSV
+                            </button>
+                        </div>
+                    </div>
+                    <p class="cns-mon-nota" id="cns-bit-nota" hidden></p>
                 </div>
                 <div class="cns-bloque-cuerpo sin-aire">
                     <div class="cns-tabla-wrap">
@@ -658,6 +874,80 @@
 </main>
 
 <!-- ══ CAJÓN: ficha del miembro ═══════════════════════════════════════════ -->
+<!-- ══ DIFUSIÓN (F9 · T9.3) ══════════════════════════════════════════════════
+     Redactor de comunicados. Ocupa la pantalla entera porque escribir un correo a cuarenta
+     personas no es un gesto de paso, y porque la vista previa tiene que verse a tamaño real:
+     lo que se manda es lo que se ve, y el iframe de abajo pinta EXACTAMENTE el HTML que
+     devuelve el servidor. -->
+<div class="cns-dif-fondo" id="cns-dif-fondo" hidden>
+    <section class="cns-dif" role="dialog" aria-modal="true" aria-labelledby="cns-dif-tit">
+        <header class="cns-dif-head">
+            <div>
+                <h2 id="cns-dif-tit">Difundir información</h2>
+                <p id="cns-dif-sub">—</p>
+            </div>
+            <button type="button" class="cns-cajon-cerrar" id="cns-dif-cerrar" aria-label="Cerrar el redactor">
+                <span class="ic" data-icon="plus" style="transform:rotate(45deg)"></span>
+            </button>
+        </header>
+
+        <div class="cns-dif-cuerpo">
+            <div class="cns-dif-col">
+                <label class="cns-mon-campo ancho">
+                    <span>Asunto</span>
+                    <input type="text" id="cns-dif-asunto" class="v-input" maxlength="150" placeholder="Lo que se lee en la bandeja">
+                </label>
+
+                <div class="cns-dif-barra" role="toolbar" aria-label="Añadir al comunicado">
+                    <button type="button" class="v-btn v-btn-ghost v-btn-sm" data-dif-add="parrafo">Párrafo</button>
+                    <button type="button" class="v-btn v-btn-ghost v-btn-sm" data-dif-add="titulo">Título</button>
+                    <button type="button" class="v-btn v-btn-ghost v-btn-sm" data-dif-add="lista">Lista</button>
+                    <button type="button" class="v-btn v-btn-ghost v-btn-sm" data-dif-add="nota">Nota</button>
+                    <button type="button" class="v-btn v-btn-ghost v-btn-sm" data-dif-add="boton">Botón</button>
+                    <button type="button" class="v-btn v-btn-ghost v-btn-sm" data-dif-add="imagen">Imagen</button>
+                    <button type="button" class="v-btn v-btn-ghost v-btn-sm" data-dif-add="separador">Separador</button>
+                </div>
+
+                <div id="cns-dif-bloques" class="cns-dif-bloques"></div>
+                <input type="file" id="cns-dif-archivo" accept="image/*" multiple hidden>
+            </div>
+
+            <div class="cns-dif-col previa">
+                <div class="cns-dif-previa-head">
+                    <b>Vista previa</b>
+                    <button type="button" id="cns-dif-refrescar" class="v-btn v-btn-ghost v-btn-sm">
+                        <span class="w-4 h-4 block" data-icon="refresh"></span>
+                        Actualizar
+                    </button>
+                </div>
+                <!-- srcdoc + sandbox: el correo trae sus propias tablas y estilos, y pintarlo
+                     con innerHTML se comería la maquetación de la consola. -->
+                <iframe id="cns-dif-previa" class="cns-dif-previa" title="Vista previa del comunicado" sandbox=""></iframe>
+                <p class="cns-mon-nota" id="cns-dif-nota" hidden></p>
+            </div>
+        </div>
+
+        <footer class="cns-dif-pie">
+            <label class="cns-mon-campo">
+                <span>Para el grupo</span>
+                <select id="cns-dif-grupo" class="v-select"></select>
+            </label>
+            <span class="cns-dif-cuota" id="cns-dif-cuota"></span>
+            <div class="cns-dif-pie-botones">
+                <button type="button" class="v-btn v-btn-ghost v-btn-sm" id="cns-dif-cancelar">Cancelar</button>
+                <button type="button" class="v-btn v-btn-dark v-btn-sm" id="cns-dif-prueba">
+                    <span class="w-4 h-4 block" data-icon="mail"></span>
+                    Enviármelo de prueba
+                </button>
+                <button type="button" class="v-btn v-btn-primary v-btn-sm" id="cns-dif-enviar">
+                    <span class="w-4 h-4 block" data-icon="send"></span>
+                    Enviar al grupo
+                </button>
+            </div>
+        </footer>
+    </section>
+</div>
+
 <div class="cns-cajon-fondo" id="cns-cajon-fondo"></div>
 <aside class="cns-cajon" id="cns-cajon" role="dialog" aria-modal="true" aria-labelledby="cns-cajon-nombre" hidden>
     <div class="cns-cajon-head">
@@ -746,7 +1036,11 @@
         gruposAjustes: [],
         formatos: [],
         resumen: null,
-        bitacora: []
+        bitacora: [],
+        // F9
+        grupos: [],             // listas de personas (Grupos.gs); vacío = no le tocan
+        recomendaciones: null,  // «requiere atención» del servidor (T9.9); null = aún no se sabe
+        enlacesAjustes: []    // atajos a lo que se configura en otra pantalla (T9.7)
     };
     var editando = null;    // miembro abierto en el cajón
     var seleccion = {};     // { bloqueId: true } estado de las casillas del cajón
@@ -788,7 +1082,11 @@
      * no una repetición que convenga fusionar.
      */
     function llamar(nombre, args) {
-        var esLectura = nombre === 'consolaPanorama' || nombre === 'consolaBitacora' || nombre === 'consolaSalud';
+        // Las lecturas no dedupean por sello de tiempo ni anuncian «Guardando»: son consultas.
+        var LECTURAS = ['consolaPanorama', 'consolaBitacora', 'consolaSalud', 'consolaBitacoraRango',
+                        'grpListar', 'difPreparar', 'difPrevia',
+                        'monPanorama', 'monCotizaciones', 'monCorreos', 'monBusquedas', 'monCambios'];
+        var esLectura = LECTURAS.indexOf(nombre) !== -1;
         if (esLectura) return AppRun.call(nombre, args || [], {});
 
         var p = AppRun.call(nombre, args || [], { key: nombre + ':' + Date.now(), busy: 'Guardando' });
@@ -898,6 +1196,12 @@
             D.yo = r.yo; D.catalogo = r.catalogo; D.miembros = r.miembros || [];
             D.ajustes = r.ajustes || []; D.gruposAjustes = r.gruposAjustes || [];
             D.formatos = r.formatos || []; D.resumen = r.resumen; D.bitacora = r.bitacora || [];
+            D.grupos = r.grupos || [];
+            // `null` y no `[]`: así se distingue «el servidor dice que no hay nada que atender»
+            // de «este servidor es anterior a F9 y no manda recomendaciones», que es cuando hay
+            // que caer al cálculo de siempre. Con `|| []` ese respaldo era código muerto.
+            D.recomendaciones = r.recomendaciones || null;
+            D.enlacesAjustes = r.enlacesAjustes || [];
             // Qué pestañas existen para ESTA persona lo dice el servidor, no el rol.
             // Si la respuesta viene de una versión anterior y no trae `secciones`, se
             // asume la consola completa: quien llega aquí ya pasó el gate del servidor,
@@ -1040,10 +1344,13 @@
         // [] en los apartados que no corresponden, y pintarAjustes() sobre una lista
         // vacía dejaba un panel con encabezados y ni una fila, que se lee como
         // "esto está roto" y no como "esto no es tuyo".
-        if (tieneSeccion('roles'))    { pintarMiembros(); pintarMatriz(); pintarExcepciones(); }
+        if (tieneSeccion('roles'))    { pintarMiembros(); pintarMatriz(); pintarExcepciones(); pintarGrupos(); }
         if (tieneSeccion('modulos'))  pintarModulos();
         if (tieneSeccion('ajustes'))  pintarAjustes();
         if (tieneSeccion('formatos')) pintarFormatos();
+        /* Métricas NO se prepara aquí: su panorama es una llamada al servidor que recorre la
+           lista de personas, y quien abre la consola para cambiarle el rol a alguien no debería
+           pagarla. Se pide la primera vez que se abre la pestaña (ver irAPanel). */
         if (tieneSeccion('bitacora')) pintarBitacora();
     }
 
@@ -1087,24 +1394,42 @@
             return '<div><dt>' + esc(f[0]) + '</dt><dd' + (f[2] ? ' class="mono"' : '') + '>' + esc(f[1]) + '</dd></div>';
         }).join('');
 
-        // Avisos accionables: secretos que siguen en el código y módulos apagados.
-        var avisos = [];
-        (D.ajustes || []).forEach(function (a) {
-            if (a.enCodigo && a.secreto) {
-                avisos.push('<b>' + esc(a.nombre) + '</b> todavía vive en el código fuente en vez de en las propiedades del script. ' +
-                    'Ejecuta <code>secGuardarConfiguracion()</code> una vez desde el editor para moverlo.');
-            }
-            if (!a.configurado && !a.soloLectura) {
-                avisos.push('<b>' + esc(a.nombre) + '</b> está sin configurar.');
-            }
+        /* Avisos accionables. Los calcula el SERVIDOR desde F9 (consolaRecomendaciones_):
+           aquí no hay forma de saber cuántos días lleva apagado un módulo, cuántos correos
+           fallaron esta semana ni quién no ha entrado nunca. Cada uno trae su acción, y la
+           acción es un panel de esta misma consola o una pantalla del sistema.
+           Si el servidor es de una versión anterior y no manda `recomendaciones`, se cae al
+           cálculo de siempre con lo que hay en pantalla: es menos, pero no es nada. */
+        var avisos = (D.recomendaciones || []).map(function (a) {
+            return { texto: esc(a.texto), tono: a.tono === 'malo' ? 'mal' : 'aviso',
+                     accion: a.accion || '', panel: a.panel || '', pagina: a.pagina || '' };
         });
-        apagados.forEach(function (id) {
-            avisos.push('<b>' + esc(nombreBloque(id)) + '</b> está apagado por mantenimiento: nadie del equipo lo ve.');
-        });
+        if (!D.recomendaciones) {
+            (D.ajustes || []).forEach(function (a) {
+                if (!a.configurado && !a.soloLectura) {
+                    avisos.push({ texto: '<b>' + esc(a.nombre) + '</b> está sin configurar.',
+                                  tono: 'aviso', accion: 'Ir a Ajustes', panel: 'ajustes' });
+                }
+            });
+            apagados.forEach(function (id) {
+                avisos.push({ texto: '<b>' + esc(nombreBloque(id)) + '</b> está apagado por mantenimiento.',
+                              tono: 'aviso', accion: 'Ir a Módulos', panel: 'modulos' });
+            });
+        }
 
         $('cns-atencion-bloque').hidden = avisos.length === 0;
         $('cns-atencion').innerHTML = avisos.map(function (a) {
-            return '<div class="cns-check aviso"><span class="cns-check-ic">' + ic('warning') + '</span><span>' + a + '</span></div>';
+            var boton = '';
+            if (a.accion && a.panel) {
+                boton = '<button type="button" class="v-btn v-btn-ghost v-btn-sm" data-ir-panel="' +
+                        esc(a.panel) + '">' + esc(a.accion) + '</button>';
+            } else if (a.accion && a.pagina) {
+                boton = '<button type="button" class="v-btn v-btn-ghost v-btn-sm" data-ir-pagina="' +
+                        esc(a.pagina) + '">' + esc(a.accion) + '</button>';
+            }
+            return '<div class="cns-check ' + a.tono + '"><span class="cns-check-ic">' +
+                   ic(a.tono === 'mal' ? 'warning' : 'warning') + '</span><span>' + a.texto + '</span>' +
+                   (boton ? '<span style="margin-left:auto;flex:none">' + boton + '</span>' : '') + '</div>';
         }).join('');
     }
 
@@ -1329,6 +1654,26 @@
 
             html += '</div></div>';
         });
+
+        /* Lo que se configura en otra pantalla (T9.7). Se ENLAZA, no se copia: dos pantallas
+           que escriben el mismo ajuste acaban discrepando, y la que se quede sin mantenimiento
+           es la que alguien usará el día que importe. */
+        if ((D.enlacesAjustes || []).length) {
+            html += '<div class="cns-bloque"><div class="cns-bloque-head"><div>' +
+                    '<h2>Configurado en otro sitio</h2>' +
+                    '<p>Estas tres tienen su propia pantalla, con sus reglas y su historial. Desde aquí solo se llega.</p>' +
+                    '</div></div><div class="cns-bloque-cuerpo">';
+            D.enlacesAjustes.forEach(function (e) {
+                html += '<div class="cns-fila-sw">' +
+                    '<div class="cns-fila-sw-tx"><b>' + esc(e.nombre) + '</b><p>' + esc(e.detalle) + '</p></div>' +
+                    (e.panel
+                        ? '<button type="button" class="v-btn v-btn-ghost v-btn-sm" data-ir-panel="' + esc(e.panel) + '">Abrir</button>'
+                        : '<button type="button" class="v-btn v-btn-ghost v-btn-sm" data-ir-pagina="' + esc(e.pagina) + '">Abrir</button>') +
+                '</div>';
+            });
+            html += '</div></div>';
+        }
+
         $('cns-ajustes').innerHTML = html;
     }
 
@@ -2067,7 +2412,7 @@
     // ── Pestañas ─────────────────────────────────────────────────────────────
 
     /** Pestañas que existen, para no hacer caso de un ?sec= inventado. */
-    var CNS_PANELES = ['resumen', 'miembros', 'permisos', 'modulos', 'ajustes', 'formatos', 'salud', 'bitacora'];
+    var CNS_PANELES = ['resumen', 'miembros', 'permisos', 'modulos', 'ajustes', 'formatos', 'salud', 'metricas', 'bitacora'];
 
     /**
      * @param {string} nombre
@@ -2112,6 +2457,10 @@
             gsap.fromTo(panel, { opacity: 0, y: 10 },
                 { opacity: 1, y: 0, duration: .3, ease: 'power2.out', clearProps: 'transform' });
         }
+
+        // Métricas se prepara al abrirse por primera vez, no al cargar la consola: su panorama
+        // recorre la lista de personas en el servidor y no lo paga quien no entra aquí.
+        if (nombre === 'metricas') prepararMonitoreo();
 
         // La pestaña abierta pasa a la URL. Es lo que convierte "estoy en la bitácora"
         // en algo que se puede pegar en un chat: quien abra ese enlace cae en la
@@ -2214,6 +2563,51 @@
 
         // Un solo oyente para toda la pantalla: las tablas se repintan enteras y volver
         // a colgar oyentes en cada fila es la vía rápida a las fugas de memoria.
+        // ── F9: grupos, difusión, monitoreo y bitácora por fechas ────────────
+        $('cns-grupo-nuevo').addEventListener('click', crearGrupo);
+        $('cns-mon-consultar').addEventListener('click', consultarMonitoreo);
+        $('cns-mon-csv').addEventListener('click', descargarMonitoreo);
+        $('cns-bit-consultar').addEventListener('click', consultarBitacoraRango);
+        $('cns-bit-csv').addEventListener('click', descargarBitacora);
+        $('cns-dif-cerrar').addEventListener('click', cerrarDifusion);
+        $('cns-dif-cancelar').addEventListener('click', cerrarDifusion);
+        $('cns-dif-refrescar').addEventListener('click', refrescarPrevia);
+        $('cns-dif-prueba').addEventListener('click', function () { enviarDifusion(true); });
+        $('cns-dif-enviar').addEventListener('click', function () { enviarDifusion(false); });
+        $('cns-dif-grupo').addEventListener('change', function () { dif.grupoId = this.value; pintarDifGrupos(); });
+        $('cns-dif-archivo').addEventListener('change', function () {
+            difTomarImagenes(this.files);
+            this.value = '';   // el mismo archivo dos veces seguidas también tiene que entrar
+        });
+
+        // El periodo de la bitácora arranca en la última semana: es lo que se consulta
+        // nueve de cada diez veces, y así el botón sirve sin teclear nada.
+        (function () {
+            var hoy = new Date();
+            var hace7 = new Date(hoy.getTime() - 7 * 24 * 60 * 60 * 1000);
+            $('cns-bit-desde').value = isoDia(hace7);
+            $('cns-bit-hasta').value = isoDia(hoy);
+        })();
+
+        /* Pegar una imagen dentro del redactor. Solo se queda con lo que es un ARCHIVO de
+           imagen: el texto pegado sigue yendo al campo donde esté el cursor, como siempre.
+           Se escucha en el documento porque el redactor se repinta entero en cada cambio. */
+        document.addEventListener('paste', function (e) {
+            if (!dif.abierto) return;
+            var items = (e.clipboardData && e.clipboardData.items) || [];
+            var archivos = [];
+            for (var i = 0; i < items.length; i++) {
+                var it = items[i];
+                if (it.kind === 'file' && String(it.type || '').indexOf('image/') === 0) {
+                    var f = it.getAsFile();
+                    if (f) archivos.push(f);
+                }
+            }
+            if (!archivos.length) return;
+            e.preventDefault();
+            difTomarImagenes(archivos);
+        });
+
         document.addEventListener('click', function (e) {
             var abrir = e.target.closest('[data-abrir]');
             if (abrir) return abrirFicha(abrir.getAttribute('data-abrir'));
@@ -2223,6 +2617,120 @@
 
             if (e.target.closest('#cns-reset-pass')) return confirmarReset();
             if (e.target.closest('#cns-borrar')) return confirmarBorrado();
+
+            // ── F9 ──
+            var irPanel = e.target.closest('[data-ir-panel]');
+            if (irPanel) return irAPanel(irPanel.getAttribute('data-ir-panel'));
+
+            var irPagina = e.target.closest('[data-ir-pagina]');
+            if (irPagina && window.AppUrl) return AppUrl.go(irPagina.getAttribute('data-ir-pagina'));
+
+            var copiar = e.target.closest('[data-grupo-copiar]');
+            if (copiar) return copiarCorreos(copiar.getAttribute('data-grupo-copiar'));
+
+            var difundir = e.target.closest('[data-grupo-difundir]');
+            if (difundir) return abrirDifusion(difundir.getAttribute('data-grupo-difundir'));
+
+            var editar = e.target.closest('[data-grupo-editar]');
+            if (editar) {
+                var idE = editar.getAttribute('data-grupo-editar');
+                grupoAbierto = (grupoAbierto === idE) ? '' : idE;
+                return pintarGrupos();
+            }
+
+            var renombrar = e.target.closest('[data-grupo-renombrar]');
+            if (renombrar) {
+                var idR = renombrar.getAttribute('data-grupo-renombrar');
+                var campoN = document.querySelector('[data-grupo-nombre="' + idR + '"]');
+                var campoD = document.querySelector('[data-grupo-detalle="' + idR + '"]');
+                return guardarGrupo('grpGuardar', [AppSession.userEmail,
+                    { id: idR, nombre: (campoN.value || '').trim(), detalle: (campoD.value || '').trim() }],
+                    'guardar el grupo');
+            }
+
+            var quitar = e.target.closest('[data-grupo-quitar]');
+            if (quitar) {
+                var idQ = quitar.getAttribute('data-grupo-quitar');
+                var fuera = quitar.getAttribute('data-correo');
+                var gQ = grupoPorId(idQ);
+                if (!gQ) return;
+                var base = (gQ.miembros || []).map(function (p) { return p.email; });
+                var quedan = base.filter(function (c) { return c !== fuera; });
+                // Se manda también la lista de PARTIDA: el servidor aplica la diferencia sobre lo
+                // que haya ahora, y así dos personas editando el mismo grupo no se pisan.
+                return guardarGrupo('grpFijarMiembros', [AppSession.userEmail, idQ, quedan, base],
+                                    'quitar a esa persona');
+            }
+
+            var borrarG = e.target.closest('[data-grupo-borrar]');
+            if (borrarG) {
+                var idB = borrarG.getAttribute('data-grupo-borrar');
+                var gB = grupoPorId(idB);
+                if (!gB) return;
+                return abrirModal('Borrar el grupo',
+                    '<p class="cns-confirm-tx">Se borra <strong>«' + esc(gB.nombre) + '»</strong> y su lista de ' +
+                    esc(String(gB.total)) + ' persona(s). Nadie pierde permisos: un grupo no los da.</p>',
+                    'Borrar', 'v-btn-danger',
+                    function () {
+                        cerrarModal();
+                        grupoAbierto = '';
+                        guardarGrupo('grpEliminar', [AppSession.userEmail, idB], 'borrar el grupo');
+                    });
+            }
+
+            var vista = e.target.closest('[data-vista]');
+            if (vista) {
+                mon.vista = vista.getAttribute('data-vista');
+                mon.filas = [];
+                pintarMonFiltros();
+                pintarMonTabla();
+                $('cns-mon-vacio').hidden = false;
+                $('cns-mon-vacio').textContent = 'Pulsa «Consultar» para ver ' + vista.textContent.toLowerCase() + '.';
+                $('cns-mon-nota').hidden = true;
+                return;
+            }
+
+            var add = e.target.closest('[data-dif-add]');
+            if (add) return difAgregar(add.getAttribute('data-dif-add'));
+
+            var fmt = e.target.closest('[data-dif-fmt]');
+            if (fmt) return difFormato(Number(fmt.getAttribute('data-i')), fmt.getAttribute('data-dif-fmt'));
+
+            var sube = e.target.closest('[data-dif-sube]');
+            if (sube) {
+                var iS = Number(sube.getAttribute('data-dif-sube'));
+                if (iS > 0) {
+                    var tmp = dif.bloques[iS - 1]; dif.bloques[iS - 1] = dif.bloques[iS]; dif.bloques[iS] = tmp;
+                    pintarDifBloques();
+                }
+                return;
+            }
+
+            var baja = e.target.closest('[data-dif-baja]');
+            if (baja) {
+                var iB = Number(baja.getAttribute('data-dif-baja'));
+                if (iB < dif.bloques.length - 1) {
+                    var tmp2 = dif.bloques[iB + 1]; dif.bloques[iB + 1] = dif.bloques[iB]; dif.bloques[iB] = tmp2;
+                    pintarDifBloques();
+                }
+                return;
+            }
+
+            var quita = e.target.closest('[data-dif-quita]');
+            if (quita) {
+                dif.bloques.splice(Number(quita.getAttribute('data-dif-quita')), 1);
+                return pintarDifBloques();
+            }
+        });
+
+        /* El texto del redactor se guarda en memoria según se escribe, no al enviar: el
+           lienzo se repinta entero cada vez que se añade o se mueve un bloque, y lo que
+           estuviera solo en el DOM se perdería en ese repintado. */
+        document.addEventListener('input', function (e) {
+            var campo = e.target.closest('[data-dif-campo]');
+            if (!campo) return;
+            var i = Number(campo.getAttribute('data-i'));
+            if (dif.bloques[i]) dif.bloques[i][campo.getAttribute('data-dif-campo')] = campo.value;
         });
 
         document.addEventListener('change', function (e) {
@@ -2241,6 +2749,24 @@
                 if (vuelta) vuelta.focus();
                 return;
             }
+            // ── F9 ──
+            if (t.matches('[data-grupo-anadir]')) {
+                var idA = t.getAttribute('data-grupo-anadir');
+                var nuevo = t.value;
+                t.value = '';
+                if (!nuevo) return;
+                var gA = grupoPorId(idA);
+                if (!gA) return;
+                var baseA = (gA.miembros || []).map(function (p) { return p.email; });
+                return guardarGrupo('grpFijarMiembros',
+                    [AppSession.userEmail, idA, baseA.concat([nuevo]), baseA], 'añadir a esa persona');
+            }
+            if (t.matches('[data-dif-campo]')) {
+                var iC = Number(t.getAttribute('data-i'));
+                if (dif.bloques[iC]) dif.bloques[iC][t.getAttribute('data-dif-campo')] = t.value;
+                return;
+            }
+
             if (t.matches('[data-campo]')) {
                 var det = document.querySelector('[data-opdet="' + t.getAttribute('data-campo') + '"]');
                 if (det) {
@@ -2264,12 +2790,810 @@
             if (modalAlAceptar) modalAlAceptar();
         });
 
+        document.addEventListener('keydown', difAtraparFoco);
+
         document.addEventListener('keydown', function (e) {
             if (e.key !== 'Escape') return;
             if ($('cns-modal-fondo').classList.contains('active')) return cerrarModal();
             if (!$('cns-cajon').hidden) return cerrarFicha();
+            // El redactor de difusión se cierra el último: si hay un modal encima —la
+            // confirmación de envío—, Escape cierra ese y no se lleva por delante el
+            // comunicado a medio escribir.
+            if (!$('cns-dif-fondo').hidden) return cerrarDifusion();
         });
     });
+
+    /* ═════════════════════════════════════════════════════════════════════════
+       F9 · GRUPOS, DIFUSIÓN, MONITOREO Y BITÁCORA POR FECHAS
+       ─────────────────────────────────────────────────────────────────────────
+       Todo lo de aquí abajo es de la fase 9. Comparte tres piezas con el resto de la
+       pantalla y no fabrica ninguna nueva: llamar()/guardarEnFondo() para hablar con el
+       servidor, esc() para pintar y toast() para avisar.
+       ═════════════════════════════════════════════════════════════════════════ */
+
+    /**
+     * Descarga en CSV lo que se está viendo. Es cliente puro: los datos ya están en el
+     * navegador y pedirle al servidor que los vuelva a componer sería un viaje de más.
+     *
+     * El BOM del principio no es adorno: sin él, Excel abre el archivo en la codificación
+     * del sistema y «Martínez» llega como «MartÃ­nez».
+     */
+    function descargarCSV(nombre, encabezados, filas) {
+        var celda = function (v) {
+            var s = String(v == null ? '' : v);
+            /* Una celda que empieza por = + - @ no es texto para Excel ni para Sheets: es una
+               FÓRMULA, y se evalúa al abrir el archivo con los permisos de quien lo abre. El
+               término de búsqueda o el asunto de un correo los escribe una persona, así que
+               esto es contenido de terceros viajando a la máquina de un maestro. Se le antepone
+               un apóstrofo: se lee igual y no se ejecuta. */
+            if (/^[=+\-@\t\r]/.test(s)) s = "'" + s;
+            s = s.replace(/"/g, '""');
+            return /[",\n;]/.test(s) ? '"' + s + '"' : s;
+        };
+        var csv = '﻿' + encabezados.map(celda).join(',') + '\n' +
+                  filas.map(function (f) { return f.map(celda).join(','); }).join('\n');
+        var url = URL.createObjectURL(new Blob([csv], { type: 'text/csv;charset=utf-8;' }));
+        var a = document.createElement('a');
+        a.href = url; a.download = nombre;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        URL.revokeObjectURL(url);
+    }
+
+    /** yyyy-MM-dd de una fecha, que es lo que entienden los <input type="date">. */
+    function isoDia(d) {
+        var p = function (n) { return (n < 10 ? '0' : '') + n; };
+        return d.getFullYear() + '-' + p(d.getMonth() + 1) + '-' + p(d.getDate());
+    }
+
+    // ── Grupos (T9.1 y T9.2) ─────────────────────────────────────────────────
+
+    var grupoAbierto = '';   // id del grupo con el editor de miembros desplegado
+
+    function grupoPorId(id) {
+        var l = D.grupos || [];
+        for (var i = 0; i < l.length; i++) if (l[i].id === id) return l[i];
+        return null;
+    }
+
+    /** ¿Esta persona administra grupos? El servidor lo vuelve a exigir; esto solo dibuja. */
+    function puedeGrupos() {
+        return !!(D.yo && (D.yo.maestro || (D.yo.nivel || 0) >= 2));
+    }
+
+    function pintarGrupos() {
+        var bloque = $('cns-grupos-bloque');
+        if (!bloque) return;
+        bloque.hidden = !puedeGrupos();
+        if (bloque.hidden) return;
+
+        var cont = $('cns-grupos');
+        if (!(D.grupos || []).length) {
+            cont.innerHTML = '<p class="cns-vacio" style="padding:1rem 0">Todavía no hay grupos. ' +
+                '«Ventel» aparecerá aquí en cuanto el servidor responda.</p>';
+            return;
+        }
+
+        cont.innerHTML = D.grupos.map(function (g) {
+            var abierto = grupoAbierto === g.id;
+            var gente = (g.miembros || []).map(function (p) {
+                return '<span class="cns-grupo-chip' + (p.alta && p.activo ? '' : ' baja') + '" ' +
+                    'title="' + esc(p.email) + (p.alta ? (p.activo ? '' : ' · dado de baja') : ' · ya no está dado de alta') + '">' +
+                    esc(p.nombre || p.email) +
+                    (abierto && !g.virtual
+                        ? '<button type="button" data-grupo-quitar="' + esc(g.id) + '" data-correo="' + esc(p.email) +
+                          '" aria-label="Quitar a ' + esc(p.nombre || p.email) + '">×</button>'
+                        : '') +
+                    '</span>';
+            }).join('');
+
+            var candidatos = (D.miembros || []).filter(function (m) {
+                return m.activo && (g.miembros || []).every(function (p) { return p.email !== m.email; });
+            });
+
+            return '<div class="cns-grupo" data-grupo="' + esc(g.id) + '">' +
+                '<div class="cns-grupo-top">' +
+                    '<b>' + esc(g.nombre) + '</b>' +
+                    (g.virtual ? '<span class="cns-tag cns-tag-suave">se mantiene solo</span>' : '') +
+                    '<span class="cuenta">' + num(g.total) + ' persona(s)' +
+                        (g.alcanzables !== g.total ? ' · ' + num(g.alcanzables) + ' reciben correo' : '') +
+                    '</span>' +
+                    '<span class="cns-grupo-acciones">' +
+                        '<button type="button" class="v-btn v-btn-ghost v-btn-sm" data-grupo-copiar="' + esc(g.id) + '">' +
+                            'Copiar correos</button>' +
+                        '<button type="button" class="v-btn v-btn-dark v-btn-sm" data-grupo-difundir="' + esc(g.id) + '">' +
+                            'Difundir</button>' +
+                        (g.virtual ? '' :
+                            '<button type="button" class="v-btn v-btn-ghost v-btn-sm" data-grupo-editar="' + esc(g.id) + '">' +
+                            (abierto ? 'Cerrar' : 'Editar') + '</button>') +
+                    '</span>' +
+                '</div>' +
+                '<p class="det">' + esc(g.detalle || '') + '</p>' +
+                '<div class="cns-grupo-gente">' + (gente || '<span class="cuenta">Sin nadie todavía.</span>') + '</div>' +
+                (abierto && !g.virtual ? (
+                    '<div class="cns-grupo-editor">' +
+                        '<div class="fila">' +
+                            '<input type="text" class="v-input" data-grupo-nombre="' + esc(g.id) + '" value="' + esc(g.nombre) + '" maxlength="60" aria-label="Nombre del grupo">' +
+                            '<input type="text" class="v-input" data-grupo-detalle="' + esc(g.id) + '" value="' + esc(g.detalle || '') + '" maxlength="200" placeholder="Para qué es este grupo" aria-label="Descripción del grupo">' +
+                            '<button type="button" class="v-btn v-btn-dark v-btn-sm" data-grupo-renombrar="' + esc(g.id) + '">Guardar</button>' +
+                        '</div>' +
+                        '<div class="fila" style="margin-top:.5rem">' +
+                            '<select class="v-select" data-grupo-anadir="' + esc(g.id) + '" aria-label="Añadir persona al grupo">' +
+                                '<option value="">Añadir a alguien…</option>' +
+                                candidatos.map(function (m) {
+                                    return '<option value="' + esc(m.email) + '">' + esc(m.nombre || m.email) + '</option>';
+                                }).join('') +
+                            '</select>' +
+                            '<button type="button" class="v-btn v-btn-ghost v-btn-sm" data-grupo-borrar="' + esc(g.id) + '">Borrar grupo</button>' +
+                        '</div>' +
+                    '</div>'
+                ) : '') +
+            '</div>';
+        }).join('');
+    }
+
+    /** Todas las escrituras de grupo vuelven con la lista entera: se repinta con lo que llegó. */
+    function guardarGrupo(fn, args, etiqueta) {
+        return llamar(fn, args).then(function (r) {
+            if (!r || !r.success) { toast((r && r.message) || 'No se pudo ' + etiqueta + '.', 'error'); return null; }
+            D.grupos = r.grupos || D.grupos;
+            pintarGrupos();
+            if (r.aviso) toast(r.aviso, 'warn'); else toast(r.message || 'Listo.', 'ok');
+            return r;
+        }).catch(function (e) {
+            console.error(fn, e);
+            toast('Sin conexión: no se pudo ' + etiqueta + '.', 'error');
+            return null;
+        });
+    }
+
+    function crearGrupo() {
+        abrirModal('Grupo nuevo',
+            '<p class="cns-confirm-tx">Un grupo es una lista de personas con nombre. No da permisos.</p>' +
+            '<input type="text" id="cns-grupo-nombre-nuevo" class="v-input" maxlength="60" placeholder="Turno matutino" aria-label="Nombre del grupo">',
+            'Crear', 'v-btn-primary',
+            function () {
+                var nombre = ($('cns-grupo-nombre-nuevo').value || '').trim();
+                if (!nombre) { toast('Ponle un nombre al grupo.', 'warn'); return; }
+                cerrarModal();
+                guardarGrupo('grpGuardar', [AppSession.userEmail, { nombre: nombre }], 'crear el grupo')
+                    .then(function (r) { if (r && r.id) { grupoAbierto = r.id; pintarGrupos(); } });
+            });
+        var campo = $('cns-grupo-nombre-nuevo');
+        if (campo) campo.focus();
+    }
+
+    /**
+     * Copiar los correos (T9.2). Separados por coma, que es lo que Gmail pega directo en
+     * Para o CCO. Solo van los alcanzables: pegar en un correo a alguien que ya no está
+     * dado de alta es un rebote garantizado.
+     */
+    function copiarCorreos(id) {
+        var g = grupoPorId(id);
+        if (!g) return;
+        var correos = (g.miembros || []).filter(function (p) { return p.alta && p.activo; })
+                                        .map(function (p) { return p.email; });
+        if (!correos.length) { toast('Ese grupo no tiene a nadie a quien escribir.', 'warn'); return; }
+
+        var texto = correos.join(', ');
+        var listo = function () { toast(correos.length + ' correo(s) copiados. Pégalos en Para o CCO.', 'ok'); };
+        if (navigator.clipboard && navigator.clipboard.writeText) {
+            navigator.clipboard.writeText(texto).then(listo, function () { copiarALaAntigua(texto, listo); });
+        } else {
+            copiarALaAntigua(texto, listo);
+        }
+    }
+
+    /* Respaldo para cuando el portapapeles moderno no está disponible: dentro de un iframe
+       sin permiso, navigator.clipboard falla en silencio, y quedarse sin copiar tampoco avisa. */
+    function copiarALaAntigua(texto, listo) {
+        try {
+            var ta = document.createElement('textarea');
+            ta.value = texto;
+            ta.setAttribute('readonly', '');
+            ta.style.position = 'fixed';
+            ta.style.opacity = '0';
+            document.body.appendChild(ta);
+            ta.select();
+            var ok = document.execCommand('copy');
+            document.body.removeChild(ta);
+            if (ok) listo(); else toast('Tu navegador no dejó copiar. Selecciónalos a mano.', 'warn');
+        } catch (e) {
+            toast('Tu navegador no dejó copiar. Selecciónalos a mano.', 'warn');
+        }
+    }
+
+    // ── Difusión (T9.3) ──────────────────────────────────────────────────────
+    //
+    // DECISIÓN TÉCNICA, declarada antes de escribir. El plan proponía un `contenteditable`
+    // acotado. Se hace por BLOQUES, como el editor de artículos de F8 y por el mismo motivo
+    // escrito allí: un contenteditable produce el HTML que se le antoje al navegador, y
+    // convertirlo después en algo de forma conocida es el trabajo que nadie gana. Aquí lo que
+    // se escribe es TEXTO y lo que viaja al servidor es un objeto de forma conocida.
+    //
+    // La libertad que sí hacía falta —negrita, cursiva y enlaces DENTRO de una frase— se
+    // resuelve con tres botones que envuelven lo seleccionado en el propio campo. El usuario
+    // selecciona y pulsa, como en cualquier editor; lo que queda debajo sigue siendo texto,
+    // y el cliente lo convierte en partes antes de mandarlo. La vista previa la pinta el
+    // SERVIDOR con el correo de verdad, así que nadie tiene que fiarse de esta explicación.
+
+    var dif = { bloques: [], grupoId: '', abierto: false, enviando: false, cuota: -1 };
+
+    function abrirDifusion(grupoId) {
+        dif.grupoId = grupoId || '';
+        dif.abierto = true;
+        dif.foco = document.activeElement;   // a dónde devolverlo al cerrar
+        if (!dif.bloques.length) dif.bloques = [{ tipo: 'parrafo', texto: '' }];
+
+        $('cns-dif-fondo').hidden = false;
+        document.body.style.overflow = 'hidden';
+        pintarDifBloques();
+        pintarDifGrupos();
+
+        llamar('difPreparar', [AppSession.userEmail]).then(function (r) {
+            if (!r || !r.success) { toast((r && r.message) || 'No se pudo preparar la difusión.', 'error'); return; }
+            D.grupos = r.grupos || D.grupos;
+            dif.cuota = r.cuota;
+            pintarDifGrupos();
+            pintarGrupos();
+        }).catch(function () { toast('Sin conexión: no se pudo preparar la difusión.', 'error'); });
+
+        var asunto = $('cns-dif-asunto');
+        if (asunto) asunto.focus();
+    }
+
+    function cerrarDifusion() {
+        dif.abierto = false;
+        $('cns-dif-fondo').hidden = true;
+        document.body.style.overflow = '';
+        // El foco vuelve de donde salió: si no, se queda en un nodo escondido y el siguiente
+        // tabulador arranca desde el principio de la página.
+        if (dif.foco && dif.foco.focus) { try { dif.foco.focus(); } catch (e) {} }
+        dif.foco = null;
+    }
+
+    /**
+     * El tabulador no se sale del redactor mientras está abierto.
+     *
+     * Sin esto, el diálogo dice `aria-modal` y miente: la consola de debajo sigue siendo
+     * tabulable, así que con el teclado se llega a botones que el velo tapa —y que hacen cosas.
+     */
+    function difAtraparFoco(e) {
+        if (e.key !== 'Tab' || !dif.abierto) return;
+        var caja = $('cns-dif-fondo').querySelector('.cns-dif');
+        if (!caja) return;
+        var focos = caja.querySelectorAll('a[href], button:not([disabled]), input:not([disabled]), ' +
+                                          'select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])');
+        if (!focos.length) return;
+        var primero = focos[0], ultimo = focos[focos.length - 1];
+        if (e.shiftKey && document.activeElement === primero) { e.preventDefault(); ultimo.focus(); }
+        else if (!e.shiftKey && document.activeElement === ultimo) { e.preventDefault(); primero.focus(); }
+    }
+
+    function pintarDifGrupos() {
+        var sel = $('cns-dif-grupo');
+        sel.innerHTML = (D.grupos || []).map(function (g) {
+            return '<option value="' + esc(g.id) + '"' + (g.id === dif.grupoId ? ' selected' : '') + '>' +
+                   esc(g.nombre) + ' · ' + num(g.alcanzables) + '</option>';
+        }).join('');
+        var g = grupoPorId(sel.value || dif.grupoId);
+        $('cns-dif-sub').textContent = g
+            ? ('Va en copia oculta a ' + g.alcanzables + ' persona(s) de «' + g.nombre + '».')
+            : 'Elige el grupo al que va.';
+        $('cns-dif-cuota').textContent = dif.cuota >= 0
+            ? ('Cuota de hoy: ' + num(dif.cuota) + ' correos.') : '';
+    }
+
+    function pintarDifBloques() {
+        $('cns-dif-bloques').innerHTML = dif.bloques.map(function (b, i) {
+            var cabeza = '<div class="cns-dif-bloque-top"><span class="et">' + esc(etiquetaBloque(b.tipo)) + '</span>' +
+                '<span class="acc">' +
+                    (b.tipo === 'parrafo' || b.tipo === 'lista'
+                        ? '<button type="button" data-dif-fmt="negrita" data-i="' + i + '" title="Negrita en lo seleccionado"><b>N</b></button>' +
+                          '<button type="button" data-dif-fmt="cursiva" data-i="' + i + '" title="Cursiva en lo seleccionado"><i>K</i></button>' +
+                          '<button type="button" data-dif-fmt="enlace" data-i="' + i + '" title="Enlace en lo seleccionado">🔗</button>'
+                        : '') +
+                    '<button type="button" data-dif-sube="' + i + '" title="Subir">↑</button>' +
+                    '<button type="button" data-dif-baja="' + i + '" title="Bajar">↓</button>' +
+                    '<button type="button" data-dif-quita="' + i + '" title="Quitar">×</button>' +
+                '</span></div>';
+
+            if (b.tipo === 'separador') return '<div class="cns-dif-bloque">' + cabeza + '</div>';
+
+            if (b.tipo === 'imagen') {
+                /* Se pinta con la URL de objeto del archivo, no con el base64. Meter dos megas
+                   de data: URI en el HTML —y escaparlos en cada repintado— costaba más que
+                   toda la pantalla junta, y el base64 solo hace falta para mandarlo. */
+                return '<div class="cns-dif-bloque">' + cabeza +
+                    '<img src="' + esc(b.url || '') + '" alt="">' +
+                    '<input type="text" class="v-input" data-dif-campo="pie" data-i="' + i + '" ' +
+                        'value="' + esc(b.pie || '') + '" placeholder="Pie de la imagen (opcional)" aria-label="Pie de la imagen">' +
+                '</div>';
+            }
+
+            if (b.tipo === 'boton') {
+                return '<div class="cns-dif-bloque">' + cabeza +
+                    '<div class="fila">' +
+                        '<input type="text" class="v-input" data-dif-campo="texto" data-i="' + i + '" value="' + esc(b.texto || '') + '" placeholder="Abrir el portal" aria-label="Texto del botón">' +
+                        '<input type="url" class="v-input" data-dif-campo="url" data-i="' + i + '" value="' + esc(b.url || '') + '" placeholder="https://…" aria-label="Enlace del botón">' +
+                    '</div>' +
+                    '<p class="cns-dif-ayuda">Solo enlaces https.</p>' +
+                '</div>';
+            }
+
+            if (b.tipo === 'nota') {
+                return '<div class="cns-dif-bloque">' + cabeza +
+                    '<div class="fila">' +
+                        '<input type="text" class="v-input" data-dif-campo="titulo" data-i="' + i + '" value="' + esc(b.titulo || '') + '" placeholder="Título (opcional)" aria-label="Título de la nota">' +
+                        '<select class="v-select" data-dif-campo="tono" data-i="' + i + '" aria-label="Tono de la nota" style="flex:0 0 9rem">' +
+                            '<option value=""' + (!b.tono ? ' selected' : '') + '>Informativa</option>' +
+                            '<option value="ok"' + (b.tono === 'ok' ? ' selected' : '') + '>Buena noticia</option>' +
+                            '<option value="warn"' + (b.tono === 'warn' ? ' selected' : '') + '>Atención</option>' +
+                        '</select>' +
+                    '</div>' +
+                    '<textarea class="v-input" data-dif-campo="texto" data-i="' + i + '" rows="2" placeholder="Lo que hay que destacar">' + esc(b.texto || '') + '</textarea>' +
+                '</div>';
+            }
+
+            // parrafo, titulo y lista: todo texto.
+            var marcador = b.tipo === 'titulo' ? 'Un subtítulo corto'
+                         : b.tipo === 'lista' ? 'Un punto por línea' : 'Escribe aquí';
+            return '<div class="cns-dif-bloque">' + cabeza +
+                '<textarea class="v-input" data-dif-campo="texto" data-i="' + i + '" ' +
+                    'rows="' + (b.tipo === 'titulo' ? 1 : 3) + '" placeholder="' + esc(marcador) + '">' + esc(b.texto || '') + '</textarea>' +
+                (b.tipo === 'lista' ? '<p class="cns-dif-ayuda">Cada línea es un punto.</p>' : '') +
+            '</div>';
+        }).join('');
+    }
+
+    function etiquetaBloque(t) {
+        return { parrafo: 'Párrafo', titulo: 'Título', lista: 'Lista', nota: 'Nota',
+                 boton: 'Botón', imagen: 'Imagen', separador: 'Separador' }[t] || t;
+    }
+
+    function difAgregar(tipo) {
+        if (tipo === 'imagen') { $('cns-dif-archivo').click(); return; }
+        dif.bloques.push({ tipo: tipo, texto: '', titulo: '', url: '', tono: '' });
+        pintarDifBloques();
+        var campos = $('cns-dif-bloques').querySelectorAll('[data-dif-campo]');
+        if (campos.length) campos[campos.length - 1].focus();
+    }
+
+    /** Envuelve lo seleccionado dentro del campo con las marcas que entiende partesDeTexto. */
+    function difFormato(i, que) {
+        var campo = $('cns-dif-bloques').querySelector('[data-dif-campo="texto"][data-i="' + i + '"]');
+        if (!campo) return;
+        var ini = campo.selectionStart, fin = campo.selectionEnd;
+        if (ini === fin) { toast('Selecciona primero el texto que quieres cambiar.', 'warn'); return; }
+        var sel = campo.value.slice(ini, fin);
+        var nuevo;
+        if (que === 'negrita') nuevo = '**' + sel + '**';
+        else if (que === 'cursiva') nuevo = '__' + sel + '__';
+        else {
+            var url = window.prompt('¿A dónde lleva «' + sel + '»? (https://…)', 'https://');
+            if (!url || url.indexOf('https://') !== 0) {
+                if (url) toast('Solo se aceptan enlaces https.', 'warn');
+                return;
+            }
+            nuevo = '[' + sel + '](' + url + ')';
+        }
+        campo.value = campo.value.slice(0, ini) + nuevo + campo.value.slice(fin);
+        dif.bloques[i].texto = campo.value;
+        campo.focus();
+        campo.setSelectionRange(ini, ini + nuevo.length);
+    }
+
+    /**
+     * Texto con marcas → partes {t, negrita, cursiva, url}.
+     * Es el único sitio donde existen las marcas: al servidor solo le llegan partes, y por
+     * eso da igual que alguien escriba `**` a mano o pegue algo con corchetes.
+     */
+    function partesDeTexto(texto) {
+        var out = [];
+        var resto = String(texto == null ? '' : texto);
+        var re = /(\*\*([^*]+)\*\*)|(__([^_]+)__)|(\[([^\]]+)\]\((https:\/\/[^\s)]+)\))/;
+        var m;
+        while ((m = re.exec(resto)) !== null) {
+            if (m.index > 0) out.push({ t: resto.slice(0, m.index) });
+            if (m[2] !== undefined) out.push({ t: m[2], negrita: true });
+            else if (m[4] !== undefined) out.push({ t: m[4], cursiva: true });
+            else out.push({ t: m[6], url: m[7] });
+            resto = resto.slice(m.index + m[0].length);
+        }
+        if (resto) out.push({ t: resto });
+        return out.filter(function (p) { return p.t; });
+    }
+
+    /**
+     * Los bloques de la pantalla, en la forma que espera Difusion.gs.
+     * @param {{sinImagenes:boolean}=} op  `sinImagenes` para la vista previa: el base64 no
+     *        pinta nada ahí (el `cid:` solo existe dentro del correo) y mandar ocho megas de
+     *        argumentos en cada «Actualizar» es pagar la subida entera para no ver nada.
+     */
+    function difPayload(op) {
+        var bloques = [];
+        dif.bloques.forEach(function (b) {
+            if (b.tipo === 'parrafo') {
+                String(b.texto || '').split(/\n{2,}/).forEach(function (p) {
+                    var partes = partesDeTexto(p.replace(/\n/g, ' ').trim());
+                    if (partes.length) bloques.push({ tipo: 'parrafo', partes: partes });
+                });
+            } else if (b.tipo === 'titulo') {
+                if ((b.texto || '').trim()) bloques.push({ tipo: 'titulo', texto: b.texto.trim() });
+            } else if (b.tipo === 'lista') {
+                // El guion inicial se quita porque la gente lo escribe por costumbre, pero el
+                // asterisco solo si va SOLO. Quitando cualquier asterisco inicial, una línea
+                // que empezaba en negrita —«**Junta el viernes**»— perdía el primero y llegaba
+                // al correo con los otros tres a la vista.
+                var items = String(b.texto || '').split('\n')
+                    .map(function (l) { return partesDeTexto(l.replace(/^(?:[-•]|\*(?!\*))\s*/, '').trim()); })
+                    .filter(function (p) { return p.length; });
+                if (items.length) bloques.push({ tipo: 'lista', ordenada: false, items: items });
+            } else if (b.tipo === 'nota') {
+                if ((b.texto || '').trim()) {
+                    bloques.push({ tipo: 'nota', titulo: (b.titulo || '').trim(), texto: b.texto.trim(), tono: b.tono || '' });
+                }
+            } else if (b.tipo === 'boton') {
+                if ((b.url || '').trim()) bloques.push({ tipo: 'boton', texto: (b.texto || '').trim(), url: b.url.trim() });
+            } else if (b.tipo === 'imagen') {
+                if (op && op.sinImagenes) return;   // la previa no las pinta: ver la cabecera
+                bloques.push({ tipo: 'imagen', base64: b.base64, mime: b.mime, nombre: b.nombre, pie: b.pie || '' });
+            } else if (b.tipo === 'separador') {
+                bloques.push({ tipo: 'separador' });
+            }
+        });
+        return { grupoId: $('cns-dif-grupo').value || dif.grupoId,
+                 asunto: ($('cns-dif-asunto').value || '').trim(), bloques: bloques };
+    }
+
+    function refrescarPrevia() {
+        var nota = $('cns-dif-nota');
+        var btn = VentelFX.button('#cns-dif-refrescar', 'Armando…');
+        llamar('difPrevia', [AppSession.userEmail, difPayload({ sinImagenes: true })]).then(function (r) {
+            btn.done();
+            if (!r || !r.success) {
+                nota.hidden = false; nota.className = 'cns-mon-nota mal';
+                nota.textContent = (r && r.message) || 'No se pudo armar la vista previa.';
+                return;
+            }
+            // srcdoc y no innerHTML: el correo trae sus propias tablas y estilos.
+            $('cns-dif-previa').srcdoc = r.html;
+            nota.hidden = false;
+            nota.className = 'cns-mon-nota' + (r.descartados ? ' aviso' : '');
+            // Las imágenes no se mandan a la previa, así que se cuentan aquí.
+            var nImagenes = dif.bloques.filter(function (b) { return b.tipo === 'imagen'; }).length;
+            nota.textContent = (r.descartados ? r.descartados + ' bloque(s) se descartaron por estar vacíos o mal formados. ' : '') +
+                (nImagenes ? 'Las ' + nImagenes + ' imagen(es) viajan dentro del correo; aquí no se pintan. ' : '') +
+                'Así se verá en la bandeja.';
+        }).catch(function () {
+            btn.done();
+            nota.hidden = false; nota.className = 'cns-mon-nota mal';
+            nota.textContent = 'Sin conexión: no se pudo armar la vista previa.';
+        });
+    }
+
+    /**
+     * Enviar NO es idempotente: dos llamadas son dos correos a cuarenta personas. Por eso
+     * espera de verdad —nada de guardado optimista—, se bloquea mientras sube, y el envío
+     * al grupo pasa antes por una confirmación con el número de destinatarios delante.
+     */
+    function enviarDifusion(prueba) {
+        if (dif.enviando) return;
+        var payload = difPayload();
+        payload.prueba = prueba === true;
+
+        if (!payload.asunto) { toast('El comunicado necesita un asunto.', 'warn'); return; }
+        if (!payload.bloques.length) { toast('El comunicado está vacío.', 'warn'); return; }
+
+        var g = grupoPorId(payload.grupoId);
+        if (!prueba && !g) { toast('Elige a qué grupo se manda.', 'warn'); return; }
+
+        var mandar = function () {
+            dif.enviando = true;
+            var btn = VentelFX.button(prueba ? '#cns-dif-prueba' : '#cns-dif-enviar', 'Enviando…');
+            llamar('difEnviar', [AppSession.userEmail, payload]).then(function (r) {
+                btn.done(); dif.enviando = false;
+                if (!r || !r.success) { toast((r && r.message) || 'No se pudo enviar.', 'error'); return; }
+                /* Si el servidor descartó bloques, el correo salió INCOMPLETO: un botón con un
+                   enlace que no era https, una imagen que no cabía. Decirlo en verde sería
+                   mentir sobre lo que acaba de recibir el equipo. */
+                if (r.descartados) {
+                    toast(r.message + ' Ojo: ' + r.descartados + ' bloque(s) no salieron (enlace no https, ' +
+                          'imagen demasiado grande o bloque vacío).', 'warn');
+                } else {
+                    toast(r.message, 'ok');
+                }
+                if (!prueba) { cerrarDifusion(); cargar(true); }
+            }).catch(function () {
+                btn.done(); dif.enviando = false;
+                toast('Sin conexión: no sabemos si el comunicado salió. Comprueba tu bandeja de enviados antes de repetirlo.', 'error');
+            });
+        };
+
+        if (prueba) return mandar();
+
+        abrirModal('Enviar el comunicado',
+            '<p class="cns-confirm-tx">Va a salir a <strong>' + esc(String(g.alcanzables)) + ' persona(s)</strong> de ' +
+            '«' + esc(g.nombre) + '», en copia oculta. Esto no se puede deshacer.</p>',
+            'Enviar', 'v-btn-primary',
+            function () { cerrarModal(); mandar(); });
+    }
+
+    /**
+     * Imágenes: se leen en el navegador y viajan en base64 dentro del payload.
+     *
+     * Los topes se comprueban AQUÍ además de en el servidor, y no por desconfianza: el servidor
+     * descarta lo que no cabe DESPUÉS de que el navegador haya subido veinte megas por una
+     * conexión de oficina, y el usuario se entera al final. Contarlos antes es la diferencia
+     * entre «no caben, quita una» y un minuto de espera para un correo incompleto.
+     *
+     * Y se repinta UNA vez, al terminar todas las lecturas: cada FileReader vuelve cuando
+     * quiere, y repintar en cada una le arrancaba el cursor a quien estuviera escribiendo el
+     * pie de la anterior.
+     */
+    var DIF_MAX_IMAGENES = 4;
+    var DIF_MAX_BYTES = 6 * 1024 * 1024;
+
+    function difTomarImagenes(archivos) {
+        var lista = Array.prototype.slice.call(archivos || []).filter(function (f) {
+            return f && String(f.type || '').indexOf('image/') === 0;
+        });
+        if (!lista.length) return;
+
+        var yaHay = dif.bloques.filter(function (b) { return b.tipo === 'imagen'; });
+        var bytes = yaHay.reduce(function (s, b) { return s + (b.bytes || 0); }, 0);
+        var hueco = DIF_MAX_IMAGENES - yaHay.length;
+        if (hueco <= 0) {
+            toast('Un comunicado admite ' + DIF_MAX_IMAGENES + ' imágenes. Quita alguna para añadir otra.', 'warn');
+            return;
+        }
+
+        var aceptadas = [];
+        var rechazadas = 0;
+        lista.forEach(function (f) {
+            if (aceptadas.length >= hueco) { rechazadas++; return; }
+            if (bytes + f.size > DIF_MAX_BYTES) { rechazadas++; return; }
+            bytes += f.size;
+            aceptadas.push(f);
+        });
+        if (rechazadas) {
+            toast('No caben ' + rechazadas + ' imagen(es): el tope son ' + DIF_MAX_IMAGENES +
+                  ' y unos 6 MB en total.', 'warn');
+        }
+        if (!aceptadas.length) return;
+
+        var pendientes = aceptadas.length;
+        aceptadas.forEach(function (f) {
+            var lector = new FileReader();
+            lector.onloadend = function () {
+                var url = String((lector.result) || '');
+                var coma = url.indexOf(',');
+                if (coma > -1) {
+                    dif.bloques.push({
+                        tipo: 'imagen', base64: url.slice(coma + 1), mime: f.type,
+                        nombre: f.name || 'imagen', pie: '',
+                        bytes: f.size,
+                        // Para pintarla en el lienzo sin arrastrar el base64 por el DOM.
+                        url: URL.createObjectURL(f)
+                    });
+                }
+                if (--pendientes === 0) pintarDifBloques();
+            };
+            lector.readAsDataURL(f);
+        });
+    }
+
+    // ── Monitoreo (T9.4) ─────────────────────────────────────────────────────
+
+    var mon = { vista: 'cotizaciones', panorama: null, filas: [], columnas: [], titulo: '' };
+
+    /* Qué columnas tiene cada vista. Una sola tabla las pinta todas: las cuatro consultas
+       del servidor contestan con la misma forma, y así el CSV también sale de un solo sitio. */
+    var MON_COLUMNAS = {
+        cotizaciones: [
+            { c: 'fecha', et: 'Cuándo', fecha: true }, { c: 'folio', et: 'Folio' },
+            { c: 'cliente', et: 'Cliente' }, { c: 'correo', et: 'Correo' },
+            { c: 'telefono', et: 'Teléfono' }, { c: 'total', et: 'Total', num: true },
+            { c: 'estatus', et: 'Estatus' }, { c: 'asesorNombre', et: 'Asesor' }
+        ],
+        correos: [
+            { c: 'fecha', et: 'Cuándo', fecha: true }, { c: 'tipo', et: 'Tipo' },
+            { c: 'para', et: 'Para' }, { c: 'asunto', et: 'Asunto' },
+            { c: 'resultado', et: 'Resultado' }, { c: 'plantillaModificada', et: '¿Plantilla tocada?' },
+            { c: 'cco', et: 'CCO', num: true }, { c: 'asesorNombre', et: 'Asesor' }
+        ],
+        busquedas: [
+            { c: 'fecha', et: 'Cuándo', fecha: true }, { c: 'termino', et: 'Qué buscó' },
+            { c: 'nombre', et: 'Quién' }, { c: 'origen', et: 'Dónde' },
+            { c: 'resultados', et: 'Resultados', num: true }
+        ],
+        cambios: [
+            { c: 'fecha', et: 'Cuándo', fecha: true }, { c: 'quien', et: 'Quién' },
+            { c: 'accion', et: 'Qué' }, { c: 'objetivo', et: 'Sobre' }, { c: 'detalle', et: 'Detalle' }
+        ]
+    };
+
+    var MON_FUNCION = { cotizaciones: 'monCotizaciones', correos: 'monCorreos',
+                        busquedas: 'monBusquedas', cambios: 'monCambios' };
+
+    function prepararMonitoreo() {
+        if (mon.panorama) { pintarMonFiltros(); return; }
+        llamar('monPanorama', [AppSession.userEmail]).then(function (r) {
+            if (!r || !r.success) {
+                $('cns-mon-vacio').textContent = (r && r.message) || 'No se pudo preparar la sección.';
+                return;
+            }
+            mon.panorama = r;
+            $('cns-mon-desde').value = r.rangoPorDefecto.desde;
+            $('cns-mon-hasta').value = r.rangoPorDefecto.hasta;
+            $('cns-mon-asesor').innerHTML = '<option value="">Todas</option>' +
+                (r.personas || []).map(function (p) {
+                    return '<option value="' + esc(p.email) + '">' + esc(p.nombre || p.email) + '</option>';
+                }).join('');
+            $('cns-mon-tipo').innerHTML = '<option value="">Todos</option>' +
+                (r.tiposCorreo || []).map(function (t) {
+                    return '<option value="' + esc(t) + '">' + esc(t) + '</option>';
+                }).join('');
+            $('cns-mon-alcance').textContent = r.alcance === 'sistema'
+                ? 'Cuánto y quién, en todo el sistema.'
+                : 'Cuánto y quién, dentro de tu equipo: solo sale la gente de tu nivel hacia abajo.';
+            pintarMonFiltros();
+        }).catch(function () {
+            $('cns-mon-vacio').textContent = 'Sin conexión con el sistema.';
+        });
+    }
+
+    /** Cada vista enseña los filtros que le sirven y esconde los que no significan nada. */
+    function pintarMonFiltros() {
+        var v = mon.vista;
+        $('cns-mon-campo-cliente').hidden = v !== 'cotizaciones';
+        $('cns-mon-campo-tel').hidden     = v !== 'cotizaciones';
+        $('cns-mon-campo-tipo').hidden    = v !== 'correos';
+        $('cns-mon-texto-et').textContent = {
+            cotizaciones: 'Folio o cliente', correos: 'Asunto o destinatario',
+            busquedas: 'Término', cambios: 'Acción o persona'
+        }[v] || 'Texto';
+        Array.prototype.forEach.call(document.querySelectorAll('.cns-mon-vista'), function (b) {
+            b.setAttribute('aria-selected', b.getAttribute('data-vista') === v ? 'true' : 'false');
+        });
+    }
+
+    function consultarMonitoreo() {
+        var fn = MON_FUNCION[mon.vista];
+        var filtros = {
+            desde: $('cns-mon-desde').value, hasta: $('cns-mon-hasta').value,
+            horaDesde: $('cns-mon-hora-desde').value, horaHasta: $('cns-mon-hora-hasta').value,
+            asesor: $('cns-mon-asesor').value, texto: ($('cns-mon-texto').value || '').trim(),
+            tipo: $('cns-mon-tipo').value,
+            cliente: ($('cns-mon-cliente').value || '').trim(),
+            telefono: ($('cns-mon-telefono').value || '').trim()
+        };
+
+        var btn = VentelFX.button('#cns-mon-consultar', 'Consultando…');
+        /* El esqueleto va dentro de un <td>, no en el <tbody>: es el patrón que ya usa la
+           bitácora, y meter divs sueltos dentro de un tbody deja al navegador reacomodando
+           nodos por su cuenta. El colspan se ajusta a las columnas de la vista abierta. */
+        var cols = (MON_COLUMNAS[mon.vista] || []).length || 5;
+        $('cns-mon-tbody').innerHTML = '<tr><td colspan="' + cols + '" id="cns-sk-mon"></td></tr>';
+        var sk = VentelFX.skeleton('#cns-sk-mon', 'tabla', { rows: 6, cols: cols });
+        $('cns-mon-vacio').hidden = true;
+
+        llamar(fn, [AppSession.userEmail, filtros]).then(function (r) {
+            btn.done(); if (sk) sk.done();
+            if (!r || !r.success) {
+                mon.filas = [];
+                pintarMonTabla();
+                $('cns-mon-vacio').hidden = false;
+                $('cns-mon-vacio').textContent = (r && r.message) || 'No se pudo consultar.';
+                return;
+            }
+            mon.filas = r.filas || [];
+            mon.titulo = mon.vista;
+            pintarMonTabla();
+
+            var nota = $('cns-mon-nota');
+            var trozos = [num(mon.filas.length) + ' fila(s)'];
+            if (r.total !== undefined && mon.vista === 'cotizaciones') {
+                trozos.push('total ' + Number(r.total || 0).toLocaleString('es-MX', { style: 'currency', currency: 'MXN' }));
+            }
+            if (mon.vista === 'correos' && r.errores !== undefined) trozos.push(r.errores + ' con error');
+            if (r.leidas) trozos.push('se revisaron ' + num(r.leidas) + ' renglones de la hoja');
+            if (r.completado) trozos.push('faltaba una fecha, se tomó ' + r.completado);
+            nota.hidden = false;
+            nota.className = 'cns-mon-nota' + (r.truncado ? ' aviso' : '');
+            nota.textContent = trozos.join(' · ') +
+                (r.truncado ? ' · La consulta se cortó al llegar al tope. Acorta el periodo para verlo todo.' : '');
+
+            if (mon.vista === 'busquedas' && (r.top || []).length) {
+                nota.textContent += ' · Lo más buscado: ' +
+                    r.top.slice(0, 5).map(function (t) { return t.termino + ' (' + t.veces + ')'; }).join(', ');
+            }
+        }).catch(function (e) {
+            btn.done(); if (sk) sk.done();
+            console.error(fn, e);
+            $('cns-mon-vacio').hidden = false;
+            $('cns-mon-vacio').textContent = 'Sin conexión con el sistema.';
+        });
+    }
+
+    function pintarMonTabla() {
+        var cols = MON_COLUMNAS[mon.vista] || [];
+        mon.columnas = cols;
+        $('cns-mon-thead').innerHTML = cols.map(function (c) {
+            return '<th scope="col"' + (c.num ? ' class="num"' : '') + '>' + esc(c.et) + '</th>';
+        }).join('');
+
+        $('cns-mon-csv').disabled = !mon.filas.length;
+
+        if (!mon.filas.length) {
+            $('cns-mon-tbody').innerHTML = '';
+            $('cns-mon-vacio').hidden = false;
+            $('cns-mon-vacio').textContent = 'Nada en ese periodo con esos filtros.';
+            return;
+        }
+        $('cns-mon-vacio').hidden = true;
+        $('cns-mon-tbody').innerHTML = mon.filas.map(function (f) {
+            return '<tr>' + cols.map(function (c) {
+                var v = f[c.c];
+                if (c.fecha) return '<td class="cns-bit-fecha">' + esc(fecha(v)) + '</td>';
+                if (c.num) return '<td class="num">' + esc(v == null || v === '' ? '—' : num(v)) + '</td>';
+                return '<td>' + esc(v == null || v === '' ? '—' : v) + '</td>';
+            }).join('') + '</tr>';
+        }).join('');
+    }
+
+    function descargarMonitoreo() {
+        if (!mon.filas.length) return;
+        var cols = mon.columnas;
+        descargarCSV('Ventel_' + mon.vista + '_' + ($('cns-mon-desde').value || '') + '_' + ($('cns-mon-hasta').value || '') + '.csv',
+            cols.map(function (c) { return c.et; }),
+            mon.filas.map(function (f) {
+                return cols.map(function (c) { return c.fecha ? fecha(f[c.c]) : f[c.c]; });
+            }));
+        if (window.AppMotion) AppMotion.pop($('cns-mon-csv'));
+        toast('CSV descargado: ' + mon.filas.length + ' fila(s).', 'ok');
+    }
+
+    // ── Bitácora por fechas (T9.5) ───────────────────────────────────────────
+
+    function consultarBitacoraRango() {
+        var desde = $('cns-bit-desde').value, hasta = $('cns-bit-hasta').value;
+        if (!desde || !hasta) { toast('Elige las dos fechas del periodo.', 'warn'); return; }
+
+        var btn = VentelFX.button('#cns-bit-consultar', 'Buscando…');
+        llamar('consolaBitacoraRango', [AppSession.userEmail, desde, hasta]).then(function (r) {
+            btn.done();
+            var nota = $('cns-bit-nota');
+            if (!r || !r.success) {
+                nota.hidden = false; nota.className = 'cns-mon-nota mal';
+                nota.textContent = (r && r.message) || 'No se pudo consultar.';
+                return;
+            }
+            D.bitacora = r.bitacora || [];
+            pintarBitacora();
+            $('cns-bit-csv').disabled = !D.bitacora.length;
+            nota.hidden = false;
+            nota.className = 'cns-mon-nota' + (r.truncado ? ' aviso' : '');
+            nota.textContent = num(D.bitacora.length) + ' movimiento(s) entre esas fechas' +
+                (r.leidas ? ' · se revisaron ' + num(r.leidas) + ' renglones' : '') +
+                (r.truncado ? ' · La consulta se cortó al llegar al tope; acorta el periodo.' : '');
+        }).catch(function () {
+            btn.done();
+            var nota = $('cns-bit-nota');
+            nota.hidden = false; nota.className = 'cns-mon-nota mal';
+            nota.textContent = 'Sin conexión con el sistema.';
+        });
+    }
+
+    function descargarBitacora() {
+        if (!(D.bitacora || []).length) return;
+        descargarCSV('Ventel_bitacora_' + ($('cns-bit-desde').value || '') + '_' + ($('cns-bit-hasta').value || '') + '.csv',
+            ['Cuándo', 'Quién', 'Qué', 'Sobre', 'Detalle'],
+            D.bitacora.map(function (b) { return [fecha(b.fecha), b.quien, b.accion, b.objetivo, b.detalle]; }));
+        if (window.AppMotion) AppMotion.pop($('cns-bit-csv'));
+        toast('CSV descargado: ' + D.bitacora.length + ' movimiento(s).', 'ok');
+    }
 
     // ── Interruptores que llaman al servidor ─────────────────────────────────
 
