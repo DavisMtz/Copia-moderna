@@ -64,9 +64,21 @@
   flex: 1 1 auto; min-height: 0;
   overflow-y: auto; overflow-x: hidden; overscroll-behavior: contain;
   display: flex; flex-direction: column; gap: var(--side-gap);
-  /* Aire para la barra de desplazamiento, recuperado con el margen negativo para que
-     los enlaces sigan alineados con la marca y con el pie. */
-  padding-right: .3rem; margin-right: -.3rem;
+  /* EL CARRIL BLANCO DEL ENLACE ACTIVO depende de esto, y no es un detalle de estilo.
+     `.side-link.active::before` vive en `left:-1rem`, o sea FUERA de la caja del enlace,
+     y hasta ahora sobrevivía porque quien recortaba era `.sidebar` y ese -1rem era justo
+     su acolchado. Al mudar el scroll aquí, quien recorta pasa a ser esta caja: con
+     `overflow-x:hidden`, el carril se cortaba entero y el enlace activo perdía su marca.
+     Con el margen negativo esta zona ocupa la barra de lado a lado y devuelve el
+     acolchado por dentro, así que el carril cae dentro de la caja de relleno y se ve.
+     Es el mismo remedio que Index.html ya aplica a su propia barra. */
+  margin-inline: calc(var(--side-pad-x) * -1);
+  padding-inline: var(--side-pad-x);
+  /* Un corte seco arriba o abajo no dice «hay más»: dice «se acabó». El degradado avisa
+     de que la lista sigue, que es lo único que hace falta para que alguien pruebe a
+     desplazarla. */
+  mask-image: linear-gradient(to bottom, transparent 0, #000 10px, #000 calc(100% - 14px), transparent 100%);
+  -webkit-mask-image: linear-gradient(to bottom, transparent 0, #000 10px, #000 calc(100% - 14px), transparent 100%);
 }
 .side-nav { display: flex; flex-direction: column; gap: var(--side-gap); }
 .side-scroll::-webkit-scrollbar { width: 8px; }
@@ -92,6 +104,43 @@
 .side-brand .sb-sub small { display: block; font-size: .58rem; letter-spacing: .16em; color: var(--side-faint); font-weight: 700; }
 
 .side-label { font-size: .6rem; font-weight: 800; letter-spacing: .18em; text-transform: uppercase; color: var(--side-faint); padding: .7rem .65rem .35rem; }
+
+/* ── Apartado plegable ──────────────────────────────────────────────────────
+   El rótulo del apartado era texto muerto; ahora es el control que abre su lista. Con
+   rol maestro son dieciséis filas y en un portátil de 768 px no caben: plegar el
+   apartado en el que no estás deja el resto del menú a la vista sin desplazarse.
+
+   Es EL MISMO patrón que ya corre en Index.html y en Promociones.html —mismo nombre de
+   clases, misma técnica, mismas claves 'ventel-nav-*'—, portado a propósito en vez de
+   inventar una cuarta variante: si se toca uno, se tocan los tres.
+
+   El plegado se anima con `grid-template-rows: 1fr → 0fr`, que es CSS puro: no hay que
+   medir alturas, no hace falta JavaScript para animar y sobrevive a un CDN caído. */
+.side-group-tog {
+  display: flex; align-items: center; gap: .4rem; width: 100%;
+  border: none; background: transparent; cursor: pointer; font-family: inherit; text-align: left;
+  border-radius: 8px; transition: color .2s, background .2s;
+}
+.side-group-tog:hover { color: var(--side-ink-soft); background: rgba(255,255,255,.06); }
+.side-group-tog:focus-visible { outline: 2px solid #fff; outline-offset: -2px; }
+.side-group-tog .side-group-chev { width: 14px; height: 14px; margin-left: auto; flex: none; transition: transform .28s cubic-bezier(.32,.72,0,1); }
+.side-group-tog[aria-expanded="false"] .side-group-chev { transform: rotate(-90deg); }
+/* Un apartado CERRADO que contiene la pantalla abierta se marca con un punto: sin él,
+   plegar «Gestión» borra el único rastro de dónde estás. */
+.side-group-tog .side-group-dot { width: 6px; height: 6px; border-radius: 50%; background: #fff; flex: none; opacity: 0; transition: opacity .2s; }
+.side-group-tog[aria-expanded="false"].tiene-activo .side-group-dot { opacity: 1; }
+.side-group-tog.tiene-activo { color: var(--side-ink-soft); }
+.side-group { display: grid; grid-template-rows: 1fr; transition: grid-template-rows .28s cubic-bezier(.32,.72,0,1); }
+.side-group[data-collapsed="true"] { grid-template-rows: 0fr; }
+/* El margen negativo + acolchado compensan el recorte: sin ellos, `overflow:hidden` se
+   come la barrita blanca de `.side-link.active::before`, que vive fuera de la caja. */
+.side-group .side-group-inner {
+  display: flex; flex-direction: column; gap: var(--side-gap); min-height: 0; overflow: hidden;
+  margin-left: calc(var(--side-pad-x) * -1); padding-left: var(--side-pad-x);
+}
+@media (prefers-reduced-motion: reduce) {
+  .side-group, .side-group-tog .side-group-chev { transition: none; }
+}
 
 /* ── Conmutador de área (IDÉNTICO en Portal, Cotizaciones y Correos) ──
    Permite saltar entre los tres mundos de la app desde cualquier pantalla. */
@@ -146,9 +195,14 @@ html[data-contrast="high"] .app-switch-item.active { box-shadow: inset 0 0 0 1.5
 /* La DENSIDAD, que el usuario ya ve y ya elige en el pie, por fin toca la barra: es
    donde más se nota —doce filas por lo que ahorre cada una— y era justo donde no hacía
    nada, así que pulsar «Compacto» no movía ni un píxel del menú. */
-html[data-density="compact"] .sidebar { --side-fila-y: .44rem; --side-gap: .12rem; }
+html[data-density="compact"] .sidebar { --side-fila-y: .52rem; --side-gap: .14rem; }
 html[data-density="compact"] .app-switch-item { padding-block: .32rem; }
 html[data-density="compact"] .side-label { padding-block: .5rem .25rem; }
+/* La fila más apretada SOLO donde hay ratón: 32 px es un objetivo táctil malo, y estas
+   pantallas también se usan en la tableta del piso de venta. */
+@media (pointer: fine) {
+  html[data-density="compact"] .sidebar { --side-fila-y: .44rem; --side-gap: .12rem; }
+}
 
 /* ── Pie de barra: «Acerca de» + tema + ajustes de vista ──
    Ya no necesita `margin-top:auto`: lo ancla el layout de tres zonas. Ese `auto` era
@@ -300,6 +354,7 @@ html[data-density="compact"] .side-label { padding-block: .5rem .25rem; }
   var IC_CHART = '<svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M4 20V10M10 20V4M16 20v-7M22 20H2"/></svg>';
   var IC_SLID  = '<svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M4 6h10M18 6h2M4 12h2M10 12h10M4 18h7M15 18h5"/><circle cx="16" cy="6" r="2"/><circle cx="8" cy="12" r="2"/><circle cx="13" cy="18" r="2"/></svg>';
   var IC_CHEV  = '<svg class="ic vp-chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m6 9 6 6 6-6"/></svg>';
+  var IC_CHEV_G = '<svg class="ic side-group-chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m6 9 6 6 6-6"/></svg>';
   var IC_MENU  = '<svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M4 7h16M4 12h16M4 17h16"/></svg>';
   var IC_OUT   = '<svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M15 12H4M11 8l-4 4 4 4"/><path d="M9 4h8a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2h-8"/></svg>';
   var IC_GLOBE = '<svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M3 12h18M12 3a14.5 14.5 0 0 1 0 18 14.5 14.5 0 0 1 0-18Z"/></svg>';
@@ -456,20 +511,40 @@ html[data-density="compact"] .side-label { padding-block: .5rem .25rem; }
       return '<button class="' + cls + '"' + pre + aqui + (extra || '') +
              ' onclick="AppShell.nav(\'' + page + '\')">' + icon + ' ' + label + '</button>';
     }
+    /**
+     * Un apartado PLEGABLE. El rótulo pasa de <span> a <button> conservando .side-label,
+     * así que se ve exactamente igual que antes; lo que cambia es que ahora abre y
+     * cierra su lista. Abierto por omisión: quien nunca lo toque ve el menú de siempre.
+     */
+    function grupo(id, rotulo, tieneActivo, hijos) {
+      if (!hijos) return '';
+      return '<button type="button" class="side-label side-group-tog' + (tieneActivo ? ' tiene-activo' : '') +
+        '" data-group="' + id + '" aria-expanded="true" aria-controls="grp-' + id + '"' +
+        ' onclick="AppShell.toggleGrupo(\'' + id + '\')">' +
+        '<span>' + esc(rotulo) + '</span>' +
+        '<span class="side-group-dot"></span>' + IC_CHEV_G +
+        '</button>' +
+        '<div class="side-group" id="grp-' + id + '" data-group="' + id + '" data-collapsed="false">' +
+          '<div class="side-group-inner">' + hijos + '</div>' +
+        '</div>';
+    }
+
     /** Devuelve el apartado solo si al menos uno de sus enlaces sobrevivió al filtro. */
-    function apartado(rotulo, entradas) {
-      var html = entradas.filter(function (e) { return puede(e[0]); })
-                         .map(function (e) { return link(e[1], e[2], e[3]); })
-                         .join('');
-      return html ? ('<span class="side-label">' + rotulo + '</span>' + html) : '';
+    function apartado(id, rotulo, entradas) {
+      var visibles = entradas.filter(function (e) { return puede(e[0]); });
+      if (!visibles.length) return '';
+      var tieneActivo = visibles.some(function (e) { return e[1] === active; });
+      return grupo(id, rotulo, tieneActivo,
+        visibles.map(function (e) { return link(e[1], e[2], e[3]); }).join(''));
     }
 
     // Las pantallas de gestión ya no tienen apartados propios: se listan bajo un solo
     // rótulo, y solo para quien puede abrir alguna.
     var gestion = gestionDisponible();
     var bloqueGestion = gestion.length
-      ? ('<span class="side-label">Gestión</span>' +
-         gestion.map(function (p) { return link(p.page, p.nombre, ICONO_GESTION[p.page] || IC_GEAR); }).join(''))
+      ? grupo('gestion', 'Gestión',
+          gestion.some(function (p) { return p.page === active; }),
+          gestion.map(function (p) { return link(p.page, p.nombre, ICONO_GESTION[p.page] || IC_GEAR); }).join(''))
       : '';
 
     /* T1.5: «Inicio» respeta el rol, igual que el conmutador de arriba. Antes
@@ -511,7 +586,7 @@ html[data-density="compact"] .side-label { padding-block: .5rem .25rem; }
       (puede('atenciones')
         ? link('atenciones', 'Atenciones', IC_RELOJ, ' aria-haspopup="dialog"')
         : '') +
-      apartado('Cotizaciones', [
+      apartado('cotizaciones', 'Cotizaciones', [
         ['cotizar',           'cotizacion',       'Nueva cotización',         IC_DOC],
         ['enviar_cotizacion', 'correoventel',     'Enviar cotización',        IC_MAIL]
       ]) +
@@ -520,11 +595,11 @@ html[data-density="compact"] .side-label { padding-block: .5rem .25rem; }
          conmutador de áreas de arriba ya lo trataba como área aparte. Un apartado
          de un solo enlace es seguro: apartado() colapsa el rótulo si el bloque no
          está concedido. */
-      apartado('Correos', [
+      apartado('correos', 'Correos', [
         ['correos_cliente',   'correo_cliente',   'Enviar correo a clientes', IC_MAILP]
       ]) +
       bloqueGestion +
-      apartado('Portal Ventel', [
+      apartado('portalventel', 'Portal Ventel', [
         ['promociones', 'promociones', 'Monitor Promos', IC_STAR]
       ]) +
       '</nav>' +
@@ -628,6 +703,56 @@ html[data-density="compact"] .side-label { padding-block: .5rem .25rem; }
     btn.addEventListener('touchstart', pedir, { once: true, passive: true });
   }
 
+  /* ── Estado de los apartados plegables ────────────────────────────────────
+     Mismas claves 'ventel-nav-*' que el Portal y el Monitor de promociones (ver
+     Index.html): plegar «Gestión» en un sitio lo deja plegado en los tres, porque para
+     quien lo usa es la MISMA barra.
+
+     localStorage directo y NO AppPrefs: AppPrefs exige que la clave esté en su catálogo
+     y además la sube a la cuenta; abrir un cajón del menú no merece ni una migración del
+     catálogo ni un viaje al servidor. */
+  function claveGrupo(nombre) { return 'ventel-nav-' + nombre; }
+
+  function fijarGrupo(nombre, abierto, persistir) {
+    var g = document.querySelector('.side-group[data-group="' + nombre + '"]');
+    if (!g) return;
+    // Al restaurar lo guardado no se anima: la barra no debe plegarse delante del
+    // usuario en cada carga, y en esta app cada navegación es una carga completa.
+    if (persistir === false) g.style.transition = 'none';
+    g.setAttribute('data-collapsed', abierto ? 'false' : 'true');
+    var tog = document.querySelector('.side-group-tog[data-group="' + nombre + '"]');
+    if (tog) tog.setAttribute('aria-expanded', abierto ? 'true' : 'false');
+    if (persistir === false) requestAnimationFrame(function () { g.style.transition = ''; });
+    else lsSet(claveGrupo(nombre), abierto ? '1' : '0');
+  }
+
+  /** Aplica lo guardado y, pase lo que pase, deja a la vista el apartado donde estás. */
+  function restaurarGrupos() {
+    document.querySelectorAll('.side-group[data-group]').forEach(function (g) {
+      var nombre = g.getAttribute('data-group');
+      // Abierto por omisión: quien nunca lo tocó ve el menú exactamente igual que antes.
+      fijarGrupo(nombre, lsGet(claveGrupo(nombre)) !== '0', false);
+    });
+    /* Llegar por un enlace compartido a una pantalla cuyo apartado dejaste cerrado no
+       puede dejarte sin ninguna señal de dónde estás: se abre, y SIN guardarlo, porque
+       es una apertura por contexto y no una decisión de quien la usa. */
+    var activo = document.querySelector('.side-group .side-link.active');
+    var grupoActivo = activo && activo.closest('.side-group');
+    if (grupoActivo && grupoActivo.getAttribute('data-collapsed') === 'true') {
+      fijarGrupo(grupoActivo.getAttribute('data-group'), true, false);
+    }
+    /* Y si el enlace de la pantalla abierta ha quedado fuera del trozo visible del menú
+       —con rol maestro son dieciséis filas y en un portátil no caben—, se trae a la
+       vista. Sin `smooth`: la barra no debe moverse sola al cargar; solo tiene que estar
+       ya en el sitio correcto cuando la miras. */
+    var marcado = document.querySelector('.side-link.active');
+    if (marcado && marcado.scrollIntoView) {
+      requestAnimationFrame(function () {
+        try { marcado.scrollIntoView({ block: 'nearest' }); } catch (e) {}
+      });
+    }
+  }
+
   function openDrawer() { var s = document.getElementById('appSidebar'), c = document.getElementById('appScrim'); if (s) s.classList.add('open'); if (c) c.classList.add('show'); }
   function closeDrawer() { var s = document.getElementById('appSidebar'), c = document.getElementById('appScrim'); if (s) s.classList.remove('open'); if (c) c.classList.remove('show'); }
 
@@ -704,6 +829,7 @@ html[data-density="compact"] .side-label { padding-block: .5rem .25rem; }
          dice él y ninguna pantalla con barra tiene que acordarse de nada. */
       if (window.AppPrecarga && opts.active) AppPrecarga.aqui(opts.active);
       cablearPrecarga(aside);
+      restaurarGrupos();
 
       // Una preferencia puede cambiar sin que se haya tocado NADA de esta barra: llega
       // de la cuenta al sincronizar, o de otra pestaña abierta. Sin esto, el tema se
@@ -731,6 +857,9 @@ html[data-density="compact"] .side-label { padding-block: .5rem .25rem; }
           aside.innerHTML = sidebarHTML(opts.active || '');
           syncPrefUI();
           cablearPrecarga(aside);
+          /* El repintado por cambio de rol tira los apartados con su estado: hay que
+             volver a aplicarlo o todos se abren un segundo después de cargar. */
+          restaurarGrupos();
           // Repintar la barra tira el botón de ayuda con sus escuchas: se vuelve a cablear.
           if (window.AppOnboarding) AppOnboarding.cablearBotones();
           var un2 = document.getElementById('user-name');
@@ -768,6 +897,12 @@ html[data-density="compact"] .side-label { padding-block: .5rem .25rem; }
       }
       if (window.AppUrl) AppUrl.go(page);
     },
+    /** Abre o cierra un apartado del menú. Lo llama el rótulo, que ahora es un botón. */
+    toggleGrupo: function (nombre) {
+      var g = document.querySelector('.side-group[data-group="' + nombre + '"]');
+      if (g) fijarGrupo(nombre, g.getAttribute('data-collapsed') === 'true', true);
+    },
+
     logout: function () { if (window.AppSession) AppSession.clear(); if (window.AppUrl) AppUrl.go('login'); },
     toggleDrawer: function () { var s = document.getElementById('appSidebar'); if (s && s.classList.contains('open')) closeDrawer(); else openDrawer(); },
 

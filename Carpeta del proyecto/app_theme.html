@@ -58,6 +58,12 @@
   --side-logo-filter: brightness(0) invert(1);
   --top-bg: rgba(255,255,255,.82);
   --top-border: var(--line);
+  /* ALTURA DEL TOPBAR. Aquí solo vive el valor por omisión: la altura REAL la mide y la
+     publica AppShell.mount() sobre <html>, porque cambia con las cuatro escalas de texto
+     (~59 px en md, ~70 px en xl) y con la consulta de 720 px. Se declara igualmente para
+     que una pantalla sin marco —o el instante anterior a mount()— tenga un número
+     razonable en vez de nada. De ella cuelga todo lo que una pantalla pegue arriba. */
+  --top-h: 3.75rem;
 
   /* Semánticos */
   --ok: #0E7A4F; --ok-bg: #E5F5EE;

@@ -1388,6 +1388,12 @@
     operacion:            { tema: 'radar',     titulo: 'Abriendo Operación…',       sub: 'Revisando incidencias' },
     estado:               { tema: 'radar',     titulo: 'Abriendo Estado…',          sub: 'Comprobando los sistemas' },
     inicio_avanzado:      { tema: 'radar',     titulo: 'Abriendo Supervisión…',     sub: 'Calculando indicadores' },
+    /* Artículos llamaba a VentelFX.pagina('articulo') sin tener ficha, así que caía al
+       respaldo genérico —«Un momento…»— y llegar aquí no decía a dónde ibas. El tema es
+       `documento` porque es lo más cerca que hay de «material escrito»; ojo con la
+       tentación de usar `percha`, que en este catálogo son ARTÍCULOS de mercancía de
+       Liverpool y no guías redactadas. */
+    articulo:             { tema: 'documento', titulo: 'Abriendo Artículos…',       sub: 'Trayendo las guías del equipo' },
     /* «Acerca de» no trae datos de ninguna parte: se pinta con la sesión que ya está en
        el navegador. El subtítulo lo dice en vez de prometer una carga que no ocurre. */
     acerca:               { tema: 'isotipo',   titulo: 'Acerca del Portal…',        sub: 'Reuniendo lo que puedes hacer' }

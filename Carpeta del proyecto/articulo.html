@@ -163,6 +163,12 @@
 .art-cuerpo > *{grid-column:medida-i/medida-f;min-width:0}
 .art-cuerpo > [data-ancho]{grid-column:ancho-i/ancho-f}
 
+/* Los saltos del índice aterrizaban con el subtítulo DEBAJO del topbar: se pulsaba
+   «Cómo se factura» y se llegaba al párrafo siguiente, con el título tapado. Una línea
+   lo arregla para el índice, para AppUrl.irAncla y para cualquier enlace con almohadilla
+   que llegue de fuera, sin tocar ninguna de las tres llamadas. */
+.art-h2,.art-h3{scroll-margin-top:calc(var(--top-h,3.75rem) + var(--s4))}
+
 /* EL RITMO VERTICAL, y por qué estaba roto. `.art-cuerpo > * + *{margin-top}` daba el
    aire entre bloques, pero `.art-p{margin:0}` venía DESPUÉS con la misma especificidad
    y ganaba: cada párrafo que seguía a un subtítulo quedaba pegado a él y el artículo
@@ -438,7 +444,17 @@
 /* El lienzo: mismo ancho de lectura que el artículo publicado, y centrado en su
    columna. Pegado a la izquierda dejaba un vacío raro a la derecha en pantallas
    anchas y el texto se leía descolgado del panel. */
-.art-lienzo{max-width:40rem;margin-inline:auto}
+/* EL CANALÓN DEL CHROME, dentro del lienzo. Los botones de subir, bajar y quitar viven
+   en el margen izquierdo y necesitaban ~2.3rem libres FUERA de la caja; el respaldo que
+   los devolvía al flujo estaba en una media query de 1200 px que mide la VENTANA y no ve
+   los 252 px que se lleva la barra lateral. Entre 1201 y 1274 px de ancho de ventana los
+   tres botones se salían por el borde izquierdo y quedaban tapados por la barra rosa —y
+   con data-textscale="xl" la franja rota se iba a los 200 px, porque el margen está en
+   rem y el punto de corte estaba en px—.
+   Ahora el canalón forma parte de la caja del lienzo y va en rem, así que crece con la
+   letra y nunca puede quedarse sin sitio. Y no estrecha la medida: el campo sigue
+   midiendo 40rem exactas; lo que mide 2.6rem más es la caja que lo contiene. */
+.art-lienzo{max-width:calc(40rem + 2.6rem);padding-left:2.6rem;margin-inline:auto}
 
 /* Cabecera: el título del artículo se escribe con el tamaño del título. */
 .art-campo-titulo{width:100%;font-family:var(--f-display);
@@ -471,7 +487,7 @@
    El rótulo del tipo se quitó a la vez: si el editor se parece al artículo —y de eso va
    este rediseño—, un subtítulo ya se ve que es un subtítulo y la etiqueta sobra. Los
    botones llevan su `aria-label`, así que para el lector de pantalla no se pierde nada. */
-.art-bloque-hd{position:absolute;top:.35rem;left:-2.3rem;display:flex;flex-direction:column;gap:.2rem;
+.art-bloque-hd{position:absolute;top:.35rem;left:0;display:flex;flex-direction:column;gap:.2rem;
   opacity:0;transform:translateX(3px);transition:opacity .15s,transform .15s;pointer-events:none}
 .art-bloque:hover .art-bloque-hd,.art-bloque:focus-within .art-bloque-hd{opacity:1;transform:none;pointer-events:auto}
 .art-bloque-tipo{display:none}
@@ -591,13 +607,12 @@
 .art-previa-nota{font-size:var(--fs-xs);font-weight:700;color:var(--brand-deep);
   text-transform:uppercase;letter-spacing:.06em;margin:0 0 var(--s3)}
 
-/* Por debajo de 1200px el margen del lienzo ya no da para el chrome, así que vuelve
-   al flujo, en fila y arriba a la derecha. Y sin hover que valga: en una pantalla
-   táctil no existe «pasar el ratón», así que lo que solo aparece al pasar, no existe. */
-@media (max-width:1200px){
-  .art-bloque-hd{opacity:1;transform:none;pointer-events:auto;position:static;
-    flex-direction:row;justify-content:flex-end;margin-bottom:.3rem}
-  .art-bloque-ac{flex-direction:row}
+/* Lo que de verdad depende del DISPOSITIVO y no del ancho: en una pantalla táctil no
+   existe «pasar el ratón», así que lo que solo aparece al pasar, no existe. El canalón
+   del chrome ya no entra en esta cuenta —lo reserva el propio lienzo, arriba—, así que
+   esta consulta se queda solo con lo suyo. */
+@media (hover:none),(max-width:1040px){
+  .art-bloque-hd{opacity:1;transform:none;pointer-events:auto}
   .art-mas{opacity:1}
   .art-sub-op{display:flex}
 }
@@ -856,6 +871,12 @@
       img.alt = String(b.alt || '');
       img.loading = 'lazy';
       fig.appendChild(img);
+      /* Reserva el hueco con un brillo mientras la imagen baja de Drive, y se retira al
+         cargar Y al fallar. Sin esto, `width:100%;height:auto` sin alto declarado mide 0
+         hasta que aterriza, así que todas las medidas de debajo son falsas: el revelado
+         por scroll dispara donde no toca y el progreso llega al 100 % a media lectura.
+         La pieza ya existe en app_loaders y no monta nada si la imagen está en caché. */
+      if (window.VentelFX && VentelFX.image) VentelFX.image(img);
       if (b.pie) fig.appendChild(el('figcaption', null, b.pie));
       return fig;
     }
