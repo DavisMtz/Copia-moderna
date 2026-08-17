@@ -57,10 +57,32 @@
    */
   const VIGENCIA_MS = 15 * 60 * 1000;
 
+  // --- DIAGNÓSTICO TEMPORAL (quitar tras encontrar el fallo) ---
+  function avisoDiagnostico(texto, color) {
+    try {
+      const div = document.createElement('div');
+      div.textContent = '[BRIDGE] ' + texto;
+      Object.assign(div.style, {
+        position: 'fixed', top: '0', left: '0', right: '0', zIndex: '2147483647',
+        background: color || '#333', color: '#fff', font: '12px monospace',
+        padding: '4px 8px', whiteSpace: 'pre-wrap'
+      });
+      (document.body || document.documentElement).appendChild(div);
+    } catch (e) {}
+  }
+  if (document.readyState !== 'loading') {
+    avisoDiagnostico('script corrió, readyState=' + document.readyState + ' url=' + location.href, '#333');
+  } else {
+    document.addEventListener('DOMContentLoaded', function () {
+      avisoDiagnostico('script corrió (DOMContentLoaded) url=' + location.href, '#333');
+    });
+  }
+  // --- fin bloque de diagnóstico de arranque ---
+
   function entregarSiHay() {
     // Ya se entregó en esta misma carga de página (no debería llamarse dos
     // veces, pero por si acaso: entregar dos elementos sería peor que ninguno).
-    if (document.getElementById(ID_ELEMENTO)) return;
+    if (document.getElementById(ID_ELEMENTO)) { avisoDiagnostico('ya había elemento, no se repite', '#666'); return; }
 
     let almacen;
     try {
@@ -68,18 +90,22 @@
     } catch (e) {
       almacen = null;
     }
-    if (!almacen) return;
+    if (!almacen) { avisoDiagnostico('SIN chrome.storage.local disponible', '#a00'); return; }
 
     almacen.get(CLAVE, function (guardado) {
       // El contexto de la extensión puede haberse recargado bajo los pies del
       // content script (una actualización, un "Recargar" en chrome://extensions).
-      if (chrome.runtime.lastError) return;
+      if (chrome.runtime.lastError) {
+        avisoDiagnostico('runtime.lastError: ' + chrome.runtime.lastError.message, '#a00');
+        return;
+      }
 
       const bolsa = guardado && guardado[CLAVE];
       const vigente = bolsa && bolsa.data &&
                       (Date.now() - (bolsa.createdAt || 0)) < VIGENCIA_MS;
 
       if (!vigente) {
+        avisoDiagnostico(bolsa ? 'había bolsa pero VENCIDA (createdAt=' + bolsa.createdAt + ')' : 'NO había bolsa en storage[' + CLAVE + ']', '#a60');
         if (bolsa) { try { almacen.remove(CLAVE); } catch (e) {} }
         return;
       }
@@ -90,13 +116,14 @@
       try { almacen.remove(CLAVE); } catch (e) {}
 
       let json;
-      try { json = JSON.stringify(bolsa.data); } catch (e) { return; }
+      try { json = JSON.stringify(bolsa.data); } catch (e) { avisoDiagnostico('JSON.stringify falló: ' + e.message, '#a00'); return; }
 
       const elemento = document.createElement('script');
       elemento.type = 'application/json';
       elemento.id = ID_ELEMENTO;
       elemento.textContent = json;
       (document.head || document.documentElement).appendChild(elemento);
+      avisoDiagnostico('ENTREGADO: ' + bolsa.data.products.length + ' productos escritos en #ventel-bolsa-datos', '#0a0');
     });
   }
 
