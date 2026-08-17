@@ -13,24 +13,44 @@
  * `chrome.storage.local`: sobrevive al desvío por el inicio de sesión y no tiene
  * límite práctico de tamaño.
  *
- * CÓMO CONVERSAN LAS DOS PARTES (v2)
+ * CÓMO CONVERSAN LAS DOS PARTES (v3)
  * -----------------------------------
  * La v1 usaba `window.postMessage` entre este content script (mundo aislado) y
- * el script de la pantalla (mundo principal). En producción no llegaba: el
- * asesor seguía viendo el modal manual de "Importar → Aceptar". Un mundo
- * aislado NO comparte objetos de JavaScript con la página, así que depender de
- * que ambos lados coincidan en la identidad exacta de `window` para un mensaje
- * es frágil. Lo único que un content script SÍ comparte de verdad con la
- * página es el DOM, así que ahora la entrega es un elemento del DOM:
+ * el script de la pantalla (mundo principal): no llegaba, porque un mundo
+ * aislado no comparte objetos de JavaScript con la página. La v2 pasó a dejar
+ * los datos en el DOM (`<script type="application/json" id="ventel-bolsa-datos">`),
+ * que SÍ es compartido de verdad — pero seguía sin llegar, y la razón salió
+ * hasta probarlo en Chrome real con capturas visibles superpuestas a la
+ * pantalla: Apps Script NO pone el HTML de la webapp en el frame donde este
+ * content script corre (`userCodeAppPanel`, en `*.googleusercontent.com`).
+ * Ese frame es solo el marco; el contenido real vive en un SEGUNDO iframe
+ * interno (`userHtmlFrame`) que arranca en `about:blank` y navega ~1 a 1.5
+ * segundos después a otra URL — del MISMO origen que el frame externo, pero
+ * Chrome no vuelve a inyectar un content script ahí solo porque coincida el
+ * patrón del manifest si esa navegación ocurre dentro de un iframe que ya
+ * existía sin ella (en la práctica, para esta combinación de Apps Script no
+ * llegaba una segunda inyección). Escribir el elemento en el frame externo
+ * dejaba los datos en un documento que `cotizacion.html` nunca lee, aunque
+ * ambos frames se vean superpuestos en la misma pantalla.
+ *
+ * El arreglo: en vez de depender de una segunda inyección del content script,
+ * este puente localiza ese iframe interno desde el frame externo (accesible
+ * porque es el mismo origen — confirmado en pruebas: `contentDocument` no
+ * lanza error de origen cruzado) y escribe el elemento DIRECTAMENTE en su
+ * documento. Como el iframe interno tarda en navegar, se reintenta cada 300 ms
+ * hasta encontrar uno cuyo `location.href` ya no sea `about:blank`. Si no
+ * apareciera ningún iframe así (otra variante de Apps Script sin ese frame
+ * intermedio), se cae al comportamiento v2: escribir en el propio documento.
  *
  *   1. Este puente lee `chrome.storage.local['bolsaParaCotizar']` en cuanto el
  *      documento está listo.
  *   2. Si hay una bolsa vigente (menos de 15 minutos), la borra del
  *      almacenamiento (se entrega una sola vez) y escribe su JSON dentro de
  *      `<script type="application/json" id="ventel-bolsa-datos">` al final del
- *      `<head>`. Ese tipo de `<script>` no se ejecuta nunca — es solo un lugar
- *      donde dejar datos que la página SÍ puede leer con un `document.getElementById`
- *      normal, sin permisos ni orígenes de por medio.
+ *      `<head>` del documento correcto (el iframe interno de contenido, o el
+ *      propio si no lo encuentra). Ese tipo de `<script>` no se ejecuta nunca
+ *      — es solo un lugar donde dejar datos que la página SÍ puede leer con un
+ *      `document.getElementById` normal, sin permisos ni orígenes de por medio.
  *   3. La pantalla de cotización (cotizacion.html) busca ese elemento con un
  *      `setInterval` corto tras arrancar; si aparece, lo lee, lo borra del DOM y
  *      sigue con lo suyo. Si no aparece en unos segundos, asume que no hay
@@ -41,7 +61,7 @@
  * propio asesor puso en su bolsa — datos públicos de catálogo, sin nada del
  * asesor ni de sus clientes.
  *
- * Hecho por su gran amigo David Martínez "El escritor" · v2.0
+ * Hecho por su gran amigo David Martínez "El escritor" · v3.0
  */
 (function () {
   'use strict';
@@ -57,74 +77,73 @@
    */
   const VIGENCIA_MS = 15 * 60 * 1000;
 
-  // --- DIAGNÓSTICO TEMPORAL (quitar tras encontrar el fallo) ---
-  let __contadorAvisos = 0;
-  function avisoDiagnostico(texto, color) {
-    try {
-      const div = document.createElement('div');
-      div.textContent = '[BRIDGE] ' + texto;
-      Object.assign(div.style, {
-        position: 'fixed', top: (__contadorAvisos * 20) + 'px', left: '0', right: '0', zIndex: '2147483647',
-        background: color || '#333', color: '#fff', font: '12px monospace',
-        padding: '2px 8px', whiteSpace: 'pre-wrap'
-      });
-      __contadorAvisos++;
-      (document.body || document.documentElement).appendChild(div);
-    } catch (e) {}
+  const MAX_INTENTOS_FRAME = 15;
+  const ESPERA_FRAME_MS = 300;
+
+  /** El iframe interno de Apps Script, ya navegado a su contenido real (no about:blank). */
+  function frameDeContenido() {
+    let iframes;
+    try { iframes = document.querySelectorAll('iframe'); } catch (e) { return null; }
+    for (let i = 0; i < iframes.length; i++) {
+      let doc;
+      try { doc = iframes[i].contentDocument; } catch (e) { continue; }
+      if (doc && doc.location && doc.location.href && doc.location.href !== 'about:blank') {
+        return doc;
+      }
+    }
+    return null;
   }
-  function infoFrame() {
-    let iframesInfo = 'err';
-    try {
-      iframesInfo = Array.from(document.querySelectorAll('iframe')).map(function (f) {
-        const tieneSrcdoc = f.hasAttribute('srcdoc');
-        let contentHref = '?';
-        try { contentHref = f.contentWindow && f.contentWindow.location && f.contentWindow.location.href; } catch (e) { contentHref = 'x-origin'; }
-        return (f.id || '?') + '(srcdoc=' + tieneSrcdoc + ',attr-src=' + (f.getAttribute('src') || '').slice(0, 40) + ',prop-src=' + (f.src || '').slice(0, 60) + ',contentHref=' + String(contentHref).slice(0, 60) + ')';
-      }).join(' | ') || 'ninguno';
-    } catch (e) { iframesInfo = 'err:' + e.message; }
-    let esTop = 'err';
-    try { esTop = (window === window.top); } catch (e) { esTop = 'x-origin'; }
-    let org = 'err';
-    try { org = location.origin; } catch (e) {}
-    return 'top=' + esTop + ' org=' + org.replace('https://', '').slice(0, 20) + ' hijos=[' + iframesInfo + ']';
+
+  function escribirElemento(doc, bolsa) {
+    if (doc.getElementById(ID_ELEMENTO)) return;
+
+    let json;
+    try { json = JSON.stringify(bolsa.data); } catch (e) { return; }
+
+    const elemento = doc.createElement('script');
+    elemento.type = 'application/json';
+    elemento.id = ID_ELEMENTO;
+    elemento.textContent = json;
+    (doc.head || doc.documentElement).appendChild(elemento);
   }
-  if (document.readyState !== 'loading') {
-    avisoDiagnostico(infoFrame(), '#333');
-  } else {
-    document.addEventListener('DOMContentLoaded', function () {
-      avisoDiagnostico(infoFrame(), '#333');
-    });
+
+  /**
+   * El iframe interno tarda en navegar (visto entre 1 y 1.5 s en pruebas), así
+   * que se reintenta. Si se agotan los intentos sin encontrarlo, se entrega en
+   * el propio documento — el comportamiento de la v2, por si esta variante de
+   * Apps Script no usa ese iframe intermedio.
+   */
+  function entregar(bolsa) {
+    let intentos = 0;
+    (function intentar() {
+      const doc = frameDeContenido();
+      if (doc) { escribirElemento(doc, bolsa); return; }
+
+      intentos++;
+      if (intentos >= MAX_INTENTOS_FRAME) { escribirElemento(document, bolsa); return; }
+      setTimeout(intentar, ESPERA_FRAME_MS);
+    })();
   }
-  setTimeout(function () { avisoDiagnostico('(+1.5s) ' + infoFrame(), '#039'); }, 1500);
-  // --- fin bloque de diagnóstico de arranque ---
 
   function entregarSiHay() {
-    // Ya se entregó en esta misma carga de página (no debería llamarse dos
-    // veces, pero por si acaso: entregar dos elementos sería peor que ninguno).
-    if (document.getElementById(ID_ELEMENTO)) { avisoDiagnostico('ya había elemento, no se repite', '#666'); return; }
-
     let almacen;
     try {
       almacen = chrome.storage && chrome.storage.local;
     } catch (e) {
       almacen = null;
     }
-    if (!almacen) { avisoDiagnostico('SIN chrome.storage.local disponible', '#a00'); return; }
+    if (!almacen) return;
 
     almacen.get(CLAVE, function (guardado) {
       // El contexto de la extensión puede haberse recargado bajo los pies del
       // content script (una actualización, un "Recargar" en chrome://extensions).
-      if (chrome.runtime.lastError) {
-        avisoDiagnostico('runtime.lastError: ' + chrome.runtime.lastError.message, '#a00');
-        return;
-      }
+      if (chrome.runtime.lastError) return;
 
       const bolsa = guardado && guardado[CLAVE];
       const vigente = bolsa && bolsa.data &&
                       (Date.now() - (bolsa.createdAt || 0)) < VIGENCIA_MS;
 
       if (!vigente) {
-        avisoDiagnostico(bolsa ? 'había bolsa pero VENCIDA (createdAt=' + bolsa.createdAt + ')' : 'NO había bolsa en storage[' + CLAVE + ']', '#a60');
         if (bolsa) { try { almacen.remove(CLAVE); } catch (e) {} }
         return;
       }
@@ -134,15 +153,7 @@
       // bolsa a que reaparezca duplicada en la siguiente cotización.
       try { almacen.remove(CLAVE); } catch (e) {}
 
-      let json;
-      try { json = JSON.stringify(bolsa.data); } catch (e) { avisoDiagnostico('JSON.stringify falló: ' + e.message, '#a00'); return; }
-
-      const elemento = document.createElement('script');
-      elemento.type = 'application/json';
-      elemento.id = ID_ELEMENTO;
-      elemento.textContent = json;
-      (document.head || document.documentElement).appendChild(elemento);
-      avisoDiagnostico('ENTREGADO: ' + bolsa.data.products.length + ' productos escritos en #ventel-bolsa-datos', '#0a0');
+      entregar(bolsa);
     });
   }
 

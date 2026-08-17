@@ -1616,27 +1616,6 @@
          * artículos entrarían en un formulario que el asesor todavía está a punto
          * de reemplazar por su borrador.
          */
-        // --- DIAGNÓSTICO TEMPORAL GLOBAL (quitar tras encontrar el fallo) ---
-        function avisoDiagnosticoGlobal(texto, color) {
-            try {
-                const div = document.createElement('div');
-                div.textContent = texto;
-                Object.assign(div.style, {
-                    position: 'fixed', top: '36px', left: '0', right: '0', zIndex: '2147483647',
-                    background: color || '#333', color: '#fff', font: '12px monospace',
-                    padding: '4px 8px', whiteSpace: 'pre-wrap'
-                });
-                (document.body || document.documentElement).appendChild(div);
-            } catch (e) {}
-        }
-        window.addEventListener('error', function (ev) {
-            avisoDiagnosticoGlobal('[ERROR GLOBAL] ' + ev.message + ' @ ' + (ev.filename || '?').split('/').pop() + ':' + ev.lineno + ':' + ev.colno, '#c00');
-        });
-        window.addEventListener('DOMContentLoaded', function () {
-            avisoDiagnosticoGlobal('[CHECKPOINT] DOMContentLoaded disparado, listeners registrados hasta ahora', '#606');
-        });
-        // --- fin bloque de diagnóstico global ---
-
         const BolsaExtension = (function () {
             const ID_ELEMENTO = 'ventel-bolsa-datos';
             const MAX_INTENTOS = 10;
@@ -1645,21 +1624,6 @@
             let intentos = 0;
             let temporizador = null;
             let terminado = false;
-
-            // --- DIAGNÓSTICO TEMPORAL (quitar tras encontrar el fallo) ---
-            function avisoDiagnostico(texto, color) {
-                try {
-                    const div = document.createElement('div');
-                    div.textContent = '[COTIZACION] ' + texto;
-                    Object.assign(div.style, {
-                        position: 'fixed', top: '18px', left: '0', right: '0', zIndex: '2147483647',
-                        background: color || '#333', color: '#fff', font: '12px monospace',
-                        padding: '4px 8px', whiteSpace: 'pre-wrap'
-                    });
-                    (document.body || document.documentElement).appendChild(div);
-                } catch (e) {}
-            }
-            // --- fin bloque de diagnóstico ---
 
             function parar() {
                 terminado = true;
@@ -1673,32 +1637,26 @@
              * extensión instalada, o no haya bolsa esperando.
              */
             function buscar() {
-                if (intentos === 0) avisoDiagnostico('pedir() / buscar() arrancó, readyState=' + document.readyState, '#333');
                 if (terminado) return;
 
                 const elemento = document.getElementById(ID_ELEMENTO);
                 if (elemento) {
                     terminado = true;
                     if (temporizador) { clearTimeout(temporizador); temporizador = null; }
-                    avisoDiagnostico('elemento #' + ID_ELEMENTO + ' encontrado en intento ' + (intentos + 1) + ', textContent.length=' + elemento.textContent.length, '#06c');
                     let bolsa = null;
-                    try { bolsa = JSON.parse(elemento.textContent); } catch (e) { avisoDiagnostico('JSON.parse falló: ' + e.message, '#a00'); }
+                    try { bolsa = JSON.parse(elemento.textContent); } catch (e) { bolsa = null; }
                     elemento.remove();
                     recibir(bolsa);
                     return;
                 }
 
                 intentos++;
-                if (intentos >= MAX_INTENTOS) { avisoDiagnostico('se agotaron los ' + MAX_INTENTOS + ' intentos, nunca apareció #' + ID_ELEMENTO, '#a60'); parar(); return; }
+                if (intentos >= MAX_INTENTOS) { parar(); return; }
                 temporizador = setTimeout(buscar, ESPERA_MS);
             }
 
             function recibir(bolsa) {
-                if (!bolsa || !Array.isArray(bolsa.products) || bolsa.products.length === 0) {
-                    avisoDiagnostico('recibir() descartó la bolsa: bolsa=' + (bolsa ? 'objeto sin products válido, keys=' + Object.keys(bolsa).join(',') : 'null'), '#a00');
-                    return;
-                }
-                avisoDiagnostico('recibir() OK, ' + bolsa.products.length + ' productos, llamando importarProductos', '#0a0');
+                if (!bolsa || !Array.isArray(bolsa.products) || bolsa.products.length === 0) return;
 
                 const resumen = importarProductos(bolsa);
                 // Lo importado cuenta como trabajo: si el asesor se va ahora, el
@@ -1732,11 +1690,9 @@
         }
 
         document.addEventListener('DOMContentLoaded', () => {
-            avisoDiagnosticoGlobal('[CHECKPOINT] entrando al handler principal', '#606');
             // Se dice el nombre de la pantalla para que el login devuelva aquí: quien
             // llega desde la extensión con su bolsa no puede acabar en el panel.
-            if (!requireBlock('cotizar', 'cotizacion')) { avisoDiagnosticoGlobal('[CHECKPOINT] requireBlock devolvió false, handler se detiene aquí', '#c60'); return; }
-            avisoDiagnosticoGlobal('[CHECKPOINT] requireBlock OK', '#606');
+            if (!requireBlock('cotizar', 'cotizacion')) return;
 
             /* Esta pantalla no monta el shell —es un documento a pantalla completa—, así
                que nadie había dicho de quién es la URL. AppUrl.reflejar se niega a
@@ -1786,10 +1742,8 @@
 
             const folioFromUrl = AppUrl.param('folio');
             const actionFromUrl = AppUrl.param('action');
-            avisoDiagnosticoGlobal('[CHECKPOINT] folio=' + JSON.stringify(folioFromUrl) + ' action=' + JSON.stringify(actionFromUrl), '#606');
 
             if (folioFromUrl && actionFromUrl === 'edit') {
-                avisoDiagnosticoGlobal('[CHECKPOINT] tomó la rama de EDICIÓN (loadQuoteDetails) — BolsaExtension.pedir NO se llama aquí a propósito', '#c60');
                 loadQuoteDetails(folioFromUrl);
             } else {
                 currentQuoteFolioInput.value = '';
@@ -1801,13 +1755,11 @@
                 }
                 // El loader de marca cubre el arranque; se retira con la pantalla lista.
                 if (window.VentelLoader) VentelLoader.hide();
-                avisoDiagnosticoGlobal('[CHECKPOINT] rama NUEVA cotización, a punto de llamar Borrador.iniciar', '#606');
                 // Con el formulario ya montado: ¿quedó un borrador de este asesor?
                 // Y en cuanto eso se resuelva, ¿viene alguien de la extensión con una
                 // bolsa? (Solo en cotizaciones nuevas: en una edición los artículos
                 // son los que ya están guardados en el sistema.)
                 Borrador.iniciar({ alResolver: BolsaExtension.pedir });
-                avisoDiagnosticoGlobal('[CHECKPOINT] Borrador.iniciar ya retornó (llamada síncrona)', '#606');
             }
 
             /* Atrás y adelante del navegador, con mucha cabeza: aquí abajo hay un
