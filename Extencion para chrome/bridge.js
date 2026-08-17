@@ -77,20 +77,21 @@
     try {
       iframesInfo = Array.from(document.querySelectorAll('iframe')).map(function (f) {
         const tieneSrcdoc = f.hasAttribute('srcdoc');
-        return (f.id || '?') + '{src=' + JSON.stringify(f.getAttribute('src')) + ', srcdoc=' + tieneSrcdoc + ', src-prop=' + JSON.stringify(f.src) + '}';
+        const src = f.getAttribute('src') || '';
+        return (f.id || '?') + '(srcdoc=' + tieneSrcdoc + ',src=' + src.slice(0, 30) + ')';
       }).join(' | ') || 'ninguno';
     } catch (e) { iframesInfo = 'err:' + e.message; }
     let esTop = 'err';
-    try { esTop = (window === window.top); } catch (e) { esTop = 'no-se-puede-saber(cross-origin con top)'; }
-    let miPropioOrigen = 'err';
-    try { miPropioOrigen = location.origin; } catch (e) {}
-    return 'esTop=' + esTop + ' miOrigen=' + miPropioOrigen + ' iframesHijos=[' + iframesInfo + ']';
+    try { esTop = (window === window.top); } catch (e) { esTop = 'x-origin'; }
+    let org = 'err';
+    try { org = location.origin; } catch (e) {}
+    return 'top=' + esTop + ' org=' + org.replace('https://', '').slice(0, 25) + ' hijos=[' + iframesInfo + ']';
   }
   if (document.readyState !== 'loading') {
-    avisoDiagnostico('script corrió, readyState=' + document.readyState + ' url=' + location.href + ' ' + infoFrame(), '#333');
+    avisoDiagnostico(infoFrame(), '#333');
   } else {
     document.addEventListener('DOMContentLoaded', function () {
-      avisoDiagnostico('script corrió (DOMContentLoaded) url=' + location.href + ' ' + infoFrame(), '#333');
+      avisoDiagnostico(infoFrame(), '#333');
     });
   }
   // --- fin bloque de diagnóstico de arranque ---
