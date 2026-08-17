@@ -730,7 +730,10 @@
     fr.className = 'art-diag-frame';
     fr.title = b.titulo || 'Diagrama';
     fr.setAttribute('referrerpolicy', 'no-referrer');
-    fr.style.height = (Number(b.alto) || 420) + 'px';
+    /* alto:0 marca pantalla completa: no se fija un alto en línea porque un `style.height`
+       en línea gana siempre sobre `.art-diag.es-full .art-diag-frame{height:100%}`, y el
+       marco se quedaba a 420 px dentro del overlay en vez de llenarlo. */
+    if (Number(b.alto)) fr.style.height = Number(b.alto) + 'px';
 
     /* Aviso de red bloqueada. diagrams.net es un dominio externo, igual que el CDN
        de GSAP, y en esta red corporativa a veces no pasa. Si a los seis segundos no
