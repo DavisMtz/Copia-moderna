@@ -121,9 +121,14 @@
  * barra y tapa justo lo que hay que tocar.
  */
 .op-zona {
-  position: fixed; left: 8px; bottom: calc(16px + var(--op-pill-suelo, 0px)); z-index: 900;
+  /* `--suelo-izq` lo publica app_shell y vale «ancho de la barra lateral + aire»: sin
+     él, este `left:8px` caía DENTRO del carril de la barra (0→252 px) y con z-index 900
+     contra los 50 de la barra, así que la pastilla se plantaba encima de sus últimos
+     enlaces. El respaldo conserva el valor de siempre para las pantallas sin marco
+     lateral (el Portal público, el login). */
+  position: fixed; left: var(--suelo-izq, 8px); bottom: calc(16px + var(--op-pill-suelo, 0px)); z-index: 900;
   display: flex; flex-direction: row; align-items: flex-end; gap: 6px;
-  max-width: calc(100vw - 16px);
+  max-width: calc(100vw - var(--suelo-izq, 8px) - 16px);
 }
 .op-zona.op-abierta { flex-direction: column-reverse; align-items: flex-start; }
 

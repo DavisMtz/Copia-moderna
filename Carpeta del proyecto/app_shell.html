@@ -30,21 +30,60 @@
    dentro (truncando el texto o con su propio contenedor con scroll). */
 .app-main > main { min-width: 0; max-width: 100%; }
 
-/* ── Barra lateral ── */
+/* ── Barra lateral ──────────────────────────────────────────────────────────
+   TRES ZONAS: cabecera fija · cuerpo con scroll · pie anclado.
+
+   Antes la barra ENTERA era el scroller y el pie iba con `margin-top:auto`. Ese `auto`
+   reparte espacio SOBRANTE, y en cuanto la lista pasa del alto de pantalla no sobra
+   nada: el pie se limitaba a quedar detrás del último enlace, fuera de la vista. Medido
+   con rol maestro: 1282 px de contenido en 1049 de pantalla, así que el selector de
+   tema, «Acerca del Portal», el tutorial y los cuatro ajustes de vista —densidad,
+   tamaño de texto, alto contraste— eran inalcanzables sin desplazarse hasta el fondo.
+   Y es especialmente cruel con el tamaño de texto y el alto contraste: quien más los
+   necesita es quien menos capacidad tiene de encontrarlos, y subirlos empuja el pie más
+   lejos todavía.
+
+   Ahora lo único que se desplaza es la lista de enlaces. Los ajustes de vista están
+   SIEMPRE a la vista, midan lo que midan los permisos de quien entra. */
 .sidebar {
+  --side-pad-x: 1rem;
+  --side-fila-y: .66rem;
+  --side-gap: .2rem;
   width: 252px; flex-shrink: 0; align-self: stretch;
-  position: sticky; top: 0; height: 100vh;
+  position: sticky; top: 0; height: 100vh; height: 100dvh;
   background: var(--side-bg); color: var(--side-ink);
   display: flex; flex-direction: column;
-  padding: 1.15rem 1rem 1rem; gap: .3rem; z-index: 50;
+  padding: 1.15rem var(--side-pad-x) 1rem; gap: 0; z-index: 50;
   box-shadow: 14px 0 40px -24px rgba(36,28,34,.5);
-  overflow-y: auto; overflow-x: hidden; overscroll-behavior: contain;
+  overflow: hidden;
 }
-.sidebar::-webkit-scrollbar { width: 8px; }
-.sidebar::-webkit-scrollbar-thumb { background: rgba(255,255,255,.28); border-radius: 99px; }
-.sidebar::-webkit-scrollbar-thumb:hover { background: rgba(255,255,255,.42); }
-.sidebar::-webkit-scrollbar-track { background: transparent; }
-.sidebar { scrollbar-width: thin; scrollbar-color: rgba(255,255,255,.3) transparent; }
+.side-cabeza, .side-fijo { flex: 0 0 auto; }
+/* `min-height:0` no es adorno: sin él un ítem flex se niega a encoger por debajo de su
+   contenido y la zona con scroll vuelve a desbordar la barra entera. */
+.side-scroll {
+  flex: 1 1 auto; min-height: 0;
+  overflow-y: auto; overflow-x: hidden; overscroll-behavior: contain;
+  display: flex; flex-direction: column; gap: var(--side-gap);
+  /* Aire para la barra de desplazamiento, recuperado con el margen negativo para que
+     los enlaces sigan alineados con la marca y con el pie. */
+  padding-right: .3rem; margin-right: -.3rem;
+}
+.side-nav { display: flex; flex-direction: column; gap: var(--side-gap); }
+.side-scroll::-webkit-scrollbar { width: 8px; }
+.side-scroll::-webkit-scrollbar-thumb { background: rgba(255,255,255,.28); border-radius: 99px; }
+.side-scroll::-webkit-scrollbar-thumb:hover { background: rgba(255,255,255,.42); }
+.side-scroll::-webkit-scrollbar-track { background: transparent; }
+.side-scroll { scrollbar-width: thin; scrollbar-color: rgba(255,255,255,.3) transparent; }
+
+/* SUELO IZQUIERDO COMPARTIDO. Lo publica la barra, que es la única que sabe cuánto mide,
+   y lo consume cualquier cosa fija abajo a la izquierda (la pastilla de guardado, la
+   zona de estado de operación). Sin esto cada widget adivinaba un `left` y los dos
+   adivinaron DENTRO del carril de la barra, con z-index muy superior: se plantaban
+   encima de los últimos enlaces, justo en la zona a la que había que desplazarse.
+   Subir el z-index de la barra no era la solución —el pill de guardado comparte capa
+   con los modales—, así que lo que se mueve es el suelo. */
+:root { --side-ancho: 252px; --suelo-izq: calc(var(--side-ancho) + 12px); }
+@media (max-width: 1024px) { :root { --suelo-izq: 12px; } }   /* aquí la barra es cajón */
 
 .side-brand { display: flex; align-items: center; gap: .7rem; padding: .4rem .55rem 1.05rem; border-bottom: 1px solid var(--side-line); margin-bottom: .75rem; }
 .side-brand img { height: 24px; width: auto; filter: var(--side-logo-filter); }
@@ -56,36 +95,65 @@
 
 /* ── Conmutador de área (IDÉNTICO en Portal, Cotizaciones y Correos) ──
    Permite saltar entre los tres mundos de la app desde cualquier pantalla. */
-.app-switch { display: flex; flex-direction: column; gap: .2rem; padding: .4rem; margin-bottom: .55rem; background: rgba(0,0,0,.18); border: 1px solid var(--side-line); border-radius: 14px; }
-.app-switch-lbl { font-size: .56rem; font-weight: 800; letter-spacing: .16em; text-transform: uppercase; color: var(--side-faint); padding: .3rem .5rem .2rem; }
-.app-switch-item { display: flex; align-items: center; gap: .55rem; padding: .48rem .55rem; border-radius: 10px; text-decoration: none; color: var(--side-ink-soft); transition: background .18s, color .18s; }
-.app-switch-item .asw-ic { width: 30px; height: 30px; border-radius: 8px; display: flex; align-items: center; justify-content: center; background: rgba(255,255,255,.09); color: var(--side-faint); flex: none; transition: background .18s, color .18s; }
-.app-switch-item .asw-ic .ic { width: 17px; height: 17px; }
+.app-switch { display: flex; flex-direction: column; gap: .15rem; padding: .35rem; margin-bottom: .5rem; background: rgba(0,0,0,.18); border: 1px solid var(--side-line); border-radius: 14px; }
+.app-switch-lbl { font-size: .56rem; font-weight: 800; letter-spacing: .16em; text-transform: uppercase; color: var(--side-faint); padding: .28rem .5rem .18rem; }
+.app-switch-item { display: flex; align-items: center; gap: .55rem; padding: .4rem .55rem; border-radius: 10px; text-decoration: none; color: var(--side-ink-soft); transition: background .18s, color .18s; }
+.app-switch-item .asw-ic { width: 26px; height: 26px; border-radius: 8px; display: flex; align-items: center; justify-content: center; background: rgba(255,255,255,.09); color: var(--side-faint); flex: none; transition: background .18s, color .18s; }
+.app-switch-item .asw-ic .ic { width: 16px; height: 16px; }
 .app-switch-item .asw-tx { display: flex; flex-direction: column; line-height: 1.18; min-width: 0; }
 .app-switch-item .asw-tx b { font-size: .85rem; font-weight: 700; }
-.app-switch-item .asw-tx small { font-size: .65rem; color: var(--side-faint); font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+/* El subtítulo se queda SOLO en el área donde estás. Cuatro tarjetas de dos líneas
+   costaban 237 px —el 20 % de toda la barra— para cuatro enlaces, y el subtítulo de un
+   área en la que no estás no ayuda a decidir: dice lo que hay dentro de un sitio al que
+   todavía no vas. El de Gestión, que va personalizado por permisos, es el que más
+   merece verse, y es justo el que se ve cuando estás en Gestión. En las demás viaja
+   como `title=`, así que no se pierde. */
+.app-switch-item .asw-tx small { display: none; font-size: .65rem; color: var(--side-faint); font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.app-switch-item.active .asw-tx small { display: block; }
 .app-switch-item:hover { background: rgba(255,255,255,.08); color: var(--side-ink); }
 .app-switch-item:hover .asw-ic { color: var(--side-ink); }
-.app-switch-item.active { background: var(--side-active-bg); color: var(--side-active-ink); }
-.app-switch-item.active .asw-ic { background: #fff; color: var(--brand); }
-.app-switch-item.active .asw-tx b { font-weight: 800; }
-.app-switch-item.active .asw-tx small { color: var(--side-active-ink); opacity: .72; }
+/* CONTENEDOR ≠ UBICACIÓN. El área que CONTIENE la pantalla abierta se marca en voz
+   baja; el fondo fuerte y el rail blanco quedan para la única fila que ES la pantalla
+   abierta. Antes las dos llevaban el mismo tratamiento exacto, y dos filas idénticas en
+   peso visual no dicen «estás aquí», dicen «elige una». */
+.app-switch-item.active { background: rgba(255,255,255,.12); color: var(--side-ink); }
+.app-switch-item.active .asw-ic { background: rgba(255,255,255,.22); color: var(--side-ink); }
+.app-switch-item.active .asw-tx b { font-weight: 700; }
+.app-switch-item.active .asw-tx small { color: var(--side-faint); opacity: 1; }
+/* En alto contraste el fondo tenue no basta, y subirlo lo acercaría al de la ubicación:
+   se refuerza con un borde, que es otro canal. */
+html[data-contrast="high"] .app-switch-item.active { box-shadow: inset 0 0 0 1.5px rgba(255,255,255,.55); }
 
 .side-link {
   display: flex; align-items: center; gap: .7rem; width: 100%;
-  padding: .66rem .7rem; border: none; background: transparent; cursor: pointer; border-radius: 12px;
+  padding: var(--side-fila-y) .7rem; border: none; background: transparent; cursor: pointer; border-radius: 12px;
   font-family: var(--f-body); font-size: .9rem; font-weight: 600; color: var(--side-ink-soft);
   text-align: left; transition: background .2s, color .2s; position: relative;
 }
 .side-link .ic { width: 19px; height: 19px; color: var(--side-faint); transition: color .2s, transform .2s; }
 .side-link:hover { background: rgba(255,255,255,.08); color: var(--side-ink); }
 .side-link:hover .ic { color: var(--side-ink); }
+/* Sobre el rosa de la barra, el anillo de foco por omisión del navegador se pierde.
+   `.side-foot-link` ya tenía el suyo; los doce enlaces del menú, no. */
+.side-link:focus-visible { outline: 2px solid #fff; outline-offset: -2px; }
 .side-link.active { background: var(--side-active-bg); color: var(--side-active-ink); font-weight: 700; }
 .side-link.active .ic { color: var(--side-active-ink); }
-.side-link.active::before { content: ''; position: absolute; left: -1rem; top: 50%; transform: translateY(-50%); width: 4px; height: 21px; border-radius: 0 4px 4px 0; background: #fff; }
+/* El carril blanco cuelga del acolchado de la barra, que ahora es una variable: antes
+   ese -1rem era el mismo número escrito a mano en dos sitios y se despegaba en cuanto
+   cambiaba la densidad o el enlace se anidaba dentro de un contenedor. */
+.side-link.active::before { content: ''; position: absolute; left: calc(var(--side-pad-x) * -1); top: 50%; transform: translateY(-50%); width: 4px; height: 21px; border-radius: 0 4px 4px 0; background: #fff; }
 
-/* ── Pie de barra: «Acerca de» + tema + ajustes de vista ── */
-.side-foot { margin-top: auto; padding-top: .8rem; border-top: 1px solid var(--side-line); display: flex; flex-direction: column; gap: .6rem; }
+/* La DENSIDAD, que el usuario ya ve y ya elige en el pie, por fin toca la barra: es
+   donde más se nota —doce filas por lo que ahorre cada una— y era justo donde no hacía
+   nada, así que pulsar «Compacto» no movía ni un píxel del menú. */
+html[data-density="compact"] .sidebar { --side-fila-y: .44rem; --side-gap: .12rem; }
+html[data-density="compact"] .app-switch-item { padding-block: .32rem; }
+html[data-density="compact"] .side-label { padding-block: .5rem .25rem; }
+
+/* ── Pie de barra: «Acerca de» + tema + ajustes de vista ──
+   Ya no necesita `margin-top:auto`: lo ancla el layout de tres zonas. Ese `auto` era
+   precisamente lo que dejaba de funcionar en cuanto el menú desbordaba. */
+.side-foot { padding-top: .8rem; border-top: 1px solid var(--side-line); display: flex; flex-direction: column; gap: .6rem; }
 
 /* Enlace discreto del pie (T10.1). Clase PROPIA y no `.onb-lanzador`, aunque se vea
    igual: el estilo del lanzador del tutorial vive en app_onboarding, que solo llega a
@@ -148,13 +216,28 @@
 .shell-user { font-size: .86rem; color: var(--ink-soft); }
 .shell-user strong { color: var(--ink); font-weight: 700; }
 
+/* «Saltar al contenido». Con dieciséis filas de menú, llegar al primer artículo con
+   teclado costaba dieciséis tabulaciones en CADA carga —y en esta app cada navegación
+   es una carga completa—. Es WCAG 2.4.1 y son ocho líneas. */
+.skip-link {
+  position: absolute; left: var(--s3, 12px); top: -3rem; z-index: 200;
+  padding: .55rem .9rem; border-radius: var(--rad-sm, 8px);
+  background: var(--surface); color: var(--ink); font-weight: 700; font-size: .82rem;
+  box-shadow: var(--sh-md); transition: top .15s ease; text-decoration: none;
+}
+.skip-link:focus { top: var(--s3, 12px); }
+#main-content:focus { outline: none; }
+
 /* ── Cajón móvil ── */
 .scrim { display: none; }
 @media (max-width: 1024px) {
   .sidebar {
-    position: fixed; top: 0; left: 0; bottom: 0; width: 270px; height: 100vh;
-    padding: 1.15rem 1rem 1rem; z-index: 120;
-    transform: translateX(-100%); transition: transform .3s ease; overflow-y: auto;
+    /* 100dvh y no 100vh: en el móvil, `vh` incluye la barra de direcciones del
+       navegador, así que el cajón medía más que la ventana y el pie —otra vez el pie—
+       quedaba por debajo del borde inferior incluso cuando la lista sí cabía. */
+    position: fixed; top: 0; left: 0; bottom: 0; width: 270px; height: 100vh; height: 100dvh;
+    padding: 1.15rem var(--side-pad-x) 1rem; z-index: 120;
+    transform: translateX(-100%); transition: transform .3s ease; overflow: hidden;
   }
   .sidebar.open { transform: translateX(0); }
   .menu-btn { display: flex; }
@@ -307,7 +390,13 @@
       // "Cotizaciones" resuelto por rol, un supervisor parado en el panel avanzado
       // (área Gestión) tendría un enlace de Cotizaciones apuntando a donde ya está.
       var pre = (area === a || page === active) ? '' : ' data-precarga="' + page + '"';
-      return '<a class="' + cls + '" href="#"' + pre + ' onclick="AppShell.nav(\'' + page + '\');return false;">' +
+      /* `location` y no `page`: el conmutador señala el ÁREA que contiene la pantalla
+         abierta, que es otro hecho distinto de «esta es la pantalla». Y el subtítulo,
+         que solo se ve en el área activa, viaja como `title` en las demás para no
+         perderse. */
+      var aqui = (area === a) ? ' aria-current="location"' : '';
+      return '<a class="' + cls + '" href="#"' + pre + aqui + ' title="' + esc(sub) + '"' +
+        ' onclick="AppShell.nav(\'' + page + '\');return false;">' +
         '<span class="asw-ic">' + icon + '</span>' +
         '<span class="asw-tx"><b>' + name + '</b><small>' + sub + '</small></span></a>';
     }
@@ -318,9 +407,12 @@
       // supervisor sin consola es el panel; para un maestro sin supervisión, la consola.
       var cls = 'app-switch-item' + (area === 'gestion' ? ' active' : '');
       var preG = (area === 'gestion') ? '' : ' data-precarga="' + gestion[0].page + '"';
-      bloqueGestion = '<a class="' + cls + '" href="#"' + preG + ' onclick="AppShell.nav(\'' + gestion[0].page + '\');return false;">' +
+      var aquiG = (area === 'gestion') ? ' aria-current="location"' : '';
+      var subG = esc(AppFunciones.subtituloGestion(gestion));
+      bloqueGestion = '<a class="' + cls + '" href="#"' + preG + aquiG + ' title="' + subG + '"' +
+        ' onclick="AppShell.nav(\'' + gestion[0].page + '\');return false;">' +
         '<span class="asw-ic">' + IC_GEAR + '</span>' +
-        '<span class="asw-tx"><b>Gestión</b><small>' + esc(AppFunciones.subtituloGestion(gestion)) + '</small></span></a>';
+        '<span class="asw-tx"><b>Gestión</b><small>' + subG + '</small></span></a>';
     }
 
     /* T1.5: «Cotizaciones» lleva a cada quien a SU inicio —asesor al inicio de
@@ -352,12 +444,16 @@
   function sidebarHTML(active) {
     function link(page, label, icon, extra) {
       var cls = 'side-link' + (active === page ? ' active' : '');
+      /* La clase PINTA dónde estás; `aria-current` lo DICE. Sin él las dieciséis filas
+         suenan igual con lector de pantalla y no hay forma de saber en qué pantalla se
+         está: el único aria-current de todo el marco vivía en «Acerca del Portal». */
+      var aqui = (active === page) ? ' aria-current="page"' : '';
       /* `data-precarga` es lo único que hace falta para que apuntar a este enlace
          caliente su destino: AppPrecarga.cablearContenedor lo busca y se encarga.
          No se marca la pantalla ACTIVA: precargar donde ya estás es gastar una
          llamada en no ir a ninguna parte. */
       var pre = (active === page) ? '' : ' data-precarga="' + page + '"';
-      return '<button class="' + cls + '"' + pre + (extra || '') +
+      return '<button class="' + cls + '"' + pre + aqui + (extra || '') +
              ' onclick="AppShell.nav(\'' + page + '\')">' + icon + ' ' + label + '</button>';
     }
     /** Devuelve el apartado solo si al menos uno de sus enlaces sobrevivió al filtro. */
@@ -382,13 +478,24 @@
        mandaban al panel avanzado. */
     var homeRol = (window.AppUrl && AppUrl.homePage) ? AppUrl.homePage() : 'dashboard';
 
+    /* TRES ZONAS: lo que no se desplaza va fuera de `.side-scroll`. La marca arriba y el
+       pie abajo son fijos; lo único que se desplaza es la lista de enlaces, que es lo
+       que crece con los permisos. Ni un enlace cambia de sitio ni de nombre: esto solo
+       reordena contenedores. */
     return '' +
+      '<div class="side-cabeza">' +
       '<div class="side-brand">' +
         '<img src="' + LOGO + '" alt="Liverpool" onerror="this.onerror=null;this.outerHTML=\'<span style=&quot;color:#fff;font-weight:900;font-size:16px&quot;>Liverpool</span>\'">' +
         '<span class="sb-divider"></span>' +
         '<span class="sb-sub">Cotiza<small>VENTEL</small></span>' +
       '</div>' +
+      '</div>' +
+      '<div class="side-scroll">' +
       appSwitchHTML(active) +
+      /* El menú es una NAVEGACIÓN: sin landmark no hay salto rápido y los doce enlaces
+         colgaban sueltos del <aside>, intercalados con rótulos que para la tecnología
+         asistiva eran texto decorativo. */
+      '<nav class="side-nav" aria-label="Secciones">' +
       '<span class="side-label">Panel</span>' +
       link(homeRol, 'Inicio', IC_HOME) +
       /* Atenciones va JUSTO debajo de Inicio y fuera del apartado de Cotizaciones, a
@@ -420,7 +527,9 @@
       apartado('Portal Ventel', [
         ['promociones', 'promociones', 'Monitor Promos', IC_STAR]
       ]) +
-      sideFootHTML(active);
+      '</nav>' +
+      '</div>' +
+      '<div class="side-fijo">' + sideFootHTML(active) + '</div>';
   }
 
   var IC_AYUDA = '<svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M9.6 9.4a2.5 2.5 0 0 1 4.8.9c0 1.7-2.4 2.1-2.4 3.6"/><path d="M12 17.2h.01"/></svg>';
@@ -558,11 +667,33 @@
       var top = document.createElement('header'); top.className = 'topbar'; top.innerHTML = topbarHTML(opts.title || '');
 
       main.parentNode.insertBefore(root, main);
+      /* Primero de todo en el orden de tabulación, y con tabindex en el destino para que
+         el foco aterrice de verdad y no solo el scroll. */
+      var salto = document.createElement('a');
+      salto.className = 'skip-link';
+      salto.href = '#main-content';
+      salto.textContent = 'Saltar al contenido';
+      root.appendChild(salto);
+      main.setAttribute('tabindex', '-1');
       root.appendChild(aside);
       root.appendChild(scrim);
       root.appendChild(col);
       col.appendChild(top);
       col.appendChild(main); /* mueve el main existente dentro de la columna */
+
+      /* ALTURA REAL DEL TOPBAR, publicada como token.
+         El topbar se pega arriba con z-index 40, así que TODO lo que una pantalla pegue
+         a `top:0` queda debajo y desaparece: le pasaba a la barra de progreso de
+         Artículos, a su índice lateral y —peor— a la barra con el botón «Guardar» del
+         editor. Ningún número fijo sirve, porque el alto cambia con las cuatro escalas
+         de texto (59 px en md, ~70 en xl) y con la consulta de 720px. Lo mide quien lo
+         sabe, que es el marco, y lo publica; cada pantalla decide si lo consume.
+         Es puramente aditivo: hasta que alguien lo lee, no cambia nada de nada. */
+      var medirTop = function () {
+        document.documentElement.style.setProperty('--top-h', top.offsetHeight + 'px');
+      };
+      medirTop();
+      if (window.ResizeObserver) new ResizeObserver(medirTop).observe(top);
 
       var un = document.getElementById('user-name');
       if (un && window.AppSession) un.textContent = AppSession.firstName;

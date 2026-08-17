@@ -178,6 +178,9 @@
 .art-cuerpo > .art-h2 + *,.art-cuerpo > .art-h3 + *{margin-top:.6rem}
 .art-cuerpo > * + .art-h2{margin-top:2.4rem}
 .art-cuerpo > * + .art-h3{margin-top:1.9rem}
+/* El separador es una línea de DESCANSO: sin aire a los dos lados se lee como el borde
+   inferior del párrafo de encima en vez de como una pausa. */
+.art-cuerpo > * + .art-sep,.art-cuerpo > .art-sep + *{margin-top:2.2rem}
 
 .art-cuerpo a{color:var(--brand-deep);text-decoration:underline;text-underline-offset:2px;
   text-decoration-thickness:1px}
@@ -727,6 +730,23 @@
     return n;
   }
 
+  /**
+   * Apaga el fondo mientras hay un diálogo encima.
+   *
+   * Los cuatro overlays de esta pantalla declaran `aria-modal="true"`, que le dice al
+   * lector de pantalla que el resto de la página no existe… pero con Tab el foco salía
+   * igual al menú y al contenido de detrás, que seguían siendo enfocables: el usuario de
+   * teclado acababa navegando a ciegas por debajo del velo. `inert` lo dice de verdad —
+   * quita el foco Y los clics de todo lo que hay debajo— y es una línea en vez de una
+   * trampa de Tab escrita a mano, que además no puede funcionar cuando dentro del
+   * diálogo hay un iframe de otro origen (draw.io, Google).
+   */
+  function fondoApagado(si){
+    var marco = document.querySelector('.app');
+    if (!marco || !('inert' in HTMLElement.prototype)) return;
+    marco.inert = !!si;
+  }
+
   /* ── URLs seguras, del lado del cliente ────────────────────────────────
      El servidor ya sanea al guardar (artUrlSegura_), pero el cliente pinta
      también lo que tiene en memoria mientras se edita, y una copia local vieja
@@ -1061,8 +1081,10 @@
     montaje.el.classList.add('es-full');
     overlay.appendChild(montaje.el);
     document.body.appendChild(overlay);
+    fondoApagado(true);
 
     function fuera(){
+      fondoApagado(false);
       montaje.destruir();
       document.removeEventListener('keydown', porEsc);
       if (overlay.parentNode) overlay.parentNode.removeChild(overlay);
@@ -1115,8 +1137,10 @@
     marco.appendChild(fr);
     overlay.appendChild(marco);
     document.body.appendChild(overlay);
+    fondoApagado(true);
 
     function fuera(){
+      fondoApagado(false);
       document.removeEventListener('keydown', porEsc);
       if (overlay.parentNode) overlay.parentNode.removeChild(overlay);
       if (quienAbrio && quienAbrio.focus) quienAbrio.focus();
@@ -1173,7 +1197,7 @@
                             docDeUrl: docDeUrl, parsearTSV: parsearTSV,
                             montarDiagrama: montarDiagrama, abrirDiagramaGrande: abrirDiagramaGrande,
                             abrirDocumentoGrande: abrirDocumentoGrande,
-                            el: el, icono: icono };
+                            el: el, icono: icono, fondoApagado: fondoApagado };
 })();
 </script>
 <script>
@@ -1906,8 +1930,10 @@
     cerrar.setAttribute('aria-label', 'Cerrar');
     overlay.appendChild(cerrar);
     document.body.appendChild(overlay);
+    R.fondoApagado(true);
 
     function fuera(){
+      R.fondoApagado(false);
       document.removeEventListener('keydown', porEsc);
       if (overlay.parentNode) overlay.parentNode.removeChild(overlay);
       if (quienAbrio && quienAbrio.focus) quienAbrio.focus();
@@ -2672,8 +2698,10 @@
     montaje.el.classList.add('es-full');
     overlay.appendChild(montaje.el);
     document.body.appendChild(overlay);
+    R.fondoApagado(true);
 
     function fuera(){
+      R.fondoApagado(false);
       montaje.destruir();
       document.removeEventListener('keydown', porEsc);
       if (overlay.parentNode) overlay.parentNode.removeChild(overlay);
@@ -2683,6 +2711,10 @@
     function porEsc(e){ if (e.key === 'Escape') fuera(); }
     cerrar.addEventListener('click', fuera);
     document.addEventListener('keydown', porEsc);
+    /* Faltaba, y era el único de los cuatro diálogos sin él: sin mover el foco aquí se
+       queda en un botón que acaba de salir del DOM y el siguiente Tab reinicia desde
+       arriba del todo. */
+    cerrar.focus();
     if (window.AppMotion && AppMotion.modalIn) AppMotion.modalIn(overlay, montaje.el);
   }
 
