@@ -454,12 +454,15 @@
    Ahora el canalón forma parte de la caja del lienzo y va en rem, así que crece con la
    letra y nunca puede quedarse sin sitio. Y no estrecha la medida: el campo sigue
    midiendo 40rem exactas; lo que mide 2.6rem más es la caja que lo contiene. */
-.art-lienzo{max-width:calc(40rem + 2.6rem);padding-left:2.6rem;margin-inline:auto}
+.art-lienzo{--art-canal-ed:2.6rem;
+  max-width:calc(40rem + var(--art-canal-ed));padding-left:var(--art-canal-ed);margin-inline:auto}
 
 /* Cabecera: el título del artículo se escribe con el tamaño del título. */
 .art-campo-titulo{width:100%;font-family:var(--f-display);
-  font-size:clamp(1.6rem,1.2rem + 1.4vw,2.2rem);font-weight:var(--fw-bold);line-height:1.15;
-  letter-spacing:-.02em;color:var(--ink);background:transparent;border:0;padding:0;margin:0}
+  font-size:2.15rem;font-weight:var(--fw-bold);line-height:1.15;
+  letter-spacing:-.024em;color:var(--ink);background:transparent;border:0;padding:0;margin:0;
+  resize:none;overflow:hidden}
+@media (max-width:640px){ .art-campo-titulo{font-size:1.7rem} }
 .art-campo-titulo::placeholder{color:var(--ink-faint);opacity:.55}
 .art-campo-resumen{width:100%;font:inherit;font-size:1.05rem;line-height:1.6;color:var(--ink-soft);
   background:transparent;border:0;padding:0;margin:.6rem 0 0;resize:none;overflow:hidden}
@@ -486,11 +489,30 @@
 
    El rótulo del tipo se quitó a la vez: si el editor se parece al artículo —y de eso va
    este rediseño—, un subtítulo ya se ve que es un subtítulo y la etiqueta sobra. Los
-   botones llevan su `aria-label`, así que para el lector de pantalla no se pierde nada. */
-.art-bloque-hd{position:absolute;top:.35rem;left:0;display:flex;flex-direction:column;gap:.2rem;
-  opacity:0;transform:translateX(3px);transition:opacity .15s,transform .15s;pointer-events:none}
-.art-bloque:hover .art-bloque-hd,.art-bloque:focus-within .art-bloque-hd{opacity:1;transform:none;pointer-events:auto}
+   botones llevan su `aria-label`, así que para el lector de pantalla no se pierde nada.
+
+   LO QUE CAMBIÓ, y por qué son un ASA y no tres botones. Antes eran tres —subir, bajar,
+   quitar— apilados y en `opacity:0` hasta pasar el ratón: no los encontraba quien no
+   supiera ya que estaban ahí, y en una pantalla táctil sencillamente no existían. Al
+   sacarlos del escondite apareció el otro problema: tres botones apilados miden 84 px y
+   un párrafo de una línea mide 31, así que la columna se desbordaba por debajo del
+   bloque y se montaba encima del siguiente.
+
+   Un asa de 26 px cabe en el margen sea cual sea el alto del bloque, se ve siempre y al
+   pulsarla dice las acciones CON PALABRAS en vez de con tres iconos a pelo. Y para quien
+   mueve mucho, Alt+↑ y Alt+↓ hacen lo mismo sin abrir nada — el menú lo enseña. */
+/* El asa va en el CANAL, que lo reserva el acolchado del lienzo: `left:0` la dibujaba
+   encima de la primera letra del párrafo, y por eso parecía que no estaba. */
+.art-bloque-hd{position:absolute;top:.4rem;left:calc(var(--art-canal-ed,2.6rem) * -1);
+  display:flex;flex-direction:column;gap:.2rem;opacity:.6;transition:opacity .15s}
+.art-bloque:hover .art-bloque-hd,.art-bloque:focus-within .art-bloque-hd{opacity:1}
 .art-bloque-tipo{display:none}
+.art-bloque-asa{width:26px;height:26px;display:flex;align-items:center;justify-content:center;
+  border:1px solid transparent;background:transparent;border-radius:6px;cursor:pointer;
+  color:var(--ink-soft);padding:0;transition:var(--tr)}
+.art-bloque-asa:hover{border-color:var(--line);background:var(--surface);color:var(--brand-deep)}
+.art-bloque-asa:focus-visible{outline:2px solid var(--brand);outline-offset:1px}
+.art-bloque-asa .ic{width:17px;height:17px}
 .art-bloque-ac{display:flex;flex-direction:column;gap:.2rem}
 .art-bloque-ac button{width:26px;height:26px;display:flex;align-items:center;justify-content:center;
   border:1px solid var(--line);background:var(--surface);border-radius:6px;cursor:pointer;
@@ -540,18 +562,44 @@
 .art-ayuda{font-size:var(--fs-xs);color:var(--ink-soft);margin:.3rem 0 0;line-height:1.5}
 .art-ayuda b{color:var(--ink-soft);font-weight:700}
 
-/* Insertar ENTRE bloques: la línea aparece al acercarse. Es donde la gente
-   quiere añadir algo —justo aquí, no al final— y evita el viaje al panel. */
-.art-entre{position:relative;height:14px;display:flex;align-items:center;justify-content:center}
+/* Insertar ENTRE bloques. Es donde la gente quiere añadir algo —justo aquí, no al
+   final— y evita el viaje al panel.
+
+   El «+» tampoco nace ya invisible. Con `opacity:0` hasta pasar el ratón, la única
+   forma de descubrir que se puede insertar en medio era barrer el lienzo con el cursor
+   por casualidad: en una pantalla táctil, sencillamente no existía. Ahora está siempre,
+   apagado y pequeño; al acercarse aparece su línea y se enciende. */
+.art-entre{position:relative;height:20px;display:flex;align-items:center;justify-content:center}
 .art-entre::before{content:'';position:absolute;left:0;right:0;height:1px;background:var(--brand-soft);
   opacity:0;transition:opacity .15s}
 .art-entre:hover::before,.art-entre:focus-within::before{opacity:1}
-.art-mas{width:22px;height:22px;border-radius:999px;border:1px solid var(--line);background:var(--surface);
+.art-mas{width:22px;height:22px;border-radius:999px;border:1px dashed var(--line);background:var(--surface);
   color:var(--ink-faint);display:flex;align-items:center;justify-content:center;cursor:pointer;
-  opacity:0;transition:opacity .15s,transform .15s;font-size:15px;line-height:1;padding:0}
-.art-entre:hover .art-mas,.art-entre:focus-within .art-mas{opacity:1}
+  opacity:.45;transition:opacity .15s,transform .15s,border-color .15s,color .15s;
+  font-size:15px;line-height:1;padding:0}
+.art-entre:hover .art-mas,.art-entre:focus-within .art-mas{opacity:1;border-style:solid}
 .art-mas:hover{border-color:var(--brand);color:var(--brand-deep);transform:scale(1.1)}
 .art-mas:focus-visible{opacity:1;outline:2px solid var(--brand);outline-offset:2px}
+
+/* AÑADIR AL FINAL, dentro del lienzo. El panel de la derecha existía, pero está a 600 px
+   del sitio donde se está escribiendo y su rótulo decía «al final», que no es donde uno
+   quiere insertar. Esta fila cierra el documento y es la respuesta obvia a «¿y ahora qué
+   hago?»: se ve sin buscar, dice lo que hace y está donde acaba el texto. */
+.art-anadir{display:flex;align-items:center;gap:.5rem;width:100%;margin-top:.35rem;
+  padding:.6rem .7rem;border:1px dashed var(--line);border-radius:var(--rad);
+  background:transparent;color:var(--ink-soft);font:inherit;font-size:var(--fs-sm);
+  font-weight:600;cursor:pointer;transition:var(--tr)}
+.art-anadir:hover{border-color:var(--brand-soft);background:var(--brand-tint);color:var(--brand-deep)}
+.art-anadir:focus-visible{outline:2px solid var(--brand);outline-offset:2px}
+.art-anadir .ic{width:16px;height:16px;flex:none}
+.art-anadir kbd{margin-left:auto;font:inherit;font-size:10px;font-weight:700;
+  border:1px solid var(--line);border-radius:4px;padding:.05rem .3rem;color:var(--ink-faint)}
+
+/* La pista de la barra inclinada. Se enseña solo mientras el artículo está en blanco:
+   es lo que hay que saber la primera vez y estorba a partir de la segunda. */
+.art-pista{font-size:var(--fs-xs);color:var(--ink-soft);margin:.5rem 0 0;line-height:1.5}
+.art-pista kbd{font-family:var(--f-mono);font-size:.72em;background:var(--surface-2);
+  border:1px solid var(--line);border-radius:4px;padding:.05rem .3rem;color:var(--ink)}
 
 /* Panel lateral: contexto y herramientas, nunca la acción primaria.
    Las cajas eran blancas sobre un fondo casi blanco (`--surface` #FFF sobre
@@ -572,6 +620,38 @@
 .art-cifra{display:flex;align-items:baseline;justify-content:space-between;gap:var(--s2);
   font-size:var(--fs-xs);color:var(--ink-soft)}
 .art-cifra b{font-size:var(--fs-sm);font-weight:var(--fw-bold);color:var(--ink);font-variant-numeric:tabular-nums}
+
+/* ── QUIÉN LO VE ──────────────────────────────────────────────────────────────
+   Antes, todo lo que decía si el artículo era público o no era el rótulo del botón
+   primario: «Publicar» o «Guardar y retirar». Eso obliga a deducir el estado actual a
+   partir del nombre de una acción —y «Guardar y retirar» son dos verbos en un botón—.
+   Aquí el estado se ELIGE, con las dos opciones a la vista y cada una diciendo su
+   consecuencia en cristiano. El botón de arriba pasa a ser solo «guardar lo elegido». */
+.art-visib{display:flex;flex-direction:column;gap:.35rem}
+.art-visib label{display:flex;align-items:flex-start;gap:.55rem;padding:.5rem .6rem;
+  border:1px solid var(--line);border-radius:var(--rad-sm);background:var(--surface);
+  cursor:pointer;transition:var(--tr)}
+.art-visib label:hover{border-color:var(--brand-soft)}
+.art-visib input{margin:.15rem 0 0;accent-color:var(--brand);flex:none}
+.art-visib .vs-tx{display:flex;flex-direction:column;gap:.1rem;min-width:0}
+.art-visib .vs-tx b{font-size:var(--fs-sm);font-weight:700;color:var(--ink)}
+.art-visib .vs-tx small{font-size:var(--fs-xs);color:var(--ink-soft);line-height:1.4}
+.art-visib label:has(input:checked){border-color:var(--brand);background:var(--brand-tint)}
+.art-visib label:has(input:checked) .vs-tx b{color:var(--brand-deep)}
+.art-visib label:has(input:focus-visible){outline:2px solid var(--brand);outline-offset:2px}
+
+/* ── AVISO DE BORRADOR RECUPERADO ─────────────────────────────────────────────
+   Se pinta arriba del lienzo cuando al abrir el editor había una copia local más nueva
+   que lo guardado en el servidor. Nunca decide por su cuenta: enseña de cuándo es y deja
+   las dos salidas a la misma distancia. */
+.art-rescate{display:flex;align-items:center;gap:var(--s3);flex-wrap:wrap;
+  margin:0 auto var(--s4);max-width:calc(40rem + 2.6rem);
+  padding:var(--s3);border:1px solid var(--warn);border-left-width:3px;
+  border-radius:var(--rad);background:var(--warn-bg);color:var(--ink)}
+.art-rescate .art-rescate-tx{flex:1;min-width:12rem;font-size:var(--fs-sm);line-height:1.45}
+.art-rescate b{font-weight:700}
+.art-rescate .art-acciones{gap:.4rem}
+[data-theme="carbon"] .art-rescate{border-color:#F0A868}
 
 .art-insertar{display:flex;flex-direction:column;gap:.2rem}
 .art-insertar button{display:flex;align-items:center;gap:.5rem;padding:.45rem .5rem;font:inherit;
@@ -600,6 +680,15 @@
 .art-menu button:focus-visible{background:var(--brand-tint);color:var(--brand-deep);outline:2px solid var(--brand);outline-offset:-2px}
 .art-menu .ic{width:15px;height:15px;flex:none;color:var(--ink-faint)}
 .art-menu small{display:block;font-size:var(--fs-xs);font-weight:500;color:var(--ink-soft)}
+.art-menu button:disabled{opacity:.4;cursor:default}
+.art-menu button:disabled:hover{background:transparent;color:var(--ink)}
+.art-menu .art-atajo{margin-left:auto;font-size:10px;font-weight:700;color:var(--ink-faint);
+  border:1px solid var(--line);border-radius:4px;padding:0 .25rem;white-space:nowrap}
+/* Quitar va separado y en rojo: es la única del menú que no se deshace con otro clic. */
+.art-menu button.es-riesgo{margin-top:.15rem;padding-top:.5rem;border-top:1px solid var(--line);
+  border-radius:0 0 var(--rad-sm) var(--rad-sm);color:var(--alert)}
+.art-menu button.es-riesgo .ic{color:var(--alert)}
+.art-menu button.es-riesgo:hover,.art-menu button.es-riesgo:focus-visible{background:var(--alert-bg);color:var(--alert)}
 
 /* Vista previa dentro del editor: el artículo tal cual, sin salir de la pantalla. */
 .art-previa{border:1px dashed var(--brand-soft);border-radius:var(--rad);padding:var(--s4);
@@ -611,9 +700,9 @@
    existe «pasar el ratón», así que lo que solo aparece al pasar, no existe. El canalón
    del chrome ya no entra en esta cuenta —lo reserva el propio lienzo, arriba—, así que
    esta consulta se queda solo con lo suyo. */
-@media (hover:none),(max-width:1040px){
-  .art-bloque-hd{opacity:1;transform:none;pointer-events:auto}
-  .art-mas{opacity:1}
+@media (hover:none){
+  .art-bloque-hd{opacity:1}
+  .art-mas{opacity:1;border-style:solid}
   .art-sub-op{display:flex}
 }
 @media (max-width:1040px){
@@ -667,6 +756,7 @@
 [data-theme="carbon"] .art-indice a.es-aqui,
 [data-theme="carbon"] .art-diag-ampliar,
 [data-theme="carbon"] .art-doc-nota a,
+[data-theme="carbon"] .art-visib label:has(input:checked) .vs-tx b,
 [data-theme="carbon"] .art-previa-nota{color:#FF85CE}
 [data-theme="carbon"] .art-badge.borrador{background:var(--warn-bg);color:#F0A868}
 [data-theme="carbon"] .art-badge.publicado{background:var(--ok-bg);color:#5BD1A0}
@@ -1303,6 +1393,16 @@
           st.puedeEditar = !!r.puedeEditar;
           vaciar(vista);
           pintarLista();
+          /* `?action=nueva` abre el editor directamente. La pantalla ya ESCRIBÍA ese
+             parámetro en la barra de direcciones al abrir el editor, pero no lo leía
+             nunca: quien guardaba ese enlace, lo compartía o simplemente recargaba,
+             aterrizaba en la lista. Se resuelve aquí, cuando el servidor ya ha dicho si
+             esta persona puede escribir. */
+          if (st.accion === 'nueva') {
+            st.accion = '';
+            if (st.puedeEditar) abrirEditor(null);
+            else aviso('No tienes permiso para escribir artículos.', 'warn');
+          }
         }, function (){
           if (fx) fx.done();
           vista.removeAttribute('aria-busy');
@@ -1475,6 +1575,13 @@
           st.id = id;
           st.puedeEditar = !!r.puedeEditar;
           vaciar(vista);
+          // `?art=…&action=edit` entra directo a editar, por lo mismo que `action=nueva`.
+          if (st.accion === 'edit' && st.puedeEditar) {
+            st.accion = '';
+            abrirEditor(st.articulo);
+            return;
+          }
+          st.accion = '';
           pintarLectura();
           reflejar({ art: id }, apilar);
         }, function (){
@@ -1987,6 +2094,166 @@
       }, function (){ aviso('No pudimos consultarlo.', 'warn'); });
   }
 
+  /* ═══════════════════════════════════════════════════════════════════════
+     BORRADOR LOCAL — que cerrar el navegador de golpe no cueste el artículo
+     ───────────────────────────────────────────────────────────────────────
+     Escribir una guía son veinte minutos largos, y hasta ahora lo único que había
+     entre ese rato y la nada era el aviso de `beforeunload`, que además no aparece
+     si se cierra la pestaña en el móvil, si se cae la red de la oficina o si Apps
+     Script decide recargar el marco. Esto guarda una copia en el propio navegador
+     cada vez que se deja de teclear, y la ofrece al volver.
+
+     LO QUE ES Y LO QUE NO ES. Es una CACHÉ, no un almacén: se puede vaciar entera
+     y no se pierde nada de lo que ya está en la hoja. El artículo de verdad vive en
+     el servidor; esto solo cubre el hueco entre dos guardados. Por eso todo va
+     dentro de try/catch y, si el navegador no deja escribir —modo privado, cookies
+     bloqueadas, cuota llena—, se cae a memoria y la pantalla sigue funcionando
+     exactamente igual, solo que sin red de seguridad.
+
+     LAS CLAVES llevan espacio de nombres y VERSIÓN (`ventel:art:v1:`). El origen de
+     una webapp de Apps Script es compartido con cualquier otro script del dominio,
+     así que una clave suelta como `borrador` es una colisión esperando a pasar; y la
+     versión permite cambiar la forma del dato sin escribir una migración: lo viejo
+     se purga solo.
+  ═══════════════════════════════════════════════════════════════════════ */
+  var Borrador = (function (){
+    var NS = 'ventel:art:v1:';
+    var VIDA = 14 * 24 * 60 * 60 * 1000;   // 14 días: más allá, el borrador ya no es de nadie
+    var memoria = {};                       // respaldo cuando el navegador no deja escribir
+    var hayDisco = (function (){
+      try {
+        localStorage.setItem(NS + 'sonda', '1');
+        localStorage.removeItem(NS + 'sonda');
+        return true;
+      } catch (e) { return false; }
+    })();
+
+    function clave(id){ return NS + 'borrador:' + (id || 'nuevo'); }
+
+    function escribir(k, texto){
+      if (!hayDisco) { memoria[k] = texto; return true; }
+      try { localStorage.setItem(k, texto); return true; }
+      catch (e) {
+        /* Cuota llena. Primero se tira lo caducado —que es basura por definición— y se
+           reintenta UNA vez. Si vuelve a fallar, se guarda en memoria y se sigue: una
+           copia de seguridad que tumba el editor es peor que no tener copia. */
+        purgar();
+        try { localStorage.setItem(k, texto); return true; }
+        catch (e2) { memoria[k] = texto; return false; }
+      }
+    }
+
+    function leer(k){
+      if (!hayDisco) return memoria[k] || null;
+      try { return localStorage.getItem(k); } catch (e) { return memoria[k] || null; }
+    }
+
+    function quitar(k){
+      delete memoria[k];
+      if (!hayDisco) return;
+      try { localStorage.removeItem(k); } catch (e) {}
+    }
+
+    /** Tira lo caducado y lo de versiones anteriores. Se llama al arrancar y al llenarse. */
+    function purgar(){
+      if (!hayDisco) return;
+      try {
+        var fuera = [], i, k;
+        for (i = 0; i < localStorage.length; i++) {
+          k = localStorage.key(i);
+          if (!k) continue;
+          if (k.indexOf('ventel:art:') !== 0) continue;
+          if (k.indexOf(NS) !== 0) { fuera.push(k); continue; }   // versión vieja
+          try {
+            var d = JSON.parse(localStorage.getItem(k));
+            if (!d || !d.e || Date.now() > d.e) fuera.push(k);
+          } catch (e) { fuera.push(k); }                          // corrupto: fuera
+        }
+        fuera.forEach(function (x){ try { localStorage.removeItem(x); } catch (e) {} });
+      } catch (e) {}
+    }
+
+    return {
+      hayDisco: hayDisco,
+      purgar: purgar,
+
+      /** Guarda una copia. Devuelve false si no se pudo dejar en disco. */
+      poner: function (id, datos){
+        return escribir(clave(id), JSON.stringify({
+          e: Date.now() + VIDA,
+          cuando: Date.now(),
+          datos: datos
+        }));
+      },
+
+      /** Devuelve {cuando, datos} o null. Un valor corrupto se trata como ausente. */
+      sacar: function (id){
+        var crudo = leer(clave(id));
+        if (!crudo) return null;
+        try {
+          var d = JSON.parse(crudo);
+          if (!d || !d.datos || !d.e || Date.now() > d.e) { quitar(clave(id)); return null; }
+          return { cuando: d.cuando, datos: d.datos };
+        } catch (e) { quitar(clave(id)); return null; }
+      },
+
+      tirar: function (id){ quitar(clave(id)); },
+      clave: clave
+    };
+  })();
+
+  /** «hace 3 minutos», para que el aviso de rescate diga de cuándo es la copia. */
+  function hace(epoch){
+    var s = Math.max(0, Math.round((Date.now() - epoch) / 1000));
+    if (s < 60) return 'hace unos segundos';
+    var m = Math.round(s / 60);
+    if (m < 60) return 'hace ' + m + (m === 1 ? ' minuto' : ' minutos');
+    var h = Math.round(m / 60);
+    if (h < 24) return 'hace ' + h + (h === 1 ? ' hora' : ' horas');
+    var d = Math.round(h / 24);
+    return 'hace ' + d + (d === 1 ? ' día' : ' días');
+  }
+
+  /** Lo que se guarda y lo que se compara: el contenido, no el envoltorio. */
+  function instantanea(){
+    return {
+      titulo: st.articulo.titulo || '',
+      resumen: st.articulo.resumen || '',
+      estado: st.articulo.estado || 'borrador',
+      bloques: st.bloques
+    };
+  }
+  function mismoContenido(a, b){
+    try {
+      return JSON.stringify([a.titulo, a.resumen, a.bloques]) ===
+             JSON.stringify([b.titulo, b.resumen, b.bloques]);
+    } catch (e) { return false; }
+  }
+
+  /* El guardado local va con freno: escribir en localStorage es SÍNCRONO y toca disco,
+     así que hacerlo en cada tecla es una forma elegante de que el editor dé tirones.
+     800 ms después de la última tecla es imperceptible para quien escribe y suficiente
+     para no perder nada. */
+  var relojBorrador = null;
+  var avisadoSinDisco = false;
+  function guardarBorradorLocal(){
+    if (st.modo !== 'edita') return;
+    var ok = Borrador.poner(st.id, instantanea());
+    if (!ok && !avisadoSinDisco) {
+      avisadoSinDisco = true;
+      aviso('No pudimos guardar una copia en este navegador: guarda tú de vez en cuando.', 'warn');
+    }
+  }
+  function programarBorrador(){
+    if (relojBorrador) clearTimeout(relojBorrador);
+    relojBorrador = setTimeout(guardarBorradorLocal, 800);
+  }
+  /** Guarda YA, sin esperar al freno. Para cuando la pestaña se va. */
+  function volcarBorrador(){
+    if (relojBorrador) { clearTimeout(relojBorrador); relojBorrador = null; }
+    guardarBorradorLocal();
+  }
+
   /* ── Editor ────────────────────────────────────────────────────────── */
   var TIPOS = [
     { t: 'texto',      n: 'Párrafo',    i: 'document',     d: 'Texto corrido' },
@@ -2012,14 +2279,55 @@
     st.sucio = false;
     st.previa = false;
     st.foco = null;          // bloque al que llevar el cursor tras repintar
+    st.bloqueActivo = null;  // dónde está el cursor, para insertar AHÍ y no al final
+    /* Lo que el servidor tiene ahora mismo. Sirve para dos cosas: saber si la copia
+       local aporta algo, y decidir el rótulo del botón de guardar (publicar, retirar
+       o simplemente guardar). */
+    st.estadoGuardado = st.articulo.estado || 'borrador';
+    st.guardadoServidor = instantanea();
+    st.rescate = null;
+
+    /* ¿Hay una copia local de este mismo artículo que diga algo distinto de lo que
+       acaba de traer el servidor? Solo entonces se ofrece; si coincide, es la copia
+       del último guardado y enseñarla sería preguntar por nada. */
+    var copia = Borrador.sacar(st.id);
+    if (copia && copia.datos && !mismoContenido(copia.datos, st.guardadoServidor)) {
+      st.rescate = copia;
+    } else if (copia) {
+      Borrador.tirar(st.id);
+    }
+
     pintarEditor();
     reflejar({ art: st.id, action: st.id ? 'edit' : 'nueva' }, true);
+  }
+
+  /** Adopta la copia local: pasa a ser lo que se está editando, y queda sin guardar. */
+  function recuperarBorrador(){
+    if (!st.rescate) return;
+    var d = st.rescate.datos;
+    st.articulo.titulo = d.titulo || '';
+    st.articulo.resumen = d.resumen || '';
+    st.articulo.estado = d.estado || st.estadoGuardado;
+    st.bloques = (d.bloques || []).slice();
+    if (!st.bloques.length) st.bloques.push({ tipo: 'texto', partes: [{ t: '' }] });
+    st.rescate = null;
+    st.sucio = true;
+    pintarEditor();
+    aviso('Recuperado lo que habías escrito. Revísalo y guarda.', 'ok');
+  }
+
+  /** Descarta la copia local y se queda con lo que trajo el servidor. */
+  function descartarBorrador(){
+    Borrador.tirar(st.id);
+    st.rescate = null;
+    pintarEditor();
   }
 
   function marcar(){
     st.sucio = true;
     pintarCifras();
     pintarEstado();
+    programarBorrador();
   }
 
   /* Un textarea que crece con lo que se escribe. Sin esto, el lienzo tiene barras de
@@ -2071,6 +2379,31 @@
     });
   }
 
+  /** ¿Está el artículo todavía en blanco? Decide si se enseña la pista de arranque. */
+  function esArticuloEnBlanco(){
+    if ((st.articulo.titulo || '').trim()) return false;
+    if (st.bloques.length > 1) return false;
+    var b = st.bloques[0];
+    return !b || (b.tipo === 'texto' && !((b.partes || []).map(function (p){ return p.t; }).join('')).trim());
+  }
+
+  /** Dónde cae un bloque nuevo: justo debajo del que tiene el cursor; al final si no hay. */
+  function dondeInsertar(){
+    return (typeof st.bloqueActivo === 'number' && st.bloqueActivo >= 0)
+      ? st.bloqueActivo + 1 : st.bloques.length;
+  }
+
+  /** El rótulo del botón primario dice qué va a pasar al pulsarlo, no cómo se llama la
+      operación por dentro. «Guardar y retirar» era la única pista de que el artículo
+      estaba publicado, y eran dos verbos en un botón. */
+  function etiquetaGuardar(){
+    var elegido = st.articulo.estado === 'publicado' ? 'publicado' : 'borrador';
+    var guardado = st.estadoGuardado === 'publicado' ? 'publicado' : 'borrador';
+    if (elegido === 'publicado') return guardado === 'publicado' ? 'Guardar cambios' : 'Publicar';
+    if (guardado === 'publicado') return 'Guardar y retirar';
+    return st.id ? 'Guardar' : 'Guardar borrador';
+  }
+
   function pintarEstado(){
     var n = document.getElementById('artEstado');
     if (!n) return;
@@ -2091,37 +2424,61 @@
        si hay cambios sin guardar) y a la derecha UNA sola acción primaria. */
     var barra = el('div', 'art-barra');
     var izq = el('div', 'art-barra-izq');
-    var salir = el('button', 'v-btn v-btn-ghost', '← Salir');
+    var salir = el('button', 'v-btn v-btn-ghost v-btn-sm', '← Salir');
     salir.type = 'button';
     salir.addEventListener('click', salirDelEditor);
     izq.appendChild(salir);
-    izq.appendChild(el('span', 'art-badge ' + (st.articulo.estado === 'publicado' ? 'publicado' : 'borrador'),
-      st.articulo.estado === 'publicado' ? 'Publicado' : 'Borrador'));
+    /* La pastilla enseña el estado GUARDADO, no el elegido: es «cómo está ahora mismo en
+       el Portal». Lo que se va a hacer con él lo dice el botón de la derecha. */
+    izq.appendChild(el('span', 'art-badge ' + (st.estadoGuardado === 'publicado' ? 'publicado' : 'borrador'),
+      st.estadoGuardado === 'publicado' ? 'Publicado' : 'Borrador'));
     var estado = el('span', 'art-estado', '');
     estado.id = 'artEstado';
     estado.setAttribute('aria-live', 'polite');
     izq.appendChild(estado);
     barra.appendChild(izq);
 
+    /* UNA sola acción primaria, y su rótulo dice lo que va a pasar.
+       Antes había dos botones de guardar —«Guardar» y «Publicar»/«Guardar y retirar»— y
+       entre los dos había que deducir en qué estado quedaba el artículo. Ahora el estado
+       se ELIGE abajo en el panel («Quién lo ve») y aquí solo queda guardar lo elegido,
+       con el rótulo diciendo la consecuencia. */
     var der = el('div', 'art-barra-der');
-    var previa = el('button', 'v-btn v-btn-ghost', st.previa ? 'Seguir escribiendo' : 'Vista previa');
+    var previa = el('button', 'v-btn v-btn-ghost v-btn-sm', st.previa ? 'Seguir escribiendo' : 'Vista previa');
     previa.type = 'button';
     previa.addEventListener('click', function (){ st.previa = !st.previa; pintarEditor(); });
     der.appendChild(previa);
-    var guardar = el('button', 'v-btn v-btn-ghost', 'Guardar');
+    var guardar = el('button', 'v-btn v-btn-primary', etiquetaGuardar());
     guardar.type = 'button';
     guardar.title = 'Ctrl + S';
     guardar.addEventListener('click', function (){ guardarArticulo(st.articulo.estado || 'borrador'); });
     der.appendChild(guardar);
-    var publicar = el('button', 'v-btn v-btn-primary',
-      st.articulo.estado === 'publicado' ? 'Guardar y retirar' : 'Publicar');
-    publicar.type = 'button';
-    publicar.addEventListener('click', function (){
-      guardarArticulo(st.articulo.estado === 'publicado' ? 'borrador' : 'publicado');
-    });
-    der.appendChild(publicar);
     barra.appendChild(der);
     vista.appendChild(barra);
+
+    /* Aviso de que hay una copia local más nueva. Va ARRIBA DEL TODO y con las dos
+       salidas a la misma distancia: recuperar no es más correcto que descartar, y quien
+       decide es quien escribió. */
+    if (st.rescate) {
+      var resc = el('div', 'art-rescate');
+      resc.setAttribute('role', 'status');
+      var rtx = el('div', 'art-rescate-tx');
+      rtx.appendChild(document.createTextNode('Tienes cambios sin guardar en este navegador, de '));
+      rtx.appendChild(el('b', null, hace(st.rescate.cuando)));
+      rtx.appendChild(document.createTextNode('. Puede que se cerrara la pestaña antes de guardar.'));
+      resc.appendChild(rtx);
+      var rac = el('div', 'art-acciones');
+      var rrec = el('button', 'v-btn v-btn-primary v-btn-sm', 'Recuperarlos');
+      rrec.type = 'button';
+      rrec.addEventListener('click', recuperarBorrador);
+      rac.appendChild(rrec);
+      var rdes = el('button', 'v-btn v-btn-ghost v-btn-sm', 'Descartarlos');
+      rdes.type = 'button';
+      rdes.addEventListener('click', descartarBorrador);
+      rac.appendChild(rdes);
+      resc.appendChild(rac);
+      vista.appendChild(resc);
+    }
 
     var grid = el('div', 'art-editor');
     var col = document.createElement('div');
@@ -2143,15 +2500,29 @@
       var lienzo = el('div', 'art-lienzo');
 
       var cab = el('div', 'art-cabecera');
-      var tTitulo = document.createElement('input');
-      tTitulo.type = 'text';
+      /* El título es un TEXTAREA que crece, no un <input>. Con un campo de una sola
+         línea, «Cómo cotizar una pantalla con instalación incluida» se cortaba a media
+         palabra y había que desplazarse dentro del campo para leer lo que uno acababa de
+         escribir. En el artículo publicado el título ocupa dos renglones; aquí también.
+         El salto de línea no llega al dato: Enter salta al resumen, como en un formulario. */
+      var tTitulo = document.createElement('textarea');
       tTitulo.className = 'art-campo-titulo';
+      tTitulo.rows = 1;
       tTitulo.value = st.articulo.titulo || '';
       tTitulo.placeholder = 'Título del artículo';
       tTitulo.maxLength = 160;
       tTitulo.setAttribute('aria-label', 'Título del artículo');
-      tTitulo.addEventListener('input', function (){ st.articulo.titulo = this.value; marcar(); });
-      cab.appendChild(tTitulo);
+      tTitulo.addEventListener('input', function (){
+        st.articulo.titulo = this.value.replace(/\n/g, ' ');
+        marcar();
+      });
+      tTitulo.addEventListener('keydown', function (e){
+        if (e.key !== 'Enter') return;
+        e.preventDefault();
+        var r = vista.querySelector('.art-campo-resumen');
+        if (r) r.focus();
+      });
+      cab.appendChild(conAutoAlto(tTitulo));
       var tRes = document.createElement('textarea');
       tRes.className = 'art-campo-resumen';
       tRes.rows = 1;
@@ -2169,12 +2540,73 @@
         caja2.appendChild(zonaInsertar(i + 1));
       });
       lienzo.appendChild(caja2);
+
+      /* El cierre del documento: la respuesta visible a «¿y ahora qué hago?». El panel
+         de la derecha ya ofrecía los mismos bloques, pero está a 600 px del cursor y su
+         rótulo decía «al final», que no es lo que uno quiere casi nunca. */
+      var anadir = el('button', 'art-anadir', null);
+      anadir.type = 'button';
+      anadir.appendChild(icono('plus'));
+      anadir.appendChild(el('span', null, 'Añadir un bloque'));
+      anadir.appendChild(el('kbd', null, '/'));
+      anadir.addEventListener('click', function (e){
+        abrirMenuInsertar(e.currentTarget, st.bloques.length);
+      });
+      lienzo.appendChild(anadir);
+
+      /* La pista de la barra inclinada, solo mientras el artículo está en blanco: es lo
+         que hay que saber la primera vez y sobra a partir de la segunda. */
+      if (esArticuloEnBlanco()) {
+        var pista = el('p', 'art-pista', null);
+        pista.appendChild(document.createTextNode('Escribe como en un documento. Pulsa '));
+        pista.appendChild(el('kbd', null, '/'));
+        pista.appendChild(document.createTextNode(
+          ' al principio de una línea vacía para insertar un subtítulo, una lista, una imagen, ' +
+          'una tabla o un diagrama. Se guarda solo en este navegador mientras escribes.'));
+        lienzo.appendChild(pista);
+      }
       col.appendChild(lienzo);
     }
     grid.appendChild(col);
 
     // ── Panel lateral: contexto y herramientas. Nunca la acción primaria.
     var panel = el('div', 'art-panel');
+
+    /* ── QUIÉN LO VE. Va lo PRIMERO del panel, y no escondido en el rótulo de un botón:
+       es la decisión con consecuencias de esta pantalla —el resto es escribir— y la
+       única que alguien puede tomar sin querer. */
+    var visCaja = el('div', 'art-panel-caja');
+    visCaja.appendChild(el('p', 'art-panel-t', 'Quién lo ve'));
+    var vis = el('div', 'art-visib');
+    [['borrador', 'Solo yo', 'Un borrador. No aparece en la lista del equipo ni en el buscador.'],
+     ['publicado', 'Todo el equipo', 'Cualquiera del Portal puede abrirlo y encontrarlo al buscar.']
+    ].forEach(function (o){
+      var lbl = document.createElement('label');
+      var r = document.createElement('input');
+      r.type = 'radio';
+      r.name = 'art-visibilidad';
+      r.value = o[0];
+      r.checked = (st.articulo.estado === 'publicado' ? 'publicado' : 'borrador') === o[0];
+      r.addEventListener('change', function (){
+        if (!this.checked) return;
+        st.articulo.estado = this.value;
+        marcar();
+        /* El botón primario cambia de rótulo con esto, así que se reescribe en el acto:
+           elegir «Todo el equipo» y que el botón siga diciendo «Guardar borrador» es
+           justo la contradicción que este control viene a quitar. */
+        var g = vista.querySelector('.art-barra-der .v-btn-primary');
+        if (g) g.textContent = etiquetaGuardar();
+      });
+      lbl.appendChild(r);
+      var tx = el('span', 'vs-tx');
+      tx.appendChild(el('b', null, o[1]));
+      tx.appendChild(el('small', null, o[2]));
+      lbl.appendChild(tx);
+      vis.appendChild(lbl);
+    });
+    visCaja.appendChild(vis);
+    visCaja.appendChild(el('p', 'art-ayuda', 'El cambio se aplica cuando guardas.'));
+    panel.appendChild(visCaja);
 
     var fichaCaja = el('div', 'art-panel-caja');
     fichaCaja.appendChild(el('p', 'art-panel-t', 'Este artículo'));
@@ -2183,19 +2615,24 @@
     fichaCaja.appendChild(cifras);
     panel.appendChild(fichaCaja);
 
+    /* «Insertar» y no «Añadir al final»: inserta DONDE ESTÁ EL CURSOR, que es lo que
+       cualquiera espera. Al final solo si no hay ningún bloque enfocado. */
     var insertar = el('div', 'art-panel-caja');
-    insertar.appendChild(el('p', 'art-panel-t', 'Añadir al final'));
+    insertar.appendChild(el('p', 'art-panel-t', 'Insertar'));
     var botones = el('div', 'art-insertar');
     TIPOS.forEach(function (t){
       var b = el('button', null, null);
       b.type = 'button';
+      b.title = t.d;
       b.appendChild(icono(t.i));
       b.appendChild(document.createTextNode(t.n));
-      b.addEventListener('click', function (){ anadirBloque(t.t); });
+      b.addEventListener('click', function (){ anadirBloque(t.t, dondeInsertar()); });
       botones.appendChild(b);
     });
     insertar.appendChild(botones);
-    insertar.appendChild(el('p', 'art-ayuda', 'También puedes usar el + que aparece entre dos bloques para insertar justo ahí.'));
+    insertar.appendChild(el('p', 'art-ayuda',
+      'Se inserta justo debajo del bloque donde tengas el cursor. También con el + que ' +
+      'aparece entre dos bloques, o escribiendo / en una línea vacía.'));
     panel.appendChild(insertar);
 
     var ayuda = el('div', 'art-panel-caja');
@@ -2245,7 +2682,15 @@
   }
 
   function salirDelEditor(){
-    if (st.sucio && !window.confirm('Se perderá lo que has escrito desde el último guardado. ¿Salir igualmente?')) return;
+    /* La pregunta cambió porque cambió la verdad: ya no se pierde nada al salir, queda
+       la copia local y al volver se ofrece. Decir «se perderá» cuando no se pierde
+       enseña a desconfiar del aviso, que es como se acaban ignorando todos. */
+    if (st.sucio) {
+      volcarBorrador();
+      if (!window.confirm('Tienes cambios sin guardar en el Portal.\n\n' +
+            'Se queda una copia en este navegador y te la ofreceremos al volver, pero el ' +
+            'resto del equipo no la verá. ¿Salir de todos modos?')) return;
+    }
     if (st.id) abrirArticulo(st.id); else cargarLista();
   }
 
@@ -2255,6 +2700,8 @@
     AppRun.call('artEliminar', [st.id, correo()], { busy: 'Borrando el artículo' })
       .then(function (r){
         if (!r || r.status !== 'ok') { aviso((r && r.error) || 'No pudimos borrarlo.', 'warn'); return; }
+        // Si el artículo ya no existe, su copia local tampoco tiene a dónde volver.
+        Borrador.tirar(st.id);
         st.sucio = false; st.id = '';
         aviso('Artículo borrado.', 'ok');
         cargarLista();
@@ -2274,7 +2721,14 @@
     return zona;
   }
 
-  function abrirMenuInsertar(anclaje, pos){
+  /**
+   * @param {Element} anclaje  el «+», el botón de añadir o el propio campo con el «/»
+   * @param {number}  pos      dónde cae el bloque nuevo
+   * @param {number=} reemplaza  índice del bloque que hay que TIRAR al elegir. Es lo que
+   *   hace que escribir «/» en un párrafo vacío no deje un párrafo huérfano encima del
+   *   bloque recién insertado.
+   */
+  function abrirMenuInsertar(anclaje, pos, reemplaza){
     cerrarMenu();
     var menu = el('div', 'art-menu');
     menu.id = 'artMenuInsertar';
@@ -2286,9 +2740,43 @@
       txt.appendChild(document.createTextNode(t.n));
       txt.appendChild(el('small', null, t.d));
       b.appendChild(txt);
-      b.addEventListener('click', function (){ cerrarMenu(); anadirBloque(t.t, pos); });
+      b.addEventListener('click', function (){ cerrarMenu(); anadirBloque(t.t, pos, reemplaza); });
       menu.appendChild(b);
     });
+    montarMenu(menu, anclaje);
+  }
+
+  /** El menú del asa: mover y quitar, con palabras y con su atajo escrito. */
+  function abrirMenuBloque(anclaje, i){
+    cerrarMenu();
+    var menu = el('div', 'art-menu');
+    menu.id = 'artMenuInsertar';
+    menu.setAttribute('role', 'menu');
+    [['Subir', 'chevron', -1, 'Alt + ↑', i === 0],
+     ['Bajar', 'chevron', 1, 'Alt + ↓', i === st.bloques.length - 1]
+    ].forEach(function (m){
+      var b = el('button', null, null);
+      b.type = 'button';
+      b.disabled = m[4];
+      b.appendChild(icono(m[1], m[2] === -1 ? 'es-arriba' : null));
+      var txt = document.createElement('span');
+      txt.appendChild(document.createTextNode(m[0]));
+      b.appendChild(txt);
+      b.appendChild(el('span', 'art-atajo', m[3]));
+      b.addEventListener('click', function (){ cerrarMenu(); moverBloque(i, m[2]); });
+      menu.appendChild(b);
+    });
+    var q = el('button', 'es-riesgo', null);
+    q.type = 'button';
+    q.appendChild(icono('trash'));
+    q.appendChild(el('span', null, 'Quitar este bloque'));
+    q.addEventListener('click', function (){ cerrarMenu(); quitarBloque(i); });
+    menu.appendChild(q);
+    montarMenu(menu, anclaje);
+  }
+
+  /** Coloca un menú flotante junto a su anclaje y le pone el cierre. Común a los dos. */
+  function montarMenu(menu, anclaje){
     document.body.appendChild(menu);
     var r = anclaje.getBoundingClientRect();
     // Si no cabe debajo, se abre hacia arriba: pulsar el «+» del último bloque no
@@ -2299,11 +2787,11 @@
     menu.style.left = Math.max(8, Math.min(window.innerWidth - 230, r.left - 90)) + 'px';
     if (window.Icons) Icons.render(menu);
     if (mueve()) gsap.from(menu, { opacity: 0, y: -6, duration: .18, ease: 'power2.out', clearProps: 'transform,opacity' });
-    var primero = menu.querySelector('button');
+    var primero = menu.querySelector('button:not(:disabled)');
     if (primero) primero.focus();
     setTimeout(function (){
       document.addEventListener('click', cerrarMenuFuera);
-      // Al desplazarse, el menú se queda donde estaba y el «+» se va: se cierra.
+      // Al desplazarse, el menú se queda donde estaba y el anclaje se va: se cierra.
       window.addEventListener('scroll', cerrarMenu, true);
     }, 0);
   }
@@ -2318,8 +2806,11 @@
     if (m && !m.contains(e.target)) cerrarMenu();
   }
 
-  /** `pos` = dónde insertarlo. Sin ella, al final. */
-  function anadirBloque(tipo, pos){
+  /**
+   * `pos` = dónde insertarlo. Sin ella, al final.
+   * `reemplaza` = índice de un bloque que desaparece al insertar (el párrafo con el «/»).
+   */
+  function anadirBloque(tipo, pos, reemplaza){
     var nuevo = tipo === 'texto' ? { tipo: 'texto', partes: [{ t: '' }] }
       : tipo === 'titulo' ? { tipo: 'titulo', texto: '', nivel: 2 }
       : tipo === 'lista' ? { tipo: 'lista', items: [[{ t: '' }]], ordenada: false }
@@ -2330,7 +2821,18 @@
       : { tipo: 'separador' };
     var destino = (pos == null || pos > st.bloques.length) ? st.bloques.length : pos;
     st.bloques.splice(destino, 0, nuevo);
+    /* El párrafo que solo tenía el «/» se va, y el bloque nuevo ocupa su sitio. Se quita
+       DESPUÉS de insertar y ajustando el índice, porque insertar delante lo ha corrido. */
+    if (typeof reemplaza === 'number') {
+      var fuera = reemplaza < destino ? reemplaza : reemplaza + 1;
+      if (st.bloques[fuera]) {
+        st.bloques.splice(fuera, 1);
+        if (fuera < destino) destino--;
+      }
+      if (!st.bloques.length) st.bloques.push({ tipo: 'texto', partes: [{ t: '' }] });
+    }
     st.foco = destino;          // el cursor cae dentro del bloque recién creado
+    st.bloqueActivo = destino;
     marcar();
     pintarEditor();
   }
@@ -2360,35 +2862,32 @@
   function editorDeBloque(b, i){
     var caja = el('div', 'art-bloque');
     caja.setAttribute('data-i', String(i));
+    /* Dónde está el cursor. Es lo que hace que «Insertar» del panel meta el bloque
+       DEBAJO DE DONDE ESTÁS y no al final del documento, que es lo que hacía antes y lo
+       que obligaba a subirlo después a base de flechas. */
+    caja.addEventListener('focusin', function (){ st.bloqueActivo = i; });
 
-    // Chrome flotante: rótulo del tipo y acciones. Solo se ve al pasar o enfocar.
+    /* El asa del bloque: una sola, siempre a la vista, y las acciones con palabras
+       dentro del menú que abre. Ver el comentario de `.art-bloque-hd` en el CSS. */
     var hd = el('div', 'art-bloque-hd');
     var ficha = TIPOS.filter(function (t){ return t.t === b.tipo; })[0];
-    hd.appendChild(el('span', 'art-bloque-tipo', (ficha && ficha.n) || b.tipo));
-    var ac = el('div', 'art-bloque-ac');
-    /* Subir y bajar con el MISMO dibujo girado, y no con dos iconos distintos: una
-       flecha para arriba y un galón para abajo se leen como dos gestos diferentes.
-       (Antes eran 'arrow' y 'chevdown', dos nombres que ni siquiera existían en el
-       catálogo, así que los dos botones salían sin icono.) */
-    [[-1, 'Subir'], [1, 'Bajar']].forEach(function (m){
-      var btn = document.createElement('button');
-      btn.type = 'button';
-      btn.title = m[1];
-      btn.setAttribute('aria-label', m[1] + ' este bloque');
-      btn.appendChild(icono('chevron', m[0] === -1 ? 'es-arriba' : null));
-      btn.disabled = (m[1] === -1 && i === 0) || (m[1] === 1 && i === st.bloques.length - 1);
-      btn.addEventListener('click', function (){ moverBloque(i, m[1]); });
-      ac.appendChild(btn);
-    });
-    var borrar = document.createElement('button');
-    borrar.type = 'button';
-    borrar.title = 'Quitar bloque';
-    borrar.setAttribute('aria-label', 'Quitar este bloque');
-    borrar.appendChild(icono('trash'));
-    borrar.addEventListener('click', function (){ quitarBloque(i); });
-    ac.appendChild(borrar);
-    hd.appendChild(ac);
+    var asa = el('button', 'art-bloque-asa', null);
+    asa.type = 'button';
+    asa.title = 'Mover o quitar este bloque';
+    asa.setAttribute('aria-label', 'Acciones de este bloque' + (ficha ? ' (' + ficha.n + ')' : ''));
+    asa.setAttribute('aria-haspopup', 'menu');
+    asa.appendChild(icono('grip'));
+    asa.addEventListener('click', function (e){ abrirMenuBloque(e.currentTarget, i); });
+    hd.appendChild(asa);
     caja.appendChild(hd);
+
+    /* Alt+↑ / Alt+↓ mueven el bloque sin soltar el teclado. Es el camino corto para
+       quien reordena mucho, y lo que hace que el asa no cueste dos clics cada vez. */
+    caja.addEventListener('keydown', function (e){
+      if (!e.altKey || (e.key !== 'ArrowUp' && e.key !== 'ArrowDown')) return;
+      e.preventDefault();
+      moverBloque(i, e.key === 'ArrowUp' ? -1 : 1);
+    });
 
     if (b.tipo === 'texto') {
       var ta = document.createElement('textarea');
@@ -2401,15 +2900,31 @@
         var u = (b.partes || []).filter(function (p){ return p.url; })[0];
         b.partes = u ? [{ t: this.value, url: u.url }] : [{ t: this.value }];
         marcar();
+        /* LA BARRA INCLINADA. Escribir «/» en un párrafo vacío abre el menú de insertar
+           justo ahí. Es el gesto que todo el mundo trae aprendido de otros editores y
+           evita el viaje al panel de la derecha sin soltar el teclado.
+           El «/» NO se borra al abrir: si se cierra el menú sin elegir, se queda escrito
+           como lo que es, un carácter que alguien tecleó. Solo desaparece cuando de
+           verdad se elige un tipo (lo hace anadirBloque con `reemplazar`). */
+        if (this.value === '/') abrirMenuInsertar(this, i + 1, i);
       });
-      /* Enter al final de un párrafo abre el siguiente, como en cualquier editor.
-         Con Shift+Enter se parte la línea dentro del mismo párrafo, que es la otra
-         mitad de la convención. */
       ta.addEventListener('keydown', function (e){
-        if (e.key !== 'Enter' || e.shiftKey) return;
-        if (this.selectionStart !== this.value.length) return;
-        e.preventDefault();
-        anadirBloque('texto', i + 1);
+        /* Enter al final de un párrafo abre el siguiente, como en cualquier editor.
+           Con Shift+Enter se parte la línea dentro del mismo párrafo, que es la otra
+           mitad de la convención. */
+        if (e.key === 'Enter' && !e.shiftKey) {
+          if (this.selectionStart !== this.value.length) return;
+          e.preventDefault();
+          anadirBloque('texto', i + 1);
+          return;
+        }
+        /* Retroceso en un párrafo vacío se lo lleva y sube el cursor al anterior: es la
+           otra mitad de «Enter crea uno». Sin esto, deshacer un párrafo de más obligaba a
+           buscar el botón de la papelera en el margen. */
+        if (e.key === 'Backspace' && this.value === '' && st.bloques.length > 1) {
+          e.preventDefault();
+          quitarBloque(i);
+        }
       });
       caja.appendChild(conAutoAlto(ta));
 
@@ -2829,9 +3344,18 @@
       reintentos: payload.id ? 2 : 0,
       valida: function (res){ return !!(res && res.status === 'ok'); },
       alLograr: function (res){
+        /* La copia local ya cumplió: lo que había en ella está ahora en la hoja, y
+           dejarla puesta haría que al volver a entrar se ofreciera «recuperar» algo que
+           es exactamente lo que ya se está viendo. Se tiran las dos claves posibles
+           porque un artículo nuevo se guardaba bajo «nuevo» y a partir de ahora vive
+           bajo su id. */
+        if (relojBorrador) { clearTimeout(relojBorrador); relojBorrador = null; }
+        Borrador.tirar(st.id);
+        Borrador.tirar(res.id);
         st.id = res.id;
         st.articulo.id = res.id;
         st.articulo.estado = res.estado;
+        st.estadoGuardado = res.estado;
         st.sucio = false;
         abrirArticulo(res.id);
       }
@@ -2840,6 +3364,12 @@
 
   /* ── Arranque y estado en la URL ───────────────────────────────────── */
   function aplicarUrl(){
+    /* Estando en el editor, la dirección no manda: el propio editor la escribe al abrirse
+       (`art=…&action=nueva`), y un artículo nuevo no tiene `art`, así que la regla de
+       «sin art, vuelve a la lista» echaba de la pantalla a quien acababa de entrar a
+       escribir. Salir del editor es una decisión que se toma con el botón, y ese camino
+       ya pregunta por lo que no está guardado. */
+    if (st.modo === 'edita') return;
     var id = param('art');
     if (id && id !== st.id) { abrirArticulo(id); return; }
     if (!id && st.modo !== 'lista') cargarLista();
@@ -2853,13 +3383,42 @@
     AppShell.mount({ active: 'articulo', title: 'Artículos' });
     if (window.VentelLoader) VentelLoader.hide();
 
+    // Lo caducado y lo de versiones anteriores, fuera, una sola vez por carga.
+    Borrador.purgar();
+
+    st.accion = param('action');
     var id = param('art');
     if (id) abrirArticulo(id); else cargarLista();
 
     if (window.AppUrl && AppUrl.alCambiarUrl) AppUrl.alCambiarUrl(aplicarUrl);
 
     window.addEventListener('beforeunload', function (e){
-      if (st.modo === 'edita' && st.sucio) { e.preventDefault(); e.returnValue = ''; }
+      if (st.modo !== 'edita' || !st.sucio) return;
+      /* Se vuelca la copia ANTES de preguntar: si el navegador decide no enseñar el
+         diálogo —o la persona le da a salir— la copia ya está en disco. */
+      volcarBorrador();
+      e.preventDefault();
+      e.returnValue = '';
+    });
+
+    /* `pagehide` y `visibilitychange` son los que de verdad cubren «se cerró de golpe»:
+       `beforeunload` no se dispara al cerrar una pestaña en el móvil, ni cuando el
+       sistema descarta la página por falta de memoria, ni al cambiar de aplicación.
+       Los tres apuntan al mismo volcado, que es idempotente. */
+    window.addEventListener('pagehide', volcarBorrador);
+    document.addEventListener('visibilitychange', function (){
+      if (document.visibilityState === 'hidden') volcarBorrador();
+    });
+
+    /* Dos pestañas con el MISMO artículo abierto se pisarían la copia local sin que
+       nadie se entere. No se intenta fusionar —eso es adivinar—: se avisa una vez, que
+       es lo que permite a quien escribe decidir en cuál se queda. */
+    var yaAvisadoOtraPestana = false;
+    window.addEventListener('storage', function (e){
+      if (st.modo !== 'edita' || yaAvisadoOtraPestana) return;
+      if (!e.key || e.key !== Borrador.clave(st.id)) return;
+      yaAvisadoOtraPestana = true;
+      aviso('Tienes este mismo artículo abierto en otra pestaña. Guarda desde una sola.', 'warn');
     });
 
     /* Ctrl/Cmd + S guarda, y Esc cierra el menú de insertar. Lo primero porque quien

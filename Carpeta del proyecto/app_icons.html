@@ -137,6 +137,12 @@
       '<path stroke-linecap="round" stroke-linejoin="round" d="M3 4.5h18M4.5 4.5v9.75A1.5 1.5 0 0 0 6 15.75h12a1.5 1.5 0 0 0 1.5-1.5V4.5M12 15.75V19.5m0 0-3 1.5m3-1.5 3 1.5"/>',
     minus:                          /* «Separador»: una línea de descanso */
       '<path stroke-linecap="round" stroke-linejoin="round" d="M5.25 12h13.5"/>',
+    /* El asa de un bloque. DOS BARRAS y no los seis puntos de costumbre: `svg()` fija
+       `stroke-width:1.6` para todo el catálogo, así que un punto dibujado con `h.01`
+       mide 1,6 px en un lienzo de 24 y, al pintarse a 16 px, se queda en un píxel gris
+       que no se ve. Dos barras redondeadas se leen a cualquier tamaño. */
+    grip:
+      '<path stroke-linecap="round" d="M9.75 5.25v13.5M14.25 5.25v13.5"/>',
     trash:                          /* «Quitar bloque» */
       '<path stroke-linecap="round" stroke-linejoin="round" d="M14.75 9.75 14.4 18m-4.8 0L9.25 9.75M19 5.79a48 48 0 0 0-3.48-.4m0 0v-.91c0-1.18-.91-2.16-2.09-2.2a52 52 0 0 0-3.32 0c-1.18.04-2.09 1.02-2.09 2.2v.91m7.5 0a48.7 48.7 0 0 0-7.5 0m0 0a48 48 0 0 0-3.48.4M5 5.79 5.84 19.2a2.25 2.25 0 0 0 2.24 2.08h7.84a2.25 2.25 0 0 0 2.24-2.08L19 5.79M3.98 5.62c.34-.06.68-.11 1.02-.16m14 0c.34.05.68.1 1.02.16"/>'
   };
