@@ -258,45 +258,91 @@
 /* El aviso va SIEMPRE visible, no solo cuando falla: un iframe de Google al que no
    tienes acceso no avisa de nada —se queda en blanco— y desde fuera no hay forma de
    saberlo. Es la lección del iframe de la revisión, y aquí se repite a propósito. */
-.art-doc-nota{padding:.5rem .75rem;font-size:var(--fs-xs);line-height:1.5;color:var(--ink-faint);
+.art-doc-nota{padding:.5rem .75rem;font-size:var(--fs-xs);line-height:1.5;color:var(--ink-soft);
   border-top:1px solid var(--line);background:var(--surface)}
 .art-doc-nota a{color:var(--brand-deep);font-weight:700}
 
 /* ── VISOR: progreso, índice, zoom ────────────────────────────────────────── */
 
-/* La barra de progreso nace en scaleX(0)… pero solo si GSAP la va a mover: sin él,
-   `transform` no se toca y una barra al 0 % es invisible igual. Nunca esconde
-   contenido, que es la regla de la casa para el movimiento. */
-.art-progreso{position:sticky;top:0;z-index:15;height:3px;background:transparent;margin:0 0 var(--s2)}
+/* LA BARRA DE PROGRESO DE LECTURA vive ahora en el BORDE INFERIOR DEL TOPBAR, y no
+   pegada dentro del contenido. Antes era `sticky` en top:0 con z-index 15… y en top:0
+   lo que hay es el topbar del shell: sticky, z-index 40, fondo al 82 % y con desenfoque.
+   O sea que la función estaba escrita, se ejecutaba en cada scroll y no la veía nadie.
+   Colgada del topbar —que es `sticky`, o sea un elemento posicionado— pinta por encima
+   de su fondo sin pelearse con nadie, cruza toda la columna de contenido y no se
+   despega nunca, porque el topbar tampoco. El respaldo `sticky` se queda por si algún
+   día esta pantalla se usa sin marco. */
+.art-progreso{position:sticky;top:var(--top-h,3.75rem);z-index:15;height:3px;
+  background:transparent;margin:0 0 var(--s2)}
+.topbar > .art-progreso{position:absolute;left:0;right:0;bottom:-1px;top:auto;margin:0;
+  z-index:1;pointer-events:none}
+/* Nace en scaleX(0): es una barra vacía, no contenido escondido. Si GSAP no llega,
+   una barra al 0 % es invisible igual y no falta nada. */
 .art-progreso i{display:block;height:100%;background:var(--brand);border-radius:0 2px 2px 0;
   transform:scaleX(0);transform-origin:left center}
-.art-lee-barra{margin-bottom:var(--s4);flex-wrap:wrap}
 
-/* Lectura con índice: el artículo manda y el índice acompaña. Por debajo de 1100px
-   desaparece —no se colapsa ni se convierte en un desplegable— porque en esa anchura
-   el artículo ya cabe de una pasada y un índice pegado arriba solo roba altura. */
-.art-lectura{display:grid;grid-template-columns:minmax(0,1fr) 200px;gap:var(--s5);align-items:start}
-@media (max-width:1100px){
-  .art-lectura{grid-template-columns:minmax(0,1fr)}
-  .art-indice{display:none}
-}
-.art-indice{position:sticky;top:var(--s5);border-left:1px solid var(--line);padding-left:var(--s3)}
+/* Lectura con índice. La columna 1 se queda TODO el sobrante y la medida se centra
+   dentro de ella (ver .art-doc-hd/.art-cuerpo): antes el sobrante se quedaba en medio
+   y el texto acababa a 292 px del índice, que se leía como algo caído en el borde
+   derecho de la pantalla en vez de como parte del documento.
+   `minmax(0,1fr)` y no `1fr`: es lo que impide que una tabla ancha estire la columna. */
+.art-lectura{display:grid;grid-template-columns:minmax(0,1fr) var(--art-indice);
+  column-gap:var(--art-canal);align-items:start}
+.art-lee-col{min-width:0}
+/* La barra de acciones se alinea con la MEDIDA, no con la columna: si no, empieza a un
+   sitio y el título a otro. */
+.art-lee-barra{max-width:var(--art-medida);margin:0 auto var(--s5);flex-wrap:nowrap;gap:var(--s2)}
+.art-lee-der{margin-left:auto;display:flex;gap:var(--s2)}
+/* «← Todos los artículos» es NAVEGACIÓN, no una acción: deja de ser un botón con caja
+   igual que los otros tres. Cuatro botones fantasma idénticos obligan a leerse las
+   cuatro etiquetas para elegir. */
+.art-volver{background:none;border:0;padding:.3rem .1rem;font:inherit;font-size:var(--fs-sm);
+  font-weight:600;color:var(--ink-soft);cursor:pointer;border-radius:6px}
+.art-volver:hover{color:var(--ink);text-decoration:underline;text-underline-offset:3px}
+.art-volver:focus-visible{outline:2px solid var(--brand);outline-offset:2px}
+
+/* El índice se pega DEBAJO del topbar —cuya altura publica el shell en --top-h,
+   porque cambia con las cuatro escalas de texto y ningún número fijo acierta— y lleva
+   su propio tope de alto: un procedimiento con veinte apartados generaba un índice más
+   alto que la ventana y los últimos quedaban fuera para siempre, que es exactamente el
+   defecto de la barra lateral repetido aquí. */
+.art-indice{position:sticky;top:calc(var(--top-h,3.75rem) + var(--s4));
+  max-height:calc(100vh - var(--top-h,3.75rem) - var(--s6));
+  overflow-y:auto;overscroll-behavior:contain;
+  border-left:1px solid var(--line);padding-left:var(--s3)}
 .art-indice-lista{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:.15rem}
-.art-indice a{display:block;font-size:var(--fs-xs);line-height:1.45;color:var(--ink-faint);
-  text-decoration:none;padding:.25rem .3rem;border-radius:6px;border-left:2px solid transparent;
-  margin-left:-.3rem;transition:color .15s,border-color .15s,background .15s}
-.art-indice a:hover{color:var(--ink-soft);background:var(--surface-2)}
-.art-indice a.es-hijo{padding-left:.9rem}
+/* --ink-soft en reposo: con --ink-faint (2.5:1) el índice entero incumplía contraste y
+   solo era legible el enlace bajo el ratón, de uno en uno. */
+.art-indice a{display:block;font-size:var(--fs-xs);line-height:1.45;color:var(--ink-soft);
+  text-decoration:none;padding:.28rem .35rem;border-radius:6px;border-left:2px solid transparent;
+  margin-left:-.35rem;transition:color .15s,border-color .15s,background .15s}
+.art-indice a:hover{color:var(--ink);background:var(--surface-2)}
+.art-indice a.es-hijo{padding-left:1rem}
 .art-indice a.es-aqui{color:var(--brand-deep);border-left-color:var(--brand);font-weight:700}
-.art-indice a:focus-visible{outline:none;box-shadow:var(--ring)}
+.art-indice a:focus-visible{outline:2px solid var(--brand);outline-offset:1px}
 
-.art-fig img.es-ampliable{cursor:zoom-in}
+/* Cuando el índice no cabe al lado NO desaparece: se pliega y va debajo de la cabecera
+   —después de saber de qué va el artículo, antes de empezarlo—. Antes se ocultaba con
+   una media query de 1100 px que además medía la ventana y no la columna, así que en un
+   portátil de 1366 px (donde de verdad hacen falta 252 px para la barra lateral) el
+   índice desaparecía justo donde más falta hace: cuanto menos texto se ve de golpe,
+   más se agradece saber por dónde vas. */
+.art-doc > .art-indice{position:static;max-height:none;overflow:visible;
+  border-left:0;padding:var(--s3) var(--s4);border:1px solid var(--line);
+  border-radius:var(--rad);background:var(--surface-2);
+  max-width:var(--art-medida);margin:0 auto var(--s5)}
+.art-doc > .art-indice > summary{cursor:pointer;margin:0;list-style:none}
+.art-doc > .art-indice > summary::-webkit-details-marker{display:none}
+.art-doc > .art-indice > summary::after{content:'▾';float:right;color:var(--ink-faint)}
+.art-doc > .art-indice[open] > summary{margin-bottom:var(--s2)}
+.art-doc > .art-indice[open] > summary::after{content:'▴'}
+.art-doc > .art-indice > summary:focus-visible{outline:2px solid var(--brand);outline-offset:2px;border-radius:4px}
 .art-zoom{position:fixed;inset:0;z-index:1300;display:flex;align-items:center;justify-content:center;
   padding:var(--s4);background:rgba(12,14,20,.86);backdrop-filter:blur(3px)}
 .art-zoom img{max-width:100%;max-height:92vh;border-radius:var(--rad-sm);box-shadow:0 24px 60px rgba(0,0,0,.5)}
 .art-zoom-x{position:absolute;top:var(--s3);right:var(--s3);width:38px;height:38px;border-radius:999px;
   border:0;background:rgba(255,255,255,.92);color:#111;font-size:22px;line-height:1;cursor:pointer}
-.art-zoom-x:focus-visible{outline:none;box-shadow:var(--ring)}
+.art-zoom-x:focus-visible{outline:2px solid #fff;outline-offset:2px}
 
 /* ── DIAGRAMAS (draw.io) ──────────────────────────────────────────────────── */
 .art-diag{position:relative;background:var(--surface-2)}
@@ -314,16 +360,23 @@
 .art-diag-ampliar{font:inherit;font-size:var(--fs-xs);font-weight:700;color:var(--brand-deep);
   background:none;border:0;cursor:pointer;padding:.1rem .2rem;border-radius:4px}
 .art-diag-ampliar:hover{text-decoration:underline}
-.art-diag-ampliar:focus-visible{outline:none;box-shadow:var(--ring)}
+.art-diag-ampliar:focus-visible{outline:2px solid var(--brand);outline-offset:2px}
 
 .art-diag-full{position:fixed;inset:0;z-index:1300;display:flex;flex-direction:column;
   background:rgba(12,14,20,.9);backdrop-filter:blur(3px);padding:var(--s3)}
 .art-diag-full-bar{display:flex;align-items:center;gap:var(--s3);flex-wrap:wrap;
   padding:0 0 var(--s2);color:#fff}
-.art-diag-full-tt{font-family:Archivo,inherit;font-weight:800;font-size:1.05rem;color:#fff;flex:1;min-width:0}
+.art-diag-full-tt{font-family:var(--f-display);font-weight:var(--fw-bold);font-size:1.05rem;color:#fff;flex:1;min-width:0}
 .art-diag-full-bar .art-ayuda{color:rgba(255,255,255,.72);margin:0}
-.art-diag-full-bar .v-btn-ghost{color:#fff;border-color:rgba(255,255,255,.35)}
-.art-diag-full-bar .v-btn-ghost:hover{background:rgba(255,255,255,.12);color:#fff}
+/* El fondo, que faltaba: `.v-btn-ghost` trae `background:var(--surface)`, que en los dos
+   temas CLAROS es blanco puro. Con `color:#fff` encima, el único botón de cerrar de los
+   cuatro diálogos a pantalla completa quedaba en blanco sobre blanco (1:1) y solo
+   reaparecía al pasar el ratón. En carbón funcionaba por casualidad.
+   Aquí el color va a mano a propósito y no por descuido: el velo es oscuro en los tres
+   temas, así que un token de superficie sería justo lo que rompe esta barra. */
+.art-diag-full-bar .v-btn-ghost{background:rgba(255,255,255,.14);color:#fff;border-color:rgba(255,255,255,.45)}
+.art-diag-full-bar .v-btn-ghost:hover{background:rgba(255,255,255,.26);color:#fff}
+.art-diag-full-bar .v-btn-ghost:focus-visible{outline:2px solid #fff;outline-offset:2px;box-shadow:none}
 .art-diag-full .art-diag{border-radius:var(--rad);overflow:hidden;background:var(--surface)}
 /* El documento a pantalla completa usa el MISMO fondo y la misma barra que el diagrama:
    es el mismo gesto y tiene que sentirse igual; solo cambia lo que va dentro del marco. */
@@ -334,7 +387,7 @@
 .art-diag-hueco{margin-bottom:.2rem}
 .art-diag-vacio{display:flex;flex-direction:column;align-items:center;text-align:center;
   gap:.2rem;padding:var(--s5) var(--s3);border:1px dashed var(--line);border-radius:var(--rad);
-  background:var(--surface-2);color:var(--ink-faint)}
+  background:var(--surface-2);color:var(--ink-soft)}
 .art-diag-vacio .ic{width:26px;height:26px;opacity:.6;margin-bottom:.2rem}
 
 /* ═══════════════════════════════════════════════════════════════════════════
@@ -358,9 +411,16 @@
 /* Barra de trabajo: lo que hay que saber SIEMPRE (dónde estoy, si está guardado)
    y la única acción primaria. Se queda pegada arriba porque en un artículo largo
    se escribe lejos del principio, y bajar a buscar «Guardar» rompe la escritura. */
-.art-barra{position:sticky;top:0;z-index:20;display:flex;align-items:center;gap:var(--s3);
+/* Se pega DEBAJO del topbar, no en top:0. Con top:0 se metía justo debajo de la barra
+   de arriba (sticky, z-index 40) y desaparecía al hacer scroll: es decir, el botón
+   «Guardar» se iba de la pantalla exactamente en el caso que este comentario dice
+   querer evitar. La altura la publica el shell en --top-h porque cambia con la escala
+   de texto. Y el fondo pasa a ser el del propio topbar: --content-bg pintaba una banda
+   #F7F9FB sobre una página #EEF1F5 que no encajaba con nada. */
+.art-barra{position:sticky;top:var(--top-h,3.75rem);z-index:20;display:flex;align-items:center;gap:var(--s3);
   flex-wrap:wrap;padding:var(--s2) 0;margin-bottom:var(--s4);
-  background:var(--content-bg,var(--app-bg));border-bottom:1px solid var(--line)}
+  background:var(--top-bg);backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);
+  border-bottom:1px solid var(--line)}
 .art-barra-izq{display:flex;align-items:center;gap:var(--s2);min-width:0}
 .art-barra-der{display:flex;align-items:center;gap:var(--s2);margin-left:auto}
 .art-estado{display:inline-flex;align-items:center;gap:.35rem;font-size:var(--fs-xs);
@@ -369,7 +429,7 @@
 .art-estado.guardado{color:var(--ok)}
 .art-estado.sucio{color:var(--warn)}
 
-.art-editor{display:grid;grid-template-columns:minmax(0,1fr) 260px;gap:var(--s5);align-items:start}
+.art-editor{display:grid;grid-template-columns:minmax(0,1fr) 16.25rem;gap:var(--s5);align-items:start}
 @media (max-width:1040px){ .art-editor{grid-template-columns:minmax(0,1fr)} }
 
 /* El lienzo: mismo ancho de lectura que el artículo publicado, y centrado en su
@@ -378,8 +438,8 @@
 .art-lienzo{max-width:40rem;margin-inline:auto}
 
 /* Cabecera: el título del artículo se escribe con el tamaño del título. */
-.art-campo-titulo{width:100%;font-family:Archivo,inherit;
-  font-size:clamp(1.6rem,1.2rem + 1.4vw,2.2rem);font-weight:800;line-height:1.15;
+.art-campo-titulo{width:100%;font-family:var(--f-display);
+  font-size:clamp(1.6rem,1.2rem + 1.4vw,2.2rem);font-weight:var(--fw-bold);line-height:1.15;
   letter-spacing:-.02em;color:var(--ink);background:transparent;border:0;padding:0;margin:0}
 .art-campo-titulo::placeholder{color:var(--ink-faint);opacity:.55}
 .art-campo-resumen{width:100%;font:inherit;font-size:1.05rem;line-height:1.6;color:var(--ink-soft);
@@ -418,7 +478,7 @@
   color:var(--ink-faint);transition:var(--tr)}
 .art-bloque-ac button:hover:not(:disabled){border-color:var(--brand-soft);color:var(--brand-deep);background:var(--brand-tint)}
 .art-bloque-ac button:disabled{opacity:.3;cursor:default}
-.art-bloque-ac button:focus-visible{outline:none;box-shadow:var(--ring)}
+.art-bloque-ac button:focus-visible{outline:2px solid var(--brand);outline-offset:1px;box-shadow:var(--ring)}
 .art-bloque-ac .ic{width:13px;height:13px}
 
 /* Los campos del lienzo no parecen campos: parecen el texto que van a ser. */
@@ -429,15 +489,15 @@
 .art-esc.es-parrafo{font-size:1.02rem;line-height:1.75}
 /* Los subtítulos respiran arriba como en el artículo: son la señal de que empieza
    otra parte, y sin ese aire el lienzo se lee como una lista de campos. */
-.art-esc.es-titulo2{font-family:Archivo,inherit;font-size:1.35rem;font-weight:800;line-height:1.25;letter-spacing:-.01em}
-.art-esc.es-titulo3{font-family:Archivo,inherit;font-size:1.1rem;font-weight:700;line-height:1.3}
+.art-esc.es-titulo2{font-family:var(--f-display);font-size:1.35rem;font-weight:var(--fw-bold);line-height:1.25;letter-spacing:-.01em}
+.art-esc.es-titulo3{font-family:var(--f-display);font-size:1.1rem;font-weight:700;line-height:1.3}
 .art-bloque:has(.es-titulo2),.art-bloque:has(.es-titulo3){margin-top:1.2rem}
 /* Un textarea no puede llevar viñetas, así que la lista se señala con una guía a la
    izquierda: sin ella, cinco renglones sueltos no se distinguen de cinco párrafos. */
 .art-esc.es-lista{font-size:1.02rem;line-height:1.7;border-left:2px solid var(--line);
   padding-left:.7rem}
 .art-bloque:focus-within .art-esc.es-lista{border-left-color:var(--brand-soft)}
-.art-esc.es-mono{font-family:'JetBrains Mono',ui-monospace,monospace;font-size:.82rem;line-height:1.6;
+.art-esc.es-mono{font-family:var(--f-mono);font-size:.82rem;line-height:1.6;
   background:var(--surface-2);border:1px solid var(--line);border-radius:var(--rad-sm);padding:.5rem .6rem}
 
 /* Los campos accesorios (enlace, pie, alt) sí son campos, y se ven como tales,
@@ -456,7 +516,8 @@
 .art-sub input[type=text]{width:100%;font:inherit;font-size:var(--fs-xs);color:var(--ink-soft);
   background:var(--surface);border:1px solid var(--line);border-radius:var(--rad-sm);padding:.35rem .55rem}
 .art-sub input[type=text]:focus{outline:none;border-color:var(--brand);box-shadow:var(--ring)}
-.art-ayuda{font-size:var(--fs-xs);color:var(--ink-faint);margin:.3rem 0 0;line-height:1.5}
+.art-esc:focus-visible,.art-campo-titulo:focus-visible,.art-campo-resumen:focus-visible{outline:2px solid var(--brand);outline-offset:3px;border-radius:4px}
+.art-ayuda{font-size:var(--fs-xs);color:var(--ink-soft);margin:.3rem 0 0;line-height:1.5}
 .art-ayuda b{color:var(--ink-soft);font-weight:700}
 
 /* Insertar ENTRE bloques: la línea aparece al acercarse. Es donde la gente
@@ -470,7 +531,7 @@
   opacity:0;transition:opacity .15s,transform .15s;font-size:15px;line-height:1;padding:0}
 .art-entre:hover .art-mas,.art-entre:focus-within .art-mas{opacity:1}
 .art-mas:hover{border-color:var(--brand);color:var(--brand-deep);transform:scale(1.1)}
-.art-mas:focus-visible{opacity:1;outline:none;box-shadow:var(--ring)}
+.art-mas:focus-visible{opacity:1;outline:2px solid var(--brand);outline-offset:2px}
 
 /* Panel lateral: contexto y herramientas, nunca la acción primaria.
    Las cajas eran blancas sobre un fondo casi blanco (`--surface` #FFF sobre
@@ -480,17 +541,17 @@
    caja va en el tono de superficie secundaria, que es el mecanismo que el proyecto ya
    usa para «esto es un apartado», y el borde se refuerza. Un solo mecanismo de
    separación: fondo. Nada de fondo + borde fuerte + sombra a la vez. */
-.art-panel{position:sticky;top:calc(var(--s6) + var(--s2));display:flex;flex-direction:column;gap:var(--s3)}
+.art-panel{position:sticky;top:calc(var(--top-h,3.75rem) + var(--s5));display:flex;flex-direction:column;gap:var(--s3)}
 .art-panel-caja{border:1px solid var(--line);border-radius:var(--rad);
   background:var(--surface-2);padding:var(--s3)}
-.art-panel-t{font-size:10px;font-weight:800;text-transform:uppercase;letter-spacing:.06em;
-  color:var(--ink-faint);margin:0 0 .6rem;padding-bottom:.4rem;border-bottom:1px solid var(--line)}
+.art-panel-t{font-size:var(--fs-xs);font-weight:var(--fw-bold);text-transform:uppercase;letter-spacing:.06em;
+  color:var(--ink-soft);margin:0 0 .6rem;padding-bottom:.4rem;border-bottom:1px solid var(--line)}
 
 /* Ficha de estado: cifras tabulares para que no bailen al escribir. */
 .art-cifras{display:flex;flex-direction:column;gap:.4rem}
 .art-cifra{display:flex;align-items:baseline;justify-content:space-between;gap:var(--s2);
-  font-size:var(--fs-xs);color:var(--ink-faint)}
-.art-cifra b{font-size:var(--fs-sm);font-weight:800;color:var(--ink);font-variant-numeric:tabular-nums}
+  font-size:var(--fs-xs);color:var(--ink-soft)}
+.art-cifra b{font-size:var(--fs-sm);font-weight:var(--fw-bold);color:var(--ink);font-variant-numeric:tabular-nums}
 
 .art-insertar{display:flex;flex-direction:column;gap:.2rem}
 .art-insertar button{display:flex;align-items:center;gap:.5rem;padding:.45rem .5rem;font:inherit;
@@ -498,10 +559,10 @@
   border:1px solid var(--line);border-radius:var(--rad-sm);cursor:pointer;text-align:left;width:100%;
   transition:var(--tr)}
 .art-insertar button:hover{border-color:var(--brand-soft);background:var(--brand-tint);color:var(--brand-deep)}
-.art-insertar button:focus-visible{outline:none;box-shadow:var(--ring)}
+.art-insertar button:focus-visible{outline:2px solid var(--brand);outline-offset:1px;box-shadow:var(--ring)}
 .art-insertar .ic{width:15px;height:15px;flex:none;color:var(--ink-faint)}
 .art-insertar button:hover .ic{color:var(--brand-deep)}
-.art-insertar .art-atajo{margin-left:auto;font-size:10px;font-weight:700;color:var(--ink-faint);
+.art-insertar .art-atajo{margin-left:auto;font-size:var(--fs-xs);font-weight:700;color:var(--ink-soft);
   border:1px solid var(--line);border-radius:4px;padding:0 .25rem}
 
 /* Menú flotante de inserción (el que abre el «+» entre bloques).
@@ -509,15 +570,16 @@
    que ya son relativas a la ventana. Con `absolute` había que sumarle el scroll, y
    dentro del iframe de Apps Script quien scrollea no siempre es el `body`, así que el
    menú aparecía despegado del «+» que lo abrió. */
-.art-menu{position:fixed;z-index:30;min-width:210px;background:var(--surface);
+.art-menu{position:fixed;z-index:30;min-width:13.125rem;background:var(--surface);
   border:1px solid var(--line);border-radius:var(--rad);box-shadow:var(--sh-lg,0 20px 40px rgba(0,0,0,.18));
   padding:.35rem;display:flex;flex-direction:column;gap:.1rem}
 .art-menu button{display:flex;align-items:center;gap:.5rem;padding:.45rem .5rem;font:inherit;
   font-size:var(--fs-sm);font-weight:600;color:var(--ink);background:transparent;border:0;
   border-radius:var(--rad-sm);cursor:pointer;text-align:left;width:100%}
-.art-menu button:hover,.art-menu button:focus-visible{background:var(--brand-tint);color:var(--brand-deep);outline:none}
+.art-menu button:hover{background:var(--brand-tint);color:var(--brand-deep)}
+.art-menu button:focus-visible{background:var(--brand-tint);color:var(--brand-deep);outline:2px solid var(--brand);outline-offset:-2px}
 .art-menu .ic{width:15px;height:15px;flex:none;color:var(--ink-faint)}
-.art-menu small{display:block;font-size:10px;font-weight:500;color:var(--ink-faint)}
+.art-menu small{display:block;font-size:var(--fs-xs);font-weight:500;color:var(--ink-soft)}
 
 /* Vista previa dentro del editor: el artículo tal cual, sin salir de la pantalla. */
 .art-previa{border:1px dashed var(--brand-soft);border-radius:var(--rad);padding:var(--s4);
@@ -539,13 +601,16 @@
   .art-panel{position:static}
 }
 
-.art-vacio{text-align:center;padding:var(--s5) var(--s3);color:var(--ink-faint)}
+.art-vacio{text-align:center;padding:var(--s6) var(--s4);color:var(--ink-soft);
+  max-width:34rem;margin-inline:auto;border:1px dashed var(--line);
+  border-radius:var(--rad-lg);background:var(--surface)}
+.art-vacio-ac{justify-content:center;margin-top:var(--s4)}
 .art-vacio .ic{width:30px;height:30px;opacity:.5;margin:0 auto var(--s2);display:block}
 .art-vacio-t{font-size:var(--fs-md);font-weight:700;color:var(--ink-soft);margin-bottom:.35rem}
-.art-vacio-s{font-size:var(--fs-sm);line-height:1.55;max-width:26rem;margin-inline:auto}
+.art-vacio-s{font-size:var(--fs-sm);line-height:1.55;max-width:26rem;margin-inline:auto;color:var(--ink-soft)}
 
 .art-badge{display:inline-flex;align-items:center;gap:.3rem;font-size:var(--fs-xs);font-weight:700;
-  border-radius:999px;padding:.15rem .5rem}
+  border-radius:999px;padding:.15rem .5rem;white-space:nowrap}
 .art-badge.borrador{background:var(--warn-bg);color:var(--warn)}
 .art-badge.publicado{background:var(--ok-bg);color:var(--ok)}
 
@@ -553,15 +618,42 @@
 .art-oculto{display:none!important}
 
 /* Lectores */
-.art-lectores{display:flex;flex-direction:column;gap:.35rem;max-height:280px;overflow-y:auto}
+.art-lectores{display:flex;flex-direction:column;gap:.35rem;max-height:17.5rem;overflow-y:auto}
 .art-lector{display:flex;align-items:baseline;justify-content:space-between;gap:.5rem;
   font-size:var(--fs-xs);color:var(--ink-soft)}
 .art-lector b{color:var(--ink);font-weight:600}
-.art-lector span{color:var(--ink-faint);white-space:nowrap}
+.art-lector span{color:var(--ink-soft);white-space:nowrap}
 
 @media (prefers-reduced-motion: reduce){
-  .art-card:hover{transform:none}
+  .art-card:hover,.art-card:focus-visible,.art-card:active{transform:none}
+  .art-mas:hover{transform:none}
 }
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   REMIENDOS DE TEMA OSCURO — locales a esta pantalla, y a propósito
+   ───────────────────────────────────────────────────────────────────────────
+   El bloque [data-theme="carbon"] de app_theme remapea los FONDOS semánticos
+   (--warn-bg, --ok-bg) pero no las TINTAS (--warn, --ok), que siguen siendo las
+   pensadas para fondo claro; y no redefine --brand-deep, que es el color de todos
+   los enlaces del artículo. Medido sobre --surface de carbón: el chip «Borrador»
+   queda en 2.8:1, «Publicado» en 2.6:1 y los enlaces en 2.25:1, cuando hace falta
+   4.5:1. Justo en la pantalla de leer, y justo en el tema oscuro.
+
+   El arreglo de raíz son cuatro tokens en app_theme y mejoraría las once pantallas
+   del marco, pero eso es una decisión de quien manda en el sistema de diseño y no
+   de esta pantalla. Esto es el parche seguro mientras tanto, acotado con el
+   selector de tema para que en claro no cambie ni un píxel.
+═══════════════════════════════════════════════════════════════════════════ */
+[data-theme="carbon"] .art-cuerpo a,
+[data-theme="carbon"] .art-indice a.es-aqui,
+[data-theme="carbon"] .art-diag-ampliar,
+[data-theme="carbon"] .art-doc-nota a,
+[data-theme="carbon"] .art-previa-nota{color:#FF85CE}
+[data-theme="carbon"] .art-badge.borrador{background:var(--warn-bg);color:#F0A868}
+[data-theme="carbon"] .art-badge.publicado{background:var(--ok-bg);color:#5BD1A0}
+[data-theme="carbon"] .art-diag-nota{color:#F0A868}
+[data-theme="carbon"] .art-estado.sucio{color:#F0A868}
+[data-theme="carbon"] .art-estado.guardado{color:#5BD1A0}
 </style>
 <?!= include('app_tailwind'); ?>
 </head>
@@ -768,7 +860,12 @@
       }
       tabla.appendChild(tbody);
       caja.appendChild(tabla);
-      return caja;
+      /* La caja que se arrastra va dentro de un bloque, para que el aviso de «sigue a
+         la derecha» pueda ser un hermano suyo y no viaje con el desplazamiento. */
+      var bloqueT = el('div', 'art-tabla-bloque');
+      bloqueT.appendChild(caja);
+      bloqueT.appendChild(el('div', 'art-tabla-nota', 'La tabla sigue a la derecha: arrástrala para ver el resto.'));
+      return bloqueT;
     }
 
     if (b.tipo === 'documento') {
@@ -1034,19 +1131,44 @@
     if (window.AppMotion && AppMotion.modalIn) AppMotion.modalIn(overlay, marco);
   }
 
+  /* Los bloques que se AHOGAN dentro de una columna de lectura. Una tabla de siete
+     columnas pegada de Sheets, una captura de pantalla o un diagrama de flujo no son
+     texto: no les aplica la medida de línea, y comprimirlos a 40rem es lo que dejaba
+     las columnas en tiras de dos centímetros con las palabras partidas. Se marcan aquí
+     y el carril ancho se lo da la rejilla de .art-cuerpo. */
+  var BLOQUES_ANCHOS = { tabla: 1, imagen: 1, documento: 1, diagrama: 1 };
+
   function pintarCuerpo(contenido){
     var cuerpo = el('div', 'art-cuerpo');
     ((contenido && contenido.bloques) || []).forEach(function (b){
       var n = pintarBloque(b);
-      if (n) cuerpo.appendChild(n);
+      if (!n) return;
+      if (BLOQUES_ANCHOS[b.tipo]) n.setAttribute('data-ancho', '1');
+      cuerpo.appendChild(n);
     });
     if (!cuerpo.firstChild) {
       cuerpo.appendChild(el('p', 'art-p', 'Este artículo todavía no tiene contenido.'));
     }
+    avisarTablasAnchas(cuerpo);
     return cuerpo;
   }
 
+  /** El aviso de «la tabla sigue» solo se enciende si de verdad sobra tabla.
+      Se mide en el frame siguiente porque antes de pintar no hay anchos que medir. */
+  function avisarTablasAnchas(raiz){
+    if (!raiz || !window.requestAnimationFrame) return;
+    requestAnimationFrame(function (){
+      var cajas = raiz.querySelectorAll('.art-tabla-bloque');
+      Array.prototype.forEach.call(cajas, function (bloque){
+        var caja = bloque.querySelector('.art-tabla-caja');
+        if (!caja) return;
+        bloque.classList.toggle('es-ancha', caja.scrollWidth > caja.clientWidth + 2);
+      });
+    });
+  }
+
   window.ArticuloRender = { pintarBloque: pintarBloque, pintarCuerpo: pintarCuerpo, urlSegura: urlSegura,
+                            avisarTablasAnchas: avisarTablasAnchas,
                             docDeUrl: docDeUrl, parsearTSV: parsearTSV,
                             montarDiagrama: montarDiagrama, abrirDiagramaGrande: abrirDiagramaGrande,
                             abrirDocumentoGrande: abrirDocumentoGrande,
@@ -2002,11 +2124,14 @@
       tt.placeholder = 'Pega aquí el rango copiado de Sheets o Excel.';
       tt.setAttribute('aria-label', 'Contenido de la tabla');
       var repintaTabla = function (){
-        var vieja = caja.querySelector('.art-tabla-caja');
+        var vieja = caja.querySelector('.art-tabla-bloque');
         if (vieja) vieja.parentNode.removeChild(vieja);
         if (!(b.filas || []).length) return;
         var nueva = R.pintarBloque(b);
-        if (nueva) caja.insertBefore(nueva, caja.querySelector('.art-sub'));
+        if (nueva) {
+          caja.insertBefore(nueva, caja.querySelector('.art-sub'));
+          R.avisarTablasAnchas(caja);
+        }
       };
       tt.addEventListener('input', function (){
         b.filas = R.parsearTSV(this.value);
