@@ -77,15 +77,16 @@
     try {
       iframesInfo = Array.from(document.querySelectorAll('iframe')).map(function (f) {
         const tieneSrcdoc = f.hasAttribute('srcdoc');
-        const src = f.getAttribute('src') || '';
-        return (f.id || '?') + '(srcdoc=' + tieneSrcdoc + ',src=' + src.slice(0, 30) + ')';
+        let contentHref = '?';
+        try { contentHref = f.contentWindow && f.contentWindow.location && f.contentWindow.location.href; } catch (e) { contentHref = 'x-origin'; }
+        return (f.id || '?') + '(srcdoc=' + tieneSrcdoc + ',attr-src=' + (f.getAttribute('src') || '').slice(0, 40) + ',prop-src=' + (f.src || '').slice(0, 60) + ',contentHref=' + String(contentHref).slice(0, 60) + ')';
       }).join(' | ') || 'ninguno';
     } catch (e) { iframesInfo = 'err:' + e.message; }
     let esTop = 'err';
     try { esTop = (window === window.top); } catch (e) { esTop = 'x-origin'; }
     let org = 'err';
     try { org = location.origin; } catch (e) {}
-    return 'top=' + esTop + ' org=' + org.replace('https://', '').slice(0, 25) + ' hijos=[' + iframesInfo + ']';
+    return 'top=' + esTop + ' org=' + org.replace('https://', '').slice(0, 20) + ' hijos=[' + iframesInfo + ']';
   }
   if (document.readyState !== 'loading') {
     avisoDiagnostico(infoFrame(), '#333');
@@ -94,6 +95,7 @@
       avisoDiagnostico(infoFrame(), '#333');
     });
   }
+  setTimeout(function () { avisoDiagnostico('(+1.5s) ' + infoFrame(), '#039'); }, 1500);
   // --- fin bloque de diagnóstico de arranque ---
 
   function entregarSiHay() {
