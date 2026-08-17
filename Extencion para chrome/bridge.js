@@ -58,15 +58,17 @@
   const VIGENCIA_MS = 15 * 60 * 1000;
 
   // --- DIAGNÓSTICO TEMPORAL (quitar tras encontrar el fallo) ---
+  let __contadorAvisos = 0;
   function avisoDiagnostico(texto, color) {
     try {
       const div = document.createElement('div');
       div.textContent = '[BRIDGE] ' + texto;
       Object.assign(div.style, {
-        position: 'fixed', top: '0', left: '0', right: '0', zIndex: '2147483647',
+        position: 'fixed', top: (__contadorAvisos * 20) + 'px', left: '0', right: '0', zIndex: '2147483647',
         background: color || '#333', color: '#fff', font: '12px monospace',
-        padding: '4px 8px', whiteSpace: 'pre-wrap'
+        padding: '2px 8px', whiteSpace: 'pre-wrap'
       });
+      __contadorAvisos++;
       (document.body || document.documentElement).appendChild(div);
     } catch (e) {}
   }
