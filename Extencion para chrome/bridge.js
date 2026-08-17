@@ -70,11 +70,20 @@
       (document.body || document.documentElement).appendChild(div);
     } catch (e) {}
   }
+  function infoFrame() {
+    let iframesInfo = 'err';
+    try {
+      iframesInfo = Array.from(document.querySelectorAll('iframe')).map(f => (f.id || '?') + '=' + (f.src || f.getAttribute('srcdoc') !== null ? 'srcdoc' : '(sin src)')).join(' | ') || 'ninguno';
+    } catch (e) {}
+    let esTop = 'err';
+    try { esTop = (window === window.top); } catch (e) { esTop = 'no-se-puede-saber(cross-origin con top)'; }
+    return 'esTop=' + esTop + ' iframesHijos=[' + iframesInfo + ']';
+  }
   if (document.readyState !== 'loading') {
-    avisoDiagnostico('script corrió, readyState=' + document.readyState + ' url=' + location.href, '#333');
+    avisoDiagnostico('script corrió, readyState=' + document.readyState + ' url=' + location.href + ' ' + infoFrame(), '#333');
   } else {
     document.addEventListener('DOMContentLoaded', function () {
-      avisoDiagnostico('script corrió (DOMContentLoaded) url=' + location.href, '#333');
+      avisoDiagnostico('script corrió (DOMContentLoaded) url=' + location.href + ' ' + infoFrame(), '#333');
     });
   }
   // --- fin bloque de diagnóstico de arranque ---
