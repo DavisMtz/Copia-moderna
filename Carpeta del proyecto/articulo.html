@@ -18,66 +18,194 @@
    cambia las reglas: la medida de línea manda sobre el ancho disponible (65
    caracteres, que es donde el ojo salta de renglón sin perderse), el interlineado
    sube a 1.7, y el contraste del cuerpo baja un punto respecto a los títulos para
-   que la página no grite. Todo sale de los tokens de app_theme: aquí no hay ni un
-   color escrito a mano, así que los cuatro temas y el ajuste de contraste de
-   ViewPrefs funcionan sin una sola regla extra.
+   que la página no grite. Todo sale de los tokens de app_theme, salvo los pocos
+   colores del velo de los diálogos a pantalla completa —que es oscuro en los tres
+   temas— y los remiendos de contraste marcados uno a uno más abajo.
+
+   LAS CUATRO MEDIDAS DE ESTA PANTALLA, declaradas una vez y consumidas siempre.
+   En rem y no en px porque el ajuste de tamaño de texto (data-textscale) escala el
+   font-size del <html>: una columna en px se queda del mismo ancho con la letra un
+   19 % más grande, y los títulos del índice acababan partidos en cuatro renglones.
 ═══════════════════════════════════════════════════════════════════════════ */
 
-.art-wrap{max-width:1180px;margin-inline:auto;padding:var(--s4) var(--s3) var(--s6)}
+.art-wrap{
+  --art-medida: 40rem;   /* la columna de lectura: ~68 caracteres con Inter */
+  --art-ancho:  54rem;   /* lo que puede ocupar un bloque ancho (tabla, figura, diagrama) */
+  --art-indice: 13.5rem; /* el índice lateral */
+  --art-canal:  var(--s6);
+  --art-tope:   min(1180px, 100%);
+}
 
-/* ── Índice de artículos ── */
-.art-hd{display:flex;align-items:flex-start;justify-content:space-between;gap:var(--s3);
-  flex-wrap:wrap;margin-bottom:var(--s4)}
-.art-hd h1{font-family:Archivo,inherit;font-size:1.75rem;font-weight:800;letter-spacing:-.01em;
-  color:var(--ink);margin:0}
-.art-hd p{color:var(--ink-soft);font-size:var(--fs-sm);margin:.35rem 0 0;max-width:38rem}
+/* EL BUG QUE DEJABA ESTA PANTALLA FLOTANDO EN MEDIO DE DOS VACÍOS.
+   `main` es un ítem flex de `.app-main`, que es una columna, y llevaba
+   `margin-inline:auto`: en flexbox, un ítem con LOS DOS márgenes del eje transversal
+   en `auto` no recibe el estirado y se queda en su ancho de CONTENIDO. Medido en un
+   monitor de 2133 px: la columna daba 1865 px y la pantalla usaba 832, centrados,
+   con ~500 px muertos a cada lado y dos columnas de tarjetas donde caben cuatro.
 
-.art-lista{display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:var(--s3)}
-.art-card{display:flex;flex-direction:column;gap:.4rem;text-align:left;width:100%;
-  background:var(--surface);border:1px solid var(--line);border-radius:var(--rad);
-  padding:var(--s3);cursor:pointer;font:inherit;transition:var(--tr)}
+   `width:100%` es el arreglo: con un ancho definido, los márgenes auto vuelven a ser
+   lo que querían ser —centrar— en vez de la razón por la que el main se encogía.
+   Y el selector lleva `#main-content` a propósito, porque `.app-main > main{max-width:100%}`
+   de app_shell se incluye DESPUÉS y ganaba por orden a `.art-wrap{max-width:…}`.
+   No lo «limpies»: sin el `#` vuelve el defecto. */
+#main-content.art-wrap{
+  width:100%;
+  max-width:var(--art-tope);
+  margin-inline:auto;
+  /* El topbar acolcha 1.6rem a los lados (app_shell): el mismo valor aquí es lo que
+     alinea el borde del contenido con el del título de arriba. */
+  padding:var(--s5) 1.6rem var(--s7);
+}
+@media (max-width:640px){ #main-content.art-wrap{padding:var(--s4) var(--s4) var(--s6)} }
+
+/* El ÍNDICE de artículos es una rejilla y quiere ancho; la LECTURA es una columna y
+   quiere medida. Un solo tope no sirve para las dos, así que cada modo pone el suyo
+   (lo conmuta anchoDeModo(), abajo en el JS). 1600 px no es un número redondo: son
+   cuatro tarjetas de 388 px más tres huecos de 16, o sea justo antes de que entre una
+   quinta columna y las cuatro adelgacen. */
+#main-content.art-wrap.es-indice{--art-tope:min(1600px, 100%)}
+
+/* ── Índice de artículos ──
+   El <h1> «Artículos» se quitó del cuerpo: el topbar del shell ya pinta uno con ese
+   mismo texto (AppShell.mount le pasa el título), y dos encabezados de nivel 1
+   idénticos no son una repetición de adorno —quien navega por encabezados los
+   encuentra dos veces seguidas—. Se queda la línea que dice para qué sirve esto, que
+   es la única que aportaba algo, y un contador que además hace de región viva. */
+.art-hd{display:flex;align-items:flex-start;justify-content:space-between;gap:var(--s4);
+  flex-wrap:wrap;margin-bottom:var(--s5)}
+.art-hd-sub{color:var(--ink-soft);font-size:var(--fs-md);line-height:1.55;margin:0;max-width:38rem}
+.art-hd-cuenta{color:var(--ink-soft);font-size:var(--fs-xs);margin:.4rem 0 0;font-variant-numeric:tabular-nums}
+
+/* auto-FILL y no auto-fit: con dos artículos, auto-fit los estiraría a media pantalla
+   cada uno; auto-fill deja las pistas vacías y la tarjeta conserva su tamaño.
+   El `min(...,100%)` evita que la pista mínima desborde por la derecha en un móvil
+   estrecho, que es lo que hacía el `minmax(300px,1fr)` por debajo de 324 px.
+   `align-items:start` es lo que quita el hueco de la tarjeta sin resumen: cada una
+   mide lo suyo en vez de estirarse a la altura de la más alta de su fila. */
+.art-lista{display:grid;grid-template-columns:repeat(auto-fill,minmax(min(19.5rem,100%),1fr));
+  gap:var(--s5) var(--s4);align-items:start;list-style:none;margin:0;padding:0}
+.art-lista > li{display:flex;min-width:0}
+
+.art-card{display:flex;flex-direction:column;gap:.45rem;text-align:left;width:100%;
+  background:var(--surface);border:1px solid var(--line);border-radius:var(--rad-lg);
+  padding:var(--s4);cursor:pointer;font:inherit;transition:var(--tr)}
 .art-card:hover{border-color:var(--brand-soft);transform:translateY(-2px);box-shadow:var(--sh-sm)}
-.art-card:focus-visible{outline:none;box-shadow:var(--ring)}
-.art-card-tt{font-family:Archivo,inherit;font-size:1.02rem;font-weight:800;line-height:1.3;color:var(--ink)}
-.art-card-rs{font-size:var(--fs-sm);line-height:1.5;color:var(--ink-soft);
-  display:-webkit-box;-webkit-line-clamp:3;-webkit-box-orient:vertical;overflow:hidden}
-.art-card-pie{display:flex;align-items:center;gap:.5rem;flex-wrap:wrap;margin-top:auto;
-  padding-top:.5rem;font-size:var(--fs-xs);color:var(--ink-faint)}
+/* El halo de --ring es rosa palidísimo sobre un fondo casi blanco (1.07:1): como la
+   tarjeta ES un <button>, ese halo era el ÚNICO indicador de foco de teclado y no se
+   veía. Se le pone encima un trazo de --brand, que pasa de 3:1 en los tres temas. */
+.art-card:focus-visible{outline:2px solid var(--brand);outline-offset:2px;
+  border-color:var(--brand-soft);transform:translateY(-2px);box-shadow:var(--ring),var(--sh-sm)}
+.art-card:active{transform:translateY(0) scale(.995)}
 
-/* ── El artículo ── */
-.art-doc{max-width:none}
-.art-doc-hd{margin-bottom:var(--s4);padding-bottom:var(--s3);border-bottom:1px solid var(--line)}
-.art-doc-hd h1{font-family:Archivo,inherit;font-size:clamp(1.7rem,1.2rem + 1.6vw,2.4rem);
-  font-weight:800;line-height:1.15;letter-spacing:-.02em;color:var(--ink);margin:0 0 .5rem}
-.art-doc-rs{font-size:1.05rem;line-height:1.6;color:var(--ink-soft);margin:0;max-width:38rem}
-.art-firma{display:flex;align-items:center;gap:.6rem;flex-wrap:wrap;margin-top:var(--s3);
-  font-size:var(--fs-xs);color:var(--ink-faint)}
-.art-firma b{color:var(--ink-soft);font-weight:700}
+/* Orden de lectura y por qué: primero ESTADO y FECHA (¿esto es para mí, sigue vigente?),
+   luego el TÍTULO (la decisión), luego el RESUMEN (la confirmación) y al final autor y
+   minutos (el coste, que solo importa cuando ya te interesa). */
+.art-card-top{display:flex;align-items:center;justify-content:space-between;gap:.5rem;
+  font-size:var(--fs-xs);color:var(--ink-soft);font-variant-numeric:tabular-nums}
+.art-card-tt{font-family:var(--f-display);font-size:var(--fs-lg);font-weight:var(--fw-bold);
+  line-height:1.3;letter-spacing:-.012em;color:var(--ink);
+  display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+/* El resumen se pinta SIEMPRE, con dos renglones reservados. Dejarlo en blanco cuando
+   no lo hay abría un hueco dentro de la caja que se lee como «esto no cargó». */
+.art-card-rs{font-size:var(--fs-sm);line-height:1.5;color:var(--ink-soft);
+  display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;
+  min-height:calc(2 * 1.5em)}
+.art-card-rs.es-hueco{color:var(--ink-faint);font-style:italic}
+/* --ink-soft y no --ink-faint: #94A1B2 sobre blanco da 2.6:1, por debajo del 4.5:1 que
+   pide un texto de 12 px. El gris más claro se queda para lo que no hay que leer. */
+.art-card-pie{display:flex;align-items:baseline;gap:.5rem;margin-top:.25rem;
+  padding-top:.55rem;border-top:1px solid var(--line-soft);
+  font-size:var(--fs-xs);color:var(--ink-soft)}
+.art-card-aut{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-weight:600}
+.art-card-min{flex:none;color:var(--ink-faint)}
+/* El borrador se distingue por TRES canales y el color es el último: la palabra, el
+   trazo discontinuo —que sobrevive a la escala de grises y al daltonismo— y el fondo
+   hundido. Con solo el chip ámbar, en una rejilla de doce tarjetas no se ve. */
+.art-card.es-borrador{border-style:dashed;background:var(--surface-2)}
+
+/* ── El artículo ──
+   LA LEY DE ALINEACIÓN, que antes no existía: la medida se fijaba en `.art-cuerpo`
+   pero nunca se centraba, así que el texto se pegaba al borde izquierdo de la columna
+   que le tocara y dejaba ~500 px de vacío a la derecha. Ahora la cabecera y el cuerpo
+   se centran en el MISMO padre, así que comparten centro y borde izquierdo. La misma
+   regla arregla de paso el artículo sin índice y la vista previa del editor, que era
+   la única que no heredaba el centrado y saltaba al pulsar «Vista previa». */
+.art-doc{min-width:0}
+.art-doc-hd{max-width:var(--art-medida);margin:0 auto var(--s6);
+  padding-bottom:var(--s5);border-bottom:1px solid var(--line);
+  display:flex;flex-direction:column;align-items:flex-start;gap:var(--s2)}
+/* Fuera el clamp con `vw`: interpola contra la VENTANA, y la columna ya está topada,
+   así que en cualquier escritorio se quedaba clavado en el máximo y la parte fluida
+   solo era ruido. Con la columna fija, el tamaño también puede serlo. */
+.art-doc-hd h1{font-family:var(--f-display);font-size:2.15rem;font-weight:var(--fw-bold);
+  line-height:1.15;letter-spacing:-.024em;color:var(--ink);margin:0}
+@media (max-width:640px){ .art-doc-hd h1{font-size:1.7rem} }
+.art-doc-rs{font-size:1.05rem;line-height:1.6;color:var(--ink-soft);margin:0}
+.art-firma{display:flex;align-items:center;gap:.45rem;flex-wrap:wrap;margin:0;
+  font-size:var(--fs-xs);color:var(--ink-soft)}
+.art-firma b{color:var(--ink);font-weight:700}
+.art-firma .art-sep-punto{color:var(--ink-faint)}
 
 /* El cuerpo: la medida de línea es la regla, no el ancho de la ventana.
    En REM y no en `ch`: `ch` mide el ancho del cero de la fuente ACTIVA, así que
-   mientras Archivo e Instrument Sans no han llegado —o si el CDN de fuentes está
-   bloqueado— se calcula con la fuente del sistema y sale una medida distinta. En el
-   iPad se veían renglones de 730 px, que es media línea de más de lo que el ojo
-   sigue sin perderse. 40rem son 640 px: unos 70 caracteres con nuestra tipografía. */
-.art-cuerpo{max-width:40rem}
-.art-cuerpo > * + *{margin-top:1.15rem}
+   mientras Inter no ha llegado —o si el CDN de fuentes está bloqueado— se calcula con
+   la fuente del sistema y sale una medida distinta. En el iPad se veían renglones de
+   730 px, que es media línea de más de lo que el ojo sigue sin perderse. 40rem son
+   640 px: unos 68 caracteres con nuestra tipografía.
+
+   Y una rejilla de tres carriles en vez de una caja: el del medio es la MEDIDA y se
+   lo queda todo por omisión; el ancho es para lo que se ahoga dentro de una columna de
+   lectura —una tabla de siete columnas pegada de Sheets, una captura de pantalla, un
+   diagrama de flujo—, que se marcan con [data-ancho] al pintarlas. Ese sobrante ya
+   estaba ahí; simplemente no lo usaba nadie. */
+.art-cuerpo{display:grid;max-width:var(--art-ancho);margin-inline:auto;
+  grid-template-columns:[ancho-i] minmax(0,1fr) [medida-i] minmax(0,var(--art-medida)) [medida-f] minmax(0,1fr) [ancho-f]}
+.art-cuerpo > *{grid-column:medida-i/medida-f;min-width:0}
+.art-cuerpo > [data-ancho]{grid-column:ancho-i/ancho-f}
+
+/* EL RITMO VERTICAL, y por qué estaba roto. `.art-cuerpo > * + *{margin-top}` daba el
+   aire entre bloques, pero `.art-p{margin:0}` venía DESPUÉS con la misma especificidad
+   y ganaba: cada párrafo que seguía a un subtítulo quedaba pegado a él y el artículo
+   se leía como un muro. Ahora los hijos no ponen margen (arriba, en su regla) y el
+   ritmo lo declara el contenedor, una sola vez: MÁS aire antes de un subtítulo que
+   después, porque el título y su primer párrafo son un mismo bloque. */
 .art-p{font-size:1.02rem;line-height:1.75;color:var(--ink);margin:0}
-.art-h2{font-family:Archivo,inherit;font-size:1.35rem;font-weight:800;line-height:1.25;
-  color:var(--ink);margin:2.2rem 0 0;letter-spacing:-.01em}
-.art-h3{font-family:Archivo,inherit;font-size:1.1rem;font-weight:700;line-height:1.3;
-  color:var(--ink);margin:1.8rem 0 0}
+.art-h2{font-family:var(--f-display);font-size:1.35rem;font-weight:var(--fw-bold);line-height:1.25;
+  color:var(--ink);margin:0;letter-spacing:-.014em}
+.art-h3{font-family:var(--f-display);font-size:1.1rem;font-weight:var(--fw-semibold);line-height:1.3;
+  color:var(--ink);margin:0}
+.art-cuerpo > * + *{margin-top:1.25rem}
+.art-cuerpo > .art-h2 + *,.art-cuerpo > .art-h3 + *{margin-top:.6rem}
+.art-cuerpo > * + .art-h2{margin-top:2.4rem}
+.art-cuerpo > * + .art-h3{margin-top:1.9rem}
+
 .art-cuerpo a{color:var(--brand-deep);text-decoration:underline;text-underline-offset:2px;
   text-decoration-thickness:1px}
-.art-cuerpo a:hover{color:var(--brand)}
-.art-ul,.art-ol{margin:0;padding-left:1.4rem;display:flex;flex-direction:column;gap:.45rem}
+/* El hover engorda el subrayado y NO cambia el color: pasar a --brand bajaba el
+   contraste en vez de subirlo, sobre todo en carbón. */
+.art-cuerpo a:hover{text-decoration-thickness:2px}
+
+/* LAS VIÑETAS. El «preflight» de Tailwind (app_tailwind) hace `ul,ol{list-style:none}`,
+   así que las listas del artículo se pintaban sin viñeta ni número: cinco puntos se
+   leían como cinco párrafos sangrados. Se devuelven aquí, que es donde el artículo
+   manda. Y el hueco entre puntos deja de ser `display:flex` —que además estorba al
+   marcador— y pasa a ser el margen de cada renglón. */
+.art-ul,.art-ol{margin:0;padding-left:1.6rem;display:block}
+.art-ul{list-style:disc}
+.art-ol{list-style:decimal}
 .art-ul li,.art-ol li{font-size:1.02rem;line-height:1.7;color:var(--ink)}
-.art-sep{border:0;border-top:1px solid var(--line);margin:2rem 0}
+.art-ul li + li,.art-ol li + li{margin-top:.4rem}
+.art-ul li::marker,.art-ol li::marker{color:var(--brand)}
+.art-sep{border:0;border-top:1px solid var(--line);margin:0}
 
 .art-fig{margin:0}
 .art-fig img{display:block;width:100%;height:auto;border-radius:var(--rad-sm);
   border:1px solid var(--line);background:var(--surface-2)}
-.art-fig figcaption{font-size:var(--fs-xs);color:var(--ink-faint);margin-top:.45rem;text-align:center}
+.art-fig figcaption{font-size:var(--fs-xs);color:var(--ink-soft);margin-top:.5rem;text-align:center}
+/* La imagen ampliable es un <button> de verdad y no un <img role="button">: así el
+   alt sigue siendo el alt, y el teclado y el foco vienen de serie. */
+.art-zoom-btn{display:block;width:100%;padding:0;border:0;background:none;cursor:zoom-in;font:inherit}
+.art-zoom-btn:focus-visible{outline:2px solid var(--brand);outline-offset:3px}
 
 /* ── Tablas ───────────────────────────────────────────────────────────────────
    Se desplazan dentro de su caja: una tabla ancha no puede empujar la página entera
@@ -100,16 +228,24 @@
   vertical-align:top;white-space:pre-wrap;min-width:7rem;max-width:22rem}
 .art-tabla th{background:var(--surface-2);font-weight:700;color:var(--ink);white-space:nowrap}
 .art-tabla tr:last-child td{border-bottom:0}
+.art-tabla tbody tr{background:var(--surface)}
 .art-tabla tbody tr:nth-child(even){background:var(--surface-2)}
-/* Un aviso de que la tabla sigue: sin él, una tabla cortada por el borde parece una
-   tabla incompleta y nadie prueba a arrastrarla. */
-.art-tabla-caja{position:relative;background:
-  linear-gradient(to right, var(--surface) 30%, transparent),
-  linear-gradient(to left, var(--surface) 30%, transparent) 100% 0,
-  radial-gradient(farthest-side at 0 50%, rgba(27,35,48,.14), transparent),
-  radial-gradient(farthest-side at 100% 50%, rgba(27,35,48,.14), transparent) 100% 0;
-  background-repeat:no-repeat;background-size:36px 100%,36px 100%,14px 100%,14px 100%;
-  background-attachment:local,local,scroll,scroll}
+
+/* EL AVISO DE QUE LA TABLA SIGUE. Sin él, una tabla cortada por el borde parece una
+   tabla incompleta y nadie prueba a arrastrarla.
+
+   Antes se hacía con cuatro degradados de fondo y `background-attachment:local`, y el
+   truco tenía dos defectos que se veían: pintaba sobre el fondo de la CAJA, así que se
+   colaba por las filas impares —que son transparentes— como dos rectángulos claros
+   encima del texto, muy evidentes en tema carbón; y su color iba escrito a mano
+   (rgba(27,35,48,.14)), o sea invisible justo en el tema donde más falta hacía.
+
+   Ahora se dice con palabras y solo cuando de verdad sobra tabla (lo mide
+   avisarTablasAnchas después de pintar). Una frase corta gana a un degradado que hay
+   que aprender, se lee en los tres temas y la anuncia el lector de pantalla. */
+.art-tabla-bloque{min-width:0}
+.art-tabla-nota{display:none;font-size:var(--fs-xs);color:var(--ink-soft);margin-top:.45rem}
+.art-tabla-bloque.es-ancha .art-tabla-nota{display:block}
 
 /* Documentos incrustados */
 .art-doc-emb{border:1px solid var(--line);border-radius:var(--rad);overflow:hidden;background:var(--surface)}
