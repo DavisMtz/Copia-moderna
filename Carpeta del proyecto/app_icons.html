@@ -117,7 +117,28 @@
     /* La «i» en círculo de «Acerca de». Espejo de IC.info (app_comando) e ICONS.info
        (Index): las tres superficies que pintan el catálogo tienen que saber dibujarla. */
     info:
-      '<path stroke-linecap="round" stroke-linejoin="round" d="M12 21a9 9 0 1 0 0-18 9 9 0 0 0 0 18Zm0-9.75v5.25m0-8.65h.008v.008H12V7.85Z"/>'
+      '<path stroke-linecap="round" stroke-linejoin="round" d="M12 21a9 9 0 1 0 0-18 9 9 0 0 0 0 18Zm0-9.75v5.25m0-8.65h.008v.008H12V7.85Z"/>',
+
+    /* ── Los bloques del editor de artículos ──────────────────────────────────
+       articulo.html pedía ocho nombres que no estaban en este mapa —textsize, folder,
+       presentation, minus, chat, arrow, chevdown, trash— y `svg()` devuelve
+       `PATHS[name] || ''`: un <svg> vacío, o sea un hueco. Los botones de subir, bajar
+       y quitar bloque, y la mitad del menú de insertar, se pintaban SIN icono y nadie
+       lo notó porque un cuadrado transparente no se ve.
+       Se completan aquí y no en la pantalla, por lo mismo que dice el comentario de
+       arriba: el registro compartido es el que evita una cuarta copia de los dibujos.
+       Los que ya existían con otro nombre no se duplican: la pantalla pasa a pedir
+       `chevron` (girado por CSS para «subir») y `warning` para el estado de error. */
+    textsize:                       /* «Subtítulo»: la T de tipografía */
+      '<path stroke-linecap="round" stroke-linejoin="round" d="M4.5 7V5.25h15V7M12 5.25V18.75M9.25 18.75h5.5"/>',
+    image:                          /* «Imagen»: marco con horizonte y sol */
+      '<path stroke-linecap="round" stroke-linejoin="round" d="M2.25 15.75l5.16-5.16a2.25 2.25 0 0 1 3.18 0l5.16 5.16m-1.5-1.5 1.41-1.41a2.25 2.25 0 0 1 3.18 0l2.91 2.91M3.75 19.5h16.5a1.5 1.5 0 0 0 1.5-1.5V6a1.5 1.5 0 0 0-1.5-1.5H3.75A1.5 1.5 0 0 0 2.25 6v12a1.5 1.5 0 0 0 1.5 1.5Zm10.5-11.25h.008v.008h-.008V8.25Z"/>',
+    presentation:                   /* «Documento»: pantalla de presentación con pie */
+      '<path stroke-linecap="round" stroke-linejoin="round" d="M3 4.5h18M4.5 4.5v9.75A1.5 1.5 0 0 0 6 15.75h12a1.5 1.5 0 0 0 1.5-1.5V4.5M12 15.75V19.5m0 0-3 1.5m3-1.5 3 1.5"/>',
+    minus:                          /* «Separador»: una línea de descanso */
+      '<path stroke-linecap="round" stroke-linejoin="round" d="M5.25 12h13.5"/>',
+    trash:                          /* «Quitar bloque» */
+      '<path stroke-linecap="round" stroke-linejoin="round" d="M14.75 9.75 14.4 18m-4.8 0L9.25 9.75M19 5.79a48 48 0 0 0-3.48-.4m0 0v-.91c0-1.18-.91-2.16-2.09-2.2a52 52 0 0 0-3.32 0c-1.18.04-2.09 1.02-2.09 2.2v.91m7.5 0a48.7 48.7 0 0 0-7.5 0m0 0a48 48 0 0 0-3.48.4M5 5.79 5.84 19.2a2.25 2.25 0 0 0 2.24 2.08h7.84a2.25 2.25 0 0 0 2.24-2.08L19 5.79M3.98 5.62c.34-.06.68-.11 1.02-.16m14 0c.34.05.68.1 1.02.16"/>'
   };
 
   function svg(name, cls) {

@@ -480,6 +480,7 @@
 .art-bloque-ac button:disabled{opacity:.3;cursor:default}
 .art-bloque-ac button:focus-visible{outline:2px solid var(--brand);outline-offset:1px;box-shadow:var(--ring)}
 .art-bloque-ac .ic{width:13px;height:13px}
+.art-bloque-ac .ic.es-arriba{transform:rotate(180deg)}
 
 /* Los campos del lienzo no parecen campos: parecen el texto que van a ser. */
 .art-esc{width:100%;font:inherit;background:transparent;border:0;padding:0;margin:0;resize:none;
@@ -741,7 +742,7 @@
     documento:    { ruta: 'document',     nombre: 'Documento de Google',    icono: 'document' },
     presentacion: { ruta: 'presentation', nombre: 'Presentación de Google', icono: 'presentation' },
     hoja:         { ruta: 'spreadsheets', nombre: 'Hoja de cálculo',        icono: 'chart' },
-    archivo:      { ruta: 'file',         nombre: 'Archivo de Drive',       icono: 'folder' }
+    archivo:      { ruta: 'file',         nombre: 'Archivo de Drive',       icono: 'document' }
   };
   function urlVisor(clase, docId){
     var f = DOC_VISOR[clase] || DOC_VISOR.archivo;
@@ -1206,33 +1207,95 @@
   }
   function iconos(){ if (window.Icons) Icons.render(vista); }
 
+  /* El índice de artículos es una REJILLA y quiere ancho; la lectura es una COLUMNA y
+     quiere medida. Un solo tope no sirve para las dos, así que cada modo pone el suyo
+     (los valores viven en el CSS, en --art-tope). */
+  function anchoDeModo(esIndice){
+    var m = document.getElementById('main-content');
+    if (m) m.classList.toggle('es-indice', !!esIndice);
+  }
+
+  var MESES = ['ene','feb','mar','abr','may','jun','jul','ago','sep','oct','nov','dic'];
+  /* El servidor manda 'yyyy-MM-dd' ya formateado con la zona horaria del script. NO se
+     pasa por `new Date(iso)`: esa cadena se interpreta como UTC y en America/Mexico_City
+     sale el día ANTERIOR. Se parte a mano, que además no depende de la configuración
+     del navegador de quien lea. */
+  function fechaCorta(iso){
+    var m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(String(iso || ''));
+    return m ? (Number(m[3]) + ' ' + MESES[Number(m[2]) - 1] + ' ' + m[1]) : '';
+  }
+  /* La lista la ordena el servidor por `editado || creado`: la tarjeta tiene que enseñar
+     ESA misma fecha, o el orden de la rejilla no hay quien lo explique. */
+  function fechaTarjeta(a){
+    return a.editado && a.editado !== a.creado
+      ? 'Act. ' + fechaCorta(a.editado)
+      : fechaCorta(a.creado);
+  }
+  /* artDeFila_ hace Math.max(1, palabras/200), así que `minutos` nunca es 0 y un
+     borrador recién creado y vacío prometía «1 min de lectura». `bloques` viene en la
+     misma respuesta y es lo que de verdad distingue. */
+  function textoMinutos(a){
+    return a.bloques ? (a.minutos + ' min de lectura') : 'Sin contenido';
+  }
+
   /* ── Lista ─────────────────────────────────────────────────────────── */
   function cargarLista(){
-    var fx = window.VentelFX ? VentelFX.skeleton('#vista', 'lista', { rows: 4 }) : null;
-    AppRun.call('artListar', [correo(), {}], { busy: false })
-      .then(function (r){
-        if (fx) fx.done();
-        if (!r || r.status !== 'ok') { pintarError(r && r.error); return; }
-        st.lista = r.articulos || [];
-        st.puedeEditar = !!r.puedeEditar;
-        pintarLista();
-      }, function (){ if (fx) fx.done(); pintarError(); });
+    repintar(function (){
+      /* El esqueleto se monta con la vista ya VACÍA: VentelFX.skeleton hace appendChild,
+         así que al volver de un artículo aparecía colgando debajo del artículo entero,
+         normalmente fuera de pantalla, y parecía que el botón no había hecho nada.
+         Y 'tarjetas' en vez de 'lista': 'lista' dibuja filas con avatar redondo —un
+         directorio de personas— y lo que aterriza es una rejilla de tarjetas, así que la
+         página daba justo el salto de forma que un esqueleto existe para evitar. */
+      var fx = window.VentelFX ? VentelFX.skeleton('#vista', 'tarjetas', { rows: 6 }) : null;
+      vista.setAttribute('aria-busy', 'true');
+      AppRun.call('artListar', [correo(), {}], { busy: false })
+        .then(function (r){
+          if (fx) fx.done();
+          vista.removeAttribute('aria-busy');
+          if (!r || r.status !== 'ok') { vaciar(vista); pintarError(r && r.error); return; }
+          st.lista = r.articulos || [];
+          st.puedeEditar = !!r.puedeEditar;
+          vaciar(vista);
+          pintarLista();
+        }, function (){
+          if (fx) fx.done();
+          vista.removeAttribute('aria-busy');
+          vaciar(vista);
+          pintarError('No pudimos hablar con el servidor. Revisa tu conexión y vuelve a intentarlo.');
+        });
+    });
   }
 
   function pintarLista(){
     st.modo = 'lista';
+    anchoDeModo(true);
     vaciar(vista);
+    tituloDePagina('');
 
+    /* Se quitó el <h1> «Artículos»: el topbar del marco ya pinta uno con ese mismo texto
+       (AppShell.mount le pasa el título). Dos encabezados de nivel 1 idénticos no son
+       una repetición de adorno —quien navega por encabezados se los encuentra dos veces
+       seguidas y tiene que averiguar si son dos zonas distintas—, y además se comían el
+       primer tercio de la pantalla para no decir nada nuevo. */
     var hd = el('div', 'art-hd');
     var izq = document.createElement('div');
-    izq.appendChild(el('h1', null, 'Artículos'));
-    izq.appendChild(el('p', null,
+    izq.appendChild(el('p', 'art-hd-sub',
       'Lo que hay que saber explicado con calma: guías, procedimientos y todo lo que no cabe en un anuncio.'));
+    var n = st.lista.length;
+    var borradores = st.lista.filter(function (a){ return a.estado !== 'publicado'; }).length;
+    var cuenta = el('p', 'art-hd-cuenta',
+      (n === 1 ? '1 artículo' : n + ' artículos') +
+      (borradores && st.puedeEditar ? ' · ' + borradores + (borradores === 1 ? ' borrador' : ' borradores') : ''));
+    cuenta.setAttribute('role', 'status');
+    izq.appendChild(cuenta);
     hd.appendChild(izq);
 
     if (st.puedeEditar) {
-      var nuevo = el('button', 'v-btn v-btn-primary', 'Escribir artículo');
+      var nuevo = el('button', 'v-btn v-btn-primary', null);
       nuevo.type = 'button';
+      nuevo.appendChild(icono('plus'));
+      nuevo.appendChild(document.createTextNode('Escribir artículo'));
       nuevo.addEventListener('click', function (){ abrirEditor(null); });
       hd.appendChild(nuevo);
     }
@@ -1245,40 +1308,105 @@
       vacio.appendChild(el('div', 'art-vacio-s', st.puedeEditar
         ? 'Escribe el primero: una guía, un procedimiento, la explicación de un caso que se repite.'
         : 'Cuando el equipo publique alguno, aparecerá aquí.'));
+      /* La invitación y el botón, juntos. Antes el estado vacío decía «escribe el
+         primero» y mandaba a buscar el botón a la esquina de arriba: es pedir el mismo
+         gesto dos veces. */
+      if (st.puedeEditar) {
+        var cta = el('button', 'v-btn v-btn-primary', 'Escribir el primero');
+        cta.type = 'button';
+        cta.addEventListener('click', function (){ abrirEditor(null); });
+        vacio.appendChild(cta);
+      }
       vista.appendChild(vacio);
       iconos();
+      entrada(hd, { y: 10, duration: .35 });
+      reflejar({ art: '' });
       return;
     }
 
-    var grid = el('div', 'art-lista');
+    /* <ul> y no <div>: quien recorre la pantalla con lector de pantalla oye «lista de 12
+       elementos» antes de empezar, que es el dato con el que decide si sigue flechando.
+       role="list" explícito porque Safari se la quita a las listas con list-style:none. */
+    var grid = el('ul', 'art-lista');
+    grid.setAttribute('role', 'list');
+    grid.setAttribute('aria-label', 'Artículos');
+
     st.lista.forEach(function (a){
-      var card = el('button', 'art-card');
+      var esBorrador = a.estado !== 'publicado';
+      var card = el('button', 'art-card' + (esBorrador ? ' es-borrador' : ''));
       card.type = 'button';
-      card.appendChild(el('div', 'art-card-tt', a.titulo || '(sin título)'));
-      if (a.resumen) card.appendChild(el('div', 'art-card-rs', a.resumen));
-      var pie = el('div', 'art-card-pie');
-      if (a.estado !== 'publicado') {
-        pie.appendChild(el('span', 'art-badge borrador', 'Borrador'));
+
+      /* Primero ESTADO y FECHA —el filtro: ¿es para mí, sigue vigente?—, luego el
+         TÍTULO —la decisión—, luego el RESUMEN y al final el coste. */
+      var top = el('span', 'art-card-top');
+      top.appendChild(el('span', null, fechaTarjeta(a)));
+      if (esBorrador) {
+        var chip = el('span', 'art-badge borrador', 'Borrador');
+        chip.setAttribute('aria-hidden', 'true');   // ya va dicho en el nombre del botón
+        top.appendChild(chip);
       }
-      if (a.minutos) pie.appendChild(el('span', null, a.minutos + ' min de lectura'));
-      if (a.autores) pie.appendChild(el('span', null, '· ' + a.autores));
+      card.appendChild(top);
+
+      card.appendChild(el('span', 'art-card-tt', a.titulo || '(sin título)'));
+      /* El resumen se pinta SIEMPRE. Dejarlo fuera cuando no lo hay abría un hueco de
+         dos renglones dentro de la caja que se lee como «esto no cargó», no como «este
+         artículo no tiene resumen». */
+      card.appendChild(el('span', 'art-card-rs' + (a.resumen ? '' : ' es-hueco'),
+        a.resumen || (a.bloques ? 'Sin resumen todavía.' : 'Sin resumen y sin contenido todavía.')));
+
+      var pie = el('span', 'art-card-pie');
+      pie.appendChild(el('span', 'art-card-aut', a.autores || 'Sin autor'));
+      pie.appendChild(el('span', 'art-card-min', textoMinutos(a)));
       card.appendChild(pie);
+
+      /* El nombre accesible se calcula en vez de dejarlo a la concatenación de los
+         trozos: primero el estado —lo primero que hay que saber de un borrador—, luego
+         el título ENTERO (el recorte a dos renglones es visual, no informativo) y al
+         final el coste. Si mañana se añade un dato visible a la tarjeta, hay que
+         acordarse de meterlo también aquí. */
+      card.setAttribute('aria-label',
+        (esBorrador ? 'Borrador. ' : '') + (a.titulo || 'Sin título') + '. ' +
+        textoMinutos(a) + (a.autores ? '. Por ' + a.autores : '') +
+        (fechaTarjeta(a) ? '. ' + fechaTarjeta(a) : ''));
+
       card.addEventListener('click', function (){ abrirArticulo(a.id, true); });
-      grid.appendChild(card);
+      var li = document.createElement('li');
+      li.appendChild(card);
+      grid.appendChild(li);
     });
     vista.appendChild(grid);
     iconos();
-    entrada(hd, { y: 10, duration: .35 });
-    entrada(grid.children, { delay: .06 });
+    entradaDeLista(hd, grid.children);
     reflejar({ art: '' });
   }
 
-  function pintarError(msg){
+  /**
+   * Error del que se puede salir.
+   * @param {string=} msg     lo que pasó, en cristiano
+   * @param {object=} opts    {titulo, reintentar, volver}
+   */
+  function pintarError(msg, opts){
+    opts = opts || {};
     vaciar(vista);
     var v = el('div', 'art-vacio');
-    v.appendChild(icono('chat'));
-    v.appendChild(el('div', 'art-vacio-t', 'No pudimos cargar los artículos'));
+    v.setAttribute('role', 'alert');
+    v.appendChild(icono('warning'));
+    v.appendChild(el('div', 'art-vacio-t', opts.titulo || 'No pudimos cargar los artículos'));
     v.appendChild(el('div', 'art-vacio-s', msg || 'Revisa tu conexión y vuelve a intentarlo.'));
+    /* Un error sin botón obliga a recargar la pantalla entera; y si el que falló fue
+       artObtener, además deja al lector sin puerta de vuelta al índice. */
+    var ac = el('div', 'art-acciones art-vacio-ac');
+    var re = el('button', 'v-btn v-btn-primary', 'Reintentar');
+    re.type = 'button';
+    re.addEventListener('click', opts.reintentar || cargarLista);
+    ac.appendChild(re);
+    if (opts.volver) {
+      var vb = el('button', 'v-btn v-btn-ghost', 'Todos los artículos');
+      vb.type = 'button';
+      vb.addEventListener('click', function (){ st.id = ''; cargarLista(); });
+      ac.appendChild(vb);
+    }
+    v.appendChild(ac);
     vista.appendChild(v);
     iconos();
   }
@@ -1286,59 +1414,97 @@
   /* ── Lector ────────────────────────────────────────────────────────── */
   function abrirArticulo(id, apilar){
     if (!id) return;
-    var fx = window.VentelFX ? VentelFX.skeleton('#vista', 'lista', { rows: 3 }) : null;
-    AppRun.call('artObtener', [id, correo()], { busy: false })
-      .then(function (r){
-        if (fx) fx.done();
-        if (!r || r.status !== 'ok') { pintarError(r && r.error); return; }
-        st.articulo = r.articulo;
-        st.id = id;
-        st.puedeEditar = !!r.puedeEditar;
-        pintarLectura();
-        reflejar({ art: id }, apilar);
-      }, function (){ if (fx) fx.done(); pintarError(); });
+    repintar(function (){
+      var fx = window.VentelFX ? VentelFX.skeleton('#vista', 'tarjetas', { rows: 3 }) : null;
+      vista.setAttribute('aria-busy', 'true');
+      AppRun.call('artObtener', [id, correo()], { busy: false })
+        .then(function (r){
+          if (fx) fx.done();
+          vista.removeAttribute('aria-busy');
+          if (!r || r.status !== 'ok') {
+            vaciar(vista);
+            pintarError(r && r.error, { volver: true, reintentar: function (){ abrirArticulo(id); } });
+            return;
+          }
+          st.articulo = r.articulo;
+          st.id = id;
+          st.puedeEditar = !!r.puedeEditar;
+          vaciar(vista);
+          pintarLectura();
+          reflejar({ art: id }, apilar);
+        }, function (){
+          if (fx) fx.done();
+          vista.removeAttribute('aria-busy');
+          vaciar(vista);
+          pintarError(null, { volver: true, reintentar: function (){ abrirArticulo(id); } });
+        });
+    });
   }
 
   function pintarLectura(){
     st.modo = 'lee';
+    anchoDeModo(false);
     var a = st.articulo;
     matarEscena();
     vaciar(vista);
+    tituloDePagina(a.titulo);
 
-    /* Progreso de lectura. En un artículo largo dentro del iframe de Apps Script no
-       hay barra de desplazamiento de la ventana que sirva de referencia, así que sin
-       esto no se sabe si queda un párrafo o quince. Es una línea de 3 px; se mueve con
-       transform y, sin GSAP, sencillamente no aparece. */
+    /* Progreso de lectura. En un artículo largo dentro del iframe de Apps Script no hay
+       barra de desplazamiento de la ventana que sirva de referencia, así que sin esto no
+       se sabe si queda un párrafo o quince.
+
+       Vive COLGADA DEL TOPBAR, en su borde inferior, y no dentro del contenido. Pegada
+       en top:0 quedaba justo debajo del topbar del marco (sticky, z-index 40, con fondo
+       y desenfoque): la línea se dibujaba tapada, así que la función entera se ejecutaba
+       en cada scroll y no la veía nadie. El nodo se pasa por REFERENCIA a montarEscena,
+       no por selector, precisamente porque ya no vive dentro de #vista. */
     var progreso = el('div', 'art-progreso');
     var barraProg = el('i', null, null);
     progreso.appendChild(barraProg);
-    vista.appendChild(progreso);
+    (document.querySelector('.topbar') || vista).appendChild(progreso);
 
+    /* La barra de acciones, en tres niveles. Antes eran cuatro botones fantasma
+       idénticos —misma caja, mismo peso, mismo tamaño— para cuatro cosas de naturaleza
+       distinta: había que leerse las cuatro etiquetas para elegir. Ahora: la vuelta es
+       navegación y no lleva caja; las utilidades son ghost pequeñas; y la única acción
+       que cambia algo —Editar— es la primaria, y solo existe para quien puede. */
     var acciones = el('div', 'art-acciones art-lee-barra');
-    var volver = el('button', 'v-btn v-btn-ghost', '← Todos los artículos');
+    var volver = el('button', 'art-volver', '← Todos los artículos');
     volver.type = 'button';
     volver.addEventListener('click', function (){ st.id = ''; cargarLista(); });
     acciones.appendChild(volver);
-    if (st.puedeEditar) {
-      var editar = el('button', 'v-btn v-btn-ghost', 'Editar');
-      editar.type = 'button';
-      editar.addEventListener('click', function (){ abrirEditor(a); });
-      acciones.appendChild(editar);
-      var lectores = el('button', 'v-btn v-btn-ghost', 'Quién lo ha leído');
-      lectores.type = 'button';
-      lectores.addEventListener('click', function (){ verLectores(a.id); });
-      acciones.appendChild(lectores);
-    }
-    var copiar = el('button', 'v-btn v-btn-ghost', 'Copiar enlace');
-    copiar.type = 'button';
-    copiar.addEventListener('click', function (){
-      if (!(window.AppUrl && AppUrl.copyLink)) return;
-      AppUrl.copyLink('articulo', { art: a.id }).then(function (ok){
-        aviso(ok ? 'Enlace copiado.' : 'No pudimos copiar el enlace.', ok ? 'ok' : 'warn');
+
+    var der = el('div', 'art-lee-der');
+    /* Si AppUrl.copyLink no está, el botón no se pinta. Antes se pintaba igual y al
+       pulsarlo no pasaba nada y no se decía nada, que es peor que no tenerlo. */
+    if (window.AppUrl && AppUrl.copyLink) {
+      var copiar = el('button', 'v-btn v-btn-ghost v-btn-sm', null);
+      copiar.type = 'button';
+      copiar.appendChild(icono('link'));
+      copiar.appendChild(document.createTextNode('Copiar enlace'));
+      copiar.addEventListener('click', function (){
+        AppUrl.copyLink('articulo', { art: a.id }).then(function (ok){
+          aviso(ok ? 'Enlace copiado.' : 'No pudimos copiar el enlace.', ok ? 'ok' : 'warn');
+        });
       });
-    });
-    acciones.appendChild(copiar);
-    vista.appendChild(acciones);
+      der.appendChild(copiar);
+    }
+    if (st.puedeEditar) {
+      var lectores = el('button', 'v-btn v-btn-ghost v-btn-sm', null);
+      lectores.type = 'button';
+      lectores.appendChild(icono('eye'));
+      lectores.appendChild(document.createTextNode('Quién lo ha leído'));
+      lectores.addEventListener('click', function (){ verLectores(a.id); });
+      der.appendChild(lectores);
+
+      var editar = el('button', 'v-btn v-btn-primary v-btn-sm', null);
+      editar.type = 'button';
+      editar.appendChild(icono('pencil'));
+      editar.appendChild(document.createTextNode('Editar'));
+      editar.addEventListener('click', function (){ abrirEditor(a); });
+      der.appendChild(editar);
+    }
+    acciones.appendChild(der);
 
     var doc = el('article', 'art-doc');
     var hd = el('div', 'art-doc-hd');
@@ -1346,30 +1512,48 @@
     hd.appendChild(el('h1', null, a.titulo || '(sin título)'));
     if (a.resumen) hd.appendChild(el('p', 'art-doc-rs', a.resumen));
 
+    /* Los «·» son decoración y van en su propio span: dentro del texto se los lee el
+       lector de pantalla uno a uno. */
     var firma = el('div', 'art-firma');
-    if (a.autores) { firma.appendChild(el('b', null, a.autores)); }
-    if (a.creado) firma.appendChild(el('span', null, '· ' + a.creado));
-    if (a.minutos) firma.appendChild(el('span', null, '· ' + a.minutos + ' min de lectura'));
+    function firmaTrozo(texto, fuerte){
+      if (!texto) return;
+      if (firma.firstChild) firma.appendChild(el('span', 'art-sep-punto', '·'));
+      firma.appendChild(el(fuerte ? 'b' : 'span', null, texto));
+    }
+    firmaTrozo(a.autores, true);
+    firmaTrozo(fechaCorta(a.creado) || a.creado);
+    firmaTrozo(textoMinutos(a));
     if (a.editadoPor && a.editado && a.editado !== a.creado) {
-      firma.appendChild(el('span', null, '· última edición ' + a.editado + ' por ' + a.editadoPor));
+      firmaTrozo('última edición ' + (fechaCorta(a.editado) || a.editado) + ' por ' + a.editadoPor);
     }
     hd.appendChild(firma);
     doc.appendChild(hd);
 
     var cuerpo = R.pintarCuerpo(a.contenido);
-    doc.appendChild(cuerpo);
 
     /* Índice del artículo. Solo si hay al menos dos subtítulos: con uno no es un índice,
        es un enlace suelto. Se arma leyendo el DOM ya pintado, así que no hay una segunda
-       fuente de verdad que se pueda desincronizar del contenido. */
-    var indice = construirIndice(cuerpo);
-    if (indice) {
+       fuente de verdad que se pueda desincronizar del contenido.
+
+       DÓNDE va lo decide el ancho REAL de la columna, no una media query: la de antes
+       medía la ventana y se olvidaba de los 252 px de la barra lateral, así que en un
+       portátil de 1366 px el índice desaparecía —y sin sustituto— justo donde más falta
+       hace, porque cuanto menos texto se ve de golpe más se agradece saber por dónde vas. */
+    var indice = construirIndice(cuerpo, cabeElIndice());
+    var col = el('div', 'art-lee-col');
+    col.appendChild(acciones);
+    col.appendChild(doc);
+
+    if (indice && cabeElIndice()) {
+      doc.appendChild(cuerpo);
       var conIndice = el('div', 'art-lectura');
-      conIndice.appendChild(doc);
+      conIndice.appendChild(col);
       conIndice.appendChild(indice);
       vista.appendChild(conIndice);
     } else {
-      vista.appendChild(doc);
+      if (indice) doc.appendChild(indice);   // plegado, entre la cabecera y el cuerpo
+      doc.appendChild(cuerpo);
+      vista.appendChild(col);
     }
 
     iconos();
@@ -1380,13 +1564,31 @@
     if (window.AppUrl && AppUrl.irAncla) AppUrl.irAncla();
   }
 
-  /** Tabla de contenidos a partir de los subtítulos ya pintados. */
-  function construirIndice(cuerpo){
+  /** ¿Cabe el índice AL LADO? Se mide la columna de contenido, no la ventana, y se
+      multiplica por el rem real para que el umbral siga a data-textscale (en una media
+      query, `rem` es el tamaño inicial del navegador y no el de <html>). */
+  function cabeElIndice(){
+    var rem = parseFloat(getComputedStyle(document.documentElement).fontSize) || 16;
+    return vista.clientWidth >= 57 * rem;   // medida 40 + canal 2 + índice 13.5, con holgura
+  }
+
+  /** El título de la pestaña sigue a lo que se está mirando. */
+  function tituloDePagina(titulo){
+    document.title = (titulo ? titulo + ' · ' : '') + 'Artículos · Ventel';
+  }
+
+  /**
+   * Tabla de contenidos a partir de los subtítulos ya pintados.
+   * @param {boolean} alLado  si va en la columna de al lado (nav) o plegado (details).
+   *
+   * Cuando NO cabe al lado se pliega en un <details>, que cerrado cuesta un renglón y
+   * lo abre y lo cierra el navegador sin una línea de JS ni una escucha de teclado que
+   * mantener. Antes simplemente desaparecía.
+   */
+  function construirIndice(cuerpo, alLado){
     var titulos = cuerpo.querySelectorAll('.art-h2, .art-h3');
     if (titulos.length < 2) return null;
-    var nav = el('nav', 'art-indice');
-    nav.setAttribute('aria-label', 'Contenido del artículo');
-    nav.appendChild(el('p', 'art-panel-t', 'En este artículo'));
+
     var lista = el('ul', 'art-indice-lista');
     Array.prototype.forEach.call(titulos, function (t, i){
       var id = 'art-sec-' + i;
@@ -1398,12 +1600,32 @@
       a.addEventListener('click', function (e){
         e.preventDefault();
         t.scrollIntoView({ behavior: mueve() ? 'smooth' : 'auto', block: 'start' });
+        /* Y el foco viaja con el salto: sin esto el siguiente Tab seguía en el índice y
+           no en la sección a la que se acaba de llegar. */
+        t.setAttribute('tabindex', '-1');
+        t.focus({ preventScroll: true });
       });
       li.appendChild(a);
       lista.appendChild(li);
     });
-    nav.appendChild(lista);
-    return nav;
+
+    if (alLado) {
+      var nav = el('nav', 'art-indice');
+      nav.setAttribute('aria-label', 'Contenido del artículo');
+      nav.appendChild(el('p', 'art-panel-t', 'En este artículo'));
+      nav.appendChild(lista);
+      return nav;
+    }
+
+    var det = el('details', 'art-indice');
+    var sum = el('summary', 'art-panel-t',
+      'En este artículo · ' + titulos.length + ' apartados');
+    det.appendChild(sum);
+    var navP = el('nav', null);
+    navP.setAttribute('aria-label', 'Contenido del artículo');
+    navP.appendChild(lista);
+    det.appendChild(navP);
+    return det;
   }
 
   /** ¿Se puede animar? Mismo guardián que app_motion: sin GSAP o con movimiento
@@ -1440,19 +1662,94 @@
     });
   }
 
-  var escena = null;
-  function matarEscena(){
-    if (escena) { try { escena.revert(); } catch (e) {} escena = null; }
-    if (window.ScrollTrigger) ScrollTrigger.getAll().forEach(function (t){ t.kill(); });
+  /* Entrada del índice de artículos: la cabecera y las tarjetas en UNA línea de tiempo,
+     con el solape escrito (-.18) en vez de un delay mágico, y el escalonado POR REJILLA.
+     Con escalón lineal la misma pantalla se leía como un barrido horizontal cuando caben
+     cuatro columnas y como uno vertical cuando caben dos: dos animaciones distintas
+     según el monitor. Con `grid:'auto'` GSAP mide cuántas columnas hay AHORA y reparte
+     la onda desde la esquina de arriba a la izquierda, que es por donde se empieza a
+     leer. El tiempo TOTAL sigue mandando (`amount`): seis tarjetas o treinta, la entrada
+     termina en el mismo rato. */
+  function entradaDeLista(hd, tarjetas){
+    if (!mueve()) return;
+    var lista = Array.prototype.slice.call(tarjetas || []);
+    gsap.timeline({ defaults: { ease: 'power3.out' } })
+      .from(hd, { opacity: 0, y: 10, duration: .35, clearProps: 'transform,opacity' })
+      .from(lista, {
+        opacity: 0, y: 14, duration: .45,
+        stagger: { amount: .26, grid: 'auto', from: 'start' },
+        overwrite: 'auto', clearProps: 'transform,opacity'
+      }, '-=.18');
   }
 
-  /* Las animaciones del visor, todas dentro de un `gsap.context` para poder matarlas
-     de una vez: esta pantalla repinta el artículo entero al cambiar de uno a otro, y
-     los ScrollTriggers de la lectura anterior se quedarían midiendo nodos muertos. */
-  function montarEscena(cuerpo, barraProg){
-    if (!mueve()) return;
+  /* UN SOLO CAMINO PARA CAMBIAR LO QUE HAY DENTRO DE #vista. Tres cosas que hay que
+     hacer siempre, se anime o no:
+       1 · matar la escena de la lectura anterior. Antes matarEscena() solo se llamaba al
+           ENTRAR en un artículo, así que al volver a la lista o abrir el editor los
+           ScrollTrigger seguían vivos midiendo nodos ya borrados y se acumulaban en cada
+           ida y vuelta.
+       2 · volver arriba. Se bajaba por la lista, se pulsaba la última tarjeta y el
+           artículo se pintaba con la página a 800 px de scroll: se entraba al artículo
+           por la mitad, y la barra de progreso nacía a mitad de recorrido.
+       3 · repintar.
+     El cross-fade es lo único opcional, y va SOLO en opacity: #vista contiene elementos
+     `position:sticky` y un `transform` en un ancestro los desengancha mientras dura la
+     animación; `opacity` crea contexto de apilamiento pero no bloque contenedor, así que
+     el sticky sigue pegándose. Es la misma regla que explica entrada().
+     El `finally` es la salvaguarda: si pintar() revienta, la vista vuelve a encenderse
+     igual y nunca se queda apagada con contenido dentro. */
+  function repintar(pintar){
+    matarEscena();
+    cerrarMenu();
+    var saltar = function (){ window.scrollTo(0, 0); vaciar(vista); pintar(); };
+    if (!mueve() || !vista.firstChild) { saltar(); return; }
+    gsap.to(vista, {
+      opacity: 0, duration: .14, ease: 'power1.in',
+      onComplete: function (){
+        try { saltar(); }
+        finally {
+          gsap.fromTo(vista, { opacity: 0 },
+            { opacity: 1, duration: .2, ease: 'power1.out', clearProps: 'opacity' });
+        }
+      }
+    });
+  }
 
-    escena = gsap.context(function (){
+  var escena = null;
+  var soltarEscena = null;
+  function matarEscena(){
+    /* revert() del contexto ya mata SUS disparadores y devuelve los estilos que tocó. El
+       `ScrollTrigger.getAll().forEach(kill)` que venía después no tenía nada suyo que
+       matar y sí podía llevarse por delante los de cualquier otro módulo del marco: una
+       escoba global para limpiar la propia casa. */
+    if (soltarEscena) { try { soltarEscena(); } catch (e) {} soltarEscena = null; }
+    if (escena) { try { escena.revert(); } catch (e) {} escena = null; }
+    // La barra de progreso ya no vive dentro de #vista, así que vaciar() no se la lleva.
+    var p = document.querySelector('.topbar > .art-progreso');
+    if (p && p.parentNode) p.parentNode.removeChild(p);
+  }
+
+  /* Las animaciones del visor, dentro de un `gsap.matchMedia` para poder matarlas de
+     una vez y —a diferencia del contexto de antes— para que REEVALÚE la preferencia de
+     movimiento si cambia a media lectura: con el guardián leído una sola vez, quien
+     activaba «reducir movimiento» se quedaba con los bloques escondidos hasta recargar. */
+  function montarEscena(cuerpo, barraProg){
+    if (typeof window.gsap === 'undefined') { progresoSinGsap(barraProg); return; }
+
+    escena = gsap.matchMedia();
+    var ANIMA = '(prefers-reduced-motion: no-preference)';
+
+    /* El progreso NO es movimiento: es un indicador de estado, y quien pide menos
+       movimiento es justo quien más agradece saber cuánto le queda —dentro del iframe de
+       Apps Script no hay barra de desplazamiento de la ventana que se lo diga—. Por eso
+       va fuera del guardián y con su propio camino sin tweens. */
+    escena.add('(prefers-reduced-motion: reduce)', function (){
+      return progresoSinGsap(barraProg);
+    });
+
+    escena.add(ANIMA, function (){
+      var sueltas = [];
+
       // Cabecera: entra una vez, corta.
       gsap.from('.art-doc-hd > *', {
         opacity: 0, y: 14, duration: .5, ease: 'power3.out',
@@ -1461,46 +1758,97 @@
 
       if (!window.ScrollTrigger) return;
 
-      /* Revelado por bloques. El estado oculto lo pone JavaScript AQUÍ y no el CSS:
-         si el CDN no llega, no se ejecuta esta línea y el artículo se lee entero. */
-      var bloques = cuerpo.children;
-      gsap.set(bloques, { opacity: 0, y: 16 });
-      ScrollTrigger.batch(bloques, {
-        start: 'top 90%',
-        onEnter: function (lote){
-          gsap.to(lote, {
-            opacity: 1, y: 0, duration: .5, ease: 'power2.out',
-            stagger: { amount: Math.min(.3, lote.length * .05) },
-            overwrite: 'auto', clearProps: 'transform'
-          });
-        }
-      });
-      // Lo que ya está en pantalla al abrir no espera al scroll.
-      gsap.to(Array.prototype.filter.call(bloques, function (n){
-        return n.getBoundingClientRect().top < window.innerHeight * .9;
-      }), { opacity: 1, y: 0, duration: .5, ease: 'power2.out',
-            stagger: { amount: .25 }, clearProps: 'transform' });
+      /* ¿QUIÉN SE DESPLAZA? Dentro del iframe de Apps Script, el documento del propio
+         iframe: `.app` es min-height:100vh sin overflow y la barra lateral tiene su
+         scroll aparte, así que el scroller por omisión de ScrollTrigger es el correcto y
+         declarar `scroller` lo rompería. Lo que sí puede pasar —y por eso la
+         comprobación— es que alguien arregle el desbordamiento de la barra lateral
+         poniendo .app-main a height:100vh con overflow:auto: en ese momento la ventana
+         deja de desplazarse, ningún disparador se cruza jamás y el artículo se queda EN
+         BLANCO del primer pliegue para abajo, sin un error en consola que lo delate.
+         Si el artículo cabe entero tampoco hay nada que revelar: mismo camino. */
+      var raiz = document.scrollingElement || document.documentElement;
+      if (raiz.scrollHeight <= raiz.clientHeight + 4) return;
 
-      // Progreso: quickTo reutiliza un tween en vez de crear uno por evento de scroll.
+      var bloques = Array.prototype.slice.call(cuerpo.children);
+      var pliegue = window.innerHeight * .9;
+      var abajo = bloques.filter(function (n){ return n.getBoundingClientRect().top > pliegue; });
+      var arriba = bloques.filter(function (n){ return abajo.indexOf(n) === -1; });
+
+      /* Lo que ya se ve entra con `from`: se parte de VISIBLE, que es la regla de la
+         casa. Antes se apagaba el cuerpo ENTERO con un `set` y se volvía a encender lo
+         visible con un segundo tween, así que el primer fotograma del artículo era un
+         hueco y cualquier fallo entre las dos líneas dejaba el artículo en blanco. */
+      gsap.from(arriba, { opacity: 0, y: 16, duration: .5, ease: 'power2.out',
+        stagger: { amount: Math.min(.3, arriba.length * .05) }, clearProps: 'transform,opacity' });
+
+      /* Lo de abajo del pliegue es lo ÚNICO que se esconde, y con red:
+           · once:true → el disparador se retira solo tras revelar.
+           · try/catch → si algo revienta, se limpia y el artículo se lee igual.
+           · beforeprint → un bloque en opacity 0 sale EN BLANCO en el papel, y un
+             procedimiento se imprime. */
+      try {
+        gsap.set(abajo, { opacity: 0, y: 16 });
+        ScrollTrigger.batch(abajo, {
+          start: 'top 90%', once: true,
+          onEnter: function (lote){
+            gsap.to(lote, { opacity: 1, y: 0, duration: .5, ease: 'power2.out',
+              stagger: { amount: Math.min(.3, lote.length * .05) },
+              overwrite: 'auto', clearProps: 'transform' });
+          }
+        });
+      } catch (e) { gsap.set(abajo, { clearProps: 'all' }); }
+
+      var alImprimir = function (){ gsap.set(abajo, { opacity: 1, y: 0, clearProps: 'transform' }); };
+      window.addEventListener('beforeprint', alImprimir);
+      sueltas.push(function (){ window.removeEventListener('beforeprint', alImprimir); });
+
+      /* Las figuras van con loading="lazy" y sin alto declarado: hasta que bajan de
+         Drive miden 0, así que toda medida tomada antes de que aterricen es falsa —los
+         bloques se revelan donde no toca y el progreso llega al 100 % a media lectura—.
+         El antirrebote va con el reloj de GSAP y no con setTimeout, así se muere con el
+         contexto igual que todo lo demás. */
+      var remedir = gsap.delayedCall(.2, function (){ ScrollTrigger.refresh(); }).pause();
+      Array.prototype.forEach.call(cuerpo.querySelectorAll('img'), function (img){
+        if (img.complete) return;
+        var otra = function (){ remedir.restart(true); };
+        img.addEventListener('load', otra);
+        img.addEventListener('error', otra);
+      });
+
+      // Progreso: quickTo reutiliza UN tween en vez de crear uno por evento de scroll.
       var mueveBarra = gsap.quickTo(barraProg, 'scaleX', { duration: .2, ease: 'none' });
-      gsap.set(barraProg, { transformOrigin: 'left center', scaleX: 0 });
       ScrollTrigger.create({
         start: 0, end: 'max',
-        onUpdate: function (self){ mueveBarra(self.progress); }
+        onUpdate: function (self){ mueveBarra(self.progress); },
+        /* Tras cargar una imagen el documento crece: sin esto la barra se queda marcando
+           el porcentaje de un documento que ya no existe hasta el siguiente scroll. */
+        onRefresh: function (self){ mueveBarra(self.progress); }
       });
 
-      // Scroll-spy del índice: marca dónde vas sin recalcular en cada scroll.
-      var enlaces = vista.querySelectorAll('.art-indice a');
-      if (enlaces.length) {
-        Array.prototype.forEach.call(enlaces, function (a){
-          var destino = document.getElementById(a.dataset.destino);
-          if (!destino) return;
-          ScrollTrigger.create({
-            trigger: destino, start: 'top 30%', end: 'bottom 30%',
-            onToggle: function (self){ a.classList.toggle('es-aqui', self.isActive); }
-          });
-        });
-      }
+      /* SCROLL-SPY del índice. Antes el disparador era el PROPIO subtítulo
+         (start 'top 30%', end 'bottom 30%') y un subtítulo mide un renglón: el índice se
+         encendía durante ~30 px de desplazamiento y se quedaba apagado toda la sección,
+         que es justo cuando se está leyendo. Una sección va de un subtítulo AL
+         SIGUIENTE, así que el final es el siguiente subtítulo. Tramos contiguos =
+         siempre exactamente uno encendido. */
+      var titulos = Array.prototype.slice.call(cuerpo.querySelectorAll('.art-h2, .art-h3'));
+      titulos.forEach(function (t, i){
+        var enlace = vista.querySelector('.art-indice a[data-destino="' + t.id + '"]');
+        if (!enlace) return;
+        var conf = {
+          trigger: t, start: 'top 30%',
+          onToggle: function (self){
+            enlace.classList.toggle('es-aqui', self.isActive);
+            enlace.setAttribute('aria-current', self.isActive ? 'true' : 'false');
+          }
+        };
+        var sig = titulos[i + 1];
+        if (sig) { conf.endTrigger = sig; conf.end = 'top 30%'; } else { conf.end = 'max'; }
+        ScrollTrigger.create(conf);
+      });
+
+      return function (){ sueltas.forEach(function (f){ f(); }); };
     }, vista);
 
     // Después de pintar y en el frame siguiente: medir un layout a medio hacer da
@@ -1508,20 +1856,38 @@
     requestAnimationFrame(function (){ if (window.ScrollTrigger) ScrollTrigger.refresh(); });
   }
 
-  /* Zoom de imágenes: una captura de pantalla dentro de una columna de 68ch no se lee.
-     Al pulsarla se abre a tamaño completo, con Esc y clic fuera para cerrar. */
+  /** El progreso cuando no hay GSAP o se pidió menos movimiento: una escritura de
+      transform por scroll, sin tween. Devuelve su propia baja. */
+  function progresoSinGsap(barraProg){
+    var raiz = document.scrollingElement || document.documentElement;
+    var pinta = function (){
+      var m = raiz.scrollHeight - raiz.clientHeight;
+      barraProg.style.transform = 'scaleX(' + (m > 0 ? Math.min(1, raiz.scrollTop / m) : 0) + ')';
+    };
+    window.addEventListener('scroll', pinta, { passive: true });
+    pinta();
+    soltarEscena = function (){ window.removeEventListener('scroll', pinta); };
+    return soltarEscena;
+  }
+
+  /* Zoom de imágenes: una captura de pantalla dentro de una columna de 40rem no se lee.
+     Al pulsarla se abre a tamaño completo, con Esc y clic fuera para cerrar.
+
+     La imagen se envuelve en un <button> de verdad en vez de ponerle role="button":
+     `role` sobre un <img> le BORRA el rol de imagen, así que el alt deja de exponerse
+     como descripción. Con el botón alrededor, el alt sigue siendo el alt y el teclado y
+     el foco vienen de serie —sin el keydown a mano de Enter y Espacio—. */
   function montarZoomImagenes(cuerpo){
-    var imgs = cuerpo.querySelectorAll('.art-fig img');
-    Array.prototype.forEach.call(imgs, function (img){
-      img.classList.add('es-ampliable');
-      img.setAttribute('role', 'button');
-      img.setAttribute('tabindex', '0');
-      img.setAttribute('aria-label', 'Ampliar la imagen' + (img.alt ? ': ' + img.alt : ''));
-      var abrir = function (){ ampliarImagen(img); };
-      img.addEventListener('click', abrir);
-      img.addEventListener('keydown', function (e){
-        if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); abrir(); }
-      });
+    var figs = cuerpo.querySelectorAll('.art-fig');
+    Array.prototype.forEach.call(figs, function (fig){
+      var img = fig.querySelector('img');
+      if (!img || img.parentNode !== fig) return;
+      var btn = el('button', 'art-zoom-btn');
+      btn.type = 'button';
+      btn.setAttribute('aria-label', 'Ampliar: ' + (img.alt || 'imagen del artículo'));
+      fig.insertBefore(btn, img);
+      btn.appendChild(img);
+      btn.addEventListener('click', function (){ ampliarImagen(img); });
     });
   }
 
@@ -1579,7 +1945,7 @@
     { t: 'texto',      n: 'Párrafo',    i: 'document',     d: 'Texto corrido' },
     { t: 'titulo',     n: 'Subtítulo',  i: 'textsize',     d: 'Separa las partes' },
     { t: 'lista',      n: 'Lista',      i: 'layers',       d: 'Un punto por renglón' },
-    { t: 'imagen',     n: 'Imagen',     i: 'folder',       d: 'Se sube a Drive' },
+    { t: 'imagen',     n: 'Imagen',     i: 'image',        d: 'Se sube a Drive' },
     { t: 'tabla',      n: 'Tabla',      i: 'chart',        d: 'Pegada de Sheets' },
     { t: 'documento',  n: 'Documento',  i: 'presentation', d: 'Docs, Slides u hoja' },
     { t: 'diagrama',   n: 'Diagrama',   i: 'layers',       d: 'Flujo con draw.io' },
@@ -1587,6 +1953,10 @@
   ];
 
   function abrirEditor(a){
+    /* Al entrar al editor hay que matar la escena de la lectura anterior: sus
+       ScrollTrigger están midiendo nodos que desaparecen en cuanto se repinta #vista. */
+    matarEscena();
+    anchoDeModo(false);
     st.modo = 'edita';
     st.articulo = a || { id: '', titulo: '', resumen: '', estado: 'borrador', contenido: { v: 1, bloques: [] } };
     st.id = st.articulo.id || '';
@@ -1949,12 +2319,16 @@
     var ficha = TIPOS.filter(function (t){ return t.t === b.tipo; })[0];
     hd.appendChild(el('span', 'art-bloque-tipo', (ficha && ficha.n) || b.tipo));
     var ac = el('div', 'art-bloque-ac');
-    [['arrow', -1, 'Subir'], ['chevdown', 1, 'Bajar']].forEach(function (m){
+    /* Subir y bajar con el MISMO dibujo girado, y no con dos iconos distintos: una
+       flecha para arriba y un galón para abajo se leen como dos gestos diferentes.
+       (Antes eran 'arrow' y 'chevdown', dos nombres que ni siquiera existían en el
+       catálogo, así que los dos botones salían sin icono.) */
+    [[-1, 'Subir'], [1, 'Bajar']].forEach(function (m){
       var btn = document.createElement('button');
       btn.type = 'button';
-      btn.title = m[2];
-      btn.setAttribute('aria-label', m[2] + ' este bloque');
-      btn.appendChild(icono(m[0]));
+      btn.title = m[1];
+      btn.setAttribute('aria-label', m[1] + ' este bloque');
+      btn.appendChild(icono('chevron', m[0] === -1 ? 'es-arriba' : null));
       btn.disabled = (m[1] === -1 && i === 0) || (m[1] === 1 && i === st.bloques.length - 1);
       btn.addEventListener('click', function (){ moverBloque(i, m[1]); });
       ac.appendChild(btn);
