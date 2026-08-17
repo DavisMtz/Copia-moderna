@@ -119,9 +119,7 @@
     var s = document.createElement('style');
     s.id = ID_CSS;
     s.textContent =
-      /* Mismo suelo compartido que la zona de estado de operación: los dos se anclaban
-         abajo a la izquierda, o sea encima de los últimos enlaces de la barra lateral. */
-      '#' + ID_PILL + '{position:fixed;left:var(--suelo-izq,1rem);bottom:calc(1rem + env(safe-area-inset-bottom,0px));' +
+      '#' + ID_PILL + '{position:fixed;left:1rem;bottom:calc(1rem + env(safe-area-inset-bottom,0px));' +
       'z-index:10040;display:inline-flex;align-items:center;gap:.55rem;padding:.5rem .85rem;' +
       'border-radius:999px;background:var(--surface,#fff);color:var(--ink,#1B2330);' +
       'border:1px solid var(--line,#E4E9F0);pointer-events:none;' +

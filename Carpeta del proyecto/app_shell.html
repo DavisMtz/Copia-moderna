@@ -87,15 +87,6 @@
 .side-scroll::-webkit-scrollbar-track { background: transparent; }
 .side-scroll { scrollbar-width: thin; scrollbar-color: rgba(255,255,255,.3) transparent; }
 
-/* SUELO IZQUIERDO COMPARTIDO. Lo publica la barra, que es la única que sabe cuánto mide,
-   y lo consume cualquier cosa fija abajo a la izquierda (la pastilla de guardado, la
-   zona de estado de operación). Sin esto cada widget adivinaba un `left` y los dos
-   adivinaron DENTRO del carril de la barra, con z-index muy superior: se plantaban
-   encima de los últimos enlaces, justo en la zona a la que había que desplazarse.
-   Subir el z-index de la barra no era la solución —el pill de guardado comparte capa
-   con los modales—, así que lo que se mueve es el suelo. */
-:root { --side-ancho: 252px; --suelo-izq: calc(var(--side-ancho) + 12px); }
-@media (max-width: 1024px) { :root { --suelo-izq: 12px; } }   /* aquí la barra es cajón */
 
 .side-brand { display: flex; align-items: center; gap: .7rem; padding: .4rem .55rem 1.05rem; border-bottom: 1px solid var(--side-line); margin-bottom: .75rem; }
 .side-brand img { height: 24px; width: auto; filter: var(--side-logo-filter); }
