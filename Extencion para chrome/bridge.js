@@ -75,11 +75,16 @@
   function infoFrame() {
     let iframesInfo = 'err';
     try {
-      iframesInfo = Array.from(document.querySelectorAll('iframe')).map(f => (f.id || '?') + '=' + (f.src || f.getAttribute('srcdoc') !== null ? 'srcdoc' : '(sin src)')).join(' | ') || 'ninguno';
-    } catch (e) {}
+      iframesInfo = Array.from(document.querySelectorAll('iframe')).map(function (f) {
+        const tieneSrcdoc = f.hasAttribute('srcdoc');
+        return (f.id || '?') + '{src=' + JSON.stringify(f.getAttribute('src')) + ', srcdoc=' + tieneSrcdoc + ', src-prop=' + JSON.stringify(f.src) + '}';
+      }).join(' | ') || 'ninguno';
+    } catch (e) { iframesInfo = 'err:' + e.message; }
     let esTop = 'err';
     try { esTop = (window === window.top); } catch (e) { esTop = 'no-se-puede-saber(cross-origin con top)'; }
-    return 'esTop=' + esTop + ' iframesHijos=[' + iframesInfo + ']';
+    let miPropioOrigen = 'err';
+    try { miPropioOrigen = location.origin; } catch (e) {}
+    return 'esTop=' + esTop + ' miOrigen=' + miPropioOrigen + ' iframesHijos=[' + iframesInfo + ']';
   }
   if (document.readyState !== 'loading') {
     avisoDiagnostico('script corrió, readyState=' + document.readyState + ' url=' + location.href + ' ' + infoFrame(), '#333');
