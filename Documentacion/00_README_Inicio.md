@@ -90,6 +90,7 @@ Cifras clave del modelo, también verificadas contra el código:
 | 11 | [`11_Animacion_GSAP.md`](11_Animacion_GSAP.md) | Vas a tocar una animación, un loader o una transición, o algo «parpadea», «salta» o se queda oculto al animar. |
 | 12 | [`12_Plan_de_Mejora.md`](12_Plan_de_Mejora.md) | **Cerrado.** Registro histórico de la auditoría de agosto de 2026 y de lo ejecutado entonces. |
 | 13 | [`13_Plan_Cierre_v1.md`](13_Plan_Cierre_v1.md) | **El plan vigente.** Vas a empezar cualquier tarea nueva: búscala ahí, lee su fase y registra lo hecho en su §18. |
+| 14 | [`14_Revision_TI_y_Seguridad.md`](14_Revision_TI_y_Seguridad.md) | Te van a revisar TI, soporte o Seguridad de la Información. **16 hallazgos con archivo y línea**, lo que ya está bien, el marco legal y el plan de remediación. |
 
 ---
 
