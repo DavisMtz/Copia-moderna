@@ -291,9 +291,22 @@ function inspectProductFromDOM() {
    * Localiza el bloque del PDP. Se resuelve SOLO el chunk que ya menciona las
    * claves del producto: resolver los ~1700 chunks de la página costaría una
    * eternidad y llenaría la memoria de copias.
+   *
+   * OJO (01/09/2026): Liverpool cambió el esquema del PDP. Antes el producto
+   * estaba en `nodo.product` con `dynamicAttributes`, `colorSet`, `sizeSet` y
+   * variantes planas; ahora cuelga de `nodo.product.productInfo` y ninguna de
+   * esas claves existe. Las pistas viejas (`dynamicAttributes`, `offerColorSet`)
+   * ya no aparecen en NINGÚN chunk, así que sin las nuevas el inspector se
+   * quedaba sin variantes y avisaba "puede ser un artículo sin color ni talla".
+   * Se buscan las dos formas a la vez para que siga sirviendo con fichas
+   * viejas o con secciones que Liverpool aún no haya migrado.
    */
   function localizarNodoPdp(chunks, resolver) {
-    var pistas = ['"productSpecs"', '"dynamicAttributes"', '"offerColorSet"', '"categoryBreadCrumbs"'];
+    var pistas = [
+      '"productInfo"', '"attributeOptions"', '"configurationFlags"',   // esquema nuevo
+      '"productSpecs"', '"dynamicAttributes"', '"offerColorSet"',       // esquema viejo
+      '"categoryBreadCrumbs"'
+    ];
     var candidatos = [];
     for (var id in chunks) {
       if (!Object.prototype.hasOwnProperty.call(chunks, id)) continue;
@@ -316,33 +329,326 @@ function inspectProductFromDOM() {
     for (var c = 0; c < candidatos.length && c < 6; c++) {
       var arbol;
       try { arbol = resolver(chunks[candidatos[c].id].cuerpo); } catch (e) { continue; }
+
+      // Liverpool está migrando las fichas poco a poco: el mismo día hay
+      // artículos con una forma y artículos con la otra. Así que NO se elige
+      // por página, se elige por nodo.
+      //
+      // Y el nodo raíz se localiza igual en las dos (`productSpecs` sigue
+      // existiendo), así que lo que distingue una forma de la otra es si el
+      // producto trae `productInfo` dentro. Preguntarlo aquí, y no antes, es lo
+      // que evita los dos errores simétricos: dar por clásica una ficha nueva
+      // (el producto sale entero pero sin variantes) y dar por nueva una ficha
+      // vieja (se cuela el producto de un carrusel).
       var conSpecs = buscarPorClave(arbol, 'productSpecs');
-      if (conSpecs && conSpecs.product) return conSpecs;
+      if (conSpecs && esObjeto(conSpecs.product)) {
+        if (esObjeto(conSpecs.product.productInfo)) {
+          var conSpecsNuevo = comoNodoNuevo(conSpecs);
+          if (conSpecsNuevo) return conSpecsNuevo;
+        } else {
+          conSpecs.esquema = 'clasico';
+          return conSpecs;
+        }
+      }
+
+      // Sin `productSpecs`: se busca el producto por sus propias claves.
       var conProducto = buscarPorClave(arbol, 'dynamicAttributes');
-      if (conProducto) return { product: conProducto };
+      if (conProducto && !esObjeto(conProducto.productInfo)) {
+        return { product: conProducto, esquema: 'clasico' };
+      }
+      var nodo = buscarNodoConProductInfo(arbol, 0);
+      if (nodo) {
+        var nodoNuevo = comoNodoNuevo(nodo);
+        if (nodoNuevo) return nodoNuevo;
+      }
     }
     return null;
+  }
+
+  /** Copia el nodo del PDP dejando el producto ya traducido al contrato viejo. */
+  function comoNodoNuevo(nodo) {
+    var traducido = traducirEsquemaNuevo(nodo.product);
+    if (!traducido) return null;
+    var copia = {};
+    for (var k in nodo) {
+      if (Object.prototype.hasOwnProperty.call(nodo, k)) copia[k] = nodo[k];
+    }
+    copia.product = traducido;
+    copia.esquema = 'productInfo';
+    return copia;
+  }
+
+  // ===========================================================================
+  // 1 bis. Traducción del esquema nuevo (01/09/2026) al que ya se sabía leer
+  // ===========================================================================
+
+  /**
+   * Busca el nodo del PDP en el esquema nuevo: el que tiene `product.productInfo`.
+   * No vale `buscarPorClave(arbol, 'product')` — en la misma página hay tarjetas
+   * de carrusel y de "comprados juntos" que también llevan una clave `product`,
+   * y el recorrido puede toparse antes con una de ellas.
+   */
+  function buscarNodoConProductInfo(raiz, profundidad) {
+    if (profundidad > 60 || !raiz || typeof raiz !== 'object') return null;
+    if (esObjeto(raiz) && esObjeto(raiz.product) && esObjeto(raiz.product.productInfo)) return raiz;
+    for (var k in raiz) {
+      if (!Object.prototype.hasOwnProperty.call(raiz, k)) continue;
+      var hallado = buscarNodoConProductInfo(raiz[k], profundidad + 1);
+      if (hallado) return hallado;
+    }
+    return null;
+  }
+
+  /**
+   * Liverpool rehizo el objeto del PDP. Equivalencias comprobadas contra una
+   * ficha real (playera 1199195831, 6 variantes de talla):
+   *
+   *   product.id                  -> product.productInfo.productId
+   *   product.colorSet[]          -> productInfo.attributeOptions.Color[]  (sin SKU)
+   *   product.sizeSet[]           -> productInfo.attributeOptions.Size[]
+   *   product.dynamicAttributes[] -> productInfo.productAttributes[] (agrupado)
+   *   product.productImages[]     -> productInfo.galleryContent[]
+   *   variants[].colorName        -> variants[].attributes.Color.name
+   *   variants[].colorHex         -> variants[].attributes.Color.hex
+   *   variants[].size             -> variants[].attributes.Size.name
+   *   variants[].listPrice        -> variants[].priceInfo.listPrice.price
+   *   variants[].isOutOfStock     -> !variants[].inventoryStatus
+   *   variants[].promotions.*     -> variants[].promotions.pdpEmiPromos /
+   *                                  .pdpOtherPromotions (otras claves)
+   *
+   * Lo que DESAPARECIÓ y no tiene sustituto en la carga inicial: la descripción
+   * larga, `availableInStores` (existencias por tienda), `offers`/`bestOffer`
+   * de marketplace y `minimum/maximumListPrice`. Los rangos de precio se
+   * recalculan aquí a partir de las variantes, que es más fiable que el
+   * agregado que mandaba antes el servidor.
+   */
+  function traducirEsquemaNuevo(product) {
+    if (!esObjeto(product) || !esObjeto(product.productInfo)) return null;
+    var pi = product.productInfo;
+    var opciones = esObjeto(pi.attributeOptions) ? pi.attributeOptions : {};
+    var variantes = Array.isArray(pi.variants) ? pi.variants : [];
+
+    // --- Colores. El catálogo (`attributeOptions.Color`) trae el nombre, el
+    // hex y la muestra, pero NO el SKU: el SKU de cada color solo se puede
+    // sacar cruzando con la primera variante que lo use. Sin ese cruce, la
+    // rejilla de colores del inspector sale sin SKU y sin precio.
+    var porColor = {}, ordenColor = [];
+    for (var v = 0; v < variantes.length; v++) {
+      var attrs = esObjeto(variantes[v].attributes) ? variantes[v].attributes : {};
+      var col = esObjeto(attrs.Color) ? attrs.Color : null;
+      if (!col || esNada(col.name)) continue;
+      var clave = String(col.name).toLowerCase();
+      if (!porColor[clave]) {
+        porColor[clave] = {
+          colorName: oNulo(col.name),
+          clothingBrandColor: oNulo(col.clothingBrandColor),
+          colorHex: oNulo(col.hex),
+          colorImage: oNulo(col.image),
+          tipo: oNulo(col.type),
+          sku: oNulo(variantes[v].skuId),
+          conExistencias: variantes[v].inventoryStatus === true
+        };
+        ordenColor.push(clave);
+      } else if (variantes[v].inventoryStatus === true) {
+        porColor[clave].conExistencias = true;
+      }
+    }
+    // Colores del catálogo que ninguna variante usa (se ven pero no se compran).
+    if (Array.isArray(opciones.Color)) {
+      for (var oc = 0; oc < opciones.Color.length; oc++) {
+        var opc = opciones.Color[oc] || {};
+        var claveOpc = String(opc.name || '').toLowerCase();
+        if (!claveOpc) continue;
+        if (!porColor[claveOpc]) {
+          porColor[claveOpc] = {
+            colorName: oNulo(opc.name), clothingBrandColor: null,
+            colorHex: oNulo(opc.hex), colorImage: oNulo(opc.image),
+            tipo: oNulo(opc.type), sku: null, conExistencias: false
+          };
+          ordenColor.push(claveOpc);
+        } else {
+          if (!porColor[claveOpc].colorHex) porColor[claveOpc].colorHex = oNulo(opc.hex);
+          if (!porColor[claveOpc].colorImage) porColor[claveOpc].colorImage = oNulo(opc.image);
+        }
+      }
+    }
+    var colorSet = [], offerColorSet = [];
+    for (var kc = 0; kc < ordenColor.length; kc++) {
+      var c = porColor[ordenColor[kc]];
+      colorSet.push({
+        colorName: c.colorName, colorHex: c.colorHex, sku: c.sku,
+        thumbnailImage: c.colorImage, largeImage: c.colorImage,
+        clothingBrandColor: c.clothingBrandColor, tipoMuestra: c.tipo
+      });
+      if (c.conExistencias && c.sku) offerColorSet.push({ sku: c.sku });
+    }
+
+    // --- Tallas. `normalizedSize` solo viene en el catálogo, no en la variante.
+    var porTalla = {}, ordenTalla = [];
+    function anotarTalla(nombre, normal, hayStock) {
+      if (esNada(nombre)) return;
+      var k = String(nombre).toLowerCase();
+      if (!porTalla[k]) { porTalla[k] = { size: String(nombre), normalizedSize: normal || null, stock: false }; ordenTalla.push(k); }
+      if (normal && !porTalla[k].normalizedSize) porTalla[k].normalizedSize = normal;
+      if (hayStock) porTalla[k].stock = true;
+    }
+    if (Array.isArray(opciones.Size)) {
+      for (var os = 0; os < opciones.Size.length; os++) {
+        anotarTalla((opciones.Size[os] || {}).name, oNulo((opciones.Size[os] || {}).normalizedSize), false);
+      }
+    }
+    for (var vt = 0; vt < variantes.length; vt++) {
+      var at = esObjeto(variantes[vt].attributes) ? variantes[vt].attributes : {};
+      var tal = esObjeto(at.Size) ? at.Size : null;
+      anotarTalla(tal ? tal.name : variantes[vt].dimensions, null, variantes[vt].inventoryStatus === true);
+    }
+    var sizeSet = [], offerSizeSet = [];
+    for (var kt = 0; kt < ordenTalla.length; kt++) {
+      var t = porTalla[ordenTalla[kt]];
+      sizeSet.push({ size: t.size, normalizedSize: t.normalizedSize });
+      if (t.stock) offerSizeSet.push({ size: t.size });
+    }
+
+    // --- Características. El grupo "General" es la UNIÓN de todos los demás:
+    // repite entero lo que ya está en "Detalles", "Composición", "Dimensiones"…
+    // (18 filas para 13 características reales) y hasta se repite a sí mismo.
+    // Si se recorre en orden, "General" se queda con todo y las secciones de
+    // verdad salen vacías. Por eso primero reparten las secciones específicas y
+    // "General" se queda solo con lo que no cupo en ninguna.
+    var dinamicos = [], vistos = {};
+    var grupos = Array.isArray(pi.productAttributes) ? pi.productAttributes : [];
+    function repartir(soloGenerales) {
+      for (var g = 0; g < grupos.length; g++) {
+        var grupo = grupos[g] || {};
+        var nombre = String(grupo.nameGroup || '');
+        var esGeneral = /^general(es)?$/i.test(nombre);
+        if (esGeneral !== soloGenerales) continue;
+        var detalles = Array.isArray(grupo.details) ? grupo.details : [];
+        for (var d = 0; d < detalles.length; d++) {
+          var det = detalles[d] || {};
+          if (esNada(det.name) && esNada(det.value)) continue;
+          var firma = String(det.name) + ' · ' + String(det.value);
+          if (vistos[firma]) continue;
+          vistos[firma] = true;
+          dinamicos.push({ attribute: oNulo(det.name), value: oNulo(det.value), section: oNulo(grupo.nameGroup) });
+        }
+      }
+    }
+    repartir(false);   // Detalles, Composición, Dimensiones, Sugerido para…
+    repartir(true);    // General: solo lo que no reclamó nadie
+
+    // --- Rango de precios: se calcula con las variantes. El servidor ya no
+    // manda `minimumPromoPrice`, y quedarse con el precio del padre haría pasar
+    // por precio del artículo el de la variante que la ficha abrió primero.
+    var minL = null, maxL = null, minP = null, maxP = null;
+    for (var vp = 0; vp < variantes.length; vp++) {
+      var pin = esObjeto(variantes[vp].priceInfo) ? variantes[vp].priceInfo : {};
+      var lp = num(esObjeto(pin.listPrice) ? pin.listPrice.price : pin.listPrice);
+      var pp = num(esObjeto(pin.promoPrice) ? pin.promoPrice.price : pin.promoPrice);
+      if (pp === null) pp = num(pin.salePrice);
+      if (lp !== null) { minL = (minL === null || lp < minL) ? lp : minL; maxL = (maxL === null || lp > maxL) ? lp : maxL; }
+      if (pp !== null) { minP = (minP === null || pp < minP) ? pp : minP; maxP = (maxP === null || pp > maxP) ? pp : maxP; }
+    }
+    var precioPadre = esObjeto(pi.priceInfo) ? pi.priceInfo : {};
+    if (minL === null) {
+      minL = maxL = num(esObjeto(precioPadre.listPrice) ? precioPadre.listPrice.price : precioPadre.listPrice);
+    }
+    if (minP === null) {
+      minP = maxP = num(esObjeto(precioPadre.promoPrice) ? precioPadre.promoPrice.price : precioPadre.promoPrice);
+      if (minP === null) minP = maxP = num(precioPadre.salePrice);
+    }
+
+    // --- Galería del artículo.
+    var imagenes = [];
+    if (Array.isArray(pi.galleryContent)) {
+      for (var gc = 0; gc < pi.galleryContent.length; gc++) {
+        var med = pi.galleryContent[gc] || {};
+        if (med.url) imagenes.push({ imageUrl: med.url, tipo: oNulo(med.type) });
+      }
+    }
+
+    var banderas = esObjeto(pi.configurationFlags) ? pi.configurationFlags : {};
+    var califica = esObjeto(pi.ratingInfo) ? pi.ratingInfo : {};
+
+    return {
+      // Contrato viejo, que es el que lee el resto del inspector.
+      id: oNulo(pi.productId),
+      title: oNulo(pi.title),
+      brand: oNulo(pi.brand),
+      brandId: null,
+      productType: oNulo(pi.productType),
+      productDescription: null,   // el esquema nuevo ya no la manda
+      minimumListPrice: minL, maximumListPrice: maxL,
+      minimumPromoPrice: minP, maximumPromoPrice: maxP,
+      colorSet: colorSet, offerColorSet: offerColorSet,
+      sizeSet: sizeSet, offerSizeSet: offerSizeSet,
+      variants: variantes,
+      dynamicAttributes: dinamicos,
+      categoryBreadCrumbs: Array.isArray(pi.categoryBreadCrumbs) ? pi.categoryBreadCrumbs : [],
+      categories: [],
+      // `ratingInfo` viene en 0/0 cuando no hay opiniones. Mandarlo así tapaba
+      // la calificación que sí está en pantalla, porque el inspector daba el
+      // dato por bueno y ya no miraba el DOM.
+      ratingInfo: (num(califica.ratesCount) > 0)
+        ? { average: num(califica.averageRating), count: num(califica.ratesCount) } : {},
+      largeImage: oNulo(pi.image),
+      productImages: imagenes,
+      inventoryStatus: pi.inventoryStatus === true,
+      availableInStores: [],
+      expressDeliveryData: {},
+      isMarketPlace: banderas.isMarketPlace === true,
+      isCollection: banderas.isCollection === true,
+      isGiftRegistryProduct: false,
+      hasWarranties: !!(pi.warranty && pi.warranty.content),
+      isClothesSize: banderas.isTF === true,
+      truefit: banderas.isTF === true,
+      sizeGuide: banderas.isSizeGuide === true ? 'sí' : null,
+      flags: {},
+
+      // Datos que SOLO existen en el esquema nuevo.
+      esquemaNuevo: true,
+      department: oNulo(pi.department),
+      minPieces: num(pi.minPieces),
+      configurationFlags: banderas,
+      featureFlags: esObjeto(product.featureFlags) ? product.featureFlags : {},
+      fuenteRecomendaciones: oNulo(product.source),
+      attributeOptions: opciones,
+      warrantyArticulo: esObjeto(pi.warranty) ? pi.warranty : null,
+      shareUrl: (esObjeto(pi.pdpshare) ? oNulo(pi.pdpshare.shareUrl) : null),
+      coordinatedNumber: oNulo(pi.coordinatedNumber),
+      crossSellProducts: Array.isArray(pi.crossSellProducts) ? pi.crossSellProducts : []
+    };
   }
 
   // ===========================================================================
   // 2. Traducción del stream al resultado
   // ===========================================================================
 
-  /** Aplana una promoción del stream al formato que pinta la interfaz. */
+  /**
+   * Aplana una promoción del stream al formato que pinta la interfaz.
+   *
+   * Sirve para las dos formas: la vieja (`promotionDescription`, `promotionType`,
+   * `promoCode`) y la nueva de 09/2026 (`promoFullDesc`/`promoDesc`/`payment`,
+   * `promoType`, y sin código de promoción). La descripción importa más de lo
+   * que parece: de ella se deduce si el plan es a meses SIN intereses, así que
+   * si se queda en null todos los MSI se pintan como pagos con interés.
+   */
   function comoPlan(promo, origen) {
     if (!esObjeto(promo)) return null;
     var meses = num(promo.months) || 0;
     var mensual = num(promo.monthlyPrice);
     var precio = num(promo.itemPrice);
     if (mensual === null && precio !== null && meses > 0) mensual = precio / meses;
-    var descripcion = String(promo.promotionDescription || '');
+    var texto = promo.promotionDescription || promo.promoFullDesc || promo.promoDesc || promo.payment;
+    var descripcion = String(texto || '');
     return {
       months: meses,
       monthlyPayment: mensual,
       itemPrice: precio,
-      description: oNulo(promo.promotionDescription),
+      description: oNulo(texto),
       promoCode: oNulo(promo.promoCode),
-      type: oNulo(promo.promotionType),
+      type: oNulo(promo.promotionType) || oNulo(promo.promoType),
+      mejorDelBloque: promo.isBestPromotion === true,
       // "MSI" viene escrito en la descripción; los planes de 0 meses son pago
       // único y no son un plan de meses de verdad.
       noInterest: meses > 0 && /msi|sin\s+inter[eé]s/i.test(descripcion),
@@ -361,16 +667,24 @@ function inspectProductFromDOM() {
     var porClave = {}, orden = [];
     for (var i = 0; i < planes.length; i++) {
       var p = planes[i];
-      var clave = p.months + '|' + p.promoCode + '|' + p.monthlyPayment;
+      // El esquema nuevo NO manda código de promoción, así que "0 meses + sin
+      // código + sin mensualidad" es la misma clave para "20% de descuento",
+      // "15% empieza a pagar en noviembre" y "pago único": los tres se fundían
+      // en uno y desaparecían dos promociones de la ficha. Cuando no hay
+      // código, el que distingue es el texto.
+      var idPromo = p.promoCode || p.description || '';
+      var clave = p.months + '|' + idPromo + '|' + p.monthlyPayment;
       if (!porClave[clave]) {
         porClave[clave] = {
           months: p.months, monthlyPayment: p.monthlyPayment, itemPrice: p.itemPrice,
           description: p.description, promoCode: p.promoCode, type: p.type,
           noInterest: p.noInterest, minPurchaseAmount: p.minPurchaseAmount,
-          discountAmount: p.discountAmount, origen: p.origen, origenes: []
+          discountAmount: p.discountAmount, mejorDelBloque: p.mejorDelBloque === true,
+          origen: p.origen, origenes: []
         };
         orden.push(clave);
       }
+      if (p.mejorDelBloque) porClave[clave].mejorDelBloque = true;
       if (porClave[clave].origenes.indexOf(p.origen) === -1) porClave[clave].origenes.push(p.origen);
     }
     var salida = [];
@@ -404,11 +718,83 @@ function inspectProductFromDOM() {
   }
 
   /**
+   * Aplana una variante del esquema nuevo a la forma vieja. Los tres datos que
+   * más se notan cuando falta esta traducción son el color, la talla y el
+   * precio: sin ella la tabla de variantes sale con SKU y nada más.
+   */
+  function varianteNuevaAVieja(v) {
+    var attrs = esObjeto(v.attributes) ? v.attributes : {};
+    var color = esObjeto(attrs.Color) ? attrs.Color : {};
+    var talla = esObjeto(attrs.Size) ? attrs.Size : {};
+    var precio = esObjeto(v.priceInfo) ? v.priceInfo : {};
+    var promos = esObjeto(v.promotions) ? v.promotions : {};
+    var galeria = [];
+    if (Array.isArray(v.galleryContent)) {
+      for (var g = 0; g < v.galleryContent.length; g++) {
+        if (v.galleryContent[g] && v.galleryContent[g].url) galeria.push(v.galleryContent[g].url);
+      }
+    }
+    // El "mejor plan" ya viene marcado por el servidor; antes había que
+    // deducirlo. Se busca primero en la cubeta de la tarjeta Liverpool porque
+    // es la que la ficha enseña en grande.
+    var mejor = null;
+    var cubetas = [promos.pdpEmiPromos, promos.pdpOtherPromotions];
+    for (var cb = 0; cb < cubetas.length && !mejor; cb++) {
+      if (!Array.isArray(cubetas[cb])) continue;
+      for (var pj = 0; pj < cubetas[cb].length; pj++) {
+        if (cubetas[cb][pj] && cubetas[cb][pj].isBestPromotion === true) { mejor = cubetas[cb][pj]; break; }
+      }
+    }
+    var ofertas = esObjeto(promos.offersInfo) ? promos.offersInfo : {};
+
+    return {
+      skuId: v.skuId,
+      skuName: v.title,
+      colorName: color.name,
+      clothingBrandColor: color.clothingBrandColor,
+      colorHex: color.hex,
+      size: talla.name || v.dimensions,
+      listPrice: esObjeto(precio.listPrice) ? precio.listPrice.price : precio.listPrice,
+      promoPrice: esObjeto(precio.promoPrice) ? precio.promoPrice.price : precio.promoPrice,
+      salePrice: precio.salePrice,
+      isOutOfStock: v.inventoryStatus !== true,
+      promotions: {
+        // Nombres nuevos -> cubetas viejas: `pdpEmiPromos` son los planes de la
+        // tarjeta Liverpool y `pdpOtherPromotions` los del resto de las tarjetas.
+        liverpoolEMI: Array.isArray(promos.pdpEmiPromos) ? promos.pdpEmiPromos : [],
+        other: Array.isArray(promos.pdpOtherPromotions) ? promos.pdpOtherPromotions : []
+      },
+      bestPromotion: mejor,
+      galleryImages: galeria,
+      largeImage: v.image,
+      hasHybridSeller: (esObjeto(v.configurationFlags) && v.configurationFlags.hasHybridSeller === true),
+      // Extras que no existían en el esquema viejo.
+      _nuevo: {
+        minPieces: num(v.minPieces),
+        coordinatedNumber: oNulo(v.coordinatedNumber),
+        shareUrl: esObjeto(v.pdpshare) ? oNulo(v.pdpshare.shareUrl) : null,
+        dimensiones: oNulo(v.dimensions),
+        muestraColor: oNulo(color.type),
+        imagenColor: oNulo(color.image),
+        hayMSI: promos.hasMSIPromotions === true,
+        totalOfertasMkp: num(ofertas.offersCount),
+        banderas: esObjeto(v.configurationFlags) ? v.configurationFlags : {},
+        garantia: esObjeto(v.warranty) ? oNulo(v.warranty.title) : null
+      }
+    };
+  }
+
+  /**
    * Convierte una variante del stream. Cada variante es un artículo completo:
    * su propio SKU, su vendedor, su precio y sus meses.
    */
-  function comoVariante(v) {
-    if (!esObjeto(v)) return null;
+  function comoVariante(bruta) {
+    if (!esObjeto(bruta)) return null;
+    // El esquema nuevo se reconoce por `attributes`/`priceInfo`; el viejo traía
+    // `colorName` y `listPrice` sueltos en la raíz de la variante.
+    var esNueva = esObjeto(bruta.attributes) || esObjeto(bruta.priceInfo);
+    var v = esNueva ? varianteNuevaAVieja(bruta) : bruta;
+    var extras = v._nuevo || null;
     var mejorOferta = (v.offers && v.offers.bestOffer) ? comoOferta(v.offers.bestOffer) : null;
     var ofertas = [];
     if (v.offers && Array.isArray(v.offers.offers)) {
@@ -489,6 +875,11 @@ function inspectProductFromDOM() {
           }) : [],
       cuponesLealtad: v.havingLoyaltyCoupons === true,
       vendedorHibrido: v.hasHybridSeller === true,
+      // Datos que solo trae el esquema nuevo (piezas mínimas, enlace directo a
+      // la variante, tipo de muestra de color, garantía…). Se cuelgan aparte
+      // para no confundirlos con los campos que existían antes.
+      extra: extras,
+      urlVariante: extras ? extras.shareUrl : null,
       esActual: false     // se marca abajo, cuando ya se sabe la variante abierta
     };
   }
@@ -795,6 +1186,10 @@ function inspectProductFromDOM() {
     isProductPage: esFichaProducto,
     fuentes: {
       flightData: false, chunksFlight: 0, nodoPdp: false,
+      // Qué forma tenía el bloque del producto: 'productInfo' es la de
+      // septiembre de 2026 y 'clasico' la anterior. Saberlo es lo primero que
+      // hay que mirar cuando Liverpool vuelva a mover las cosas de sitio.
+      esquema: null,
       jsonLd: false, dom: true, refsSinResolver: []
     },
     product: {
@@ -809,6 +1204,10 @@ function inspectProductFromDOM() {
         minLista: null, maxLista: null, textoPantalla: null
       },
       images: [], colors: [], sizes: [], variants: [],
+      // Datos del esquema nuevo. Se declaran aquí para que el JSON tenga
+      // siempre la misma forma, traiga la ficha estos datos o no.
+      department: null, minPieces: null, shareUrl: null, coordinado: null,
+      catalogoAtributos: null, fuenteRecomendaciones: null, crossSell: [],
       // `skuVariante` es SOLO el `skuid` de la URL. `varianteActual` es la
       // variante que la ficha está mostrando, que puede deducirse aunque la URL
       // no traiga skuid. No se mezclan: confundirlas es lo que hacía que el
@@ -818,14 +1217,15 @@ function inspectProductFromDOM() {
       skuTarjetaVendedor: null,
       seleccion: { color: null, talla: null, completa: false },
       seller: { name: null, isMarketplace: false, sellerId: null, sellerSku: null, offerId: null, url: null },
-      ofertas: [],
+      ofertas: [], totalOfertasMarketplace: null,
       category: { breadcrumbs: [], enlaces: [], department: null, productType: null, categorias: [] },
       rating: { average: null, averageEstrellas: null, redondeado: false, count: null, source: null },
       cadena: null,
       specifications: [], specSections: [],
       availability: {
         inStock: false, buyButtonEnabled: false, deliveryEstimate: null,
-        limitedStock: null, tiendas: [], hasClickAndCollect: false, hasHomeDelivery: false
+        limitedStock: null, tiendas: [], hasClickAndCollect: false, hasHomeDelivery: false,
+        modosEntrega: []
       },
       paymentPlans: [], promotions: [],
       politicas: { garantia: null, liverpoolCare: null, documentos: [], avisos: {} },
@@ -863,6 +1263,7 @@ function inspectProductFromDOM() {
       nodoPdp = localizarNodoPdp(chunks, resolver);
       if (nodoPdp) {
         resultado.fuentes.nodoPdp = true;
+        resultado.fuentes.esquema = nodoPdp.esquema || 'clasico';
         resultado.fuentes.refsSinResolver = Object.keys(resolver.sinResolver).slice(0, 20);
         if (resolver.agotado()) avisar('El stream era enorme y se cortó la resolución; puede faltar algún dato.');
       } else {
@@ -912,10 +1313,14 @@ function inspectProductFromDOM() {
           var col = setColores[ci] || {};
           P.colors.push({
             name: oNulo(col.colorName),
+            // El nombre comercial ("Azul Claro") es el que lee el cliente; el
+            // otro ("Azul") es el genérico del catálogo. No siempre coinciden.
+            nombreComercial: oNulo(col.clothingBrandColor),
             hex: oNulo(col.colorHex),
             sku: oNulo(col.sku),
             imageUrl: oNulo(col.thumbnailImage) || oNulo(col.smallImage) || oNulo(col.colorImage),
             largeImage: oNulo(col.largeImage),
+            tipoMuestra: oNulo(col.tipoMuestra),
             selected: false,
             available: true,
             conOferta: col.sku ? conOfertaColor[col.sku] === true : null
@@ -1047,9 +1452,53 @@ function inspectProductFromDOM() {
         truefit: prod.truefit === true,
         guiaDeTallas: oNulo(prod.sizeGuide),
         promocionales: (prod.flags && prod.flags.promotionFlags) || [],
-        atributos: (prod.flags && prod.flags.attributeFlags) || []
+        atributos: (prod.flags && prod.flags.attributeFlags) || [],
+        // El esquema nuevo manda las 17 banderas juntas: preventa, Chanel,
+        // mini pagos, internacional, servicios, Liverpool Care… Se guardan
+        // enteras porque son la única forma de saber por qué una ficha se
+        // comporta distinto a las demás.
+        configuracion: esObjeto(prod.configurationFlags) ? prod.configurationFlags : null,
+        plataforma: esObjeto(prod.featureFlags) ? prod.featureFlags : null
       };
       P.seller.isMarketplace = prod.isMarketPlace === true;
+
+      // --- Datos que solo existen en el esquema nuevo -----------------------
+      if (prod.esquemaNuevo) {
+        P.department = oNulo(prod.department);
+        P.minPieces = num(prod.minPieces);
+        P.shareUrl = oNulo(prod.shareUrl);
+        P.coordinado = oNulo(prod.coordinatedNumber);
+        P.catalogoAtributos = prod.attributeOptions || null;
+        P.fuenteRecomendaciones = oNulo(prod.fuenteRecomendaciones);
+
+        // La garantía del artículo ahora viene con la ficha, no solo en las
+        // políticas generales de la tienda.
+        if (prod.warrantyArticulo && prod.warrantyArticulo.content) {
+          P.politicas.documentos.push({
+            titulo: oNulo(prod.warrantyArticulo.title) || 'Garantía del artículo',
+            html: prod.warrantyArticulo.content
+          });
+        }
+
+        // "Comprados juntos": artículos que Liverpool ofrece con este. Cada uno
+        // trae su propio bloque completo, así que se resume a lo que sirve para
+        // cotizar y se deja el resto fuera para no inflar el JSON.
+        P.crossSell = [];
+        for (var cs = 0; cs < prod.crossSellProducts.length; cs++) {
+          var hermano = prod.crossSellProducts[cs] || {};
+          var precioH = esObjeto(hermano.priceInfo) ? hermano.priceInfo : {};
+          P.crossSell.push({
+            productId: oNulo(hermano.productId),
+            nombre: oNulo(hermano.title),
+            marca: oNulo(hermano.brand),
+            imagen: oNulo(hermano.image),
+            listPrice: num(esObjeto(precioH.listPrice) ? precioH.listPrice.price : precioH.listPrice),
+            price: num(esObjeto(precioH.promoPrice) ? precioH.promoPrice.price : precioH.promoPrice),
+            variantes: Array.isArray(hermano.variants) ? hermano.variants.length : 0,
+            url: esObjeto(hermano.pdpshare) ? oNulo(hermano.pdpshare.shareUrl) : null
+          });
+        }
+      }
 
       // El objeto crudo se guarda entero: es el respaldo cuando algo no se pintó.
       P.rawFlightData = prod;
@@ -1244,6 +1693,13 @@ function inspectProductFromDOM() {
       P.seller.name = texto(enlaceVendedor) || atributo(enlaceVendedor, 'aria-label');
       P.seller.isMarketplace = true;
       P.seller.url = atributo(enlaceVendedor, 'href');
+      // El esquema nuevo ya no manda `offers.bestOffer`, así que el id del
+      // vendedor solo queda en el enlace a su tienda:
+      // /tienda/sp/cazanova/3466?st=… -> 3466.
+      if (!P.seller.sellerId) {
+        var mTienda = String(P.seller.url || '').match(/\/tienda\/sp\/[^/]+\/(\d+)/);
+        if (mTienda) P.seller.sellerId = mTienda[1];
+      }
       // El testid de esa tarjeta lleva el SKU de la variante que se está viendo.
       // Se guarda aparte: es una pista, no una selección del comprador.
       var mSku = String(atributo(enlaceVendedor, 'data-testid') || '').match(/^(\d+)-/);
@@ -1267,6 +1723,35 @@ function inspectProductFromDOM() {
     var botonComprar = qs('[data-testid="buy-now-button"], [data-testid="add-to-bag-button"]');
     P.availability.buyButtonEnabled = !!(botonComprar && !botonComprar.disabled);
     if (!P.availability.inStock) P.availability.inStock = P.availability.buyButtonEnabled;
+
+    // Modos de entrega. El esquema nuevo ya no manda `expressDeliveryData`, así
+    // que las opciones ("Recibe a domicilio" / "Click & Collect") y su plazo
+    // solo están en las tarjetas del configurador. Cada tarjeta lleva el modo
+    // en su `data-testid` y el plazo en su segunda línea ("Recibe hoy",
+    // "Entre Sept 02 y Sept 05").
+    var tarjetasEntrega = qsa('[data-testid^="product-configurator-delivery-selection-card-"]');
+    P.availability.modosEntrega = [];
+    for (var te = 0; te < tarjetasEntrega.length; te++) {
+      var idTarjeta = String(atributo(tarjetasEntrega[te], 'data-testid') || '');
+      var modo = idTarjeta.replace('product-configurator-delivery-selection-card-', '').trim();
+      if (!modo) continue;
+      var lineas = [];
+      var hojas = qsa('p, span, div, h3, h4', tarjetasEntrega[te]);
+      for (var lh = 0; lh < hojas.length && lineas.length < 4; lh++) {
+        if (!esHoja(hojas[lh])) continue;
+        var lt = texto(hojas[lh]);
+        if (lt && lt.length <= 90 && lineas.indexOf(lt) === -1) lineas.push(lt);
+      }
+      var plazo = null;
+      for (var lp = 0; lp < lineas.length; lp++) {
+        if (lineas[lp].toLowerCase() === modo.toLowerCase()) continue;
+        if (/hoy|ma[ñn]ana|entre|sept|oct|nov|dic|ene|feb|mar|abr|may|jun|jul|ago|\d/i.test(lineas[lp])) { plazo = lineas[lp]; break; }
+      }
+      P.availability.modosEntrega.push({ modo: modo, plazo: plazo, lineas: lineas });
+      if (/domicilio/i.test(modo)) P.availability.hasHomeDelivery = true;
+      if (/click|collect|tienda/i.test(modo)) P.availability.hasClickAndCollect = true;
+      if (!P.availability.deliveryEstimate && plazo) P.availability.deliveryEstimate = plazo;
+    }
 
     // Envío y entrega, tal y como los anuncia la ficha.
     var envioAnotado = false;
@@ -1341,11 +1826,34 @@ function inspectProductFromDOM() {
     if (actual) {
       actual.esActual = true;
       P.varianteActual = actual.sku;
-      // Si el color no venía marcado en el DOM, se marca el de la variante en foco.
+      // Si el color no venía marcado en el DOM, se marca el de la variante en
+      // foco. Por SKU cuando coincide, y si no por nombre de color: en el
+      // esquema nuevo el SKU del color es el de OTRA variante (ver abajo), así
+      // que comparar solo por SKU dejaba la rejilla sin ningún color marcado.
       if (!colorMarcado) {
         for (var cm = 0; cm < P.colors.length; cm++) {
-          if (P.colors[cm].sku && P.colors[cm].sku === actual.sku) P.colors[cm].selected = true;
+          var mismoSku = P.colors[cm].sku && P.colors[cm].sku === actual.sku;
+          var mismoNombre = P.colors[cm].name && actual.color &&
+            String(P.colors[cm].name).toLowerCase() === String(actual.color).toLowerCase();
+          if (mismoSku || mismoNombre) {
+            P.colors[cm].selected = true;
+            colorMarcado = P.colors[cm];
+            break;
+          }
         }
+      }
+
+      // El SKU de cada color sale de la PRIMERA variante de ese color, que en
+      // una ficha con tallas casi nunca es la que está abierta. Sin corregirlo,
+      // la tarjeta del color en pantalla enseña la talla, el precio y —lo
+      // grave— el SKU de otra variante, con la etiqueta "en pantalla" al lado:
+      // se cotizaría la talla equivocada. Solo se toca el color en foco; el de
+      // los demás sigue siendo su primera variante, que es lo que se quiere
+      // (a dónde ir si eliges ese color).
+      if (colorMarcado && actual.color &&
+          String(colorMarcado.name || '').toLowerCase() === String(actual.color).toLowerCase() &&
+          colorMarcado.sku !== actual.sku) {
+        colorMarcado.sku = actual.sku;
       }
       if (!P.prices.esRango) {
         if (P.prices.current === null) P.prices.current = actual.price;
@@ -1361,6 +1869,17 @@ function inspectProductFromDOM() {
         P.identifiers.sellerSkuId = actual.seller.sellerSku || null;
       }
       if (actual.stock) P.availability.limitedStock = actual.stock;
+      // El esquema nuevo ya no manda la lista de ofertas de marketplace en la
+      // carga inicial (Liverpool la pide aparte), pero sí dice CUÁNTAS hay.
+      // Sin este dato parecía que un artículo con varios vendedores solo tenía
+      // uno, que es justo el error que encarece una cotización.
+      if (actual.extra && actual.extra.totalOfertasMkp !== null) {
+        P.totalOfertasMarketplace = actual.extra.totalOfertasMkp;
+        if (actual.extra.totalOfertasMkp > 0 && !P.ofertas.length) {
+          avisar('Este artículo tiene ' + actual.extra.totalOfertasMkp +
+            ' oferta(s) de marketplace, pero el detalle de cada vendedor ya no viene en la carga inicial de la ficha: solo se pudo leer el vendedor que la pantalla enseña.');
+        }
+      }
     } else if (P.variants.length) {
       // Sin variante elegida la ficha enseña un rango; los meses que se ven en
       // pantalla son los de la variante más barata, así que se dice de dónde
@@ -1389,12 +1908,30 @@ function inspectProductFromDOM() {
       var planesV = agruparPlanes(P.variants[pv].paymentPlans);
       for (var pj = 0; pj < planesV.length; pj++) {
         var plan = planesV[pj];
+        // Un plan de 0 meses ya no es siempre "pago único". En el esquema
+        // nuevo, la cubeta de 0 meses es justo donde vienen los descuentos
+        // directos ("20% DE DESCUENTO", "15% EMPIEZA A PAGAR EN NOVIEMBRE"),
+        // que son dinero de verdad; meterlos en el mismo saco que el pago
+        // único los borraba de la ficha.
+        //
+        // El descuento se reconoce por el porcentaje o por el texto, NUNCA
+        // comparando `itemPrice` con el precio de lista: en marketplace el
+        // "PAGO UNICO" ya viene con el precio rebajado y esa comparación lo
+        // convertía en un descuento que no existe.
+        var esDescuento = plan.months === 0 && (num(plan.discountAmount) > 0 ||
+          /descuento|%/i.test(String(plan.description || '')));
         P.promotions.push({
-          tipo: plan.noInterest ? 'msi' : (plan.months > 0 ? 'pagos' : 'pago único'),
+          tipo: plan.noInterest ? 'msi'
+              : (plan.months > 0 ? 'pagos' : (esDescuento ? 'descuento' : 'pago único')),
           descripcion: plan.description,
           codigo: plan.promoCode,
           meses: plan.months,
           mensualidad: plan.monthlyPayment,
+          // Con estos dos se puede decir cuánto se paga y cuánto se ahorra sin
+          // volver a cruzar nada con la tabla de precios.
+          precioConPromo: plan.itemPrice,
+          porcentaje: num(plan.discountAmount) || null,
+          mejorDelBloque: plan.mejorDelBloque === true,
           sku: P.variants[pv].sku,
           origen: plan.origen,
           origenes: plan.origenes
@@ -1423,7 +1960,14 @@ function inspectProductFromDOM() {
 
   if (!P.url) P.url = canonica || resultado.url;
   if (!P.variants.length && resultado.fuentes.nodoPdp) {
-    avisar('El bloque del producto no traía variantes: puede ser un artículo sin color ni talla.');
+    // Este aviso engañó una vez: decía "artículo sin color ni talla" cuando lo
+    // que pasaba era que Liverpool había cambiado el esquema y el traductor no
+    // existía. Si la ficha SÍ enseña selectores, el problema es del inspector.
+    var seDibujanOpciones = !!(qs('[data-testid*="image-picker"]') || qs('[data-testid*="size-picker"]'));
+    avisar(seDibujanOpciones
+      ? 'La ficha dibuja selectores de color o talla pero el bloque del producto (esquema "' +
+        (resultado.fuentes.esquema || '?') + '") no trajo ninguna variante: probablemente Liverpool volvió a cambiar la forma del stream.'
+      : 'El bloque del producto no traía variantes: puede ser un artículo sin color ni talla.');
   }
 
   return resultado;

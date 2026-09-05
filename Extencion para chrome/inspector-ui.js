@@ -162,8 +162,10 @@
     pintarClasificacion(p);
     pintarCalificacion(p);
     pintarDisponibilidad(p);
+    pintarCrossSell(p);
     pintarGaleria(p);
     pintarPoliticas(p);
+    pintarBanderas(p);
     pintarMeta(p);
     pintarBarridoDom(p);
     pintarFuentes(datos);
@@ -475,9 +477,16 @@
         ? el('span', { clase: 'muestra-color', style: 'background:' + v.colorHex, title: v.colorHex })
         : null;
 
+      // El SKU se vuelve enlace cuando la ficha trae la URL directa de esa
+      // variante: es la forma más rápida de abrir exactamente ese color y esa
+      // talla, sin ir clicando por los selectores.
+      var celdaSku = v.urlVariante
+        ? el('a', { clase: 'mono', href: v.urlVariante, target: '_blank', rel: 'noopener', texto: v.sku || '—' })
+        : document.createTextNode(v.sku || '—');
+
       var fila = el('tr', { clase: v.esActual ? 'fila-activa' : '' }, [
         el('td', { clase: 'mono' }, [
-          document.createTextNode(v.sku || '—'),
+          celdaSku,
           v.esActual ? el('span', { clase: 'etiqueta-mini', texto: 'en pantalla' }) : null
         ]),
         el('td', null, [muestra, document.createTextNode(color)]),
@@ -521,6 +530,11 @@
       rejilla.appendChild(el('div', { clase: 'color-swatch' + (c.selected ? ' activo' : '') }, [
         marco,
         el('span', { clase: 'color-nombre', texto: c.name || '—' }),
+        // El nombre comercial es el que ve el cliente ("Azul Claro"); el de
+        // arriba es el genérico del catálogo ("Azul"). Solo se enseña cuando
+        // no son el mismo, que es cuando aporta algo.
+        (c.nombreComercial && c.nombreComercial !== c.name)
+          ? el('span', { clase: 'color-dato', texto: c.nombreComercial }) : null,
         (v && v.size) ? el('span', { clase: 'color-dato', texto: v.size }) : null,
         (v && esNumero(v.price)) ? el('span', { clase: 'color-precio', texto: dinero(v.price) }) : null,
         c.sku ? el('span', { clase: 'color-sku mono', texto: c.sku }) : null,
@@ -607,7 +621,8 @@
     var caja = cuerpo('secPromos');
     var promos = (p.promotions || []).filter(function (x) { return x.meses > 0; });
     var envios = (p.promotions || []).filter(function (x) { return x.tipo === 'envío'; });
-    if (!caja || (!promos.length && !envios.length)) { mostrar('secPromos', false); return; }
+    var hayDescuentos = (p.promotions || []).some(function (x) { return x.tipo === 'descuento'; });
+    if (!caja || (!promos.length && !envios.length && !hayDescuentos)) { mostrar('secPromos', false); return; }
 
     // Para poner nombre a cada SKU sin obligar a cruzar tablas a mano.
     var nombrePorSku = {};
@@ -647,11 +662,33 @@
       ]));
     }
 
+    // Descuentos directos (sin meses). No son "pago único" a secas: son rebaja
+    // sobre el precio, y son lo primero que pregunta quien cotiza. Se agrupan
+    // por texto porque el mismo descuento se repite en todas las variantes.
+    var descuentos = (p.promotions || []).filter(function (x) { return x.tipo === 'descuento'; });
+    if (descuentos.length) {
+      var porTexto = {}, ordenD = [];
+      descuentos.forEach(function (d) {
+        var k = (d.descripcion || '') + '|' + d.precioConPromo;
+        if (!porTexto[k]) { porTexto[k] = { d: d, skus: [] }; ordenD.push(k); }
+        if (porTexto[k].skus.indexOf(d.sku) === -1) porTexto[k].skus.push(d.sku);
+      });
+      caja.appendChild(el('h3', { clase: 'titulo-grupo', texto: 'Descuentos sin meses' }));
+      caja.appendChild(tablaPares(ordenD.map(function (k) {
+        var d = porTexto[k].d;
+        var valor = [];
+        if (esNumero(d.precioConPromo)) valor.push('queda en ' + dinero(d.precioConPromo));
+        if (esNumero(d.porcentaje) && d.porcentaje > 0) valor.push(d.porcentaje + '% de descuento');
+        valor.push('en ' + porTexto[k].skus.length + ' de ' + (p.variants || []).length + ' variantes');
+        return [d.descripcion || '(sin descripción)', valor.join(' · ')];
+      })));
+    }
+
     var unicos = (p.promotions || []).filter(function (x) { return x.tipo === 'pago único'; });
     if (unicos.length) {
       caja.appendChild(el('p', { clase: 'nota-seccion', texto: 'Todas las variantes admiten además pago único (sin meses).' }));
     }
-    mostrar('secPromos', true, promos.length);
+    mostrar('secPromos', true, promos.length + descuentos.length);
   }
 
   function pintarOfertas(p) {
@@ -782,6 +819,17 @@
     ]);
     if (tabla) caja.appendChild(tabla);
 
+    // Modos de entrega leídos de las tarjetas del configurador. El plazo real
+    // ("Recibe hoy", "Entre Sept 02 y Sept 05") solo aparece cuando la ficha ya
+    // tiene un código postal; sin él, la tarjeta enseña la promesa genérica.
+    var modos = a.modosEntrega || [];
+    if (modos.length) {
+      caja.appendChild(el('h3', { clase: 'titulo-grupo', texto: 'Cómo se puede recibir' }));
+      caja.appendChild(tablaPares(modos.map(function (m) {
+        return [m.modo, m.plazo || (m.lineas || []).slice(1).join(' · ') || '—'];
+      })));
+    }
+
     // Las banderas del catálogo dichas en cristiano. "Talla De Ropa" en un
     // teléfono no significa nada para nadie; que el selector de tallas use el
     // formato de ropa, sí.
@@ -812,6 +860,62 @@
 
   function separarCamello(clave) {
     return String(clave).replace(/([a-z])([A-Z])/g, '$1 $2').replace(/^./, function (c) { return c.toUpperCase(); });
+  }
+
+  /**
+   * "Comprados juntos": los artículos que Liverpool ofrece junto a este. Cada
+   * uno trae su propio bloque completo en el stream, así que aquí se enseña lo
+   * justo para decidir si vale la pena abrirlo y cotizarlo aparte.
+   */
+  function pintarCrossSell(p) {
+    var caja = cuerpo('secCrossSell');
+    var lista = p.crossSell || [];
+    if (!caja || !lista.length) { mostrar('secCrossSell', false); return; }
+
+    var rejilla = el('div', { clase: 'colores-rejilla' });
+    lista.forEach(function (a) {
+      var marco = el('div', { clase: 'color-img' });
+      if (a.imagen) marco.appendChild(el('img', { src: a.imagen, alt: a.nombre || 'Artículo' }));
+      var contenido = [
+        marco,
+        el('span', { clase: 'color-nombre', texto: a.nombre || '—' }),
+        a.marca ? el('span', { clase: 'color-dato', texto: a.marca }) : null,
+        esNumero(a.price) ? el('span', { clase: 'color-precio', texto: dinero(a.price) }) : null,
+        a.productId ? el('span', { clase: 'color-sku mono', texto: a.productId }) : null,
+        a.variantes ? el('span', { clase: 'color-dato', texto: a.variantes + ' variantes' }) : null
+      ];
+      rejilla.appendChild(a.url
+        ? el('a', { clase: 'color-swatch', href: a.url, target: '_blank', rel: 'noopener' }, contenido)
+        : el('div', { clase: 'color-swatch' }, contenido));
+    });
+    caja.appendChild(rejilla);
+    mostrar('secCrossSell', true, lista.length);
+  }
+
+  /**
+   * Las banderas crudas del catálogo. Van en diagnóstico porque son los
+   * interruptores internos de Liverpool, no algo que el cliente entienda; pero
+   * son la respuesta a "por qué esta ficha no se parece a las otras".
+   */
+  function pintarBanderas(p) {
+    var caja = cuerpo('secBanderas');
+    var banderas = (p.flags && p.flags.configuracion) || null;
+    if (!caja || !banderas) { mostrar('secBanderas', false); return; }
+
+    var encendidas = [], apagadas = [];
+    Object.keys(banderas).forEach(function (k) {
+      (banderas[k] === true ? encendidas : apagadas).push(separarCamello(k.replace(/^is|^has/, '')));
+    });
+    if (encendidas.length) {
+      var tira = el('div', { clase: 'tira-chips' });
+      encendidas.forEach(function (t) { tira.appendChild(chip(t)); });
+      caja.appendChild(el('h3', { clase: 'titulo-grupo', texto: 'Encendidas' }));
+      caja.appendChild(tira);
+    }
+    if (apagadas.length) {
+      caja.appendChild(el('p', { clase: 'nota-seccion', texto: 'Apagadas: ' + apagadas.join(', ') + '.' }));
+    }
+    mostrar('secBanderas', true, encendidas.length);
   }
 
   function pintarGaleria(p) {
@@ -930,6 +1034,11 @@
       ['Stream de Next.js encontrado', f.flightData ? 'Sí' : 'No'],
       ['Trozos leídos del stream', f.chunksFlight],
       ['Bloque del producto localizado', f.nodoPdp ? 'Sí' : 'No'],
+      // Cuando Liverpool vuelva a mover las cosas de sitio, esta fila es lo
+      // primero que hay que mirar: dice con qué forma vino el producto.
+      ['Forma del bloque del producto', f.esquema === 'productInfo'
+        ? 'productInfo (la de sept. 2026)'
+        : (f.esquema ? f.esquema : null)],
       ['Datos estructurados (JSON-LD)', f.jsonLd ? 'Sí' : 'No'],
       ['Referencias sin resolver', (f.refsSinResolver || []).join(' ')],
       ['URL leída', datos.url],
