@@ -54,6 +54,11 @@ const configPanel = document.getElementById('configPanel');
 const inpCotizadorUrl = document.getElementById('inpCotizadorUrl');
 const btnConfigSave = document.getElementById('btnConfigSave');
 const btnCompra = document.getElementById('btnCompra');
+// El botón de extraer se sustituye por un spinner mientras trabaja y luego hay
+// que devolverlo a su sitio. Se guarda su marcado REAL al arrancar en vez de
+// escribirlo a mano en `restoreBtnHTML`: así, cuando el popup cambia de diseño,
+// el botón no vuelve con el texto de la versión anterior.
+const HTML_BTN_EXTRACT = btnExtract ? btnExtract.innerHTML : '';
 const btnCompraCopy = document.getElementById('btnCompraCopy');
 const btnCompraDownload = document.getElementById('btnCompraDownload');
 const txtCompra = document.getElementById('txtCompra');
@@ -895,5 +900,5 @@ btnDownload.addEventListener('click', () => {
 });
 
 function restoreBtnHTML() {
-  return '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg> Extraer Artículos de Bolsa';
+  return HTML_BTN_EXTRACT;
 }

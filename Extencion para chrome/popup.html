@@ -1,20 +1,24 @@
 <!DOCTYPE html>
-<!--
-  =====================================================================
-   Ventel · Extractor de Bolsa
-   Hecho por su gran amigo David Martínez "El escritor"
-   v1.0 · 18/07/2026
-  =====================================================================
--->
 <html lang="es">
 <head>
   <meta charset="UTF-8">
-  <title>Extractor Ventel</title>
+  <title>Ventel · Extractor de Bolsa</title>
   <style>
+    /* =========================================================================
+       Ventel · popup de la extensión
+       -------------------------------------------------------------------------
+       Las cinco funciones no son alternativas de lo mismo: cada una sirve en UNA
+       pantalla distinta de Liverpool. Por eso el popup se organiza por pantalla
+       ("En tu bolsa", "En la ficha de un artículo", "Cuando la compra ya se
+       hizo") y no como una lista de botones iguales separados por "o…".
+       `popup-contexto.js` marca el grupo que corresponde a la pestaña abierta.
+       ========================================================================= */
     :root {
       --primary-color: #E10098;
       --primary-dark: #c10080;
       --primary-light: #ff3fb8;
+      --primary-suave: #fdf2f9;
+      --primary-borde: #f9c7e5;
       --accent: #a855f7;
       --bg-color: #ffffff;
       --field-bg: #f8fafc;
@@ -26,6 +30,9 @@
       --shadow-sm: 0 1px 2px rgba(15, 23, 42, 0.06);
       --shadow-md: 0 4px 14px rgba(15, 23, 42, 0.08);
       --shadow-lg: 0 10px 30px rgba(225, 0, 152, 0.18);
+
+      /* Escala de 4px: no hay 13px ni 17px en este archivo. */
+      --s1: 4px; --s2: 8px; --s3: 12px; --s4: 16px; --s5: 24px;
     }
 
     * { box-sizing: border-box; }
@@ -40,14 +47,14 @@
       -webkit-font-smoothing: antialiased;
     }
 
-    /* ---------- Header ---------- */
+    /* ---------- Cabecera ---------- */
     .header {
       background: var(--primary-color);
       color: white;
-      padding: 18px 16px;
+      padding: var(--s4);
       display: flex;
       align-items: center;
-      gap: 12px;
+      gap: var(--s3);
     }
 
     .header .logo-box {
@@ -61,7 +68,7 @@
 
     .header h1 {
       margin: 0;
-      font-size: 16px;
+      font-size: 15px;
       font-weight: 700;
       letter-spacing: 0.3px;
       line-height: 1.2;
@@ -73,50 +80,130 @@
       font-weight: 500;
     }
 
-    /* ---------- Content ---------- */
+    /* ---------- Contenido ---------- */
     .content {
-      padding: 16px;
+      padding: var(--s4);
       display: flex;
       flex-direction: column;
-      gap: 14px;
+      gap: var(--s3);
     }
 
-    .instructions {
-      font-size: 12px;
-      line-height: 1.6;
-      color: var(--text-muted);
-      background-color: var(--card-bg);
-      padding: 12px 14px;
-      border-radius: 10px;
-      border: 1px solid var(--border-color);
-      box-shadow: var(--shadow-sm);
-    }
-
-    .instructions strong { color: var(--text-main); }
-
-    .instructions ol {
-      margin: 8px 0 0;
-      padding-left: 18px;
-    }
-    .instructions li { margin-bottom: 4px; }
-    .instructions li:last-child { margin-bottom: 0; }
-
-    /* ---------- Buttons ---------- */
-    .btn {
-      display: inline-flex;
+    /* ---------- Dónde estás ----------
+       Una sola línea que dice en qué pantalla de Liverpool está la pestaña. Es
+       lo que convierte cinco botones sueltos en "usa este". */
+    .contexto {
+      margin: 0;
+      display: flex;
       align-items: center;
-      justify-content: center;
-      gap: 8px;
+      gap: var(--s2);
+      font-size: 11px;
+      font-weight: 600;
+      color: var(--text-muted);
+      background: var(--field-bg);
+      border: 1px solid var(--border-color);
+      border-radius: 999px;
+      padding: 6px var(--s3);
+    }
+    .contexto .punto {
+      width: 7px;
+      height: 7px;
+      border-radius: 50%;
+      background: #cbd5e1;
+      flex-shrink: 0;
+    }
+    .contexto.reconocida {
+      color: var(--primary-dark);
+      background: var(--primary-suave);
+      border-color: var(--primary-borde);
+    }
+    .contexto.reconocida .punto { background: var(--primary-color); }
+
+    /* ---------- Grupo de acciones por pantalla ---------- */
+    .grupo {
+      display: flex;
+      flex-direction: column;
+      gap: var(--s2);
+      border: 1px solid var(--border-color);
+      border-radius: 12px;
+      padding: var(--s3);
+      transition: opacity 0.2s ease, border-color 0.2s ease, background 0.2s ease;
+    }
+
+    /* El grupo que NO toca ahora se atenúa, pero sigue completamente usable:
+       basta pasar el ratón para verlo entero. Nunca se deshabilita: el asesor
+       puede querer el visor con la bolsa abierta en otra pestaña. La opacidad
+       no baja de 0.75 para que el texto siga cumpliendo contraste AA. */
+    .grupo.apagado { opacity: 0.75; }
+    .grupo.apagado:hover,
+    .grupo.apagado:focus-within { opacity: 1; }
+
+    .grupo.activo {
+      border-color: var(--primary-borde);
+      background: var(--primary-suave);
+    }
+
+    .grupo-cabecera {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: var(--s2);
+    }
+
+    .grupo-titulo {
+      margin: 0;
+      font-size: 11px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+      color: var(--text-muted);
+    }
+    .grupo.activo .grupo-titulo { color: var(--primary-dark); }
+
+    .insignia-aqui {
+      display: none;
+      align-items: center;
+      gap: var(--s1);
+      font-size: 10px;
+      font-weight: 700;
+      color: #ffffff;
       background: var(--primary-color);
-      color: white;
+      border-radius: 999px;
+      padding: 2px var(--s2);
+      letter-spacing: 0.02em;
+    }
+    .grupo.activo .insignia-aqui { display: inline-flex; }
+
+    /* ---------- Botones ----------
+       Cada opción lleva su explicación DENTRO del botón: antes vivía en un
+       párrafo gris debajo y no se leía. */
+    .btn {
+      display: flex;
+      align-items: center;
+      gap: var(--s3);
+      width: 100%;
+      text-align: left;
+      background: var(--primary-color);
+      color: #ffffff;
       border: none;
-      padding: 12px 16px;
+      padding: var(--s3) var(--s4);
+      font-family: inherit;
       font-size: 13px;
       font-weight: 600;
       border-radius: 10px;
       cursor: pointer;
-      transition: transform 0.15s ease, box-shadow 0.2s ease, filter 0.2s ease;
+      transition: transform 0.15s ease, box-shadow 0.2s ease, background 0.2s ease, border-color 0.2s ease, color 0.2s ease;
       box-shadow: var(--shadow-md);
+    }
+
+    .btn svg { flex-shrink: 0; }
+
+    .btn-texto { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+    .btn-nombre { font-size: 13px; font-weight: 700; line-height: 1.25; }
+    .btn-detalle {
+      font-size: 11px;
+      font-weight: 500;
+      line-height: 1.35;
+      opacity: 0.92;
     }
 
     .btn:hover {
@@ -127,18 +214,25 @@
 
     .btn:active { transform: translateY(0); }
 
+    .btn:focus-visible {
+      outline: 2px solid var(--primary-dark);
+      outline-offset: 2px;
+    }
+
     .btn-secondary {
-      background: transparent;
+      background: var(--card-bg);
       color: var(--text-main);
       border: 1px solid var(--border-color);
       box-shadow: var(--shadow-sm);
     }
+    .btn-secondary .btn-detalle { color: var(--text-muted); opacity: 1; }
     .btn-secondary:hover {
-      filter: none;
-      background: #fdf2f9;
+      background: var(--primary-suave);
       border-color: var(--primary-color);
-      color: var(--primary-color);
+      color: var(--primary-dark);
+      box-shadow: var(--shadow-sm);
     }
+    .btn-secondary:hover .btn-detalle { color: var(--primary-dark); }
 
     .btn:disabled {
       background: #cbd5e1;
@@ -146,14 +240,95 @@
       cursor: not-allowed;
       transform: none;
       box-shadow: none;
-      filter: none;
     }
 
-    /* ---------- Result ---------- */
+    /* ---------- Quién manda en cada momento ----------
+       Solo hay UNA acción rosa a la vez, y es la de la pantalla en la que está
+       el asesor: en la bolsa "Cotizar", en una ficha "Inspeccionar artículo",
+       en la compra cerrada "Copiar datos". Sin eso, "Cotizar" seguía siendo lo
+       más llamativo del popup incluso estando en una ficha. */
+    .grupo.activo .accion-principal.btn-secondary {
+      background: var(--primary-color);
+      color: #ffffff;
+      border-color: transparent;
+      box-shadow: var(--shadow-md);
+    }
+    .grupo.activo .accion-principal.btn-secondary .btn-detalle {
+      color: #ffffff;
+      opacity: 0.92;
+    }
+    .grupo.activo .accion-principal.btn-secondary:hover {
+      background: var(--primary-dark);
+      color: #ffffff;
+      box-shadow: var(--shadow-lg);
+    }
+    .grupo.activo .accion-principal.btn-secondary:hover .btn-detalle { color: #ffffff; }
+
+    /* Y al revés: el "Cotizar" de un grupo que ahora no toca se apaga a
+       secundario. Basta acercar el ratón para que vuelva a ser el de siempre. */
+    .grupo.apagado .accion-principal:not(.btn-secondary) {
+      background: var(--card-bg);
+      color: var(--text-main);
+      border: 1px solid var(--border-color);
+      box-shadow: var(--shadow-sm);
+    }
+    .grupo.apagado .accion-principal:not(.btn-secondary) .btn-detalle {
+      color: var(--text-muted);
+      opacity: 1;
+    }
+    .grupo.apagado:hover .accion-principal:not(.btn-secondary),
+    .grupo.apagado:focus-within .accion-principal:not(.btn-secondary) {
+      background: var(--primary-color);
+      color: #ffffff;
+      border-color: transparent;
+      box-shadow: var(--shadow-md);
+    }
+    .grupo.apagado:hover .accion-principal:not(.btn-secondary) .btn-detalle,
+    .grupo.apagado:focus-within .accion-principal:not(.btn-secondary) .btn-detalle {
+      color: #ffffff;
+      opacity: 0.92;
+    }
+
+    /* Botones de una sola línea (copiar / descargar / guardar). */
+    .btn-compacto {
+      justify-content: center;
+      text-align: center;
+      padding: 10px var(--s3);
+      font-size: 12px;
+    }
+
+    /* ---------- Cómo se usa ---------- */
+    .como-va {
+      font-size: 11px;
+      color: var(--text-muted);
+      line-height: 1.55;
+    }
+    .como-va summary {
+      cursor: pointer;
+      font-weight: 600;
+      color: var(--text-muted);
+      list-style: none;
+      display: inline-flex;
+      align-items: center;
+      gap: var(--s1);
+    }
+    .como-va summary::-webkit-details-marker { display: none; }
+    .como-va summary::before {
+      content: "›";
+      display: inline-block;
+      transition: transform 0.15s ease;
+    }
+    .como-va[open] summary::before { transform: rotate(90deg); }
+    .como-va summary:hover { color: var(--primary-color); }
+    .como-va ol { margin: var(--s2) 0 0; padding-left: var(--s4); }
+    .como-va li { margin-bottom: var(--s1); }
+    .como-va li:last-child { margin-bottom: 0; }
+
+    /* ---------- Resultados ---------- */
     .result-container {
       display: flex;
       flex-direction: column;
-      gap: 8px;
+      gap: var(--s2);
       animation: fadeIn 0.25s ease;
     }
 
@@ -181,18 +356,15 @@
       border-radius: 999px;
     }
 
-    /* ---------- Stats / Resumen ---------- */
-    .stats {
-      display: flex;
-      gap: 8px;
-    }
+    /* ---------- Cifras de la bolsa ---------- */
+    .stats { display: flex; gap: var(--s2); }
 
     .stat {
       flex: 1;
-      background: #fdf2f9;
-      border: 1px solid #fbcfe8;
+      background: var(--primary-suave);
+      border: 1px solid var(--primary-borde);
       border-radius: 10px;
-      padding: 8px 10px;
+      padding: var(--s2) 10px;
       text-align: center;
     }
 
@@ -211,6 +383,7 @@
       font-weight: 700;
       color: var(--primary-color);
       margin-top: 2px;
+      font-variant-numeric: tabular-nums;
     }
 
     /* ---------- Spinner ---------- */
@@ -265,13 +438,13 @@
     }
     .avisos-compra:empty { display: none; }
 
-    /* ---------- Status ---------- */
+    /* ---------- Avisos ---------- */
     .status-msg {
       font-size: 12px;
       font-weight: 500;
       text-align: center;
-      padding: 8px;
-      border-radius: 8px;
+      padding: var(--s2);
+      border-radius: var(--s2);
       display: none;
     }
 
@@ -287,35 +460,8 @@
       display: block;
     }
 
-    .actions { display: flex; gap: 8px; }
+    .actions { display: flex; gap: var(--s2); }
     .actions button { flex: 1; }
-
-    /* ---------- Separador entre las dos funciones ---------- */
-    .separador {
-      display: flex;
-      align-items: center;
-      gap: 8px;
-      font-size: 10px;
-      font-weight: 600;
-      text-transform: uppercase;
-      letter-spacing: 0.06em;
-      color: var(--text-muted);
-      margin: -2px 0;
-    }
-    .separador::before,
-    .separador::after {
-      content: "";
-      flex: 1;
-      height: 1px;
-      background: var(--border-color);
-    }
-
-    .pie-ayuda {
-      margin: -6px 0 0;
-      font-size: 11px;
-      line-height: 1.5;
-      color: var(--text-muted);
-    }
 
     /* ---------- Ajustes: enlace del Sistema de Cotizaciones ---------- */
     .config-toggle {
@@ -337,11 +483,11 @@
     .config-panel {
       display: none;
       flex-direction: column;
-      gap: 8px;
+      gap: var(--s2);
       background: var(--field-bg);
       border: 1px solid var(--border-color);
       border-radius: 10px;
-      padding: 12px;
+      padding: var(--s3);
     }
     .config-panel.abierto { display: flex; }
 
@@ -362,8 +508,8 @@
       width: 100%;
       font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
       font-size: 10px;
-      padding: 8px 10px;
-      border-radius: 8px;
+      padding: var(--s2) 10px;
+      border-radius: var(--s2);
       border: 1px solid var(--border-color);
       background: var(--card-bg);
       color: var(--text-main);
@@ -376,7 +522,7 @@
 
     /* ---------- Easter egg ---------- */
     .signature {
-      padding: 4px 16px 6px;
+      padding: var(--s1) var(--s4) 6px;
       text-align: center;
       font-size: 8px;
       letter-spacing: 0.3px;
@@ -387,14 +533,19 @@
       user-select: none;
     }
 
-    .signature:hover {
-      opacity: 1;
-    }
+    .signature:hover { opacity: 1; }
 
     .signature .made-by {
       font-family: "Segoe Script", "Brush Script MT", cursive;
       font-size: 10px;
       color: var(--primary-color);
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+      *, *::before, *::after {
+        animation-duration: 0.01ms !important;
+        transition-duration: 0.01ms !important;
+      }
     }
   </style>
 </head>
@@ -410,69 +561,85 @@
   </div>
 
   <div class="content">
-    <div class="instructions">
-      <strong>Instrucciones</strong>
-      <ol>
-        <li>Entra a tu bolsa de compras en el portal de Liverpool o abre el archivo local de la bolsa.</li>
-        <li>Haz clic en <strong>Cotizar</strong>: se abre el sistema con los artículos ya cargados.</li>
-        <li>Escribe el nombre, el correo y el teléfono del cliente, y listo.</li>
-      </ol>
-    </div>
-
-    <button id="btnCotizar" class="btn">
-      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="16" y1="13" x2="8" y2="13"></line><line x1="16" y1="17" x2="8" y2="17"></line></svg>
-      Cotizar
-    </button>
-    <p class="pie-ayuda">
-      Si no tienes la sesión abierta, primero te pide iniciarla y después continúa solo.
-      El folio se genera al mandar la cotización a vista previa, como siempre.
+    <!-- Lo rellena popup-contexto.js con la pantalla de la pestaña abierta. -->
+    <p class="contexto" id="ctxPantalla" aria-live="polite">
+      <span class="punto" aria-hidden="true"></span>
+      <span id="ctxTexto">Mirando en qué pantalla estás…</span>
     </p>
 
-    <div class="separador"><span>o solo el JSON</span></div>
+    <!-- ============ 1. La bolsa ============ -->
+    <section class="grupo" id="grupoBolsa">
+      <div class="grupo-cabecera">
+        <h2 class="grupo-titulo">En tu bolsa</h2>
+        <span class="insignia-aqui">aquí estás</span>
+      </div>
 
-    <button id="btnExtract" class="btn btn-secondary">
-      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg>
-      Extraer Artículos de Bolsa
-    </button>
+      <button id="btnCotizar" class="btn accion-principal">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="16" y1="13" x2="8" y2="13"></line><line x1="16" y1="17" x2="8" y2="17"></line></svg>
+        <span class="btn-texto">
+          <span class="btn-nombre">Cotizar</span>
+          <span class="btn-detalle">Abre el sistema con los artículos ya cargados</span>
+        </span>
+      </button>
 
-    <!-- Segunda función: el visor. No toca nada de la extracción de arriba. -->
-    <div class="separador"><span>o mira todo el detalle</span></div>
+      <button id="btnExtract" class="btn btn-secondary">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg>
+        <span class="btn-texto">
+          <span class="btn-nombre">Solo el JSON</span>
+          <span class="btn-detalle">El texto de los artículos, para copiarlo o guardarlo</span>
+        </span>
+      </button>
 
-    <button id="btnViewer" class="btn btn-secondary">
-      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path><circle cx="12" cy="12" r="3"></circle></svg>
-      Abrir visor avanzado
-    </button>
-    <p class="pie-ayuda">
-      Abre en una pestaña nueva la ficha completa de cada artículo: SKU general y de
-      variante, precio de lista, meses sin intereses, proveedor, galería de imágenes y
-      todos los campos que la página guarda sin mostrarlos.
-    </p>
+      <button id="btnViewer" class="btn btn-secondary">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path><circle cx="12" cy="12" r="3"></circle></svg>
+        <span class="btn-texto">
+          <span class="btn-nombre">Visor avanzado</span>
+          <span class="btn-detalle">Ficha completa de cada artículo: precios, MSI, proveedor y fotos</span>
+        </span>
+      </button>
 
-    <!-- Cuarta función: inspeccionar un artículo suelto en su ficha. -->
-    <div class="separador"><span>o inspecciona un artículo</span></div>
+      <details class="como-va">
+        <summary>Cómo se usa</summary>
+        <ol>
+          <li>Entra a tu bolsa en el portal de Liverpool, o abre el archivo local de la bolsa.</li>
+          <li>Toca <strong>Cotizar</strong>: se abre el sistema con los artículos ya cargados.</li>
+          <li>Escribe el nombre, el correo y el teléfono del cliente, y listo.</li>
+        </ol>
+        <p style="margin: 8px 0 0;">Si no tienes la sesión abierta, primero te pide iniciarla y después continúa solo. El folio se genera al mandar la cotización a vista previa, como siempre.</p>
+      </details>
+    </section>
 
-    <button id="btnInspector" class="btn btn-secondary">
-      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>
-      Inspeccionar artículo
-    </button>
-    <p class="pie-ayuda">
-      En la ficha de un producto de Liverpool: abre una ventana con <strong>todos</strong>
-      los datos del artículo — colores disponibles, tallas o capacidades, SKU general y
-      por variante, fotos, vendedor, especificaciones y lo que la página no muestra.
-    </p>
+    <!-- ============ 2. La ficha de un artículo ============ -->
+    <section class="grupo" id="grupoFicha">
+      <div class="grupo-cabecera">
+        <h2 class="grupo-titulo">En la ficha de un artículo</h2>
+        <span class="insignia-aqui">aquí estás</span>
+      </div>
 
-    <!-- Quinta función: la compra ya cerrada. Tampoco toca nada de lo de arriba. -->
-    <div class="separador"><span>o cuando la compra ya se hizo</span></div>
+      <button id="btnInspector" class="btn btn-secondary accion-principal">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>
+        <span class="btn-texto">
+          <span class="btn-nombre">Inspeccionar artículo</span>
+          <span class="btn-detalle">Colores, tallas, SKU de cada variante, precios y promociones</span>
+        </span>
+      </button>
+    </section>
 
-    <button id="btnCompra" class="btn btn-secondary">
-      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 11l3 3L22 4"></path><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"></path></svg>
-      Copiar datos de la compra
-    </button>
-    <p class="pie-ayuda">
-      En la pantalla de <strong>“¡Gracias por comprar!”</strong>: arma el resumen listo
-      para pegar con el número de pedido, los artículos, la entrega estimada, el pago,
-      el plan y el folio de la atención.
-    </p>
+    <!-- ============ 3. La compra ya hecha ============ -->
+    <section class="grupo" id="grupoCompra">
+      <div class="grupo-cabecera">
+        <h2 class="grupo-titulo">Cuando la compra ya se hizo</h2>
+        <span class="insignia-aqui">aquí estás</span>
+      </div>
+
+      <button id="btnCompra" class="btn btn-secondary accion-principal">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 11l3 3L22 4"></path><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"></path></svg>
+        <span class="btn-texto">
+          <span class="btn-nombre">Copiar datos de la compra</span>
+          <span class="btn-detalle">Pedido, artículos, entrega, pago y folio, listos para pegar</span>
+        </span>
+      </button>
+    </section>
 
     <div id="status" class="status-msg"></div>
 
@@ -485,11 +652,11 @@
       <p class="avisos-compra" id="compraAvisos"></p>
 
       <div class="actions">
-        <button id="btnCompraCopy" class="btn btn-secondary">
+        <button id="btnCompraCopy" class="btn btn-secondary btn-compacto">
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg>
           Copiar de nuevo
         </button>
-        <button id="btnCompraDownload" class="btn btn-secondary">
+        <button id="btnCompraDownload" class="btn btn-secondary btn-compacto">
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg>
           Descargar
         </button>
@@ -509,53 +676,47 @@
       </div>
 
       <div class="result-label">
-        <span>JSON Generado</span>
+        <span>JSON de la bolsa</span>
         <span id="itemCount">0 artículos</span>
       </div>
       <textarea id="txtJson" class="json-textarea" readonly></textarea>
 
       <div class="actions">
-        <button id="btnCopy" class="btn btn-secondary">
+        <button id="btnCopy" class="btn btn-secondary btn-compacto">
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg>
-          Copiar JSON
+          Copiar
         </button>
-        <button id="btnDownload" class="btn btn-secondary">
+        <button id="btnDownload" class="btn btn-secondary btn-compacto">
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg>
           Descargar
         </button>
       </div>
     </div>
 
-    <!-- Enlace del sistema. Se guarda una vez por equipo: la URL de una webapp de
-         Apps Script cambia con cada despliegue nuevo, así que no puede vivir
-         escrita dentro de la extensión. -->
     <button id="btnConfigToggle" class="config-toggle" type="button" aria-expanded="false" aria-controls="configPanel">
-      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"></circle><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 1 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 1 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.6h.09A1.65 1.65 0 0 0 10 3.09V3a2 2 0 1 1 4 0v.09A1.65 1.65 0 0 0 15 4.6a1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9v.09A1.65 1.65 0 0 0 20.91 10H21a2 2 0 1 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"></path></svg>
+      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"></circle><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.6h.09A1.65 1.65 0 0 0 10 3.09V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9v.09a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"></path></svg>
       Enlace del Sistema de Cotizaciones
     </button>
 
     <div id="configPanel" class="config-panel">
-      <label for="inpCotizadorUrl">URL de la aplicación (termina en /exec)</label>
+      <label for="inpCotizadorUrl">Enlace del Sistema de Cotizaciones</label>
       <input id="inpCotizadorUrl" class="config-input" type="url" spellcheck="false"
-             placeholder="https://script.google.com/a/macros/…/exec">
+             placeholder="https://script.google.com/.../exec">
       <p class="ayuda">
-        Ábrela desde el sistema y copia la dirección de la barra hasta <strong>/exec</strong>,
-        sin los parámetros que vengan después. Se guarda solo en este equipo.
+        Pega aquí el enlace <strong>/exec</strong> de tu sistema. Se guarda en este
+        navegador y se usa cada vez que tocas «Cotizar».
       </p>
       <div class="actions">
-        <button id="btnConfigSave" class="btn btn-secondary" type="button">Guardar enlace</button>
+        <button id="btnConfigSave" class="btn btn-secondary btn-compacto" type="button">Guardar enlace</button>
       </div>
     </div>
   </div>
 
-  <!-- 🥚 Easter egg: pasa el cursor por aquí abajo y espera... -->
   <div class="signature" title="🥚">
     <span class="made-by">Hecho por su gran amigo David Martínez</span> · El escritor · v1.0 · 18/07/2026
   </div>
 
-  <script src="deep-extractor.js"></script>
-  <script src="purchase-extractor.js"></script>
-  <script src="product-inspector.js"></script>
   <script src="popup.js"></script>
+  <script src="popup-contexto.js"></script>
 </body>
 </html>
