@@ -64,6 +64,9 @@
       // solo haría que la extensión pareciera rota.
       el.classList.toggle('apagado', !!info.grupo && !esElActivo);
     }
+    // El grupo activo sube al principio de la lista con `order` en el CSS: sin
+    // eso, en la compra confirmada el botón que toca caía por debajo de los
+    // 600px a los que Chrome corta el popup.
   }
 
   async function arrancar() {

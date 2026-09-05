@@ -118,6 +118,14 @@
     }
     .contexto.reconocida .punto { background: var(--primary-color); }
 
+    /* Chrome corta el popup a 600px de alto y los tres grupos juntos miden algo
+       más. Para que el que toca no quede nunca por debajo del corte —le pasaba
+       al de la compra confirmada, el último— sube al principio de la lista. El
+       orden natural (bolsa · ficha · compra) se mantiene cuando la pantalla no
+       se reconoce y no hay ninguno activo. */
+    .contexto { order: -2; }
+    .grupo.activo { order: -1; }
+
     /* ---------- Grupo de acciones por pantalla ---------- */
     .grupo {
       display: flex;
@@ -130,9 +138,11 @@
     }
 
     /* El grupo que NO toca ahora se atenúa, pero sigue completamente usable:
-       basta pasar el ratón para verlo entero. Nunca se deshabilita: el asesor
-       puede querer el visor con la bolsa abierta en otra pestaña. La opacidad
-       no baja de 0.75 para que el texto siga cumpliendo contraste AA. */
+       basta pasar el ratón (o llegar con el tabulador) para verlo entero. Nunca
+       se deshabilita: el asesor puede querer el visor con la bolsa abierta en
+       otra pestaña. A 0.75 el NOMBRE de cada acción sigue cumpliendo contraste
+       AA; la línea de detalle no, y por eso vuelve a su color en cuanto el
+       grupo recibe el ratón o el foco. */
     .grupo.apagado { opacity: 0.75; }
     .grupo.apagado:hover,
     .grupo.apagado:focus-within { opacity: 1; }
