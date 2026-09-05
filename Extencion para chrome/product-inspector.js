@@ -1831,14 +1831,22 @@ function inspectProductFromDOM() {
       // esquema nuevo el SKU del color es el de OTRA variante (ver abajo), así
       // que comparar solo por SKU dejaba la rejilla sin ningún color marcado.
       if (!colorMarcado) {
+        // El SKU manda sobre el nombre: dos colores del catálogo pueden llamarse
+        // igual y distinguirse solo por el nombre comercial.
         for (var cm = 0; cm < P.colors.length; cm++) {
-          var mismoSku = P.colors[cm].sku && P.colors[cm].sku === actual.sku;
-          var mismoNombre = P.colors[cm].name && actual.color &&
-            String(P.colors[cm].name).toLowerCase() === String(actual.color).toLowerCase();
-          if (mismoSku || mismoNombre) {
+          if (P.colors[cm].sku && P.colors[cm].sku === actual.sku) {
             P.colors[cm].selected = true;
-            colorMarcado = P.colors[cm];
-            break;
+            if (!colorMarcado) colorMarcado = P.colors[cm];
+          }
+        }
+        if (!colorMarcado && actual.color) {
+          for (var cn = 0; cn < P.colors.length; cn++) {
+            if (P.colors[cn].name &&
+                String(P.colors[cn].name).toLowerCase() === String(actual.color).toLowerCase()) {
+              P.colors[cn].selected = true;
+              colorMarcado = P.colors[cn];
+              break;
+            }
           }
         }
       }
