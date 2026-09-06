@@ -731,6 +731,17 @@
     <span class="made-by">Hecho por su gran amigo David Martínez</span> · El escritor · v1.0 · 18/07/2026
   </div>
 
+  <!-- ORDEN OBLIGATORIO. Estos tres archivos definen las funciones que
+       `popup.js` inyecta en la pestaña con `chrome.scripting.executeScript`
+       ({ func: ... }): sin ellos cargados ANTES, el popup abre bien pero al
+       tocar un botón salta "… is not defined".
+         deep-extractor.js      -> extractBagDeep      (visor avanzado)
+         purchase-extractor.js  -> extractPurchase…    (datos de la compra)
+         product-inspector.js   -> inspectProductFromDOM (inspeccionar artículo)
+       -->
+  <script src="deep-extractor.js"></script>
+  <script src="purchase-extractor.js"></script>
+  <script src="product-inspector.js"></script>
   <script src="popup.js"></script>
   <script src="popup-contexto.js"></script>
 </body>
