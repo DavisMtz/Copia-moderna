@@ -1976,13 +1976,24 @@
             }
 
             if (!ficha.ok) {
-                nom.textContent = ficha.titulo || 'No se pudo leer la ficha';
-                dl.innerHTML = '<div class="rev-cmp-row"><span>Precio en el sitio</span><strong>—</strong></div>';
+                // Si alguna vez se leyó bien este artículo, se enseña ese precio con su
+                // antigüedad en vez de dejar el guion: sigue siendo mejor pista que nada,
+                // sobre todo cuando el bloqueo (403) es la protección anti-bot de Liverpool
+                // y no un problema real del artículo.
+                const buena = ficha.ultimaBuena;
+                nom.textContent = ficha.titulo || (buena && buena.titulo) || 'No se pudo leer la ficha';
+                dl.innerHTML = buena
+                    ? '<div class="rev-cmp-row"><span>Último precio visto</span><strong>' +
+                        esc(money(buena.precio)) + '</strong></div>'
+                    : '<div class="rev-cmp-row"><span>Precio en el sitio</span><strong>—</strong></div>';
                 veredicto('duda', 'Compáralo tú en el sitio',
                     (ficha.mensaje || 'No se pudo consultar la ficha automáticamente.') +
                     ' La comparación de precios de esta ventana no está disponible para este artículo.',
                     true);
-                document.getElementById('rev-cmp-fuente').textContent = '';
+                document.getElementById('rev-cmp-fuente').textContent = buena && buena.capturada
+                    ? 'Último precio visto ' + AppCache.ageLabel(new Date(buena.capturada).getTime()) +
+                      ', antes de que Liverpool empezara a bloquear la consulta.'
+                    : '';
                 return;
             }
 

@@ -896,6 +896,47 @@ const REV_FICHA_HEADERS = {
 const REV_IMG_SUBDOMINIOS = ['ss571', 'sm571', 'sp514'];
 
 /**
+ * "Última ficha buena" — a diferencia de REV_FICHA_TTL (15 min, la red contra pedir la
+ * misma página dos veces seguidas), esto tiene que sobrevivir DÍAS: es lo que se enseña
+ * cuando Liverpool bloquea la consulta (403) y no hay nada más reciente que mostrar.
+ * Vive en PropertiesService porque CacheService tope a las 6 h y aquí hace falta poder
+ * decir "hace 3 días". Solo guarda lo mínimo para pintar un precio con su antigüedad,
+ * nunca el HTML ni nada más pesado.
+ */
+const REV_ULTIMA_PREFIJO = 'rev-ultima-';
+const REV_ULTIMA_TOPE = 500;   // guardián de tamaño, mismo criterio que CacheIdentidad.gs
+
+/** Guarda la última ficha buena de un artículo. Nunca lanza: si falla, se sigue sin ella. */
+function revGuardarUltimaBuena_(clave, ficha) {
+  try {
+    const props = PropertiesService.getScriptProperties();
+    const llave = REV_ULTIMA_PREFIJO + clave;
+    if (props.getProperty(llave) === null) {
+      // El tope solo frena altas nuevas: actualizar una clave que ya existía no debe
+      // bloquearse por haber llegado tarde al cupo.
+      const total = Object.keys(props.getProperties()).filter(function (k) {
+        return k.indexOf(REV_ULTIMA_PREFIJO) === 0;
+      }).length;
+      if (total >= REV_ULTIMA_TOPE) return;
+    }
+    props.setProperty(llave, JSON.stringify({
+      titulo: ficha.titulo || '',
+      precio: ficha.precio,
+      precioLista: ficha.precioLista,
+      capturada: ficha.capturada
+    }));
+  } catch (e) { /* la revisión nunca se cae por esto */ }
+}
+
+/** Lee la última ficha buena guardada de un artículo, o null si nunca hubo una. */
+function revUltimaBuena_(clave) {
+  try {
+    const crudo = PropertiesService.getScriptProperties().getProperty(REV_ULTIMA_PREFIJO + clave);
+    return crudo ? JSON.parse(crudo) : null;
+  } catch (e) { return null; }
+}
+
+/**
  * Trae la ficha actual del artículo en liverpool.com.mx para compararla con la cotización.
  *
  * @param {string} url  Enlace del artículo (se vuelve a validar aquí: nunca se confía en el cliente).
@@ -958,20 +999,23 @@ function revFichaDeUrl_(url, sku) {
         validateHttpsCertificates: true
       });
     } catch (e) {
-      return { ok: false, motivo: 'sin-red', url: limpia,
+      return { ok: false, motivo: 'sin-red', url: limpia, ultimaBuena: revUltimaBuena_(clave),
                mensaje: 'No se pudo contactar a liverpool.com.mx (' + e.message + ').' };
     }
 
     const codigo = resp.getResponseCode();
     if (codigo !== 200) {
       // 403 casi siempre = protección anti-bot; 404 = el artículo dejó de existir, que es
-      // un hallazgo de revisión por sí mismo y hay que decirlo con esas palabras.
+      // un hallazgo de revisión por sí mismo y hay que decirlo con esas palabras. En
+      // cualquiera de los dos casos, si alguna vez se leyó bien este artículo, se enseña
+      // ese precio con su antigüedad en vez de dejar el hueco vacío.
       return {
         ok: false,
         motivo: codigo === 404 ? 'no-existe' : 'bloqueado',
         codigo: codigo,
         url: limpia,
         imagenRespaldo: revImagenPorSku_(sku),
+        ultimaBuena: revUltimaBuena_(clave),
         mensaje: codigo === 404
           ? 'Liverpool responde que este artículo ya no existe en su sitio (404). Verifícalo antes de aprobar.'
           : 'Liverpool rechazó la consulta automática (código ' + codigo + '). Ábrelo en una pestaña para compararlo.'
@@ -985,12 +1029,15 @@ function revFichaDeUrl_(url, sku) {
 
     if (!ficha.ok) {
       ficha.imagenRespaldo = ficha.imagen;
+      ficha.ultimaBuena = revUltimaBuena_(clave);
       return ficha;   // sin cachear: un fallo de lectura no merece quedarse 15 min
     }
 
     if (cache) {
       try { cache.put(clave, JSON.stringify(ficha), REV_FICHA_TTL); } catch (e) {}
     }
+    // Aparte de la caché corta: esta SÍ se queda días, para el día que Liverpool bloquee.
+    revGuardarUltimaBuena_(clave, ficha);
     return ficha;
   } catch (error) {
     Logger.log('revFichaDeUrl_ falló: ' + error.message + ' Stack: ' + error.stack);
