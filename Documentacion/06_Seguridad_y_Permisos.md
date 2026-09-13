@@ -187,6 +187,56 @@ Escrita **una sola vez**, en `Permisos.gs`, y usada por toda la app:
 entra el lunes y de baja a quien se fue el viernes **sin despertar a un maestro**, que era el
 motivo real por el que circulaban cuentas maestras de más.
 
+### 4.5 bis · Matriz rol × función (T13.2, verificada contra el código el 12/09/2026)
+
+La tabla de bloques (§4.3) y la de roles (§4.4) dicen lo mismo que esta matriz; esta solo las
+cruza en una sola vista para no tener que sumarlas a mano. Generada leyendo `PERM_BLOQUES` y
+`PERM_ROLES` de `Permisos.gs`, no a mano — si un bloque cambia de rol ahí, esta tabla queda
+desactualizada y hay que rehacerla igual.
+
+| Bloque / función | Pantalla | Asesor | Supervisor | Maestro |
+| --- | --- | :---: | :---: | :---: |
+| `portal` **(fijo)** | `portal` | ✔ | ✔ | ✔ |
+| `promociones` | `promociones` | ✔ | ✔ | ✔ |
+| `cotizar` | `cotizacion` | ✔ | ✔ | ✔ |
+| `consultar` | `consulta_cotizacion` | ✔ | ✔ | ✔ |
+| `enviar_cotizacion` | `correoventel` | ✔ | ✔ | ✔ |
+| `correos_cliente` | `correo_cliente` | ✔ | ✔ | ✔ |
+| `atenciones` | `atenciones` | ✔ | ✔ | ✔ |
+| `supervision` | `inicio_avanzado` | — | ✔ | ✔ |
+| `revisar` | `revision_cotizacion` | — | ✔ | ✔ |
+| `politica_revision` | *(ajuste, sin pantalla propia)* | — | ✔ | ✔ |
+| `trazabilidad` | *(dentro del Portal)* | — | ✔ | ✔ |
+| `anuncios` | `anuncios` | — | ✔ | ✔ |
+| `portal_contenido` | `portal_contenido` | — | ✔ | ✔ |
+| `articulos` (escribir; leer es de todos) | `articulo` | — | ✔ | ✔ |
+| `metricas` | `consola` › Métricas | — | ✔ *(alcance jerárquico recortado)* | ✔ *(todo)* |
+| `operacion` (decidir qué se publica) | `operacion` | — | ✔ | ✔ |
+| `sup_equipo` | `consola` › Roles | — | ✔ *(solo su nivel o por debajo)* | ✔ |
+| `adm_miembros` **(fijo)** | `consola` | — | — | ✔ |
+| `adm_permisos` **(fijo)** | `consola` | — | — | ✔ |
+| `adm_ajustes` **(fijo)** | `consola` | — | — | ✔ |
+| `adm_modulos` **(fijo)** | `consola` | — | — | ✔ |
+| `adm_formatos` **(fijo)** | `consola` | — | — | ✔ |
+| `adm_salud` **(fijo)** | `consola` | — | — | ✔ |
+| `adm_bitacora` **(fijo)** | `consola` | — | — | ✔ |
+| *Reportar una falla (sin bloque, a propósito)* | `operacion` | ✔ | ✔ | ✔ |
+| *Grupos y difusión (por nivel, sin bloque propio)* | `consola` | — | ✔ *(nivel ≥ 2)* | ✔ |
+
+**El único ajuste «solo maestro» que no es un bloque de la tabla anterior:**
+`CORREO_CCO_GLOBAL` (§8 bis) — copia oculta de todo correo saliente, salvo los tres correos de
+seguridad (contraseña temporal, restablecimiento, código de verificación), que **nunca** se
+copian, sin excepción configurable.
+
+**Nada de esto confía en el cliente.** Cada ✔ de esta tabla es un `secIdentidadConBloque_`
+(o `secIdentidadMaestra_` en Administración) que se vuelve a exigir en el servidor en cada
+llamada — la tabla describe el resultado, no la puerta. Los ajustes por persona (§4.1) pueden
+mover una celda individual sin mover el rol completo; esta matriz es la BASE antes de ajustes.
+
+**Pendiente de esta tarea, y no es de código:** la verificación con **tres cuentas de prueba
+reales** (una por rol) recorriendo la app entera, que el criterio de aceptación de F13 exige
+además de esta tabla — eso solo se puede hacer a mano, con sesión real de cada rol.
+
 ### 4.6 Retrocompatibilidad
 
 Mientras alguien **no tenga fila** en `_PermisosSistema`, manda la columna `Avanzado` de
