@@ -1619,47 +1619,85 @@
          * artículos entrarían en un formulario que el asesor todavía está a punto
          * de reemplazar por su borrador.
          */
+        /*
+         * v3 (13/09/2026): en producción volvió a no llegar. Dos cosas se hacían mal
+         * de este lado: (1) se buscaba SOLO en este documento, y bridge.js, cuando
+         * no localiza a tiempo el iframe interno de Apps Script, deja la bolsa en el
+         * marco padre (userCodeAppPanel) —que es del MISMO origen y aquí es legible
+         * con `window.parent.document`—; (2) se buscaba solo 3 segundos, y el puente
+         * puede tardar hasta 4.5 s en decidir dónde escribir. Ahora se revisa este
+         * documento Y el marco padre durante 20 s. Y si la pantalla se abrió desde la
+         * extensión (`?origen=extension`), se dice en pantalla que se está esperando
+         * la bolsa y, si nunca llega, se abre la importación manual con lo que la
+         * extensión dejó copiado — que un fallo del puente no vuelva a ser silencioso.
+         */
         const BolsaExtension = (function () {
             const ID_ELEMENTO = 'ventel-bolsa-datos';
-            const MAX_INTENTOS = 10;
-            const ESPERA_MS = 300;
+            const MAX_INTENTOS = 40;
+            const ESPERA_MS = 500;
 
             let intentos = 0;
             let temporizador = null;
             let terminado = false;
+            const esperada = !!(window.AppUrl && AppUrl.param('origen') === 'extension');
+
+            /**
+             * Documentos donde el puente pudo dejar la bolsa: este y el marco padre
+             * cuando es del mismo origen. El siguiente ancestro (script.google.com)
+             * es de otro origen: acceder a su `document` lanza y ahí se corta.
+             */
+            function documentosCandidatos() {
+                const docs = [document];
+                try {
+                    let w = window;
+                    for (let i = 0; i < 2 && w.parent && w.parent !== w; i++) {
+                        w = w.parent;
+                        const d = w.document;
+                        if (d && docs.indexOf(d) === -1) docs.push(d);
+                    }
+                } catch (e) { /* otro origen: hasta aquí llega la búsqueda */ }
+                return docs;
+            }
 
             function parar() {
                 terminado = true;
                 if (temporizador) { clearTimeout(temporizador); temporizador = null; }
             }
 
-            /**
-             * Se insiste unas cuantas veces porque bridge.js puede tardar un
-             * instante en leer `chrome.storage.local` y escribir el elemento.
-             * Tres segundos y se deja de buscar: lo normal es que no haya
-             * extensión instalada, o no haya bolsa esperando.
-             */
             function buscar() {
                 if (terminado) return;
 
-                const elemento = document.getElementById(ID_ELEMENTO);
-                if (elemento) {
-                    terminado = true;
-                    if (temporizador) { clearTimeout(temporizador); temporizador = null; }
-                    let bolsa = null;
-                    try { bolsa = JSON.parse(elemento.textContent); } catch (e) { bolsa = null; }
-                    elemento.remove();
-                    recibir(bolsa);
-                    return;
+                const docs = documentosCandidatos();
+                let bolsa = null;
+                let encontrado = false;
+                for (let i = 0; i < docs.length; i++) {
+                    let elemento = null;
+                    try { elemento = docs[i].getElementById(ID_ELEMENTO); } catch (e) { elemento = null; }
+                    if (!elemento) continue;
+                    if (!encontrado) {
+                        encontrado = true;
+                        try { bolsa = JSON.parse(elemento.textContent); } catch (e) { bolsa = null; }
+                    }
+                    // Se retira de TODOS los marcos donde esté: una copia olvidada en el
+                    // marco padre reaparecería en la siguiente cotización de esta pestaña.
+                    try { elemento.remove(); } catch (e) {}
                 }
+                if (encontrado) { parar(); recibir(bolsa); return; }
 
                 intentos++;
-                if (intentos >= MAX_INTENTOS) { parar(); return; }
+                if (intentos >= MAX_INTENTOS) { parar(); sinBolsa(); return; }
                 temporizador = setTimeout(buscar, ESPERA_MS);
             }
 
+            /** Solo habla si de verdad se esperaba una bolsa (se abrió desde la extensión). */
+            function sinBolsa() {
+                if (!esperada) return;
+                showGeneralMessage('No recibimos los artículos de tu bolsa. Al pulsar «Cotizar» también quedaron copiados: pégalos en la ventana que se abre.', true, false);
+                try { openImportModal(); } catch (e) {}
+            }
+
             function recibir(bolsa) {
-                if (!bolsa || !Array.isArray(bolsa.products) || bolsa.products.length === 0) return;
+                if (!bolsa || !Array.isArray(bolsa.products) || bolsa.products.length === 0) { sinBolsa(); return; }
 
                 const resumen = importarProductos(bolsa);
                 // Lo importado cuenta como trabajo: si el asesor se va ahora, el
@@ -1675,7 +1713,12 @@
                 }
             }
 
-            return { pedir: buscar };
+            function pedir() {
+                if (esperada) showGeneralMessage('Cargando los artículos de tu bolsa…', false, false);
+                buscar();
+            }
+
+            return { pedir: pedir };
         })();
 
         // --- Modal de importación ---
