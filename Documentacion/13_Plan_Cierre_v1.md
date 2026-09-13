@@ -1039,6 +1039,46 @@ y qué se dejó fuera a propósito**. Mismo formato que el registro del document
 
 <!-- Las entradas nuevas van arriba, con la más reciente primero. -->
 
+### 2026-09-13 — Primera verificación en vivo, con sesión real (rol avanzado)
+
+**Qué se probó.** Con la sesión real de David (rol **Usuario Avanzado**, confirmado en pantalla)
+sobre el entorno de pruebas: Portal → Supervisión → Revisión → una revisión real
+(`LVP-260817-0004`) → Acerca del Portal. No hubo errores de consola ni pantallas en blanco
+más allá del primer pintado (que tarda unos segundos, no es un fallo).
+
+**Hallazgo importante para F11/T11.1:** con esta sesión, **Liverpool devolvió 403 en los dos
+artículos de la cotización probada** — confirma en vivo, sin necesidad de `revisionMaestra()`
+ni de `clasp run`, que el bloqueo anti-bot contra las IPs de Apps Script **sigue activo hoy**.
+Esto cierra la única duda que había dejado abierta la entrada de T11.1 del 12/09. El fallback
+completo se vio funcionando: banner "Liverpool rechazó la consulta automática (código 403)",
+botón "Abrir el artículo en una pestaña", y el panel de comparación mostrando "No se pudo leer
+la ficha" / "—" en el precio — el camino correcto para un artículo que nunca tuvo una captura
+buena (`ultimaBuena` es `null`). **No se pudo probar el camino CON caché** (mostrar el precio
+antiguo con su antigüedad) porque, si el bloqueo es sistemático, ningún artículo de este
+entorno podrá tener jamás una primera captura exitosa que sembrar esa caché — sigue solo
+verificado por simulador (ver entrada del 12/09 de T11.2).
+
+**F12 confirmado en vivo:** el recorrido de `revision_cotizacion` se disparó solo y coincidió
+paso por paso con lo escrito (Paso 1 de 5 "Revisar antes de que salga al cliente", Paso 2
+sobre el índice de confianza, Paso 3 "Comparar contra Liverpool", con el aro de foco puesto
+sobre los elementos correctos). El de `acerca` también, exacto: "Paso 1 de 3".
+
+**Bug real encontrado y corregido:** el recorrido de `portal` (`Index.html`) mostró **"Paso 1
+de 6"** mientras su propio texto de bienvenida seguía diciendo *"Son nueve paradas"* — el
+número quedó fijo en el texto (lo escribí así el 12/09 al pasar de 7 a 9 pasos), pero
+`pasosUtiles()` del motor descarta en tiempo real cualquier paso cuyo elemento no esté visible
+—aquí, sin publicación principal ni artículos cargados en este entorno de pruebas, además de
+alguna otra condición—, así que el número real que ve cada persona varía y nunca debió
+escribirse fijo. Corregido: el texto ya no promete una cifra ("unas paradas cortas, de unos
+segundos cada una"), consistente con que el propio motor decide cuántas quedan.
+
+**Qué no se probó todavía:** los roles asesor y maestro (solo hay sesión de avanzado); Consola,
+Métricas, Operación, Artículos y Anuncios en vivo (se visitaron Portal/Supervisión/Revisión/
+Acerca); el tema Carbón en el navegador (Aurora→Slate sí se confirmó; Carbón no se logró
+seleccionar por una dificultad de la propia automatización, no del código — ambos temas están
+verificados por lectura directa de `app_theme.html`); `revisionMaestra()` sigue sin correrse
+(sigue pendiente del acceso al editor, ver entrada de T11.1).
+
 ### 2026-09-12 — F13 en marcha: T13.1 confirmada, T13.2/T13.3/T13.4 con su parte de código hecha
 
 **No se cierra la fase todavía.** Lo que sigue abajo es lo que se pudo hacer sin depender de
