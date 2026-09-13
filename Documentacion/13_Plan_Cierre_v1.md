@@ -984,7 +984,7 @@ huecos reales. Estos son los que sobrevivieron.
 | --- | --- | --- | --- |
 | 1 | **`revision_cotizacion.html` no escribe nada en la URL**, y tiene dos juegos de pestañas reales (`:845-850` hoja/google y `:1028-1033` comparación/página). Cambiar de pestaña no sobrevive a F5 ni al botón «atrás». `cotizado_preview.html` tampoco escribe estado. Es el criterio 1 de F1 sin cumplir en dos pantallas | `revision_cotizacion.html`, `cotizado_preview.html` | F1 |
 | 2 | **T12.1 sin empezar**: `portal_contenido.html` ni siquiera incluye `app_onboarding`. Es uno de los cinco puntos de la «vía rápida» del §2 | `portal_contenido.html` | F12 |
-| 3 | **T11.2 a medias**: el botón de un clic a la página de Liverpool existe (por triplicado), pero falta **el precio de la última captura en caché con su antigüedad rotulada** cuando responde 403 | `Revision.gs:961-974`, `revision_cotizacion.html:1978-1986` | F11 |
+| ~~3~~ | ~~T11.2 a medias: el botón de un clic a la página de Liverpool existe (por triplicado), pero falta el precio de la última captura en caché con su antigüedad rotulada cuando responde 403~~ — **cerrado 2026-09-12**, ver §18 | `Revision.gs:961-974`, `revision_cotizacion.html:1978-1986` | F11 |
 | 4 | **T6.4 solo cerró la mitad**: el DOM del panel ya está diferido, pero los ~157 KB de `app_comando` + `app_indices` **siguen viajando** en cada pantalla que los lleva, porque `include()` pega el partial en el HTML servido. El §18 lo deja como decisión del creador. *(Recuento al 16/08/2026, tras F10: **17** `include('app_comando')` y **18** `include('app_indices')`. La cifra sube con cada pantalla nueva; si vuelve a quedar desfasada, se cuenta y ya.)* | los `include('app_comando')` | F6 |
 | 17 | **`revisionMaestra()` no tiene gate y su reporte se puede pedir desde el navegador.** Es anterior a F9 —se ejecuta desde el editor, y la puerta está en `consolaSalud`—, pero el reporte describe la instalación entera: hojas, alias, webhooks recortados, cuántos maestros hay. F9 dejó de escribir en él lo que no debe leerse; falta cerrarlo de verdad sin romper su uso desde el editor | `Admin.gs:19`, `Admin.gs:390` | F13 |
 
@@ -1038,6 +1038,41 @@ Lo que se ha hecho de verdad, en orden. Cada entrada dice **qué se cambió, qu�
 y qué se dejó fuera a propósito**. Mismo formato que el registro del documento 12.
 
 <!-- Las entradas nuevas van arriba, con la más reciente primero. -->
+
+### 2026-09-12 — F11, T11.2 completa: el precio no desaparece cuando Liverpool bloquea
+
+**Qué se cambió.** Cuando `revFichaDeUrl_` (`Revision.gs`) recibe un 403/404/fallo de red de
+liverpool.com.mx, ahora adjunta `ultimaBuena` — la última ficha que sí se leyó bien de ese
+mismo artículo (título, precio, precio de lista, fecha de captura) — leída de una capa nueva
+y persistente: `revGuardarUltimaBuena_`/`revUltimaBuena_`, en `PropertiesService` (no
+`CacheService`: éste tope a 6 h y aquí hace falta poder decir "hace 3 días"). Se escribe en
+cada consulta que sale `ok:true`, con guardián de tamaño (tope 500 claves, igual criterio que
+`CacheIdentidad.gs`: por encima del tope deja de dar de alta claves nuevas pero SÍ sigue
+actualizando las que ya existían). En `revision_cotizacion.html`, la rama de ficha bloqueada
+pinta ese precio con su antigüedad vía `AppCache.ageLabel` (ya existía en `app_core.html`,
+sin usar hasta ahora para esto) en vez del guion fijo.
+
+**Qué se comprobó.** `node --check` sobre `Revision.gs`; los 3 `<script>` en línea de
+`revision_cotizacion.html` parsean sin error. Dos bancos de pruebas desechables (mismo
+enfoque que `pruebas/*.test.js`: se carga el archivo real en un contexto con
+`PropertiesService`/`CacheService`/`UrlFetchApp`/`Utilities` simulados) — 12 aserciones sobre
+`revGuardarUltimaBuena_`/`revUltimaBuena_` en aislado (guardar y leer, actualizar una clave
+existente, el guardián de tamaño no bloquea actualizaciones aunque sí altas nuevas, nunca
+lanza si `PropertiesService` falla) y 14 sobre `revFichaDeUrl_` de punta a punta (éxito →
+caché de 15 min → se limpia la caché → 403 → trae `ultimaBuena` con el precio correcto; un
+artículo nunca visto da `ultimaBuena:null` sin reventar; 404 también adjunta la última buena).
+26/26 en verde. No se agregaron a `pruebas/` porque son pruebas de una función sin la
+infraestructura de las demás suites (sin datos de una hoja real que simular) — quedan como
+constancia de esta entrada, no como suite repetible.
+
+**Qué se dejó fuera a propósito.** **T11.1 (el spike de investigación sobre el 403) sigue sin
+hacerse** — esta entrada es solo el fallback (T11.2), que no dependía del resultado del spike.
+No se probó contra Liverpool en producción real (ni la nueva capa de `PropertiesService` ni el
+front) porque el `.clasp.json` del proyecto apunta hoy al script de PRUEBAS
+(`1kTyqcGnbMJR64HCYe3cI6NbiaNhdFDN0_B8xqzkNM1PZrYG20axLEc1C`, ver `produccion-y-pruebas-portal`
+en la memoria del asistente) — falta verlo en el editor real tras el próximo push. No se
+tocó el criterio de aceptación 1 de F11 (documento de decisión del spike): sigue pendiente
+hasta que se haga T11.1.
 
 ### 2026-08-16 — F10 completa: el Portal por fin se explica, y a cada quien la suya
 
