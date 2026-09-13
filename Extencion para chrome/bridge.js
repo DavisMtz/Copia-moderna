@@ -61,7 +61,7 @@
  * propio asesor puso en su bolsa — datos públicos de catálogo, sin nada del
  * asesor ni de sus clientes.
  *
- * Hecho por su gran amigo David Martínez "El escritor" · v3.0
+ * Hecho por su gran amigo David Martínez "El escritor" · v4.0 (ver nota v4 abajo)
  */
 (function () {
   'use strict';
@@ -77,51 +77,96 @@
    */
   const VIGENCIA_MS = 15 * 60 * 1000;
 
-  const MAX_INTENTOS_FRAME = 15;
-  const ESPERA_FRAME_MS = 300;
+  /*
+   * v4 (13/09/2026). La v3 apostaba todo a UNA sola escritura: al primer iframe
+   * que ya no estuviera en about:blank, o al propio documento tras 4.5 s. En
+   * producción volvió a no llegar, y esa apuesta tiene tres huecos que no se
+   * ven hasta que fallan: (a) si el primer iframe navegado no es el de contenido
+   * (Apps Script abre el panel con `createOAuthDialog=true` y puede tener más
+   * marcos), la bolsa se escribía en un documento que nadie lee; (b) si el iframe
+   * volvía a navegar después de la escritura, el documento con la bolsa se iba
+   * con él; (c) si `doc.head` y `doc.documentElement` aún no existían (a medio
+   * navegar), `appendChild` lanzaba, la cadena de reintentos moría y la bolsa
+   * —ya borrada del almacenamiento— se perdía sin rastro.
+   *
+   * Ahora se escribe en TODOS los documentos del mismo origen a la vista (este y
+   * cada iframe ya navegado), se vuelve a mirar cada 300 ms durante 18 s por si
+   * aparece o cambia alguno, cada escritura va en su propio try/catch, y se para
+   * en cuanto la pantalla consume una copia (borra el elemento de un documento
+   * que sigue vivo). La pantalla, por su parte, también revisa este marco padre
+   * (misma-origen) y retira todas las copias al leer, así que escribir de más no
+   * duplica nada.
+   */
+  const MAX_TICKS = 60;
+  const ESPERA_MS = 300;
 
-  /** El iframe interno de Apps Script, ya navegado a su contenido real (no about:blank). */
-  function frameDeContenido() {
-    let iframes;
-    try { iframes = document.querySelectorAll('iframe'); } catch (e) { return null; }
+  /** Este documento y cada iframe del mismo origen que ya navegó a algo real. */
+  function documentos() {
+    const out = [document];
+    let iframes = [];
+    try { iframes = document.querySelectorAll('iframe'); } catch (e) { iframes = []; }
     for (let i = 0; i < iframes.length; i++) {
-      let doc;
+      let doc = null;
       try { doc = iframes[i].contentDocument; } catch (e) { continue; }
       if (doc && doc.location && doc.location.href && doc.location.href !== 'about:blank') {
-        return doc;
+        out.push(doc);
       }
     }
-    return null;
+    return out;
   }
 
-  function escribirElemento(doc, bolsa) {
-    if (doc.getElementById(ID_ELEMENTO)) return;
+  /** @return {boolean} true si la bolsa quedó (o ya estaba) en ese documento. */
+  function escribirElemento(doc, json) {
+    try {
+      if (doc.getElementById(ID_ELEMENTO)) return true;
+      const raiz = doc.head || doc.documentElement;
+      if (!raiz) return false;                 // a medio navegar: se reintenta en el siguiente tick
+      const elemento = doc.createElement('script');
+      elemento.type = 'application/json';
+      elemento.id = ID_ELEMENTO;
+      elemento.textContent = json;
+      raiz.appendChild(elemento);
+      return true;
+    } catch (e) {
+      return false;
+    }
+  }
 
+  function retirarDe(docs) {
+    for (let i = 0; i < docs.length; i++) {
+      try {
+        const el = docs[i].getElementById(ID_ELEMENTO);
+        if (el) el.remove();
+      } catch (e) { /* documento ya muerto */ }
+    }
+  }
+
+  function entregar(bolsa) {
     let json;
     try { json = JSON.stringify(bolsa.data); } catch (e) { return; }
 
-    const elemento = doc.createElement('script');
-    elemento.type = 'application/json';
-    elemento.id = ID_ELEMENTO;
-    elemento.textContent = json;
-    (doc.head || doc.documentElement).appendChild(elemento);
-  }
+    const escritos = [];   // documentos donde ya se dejó una copia
+    let ticks = 0;
 
-  /**
-   * El iframe interno tarda en navegar (visto entre 1 y 1.5 s en pruebas), así
-   * que se reintenta. Si se agotan los intentos sin encontrarlo, se entrega en
-   * el propio documento — el comportamiento de la v2, por si esta variante de
-   * Apps Script no usa ese iframe intermedio.
-   */
-  function entregar(bolsa) {
-    let intentos = 0;
-    (function intentar() {
-      const doc = frameDeContenido();
-      if (doc) { escribirElemento(doc, bolsa); return; }
+    (function tick() {
+      // ¿Alguien ya la leyó? La pantalla borra el elemento al consumirlo. Un
+      // documento que sigue vivo (tiene ventana) y ya no lo tiene = entregada:
+      // se retiran las demás copias y se termina. Un documento que se quedó sin
+      // ventana es un iframe que navegó a otra cosa: no cuenta como consumo.
+      for (let i = 0; i < escritos.length; i++) {
+        let vivo = false, tiene = true;
+        try { vivo = !!escritos[i].defaultView; tiene = !!escritos[i].getElementById(ID_ELEMENTO); }
+        catch (e) { vivo = false; }
+        if (vivo && !tiene) { retirarDe(escritos); return; }
+      }
 
-      intentos++;
-      if (intentos >= MAX_INTENTOS_FRAME) { escribirElemento(document, bolsa); return; }
-      setTimeout(intentar, ESPERA_FRAME_MS);
+      const docs = documentos();
+      for (let j = 0; j < docs.length; j++) {
+        if (escribirElemento(docs[j], json) && escritos.indexOf(docs[j]) === -1) escritos.push(docs[j]);
+      }
+
+      ticks++;
+      if (ticks < MAX_TICKS) setTimeout(tick, ESPERA_MS);
     })();
   }
 

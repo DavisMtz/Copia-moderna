@@ -603,6 +603,8 @@ btnCotizar.addEventListener('click', async () => {
 
     const destino = new URL(base);
     destino.searchParams.set('page', 'cotizacion');
+    // La pantalla espera la bolsa y avisa si no llega (misma marca que el botón incrustado).
+    destino.searchParams.set('origen', 'extension');
 
     showStatus('✅ ' + bolsa.products.length + ' artículo(s) listos. Abriendo la cotización...' + aviso);
     await chrome.tabs.create({ url: destino.toString() });

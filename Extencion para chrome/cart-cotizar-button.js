@@ -290,12 +290,16 @@
 
       const base = await leerUrlCotizador();
       let destino;
+      // `origen=extension` le dice a la pantalla que ESPERE una bolsa: así avisa
+      // mientras llega y, si nunca llega, abre la importación manual en vez de
+      // quedarse callada con una fila vacía.
       try {
         const u = new URL(base);
         u.searchParams.set('page', 'cotizacion');
+        u.searchParams.set('origen', 'extension');
         destino = u.toString();
       } catch (e) {
-        destino = URL_COTIZADOR_POR_DEFECTO + '?page=cotizacion';
+        destino = URL_COTIZADOR_POR_DEFECTO + '?page=cotizacion&origen=extension';
       }
 
       // No se espera a que termine de guardarse: es la misma red de seguridad

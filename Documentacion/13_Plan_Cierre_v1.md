@@ -1039,6 +1039,55 @@ y qué se dejó fuera a propósito**. Mismo formato que el registro del document
 
 <!-- Las entradas nuevas van arriba, con la más reciente primero. -->
 
+### 2026-09-13 — Incidente en producción (v123): la bolsa de la extensión no llegaba a Cotización
+
+**Qué pasó.** Tras promover la v123, el creador reportó que al pulsar «Cotizar» en la bolsa de
+Liverpool la pantalla abría con la tabla vacía. **Reproducido en vivo** con la sesión real:
+55 artículos en la bolsa → botón incrustado → `?page=cotizacion` en producción → una sola
+fila vacía, sin modal de borrador ni error visible. Se bajó la v122 del proyecto y se
+comparó archivo por archivo: `cotizacion.html` cambió SOLO en el include de
+`ViewPrefsPartial`; `bridge.js` (v3, del 16/08) estaba idéntico. La estructura de marcos que
+sí se pudo ver desde fuera: un solo `#sandboxFrame` (`userCodeAppPanel?createOAuthDialog=true`,
+`allow-same-origin`) y dentro el marco de contenido que ninguna herramienta alcanza. Causa
+raíz exacta **no demostrada** (no hay forma de mirar dentro de esos marcos desde aquí); lo
+que sí se demostró es que el diseño v3 tenía tres huecos que dejan la bolsa perdida sin
+rastro: escribía UNA sola vez en el primer iframe navegado (que puede no ser el de contenido
+—el panel se abre con diálogo OAuth—), no sobrevivía a una segunda navegación del iframe, y
+un `appendChild` sobre un documento a medio navegar mataba la cadena de reintentos con la
+bolsa ya borrada del almacenamiento. Del lado de la pantalla, se buscaba solo 3 s y solo en
+el propio documento, cuando el puente puede tardar 4.5 s y caer al marco padre (que es del
+mismo origen y aquí es legible).
+
+**Qué se cambió.**
+- `cotizacion.html` · `BolsaExtension` v3: busca 20 s (40 × 500 ms) en el propio documento
+  Y en `window.parent.document` (ancestros de otro origen se ignoran con try/catch); retira
+  todas las copias al leer, para que una olvidada en el marco padre no reaparezca en la
+  siguiente cotización de la pestaña. Con `?origen=extension` (parámetro que YA estaba en
+  `PARAMS_VISTA`, sin tocar `Code.gs`) avisa «Cargando los artículos de tu bolsa…» y, si no
+  llega nada, muestra el aviso y abre sola la importación manual — la extensión copia el
+  mismo JSON al portapapeles al pulsar «Cotizar», así que el camino manual queda a un pegado.
+- `bridge.js` v4: escribe en TODOS los documentos del mismo origen a la vista (propio + cada
+  iframe navegado), vuelve a mirar cada 300 ms durante 18 s, cada escritura en su try/catch,
+  y se detiene al detectar que la pantalla consumió una copia (elemento borrado de un
+  documento que sigue vivo; un documento sin ventana es un iframe que navegó, no un consumo).
+- `cart-cotizar-button.js` y `popup.js` añaden `origen=extension` a la URL; manifest 2.3 → 2.4.
+
+**Qué se comprobó.** `node --check` en los tres JS de la extensión, manifest válido, los
+`<script>` de `cotizacion.html` parsean. Simulación en Node del puente v4 con documentos
+falsos (12 aserciones): escribe en el propio documento en el tick 1, en el iframe en cuanto
+navega, se detiene y retira copias al consumirse, un iframe reemplazado no cuenta como
+consumo, y un documento sin `head` no rompe el bucle. **En pruebas, con la pantalla real**:
+con `origen=extension` y sin bolsa en espera, el aviso apareció a los 6 s y a los ~20 s salió
+el fallback con la importación manual abierta (el acceso a `parent.document` no lanzó).
+
+**Qué queda.** (1) La pantalla corregida está en los DOS editores (pruebas la sirve ya; en
+producción está en el editor pero la URL sigue en v123): el `clasp deploy -i` que la haría
+viva lo bloqueó el clasificador de permisos de la sesión como «despliegue a producción» y
+NO se rodeó — lo autoriza el creador o lo hace desde Implementar → Gestionar implementaciones.
+(2) La extensión v2.4 hay que recargarla a mano en `chrome://extensions`. (3) Con las dos
+cosas, repetir el flujo real y ver los 55 artículos entrar. Pendiente previo sin relación:
+el aviso de contraste `#94a1b2` sobre `#f8fafc` de esta misma pantalla (deuda anterior).
+
 ### 2026-09-13 — Primera verificación en vivo, con sesión real (rol avanzado)
 
 **Qué se probó.** Con la sesión real de David (rol **Usuario Avanzado**, confirmado en pantalla)
