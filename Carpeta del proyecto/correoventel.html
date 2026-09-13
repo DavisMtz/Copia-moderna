@@ -23,6 +23,55 @@
             flex: none;
         }
         .step-chip.done { background: var(--ok); }
+
+        /* ── Panel «Últimas cotizaciones» (columna derecha) ──────────────────
+           La rejilla, el ancho y el pegado van en CSS PLANO y no en utilidades:
+           `app_tailwind` es una hoja COMPILADA y no trae `max-w-6xl`, `sticky` ni
+           las variantes `lg:` de rejilla, así que escribirlas aquí no pintaría
+           nada y el fallo sería MUDO. El ancho tampoco puede ser una utilidad:
+           esa hoja se carga DESPUÉS de este bloque y, a igual especificidad,
+           ganaría la cascada. */
+        .cv-main { max-width: 76rem; }
+        .cv-grid { display: grid; grid-template-columns: minmax(0, 1fr) 20rem; gap: 1.5rem; align-items: start; }
+        .cv-col { min-width: 0; }
+        .cv-aside { position: sticky; top: 1rem; padding: 1rem; }
+        /* El corte es el MISMO en el que el shell convierte la barra lateral en
+           cajón: por debajo, el panel deja de ser columna y baja al final. */
+        @media (max-width: 1024px) {
+            .cv-grid { grid-template-columns: minmax(0, 1fr); }
+            .cv-aside { position: static; }
+        }
+        .cv-aside-head { margin-bottom: .5rem; }
+        .cv-aside-title { font-size: .95rem; font-weight: 700; color: var(--ink); }
+        .cv-aside-sub { font-size: .72rem; color: var(--ink-soft); min-height: 1em; }
+        .cv-lista { max-height: 24rem; overflow-y: auto; }
+        .cv-vacio { font-size: .8rem; color: var(--ink-soft); padding: .5rem .25rem; }
+        /* Las filas NO llevan recuadro propio: un marco dentro del panel sería
+           tarjeta dentro de tarjeta. Se separan con una línea. Y son <button>
+           de verdad, que es lo que da teclado y foco sin escribir nada. */
+        .cv-item {
+            display: block; width: 100%; text-align: left;
+            padding: .55rem .45rem; border: none; border-radius: 8px;
+            border-bottom: 1px solid var(--line); background: transparent;
+            font: inherit; color: inherit; cursor: pointer;
+            transition: background .15s ease;
+        }
+        .cv-item:last-child { border-bottom: none; }
+        .cv-item:hover { background: var(--surface-2); }
+        .cv-item[aria-current="true"] { background: var(--surface-2); }
+        .cv-item-folio { display: block; font-weight: 700; font-size: .8rem; color: var(--ink); }
+        /* `--ink-soft` (#5C6B7E) y NUNCA `--ink-faint` (#94A1B2): ese segundo se
+           queda en 2.5:1 y es justo el que el detector de diseño ya marca en otra
+           pantalla. */
+        .cv-item-cliente {
+            display: block; font-size: .78rem; color: var(--ink-soft);
+            overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+        }
+        .cv-item-pie {
+            display: flex; align-items: center; justify-content: space-between;
+            gap: .4rem; margin-top: .2rem; font-size: .7rem; color: var(--ink-soft);
+        }
+        .cv-aside-pie { width: 100%; margin-top: .6rem; }
     </style>
 <!-- Utilidades Tailwind compiladas: va al final del head, igual que la hoja que el CDN inyectaba. -->
 <?!= include('app_tailwind'); ?>
@@ -30,7 +79,7 @@
 <body class="h-full text-slate-800">
     <div class="app-aurora"></div>
 
-    <main id="main-content" class="max-w-4xl mx-auto p-4 sm:p-6 lg:p-8">
+    <main id="main-content" class="cv-main mx-auto p-4 sm:p-6 lg:p-8">
         <header class="mb-8" data-animate>
             <h1 class="text-3xl font-bold text-slate-900 tracking-tight">Enviar Cotización por Correo</h1>
             <p class="text-slate-600 mt-1">Busca un folio para cargar sus datos, redacta el mensaje y envía la cotización completa al cliente.</p>
@@ -38,6 +87,9 @@
 
         <!-- Alerta para notificaciones -->
         <div id="alert-container" class="mb-6"></div>
+
+        <div class="cv-grid">
+          <div class="cv-col">
 
         <!-- Paso 1: Buscar Cotización -->
         <section class="mb-8 p-6 v-card" data-animate>
@@ -98,6 +150,21 @@
                 </div>
             </section>
         </form>
+
+          </div><!-- /.cv-col -->
+
+          <!-- Atajo al caso real: casi siempre se envía algo recién hecho, y hasta
+               ahora el único camino era teclear el folio de memoria. Un clic aquí
+               hace exactamente lo mismo que escribirlo en el paso 1. -->
+          <aside class="cv-aside v-card" aria-labelledby="recent-title">
+              <div class="cv-aside-head">
+                  <h2 id="recent-title" class="cv-aside-title">Últimas cotizaciones</h2>
+                  <p id="recent-status" class="cv-aside-sub"></p>
+              </div>
+              <div id="recent-list" class="cv-lista"></div>
+              <button type="button" id="recent-all" class="v-btn v-btn-ghost cv-aside-pie">Ver todas</button>
+          </aside>
+        </div><!-- /.cv-grid -->
     </main>
 
     <script>
@@ -111,6 +178,11 @@
          secciones). Es lo que permite que este buscador conteste "¿cuál es la CLABE?" o
          "¿qué número es la CR de Guadalajara?" sin cambiar de pantalla. -->
     <?!= include('app_indices'); ?>
+    <!-- Catálogo compartido de estatus: lo usa el panel de últimas cotizaciones
+         para su insignia. Sin este include, `window.AppEstatus` no existe y la
+         insignia se cae en silencio (el panel ya lo contempla, pero entonces
+         enseñaría el texto pelado). -->
+    <?!= include('app_estatus'); ?>
     <?!= include('app_icons'); ?>
     <?!= include('app_motion'); ?>
     <?!= include('app_loaders'); ?>
@@ -513,6 +585,10 @@
                         const from = response.sentFrom ? ` desde ${response.sentFrom}` : '';
                         showAlert(`Correo del folio ${emailData.folio} enviado${from}.`, "success");
                         resetForm();
+                        /* El estatus de esa cotización acaba de pasar a "Enviada". Sin
+                           esto el panel seguiría enseñándola como pendiente hasta un F5
+                           —y la copia que comparte con el inicio del asesor, también. */
+                        try { PanelRecientes.refrescar(); } catch (e) {}
                     } else {
                         showAlert(response.message, "error");
                     }
@@ -531,6 +607,114 @@
             if (!loadedQuoteData) return;
             AppUrl.go('consulta_cotizacion', { folio: loadedQuoteData.folio });
         });
+
+        /* ── Panel «Últimas cotizaciones» ───────────────────────────────────
+           No hay función nueva en el servidor: es la MISMA lista que el asesor ve
+           en su inicio. Dos contratos que no se ven desde aquí y que hay que
+           respetar:
+
+           · La clave 'quotes-<correo>' guarda EL ARREGLO de cotizaciones, no la
+             respuesta entera. La leen también inicio.html, app_precarga y el
+             buscador general; escribir aquí un {success, quotes} los dejaría
+             pintando vacío hasta que caducara la copia de cada navegador. Por eso
+             NO se usa `AppRun.swr`, que guarda la respuesta completa.
+           · Los argumentos van EXACTAMENTE como los manda app_precarga
+             ([correo, null, false]): AppRun deduplica por función + argumentos, y
+             un '' en lugar de null serían dos viajes al servidor en el arranque. */
+        const PanelRecientes = (function () {
+            const TOPE = 8;
+            const lista = document.getElementById('recent-list');
+            const estado = document.getElementById('recent-status');
+            const correoAsesor = (window.AppSession && AppSession.userEmail) || '';
+            const CLAVE = 'quotes-' + correoAsesor;
+            const esc = window.escapeHtml || (s => String(s == null ? '' : s));
+
+            const dinero = (n) => {
+                const v = Number(n) || 0;
+                try { return v.toLocaleString('es-MX', { style: 'currency', currency: 'MXN' }); }
+                catch (e) { return '$' + v.toFixed(2); }
+            };
+
+            const pintar = (quotes) => {
+                if (!lista) return;
+                const filas = (quotes || []).slice(0, TOPE);
+                if (filas.length === 0) {
+                    lista.innerHTML = '<p class="cv-vacio">Todavía no tienes cotizaciones. En cuanto guardes una, aparecerá aquí.</p>';
+                    return;
+                }
+                lista.innerHTML = filas.map(q => {
+                    const folio = esc(q.folio);
+                    // Un solo argumento: getQuotesForUser no devuelve revisionEstado.
+                    const insignia = window.AppEstatus ? AppEstatus.badge(q.estatus) : esc(q.estatus);
+                    return '<button type="button" class="cv-item" data-folio="' + folio + '">' +
+                               '<span class="cv-item-folio">' + folio + '</span>' +
+                               '<span class="cv-item-cliente">' + esc(q.cliente) + '</span>' +
+                               '<span class="cv-item-pie"><span>' + esc(q.fecha) + ' · ' + dinero(q.total) + '</span>' + insignia + '</span>' +
+                           '</button>';
+                }).join('');
+            };
+
+            /* `forzar` solo es true tras un envío: ahí el estatus acaba de cambiar a
+               "Enviada" y hay que saltarse la caché del servidor. En el arranque va
+               false, que además es lo que iguala los argumentos con app_precarga. */
+            const pedir = (forzar) => {
+                if (!correoAsesor) return;
+                AppRun.call('getQuotesForUser', [correoAsesor, null, forzar === true], { busy: false })
+                    .then(r => {
+                        r = r || {};
+                        const quotes = r.success ? (r.quotes || []) : [];
+                        if (r.success && window.AppCache) AppCache.set(CLAVE, quotes);  // el ARREGLO, por contrato
+                        pintar(quotes);
+                        if (estado) estado.textContent = '';
+                    }, e => {
+                        // El panel es un atajo: si falla, la pantalla sigue sirviendo
+                        // con la búsqueda por folio de siempre.
+                        console.warn('Panel de últimas cotizaciones:', e);
+                        if (estado) estado.textContent = 'No pudimos actualizar la lista.';
+                    });
+            };
+
+            if (lista) {
+                lista.addEventListener('click', (ev) => {
+                    const boton = ev.target.closest('.cv-item');
+                    if (!boton) return;
+                    const folio = boton.dataset.folio || '';
+                    if (!folio) return;
+                    lista.querySelectorAll('.cv-item').forEach(b => {
+                        b.setAttribute('aria-current', b.dataset.folio === folio ? 'true' : 'false');
+                    });
+                    folioInput.value = folio;
+                    /* Mismo camino que teclear el folio y pulsar "Cargar Datos": así el
+                       panel hereda el gate de revisión, el relleno del correo, el
+                       formato y el reflejo en la URL, sin duplicar nada de eso. */
+                    handleSearchQuote(null, window.VentelFX ? VentelFX.overlay('escaner', {
+                        title: 'Cargando la cotización…',
+                        sub: 'Consultando ' + folio
+                    }) : null);
+                });
+            }
+
+            return {
+                arrancar: function () {
+                    if (!lista) return;
+                    // Pintado instantáneo con lo que ya tenga el navegador (lo calienta
+                    // el inicio del asesor), y revalidación detrás.
+                    const copia = (window.AppCache && AppCache.get) ? AppCache.get(CLAVE) : null;
+                    if (copia && Array.isArray(copia.data)) {
+                        pintar(copia.data);
+                        if (estado) estado.textContent = 'Guardado ' + AppCache.ageLabel(copia.at);
+                    } else {
+                        lista.innerHTML = '<p class="cv-vacio">Cargando tus cotizaciones…</p>';
+                    }
+                    pedir(false);
+                },
+                refrescar: function () { pedir(true); }
+            };
+        })();
+        PanelRecientes.arrancar();
+
+        const verTodasBtn = document.getElementById('recent-all');
+        if (verTodasBtn) verTodasBtn.addEventListener('click', () => AppUrl.goHome());
 
         // --- Auto-búsqueda si se proporciona Folio por la URL ---
         if (urlFolio) {

@@ -1157,6 +1157,64 @@ En consecuencia:
 creador). `Carpeta del proyecto\.clasp.json` ya apunta ahí, así que el hook y `clasp push`
 publican en pruebas sin hacer nada más; producción solo se toca si él lo pide.
 
+---
+
+### Panel «Últimas cotizaciones» en Enviar correo (13/09/2026) — a PRUEBAS
+
+**Qué se pidió.** Un panel a la derecha de `correoventel` con las últimas cotizaciones, para
+cargar una con un clic en vez de teclear el folio de memoria.
+
+**Cómo se hizo — sin código nuevo en el servidor.** El panel usa `getQuotesForUser`, la misma
+lista que el asesor ya ve en su inicio. Al pulsar una fila se escribe el folio en la caja del
+paso 1 y se llama a `handleSearchQuote`, el camino que ya existía: así hereda el gate de
+revisión, el relleno del correo, la elección de formato y el reflejo en la URL sin duplicar
+nada. Tras un envío con éxito el panel se refresca saltando la caché del servidor (el estatus
+acaba de pasar a «Enviada»).
+
+**Tres trampas que se comprobaron ANTES de escribir, no después:**
+1. **`app_tailwind` es una hoja COMPILADA.** `max-w-6xl`, `sticky` y `line-clamp` **no
+   existen** en ella (sí `grid-cols-2`, `divide-y`, `truncate`, `overflow-y-auto`): usarlas no
+   pinta nada y el fallo es mudo. La rejilla, el ancho y el pegado van en CSS plano del propio
+   archivo. El ancho además NO puede ser una utilidad porque esa hoja se carga *después* del
+   `<style>` de la página y ganaría la cascada.
+2. **La clave `quotes-<correo>` guarda EL ARREGLO**, no la respuesta — contrato compartido con
+   `inicio.html`, `app_precarga` y el buscador general. Por eso no se usa `AppRun.swr` (guarda
+   la respuesta entera): se lee con `AppCache.get`, se pinta y se reescribe con `AppCache.set`.
+   Los argumentos van exactos (`[correo, null, false]`) para que `AppRun` deduplique con la
+   precarga en vez de hacer dos viajes.
+3. **`correoventel` no incluía `app_estatus`** y el panel usa su insignia: se añadió el
+   include. Sin él `window.AppEstatus` no existe y la insignia se caía en silencio — el mismo
+   error que ya se cometió esta sesión con `AppOnboarding` en tres pantallas.
+
+**Diseño.** Las filas son `<button>` a ancho completo separados por una línea, no recuadros:
+un marco dentro del panel sería tarjeta-dentro-de-tarjeta (el hallazgo que ya arrastra
+`cotizacion.html`), y el botón da teclado y foco sin escribir nada. El texto pequeño usa
+`--ink-soft` (#5C6B7E) y **nunca** `--ink-faint` (#94A1B2), que se queda en 2.5:1.
+
+**Alcance.** Muestra las cotizaciones DEL ASESOR (es lo que significa «las últimas hechas» y
+lo mismo que hace su inicio). Para las del equipo existiría `getSupervisionQuotes`; no se
+construyó porque no se pidió.
+
+**Estado: publicado SOLO en pruebas y VISTO funcionando a medias.** En la `/dev`, con sesión
+real, el panel **renderiza correcto**: columna derecha alineada arriba junto a los pasos 1 y 2,
+lista con datos reales (folio, cliente, fecha, importe) y las insignias de estatus pintando
+—o sea que el include `app_estatus` entró bien—, con scroll y el botón «Ver todas».
+
+**Lo que NO se pudo verificar: el clic en una fila.** Tres intentos, ninguno llegó al botón.
+No es el código: `folioInput.value = folio` es síncrono y a 1 s de la pulsación la caja del
+folio seguía vacía, así que el manejador nunca corrió. Es la herramienta de navegador contra
+el marco interno de Apps Script — el mismo día se ignoraron cuatro activaciones seguidas
+(dos clics, Enter y Space) en el modal del borrador de `cotizacion.html`, mientras que los
+clics sobre páginas normales (Liverpool) sí registran. **Queda pendiente que el creador pulse
+una fila y confirme que carga el folio en el paso 1.**
+
+**Primer falso positivo del que hay que acordarse:** la primera captura mostró la columna
+izquierda EN BLANCO y pareció una regresión de la rejilla. No lo era: la pestaña se había
+abierto en SEGUNDO PLANO y GSAP anima con `requestAnimationFrame`, que el navegador estrangula
+ahí; el `fromTo` de `AppMotion.enter` fija `opacity:0` al instante y el tween no avanza. Al
+activar la pestaña apareció todo. **Probar pantallas con GSAP en una pestaña de fondo da
+falsos negativos** (ver [[gsap-contenido-invisible]]).
+
 **Qué queda (histórico, previo a la actualización).** (1) La pantalla corregida está en los
 DOS editores… (2) La extensión v2.4 hay que recargarla a mano en `chrome://extensions`. (3)
 Con las dos cosas, repetir el flujo real y ver los 55 artículos entrar. Pendiente previo sin
