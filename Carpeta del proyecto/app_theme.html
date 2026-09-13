@@ -164,6 +164,24 @@ html[data-textscale="md"] { font-size: 16px; }
 html[data-textscale="lg"] { font-size: 17.5px; }
 html[data-textscale="xl"] { font-size: 19px; }
 
+/* ── Foco visible: piso universal (T13.4) ──
+   Cualquier elemento enfocable con teclado —enlaces sueltos, inputs sin clase
+   v-input, elementos con tabindex puesto a mano, el enlace "saltar al
+   contenido"— recibe aquí el mismo anillo que ya tenían solo los .v-btn.
+   Especificidad baja a propósito: es un PISO, no una imposición. Cualquier
+   selector más específico (.v-btn:focus-visible con su box-shadow, .v-input:focus,
+   .side-link:focus-visible en blanco sobre el rosa del menú, #main-content:focus
+   en outline:none, o cualquier .xxx:focus-visible propio de cada pantalla) sigue
+   ganando la propiedad "outline" por especificidad y no se ve alterado: se
+   revisaron una por una las ~80 reglas de foco ya existentes en las 19 pantallas
+   antes de escribir esta y ninguna se pisa. Por eso esta regla usa OUTLINE y no
+   box-shadow como .v-btn: box-shadow es una propiedad que casi ninguna de esas
+   reglas ya declara, así que un box-shadow puesto aquí se colaría (por cascada,
+   se resuelve por propiedad) como un halo extra encima de outlines que ya
+   estaban bien — outline sí es la propiedad que todas ellas ya fijan, así que
+   aquí gana quien tenga que ganar y nadie más se ve tocado. */
+:focus-visible { outline: 2px solid var(--brand); outline-offset: 2px; }
+
 /* ── Ajustes de vista: alto contraste ── */
 html[data-contrast="high"] {
   --line: #0c1420; --line-soft: #22303f; --ink-soft: #2b3645; --ink-faint: #475160;
@@ -273,7 +291,7 @@ h4 { line-height: 1.3; letter-spacing: -.012em; }
 }
 .v-btn:hover:not(:disabled) { transform: translateY(-2px); box-shadow: var(--sh-md); }
 .v-btn:active:not(:disabled) { transform: translateY(0) scale(.98); }
-.v-btn:focus-visible { outline: none; box-shadow: var(--ring); }
+.v-btn:focus-visible { outline: none; box-shadow: var(--ring); } /* piso universal en :focus-visible ~línea 183 */
 .v-btn:disabled { opacity: .55; cursor: not-allowed; box-shadow: none; }
 .v-btn svg { width: 1.15em; height: 1.15em; flex: none; }
 

@@ -1039,6 +1039,74 @@ y qué se dejó fuera a propósito**. Mismo formato que el registro del document
 
 <!-- Las entradas nuevas van arriba, con la más reciente primero. -->
 
+### 2026-09-12 — F13 en marcha: T13.1 confirmada, T13.2/T13.3/T13.4 con su parte de código hecha
+
+**No se cierra la fase todavía.** Lo que sigue abajo es lo que se pudo hacer sin depender de
+una persona con sesión real; el criterio de aceptación de F13 exige más que eso (ver
+"Qué falta" al final).
+
+**Qué se cambió.**
+
+- **T13.1 (releído, no tocado):** los bloques `articulos`/`metricas` YA estaban dados de alta
+  en `Permisos.gs`, en el rol avanzado y en el menú cliente (`app_core.html`, hoy en
+  2032-2068 — la referencia "1822-1870" del texto de la tarea está vieja). La fila
+  correspondiente de F13_T13_1 en la verificación del 12/09 lo marcó "parcial" solo por no
+  haber confirmado la matriz de la consola y el documento 06; ambas cosas se resuelven con
+  la entrada de abajo.
+- **T13.2 — Matriz rol × función**, escrita en `06_Seguridad_y_Permisos.md` §4.5 bis,
+  generada desde `PERM_BLOQUES`/`PERM_ROLES` (no a mano): 24 bloques × 3 roles, más las dos
+  funciones sin bloque propio (reportar falla, grupos/difusión por nivel) y el ajuste
+  `CORREO_CCO_GLOBAL` (solo maestro) que el plan pedía marcar aparte.
+- **T13.3 — `ViewPrefsPartial`** añadido como primer elemento útil del `<head>` en las 11
+  pantallas que no lo tenían: inicio, inicio_avanzado, cotizacion, cotizado_preview,
+  consulta_cotizacion, revision_cotizacion, correoventel, correo_cliente, operacion, consola,
+  atenciones. Verificado que ningún include de `app_onboarding` (F12) quedó duplicado ni se
+  movió de sitio, solo desplazado por las líneas nuevas de arriba.
+- **T13.4:**
+  - `inicio_avanzado.html` línea 7: Chart.js pasó de la URL sin versión a
+    `chart.js@4.4.4/dist/chart.umd.min.js` (build UMD verificado con `curl -I`, HTTP 200).
+    La API usada en el archivo (`new Chart` con `doughnut`/`legend`/`tooltip`) no cambió entre
+    v3 y v4, así que no es un salto de mayor.
+  - `app_support` agregado a `inicioDeSesion.html`, `registro.html` y `recuperar.html`
+    (las pantallas de quien no puede entrar, justo las que el plan señalaba).
+  - **"Saltar al contenido" y `<main>` con id ya estaban hechos desde antes** (`app_shell.html`,
+    con cita a WCAG 2.4.1 en el propio comentario) — el texto del plan estaba desactualizado
+    en este punto, igual que pasó con T13.1.
+  - **Foco por token**: `app_theme.html` ganó un piso universal
+    `:focus-visible { outline: 2px solid var(--brand); outline-offset: 2px; }`. Se investigó
+    primero si ya había ~80 reglas `:focus-visible` propias en el proyecto (las había) y por
+    eso la regla usa `outline`, no `box-shadow`: así cualquier regla más específica sigue
+    ganando por especificidad sin necesitar exclusiones una por una, y solo los elementos que
+    dependían del outline nativo del navegador (el `.skip-link`, algunos inputs envueltos)
+    ganan el anillo rosa consistente que no tenían.
+
+**Qué se comprobó.** Verificación propia tras el trabajo (no solo la de cada agente): sintaxis
+de los `<script>` de los 20 archivos tocados en F12+F13 con `node`/`new Function()` —
+**0 fallos**—, 0 includes duplicados de `ViewPrefsPartial`/`app_onboarding`/`app_support`, y
+el `<style>` de `app_theme.html` con las llaves balanceadas tras el cambio. Aparte:
+**31 archivos `.gs` compilan** (`node --check`) y **las 8 suites de `pruebas/` pasan
+completas** (833 comprobaciones, 0 fallidas) — cache_identidad, estado_inicial, f10_acerca,
+f6_buscador_paridad, f7_publicaciones, f8_articulos, f9_consola, ttl_cache.
+
+**Qué queda, y por qué no se hizo hoy** (esto es lo que el criterio de aceptación de F13 sigue
+pidiendo y ninguna herramienta automática puede cerrar):
+
+- **Verificación con tres cuentas de prueba reales** (una por rol), recorriendo la app entera
+  — el propio criterio de T13.2 la exige aparte de la tabla escrita. Necesita sesión humana.
+- **T13.3, la parte que no se tocó**: "tokens en lugar de colores a mano donde el barrido los
+  encuentre" y "los tres temas + alto contraste probados en las pantallas tocadas por este
+  plan". Es un barrido de CSS más grande que lo que pedía el include, y la prueba visual de
+  temas necesita verse en un navegador real.
+- **`revisionMaestra()` corrida en el proyecto real** (mismo límite que en F11/T11.1: `clasp
+  run-function` no tiene permiso de la API de Ejecución sin autorizar una vez desde el editor
+  con sesión real).
+- **Smoke manual del flujo completo** (cotizar → revisar → aprobar → enviar → métricas) con
+  las tres cuentas.
+- **Actualizar los documentos 00-05** con lo que este plan añadió (solo se tocó el 06).
+- **La etiqueta `v1.0-pruebas`**: a propósito NO se puso todavía. El criterio de aceptación 3
+  pide la etiqueta JUNTO con "una lista corta y honesta de qué no entró, por qué" — poner la
+  etiqueta antes de que lo de arriba se resuelva sería declarar cerrado lo que no lo está.
+
 ### 2026-09-12 — F12 completa: la ayuda alcanza a lo nuevo
 
 **Qué se cambió.**
