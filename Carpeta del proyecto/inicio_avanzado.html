@@ -4,10 +4,13 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Panel de Supervisión - Sistema de Cotizaciones Ventel</title>
-    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <!-- Preferencias de vista (tema · densidad · texto · contraste) ANTES del tema,
          para que la pantalla no parpadee del ajuste por omisión al de la persona. -->
     <?!= include('ViewPrefsPartial'); ?>
+    <!-- Chart.js con versión fijada (misma regla que GSAP en este proyecto: la URL
+         es el lockfile). Build UMD, que expone el global "Chart" tal cual lo usa
+         renderPieChart más abajo. -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.4/dist/chart.umd.min.js"></script>
     <?!= include('app_theme'); ?>
     <style>
         /*
