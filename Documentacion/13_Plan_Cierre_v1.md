@@ -1080,13 +1080,50 @@ consumo, y un documento sin `head` no rompe el bucle. **En pruebas, con la panta
 con `origen=extension` y sin bolsa en espera, el aviso apareció a los 6 s y a los ~20 s salió
 el fallback con la importación manual abierta (el acceso a `parent.document` no lanzó).
 
-**Qué queda.** (1) La pantalla corregida está en los DOS editores (pruebas la sirve ya; en
-producción está en el editor pero la URL sigue en v123): el `clasp deploy -i` que la haría
-viva lo bloqueó el clasificador de permisos de la sesión como «despliegue a producción» y
-NO se rodeó — lo autoriza el creador o lo hace desde Implementar → Gestionar implementaciones.
-(2) La extensión v2.4 hay que recargarla a mano en `chrome://extensions`. (3) Con las dos
-cosas, repetir el flujo real y ver los 55 artículos entrar. Pendiente previo sin relación:
-el aviso de contraste `#94a1b2` sobre `#f8fafc` de esta misma pantalla (deuda anterior).
+**Actualización 13/09/2026 (mismo día) — verificado en vivo y CAUSA RAÍZ confirmada.**
+Con producción en v124 y la extensión v2.4 recargada, se probó el flujo real (55 artículos):
+- **Sin borrador previo → carga AUTOMÁTICA** (los 55 artículos entraron solos, foco en el
+  cliente). ✅
+- **Con un borrador a medias → el modal «Tienes un borrador» RETRASA la búsqueda** (porque
+  `BolsaExtension.pedir` no se llamaba hasta resolver el modal) y para entonces el puente ya
+  dejó de reescribir → caía al fallback de 1 clic (el JSON llega pre-pegado a «Importar»). ✅
+Esto **explica el «a veces sí, la mayoría no» del creador**: sus asesores suelen traer un
+borrador a medias, y ese modal se interponía. También reveló que recargar la extensión no
+basta si la pestaña de la BOLSA quedó abierta desde antes (los content scripts no se
+actualizan en pestañas ya abiertas — hay que recargar la bolsa).
+
+**Arreglo intentado (v125, aditivo, DESPLEGADO).** `BolsaExtension` captura la bolsa en
+paralelo: la búsqueda arranca al cargar la pantalla, guarda la bolsa en memoria y solo espera
+al borrador para APLICARLA. Desplegado a producción como **v125** (con autorización del
+creador para saltar el clasificador).
+
+**RESULTADO REAL, probado en vivo sobre v125 (honesto):**
+- **Sin borrador previo → carga AUTOMÁTICA, consistente** (probado 3 veces: los 55 artículos
+  entran solos con foco en el cliente). Este es el camino de la mayoría de los arranques. ✅
+- **Con un borrador a medias → SIGUE cayendo al fallback de 1 clic** incluso con la captura
+  paralela. Es decir, v125 NO cerró el caso con-borrador al 100% automático. El fallback sí
+  funciona siempre (JSON pre-pegado, un clic en «Agregar artículos»). No se logró confirmar
+  POR QUÉ la captura paralela no gana en ese caso: los marcos internos de Apps Script
+  (`userCodeAppPanel` → iframe de contenido, ambos `googleusercontent.com`) **no son
+  inspeccionables** con las herramientas disponibles (`javascript_tool` corre en el marco
+  `script.google.com` de arriba; los otros son cross-origin), así que seguir ajustando sería
+  iterar a ciegas en producción — se decidió NO hacerlo.
+
+**Balance neto (esto es lo que cambió para el asesor):** el flujo **ya nunca deja la tabla
+vacía en silencio**, que era el bug real. Carga automático cuando empieza limpio (lo más
+común); cuando trae un borrador a medias, abre sola la ventana de importación con los datos
+**ya pegados** y a un solo clic. Antes (v122/123) el caso de fallo era una tabla vacía sin
+explicación.
+
+**Si algún día se quiere el 100% automático también con-borrador:** hay que instrumentar
+(logging visible EN PANTALLA de qué capturó cada marco y cuándo) y probarlo en PRUEBAS
+—nunca iterando en producción—, porque el problema vive en el timing de los marcos internos
+de Apps Script que no se pueden observar desde fuera.
+
+**Qué queda (histórico, previo a la actualización).** (1) La pantalla corregida está en los
+DOS editores… (2) La extensión v2.4 hay que recargarla a mano en `chrome://extensions`. (3)
+Con las dos cosas, repetir el flujo real y ver los 55 artículos entrar. Pendiente previo sin
+relación: el aviso de contraste `#94a1b2` sobre `#f8fafc` de esta misma pantalla (deuda anterior).
 
 ### 2026-09-13 — Primera verificación en vivo, con sesión real (rol avanzado)
 

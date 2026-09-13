@@ -1641,6 +1641,19 @@
             let terminado = false;
             const esperada = !!(window.AppUrl && AppUrl.param('origen') === 'extension');
 
+            /*
+             * CAPTURA EN PARALELO (13/09/2026). La causa real del «a veces no» era el
+             * modal del borrador: `pedir()` no se llamaba hasta que el asesor decidía
+             * «continuar / empezar de cero», y para entonces el puente ya había dejado
+             * de reescribir el elemento — la bolsa se perdía por puro retraso. Ahora la
+             * búsqueda ARRANCA sola en cuanto carga la pantalla (antes y durante el
+             * modal): en cuanto encuentra la bolsa la guarda en memoria y la retira del
+             * DOM (el puente para). Lo único que espera al borrador es APLICARLA, para
+             * no meter artículos en un formulario que el asesor aún va a reemplazar.
+             */
+            let bolsaCapturada = null;   // leída del DOM, esperando a que el borrador se resuelva
+            let listoParaAplicar = false; // el borrador ya se decidió: se puede importar
+
             /**
              * Documentos donde el puente pudo dejar la bolsa: este y el marco padre
              * cuando es del mismo origen. El siguiente ancestro (script.google.com)
@@ -1682,11 +1695,22 @@
                     // marco padre reaparecería en la siguiente cotización de esta pestaña.
                     try { elemento.remove(); } catch (e) {}
                 }
-                if (encontrado) { parar(); recibir(bolsa); return; }
+                if (encontrado) { parar(); bolsaCapturada = bolsa; intentarAplicar(); return; }
 
                 intentos++;
-                if (intentos >= MAX_INTENTOS) { parar(); sinBolsa(); return; }
+                if (intentos >= MAX_INTENTOS) { parar(); intentarAplicar(); return; }
                 temporizador = setTimeout(buscar, ESPERA_MS);
+            }
+
+            /**
+             * Aplica la bolsa SOLO cuando el borrador ya se resolvió. Si la búsqueda
+             * terminó (con o sin bolsa) antes de esa decisión, se queda esperando y
+             * `pedir()` la retoma. Así el modal del borrador nunca hace perder la bolsa.
+             */
+            function intentarAplicar() {
+                if (!listoParaAplicar) return;   // el modal del borrador sigue abierto
+                if (bolsaCapturada) { const b = bolsaCapturada; bolsaCapturada = null; recibir(b); }
+                else if (terminado) { sinBolsa(); }
             }
 
             /** Solo habla si de verdad se esperaba una bolsa (se abrió desde la extensión). */
@@ -1713,10 +1737,23 @@
                 }
             }
 
+            /**
+             * Lo llama el flujo del borrador cuando ya se decidió qué hacer con él.
+             * Para entonces la bolsa puede estar YA capturada (lo normal, porque la
+             * búsqueda arrancó al cargar): se aplica en el acto. Si no, se sigue
+             * esperando —la búsqueda quizá aún corre— y se aplicará al encontrarla.
+             */
             function pedir() {
-                if (esperada) showGeneralMessage('Cargando los artículos de tu bolsa…', false, false);
-                buscar();
+                listoParaAplicar = true;
+                if (esperada && !bolsaCapturada && !terminado) {
+                    showGeneralMessage('Cargando los artículos de tu bolsa…', false, false);
+                }
+                intentarAplicar();
             }
+
+            // La búsqueda arranca YA, en paralelo al modal del borrador, para no perder
+            // la bolsa por el retraso de esa decisión (ver nota de CAPTURA EN PARALELO).
+            buscar();
 
             return { pedir: pedir };
         })();
