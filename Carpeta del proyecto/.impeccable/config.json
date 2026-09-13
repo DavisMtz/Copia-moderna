@@ -11,6 +11,15 @@
         ],
         "createdAt": "2026-09-13T04:21:00.908Z",
         "reason": "opp-visor-img es el visor de evidencias: nace sin src a proposito y JS lo llena al hacer clic en una captura (preexistente, no forma parte del recorrido guiado agregado)"
+      },
+      {
+        "rule": "gpt-thin-border-wide-shadow",
+        "value": "*",
+        "files": [
+          "Carpeta del proyecto/operacion.html"
+        ],
+        "createdAt": "2026-09-13T04:37:28.018Z",
+        "reason": "Es el token --sh-lg del sistema de diseno (app_theme.html:83/156: border 1px solid var(--line) + box-shadow 0 30px 60px -24px rgba), usado igual en 8 archivos (Index, app_comando, app_core, app_extension_guia, app_guardado, app_onboarding, app_theme, operacion) - no es un patron generado sin criterio, es el elevador oficial de tarjetas/modales del Portal"
       }
     ]
   }
