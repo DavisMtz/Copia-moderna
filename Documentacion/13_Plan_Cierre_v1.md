@@ -1039,6 +1039,55 @@ y qué se dejó fuera a propósito**. Mismo formato que el registro del document
 
 <!-- Las entradas nuevas van arriba, con la más reciente primero. -->
 
+### 2026-09-12 — F11, T11.1 completa: el spike, y la decisión de no insistir con el 403
+
+**Qué se probó, por la vía del propio plan:**
+
+1. **Endpoints JSON.** Se leyó cómo la extensión de Chrome extrae los datos del artículo
+   (`product-inspector.js:120-150`, comentado también en la memoria `liverpool-esquema-productinfo`):
+   **no existe un endpoint JSON separado.** Lo que la extensión llama "flight data" es el
+   objeto `productInfo` embebido como texto dentro de `<script>self.__next_f.push(...)</script>`
+   **en el mismo documento HTML** que ya pide `revFichaDeUrl_`. Es Server-Side Rendering de
+   Next.js, no una API aparte: si el servidor bloquea la petición de la página, no hay HTML
+   del que sacar ese texto, y una petición a esa misma URL con `Accept: application/json` no
+   tiene ningún efecto porque el servidor no ofrece esa forma. **Vía descartada: no es una
+   ruta distinta, es la misma que ya se prueba.**
+2. **Variar la petición (cabeceras, `Referer`, orden).** Desde esta red (una IP de oficina,
+   no de Google) `curl` sin ningún encabezado y con encabezados completos de navegador dan
+   **los dos código 200** contra `liverpool.com.mx` — confirma que aquí el filtro no depende
+   de las cabeceras. Esto no prueba qué hace Liverpool con las IPs de Google Cloud (que es
+   el caso real), pero sí resta valor a seguir afinando cabeceras: `REV_FICHA_HEADERS` ya
+   manda un user-agent y idioma de navegador reales, y si el bloqueo es por reputación de IP
+   (lo más probable contra tráfico de centros de datos), ninguna cabecera lo cambia.
+3. **Verificación desde la extensión (mensaje al Portal con el precio en vivo).** Es la única
+   vía con posibilidad real de éxito (el navegador del supervisor no está bloqueado), pero es
+   una función nueva completa: puente de mensajería entre la extensión y la pestaña de
+   revisión, con la pantalla teniendo que degradar bien si la extensión no está instalada.
+   Desproporcionado frente a lo que ya cubre el fallback (T11.2, cerrada hoy mismo): botón de
+   un clic a la página real + último precio visto con su antigüedad.
+
+**Lo que NO se pudo verificar de forma concluyente:** si `UrlFetchApp` desde Apps Script
+(IP de Google Cloud) sigue recibiendo 403 hoy mismo, tal como asumen los comentarios de
+`Revision.gs` escritos en fases anteriores. Se intentó comprobarlo sin depender de un click
+en el navegador: `clasp run-function revDiagnosticoFicha` (la función de diagnóstico que ya
+existe en el archivo, línea ~2012) contra el proyecto de pruebas. Primero falló con
+`NOT_FOUND` (el manifiesto no tenía `executionApi`); añadida esa sección y repushado, pasó a
+fallar con "Unable to run script function... make sure you have permission" — la sesión de
+`clasp` no tiene el scope de la API de Ejecución, que solo se concede autorizando la función
+una vez desde el editor con una cuenta con sesión real, cosa que un agente no puede hacer
+(entrar a una cuenta de Google no es una acción que deba automatizarse). Se revirtió el
+cambio al manifiesto: no hacía falta para nada más y no vale la pena dejar esa superficie
+abierta solo por esto.
+
+**Decisión (criterio de aceptación 1 de F11, cumplido con esta entrada):** se acepta el
+fallback y no se insiste, tal como el propio plan autoriza. Las dos vías de mejora tienen
+techo bajo (endpoint JSON: no existe; cabeceras: ya se mandan las correctas) y la única con
+recorrido real (extensión) es una función nueva sin construir, no una mejora del spike. Si en
+el futuro alguien quiere la prueba definitiva y rápida, basta abrir el proyecto de PRUEBAS en
+script.google.com, ejecutar `revDiagnosticoFicha` una vez (pide autorizar la primera vez) y
+leer el registro de ejecución — ya está escrita y lista, solo falta que alguien con sesión
+real la corra.
+
 ### 2026-09-12 — F11, T11.2 completa: el precio no desaparece cuando Liverpool bloquea
 
 **Qué se cambió.** Cuando `revFichaDeUrl_` (`Revision.gs`) recibe un 403/404/fallo de red de
