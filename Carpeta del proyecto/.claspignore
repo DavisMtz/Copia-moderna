@@ -3,6 +3,7 @@
 .git/**
 .github/**
 .claude/**
+.impeccable/**
 node_modules/**
 *.md
 .gitattributes

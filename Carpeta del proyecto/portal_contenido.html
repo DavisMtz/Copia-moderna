@@ -313,6 +313,14 @@
                 <span class="pc-donde" id="secDonde"></span>
               </div>
               <div class="pc-head-a">
+                <!-- Ayuda del modo rápido. Nace oculto por partida doble: "hidden" lo
+                     enseña AppOnboarding en cuanto registra el recorrido, "pc-hidden"
+                     lo apaga en las secciones de solo lectura (Reportes), igual que
+                     btnRapido, porque ahí no hay drawer de importación que abrir. -->
+                <button type="button" class="v-btn v-btn-ghost v-btn-sm onb-lanzador-plano pc-hidden" id="btnAyudaRapido" data-onb-abrir="portal_contenido" hidden>
+                    <svg class="w-4 h-4 block" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M9.6 9.4a2.5 2.5 0 0 1 4.8.9c0 1.7-2.4 2.1-2.4 3.6"/><path d="M12 17.2h.01"/></svg>
+                    <span>Ver el tutorial</span>
+                </button>
                 <button class="v-btn v-btn-ghost pc-hidden" id="btnRapido" type="button">Modo rápido</button>
                 <button class="v-btn v-btn-primary pc-hidden" id="btnNuevo" type="button">Nueva entrada</button>
               </div>
@@ -393,6 +401,7 @@
     <?!= include('app_aura'); ?>
     <?!= include('app_comando'); ?>
     <?!= include('app_precarga'); ?>
+    <?!= include('app_onboarding'); ?>
     <?!= include('LoaderPartial'); ?>
     <?!= include('TruckLoaderPartial'); ?>
     <?!= include('app_operacion'); ?>
@@ -539,6 +548,9 @@
         $('btnNuevo').classList.toggle('pc-hidden', !!col.soloLectura);
         $('btnNuevo').textContent = 'Nueva entrada';
         $('btnRapido').classList.toggle('pc-hidden', !!col.soloLectura);
+        // Mismo candado que btnRapido: sin modo rápido en esta sección, tampoco
+        // tiene sentido enseñar cómo se usa.
+        $('btnAyudaRapido').classList.toggle('pc-hidden', !!col.soloLectura);
 
         $('avisoCols').classList.add('pc-hidden');
         // El esqueleto solo se repinta si no hay ya uno rodando. Al llegar el
@@ -1961,6 +1973,29 @@
 
         $('btnNuevo').addEventListener('click', function () { abrirEditor(null); });
         $('btnRapido').addEventListener('click', abrirImport);
+
+        /* El recorrido de "modo rápido" vive DENTRO del drawer de importación: sus
+           pasos con "sel" apuntan al textarea de pegado, a la pestaña de comercial y
+           a Analizar/Aplicar, y ninguno de esos elementos existe hasta que el drawer
+           está abierto. AppOnboarding cablea cualquier [data-onb-abrir] (este botón
+           Y el "Ver el tutorial" del menú lateral que registra AppShell) para que un
+           clic dispare el recorrido de inmediato — con el drawer todavía cerrado, eso
+           deja caer del recorrido cada paso con "sel" y solo se ve la tarjeta de
+           bienvenida. Por eso se intercepta AQUÍ, en captura y antes de que ese cable
+           conteste el mismo clic: si el drawer está cerrado, lo abrimos primero y el
+           recorrido se lanza después, con un respiro para que termine de animarse. */
+        document.addEventListener('click', function (e) {
+          var b = e.target && e.target.closest && e.target.closest('[data-onb-abrir]');
+          if (!b) return;
+          if (!$('drawer').hidden) return;                              // ya abierto: que conteste el motor
+          if (!pcState.actual || pcState.actual.soloLectura) return;    // Reportes: aquí no hay modo rápido
+          e.preventDefault();
+          e.stopPropagation();
+          abrirImport();
+          setTimeout(function () {
+            if (window.AppOnboarding) AppOnboarding.ver('portal_contenido');
+          }, motionOK() ? 420 : 30);
+        }, true);
         $('impAnalizar').addEventListener('click', analizarImport);
         $('impAplicar').addEventListener('click', aplicarImport);
         $('impCancelar').addEventListener('click', intentarCerrar);
@@ -2013,6 +2048,58 @@
 
         AppShell.mount({ active: 'portal_contenido', title: 'Contenido del Portal' });
         if (window.VentelLoader) VentelLoader.hide();
+
+        /* Ayuda del modo rápido, bajo demanda: se REGISTRA para que el botón de aquí
+           arriba y el "Ver el tutorial" del menú lateral se enciendan solos, pero con
+           "definir" (no "auto") no se lanza nadie la primera vez que alguien entra a
+           Contenido del Portal — nadie necesita ver esto antes de haber pedido dar de
+           alta una sola entrada. El clic que sí lo lanza está en enganchar(), porque
+           antes tiene que abrir el drawer de importación. */
+        if (window.AppOnboarding) AppOnboarding.definir({
+          pantalla: 'portal_contenido',
+          version: 1,
+          pasos: [
+            {
+              titulo: 'El modo rápido',
+              texto: 'Cuando hay muchas filas que dar de alta o poner al día, no hace falta cargarlas ' +
+                     'una por una.<br><br>Pega los datos de una hoja de cálculo —o tráelos ya listos, si esta ' +
+                     'sección lo permite— y revisa todo antes de que se guarde nada.'
+            },
+            {
+              sel: '#impTexto',
+              pos: 'abajo',
+              titulo: 'Pega aquí las filas',
+              texto: 'Selecciona las filas en tu hoja de cálculo, cópialas (<b>Ctrl+C</b>) y pégalas en este ' +
+                     'cuadro (<b>Ctrl+V</b>).<br><br>Si incluyes la fila de encabezados, las columnas se ' +
+                     'reconocen solas.'
+            },
+            {
+              // Solo existe en las campañas de promociones/mkp. En el resto de
+              // secciones este botón no se pinta y el paso se cae solo del recorrido.
+              sel: '[data-modo="comercial"]',
+              pos: 'abajo',
+              titulo: 'O tráelas de comercial',
+              texto: 'En las campañas de promociones puedes traer una pestaña completa del archivo de ' +
+                     'comercial, sin copiar ni pegar nada a mano.'
+            },
+            {
+              sel: '#impAnalizar',
+              pos: 'arriba',
+              titulo: 'Analiza sin miedo',
+              texto: 'Compara tus filas contra lo que ya existe y te dice cuáles son nuevas, cuáles cambian ' +
+                     'algo y cuáles ya estaban igual.<br><br><b>Todavía no se guarda nada</b>: es solo una ' +
+                     'vista previa.'
+            },
+            {
+              sel: '#impAplicar',
+              pos: 'arriba',
+              titulo: 'Aplicar',
+              texto: 'Este es el que sí publica los cambios: da de alta lo nuevo y, si dejaste la casilla ' +
+                     'marcada, pone al día lo que cambió.<br><br>Nunca se borra nada: lo que ya está en el ' +
+                     'Portal y no venga en tus filas se queda igual.'
+            }
+          ]
+        });
 
         enganchar();
         // El isotipo de arranque se retira EN EL ACTO, sin su desvanecido de 360 ms,

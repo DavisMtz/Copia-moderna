@@ -1110,6 +1110,7 @@
     <?!= include('app_aura'); ?>
     <?!= include('app_comando'); ?>
     <?!= include('app_precarga'); ?>
+    <?!= include('app_onboarding'); ?>
     <?!= include('LoaderPartial'); ?>
     <?!= include('app_operacion'); ?>
     <?!= include('app_atenciones'); ?>
@@ -2778,6 +2779,62 @@
             if (!estado.cerrada) {
                 requestAnimationFrame(function () { setTimeout(verificarPrecios, 60); });
             }
+
+            /*
+             * Recorrido guiado de esta pantalla. Se lanza aquí —al terminar de pintar,
+             * no en DOMContentLoaded— porque hasta este punto ni los artículos ni el
+             * índice existen todavía en el DOM: un paso que apunta a un selector que
+             * aún no se pintó es un paso que el motor descarta solo.
+             * Se lanza igual con una revisión ya cerrada: quien la abre por primera
+             * vez sigue sin saber qué es cada bloque, aprobada o no.
+             */
+            if (window.AppOnboarding) AppOnboarding.auto({
+                pantalla: 'revision_cotizacion',
+                version: 1,
+                retraso: 800,
+                pasos: [
+                    {
+                        titulo: 'Revisar antes de que salga al cliente',
+                        texto: 'Aquí decides si una cotización está lista para el cliente o si necesita ' +
+                               'un ajuste antes.<br><br>El sistema ya adelantó parte del trabajo; lo que ' +
+                               'queda es justo lo que necesita tu criterio.'
+                    },
+                    {
+                        sel: '#rev-score-card',
+                        pos: 'abajo',
+                        titulo: 'Un adelanto del veredicto',
+                        texto: 'Este número resume lo que el sistema ya comprobó por su cuenta: precios, ' +
+                               'datos del cliente, promociones…<br><br>Más abajo, en <b>Verificación ' +
+                               'automática</b>, tienes el detalle punto por punto: lo que no lleva casilla ' +
+                               'ya quedó resuelto solo, y la casilla solo aparece donde hace falta tu criterio.'
+                    },
+                    {
+                        sel: '[data-ver]',
+                        pos: 'auto',
+                        titulo: 'Comparar contra Liverpool',
+                        texto: 'El precio cotizado y el que hoy tiene <b>liverpool.com.mx</b> no siempre ' +
+                               'coinciden. Este botón trae el precio y la ficha reales del sitio y los pone ' +
+                               'al lado de lo cotizado.<br><br>Ábrelo cuando algo no te cuadre: un precio, ' +
+                               'una descripción, una promoción.'
+                    },
+                    {
+                        sel: '#rev-items',
+                        pos: 'auto',
+                        titulo: 'Marca cada artículo',
+                        texto: 'Cuando ya revisaste una línea, márcala aquí; puedes hacerlo una por una o ' +
+                               'con <b>Marcar todos</b>, arriba de la lista.<br><br>Con el teclado, la tecla ' +
+                               '<b>A</b> marca de golpe todo lo que siga pendiente en la pantalla.'
+                    },
+                    {
+                        sel: '#rev-btn-aprobar',
+                        pos: 'auto',
+                        titulo: 'Aprobar o rechazar',
+                        texto: 'Cuando termines de revisar, aquí cierras la revisión. Si rechazas, escribe ' +
+                               'el motivo en <b>Observaciones</b>: se le envía al asesor por correo junto ' +
+                               'con tu decisión.'
+                    }
+                ]
+            });
         }
 
         document.addEventListener('DOMContentLoaded', function () {

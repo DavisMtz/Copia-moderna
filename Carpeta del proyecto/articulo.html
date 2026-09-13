@@ -793,6 +793,7 @@
 <?!= include('app_aura'); ?>
 <?!= include('app_comando'); ?>
 <?!= include('app_precarga'); ?>
+<?!= include('app_onboarding'); ?>
 <?!= include('LoaderPartial'); ?>
 <?!= include('app_operacion'); ?>
 <?!= include('app_atenciones'); ?>
@@ -1439,6 +1440,7 @@
     if (st.puedeEditar) {
       var nuevo = el('button', 'v-btn v-btn-primary', null);
       nuevo.type = 'button';
+      nuevo.id = 'art-btn-nuevo';   // ancla real para el recorrido guiado (app_onboarding)
       nuevo.appendChild(icono('plus'));
       nuevo.appendChild(document.createTextNode('Escribir artículo'));
       nuevo.addEventListener('click', function (){ abrirEditor(null); });
@@ -3437,6 +3439,58 @@
        pintar entero en cada cambio y el escuchador se iría con él; la guarda de modo hace
        el resto. */
     document.addEventListener('paste', pegarImagen);
+
+    /* Recorrido guiado de la biblioteca de artículos. Cubre lo que alguien nuevo no
+       adivina solo: que el buscador general también mira dentro de los artículos, y
+       —solo para quien puede escribir— cómo se crea o edita una entrada y qué decide
+       si queda privada o a la vista de todo el equipo. Los dos últimos pasos apuntan
+       al mismo botón «Escribir artículo»: si esta persona no puede editar, ese botón
+       no existe y los dos pasos se caen solos, que es lo correcto. */
+    if (window.AppOnboarding) AppOnboarding.auto({
+      pantalla: 'articulo',
+      version: 1,
+      retraso: 900,
+      pasos: [
+        {
+          titulo: 'La biblioteca de artículos',
+          texto: 'Aquí vive lo que hay que explicar con calma: guías, procedimientos y todo lo que no ' +
+                 'cabe en un anuncio.<br><br>Todo el equipo ve lo publicado; tus propios borradores solo ' +
+                 'los ves tú.'
+        },
+        {
+          sel: '#cmdkAbrir',
+          pos: 'abajo',
+          titulo: 'Encontrar uno entre varios',
+          texto: 'No hace falta bajar tarjeta por tarjeta: el buscador de todo el sistema (<b>Ctrl K</b>) ' +
+                 'también mira dentro de los artículos, por título y por resumen.'
+        },
+        {
+          sel: '.art-card',
+          pos: 'abajo',
+          titulo: 'Abrir uno para leerlo',
+          texto: 'Toca cualquier tarjeta para leerlo completo. Las imágenes se amplían con un toque, y un ' +
+                 'diagrama se ve entero sin salir de la pantalla.'
+        },
+        {
+          sel: '#art-btn-nuevo',
+          pos: 'abajo',
+          titulo: 'Escribir uno nuevo',
+          texto: 'Con este botón empiezas uno desde cero. Para editar uno que ya existe, ábrelo desde la ' +
+                 'lista: si tienes permiso, ahí mismo aparece <b>Editar</b>.<br><br>Si cierras la pestaña a ' +
+                 'medio escribir, lo que llevabas queda a salvo en este navegador y se ofrece recuperarlo ' +
+                 'la próxima vez.'
+        },
+        {
+          sel: '#art-btn-nuevo',
+          pos: 'abajo',
+          titulo: 'Quién lo ve, y cómo se guarda',
+          texto: 'Mientras escribes eliges arriba si es <b>solo tuyo</b> o para <b>todo el equipo</b>, y el ' +
+                 'botón de guardar cambia de nombre según lo que elijas: Guardar borrador, Publicar, o ' +
+                 'Guardar y retirar si lo vuelves privado.<br><br><b>Ctrl S</b> también guarda, sin soltar ' +
+                 'el teclado.'
+        }
+      ]
+    });
   });
 })();
 </script>

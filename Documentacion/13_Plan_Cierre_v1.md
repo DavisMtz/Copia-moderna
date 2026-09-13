@@ -983,7 +983,7 @@ huecos reales. Estos son los que sobrevivieron.
 | # | Qué | Dónde | Fase |
 | --- | --- | --- | --- |
 | 1 | **`revision_cotizacion.html` no escribe nada en la URL**, y tiene dos juegos de pestañas reales (`:845-850` hoja/google y `:1028-1033` comparación/página). Cambiar de pestaña no sobrevive a F5 ni al botón «atrás». `cotizado_preview.html` tampoco escribe estado. Es el criterio 1 de F1 sin cumplir en dos pantallas | `revision_cotizacion.html`, `cotizado_preview.html` | F1 |
-| 2 | **T12.1 sin empezar**: `portal_contenido.html` ni siquiera incluye `app_onboarding`. Es uno de los cinco puntos de la «vía rápida» del §2 | `portal_contenido.html` | F12 |
+| ~~2~~ | ~~T12.1 sin empezar: portal_contenido.html ni siquiera incluye app_onboarding~~ — **cerrado 2026-09-12**, ver §18 | `portal_contenido.html` | F12 |
 | ~~3~~ | ~~T11.2 a medias: el botón de un clic a la página de Liverpool existe (por triplicado), pero falta el precio de la última captura en caché con su antigüedad rotulada cuando responde 403~~ — **cerrado 2026-09-12**, ver §18 | `Revision.gs:961-974`, `revision_cotizacion.html:1978-1986` | F11 |
 | 4 | **T6.4 solo cerró la mitad**: el DOM del panel ya está diferido, pero los ~157 KB de `app_comando` + `app_indices` **siguen viajando** en cada pantalla que los lleva, porque `include()` pega el partial en el HTML servido. El §18 lo deja como decisión del creador. *(Recuento al 16/08/2026, tras F10: **17** `include('app_comando')` y **18** `include('app_indices')`. La cifra sube con cada pantalla nueva; si vuelve a quedar desfasada, se cuenta y ya.)* | los `include('app_comando')` | F6 |
 | 17 | **`revisionMaestra()` no tiene gate y su reporte se puede pedir desde el navegador.** Es anterior a F9 —se ejecuta desde el editor, y la puerta está en `consolaSalud`—, pero el reporte describe la instalación entera: hojas, alias, webhooks recortados, cuántos maestros hay. F9 dejó de escribir en él lo que no debe leerse; falta cerrarlo de verdad sin romper su uso desde el editor | `Admin.gs:19`, `Admin.gs:390` | F13 |
@@ -1038,6 +1038,54 @@ Lo que se ha hecho de verdad, en orden. Cada entrada dice **qué se cambió, qu�
 y qué se dejó fuera a propósito**. Mismo formato que el registro del documento 12.
 
 <!-- Las entradas nuevas van arriba, con la más reciente primero. -->
+
+### 2026-09-12 — F12 completa: la ayuda alcanza a lo nuevo
+
+**Qué se cambió.**
+
+- **T12.1 — Ayuda del modo rápido** (`portal_contenido.html`): include de `app_onboarding`
+  agregado; botón `#btnAyudaRapido` junto a "Modo rápido"/"Nueva entrada" (mismo patrón que
+  `onb-lanzador-plano` de `cotizacion.html`), oculto en secciones de solo lectura igual que
+  `#btnRapido`. Registrado con `AppOnboarding.definir` (NO `auto`: es ayuda bajo demanda) con
+  5 pasos: qué es el modo rápido, pegar de una hoja, traer de comercial (solo en
+  promociones/mkp — se cae solo en las demás secciones), analizar sin miedo (aclara que
+  todavía no guarda nada) y aplicar. El clic se intercepta en fase de captura sobre
+  `document` para abrir primero `abrirImport()` y lanzar el recorrido después (con
+  `setTimeout` que respeta `prefers-reduced-motion`) — sin esto, el cableado automático de
+  `AppOnboarding` lanzaba el tour ANTES de que el drawer abriera y los pasos con `sel` se
+  caían todos, dejando solo la tarjeta de bienvenida.
+- **T12.2 — Seis recorridos nuevos** (`AppOnboarding.auto`, `version:1`, selectores reales
+  confirmados en cada archivo): `consola` (roles, matriz de permisos, salud, métricas),
+  `operacion` (KPIs, recomendaciones, lo que espera confirmación, tablero público),
+  `revision_cotizacion` (índice de confianza, comparación con Liverpool, checklist,
+  aprobar/rechazar), `anuncios` (plantillas —incluida la de Encuesta, que sí existe—,
+  formatos, vista previa, publicar), `articulo` (buscador global vía Ctrl+K, abrir un
+  artículo, crear/editar, visibilidad y guardado) y `acerca` (2 pasos, informativa, sin
+  estirarla).
+- **T12.2 — Dos recorridos actualizados**, `version:1 → version:2` (se relanzan una vez a
+  quien ya los vio): `portal` (Index.html) con 2 pasos nuevos sobre la publicación principal
+  y el carril de artículos, insertados donde tiene sentido narrativo, sin tocar los 7 pasos
+  existentes; `supervision` (inicio_avanzado.html) con el texto del paso de política de
+  revisión corregido para decir que empieza plegada (confirmado en el código: `#pol-panel`
+  solo gana `open` al hacer clic).
+
+**Qué se comprobó.** Cada pantalla se investigó primero (secciones/selectores reales, nunca
+inventados) y se verificó por separado extrayendo sus `<script>` con Node y pasándolos por
+`new Function()`. Al terminar, un barrido propio sobre los 9 archivos confirmó **0 errores de
+sintaxis** — y encontró un bug real que las verificaciones individuales no habían visto:
+**`consola.html`, `anuncios.html` y `acerca.html` registraban `AppOnboarding.auto(...)` sin
+incluir el partial `app_onboarding`.** Como la llamada va envuelta en
+`if (window.AppOnboarding)`, el fallo habría sido silencioso: ningún error, el tour
+simplemente nunca se registraba ni se mostraba. Corregido añadiendo el include que faltaba
+en los tres. (Dos de los nueve agentes —`operacion` y `revision_cotizacion`— sí detectaron y
+corrigieron este mismo problema en su propio archivo antes de reportar; los otros dos con
+tours nuevos, `articulo` y `portal_contenido`, ya lo tenían.)
+
+**Qué se dejó fuera a propósito.** Ningún criterio de aceptación de F12 quedó sin cumplir.
+Nota aparte, sin relación con el plan: el agente de `operacion.html` silenció un aviso del
+hook de diseño sobre `#opp-visor-img` (un `<img>` sin `src` que el propio JS rellena al
+hacer clic en una evidencia) por ser un falso positivo — queda documentado en el propio
+archivo de configuración del hook.
 
 ### 2026-09-12 — F11, T11.1 completa: el spike, y la decisión de no insistir con el 403
 

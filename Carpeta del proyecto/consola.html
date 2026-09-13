@@ -1008,6 +1008,7 @@
 <?!= include('app_aura'); ?>
 <?!= include('app_comando'); ?>
 <?!= include('app_precarga'); ?>
+<?!= include('app_onboarding'); ?>
 <?!= include('LoaderPartial'); ?>
 <?!= include('app_operacion'); ?>
 <?!= include('app_atenciones'); ?>
@@ -1220,6 +1221,62 @@
             // La entrada animada solo la primera vez: repetirla al llegar el dato
             // fresco haría parpadear una pantalla que el usuario ya está leyendo.
             if (!pintadoAlguna && window.AppMotion) AppMotion.enter($('cns-app'));
+
+            /* Recorrido guiado de la consola. NO va justo después de AppShell.mount
+               —que es donde vive en el resto de pantallas— porque aquí `#cns-app`
+               sigue oculto hasta que este `aplicar()` corre: aplicarSecciones() es
+               lo que decide qué pestañas existen para esta persona, y hacerlo antes
+               dejaría CADA paso con `sel` fuera de pantalla (el motor los da por
+               ocultos) y el recorrido se quedaría, casi siempre, en la sola tarjeta
+               de bienvenida. Se lanza aquí, con las pestañas ya filtradas, y con la
+               misma guarda que AppMotion.enter para no repetirse en cada recarga
+               («Actualizar», o el refresco tras cerrar la difusión). */
+            if (!pintadoAlguna && !yaPintada && window.AppOnboarding) AppOnboarding.auto({
+                pantalla: 'consola',
+                version: 1,
+                retraso: 1000,
+                pasos: [
+                    {
+                        titulo: 'La consola de Ventel',
+                        texto: 'Desde aquí se da de alta a las personas, se decide qué puede hacer cada rol ' +
+                               'y se revisa cómo va el sistema en general.<br><br>El recorrido solo pasa por ' +
+                               'las pestañas que tú puedes usar, así que será corto.'
+                    },
+                    {
+                        sel: '#tab-miembros',
+                        pos: 'abajo',
+                        titulo: 'Dar de alta a alguien',
+                        texto: 'Aquí vive la lista de personas con su <b>rol</b> y sus bloques de acceso. ' +
+                               'El botón <b>Dar de alta</b> registra a quien entra nuevo; dar de baja no ' +
+                               'borra a nadie, solo le cierra la puerta.'
+                    },
+                    {
+                        sel: '#tab-permisos',
+                        pos: 'abajo',
+                        titulo: 'Qué trae cada rol',
+                        texto: 'De un vistazo: qué puede hacer cada rol de entrada, y quién tiene un acceso ' +
+                               'concedido o retirado aparte del suyo.<br><br>Si algo se siente mal repartido, ' +
+                               'este es el mapa completo, no la ficha de una sola persona.'
+                    },
+                    {
+                        sel: '#tab-salud',
+                        pos: 'abajo',
+                        titulo: 'Un chequeo completo',
+                        texto: '<b>Correr revisión</b> comprueba una por una las hojas, los formatos, el ' +
+                               'correo y el calendario. Tarda unos segundos porque de verdad revisa cada ' +
+                               'cosa, no solo si está a la vista.'
+                    },
+                    {
+                        sel: '#tab-metricas',
+                        pos: 'abajo',
+                        titulo: 'Consultar lo que pasó',
+                        texto: 'Cotizaciones, correos, búsquedas y cambios de personas: elige qué quieres ' +
+                               'ver, pon un periodo y pulsa <b>Consultar</b>.<br><br>No se trae nada solo ' +
+                               'con abrir la pestaña, así nadie paga el costo de una consulta que no pidió.'
+                    }
+                ]
+            });
+
             pintadoAlguna = true;
             return true;
         };

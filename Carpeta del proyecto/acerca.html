@@ -355,6 +355,7 @@
 <?!= include('app_aura'); ?>
 <?!= include('app_comando'); ?>
 <?!= include('app_precarga'); ?>
+<?!= include('app_onboarding'); ?>
 <?!= include('LoaderPartial'); ?>
 <?!= include('app_support'); ?>
 <?!= include('app_extension_guia'); ?>
@@ -642,6 +643,40 @@
       if (!e || (e.key !== 'ventel-user-blocks' && e.key !== 'ventel-user-role')) return;
       pintarQuien();
       pintar();
+    });
+
+    /* Recorrido guiado de «Acerca del Portal». Es una pantalla de lectura y no de
+       trabajo, así que el recorrido es igual de corto: una tarjeta de bienvenida y
+       dos secciones reales —la lista personalizada de «qué puedes hacer tú» y los
+       créditos, con la firma—. No hay nada que apunte a un botón de "avanzado" ni a
+       algo que dependa de un bloque: las tres cosas existen para cualquiera con sesión. */
+    if (window.AppOnboarding) AppOnboarding.auto({
+      pantalla: 'acerca',
+      version: 1,
+      retraso: 600,
+      pasos: [
+        {
+          titulo: 'Acerca del Portal',
+          texto: 'Esta pantalla es la ficha de presentación del sistema: qué es, qué ' +
+                 'puedes hacer tú con tu cuenta ahora mismo, y quién lo construyó.<br><br>' +
+                 'No hay nada que llenar aquí: solo se lee.'
+        },
+        {
+          sel: '#que-puedes',
+          pos: 'abajo',
+          titulo: 'Lo que te toca a ti',
+          texto: 'Esta lista es <b>tuya</b>: cambia según tu rol y muestra solo lo que ' +
+                 'puedes abrir hoy. Toca cualquier tarjeta y te lleva directo ahí.'
+        },
+        {
+          sel: '#creditos',
+          pos: 'arriba',
+          titulo: 'Quiénes lo hicieron',
+          texto: 'Aquí están las personas detrás del sistema, con su firma incluida.<br><br>' +
+                 'Y si algo no funciona o te falta un acceso, desde aquí mismo le escribes ' +
+                 'al equipo.'
+        }
+      ]
     });
   });
 })();

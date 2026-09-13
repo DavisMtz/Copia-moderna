@@ -659,6 +659,7 @@
     <?!= include('app_aura'); ?>
     <?!= include('app_comando'); ?>
     <?!= include('app_precarga'); ?>
+    <?!= include('app_onboarding'); ?>
     <?!= include('LoaderPartial'); ?>
     <?!= include('TruckLoaderPartial'); ?>
     <?!= include('app_operacion'); ?>
@@ -2211,6 +2212,58 @@
 
         AppShell.mount({ active: 'anuncios', title: 'Anuncios del Portal' });
         if (window.VentelLoader) VentelLoader.hide();
+
+        /* Recorrido guiado del constructor de anuncios. Los cuatro pasos apuntan a
+           elementos que existen siempre en el HTML (plantillas, formato, vista previa
+           y el botón de publicar), así que no dependen de que el formulario ya haya
+           terminado de pintarse. */
+        if (window.AppOnboarding) AppOnboarding.auto({
+            pantalla: 'anuncios',
+            version: 1,
+            retraso: 900,
+            pasos: [
+                {
+                    titulo: 'Anuncios del Portal',
+                    texto: 'Desde aquí armas lo que ven los asesores en cuanto entran: avisos, ' +
+                           'tarjetas y hasta encuestas.<br><br>En cuanto publicas, aparece en el ' +
+                           'Portal al instante — no hace falta ningún otro paso.'
+                },
+                {
+                    sel: '#grp-plantillas',
+                    pos: 'abajo',
+                    titulo: 'Empieza por una plantilla',
+                    texto: 'Elige un punto de partida y ya trae resuelto el formato, el tono y el ' +
+                           'texto: solo cambias lo que quieras.<br><br>La plantilla <b>Encuesta</b> ' +
+                           'arranca con la pregunta y las opciones listas para que la gente vote.'
+                },
+                {
+                    sel: '#formatos',
+                    pos: 'abajo',
+                    titulo: 'Elige el formato',
+                    texto: '<b>Banner</b> se puede cerrar, <b>Destacado</b> se queda fijo arriba, ' +
+                           '<b>Tarjeta</b> lleva imagen y botón, y <b>Modal</b> aparece como ventana ' +
+                           'al entrar.<br><br>Solo la tarjeta se puede convertir en encuesta: la ' +
+                           'casilla aparece más abajo en cuanto la eliges.'
+                },
+                {
+                    sel: '#preview',
+                    pos: 'auto',
+                    titulo: 'Revisa antes de publicar',
+                    texto: 'Aquí ves exactamente cómo se va a ver, con el mismo tema y ancho del ' +
+                           'Portal.<br><br>Prueba los botones <b>Móvil</b> y <b>Oscuro</b> de arriba ' +
+                           'para no llevarte sorpresas después.'
+                },
+                {
+                    sel: '#btnPublicar',
+                    pos: 'auto',
+                    titulo: 'Publica o programa la fecha',
+                    texto: 'Con <b>Publicar desde</b> y <b>Expira</b> decides cuándo aparece y ' +
+                           'cuándo se retira solo, o usa los atajos de vigencia para no calcular la ' +
+                           'fecha a mano.<br><br>Al pulsar aquí, el anuncio se guarda y se ve en el ' +
+                           'Portal de inmediato.'
+                }
+            ]
+        });
 
         ancRenderIcons(document);
         wireConstructor();

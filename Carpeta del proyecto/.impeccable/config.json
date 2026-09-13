@@ -1,0 +1,17 @@
+{
+  "detector": {
+    "ignoreRules": [],
+    "ignoreFiles": [],
+    "ignoreValues": [
+      {
+        "rule": "broken-image",
+        "value": "*",
+        "files": [
+          "Carpeta del proyecto/operacion.html"
+        ],
+        "createdAt": "2026-09-13T04:21:00.908Z",
+        "reason": "opp-visor-img es el visor de evidencias: nace sin src a proposito y JS lo llena al hacer clic en una captura (preexistente, no forma parte del recorrido guiado agregado)"
+      }
+    ]
+  }
+}

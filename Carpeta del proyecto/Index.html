@@ -8423,20 +8423,26 @@ function mockData(){
 /**
  * RECORRIDO GUIADO DEL PORTAL · la primera vez que alguien entra.
  *
- * Siete paradas, ni una más. Un tutorial largo se salta entero, y quien lo salta se
+ * Nueve paradas, ni una más. Un tutorial largo se salta entero, y quien lo salta se
  * queda sin lo poco que sí necesitaba saber. Se explica lo que NO se adivina mirando
  * —el buscador con «/», que Funciones cambia de área, que Trazabilidad se pliega— y
  * se callan los botones que se explican solos.
  *
  * Se lanza después del conmutador a propósito: para entonces ya se sabe qué áreas
  * existen para esta persona, y ningún paso apunta a un enlace que no está.
+ *
+ * v2 (F7/F8): se suman la publicación principal y los artículos del equipo, ambos
+ * en el propio Inicio. Los dos pasos apuntan a bloques que solo existen con
+ * contenido publicado —la tarjeta ".es-principal" y el carril de artículos—, así
+ * que se caen solos para quien entra a un Portal sin anuncios ni artículos, en
+ * vez de señalar una franja vacía.
  */
 (function () {
   if (!window.AppOnboarding) return;
 
   AppOnboarding.auto({
     pantalla: 'portal',
-    version: 1,
+    version: 2,
     // Un respiro extra: el Portal entra con su propia animación de bienvenida y
     // solaparse con ella deja el foco iluminando un elemento que aún se mueve.
     retraso: 900,
@@ -8444,7 +8450,7 @@ function mockData(){
       {
         titulo: 'Bienvenido al Portal VENTEL',
         texto: 'Este es el centro de operación del equipo: herramientas, paqueterías, formas de pago, ' +
-               'trazabilidad y formatos, todo en un solo sitio.<br><br>Son <b>siete paradas</b> de unos segundos. ' +
+               'trazabilidad y formatos, todo en un solo sitio.<br><br>Son <b>nueve paradas</b> de unos segundos. ' +
                'Puedes salir cuando quieras y volver cuando quieras.'
       },
       {
@@ -8454,6 +8460,22 @@ function mockData(){
         texto: 'Escribe lo que necesitas —una paquetería, un formato, un proceso— y aparece al momento. ' +
                'Con la tecla <b>/</b> saltas aquí desde cualquier parte de la pantalla.<br><br>' +
                'Es el camino más corto: casi siempre es más rápido escribir que buscar en el menú.'
+      },
+      {
+        sel: '.anc-card.es-principal',
+        pos: 'abajo',
+        titulo: 'La publicación principal',
+        texto: 'Cuando el equipo tiene algo importante que anunciar, la primera tarjeta se destaca sola como ' +
+               '<b>Principal</b>: más grande, con su imagen en grande y por delante de las demás.<br><br>' +
+               'Tócala para verla completa —y para responder su encuesta, si trae una.'
+      },
+      {
+        sel: '#articulosCarril',
+        pos: 'abajo',
+        titulo: 'Artículos del equipo',
+        texto: 'Aquí aparecen las guías y explicaciones que el propio equipo escribe y publica, las más ' +
+               'recientes primero.<br><br>Toca cualquiera para leerlo completo, o usa «Ver los…» para ver la ' +
+               'lista entera.'
       },
       {
         sel: '.app-switch',

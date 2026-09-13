@@ -393,6 +393,7 @@
   <?!= include('app_aura'); ?>
   <?!= include('app_comando'); ?>
   <?!= include('app_precarga'); ?>
+  <?!= include('app_onboarding'); ?>
   <?!= include('app_operacion'); ?>
   <?!= include('app_atenciones'); ?>
   <!-- El gráfico del historial es el MISMO partial que monta el tablero público y el feed
@@ -1889,6 +1890,59 @@
     } else {
       setTimeout(function () { recoCargar(false); }, 0);
     }
+
+    /* Recorrido guiado del panel de operación. Se explica lo que no se ve a la primera:
+       que las recomendaciones son una lectura de las mismas cifras de arriba (y que
+       desaparecen solas cuando no hay nada que avisar) y que el tablero público se puede
+       abrir sin salir de aquí. Sin `centrarSiOculto` en el paso de #opp-reco a propósito:
+       si esta persona entra sin recomendaciones que mostrar, ese paso se cae solo del
+       recorrido en vez de señalar un hueco vacío. */
+    if (window.AppOnboarding) AppOnboarding.auto({
+      pantalla: 'operacion',
+      version: 1,
+      retraso: 900,
+      pasos: [
+        {
+          titulo: 'El panel de operación',
+          texto: 'Aquí se confirma o se descarta lo que reporta el equipo, y lo que publiques aquí lo ' +
+                 've todo el mundo: los asesores y quien abra el tablero sin iniciar sesión.<br><br>' +
+                 'El recorrido es corto: solo lo que no se nota a la primera.'
+        },
+        {
+          sel: '#opp-kpis',
+          pos: 'abajo',
+          titulo: 'Así va todo ahora mismo',
+          texto: 'Estas cifras resumen el día: lo que espera tu decisión, lo que sigue activo, lo que ' +
+                 'todavía no llega al umbral y lo que ya se cerró.<br><br>' +
+                 'Cuando hay algo urgente, el primer número se resalta.'
+        },
+        {
+          sel: '#opp-reco',
+          pos: 'auto',
+          titulo: 'Lo que dicen los datos',
+          texto: 'Esta sección lee las mismas cifras de arriba y saca la conclusión que nadie tiene tiempo ' +
+                 'de sacar a mitad de una caída: un sistema que falla siempre a la misma hora, un fallo que ' +
+                 'ya volvió varias veces.<br><br>' +
+                 'Los días tranquilos <b>no aparece nada aquí</b>: sin nada que recomendar, el espacio desaparece.'
+        },
+        {
+          sel: '#opp-esperan',
+          pos: 'auto',
+          titulo: 'Lo que espera tu decisión',
+          texto: 'Las incidencias que el sistema detectó solo caen aquí primero. Mientras una siga en esta ' +
+                 'lista, <b>nadie la ve confirmada ni descartada</b>.<br><br>' +
+                 'Es lo primero que conviene revisar al entrar.'
+        },
+        {
+          sel: '#opp-tablero',
+          pos: 'abajo',
+          titulo: 'El tablero público',
+          texto: 'Este botón abre, sin salir de aquí, exactamente lo que ven los asesores y quien consulte ' +
+                 'el tablero sin iniciar sesión.<br><br>' +
+                 'Sirve para revisar cómo se ve antes de publicar algo, o para seguir el historial sin perder tu sitio.'
+        }
+      ]
+    });
   });
   </script>
 </body>
