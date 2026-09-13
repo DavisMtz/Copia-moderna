@@ -1135,11 +1135,27 @@ dos cosas:
    —una pausa humana no debe gastar el presupuesto— pero **NO es el arreglo** del caso
    con-borrador; ver la corrección de arriba). Tope absoluto de 5 min por si nadie responde.
 
-**Estado de la corrida de diagnóstico: ARMADA, SIN LEER.** La pantalla quedó abierta con el
-modal del borrador y **ninguna herramienta pudo activarlo**: dos clics, Enter y Space sobre
-«Empezar de cero» no registraron (el Tab sí movió el foco). Se paró de insistir. Falta que el
-creador pulse «Empezar de cero» y lea el `[diag: …]`. **También sigue sin probarse la rama
-«Continuar con el borrador»**, que es la que quizá usan más los asesores.
+**CIERRE del incidente (13/09/2026).** El creador verificó producción y dio por bueno el
+comportamiento («producción está funcionando de forma correcta»), así que **el diagnóstico se
+abandonó sin llegar a leer la traza**: la corrida quedó armada pero nunca se activó el modal
+(dos clics, Enter y Space sobre «Empezar de cero» no registraron; solo el Tab movía el foco).
+En consecuencia:
+- **La traza `[diag: …]` se quitó del código** el mismo día, junto con sus contadores
+  (`vecesEncontrado`, `razonFallo`). Se conservó el guardia del reloj (`intentos` solo corre
+  cuando el borrador ya se resolvió, con tope absoluto de 5 min), que es una mejora legítima
+  por sí misma.
+- **OJO — producción sigue en @126, que SÍ lleva la traza.** El código limpio está en el
+  repo y en PRUEBAS, pero la URL de los asesores no se movió porque a partir de aquí los
+  cambios van a pruebas (instrucción del creador). Si algún asesor cae en el caso de fallo,
+  verá el texto técnico entre corchetes. **Queda pendiente un último despliegue de limpieza
+  a producción cuando el creador lo autorice.**
+- **Sigue sin conocerse la causa** del caso con-borrador y **sin probarse la rama «Continuar
+  con el borrador»**. Si el síntoma reaparece, la instrumentación es el camino —no más
+  conjeturas— y esta vez sobre PRUEBAS.
+
+**A partir del 13/09/2026 los cambios van al entorno de PRUEBAS** (instrucción explícita del
+creador). `Carpeta del proyecto\.clasp.json` ya apunta ahí, así que el hook y `clasp push`
+publican en pruebas sin hacer nada más; producción solo se toca si él lo pide.
 
 **Qué queda (histórico, previo a la actualización).** (1) La pantalla corregida está en los
 DOS editores… (2) La extensión v2.4 hay que recargarla a mano en `chrome://extensions`. (3)

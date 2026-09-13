@@ -1641,8 +1641,6 @@
 
             let intentos = 0;
             let ticks = 0;
-            let vecesEncontrado = 0;   // diagnóstico: ¿el elemento llegó a existir alguna vez?
-            let razonFallo = '';       // diagnóstico: si llegó pero no sirvió, por qué
             let temporizador = null;
             let terminado = false;
             const esperada = !!(window.AppUrl && AppUrl.param('origen') === 'extension');
@@ -1693,11 +1691,9 @@
                     let elemento = null;
                     try { elemento = docs[i].getElementById(ID_ELEMENTO); } catch (e) { elemento = null; }
                     if (!elemento) continue;
-                    vecesEncontrado++;
                     if (!encontrado) {
                         encontrado = true;
-                        try { bolsa = JSON.parse(elemento.textContent); }
-                        catch (e) { bolsa = null; razonFallo = 'el JSON no se pudo leer'; }
+                        try { bolsa = JSON.parse(elemento.textContent); } catch (e) { bolsa = null; }
                     }
                     // Se retira de TODOS los marcos donde esté: una copia olvidada en el
                     // marco padre reaparecería en la siguiente cotización de esta pestaña.
@@ -1730,29 +1726,12 @@
             /** Solo habla si de verdad se esperaba una bolsa (se abrió desde la extensión). */
             function sinBolsa() {
                 if (!esperada) return;
-                /* ── TRAZA TEMPORAL (13/09/2026) ────────────────────────────────────────
-                   El caso «el asesor ya tenía un borrador» acaba SIEMPRE aquí, y los
-                   marcos internos de Apps Script no los alcanza ninguna herramienta de
-                   inspección. Esta línea distingue en UNA sola corrida las tres ramas que
-                   hoy se confunden: nunca apareció el elemento (visto=0), apareció pero no
-                   servía (razon=…), o se agotó el reloj (fin=true con visto=0).
-                   QUITAR en cuanto el caso quede cerrado: no es texto para el asesor. */
-                let traza = '';
-                try {
-                    traza = ' [diag: visto=' + vecesEncontrado + ' docs=' + documentosCandidatos().length +
-                            ' ticks=' + ticks + ' intentos=' + intentos + ' fin=' + terminado +
-                            (razonFallo ? ' razon=' + razonFallo : '') + ']';
-                } catch (e) { traza = ' [diag: no disponible]'; }
-                showGeneralMessage('No recibimos los artículos de tu bolsa. Al pulsar «Cotizar» también quedaron copiados: pégalos en la ventana que se abre.' + traza, true, false);
+                showGeneralMessage('No recibimos los artículos de tu bolsa. Al pulsar «Cotizar» también quedaron copiados: pégalos en la ventana que se abre.', true, false);
                 try { openImportModal(); } catch (e) {}
             }
 
             function recibir(bolsa) {
-                if (!bolsa || !Array.isArray(bolsa.products) || bolsa.products.length === 0) {
-                    if (!razonFallo) razonFallo = !bolsa ? 'llegó vacía' : 'sin artículos dentro';
-                    sinBolsa();
-                    return;
-                }
+                if (!bolsa || !Array.isArray(bolsa.products) || bolsa.products.length === 0) { sinBolsa(); return; }
 
                 const resumen = importarProductos(bolsa);
                 // Lo importado cuenta como trabajo: si el asesor se va ahora, el
