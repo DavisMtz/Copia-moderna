@@ -1104,7 +1104,10 @@
             // La cotización ya sabe con qué formato se guardó, así que la vista correcta se
             // pinta de inmediato. Esperar a getEnabledQuoteFormats() dejaba la pantalla en la
             // vista equivocada mientras el servidor respondía.
-            selectedFormatId = data.format || 'actual';
+            // Cae al predeterminado del catálogo (DEFAULT_FORMAT_ID en Formatos.gs, hoy
+            // 'ccl_liverpool') si por algo llegara sin formato — el servidor ya lo rellena
+            // siempre, esto es solo la red de seguridad.
+            selectedFormatId = data.format || 'ccl_liverpool';
             applyPreviewFormat(selectedFormatId);
 
             // El selector se llena aparte: si tarda, ya no bloquea el dibujado.

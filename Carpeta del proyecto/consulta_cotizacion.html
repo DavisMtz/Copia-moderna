@@ -525,7 +525,10 @@
             const estandar = document.getElementById('quote-view-content');
             const ccl = document.getElementById('ccl-preview-content');
             const sheetsButton = document.getElementById('open-sheets-button');
-            const esCcl = (data.format || 'actual') === 'ccl_liverpool';
+            // El '' cae al predeterminado del catálogo (DEFAULT_FORMAT_ID en Formatos.gs,
+            // hoy 'ccl_liverpool'); en la práctica el servidor ya rellena data.format
+            // siempre, esto es solo la red de seguridad si algún día no lo hiciera.
+            const esCcl = (data.format || 'ccl_liverpool') === 'ccl_liverpool';
 
             // Tolerancia a despliegues parciales: si app_ccl aún no está subido, la
             // pantalla sigue funcionando con el formato estándar.

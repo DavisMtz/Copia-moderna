@@ -90,7 +90,11 @@ const QUOTE_FORMATS = [
   }
 ];
 
-const DEFAULT_FORMAT_ID = "actual";
+// CCL Liverpool es el predeterminado en todo el Portal (decisión del creador, 13/09/2026).
+// Sigue siendo un valor entre otros: si algún día se deshabilita o deja de estar disponible
+// (checkFormatAvailability_), getEnabledQuoteFormats() cae solo al primero que sí lo esté —
+// ver esa función más abajo — así que este cambio nunca deja al asesor sin poder cotizar.
+const DEFAULT_FORMAT_ID = "ccl_liverpool";
 const FORMATS_PROP_KEY = "formatos_habilitados";
 
 // =================================================================================================
