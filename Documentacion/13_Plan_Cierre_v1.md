@@ -1115,10 +1115,31 @@ común); cuando trae un borrador a medias, abre sola la ventana de importación 
 **ya pegados** y a un solo clic. Antes (v122/123) el caso de fallo era una tabla vacía sin
 explicación.
 
-**Si algún día se quiere el 100% automático también con-borrador:** hay que instrumentar
-(logging visible EN PANTALLA de qué capturó cada marco y cuándo) y probarlo en PRUEBAS
-—nunca iterando en producción—, porque el problema vive en el timing de los marcos internos
-de Apps Script que no se pueden observar desde fuera.
+**CORRECCIÓN de la hipótesis (mismo día, tras revisión).** La explicación de arriba —«el
+modal retrasa la búsqueda y por eso se pierde la bolsa»— **es falsa** y no debe repetirse:
+desde v125 la búsqueda arranca en t≈0 *independientemente del modal*, así que en el caso
+con-borrador el elemento **no apareció en 20 s de sondeo desde el arranque**, cosa que un
+retraso de UI no puede causar (el modal es de la página; no toca el puente). Además se leyó
+la implementación de `Borrador`: `alResolver` (= `BolsaExtension.pedir`) **se llama en las
+tres ramas** (restaurar, descartar y sin-borrador) y la rama probada (`descartar`) no toca el
+DOM ni repuebla el formulario. O sea: la causa NO está en el borrador. Sigue sin conocerse.
+
+**v126 (desplegado a producción, autorizado por el creador) — build de DIAGNÓSTICO.** Lleva
+dos cosas:
+1. **Traza temporal en pantalla.** Cuando falla con `?origen=extension`, el mensaje de error
+   añade `[diag: visto=N docs=N ticks=N intentos=N fin=bool razon=…]`. Con UNA sola corrida
+   distingue las tres ramas que hoy se confunden: **nunca apareció** el elemento (`visto=0`),
+   **apareció pero no servía** (`razon=…`), o **se agotó el reloj**. **QUITAR en cuanto el
+   caso quede cerrado**: no es texto para el asesor.
+2. El reloj de 20 s ya no corre mientras el modal del borrador está abierto (correcto en sí
+   —una pausa humana no debe gastar el presupuesto— pero **NO es el arreglo** del caso
+   con-borrador; ver la corrección de arriba). Tope absoluto de 5 min por si nadie responde.
+
+**Estado de la corrida de diagnóstico: ARMADA, SIN LEER.** La pantalla quedó abierta con el
+modal del borrador y **ninguna herramienta pudo activarlo**: dos clics, Enter y Space sobre
+«Empezar de cero» no registraron (el Tab sí movió el foco). Se paró de insistir. Falta que el
+creador pulse «Empezar de cero» y lea el `[diag: …]`. **También sigue sin probarse la rama
+«Continuar con el borrador»**, que es la que quizá usan más los asesores.
 
 **Qué queda (histórico, previo a la actualización).** (1) La pantalla corregida está en los
 DOS editores… (2) La extensión v2.4 hay que recargarla a mano en `chrome://extensions`. (3)
