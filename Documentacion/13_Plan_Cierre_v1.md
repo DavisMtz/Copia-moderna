@@ -1039,6 +1039,85 @@ y qué se dejó fuera a propósito**. Mismo formato que el registro del document
 
 <!-- Las entradas nuevas van arriba, con la más reciente primero. -->
 
+### 2026-09-13 — Rediseño de «Cotización»: tercera ronda de propuestas (G, H, I) — FUERA de producción y fuera del repo
+
+**Qué se cambió.** Nada del Portal. Tres maquetas monolíticas nuevas en
+`Desktop\Propuestas Cotizacion` (carpeta sin auto-push, verificado): `propuesta-G-pliego.html`,
+`propuesta-H-taller.html`, `propuesta-I-aterrizaje.html`. Nacen porque el creador
+rechazó las seis anteriores (A–F) por «básicas». El diagnóstico —confirmado al
+releerlas— es que en las seis el botón «Importar desde la Bolsa» hacía `alert()`: la
+interacción que él definió como **lo principal** no existía en ninguna, y eso es lo que
+las delataba como wireframes, no la piel.
+
+- **Las tres importan JSON REAL de la extensión.** Se copió el motor del Portal —con una
+  omisión declarada más abajo—: `interpretProductDiscount` (`cotizacion.html:2070`, con la
+  regla de que `soldBy` manda sobre los campos precalculados), `calculateRow` (`611-680`,
+  incluido el pago único que pisa el resultado en la 666) y `formatCurrency` (`528`). Traen además una **bolsa de
+  ejemplo** de 10 artículos para abrirlas sin la extensión a la mano.
+- **Recalculan en vivo** (cantidad, precio, % y pago único) y **el total cuenta** hasta su
+  cifra con el vocabulario real de `AppMotion` (`staggerRows`, `countUp`, `pop`, mismas
+  duraciones y curvas), siempre con la red de seguridad: sin GSAP o con «menos
+  movimiento», todo queda visible.
+- **G · Pliego**: la pantalla ES el formato CCL a tamaño real sobre un escritorio oscuro;
+  se escribe encima del documento. Los campos que el CCL no muestra viven en un cajón
+  por renglón (`grid-template-rows: 0fr → 1fr`, la técnica de `app_shell`).
+- **H · Taller**: las 14 columnas reales con cabecera de dos pisos
+  (IDENTIFICACIÓN · PRECIO · DESCUENTOS · RESULTADO) y el **documento CCL en vivo a
+  escala** en el riel derecho: se acabó el viaje a «Vista previa».
+- **I · Aterrizaje**: el momento de importar como pieza central. Acepta `Ctrl+V` en
+  cualquier punto de la pantalla; la pista se recoge, la tira de fotos se llena y los
+  carriles entran en cascada. Cada artículo es un carril con foto y sus 14 datos
+  etiquetados, no una fila de hoja de cálculo.
+- El marcado del CCL es **réplica literal de `app_ccl.html`** en las tres (en I va oculto,
+  solo para imprimir): lo que sale por la impresora es el documento, no la pantalla.
+
+**Qué se comprobó.** `js=ok` en los tres (compilación de los `<script>` con `vm.Script`);
+`<div>` cuadrados (39/39, 40/40, 54/54); 0 usos de `--ink-faint` (el contador marca 1 en G:
+es la línea 23, un comentario, no un valor); 0 animaciones de `max-height`, 0
+`placehold.co`, 0 `alert()`. Render real con Chrome headless cargando la
+bolsa de ejemplo: **las tres dan el mismo resultado** —Subtotal $11,249.22 · IVA $1,799.87
+· **Total $13,049.09**— y el artículo de marketplace (Maleta Samsonite, `soldBy` distinto
+de Liverpool) cae correctamente en Descuento Adicional 30.01% en las tres, que es la regla
+que más se rompe al reimplementar. En H, la columna *Total* se estaba cortando: se
+corrigió y se verificó con sonda, no con la foto (`tabla=1236 caja=1236 desborda=false`,
+`totalVisible=true`).
+
+Defectos propios encontrados y corregidos en el camino: un `::placeholder` en `#98A4B3`
+(2.6:1, `--ink-faint` con otro nombre); un pie de documento inventado a 9.5px; una función
+`foto()` muerta con el `onerror` mal formado en I; y las fotos sin respaldo cuando la URL
+falla (ahora caen a la bolsa rosa, nunca a un icono roto).
+
+Tres falsas alarmas identificadas como tales, sin «arreglar» nada: el mojibake
+(`COTIZACIÃ³N`) era mi script de captura leyendo como ANSI —los archivos entregables dan
+0 ocurrencias de `Ã`—; la caja blanca de I era la transición fotografiada a media carrera;
+y el `#222222 sobre #1e2733` que marcó el detector en G es texto dentro de `.hoja`, que
+declara fondo blanco propio.
+
+**Qué se dejó fuera a propósito.**
+
+- **No se tocó ni producción ni pruebas ni el repo.** Son propuestas para elegir; hasta
+  que el creador escoja una, `cotizacion.html` sigue como está.
+- **Del motor falta un tramo, a propósito: `calculateRow` 628-647.** En el Portal, cuando
+  el asesor teclea un *costo pago único*, la fila **recalcula hacia atrás el porcentaje** y
+  lo escribe en Desc. público o en % adicional según corresponda. En las maquetas
+  `calcular()` es una función pura sin `eventSource`: el pago único solo pisa el total
+  (línea 666). Consecuencia visible: en G, la columna «Descuento» del CCL no se mueve al
+  escribir un pago único, y ahí divergiría del PDF real, porque `computeCclRow`
+  (`app_ccl.html:198`) **sí** traduce el pago único a su descuento equivalente. No estorba
+  para juzgar el diseño —es un campo manual que rara vez se toca tras importar—, pero la
+  que se lleve a pruebas tiene que traer ese tramo.
+- **La interacción NO está verificada por mí**, solo el render y la lógica. Escribir en
+  los campos, abrir cajones y pegar con `Ctrl+V` los tiene que confirmar el creador:
+  es la disciplina que ya se fijó para las pantallas de Apps Script.
+- Excepciones del detector registradas por archivo (`low-contrast`, `tiny-text`,
+  `undersized-ui-text`) con su motivo: los 10–11px de la tabla y el rosa sobre
+  `#f1f1f1`/`#fce4f3` de la caja de totales vienen de la plantilla de Sheets replicada en
+  `app_ccl.html`, marcada **FORMATO INTOCABLE**; subirlos rompería la coincidencia
+  pantalla↔PDF. Es un ignore amplio por archivo, así que si alguna de estas maquetas pasa
+  a ser código de verdad, hay que estrecharlo.
+- Las seis propuestas anteriores (A–F) se conservan en la misma carpeta: el creador dijo
+  que le gustaban la 2 y la 3, y esa preferencia sigue siendo información útil.
+
 ### 2026-09-13 — Incidente en producción (v123): la bolsa de la extensión no llegaba a Cotización
 
 **Qué pasó.** Tras promover la v123, el creador reportó que al pulsar «Cotizar» en la bolsa de
