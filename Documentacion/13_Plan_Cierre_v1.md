@@ -1087,6 +1087,20 @@ Defectos propios encontrados y corregidos en el camino: un `::placeholder` en `#
 `foto()` muerta con el `onerror` mal formado en I; y las fotos sin respaldo cuando la URL
 falla (ahora caen a la bolsa rosa, nunca a un icono roto).
 
+Segunda tanda de correcciones, ya con las capturas delante: **la bolsa parecía un
+candado**. Al reescribir `svgBolsa()` puse el `b-brillo` como un rect opaco centrado
+(`x=9`) en lugar del destello original del borde (`x=4`, `opacity=0`, que la app anima):
+con treinta iconos en pantalla —y siendo el héroe de la pista en I— leía como ojo de
+cerradura. Se quitó el rect de los tres `svgBolsa()` y de los dos SVG en línea, y se
+borraron las reglas CSS que quedaron huérfanas. Además: en H, `@media print` reseteaba el
+`transform` pero no la altura en línea que escribe `ajustarEscala()`, así que el documento
+a tamaño real salía metido en una caja de 430px (`height:auto !important`); el `<h3>` del
+modal colgaba del `<h1>` del CCL sin `<h2>` intermedio en los tres; la barra flotante de
+totales de I llevaba borde de 1px **y** sombra de 44px a la vez (se quedó con la
+elevación); y el documento a escala de H iba a ras de su `border-top`. Revalidado tras
+todo ello: `js=ok`, `<div>` cuadrados y **0 hallazgos** del detector sobre los cuatro
+archivos.
+
 Tres falsas alarmas identificadas como tales, sin «arreglar» nada: el mojibake
 (`COTIZACIÃ³N`) era mi script de captura leyendo como ANSI —los archivos entregables dan
 0 ocurrencias de `Ã`—; la caja blanca de I era la transición fotografiada a media carrera;
@@ -1109,12 +1123,30 @@ declara fondo blanco propio.
 - **La interacción NO está verificada por mí**, solo el render y la lógica. Escribir en
   los campos, abrir cajones y pegar con `Ctrl+V` los tiene que confirmar el creador:
   es la disciplina que ya se fijó para las pantallas de Apps Script.
-- Excepciones del detector registradas por archivo (`low-contrast`, `tiny-text`,
-  `undersized-ui-text`) con su motivo: los 10–11px de la tabla y el rosa sobre
-  `#f1f1f1`/`#fce4f3` de la caja de totales vienen de la plantilla de Sheets replicada en
-  `app_ccl.html`, marcada **FORMATO INTOCABLE**; subirlos rompería la coincidencia
-  pantalla↔PDF. Es un ignore amplio por archivo, así que si alguna de estas maquetas pasa
-  a ser código de verdad, hay que estrecharlo.
+- **Excepciones del detector, registradas por archivo y con su evidencia.** Son ignores
+  amplios (`"*" --file`), así que **la maqueta que pase a ser código de verdad tiene que
+  estrecharlos**. Tres grupos:
+  1. `low-contrast`, `tiny-text`, `undersized-ui-text`: los 10–11px de la tabla y el rosa
+     sobre `#f1f1f1`/`#fce4f3` de la caja de totales vienen de la plantilla de Sheets
+     replicada en `app_ccl.html`, marcada **FORMATO INTOCABLE**; subirlos rompería la
+     coincidencia pantalla↔PDF. (En G se cuela además un `#222222 sobre #1e2733` que es
+     falso positivo: ese texto va dentro de `.hoja`, que declara fondo blanco propio.)
+  2. `overused-font`: Roboto no es la fuente primaria, es el **cuarto** recurso de la pila
+     del sistema. Se diseñó a propósito para el *fallback* porque esta máquina tiene
+     bloqueados los CDN de fuentes.
+  3. `tight-leading`, `wide-tracking`, `all-caps-body`: comprobados uno a uno. Se listaron
+     TODAS las declaraciones `line-height` de los tres archivos (1.5, 1.65, 1.6, 1.55,
+     1.5, 1.45, 1.4, 1.25 y tres de `1`) y ninguna se acerca al `0.15x` que reporta el
+     detector: es artefacto suyo, y los tres `1` son insignias y botones de icono, no
+     prosa. El `0.09em` aparece **una** vez, en `.panel-tit` de H («DETALLE DE
+     PRODUCTOS»), que es justo lo que la propia regla exime: etiqueta corta en mayúsculas.
+     Las mayúsculas suman 31 caracteres en total, todos en rótulos de sección y de
+     totales.
+- En `propuesta-D-cabina.html` (ronda anterior, ya superada) se volvieron a registrar
+  `cramped-padding` y `gpt-thin-border-wide-shadow` con la evidencia que ya se había
+  levantado: el primero es artefacto de la regla `@media print { padding: 0 }`
+  —neutralizándola sola, los hallazgos bajan a cero— y el segundo son `--line` y `--sh-md`
+  de `app_theme`.
 - Las seis propuestas anteriores (A–F) se conservan en la misma carpeta: el creador dijo
   que le gustaban la 2 y la 3, y esa preferencia sigue siendo información útil.
 
