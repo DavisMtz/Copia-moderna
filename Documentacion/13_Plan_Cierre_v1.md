@@ -1195,18 +1195,23 @@ un marco dentro del panel sería tarjeta-dentro-de-tarjeta (el hallazgo que ya a
 lo mismo que hace su inicio). Para las del equipo existiría `getSupervisionQuotes`; no se
 construyó porque no se pidió.
 
-**Estado: publicado SOLO en pruebas y VISTO funcionando a medias.** En la `/dev`, con sesión
+**Estado: publicado en pruebas y VERIFICADO de punta a punta.** En la `/dev`, con sesión
 real, el panel **renderiza correcto**: columna derecha alineada arriba junto a los pasos 1 y 2,
 lista con datos reales (folio, cliente, fecha, importe) y las insignias de estatus pintando
 —o sea que el include `app_estatus` entró bien—, con scroll y el botón «Ver todas».
 
-**Lo que NO se pudo verificar: el clic en una fila.** Tres intentos, ninguno llegó al botón.
-No es el código: `folioInput.value = folio` es síncrono y a 1 s de la pulsación la caja del
-folio seguía vacía, así que el manejador nunca corrió. Es la herramienta de navegador contra
-el marco interno de Apps Script — el mismo día se ignoraron cuatro activaciones seguidas
-(dos clics, Enter y Space) en el modal del borrador de `cotizacion.html`, mientras que los
-clics sobre páginas normales (Liverpool) sí registran. **Queda pendiente que el creador pulse
-una fila y confirme que carga el folio en el paso 1.**
+**El clic en una fila: CONFIRMADO por el creador** («Funciona bien», 13/09/2026). Carga el
+folio en el paso 1 y de ahí sigue el camino de siempre.
+
+**Pero no se pudo verificar por automatización, y eso conviene recordarlo:** tres hover+click
+sobre las filas no llegaron al botón. No era el código —`folioInput.value = folio` es síncrono
+y a 1 s de la pulsación la caja seguía vacía, así que el manejador nunca corrió—: es la
+herramienta de navegador contra el marco interno de Apps Script. El mismo día se ignoraron
+cuatro activaciones seguidas (dos clics, Enter y Space) en el modal del borrador de
+`cotizacion.html`, mientras que los clics sobre páginas normales (Liverpool) sí registraban.
+**Conclusión operativa: en webapps de Apps Script, el renderizado se verifica solo (captura) y
+la lógica también (revisión + `node` sobre los `<script>`), pero la INTERACCIÓN hay que pedirla
+al creador** (ver [[chrome-extension-click-necesita-hover]]).
 
 **Primer falso positivo del que hay que acordarse:** la primera captura mostró la columna
 izquierda EN BLANCO y pareció una regresión de la rejilla. No lo era: la pestaña se había
