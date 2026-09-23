@@ -538,17 +538,6 @@
       icono:'chart', page:'estado', publica:true,
       kw:'historial grafico barras fechas dias reportes incidencias confirmadas caidas tendencia semana mes estadistica' },
 
-    /* «Acerca de» (T10.1). SIN `bloques` —es informativa— y `fuera:['acerca']` por el
-       mismo motivo que «Portal Ventel» lleva `fuera:['portal']`: estando ya dentro,
-       ofrecerse a sí misma es ruido. No lleva `publica`: sin sesión, su mitad principal
-       —«qué puedes hacer TÚ»— no tiene nada que decir, así que el buscador general no la
-       ofrece a un visitante; el del Portal sí, y ese sí tiene puente al login. */
-    { id:'acerca', nombre:'Acerca del Portal', sub:'Qué es, qué puedes hacer tú y quiénes lo hicieron',
-      icono:'info', page:'acerca', fuera:['acerca'],
-      kw:'acerca informacion ayuda que es esto para que sirve quienes creditos autores equipo ' +
-         'extension chrome instalar navegador soporte contacto version manual guia permisos ' +
-         'que puedo hacer funciones sistema portal ventel' },
-
     /* Reportar NO cambia de pantalla: el panel de operación se abre encima de donde
        estés. Es la acción con más prisa del catálogo —se busca con algo ya roto
        delante— y cobrarle una carga completa de Apps Script es el motivo por el que la

@@ -87,14 +87,7 @@ const PAGES = {
   // sesión y EDITOR para quien tenga el bloque 'articulos'; son la misma vista, y por eso
   // hay una sola entrada. Como el resto, servir el cascarón no filtra nada: quién puede
   // escribir lo decide Articulos.gs en cada llamada.
-  'articulo':            { file: 'articulo',            title: 'Artículos - Sistema Ventel' },
-
-  // «Acerca de»: qué es el Portal, qué puede hacer QUIEN LO ESTÁ VIENDO, la extensión y
-  // quiénes lo hicieron. Es informativa y no tiene bloque propio a propósito: lo que
-  // enseña de más o de menos lo decide la sesión del navegador, no un permiso nuevo que
-  // haya que repartir. Exige sesión —la pide la propia pantalla con requireSession— porque
-  // su mitad principal es «qué puedes hacer TÚ», y sin saber quién eres no dice nada.
-  'acerca':              { file: 'acerca',              title: 'Acerca del Portal - Sistema Ventel' }
+  'articulo':            { file: 'articulo',            title: 'Artículos - Sistema Ventel' }
 };
 
 // Páginas públicas del Portal Ventel (sin sesión). El Portal es la landing por

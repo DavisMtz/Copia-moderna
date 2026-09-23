@@ -1617,15 +1617,6 @@ table.ds-matrix{width:100%;border-collapse:separate;border-spacing:0;min-width:5
   <a class="side-link ext" id="promoNavLink" href="<?= APP_URL ?>?page=promociones" target="_top" onclick="handlePromoNav(event,this)"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3l2.3 6.2L21 11l-6 2 6 2-6.7 1.8L12 21l-2.3-4.2L3 15l6-2-6-2 6.7-1.8Z"/></svg> Monitor Promos <span class="ext-arrow"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M7 17 17 7M8 7h9v9"/></svg></span></a>
 
   <div class="side-foot">
-    <!-- T10.1 · «Acerca de». Es la misma entrada que el pie de la barra de la app
-         (app_shell), en el mismo sitio, para que el Portal y las pantallas con shell
-         no se contradigan. Se ofrece TAMBIÉN sin sesión, como el resto de los enlaces
-         de este menú: quien la pulse sin haber entrado pasa por el login y aterriza
-         aquí mismo (?next=acerca), que es el puente que ya usa todo el Portal. -->
-    <a class="side-foot-link" id="acercaNavLink" href="<?= APP_URL ?>?page=acerca" target="_top">
-      <svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 11v5.5"/><path d="M12 7.6h.01"/></svg>
-      <span>Acerca del Portal</span>
-    </a>
 
     <!-- El recorrido guiado sale solo la primera vez; este botón es la puerta de
          vuelta para quien lo saltó o quiere repasarlo. Nace oculto y AppOnboarding
