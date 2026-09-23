@@ -1039,7 +1039,7 @@ y qué se dejó fuera a propósito**. Mismo formato que el registro del document
 
 <!-- Las entradas nuevas van arriba, con la más reciente primero. -->
 
-### 2026-09-23 — Promociones y Marketplace se actualizan solas (`PromosAuto.gs`) — a PRUEBAS, disparador SIN crear
+### 2026-09-23 — Promociones y Marketplace se actualizan solas (`PromosAuto.gs`) — en PRODUCCIÓN (@130), activador SIN crear
 
 **Qué se cambió.** Archivo nuevo `PromosAuto.gs`. Hace lo que hasta hoy era a mano en
 «Contenido del Portal» → Promociones / Marketplace (escoger pestaña → Analizar → Aplicar),
@@ -1062,6 +1062,10 @@ simulación sin escritura) + las otras 7 suites en verde; los `.gs` compilan jun
 **Qué se dejó fuera a propósito.** Correr `promosAutoSimular()` contra las hojas reales (pide
 sesión en el editor; `clasp run` no tiene permiso). Crear el activador: SOLO en producción y con
 la palabra del creador — pruebas escribe en la misma hoja del Portal. Sin botón en la pantalla.
+**Producción:** el mismo día, a petición del creador, subido como @130 (solo cambiaba
+`PromosAuto.gs`; 79/79 archivos idénticos tras `clasp pull`; sin scopes nuevos, sin
+reautorizar). El código queda INERTE hasta que alguien cree el activador en el editor de
+producción; `promosAutoSimular()` sigue sin correrse contra los datos reales.
 
 ### 2026-09-13 — Rediseño de «Cotización»: tercera ronda de propuestas (G, H, I) — FUERA de producción y fuera del repo
 
