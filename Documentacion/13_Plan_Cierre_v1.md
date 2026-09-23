@@ -1039,6 +1039,30 @@ y qué se dejó fuera a propósito**. Mismo formato que el registro del document
 
 <!-- Las entradas nuevas van arriba, con la más reciente primero. -->
 
+### 2026-09-23 — Promociones y Marketplace se actualizan solas (`PromosAuto.gs`) — a PRUEBAS, disparador SIN crear
+
+**Qué se cambió.** Archivo nuevo `PromosAuto.gs`. Hace lo que hasta hoy era a mano en
+«Contenido del Portal» → Promociones / Marketplace (escoger pestaña → Analizar → Aplicar),
+pero con TODAS las pestañas visibles del archivo de comercial a la vez: importa las filas
+vigentes hoy o que arrancan en los próximos 30 días y borra de las hojas Promociones y MKP
+las que terminaron hace más de 30 días. Reusa el intérprete (`promosInterpretar_`) y el plan
+de importación (`pcPlanImport_`) del botón manual; no toca `PC_COLECCIONES` ni el flujo manual.
+Decisiones: identidad dirección + categoría + **vigencia** (si no, la campaña próxima machacaba
+a la vigente de la misma categoría); año corregido en el cruce dic/ene; lo que no tiene fecha
+legible ni se importa ni se borra; las filas sin dirección (Beauty Day) se cuentan y se quedan
+fuera; un campo vacío en comercial no vacía el del Portal. Ventana configurable con la propiedad
+`PROMOS_AUTO_DIAS`. Deja resumen en la bitácora de la Consola y en `PROMOS_AUTO_ULTIMA`.
+**No se añadió ningún scope**: el activador se crea a mano en el editor (Activadores → función
+`promosAutoDisparador`, diario), lo que no obliga a reautorizar la webapp.
+
+**Qué se comprobó.** `pruebas/promos_auto.test.js` (30 comprobaciones: ventana, cruce de año,
+convivencia vigente/próxima, borrado de viejas, respeto de filas sin fecha, idempotencia,
+simulación sin escritura) + las otras 7 suites en verde; los `.gs` compilan juntos.
+
+**Qué se dejó fuera a propósito.** Correr `promosAutoSimular()` contra las hojas reales (pide
+sesión en el editor; `clasp run` no tiene permiso). Crear el activador: SOLO en producción y con
+la palabra del creador — pruebas escribe en la misma hoja del Portal. Sin botón en la pantalla.
+
 ### 2026-09-13 — Rediseño de «Cotización»: tercera ronda de propuestas (G, H, I) — FUERA de producción y fuera del repo
 
 **Qué se cambió.** Nada del Portal. Tres maquetas monolíticas nuevas en
