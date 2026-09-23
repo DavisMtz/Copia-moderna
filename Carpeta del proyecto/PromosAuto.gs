@@ -140,6 +140,36 @@ function promosAutoTextoRango_(r) {
 }
 
 /**
+ * Rango de fechas del NOMBRE de una pestaña, solo si trae días explícitos: «10-17 AGOSTO»,
+ * «GBV Etapa 3 (24 jul-09 agos)», «26 de Julio al 01 Agosto».
+ *
+ * No se usa promosRangoDelNombre_ a propósito: esa se escribió para ORDENAR la lista del
+ * botón manual y, a falta de días, toma la última palabra como mes («Abrigos» → abril,
+ * «Junior» → junio). Para ordenar da igual; para ESCRIBIR una vigencia sería inventarla.
+ * @return {{start:Date,end:Date}|null}
+ */
+function promosAutoRangoPestana_(nombre, hoy) {
+  const s = pcClave_(nombre);
+  const m = s.match(/(\d{1,2})\s*(?:de\s+)?([a-z]{3,10})?\s*(?:-|–|al?)\s*(\d{1,2})\s*(?:de\s+)?([a-z]{3,10})/);
+  if (!m) return null;
+  function mes(t) {
+    if (!t) return -1;
+    for (let i = 0; i < 12; i++) if (PROMOS_MESES[i].indexOf(t.slice(0, 3)) === 0) return i;
+    return -1;
+  }
+  const d1 = parseInt(m[1], 10), d2 = parseInt(m[3], 10);
+  let m1 = mes(m[2]), m2 = mes(m[4]);
+  if (m2 < 0) return null;                 // el segundo tiene que ser un mes de verdad
+  if (m[2] && m1 < 0) return null;         // «10 hot - 17 agosto»: no es un rango
+  if (m1 < 0) m1 = (d1 <= d2) ? m2 : (m2 + 11) % 12;
+  if (d1 < 1 || d1 > 31 || d2 < 1 || d2 > 31) return null;
+  const anio = hoy.getFullYear();
+  const a2 = (m2 < m1) ? anio + 1 : anio;
+  return promosAutoAjustarAnio_({ start: new Date(anio, m1, d1, 0, 0, 0),
+                                  end: new Date(a2, m2, d2, 23, 59, 59) }, hoy);
+}
+
+/**
  * Filtra las filas interpretadas de UNA pestaña. Muta `vigencia` cuando la toma del nombre
  * de la pestaña, para que lo que se guarde sea legible por el monitor.
  *
@@ -151,7 +181,9 @@ function promosAutoFiltrar_(filas, rangoPestana, hoy, dias) {
   const out = { entran: [], fuera: 0, sinFecha: 0, deLaPestana: 0 };
   (filas || []).forEach(function (f) {
     let r = promosAutoRango_(f.vigencia, hoy);
-    if (!r && rangoPestana) {
+    // Solo se rellena una celda VACÍA. Si comercial escribió algo que no se entiende
+    // («Por confirmar»), eso se respeta y la fila se queda fuera: no se le inventa fecha.
+    if (!r && rangoPestana && String(f.vigencia == null ? '' : f.vigencia).trim() === '') {
       f.vigencia = promosAutoTextoRango_(rangoPestana);
       r = rangoPestana;
       out.deLaPestana++;
@@ -196,11 +228,7 @@ function promosAutoRecolectar_(hoy, dias) {
       const r = promosInterpretar_(datos, colProm, colMkp);
       if (!r.tablas.length) { reporte.nota = 'sin tabla de promociones'; return; }
 
-      const rangoPestana = promosAutoAjustarAnio_(
-        (function () {
-          const x = promosRangoDelNombre_(nombre, hoy.getFullYear());
-          return x ? { start: x.inicio, end: x.fin } : null;
-        })(), hoy);
+      const rangoPestana = promosAutoRangoPestana_(nombre, hoy);
 
       ['promociones', 'mkp'].forEach(function (tipo) {
         const f = promosAutoFiltrar_(r[tipo], rangoPestana, hoy, dias);
@@ -370,6 +398,14 @@ function promosAutoCorrer_(opts) {
       return s.nuevas || s.actualizadas || s.borradas;
     });
     if (tocoAlgo) pcInvalidarCache_();
+    // Cero filas en TODO el archivo casi nunca es «no hay promociones»: suele ser que
+    // comercial cambió el formato y el intérprete dejó de entenderlo. La limpieza sigue
+    // corriendo, así que el Portal se iría vaciando en silencio; que al menos quede dicho.
+    if (!rec.filas.promociones.length && !rec.filas.mkp.length) {
+      pcApuntar_(PROMOS_AUTO_FIRMA, 'Portal: actualización automática — AVISO', 'Promociones y Marketplace',
+                 'No se encontró ninguna promoción vigente o próxima en ' + rec.pestanas.length +
+                 ' pestañas de comercial. Revisa si cambió el formato de la hoja (promosRevisarHojas).');
+    }
     pcApuntar_(PROMOS_AUTO_FIRMA, 'Portal: actualización automática', 'Promociones y Marketplace',
       ['promociones', 'mkp'].map(function (t) {
         const s = secciones[t];

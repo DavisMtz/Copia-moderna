@@ -1055,7 +1055,7 @@ fuera; un campo vacío en comercial no vacía el del Portal. Ventana configurabl
 **No se añadió ningún scope**: el activador se crea a mano en el editor (Activadores → función
 `promosAutoDisparador`, diario), lo que no obliga a reautorizar la webapp.
 
-**Qué se comprobó.** `pruebas/promos_auto.test.js` (30 comprobaciones: ventana, cruce de año,
+**Qué se comprobó.** `pruebas/promos_auto.test.js` (37 comprobaciones; la vigencia solo se toma del nombre de la pestaña si la celda está VACÍA y el nombre trae días explícitos —«Abrigos» ya no se lee como abril—: ventana, cruce de año,
 convivencia vigente/próxima, borrado de viejas, respeto de filas sin fecha, idempotencia,
 simulación sin escritura) + las otras 7 suites en verde; los `.gs` compilan juntos.
 

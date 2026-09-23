@@ -98,9 +98,21 @@ console.log('\n1 · Ventana de fechas y cambio de año');
   ok('ese texto lo vuelve a leer el parser del monitor', ida && ida.start.getMonth() === 6 && ida.end.getDate() === 9);
 
   const filas = [{ direccion: 'Mujer', categoria: 'Bolsas', vigencia: '' },
-                 { direccion: 'Hombre', categoria: 'Tenis', vigencia: 'sin fecha' }];
+                 { direccion: 'Hombre', categoria: 'Tenis', vigencia: 'Por confirmar' }];
   const f = C.promosAutoFiltrar_(filas, { start: new Date(2026, 8, 20), end: new Date(2026, 8, 30, 23, 59, 59) }, hoy, 30);
-  ok('sin vigencia en la fila, se toma la de la pestaña', f.entran.length === 2 && filas[0].vigencia === '20 al 30 de septiembre', filas);
+  ok('vigencia VACÍA en la fila → se toma la de la pestaña', f.entran.length === 1 && filas[0].vigencia === '20 al 30 de septiembre', filas);
+  ok('vigencia escrita pero ilegible → se respeta y no entra', filas[1].vigencia === 'Por confirmar' && f.sinFecha === 1, f);
+
+  const rp = (n) => C.promosAutoRangoPestana_(n, hoy);
+  const a = rp('HOT FASHION 10-17 AGOSTO');
+  ok('pestaña «HOT FASHION 10-17 AGOSTO»', a && a.start.getMonth() === 7 && a.start.getDate() === 10 && a.end.getDate() === 17, a);
+  const b = rp('GBV Etapa 3 (24 jul-09 agos)');
+  ok('pestaña «GBV Etapa 3 (24 jul-09 agos)»', b && b.start.getMonth() === 6 && b.end.getMonth() === 7 && b.end.getDate() === 9, b);
+  const c = rp('26 de Julio al 01 Agosto');
+  ok('pestaña «26 de Julio al 01 Agosto»', c && c.start.getDate() === 26 && c.end.getMonth() === 7, c);
+  ok('«Abrigos» NO se lee como abril', rp('Abrigos') === null);
+  ok('«Beauty Day jul» (sin días) no da rango para escribir', rp('Beauty Day jul') === null);
+  ok('«Junior» NO se lee como junio', rp('Moda Junior') === null);
   const g = C.promosAutoFiltrar_([{ direccion: 'x', categoria: 'y', vigencia: '' }], null, hoy, 30);
   ok('sin vigencia y sin pestaña fechable, no entra', g.entran.length === 0 && g.sinFecha === 1);
 }
