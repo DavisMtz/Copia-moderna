@@ -47,6 +47,7 @@
    - El navegador las llama por `AppRun` → `secEjecutar` (Sesiones.gs). Toda función pública nueva queda accesible por ese canal.
    - Si es de editor, de diagnóstico o solo la usa el servidor: `secSoloInterno_('nombre')` como **primera línea**, y el nombre en `SES_NO_EXPUESTAS`. `pruebas/sesiones.test.js` falla si falta.
    - Nunca devolver un `Date` al navegador: la respuesta llega `null`, sin error.
+   - **Desde la F3b, un `Date` en UNA función de `EN_LOTE` (app_core) tumba el lote entero**: la respuesta completa llega `null` y el cliente rechaza todas las llamadas de ese viaje. Antes de añadir una función a `EN_LOTE`, comprobar que nunca devuelve un `Date`.
 4. **HTML:**
    - Nunca meter parciales dentro de una plantilla sin quitar antes sus comentarios: los `<? ?>` dentro de comentarios se EJECUTAN.
    - Nunca `//` ni `/*` dentro de plantillas de texto `` `…` ``: el quitacomentarios de Google las rompe.

@@ -285,6 +285,12 @@ ok('AppRun manda todo por secEjecutar con llave, actividad y medir = 1', /runner
 ok('…y los lotes por secEjecutarLote, también con llave y actividad (F3b)',
   /runner\.secEjecutarLote\(AppSession\.llave \|\| '',\s*lote\.map\([\s\S]{0,120}?\), AppSession\.ultimaActividad\(\)\)/.test(core));
 ok('isLoggedIn exige la llave', /isLoggedIn: function \(\) \{ return !!this\.userEmail && !!this\.llave; \}/.test(core));
+// El runner falso de la suite F3 no valida el tope: si el cliente armara lotes más largos que los
+// que acepta el servidor, este rechazaría lotes ENTEROS y ninguna otra prueba lo vería.
+const loteCliente = Number((core.match(/\bLOTE_MAX = (\d+)/) || [])[1]);
+const loteServidor = Number((ses.match(/var SES_LOTE_MAX = (\d+)/) || [])[1]);
+ok('el cliente nunca arma lotes más largos de los que acepta el servidor (LOTE_MAX ≤ SES_LOTE_MAX)',
+  loteCliente > 0 && loteServidor > 0 && loteCliente <= loteServidor, { loteCliente, loteServidor });
 const code = fs.readFileSync(path.join(RAIZ, 'Code.gs'), 'utf8');
 ok('getQuotesForUser exige sesión con el bloque consultar (V-03)', /function getQuotesForUser[\s\S]{0,700}secIdentidadConBloque_\(correo, 'consultar'\)/.test(code));
 ok('loginUser entrega la llave', /llave: sesionNueva\.llave/.test(code));
