@@ -1039,6 +1039,69 @@ y qué se dejó fuera a propósito**. Mismo formato que el registro del document
 
 <!-- Las entradas nuevas van arriba, con la más reciente primero. -->
 
+### 2026-09-24 — Paqueterías: la tabla pasa a un «Directorio» (nombre, guía de puntos y código de SOMS) — en PRUEBAS
+
+**Por qué:** el creador pidió actualizar el diseño de la sección. Tres respuestas lo ordenaron todo:
+- los asesores llegan con el **nombre** de la paquetería (el cliente o el pedido dicen «Estafeta»), no con el código;
+- las tres de 4PL se rastrean en la herramienta 4PL de Herramientas;
+- la hoja no cambia (solo Nombre | Liga | Soms).
+
+Se le enseñaron tres prototipos navegables con las 17 filas reales (Consola, Pared de etiquetas y Directorio) y eligió el **Directorio**. Es la segunda vez en el día que elige la opción eficiente sobre la expresiva.
+
+La tabla de antes ponía el código de SOMS al final y en pequeño, y daba a cada fila un color al azar. Además, Estafeta salía dos veces (ETF y EFD) y las 4PL decían «ver portal 4PL» sin llevar a ningún sitio.
+
+**Qué se cambió** (commit `c49a3c7`):
+- **Parcial nuevo `app_paqueterias.html`** (estilos y guion; el build lo minifica).
+  - **Dos hojas:** «Rastreo en su página» (13) y «Por la herramienta 4PL» (3), en orden alfabético y en dos columnas. Una consulta de contenedor en `em` pasa a una columna cuando no cabe, también con texto grande.
+  - **Cada fila:** nombre, dominio, guía de puntos, código(s) de SOMS alineados a la derecha y una flecha. La fila entera abre.
+  - **Una paquetería = nombre + enlace:** Estafeta se ve una vez con ETF y EFD. Filtrar por «EFD» la enseña con el código que coincide invertido.
+  - **Estrella y bandera:** no guardan sitio. Salen al acercarse, entre la guía y el código. Reportar es nuevo en esta sección (Presentaciones ya lo tenía).
+  - **Filtro:** cuenta paqueterías, no filas. Si solo queda una, Enter la abre; la pista sale solo con el foco en el filtro.
+  - **Densidad compacta:** responde a Ajustes de vista, con las medidas del resto del Portal.
+  - **Las 4PL** llevan a su herramienta: la consola se abre en «Todas», filtrada y con la fila elegida. «Cómo entrar» se queda CERRADO, porque ahí puede haber contraseñas.
+  - **Entrada:** las guías de puntos se «tiran» de izquierda a derecha. Los nombres y los códigos ya se ven antes. Sin movimiento reducido no corre. Hay red de seguridad para las hojas.
+- **`Index.html`:**
+  - el marcado de la sección, sin encabezado visible como Herramientas (h1 solo para lectores de pantalla);
+  - el esqueleto con la forma de la hoja;
+  - `renderPaq` sale de la página;
+  - `switchSec` → `pqAlEntrar`;
+  - el menú cuenta 16 paqueterías (antes 17 filas);
+  - `elementoDeSeccion` y `revealTarget` conocen `.pq-ent` y `a.pq-link`, así que el buscador llega a la fila y el segundo Enter abre;
+  - en una 4PL, el segundo Enter pulsa su botón (el manejador ya no supone que siempre hay `href`) y `showKbHint` recibe la acción: «para ir a la herramienta 4PL»;
+  - fuera los estilos que solo usaba la tabla (`.paq-dot`, `.soms-tag`, `.pl4-tag`); `.table-card` y `.data-table` siguen porque las usa Formas de Pago;
+  - los datos de ejemplo de la vista previa tienen la forma real.
+- **`linkHref`:** una palabra sin punto ya no es una dirección. «4PL» salía como `https://4PL` en el buscador y en las colecciones.
+
+**Qué se comprobó:**
+- `sintaxis.js` y las 12 baterías de `pruebas/` en verde, en la copia integrada y otra vez en el repo antes del commit.
+- Build del proyecto: el parcial compila de 15 a 10 KB y no deja plantillas con `//`.
+- Detector de impeccable sobre el parcial: sin hallazgos.
+- Con las 17 filas reales, en Chrome headless y sobre el build compilado:
+  - 1440, 1280, 1200 (una columna), 1024 y 390;
+  - Aurora, Slate y Carbón, y texto XL;
+  - paso del cursor y foco de teclado;
+  - filtro «efd» (1 paquetería, Enter abre Estafeta) y filtro sin resultados;
+  - Ctrl K «fedex» + Enter: llega a la fila con el segundo Enter armado;
+  - botón 4PL: Herramientas con la ficha elegida y «Cómo entrar» cerrado;
+  - movimiento: las guías terminan en su sitio; con movimiento reducido no corren.
+- 0 errores de consola.
+
+**Revisión final** (un revisor aparte, sin navegador; primera vuelta *fix*; arreglos en el mismo commit; última vuelta *ship*, que cubre el último arreglo puntuado):
+- **Coincidencias:** el código de SOMS que coincide con el filtro lleva la misma marca rosa que el nombre. Antes era un chip de tinta.
+- **Densidad compacta:** la sección vuelve a responder a Ajustes de vista → Compacta, como la tabla vieja. La fila baja de 53 a 44 px.
+- **Una sola pista de Enter:** la de la sección solo sale con el foco en su filtro. Al llegar desde Ctrl K queda solo el aviso global.
+- **4PL desde el teclado:** Ctrl K + Enter en una paquetería de 4PL arma el segundo Enter, que lleva a la herramienta. El aviso dice «para ir a la herramienta 4PL», no «abrir el enlace».
+- **Una ronda de fotos se repitió:** con el foco emulado, el recorrido de bienvenida tapaba la sección. Se cierra antes de cada toma.
+
+**Qué se dejó fuera a propósito:**
+- **Datos de la hoja** (se corrigen desde la hoja o desde Gestión de contenido, no en el código):
+  - Paquete Express apunta a `paquetexpress.com.mx/vacantes`, que es la bolsa de trabajo;
+  - Red pack y Moova apuntan a la portada de su sitio, no al rastreo;
+  - Cargamos, a un artículo de ayuda;
+  - los nombres van tal como están escritos («Fedex», «Red pack», «Scm Paqy mens»).
+- **Rastrear con el número de guía** (abrir la página del transportista con la guía ya escrita): cada sitio usa su propio formato de dirección y aquí no se pudo comprobar ninguno.
+- **Nada en producción.** Respaldo de la tabla: etiqueta `respaldo-paqueterias-antes-directorio` (= `e2e6cd8`). Los prototipos están en `Desktop\Proyectos\_respaldos\paqueterias_propuestas_20260924`.
+
 ### 2026-09-24 — Herramientas: la sección pasa de 46 tarjetas a una «Consola» (lista agrupada por destino + ficha fija) — en PRUEBAS
 
 **Por qué:** el creador pidió rediseñar las tarjetas tras la portada «Tu turno». Se le enseñaron tres prototipos navegables con las 46 herramientas reales (Teclado, Consola y Catálogo) y eligió la **Consola**. Dato que ordenó el diseño: los sistemas del día a día se abren con Ctrl K. La sección sirve para explorar y entender: qué es cada herramienta, cómo se entra y qué decirle al cliente. Con las tarjetas, 27 de las 46 salían casi vacías y las descripciones largas (Spa, 1 657 caracteres) se cortaban a 3 líneas sin forma de leerlas.
