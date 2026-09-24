@@ -1,0 +1,576 @@
+<style>
+/* ════════════════════════════════════════════════════════════
+   HERRAMIENTAS · CONSOLA (24/09/2026): lista agrupada por destino y ficha fija con
+   el nombre en cartel, como las publicaciones de «Tu turno». El color de familia solo
+   tiñe iconos y etiquetas; el rosa es para la acción y la selección. Bajo 1100 px la
+   ficha sale en una hoja abajo. Respaldo: etiqueta git «respaldo-herramientas-antes-consola».
+════════════════════════════════════════════════════════════ */
+#sec-herramientas,.cs-hoja{--cs-top:72px;--g-ink-brand:var(--brand-deep);--g-linea:color-mix(in srgb,var(--ink) 20%,var(--line))}
+[data-theme="carbon"] #sec-herramientas,[data-theme="carbon"] .cs-hoja{--g-ink-brand:#F46BC6}
+[data-fam="sistemas"]{--fc:#1D4ED8}
+[data-fam="documentos"]{--fc:#0E7A4F}
+[data-fam="cliente"]{--fc:#A8006F}
+[data-fam="equipo"]{--fc:#6D28D9}
+[data-fam="ayuda"]{--fc:#0E7490}
+[data-theme="carbon"] [data-fam="sistemas"]{--fc:#8FB0FF}
+[data-theme="carbon"] [data-fam="documentos"]{--fc:#5CD69A}
+[data-theme="carbon"] [data-fam="cliente"]{--fc:#F46BC6}
+[data-theme="carbon"] [data-fam="equipo"]{--fc:#B99BFF}
+[data-theme="carbon"] [data-fam="ayuda"]{--fc:#5FD0E6}
+
+/* — Encabezado y barra — */
+#sec-herramientas .sec-head{margin-bottom:1.3rem}
+#sec-herramientas .sec-title{font-stretch:78%;font-size:clamp(2.3rem,4.2vw,3.4rem);line-height:.95;letter-spacing:-.012em;margin-bottom:.6rem}
+#sec-herramientas .sec-title em{color:var(--g-ink-brand)}
+#sec-herramientas .sec-sub kbd{font-family:var(--f-mono);font-size:.78em;font-weight:700;border:1px solid currentColor;border-bottom-width:2px;border-radius:6px;padding:.02rem .36rem}
+.cs-sub-estrecho{display:none}
+#sec-herramientas .filter-bar{gap:.8rem 1rem;margin-bottom:1.3rem}
+.cs-chips{display:flex;gap:.4rem;flex-wrap:wrap}
+.cs-chips .g-chip{height:34px;display:inline-flex;align-items:center;gap:.45rem;white-space:nowrap}
+.cs-chips .g-chip b{font-family:var(--f-mono);font-size:.72rem;font-weight:700;color:var(--ink-soft);font-variant-numeric:tabular-nums}
+.cs-chips .g-chip[aria-pressed="true"] b{color:color-mix(in srgb,var(--surface) 70%,transparent)}
+
+/* — Lista — */
+.cs-cuerpo{display:grid;grid-template-columns:minmax(340px,.9fr) minmax(0,1.1fr);gap:1.6rem;align-items:start}
+.cs-cuerpo:has(> #gr-herramientas:empty){display:none}
+.cs-lista{position:relative;min-width:0;background:var(--surface);border:1px solid var(--line);border-radius:22px;padding:.45rem}
+.cs-lista > .empty-card{border:0}
+.cs-sel{position:absolute;left:.45rem;right:.45rem;top:0;height:0;border-radius:14px;background:var(--brand-tint);pointer-events:none;opacity:0;z-index:0}
+.cs-grupo + .cs-grupo{margin-top:.35rem}
+.cs-grupo-hd{position:sticky;top:var(--cs-top);z-index:2;display:flex;align-items:center;gap:.55rem;padding:.8rem .75rem .45rem;background:var(--surface);border-radius:14px 14px 0 0}
+.cs-grupo-hd .ic{width:16px;height:16px;color:var(--fc,var(--g-ink-brand))}
+.cs-grupo-hd h2{font-family:var(--f-display);font-weight:800;font-size:1.02rem;line-height:1.2;letter-spacing:-.005em}
+.cs-grupo-hd b{font-family:var(--f-mono);font-size:.76rem;font-weight:700;color:var(--ink-soft)}
+.cs-fila{position:relative;z-index:1}
+.cs-opc{display:grid;grid-template-columns:36px minmax(0,1fr) auto;align-items:center;gap:.75rem;padding:.5rem 3rem .5rem .6rem;border-radius:14px;cursor:pointer;outline:none;transition:background-color .15s}
+.cs-opc:hover{background:var(--surface-2)}
+.cs-fila.is-sel .cs-opc{background:var(--brand-tint)}
+.cs-fila.cs-llega .cs-opc{background:transparent}
+.cs-opc:focus-visible{box-shadow:inset 0 0 0 2px var(--brand)}
+.cs-ico{width:36px;height:36px;border-radius:10px;display:grid;place-items:center;flex-shrink:0;color:var(--fc,var(--ink-soft));background:color-mix(in srgb,var(--fc,var(--ink-soft)) 11%,var(--surface))}
+.cs-ico .ic{width:18px;height:18px}
+.cs-txt{min-width:0}
+.cs-nom{display:block;font-weight:650;font-size:.94rem;line-height:1.25;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.cs-fila.is-sel .cs-nom{color:var(--g-ink-brand)}
+.cs-meta{display:block;font-size:.76rem;color:var(--ink-soft);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.cs-meta.es-host{font-family:var(--f-mono);font-size:.72rem}
+.cs-marcas{display:flex;color:var(--ink-soft)}
+.cs-marcas .ic{width:14px;height:14px}
+.cs-ir{position:absolute;right:.55rem;top:50%;transform:translateY(-50%);width:32px;height:32px;border-radius:10px;display:grid;place-items:center;color:var(--ink-soft);opacity:0;transition:opacity .15s,background-color .15s,color .15s}
+.cs-fila:hover .cs-ir,.cs-fila.is-sel .cs-ir{opacity:1}
+.cs-ir:hover{background:var(--brand);color:#fff}
+.cs-ir .ic{width:15px;height:15px}
+.cs-nada{padding:1.4rem 1rem;color:var(--ink-soft);font-size:.92rem;line-height:1.5;text-wrap:pretty}
+.cs-nada b{color:var(--ink)}
+.cs-sr{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);clip-path:inset(50%);white-space:nowrap}
+
+/* — Ficha — */
+.cs-ficha{position:sticky;top:calc(var(--cs-top) + 16px);min-width:0;background:var(--surface);border:1px solid var(--line);border-radius:26px;overflow:hidden;max-height:calc(100vh - var(--cs-top) - 32px);display:flex;flex-direction:column}
+.cs-ficha:empty{display:none}
+.cs-cartel{position:relative;overflow:hidden;isolation:isolate;flex-shrink:0;min-height:190px;display:flex;flex-direction:column;justify-content:flex-end;padding:1.15rem 1.3rem;background:var(--brand);color:#fff}
+[data-theme="carbon"] .cs-cartel{background:#B8007C}
+.cs-cartel::before{content:"";position:absolute;inset:-40%;z-index:-1;background:repeating-linear-gradient(-32deg,rgba(255,255,255,.09) 0 22px,transparent 22px 54px);transform:translateX(var(--cs-rayas,0px));transition:transform 1.2s cubic-bezier(.16,1,.3,1)}
+.cs-cartel-t{font-family:var(--f-display);font-weight:900;font-stretch:66%;text-transform:uppercase;line-height:.88;letter-spacing:-.005em;overflow-wrap:break-word}
+.cs-cartel.tam-s .cs-cartel-t{font-size:4rem}
+.cs-cartel.tam-m .cs-cartel-t{font-size:3rem}
+.cs-cartel.tam-l .cs-cartel-t{font-size:2.2rem}
+.cs-cartel-s{font-weight:700;font-size:.9rem;opacity:.92;margin-top:.45rem}
+.cs-ficha-cuerpo{padding:1.2rem 1.4rem 1.4rem;overflow:auto;display:grid;gap:1rem;align-content:start}
+.cs-ficha-meta{display:flex;flex-wrap:wrap;align-items:center;gap:.45rem .7rem}
+.cs-tag{display:inline-flex;align-items:center;gap:.35rem;height:24px;padding:0 .55rem;border-radius:7px;font-size:.72rem;font-weight:800;color:var(--fc,var(--ink-soft));background:color-mix(in srgb,var(--fc,var(--ink-soft)) 11%,var(--surface))}
+.cs-tag .ic{width:13px;height:13px}
+.cs-host{font-family:var(--f-mono);font-size:.76rem;color:var(--ink-soft);overflow-wrap:anywhere}
+.cs-ficha-acc{display:flex;flex-wrap:wrap;align-items:center;gap:.45rem}
+.cs-ficha-mas{margin-left:auto;display:flex;align-items:center;gap:.15rem}
+.cs-ficha-mas .pin-btn,.cs-ficha-mas .btn-report,.cs-ficha-mas .collect-btn{width:40px;height:40px;border-radius:12px;margin:0}
+.cs-ficha-mas .collect-btn{background:transparent;border-color:transparent;color:var(--ink-soft)}
+.cs-abrir{display:inline-flex;align-items:center;gap:.45rem;height:42px;padding:0 1.05rem 0 1.15rem;border-radius:12px;background:var(--brand);color:#fff;font-weight:750;font-size:.9rem;white-space:nowrap;transition:background-color .15s}
+.cs-abrir:hover{background:var(--brand-deep)}
+[data-theme="carbon"] .cs-abrir:hover{background:var(--brand-bright)}
+.cs-abrir .ic{width:16px;height:16px;transition:transform .25s cubic-bezier(.16,1,.3,1)}
+.cs-abrir:hover .ic{transform:translate(2px,-2px)}
+.cs-abrir.is-off{background:var(--surface-2);color:var(--ink-soft);border:1px solid var(--line);cursor:default}
+.cs-abrir.is-off .ic{transform:none}
+.cs-btn{display:inline-flex;align-items:center;gap:.45rem;height:42px;padding:0 .95rem;border-radius:12px;border:1px solid var(--line);background:var(--surface);color:var(--ink);font-weight:650;font-size:.86rem;cursor:pointer;white-space:nowrap;transition:border-color .15s,background-color .15s,color .15s}
+.cs-btn:hover{border-color:var(--g-linea);background:var(--surface-2)}
+.cs-btn .ic{width:16px;height:16px}
+.cs-btn[aria-expanded="true"]{background:var(--ink);border-color:var(--ink);color:var(--surface)}
+/* Acceso: talón punteado como los boletos de la portada. [hidden] le gana a display:grid */
+.cs-acceso{border:1.5px dashed var(--g-linea);border-radius:16px;padding:.85rem 1rem;display:grid;gap:.6rem}
+.cs-acceso[hidden]{display:none}
+.cs-acc-fila{display:grid;grid-template-columns:auto minmax(0,1fr) auto;align-items:center;gap:.7rem}
+.cs-acc-lbl{font-size:.7rem;font-weight:800;letter-spacing:.06em;text-transform:uppercase;color:var(--ink-soft)}
+.cs-acc-txt{font-weight:650;font-size:.92rem;overflow-wrap:anywhere}
+.cs-clave{font-family:var(--f-mono);font-weight:700;font-size:.9rem;letter-spacing:.06em;overflow-wrap:anywhere}
+.cs-acc-bots{display:flex;gap:.35rem}
+.cs-acceso .cs-btn{height:34px;padding:0 .7rem;font-size:.8rem;border-radius:10px}
+.cs-nota{font-size:.84rem;color:var(--warn);background:var(--warn-bg);border-radius:12px;padding:.6rem .8rem;line-height:1.45}
+.cs-desc{display:grid;gap:.65rem;font-size:.95rem;line-height:1.6;max-width:68ch}
+.cs-desc p{text-wrap:pretty}
+.cs-vacia{font-size:.92rem;color:var(--ink-soft);line-height:1.5}
+.cs-ficha-vacia{padding:2rem 1.5rem;color:var(--ink-soft);line-height:1.5}
+
+/* — Hoja inferior (pantallas angostas) — */
+/* Por encima del portapapeles flotante (1250-1400) y por debajo del selector de colecciones (1600) y de los avisos */
+.cs-hoja{position:fixed;inset:0;z-index:1450;display:flex;align-items:flex-end}
+.cs-hoja[hidden]{display:none}
+.cs-hoja-fondo{position:absolute;inset:0;background:rgba(36,28,34,.46)}
+.cs-hoja-panel{position:relative;width:100%;max-height:88vh;overflow:auto;background:var(--surface);color:var(--ink);border-radius:24px 24px 0 0;padding-bottom:calc(1rem + env(safe-area-inset-bottom));box-shadow:0 -24px 50px -20px rgba(0,0,0,.35)}
+.cs-hoja-agarre{position:absolute;top:.55rem;left:50%;transform:translateX(-50%);width:44px;height:5px;border-radius:99px;background:rgba(255,255,255,.6);z-index:2}
+.cs-hoja-cerrar{position:absolute;top:.75rem;right:.75rem;z-index:2;width:40px;height:40px;border:0;border-radius:12px;background:rgba(255,255,255,.2);color:#fff;display:grid;place-items:center;cursor:pointer}
+.cs-hoja-cerrar .ic{width:18px;height:18px}
+.cs-hoja-cerrar:focus-visible{outline:2px solid #fff;outline-offset:2px}
+.cs-hoja .cs-cartel{min-height:150px;padding-top:2.4rem}
+.cs-hoja .cs-cartel.tam-s .cs-cartel-t{font-size:3.2rem}
+.cs-hoja .cs-cartel.tam-m .cs-cartel-t{font-size:2.5rem}
+.cs-hoja .cs-cartel.tam-l .cs-cartel-t{font-size:1.9rem}
+.cs-hoja .cs-ficha-cuerpo{overflow:visible;padding:1.1rem 1.1rem .4rem}
+body.cs-hoja-abierta{overflow:hidden}
+
+/* — Esqueleto con la forma de la consola — */
+.sk-grid.cs-sk{grid-template-columns:minmax(340px,.9fr) minmax(0,1.1fr);gap:1.6rem;align-items:start}
+.cs-sk > .vt-strip{grid-column:1/-1}
+.cs-sk .cs-sk-lista{border-radius:22px;gap:.55rem;padding:1rem}
+.cs-sk .cs-sk-ficha{border-radius:26px;padding:0 0 1.4rem;overflow:hidden}
+.cs-sk .cs-sk-ficha > .sk-line:not(.cs-sk-cartel){margin:0 1.4rem}
+.cs-sk .cs-sk-cartel{height:190px;width:100%;border-radius:0}
+
+@media (max-width:1100px){
+  .cs-cuerpo,.sk-grid.cs-sk{grid-template-columns:minmax(0,1fr)}
+  .cs-ficha,.cs-sk .cs-sk-ficha{display:none}
+  .cs-sub-ancho{display:none}
+  .cs-sub-estrecho{display:inline}
+}
+@media (hover:none){ .cs-ir{opacity:1} }
+@media (max-width:600px){
+  .cs-opc{padding-right:2.8rem}
+  .cs-chips .g-chip{height:32px}
+}
+@media (prefers-reduced-motion:reduce){ .cs-cartel::before,.cs-abrir .ic,.cs-opc,.cs-ir{transition:none} }
+</style>
+<script>
+/* ──────── HERRAMIENTAS · CONSOLA ────────
+   Lista agrupada por destino y ficha fija (24/09/2026; antes eran tarjetas). La familia y
+   el tipo salen del enlace, así que la hoja «Herramientas» no cambia. renderH() corre en
+   CADA tecla del filtro: la ficha solo se repinta si cambia la elegida. */
+const CS_FAM = {
+  sistemas:   { label:'Sistemas',           icono:'monitor' },
+  documentos: { label:'Hojas y documentos', icono:'sheet'   },
+  cliente:    { label:'Para el cliente',    icono:'bolsa'   },
+  equipo:     { label:'Apps del equipo',    icono:'app'     },
+  ayuda:      { label:'Mesas de ayuda',     icono:'ayuda'   }
+};
+const CS_ORDEN = ['sistemas', 'documentos', 'cliente', 'equipo', 'ayuda'];
+// Viajes y Seguros son subdominios de Liverpool, pero son servicios para el cliente.
+const CS_SERVICIO_HOST = /^(viajes[a-z]*|miseguro)\.liverpool\.com\.mx$/;
+
+/** Familia, tipo, dominio e icono según el enlace. Un texto que no es dirección se queda
+    sin enlace (la ficha lo avisa) en vez de fabricar «https://Service Center (…)». */
+function destinoHerramienta(enlace){
+  const s = String(enlace || '').trim();
+  const sinEnlace = nota => ({ url:null, fam:'sistemas', tipo:'Sin enlace directo', host:'', nota:nota, icono:'nolink' });
+  if (!s || s === '#') return sinEnlace('');
+  const conProto = /^https?:\/\//i.test(s);
+  if (!conProto && (/\s/.test(s) || !/^[\w-]+(\.[\w-]+)+(:\d+)?(\/|$)/.test(s))) return sinEnlace(s);
+  let u;
+  try { u = new URL(conProto ? s : 'https://' + s); } catch (e) { return sinEnlace(s); }
+  const host = u.hostname.replace(/^www\./i, '').toLowerCase(), p = u.pathname.toLowerCase();
+  const r = (fam, tipo, icono) => ({ url:u.href, fam:fam, tipo:tipo, host:host, nota:'', icono:icono });
+  if (host === 'docs.google.com'){
+    if (p.indexOf('/spreadsheets') === 0) return r('documentos', 'Hoja de cálculo', 'sheet');
+    if (p.indexOf('/forms') === 0) return r('documentos', 'Formulario', 'form');
+    if (p.indexOf('/presentation') === 0) return r('documentos', 'Presentación', 'presentation');
+    return r('documentos', 'Documento', 'document');
+  }
+  if (host === 'drive.google.com') return r('documentos', 'Archivo en Drive', 'folder');
+  if (host === 'sites.google.com') return r('documentos', 'Sitio de Google', 'site');
+  if (host === 'datastudio.google.com' || host === 'lookerstudio.google.com') return r('documentos', 'Tablero de datos', 'chart');
+  if (host === 'script.google.com') return r('equipo', 'Apps Script', 'app');
+  if (/(^|\.)appsheet\.com$/.test(host)) return r('ayuda', 'AppSheet', 'ayuda');
+  if (host === 'liverpool.com.mx' || CS_SERVICIO_HOST.test(host)) return r('cliente', host === 'liverpool.com.mx' ? 'liverpool.com.mx' : 'Sitio de Liverpool', 'bolsa');
+  if (/(^|\.)(force|salesforce)\.com$/.test(host)) return r('sistemas', 'Salesforce', 'cloud');
+  return r('sistemas', /(^|\.)liverpool\.com\.mx$/.test(host) ? 'Sistema Liverpool' : 'Plataforma externa', 'monitor');
+}
+
+// Una vez por lista recibida: la referencia de store.herramientas sirve de llave.
+let csCache = null;
+function csModelo(){
+  if (csCache && csCache.fuente === store.herramientas) return csCache;
+  const porH = new Map(), porId = new Map();
+  store.herramientas.forEach((h, i) => {
+    const nombre = String(h.nombre || '');
+    const barra = nombre.indexOf('|');
+    const it = Object.assign({
+      id: 'h' + i, h: h, nombre: nombre,
+      a: (barra < 0 ? nombre : nombre.slice(0, barra)).trim(),
+      b: barra < 0 ? '' : nombre.slice(barra + 1).trim(),
+      desc: String(h.descripcion || '').trim(),
+      acceso: String(h.comoAcceder || '').trim(),
+      clave: String(h.claves || '').trim()
+    }, destinoHerramienta(h.enlace));
+    const partes = it.host.split('.');
+    it.hostC = (it.host.length > 28 && partes.length > 3) ? partes.slice(-3).join('.') : it.host;
+    it.meta = (it.fam === 'documentos' || it.fam === 'equipo' || it.fam === 'ayuda') ? it.tipo : (it.hostC || it.tipo);
+    porH.set(h, it); porId.set(it.id, it);
+  });
+  csCache = { fuente: store.herramientas, porH: porH, porId: porId };
+  return csCache;
+}
+
+let csFam = 'todas', csSelFila = '', csSelId = '', csItems = [], csSplit = null, csHojaAntes = null, csTopT = null;
+const csEstrecho = () => window.matchMedia('(max-width: 1100px)').matches;
+function csTop(){ const t = document.querySelector('.topbar'); return t ? Math.round(t.getBoundingClientRect().height) : 64; }
+// Rótulos y ficha se pegan bajo la barra de arriba, que crece con el tamaño de texto.
+function csMedirTop(){ const s = document.getElementById('sec-herramientas'); if (s) s.style.setProperty('--cs-top', csTop() + 'px'); }
+
+function renderH(items){
+  hideLoader('herramientas');
+  const g = document.getElementById('gr-herramientas');
+  if (!g) return;
+  if (!store.herramientas.length){
+    g.innerHTML = empty('herramientas');
+    csItems = []; csPintarChips([]);
+    const f = document.getElementById('csFicha'); if (f) f.innerHTML = '';
+    return;
+  }
+  const m = csModelo();
+  csItems = (items || []).map(h => m.porH.get(h)).filter(Boolean);
+  csPintar();
+}
+
+function csPintar(){
+  const g = document.getElementById('gr-herramientas');
+  if (!g) return;
+  csMedirTop();
+  csPintarChips(csItems);
+  const vis = csItems.filter(it => csFam === 'todas' || it.fam === csFam);
+  if (!vis.length){
+    const q = filtroDeSeccion('herramientas');
+    g.innerHTML = '<p class="cs-nada">' + (q
+      ? 'Nada coincide con <b>«' + esc(q) + '»</b>' + (csFam !== 'todas' ? ' en ' + esc(CS_FAM[csFam].label.toLowerCase()) : '') + '. Prueba con el tipo: «hoja», «formulario», «viajes».'
+      : 'No hay herramientas en este grupo.') + '</p>';
+    csSelFila = '';
+    csFicha(null, true);
+    return;
+  }
+  const fijadas = pins.map(n => vis.find(it => it.nombre === n)).filter(Boolean);
+  let h = '<div class="cs-sel" id="csSel" aria-hidden="true"></div>';
+  if (fijadas.length) h += csGrupo('fijadas', 'Fijadas', 'pin', fijadas, 'f-');
+  CS_ORDEN.forEach(f => {
+    const del = vis.filter(it => it.fam === f);
+    if (del.length) h += csGrupo(f, CS_FAM[f].label, CS_FAM[f].icono, del, '');
+  });
+  g.innerHTML = h;
+  // La selección sobrevive: misma fila, si no la misma herramienta en otro grupo, si no la primera.
+  let fila = csSelFila ? document.getElementById(csSelFila) : null;
+  if (!fila && csSelId) fila = g.querySelector('.cs-fila[data-cs-id="' + csSelId + '"]');
+  if (!fila) fila = g.querySelector('.cs-fila');
+  csMarcar(fila, true);
+}
+
+function csPintarChips(items){
+  const c = document.getElementById('csChips');
+  if (!c) return;
+  if (!store.herramientas.length){ c.innerHTML = ''; return; }
+  let h = '<button type="button" class="g-chip" data-cs-fam="todas" aria-pressed="' + (csFam === 'todas') + '">Todas <b>' + items.length + '</b></button>';
+  CS_ORDEN.forEach(f => {
+    const n = items.filter(it => it.fam === f).length;
+    if (!n && csFam !== f) return;
+    h += '<button type="button" class="g-chip" data-cs-fam="' + f + '" aria-pressed="' + (csFam === f) + '">' + esc(CS_FAM[f].label) + ' <b>' + n + '</b></button>';
+  });
+  c.innerHTML = h;
+}
+
+function csGrupo(clave, titulo, ic, items, pref){
+  return '<div class="cs-grupo" role="group" aria-labelledby="cs-g-' + clave + '" data-fam="' + clave + '">' +
+    '<div class="cs-grupo-hd">' + icon(ic) + '<h2 id="cs-g-' + clave + '">' + esc(titulo) + '</h2><b>' + items.length + '</b></div>' +
+    items.map(it => csFila(it, pref)).join('') + '</div>';
+}
+// El enlace va FUERA de la opción (un option no lleva controles): es para el ratón; teclado = Enter.
+function csFila(it, pref){
+  const nombre = esc(it.nombre);
+  const marca = (it.acceso || it.clave)
+    ? '<span class="cs-marcas" title="' + (it.clave ? 'Tiene clave' : 'Tiene indicaciones para entrar') + '">' + icon(it.clave ? 'lock' : 'key') + '<span class="cs-sr">' + (it.clave ? ', tiene clave' : ', tiene indicaciones para entrar') + '</span></span>'
+    : '<span></span>';
+  const ir = it.url
+    ? '<a class="cs-ir" href="' + esc(it.url) + '" target="_blank" rel="noopener" data-track="' + nombre + '" tabindex="-1" aria-hidden="true" title="Abrir en pestaña nueva">' + icon('external') + '</a>'
+    : '';
+  return '<div class="cs-fila" id="cs-' + pref + it.id + '" data-cs-id="' + it.id + '" data-fam="' + it.fam + '">' +
+    '<div class="cs-opc" role="option" aria-selected="false" tabindex="-1">' +
+      '<span class="cs-ico" aria-hidden="true">' + icon(it.icono) + '</span>' +
+      '<span class="cs-txt"><span class="cs-nom">' + nombre + '</span><span class="cs-meta' + (it.hostC && it.meta === it.hostC ? ' es-host' : '') + '">' + esc(it.meta) + '</span></span>' +
+      marca +
+    '</div>' + ir + '</div>';
+}
+
+function csMarcar(fila, inmediato){
+  const g = document.getElementById('gr-herramientas');
+  if (!g || !fila) return;
+  const antes = csSelFila ? document.getElementById(csSelFila) : null;
+  g.querySelectorAll('.cs-fila.is-sel').forEach(f => {
+    f.classList.remove('is-sel');
+    const o = f.querySelector('.cs-opc'); o.setAttribute('aria-selected', 'false'); o.tabIndex = -1;
+  });
+  fila.classList.add('is-sel');
+  const o = fila.querySelector('.cs-opc'); o.setAttribute('aria-selected', 'true'); o.tabIndex = 0;
+  const cambia = csSelId !== fila.dataset.csId;
+  csSelFila = fila.id; csSelId = fila.dataset.csId;
+  if (!inmediato && antes && antes !== fila) csDeslizar(antes, fila);
+  const ficha = document.getElementById('csFicha');
+  if (cambia || (ficha && !ficha.querySelector('.cs-cartel'))) csFicha(csModelo().porId.get(csSelId), inmediato);
+}
+
+/* La selección se desliza de la fila de antes a la nueva. El fondo de reposo es CSS
+   (.is-sel): el bloque solo existe durante el viaje, y sin GSAP nada queda mal pintado. */
+function csDeslizar(de, a){
+  const s = document.getElementById('csSel');
+  if (!s || !GS() || !a.offsetParent || !de.offsetParent) return;
+  a.classList.add('cs-llega');
+  gsap.killTweensOf(s);
+  gsap.set(s, { y: de.offsetTop, height: de.offsetHeight, opacity: 1 });
+  gsap.to(s, { y: a.offsetTop, duration: .3, ease: 'expo.out', overwrite: 'auto',
+    onComplete: () => { a.classList.remove('cs-llega'); gsap.set(s, { opacity: 0 }); } });
+  setTimeout(() => a.classList.remove('cs-llega'), 700);
+}
+
+function csParrafos(t){
+  return String(t).replace(/\r\n?/g, '\n').split(/\n{2,}/)
+    .map(p => '<p>' + esc(p.trim()).replace(/\n/g, '<br>') + '</p>').join('');
+}
+
+function csFichaHTML(it, sufijo){
+  const nombre = it.nombre;
+  const tam = it.a.length <= 12 ? 's' : it.a.length <= 24 ? 'm' : 'l';
+  const fijada = pins.includes(nombre);
+  const idAcc = 'cs-acc-' + it.id + sufijo;
+  const tag = it.tipo === it.hostC ? CS_FAM[it.fam].label : it.tipo;
+  const abrir = it.url
+    ? '<a class="cs-abrir" href="' + esc(it.url) + '" target="_blank" rel="noopener" data-track="' + esc(nombre) + '">Abrir ' + icon('external') + '</a>'
+    : '<span class="cs-abrir is-off" aria-disabled="true">Sin enlace ' + icon('nolink') + '</span>';
+  const conAcceso = !!(it.acceso || it.clave);
+  const botonAcceso = conAcceso
+    ? '<button type="button" class="cs-btn" data-cs-acceso aria-expanded="false" aria-controls="' + idAcc + '">' + icon(it.clave ? 'lock' : 'key') + 'Cómo entrar</button>'
+    : '';
+  const txtPin = fijada ? 'Quitar de fijadas' : 'Fijar arriba de la lista';
+  const pin = '<button type="button" class="pin-btn' + (fijada ? ' pinned' : '') + '" data-name="' + esc(nombre) + '" aria-pressed="' + fijada + '" title="' + txtPin + '" aria-label="' + txtPin + '">' + icon('pin') + '</button>';
+  const acceso = conAcceso
+    ? '<div class="cs-acceso" id="' + idAcc + '" hidden>' +
+        (it.acceso ? '<div class="cs-acc-fila"><span class="cs-acc-lbl">Cómo entrar</span><span class="cs-acc-txt">' + esc(it.acceso) + '</span><span></span></div>' : '') +
+        (it.clave ? '<div class="cs-acc-fila"><span class="cs-acc-lbl">Clave</span><span class="cs-clave" data-cs-clave>••••••••</span>' +
+          '<span class="cs-acc-bots"><button type="button" class="cs-btn" data-cs-ver="' + it.id + '">' + icon('eye') + '<span>Ver</span></button>' +
+          '<button type="button" class="cs-btn" data-cs-copiar="' + it.id + '">' + icon('copy') + 'Copiar</button></span></div>' : '') +
+      '</div>'
+    : '';
+  const nota = it.nota
+    ? '<p class="cs-nota">En la hoja, el enlace dice «' + esc(it.nota) + '», que no es una dirección que se pueda abrir. Hace falta la URL completa en la columna Enlace.</p>'
+    : '';
+  const desc = it.desc
+    ? '<div class="cs-desc">' + csParrafos(it.desc) + '</div>'
+    : '<p class="cs-vacia">Aún no tiene descripción en la hoja.</p>';
+  return '<div class="cs-cartel tam-' + tam + '"><span class="cs-cartel-t"' + (sufijo ? ' id="csHojaT"' : '') + '>' + esc(it.a) + '</span>' +
+      (it.b ? '<span class="cs-cartel-s">' + esc(it.b) + '</span>' : '') + '</div>' +
+    '<div class="cs-ficha-cuerpo">' +
+      '<div class="cs-ficha-meta" data-fam="' + it.fam + '"><span class="cs-tag">' + icon(it.icono) + esc(tag) + '</span>' +
+        (it.host ? '<span class="cs-host">' + esc(it.host) + '</span>' : '') + '</div>' +
+      '<div class="cs-ficha-acc">' + abrir + botonAcceso +
+        '<span class="cs-ficha-mas">' + pin + collectBtn('herramientas', nombre) + reportBtn('Herramientas', nombre, it.h.enlace) + '</span></div>' +
+      nota + acceso + desc +
+    '</div>';
+}
+
+function csFicha(it, inmediato){
+  const el = document.getElementById('csFicha');
+  if (!el) return;
+  if (csSplit){ try { csSplit.revert(); } catch (e) {} csSplit = null; }
+  if (!it){
+    el.innerHTML = store.herramientas.length ? '<div class="cs-ficha-vacia">Elige una herramienta de la lista para ver qué es y cómo se entra.</div>' : '';
+    return;
+  }
+  el.setAttribute('data-fam', it.fam);
+  el.innerHTML = csFichaHTML(it, '');
+  if (inmediato || !GS()) return;
+  // El nombre sube letra a letra y las rayas se corren, como un cartel que se cambia.
+  // Todo nace visible (fromTo explícito) y la red de seguridad lo termina si el reloj se para.
+  const cartel = el.querySelector('.cs-cartel');
+  if (cartel) cartel.style.setProperty('--cs-rayas', (Math.round(Math.random() * 40) - 20) + 'px');
+  const tl = gsap.timeline();
+  const t = el.querySelector('.cs-cartel-t');
+  if (t && window.SplitText){
+    csSplit = SplitText.create(t, { type: 'words,chars', mask: 'chars' });
+    tl.fromTo(csSplit.chars, { yPercent: 105 }, { yPercent: 0, duration: .55, ease: 'power4.out', stagger: { amount: .22 } }, 0);
+  }
+  tl.fromTo(el.querySelectorAll('.cs-ficha-cuerpo > *'), { opacity: 0, y: 8 },
+    { opacity: 1, y: 0, duration: .32, ease: 'power3.out', stagger: .04, clearProps: 'transform,opacity' }, .05);
+  setTimeout(() => { if (tl.progress() < 1) tl.progress(1); }, 1200);
+}
+
+function csAlternarAcceso(btn, abrir){
+  const caja = document.getElementById(btn.getAttribute('aria-controls'));
+  if (!caja) return;
+  const mostrar = abrir === undefined ? caja.hidden : !!abrir;
+  caja.hidden = !mostrar;
+  btn.setAttribute('aria-expanded', String(mostrar));
+  if (mostrar && GS()) gsap.fromTo(caja, { opacity: 0, y: -6 }, { opacity: 1, y: 0, duration: .28, ease: 'power3.out', overwrite: 'auto', clearProps: 'transform,opacity' });
+}
+function csVerClave(btn){
+  const it = csModelo().porId.get(btn.dataset.csVer);
+  const caja = btn.closest('.cs-acceso'), c = caja && caja.querySelector('[data-cs-clave]');
+  if (!it || !c) return;
+  const ver = c.textContent.charAt(0) === '•';
+  c.textContent = ver ? it.clave : '••••••••';
+  const lbl = btn.querySelector('span'); if (lbl) lbl.textContent = ver ? 'Ocultar' : 'Ver';
+}
+function csAbrirEnlace(it){
+  if (!it) return;
+  if (!it.url){ showToast(null, 'Esta herramienta no tiene un enlace directo en la hoja'); return; }
+  window.open(it.url, '_blank', 'noopener');
+  trackUse(it.nombre);
+}
+
+// Teclado: ↑ ↓ Inicio Fin mueven, Enter abre, Espacio o → enseñan cómo se entra.
+function csIrA(fila){
+  csMarcar(fila, false);
+  fila.querySelector('.cs-opc').focus({ preventScroll: true });
+  const r = fila.getBoundingClientRect(), tope = csTop() + 48, suelo = window.innerHeight - 16;
+  if (r.top < tope) window.scrollBy({ top: r.top - tope, behavior: 'instant' });
+  else if (r.bottom > suelo) window.scrollBy({ top: r.bottom - suelo, behavior: 'instant' });
+}
+function csTeclado(e){
+  const opc = e.target.closest && e.target.closest('.cs-opc');
+  if (!opc) return;
+  const filas = Array.from(document.querySelectorAll('#gr-herramientas .cs-fila'));
+  const i = filas.indexOf(opc.parentElement);
+  let j = -1;
+  if (e.key === 'ArrowDown') j = Math.min(filas.length - 1, i + 1);
+  else if (e.key === 'ArrowUp') j = Math.max(0, i - 1);
+  else if (e.key === 'Home') j = 0;
+  else if (e.key === 'End') j = filas.length - 1;
+  if (j > -1){ e.preventDefault(); if (j !== i) csIrA(filas[j]); return; }
+  const it = csModelo().porId.get(opc.parentElement.dataset.csId);
+  if (e.key === 'Enter'){ e.preventDefault(); csAbrirEnlace(it); return; }
+  if (e.key === ' ' || e.key === 'ArrowRight'){
+    e.preventDefault();
+    if (csEstrecho()){ csAbrirHoja(it, false); return; }
+    const b = document.querySelector('#csFicha [data-cs-acceso]');
+    if (b) csAlternarAcceso(b);
+  }
+}
+
+/* ── Hoja de abajo: en pantallas angostas no cabe la ficha al lado de la lista ── */
+function csAbrirHoja(it, conAcceso){
+  if (!it) return;
+  let h = document.getElementById('csHoja');
+  if (!h){
+    h = document.createElement('div');
+    h.className = 'cs-hoja'; h.id = 'csHoja'; h.hidden = true;
+    h.innerHTML = '<div class="cs-hoja-fondo" data-cs-cerrar></div>' +
+      '<div class="cs-hoja-panel" role="dialog" aria-modal="true" aria-labelledby="csHojaT">' +
+        '<span class="cs-hoja-agarre" aria-hidden="true"></span>' +
+        '<button type="button" class="cs-hoja-cerrar" data-cs-cerrar aria-label="Cerrar la ficha">' + icon('close') + '</button>' +
+        '<div class="cs-hoja-cont"></div></div>';
+    document.body.appendChild(h);
+    h.addEventListener('keydown', csTrampaFoco);
+  }
+  const cont = h.querySelector('.cs-hoja-cont');
+  cont.setAttribute('data-fam', it.fam);
+  cont.innerHTML = csFichaHTML(it, '-h');
+  if (conAcceso){ const b = cont.querySelector('[data-cs-acceso]'); if (b) csAlternarAcceso(b, true); }
+  if (h.hidden) csHojaAntes = document.activeElement;
+  h.hidden = false;
+  document.body.classList.add('cs-hoja-abierta');
+  const panel = h.querySelector('.cs-hoja-panel');
+  panel.scrollTop = 0;
+  if (GS()){
+    gsap.fromTo(panel, { yPercent: 100 }, { yPercent: 0, duration: .42, ease: 'expo.out', overwrite: 'auto', clearProps: 'transform' });
+    gsap.fromTo(h.querySelector('.cs-hoja-fondo'), { opacity: 0 }, { opacity: 1, duration: .25, clearProps: 'opacity' });
+  }
+  h.querySelector('.cs-hoja-cerrar').focus({ preventScroll: true });
+}
+function csCerrarHoja(){
+  const h = document.getElementById('csHoja');
+  if (!h || h.hidden) return;
+  const panel = h.querySelector('.cs-hoja-panel');
+  let hecho = false;
+  const fin = () => {
+    if (hecho) return; hecho = true;
+    h.hidden = true;
+    document.body.classList.remove('cs-hoja-abierta');
+    if (window.gsap) gsap.set(panel, { clearProps: 'transform' });
+    if (csHojaAntes && csHojaAntes.focus && document.contains(csHojaAntes)) csHojaAntes.focus({ preventScroll: true });
+  };
+  if (GS()){
+    gsap.to(panel, { yPercent: 100, duration: .26, ease: 'power2.in', overwrite: 'auto', onComplete: fin });
+    setTimeout(fin, 500);   // con la pestaña oculta el tween no termina: la hoja no se queda a medias
+  } else fin();
+}
+function csTrampaFoco(e){
+  if (e.key === 'Escape'){ e.stopPropagation(); csCerrarHoja(); return; }
+  if (e.key !== 'Tab') return;
+  const f = Array.from(this.querySelectorAll('a[href], button:not([disabled]), [tabindex]:not([tabindex="-1"])')).filter(x => x.offsetParent !== null);
+  if (!f.length) return;
+  const a = f[0], z = f[f.length - 1];
+  if (e.shiftKey && document.activeElement === a){ e.preventDefault(); z.focus(); }
+  else if (!e.shiftKey && document.activeElement === z){ e.preventDefault(); a.focus(); }
+}
+
+/* Enganches: togglePin() → csRepintar (sin repintar la ficha, para no quitar el foco);
+   revealTarget() → csRevelar (salto del buscador); switchSec() → csAlEntrar. */
+window.csRepintar = function(nombre){
+  if (!store.herramientas.length) return;
+  csPintar();
+  const fijada = pins.includes(nombre);
+  document.querySelectorAll('#csFicha .pin-btn, #csHoja .pin-btn').forEach(b => {
+    if (b.dataset.name !== nombre) return;
+    const txt = fijada ? 'Quitar de fijadas' : 'Fijar arriba de la lista';
+    b.classList.toggle('pinned', fijada);
+    b.setAttribute('aria-pressed', String(fijada));
+    b.title = txt; b.setAttribute('aria-label', txt);
+  });
+};
+window.csRevelar = function(fila){
+  csMarcar(fila, true);
+  const it = csModelo().porId.get(fila.dataset.csId);
+  if (csEstrecho()){ csAbrirHoja(it, true); return true; }
+  const b = document.querySelector('#csFicha [data-cs-acceso]');
+  if (b) csAlternarAcceso(b, true);
+  return false;
+};
+window.csAlEntrar = function(){ csMedirTop(); };
+
+document.addEventListener('click', e => {
+  const t = e.target;
+  if (!t || !t.closest) return;
+  const chip = t.closest('[data-cs-fam]');
+  if (chip){
+    const f = chip.dataset.csFam;
+    csFam = f; csSelFila = '';
+    csPintar();
+    const nuevo = document.querySelector('#csChips [data-cs-fam="' + f + '"]');
+    if (nuevo) nuevo.focus({ preventScroll: true });
+    return;
+  }
+  const acc = t.closest('[data-cs-acceso]');
+  if (acc){ csAlternarAcceso(acc); return; }
+  const ver = t.closest('[data-cs-ver]');
+  if (ver){ csVerClave(ver); return; }
+  const cop = t.closest('[data-cs-copiar]');
+  if (cop){ const it = csModelo().porId.get(cop.dataset.csCopiar); if (it && it.clave) copyText(it.clave, cop); return; }
+  if (t.closest('[data-cs-cerrar]')){ csCerrarHoja(); return; }
+  const opc = t.closest('#gr-herramientas .cs-opc');
+  if (opc){
+    const fila = opc.parentElement;
+    csMarcar(fila, false);
+    opc.focus({ preventScroll: true });
+    if (csEstrecho()) csAbrirHoja(csModelo().porId.get(fila.dataset.csId), false);
+  }
+});
+// Este parcial se carga antes que la sección: la lista se engancha cuando existe.
+(function(){
+  const enganchar = () => {
+    const g = document.getElementById('gr-herramientas');
+    if (g && !g.dataset.csListo){ g.dataset.csListo = '1'; g.addEventListener('keydown', csTeclado); }
+  };
+  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', enganchar); else enganchar();
+  window.addEventListener('resize', () => { clearTimeout(csTopT); csTopT = setTimeout(csMedirTop, 150); });
+})();
+</script>

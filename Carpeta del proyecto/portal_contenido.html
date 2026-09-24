@@ -474,9 +474,10 @@
       /* ── Enlaces ───────────────────────────────────────────────────────────
          El Portal dibuja los enlaces con linkHref(): si el valor no empieza por
          "http", le antepone "https://". Un valor como «Service Center (liverpool.
-         com.mx)» se convierte así en una dirección que no abre. Aquí se detecta
-         para poder señalarlo en la lista: son enlaces rotos que hoy nadie ve
-         hasta que un asesor los pulsa y reporta.
+         com.mx)» se convertía así en una dirección que no abre; desde el 24/09/2026
+         linkHref() deja sin enlace todo texto con espacios y la ficha de la
+         herramienta lo avisa. Aquí se sigue detectando para señalarlo en la lista:
+         la herramienta se queda sin enlace hasta que alguien ponga la URL.
          El navegador SÍ tiene la API URL (Apps Script no), así que la validación
          fina se hace de este lado. */
       function urlNormalizada(v) {

@@ -393,38 +393,9 @@ main{flex:1}
    Hover de tarjetas de contenido: solo elevación + borde acentuado
    (un efecto por tarjeta para no saturar y rendir mejor).
 ════════════════════════════════════════════════════════════ */
-.tool-card>*,.pres-card>*,.pago-card>*,.fmt-card>*{position:relative;z-index:1}
+.pres-card>*,.pago-card>*,.fmt-card>*{position:relative;z-index:1}
 
-/* — Herramienta — */
-.tool-card{
-  background:var(--surface);
-  border:1px solid var(--line);border-radius:12px;
-  padding:1.4rem 1.4rem 1.3rem;box-shadow:var(--sh-sm);display:flex;flex-direction:column;gap:.85rem;
-  position:relative;overflow:hidden;will-change:transform;
-  transition:transform .22s cubic-bezier(.22,1,.36,1),box-shadow .22s cubic-bezier(.22,1,.36,1),border-color .22s ease;
-}
-.tool-card::before{content:'';position:absolute;top:0;left:0;width:100%;height:3px;z-index:2;
-  background:linear-gradient(90deg,var(--accent,var(--brand)),color-mix(in srgb,var(--accent,var(--brand)) 45%,var(--brand-bright)));
-  transform:scaleX(.34);transform-origin:left;transition:transform .3s cubic-bezier(.22,1,.36,1)}
-.tool-card:hover::before{transform:scaleX(1)}
-.tool-card:hover{box-shadow:0 10px 24px -14px rgba(27,35,48,.20),var(--sh-sm);border-color:color-mix(in srgb,var(--accent,var(--brand)) 42%,var(--line))}
-.tc-top{display:flex;align-items:center;gap:.8rem}
-.tc-icon{
-  width:48px;height:48px;border-radius:10px;flex-shrink:0;color:#fff;
-  background:var(--accent,var(--brand));
-  display:flex;align-items:center;justify-content:center;
-  box-shadow:0 4px 10px -6px color-mix(in srgb,var(--accent,var(--brand)) 55%,transparent);
-}
-.tc-icon .ic{width:22px;height:22px}
-.tc-name{font-family:var(--f-display);font-weight:800;font-stretch:110%;font-size:1.08rem;line-height:1.2}
-.tc-desc{font-size:.86rem;color:var(--ink-soft);line-height:1.55;display:-webkit-box;-webkit-line-clamp:3;-webkit-box-orient:vertical;overflow:hidden}
-.tc-access{background:var(--surface-2);border-radius:8px;padding:.65rem .85rem;border-left:3px solid var(--accent,var(--brand))}
-.tc-access-lbl{font-size:.6rem;font-weight:800;letter-spacing:.13em;text-transform:uppercase;color:var(--ink-soft);margin-bottom:.3rem;display:flex;align-items:center;gap:.4rem}
-.tc-access-lbl .ic{width:13px;height:13px;color:var(--ok)}
-.tc-access-txt{font-size:.82rem;color:var(--ink);line-height:1.45;font-weight:500}
-.key-chip{display:inline-flex;align-items:center;gap:.45rem;background:var(--info-bg);border:1px dashed color-mix(in srgb,var(--info) 35%,transparent);color:var(--info);border-radius:9px;padding:.32rem .65rem;font-family:var(--f-mono);font-size:.78rem;font-weight:700;max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-.key-chip .ic{width:14px;height:14px;flex-shrink:0}
-.tc-footer{display:flex;gap:.5rem;flex-wrap:wrap;margin-top:auto}
+/* — Herramientas: la consola (estilos y guion) vive en app_herramientas.html — */
 .btn-go{flex:1;text-align:center;padding:.7rem .9rem;background:var(--grad-brand);color:#fff;border:none;border-radius:8px;font-weight:800;font-size:.86rem;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:.4rem;transition:var(--tr);box-shadow:0 6px 14px -8px rgba(225,0,152,.55)}
 .btn-go .ic{width:16px;height:16px}
 .btn-go:hover{box-shadow:0 12px 22px -8px rgba(225,0,152,.55);filter:brightness(1.06)}
@@ -1336,15 +1307,6 @@ a:focus-visible,button:focus-visible,input:focus-visible,[tabindex]:focus-visibl
 .qa-card .pin-btn{margin-left:0}
 .qa-hint{font-size:.78rem;font-weight:600;color:var(--ink-faint);margin-left:.4rem;letter-spacing:0;text-transform:none}
 
-/* ════════════════════════════════════════════════════════════
-   TARJETA HERRAMIENTA · divulgación progresiva ("Ver acceso")
-════════════════════════════════════════════════════════════ */
-.tc-more{display:none;flex-direction:column;gap:.85rem}
-.tool-card.expanded .tc-more{display:flex}
-.tc-toggle{display:inline-flex;align-items:center;gap:.4rem;border:none;background:transparent;cursor:pointer;padding:.15rem 0;font-size:.8rem;font-weight:700;color:var(--ink-soft);transition:color .2s;align-self:flex-start}
-.tc-toggle:hover{color:var(--brand)}
-.tc-toggle .ic{width:14px;height:14px;transition:transform .25s ease}
-.tool-card.expanded .tc-toggle .ic{transform:rotate(180deg)}
 
 /* Botón discreto "reportar enlace caído" */
 .btn-report{width:34px;height:34px;align-self:center;border-radius:9px;border:none;cursor:pointer;background:transparent;color:var(--ink-faint);display:flex;align-items:center;justify-content:center;flex-shrink:0;transition:color .2s,background .2s}
@@ -1685,6 +1647,10 @@ table.ds-matrix{width:100%;border-collapse:separate;border-spacing:0;min-width:5
   .hero-clock{text-align:left}
   .hero-clock .hc-time{font-size:2rem}
 }
+/* En los teléfonos más angostos no cabían menú + buscador + reloj + sesión (431 px en 390):
+   la página se ensanchaba 27 px y lo fijo —la hoja de Herramientas, los avisos— quedaba
+   medio fuera. El teléfono ya enseña la hora; !important porque switchSec la pone en línea. */
+@media(max-width:440px){ .topbar .clock{display:none!important} }
 @media(max-width:600px){
   .view-section{padding:1.5rem 1.1rem 4rem}
   .cards-grid,.fp-grid,.qa-grid,.guide-grid{grid-template-columns:1fr}
@@ -1788,6 +1754,10 @@ table.ds-matrix{width:100%;border-collapse:separate;border-spacing:0;min-width:5
      declararlo es lo que permite aprender "entra al Portal y se va a cotizar". Va con
      `aqui()` y no por el shell porque este archivo tiene el suyo propio. -->
 <script>if (window.AppPrecarga) AppPrecarga.aqui('portal');</script>
+<!-- Consola de Herramientas (24/09/2026): renderH() y todo lo de #sec-herramientas. Es un
+     parcial para que el build lo minifique; el guion grande de abajo lo usa a partir de
+     DOMContentLoaded, cuando ya está definido. -->
+<?!= include('app_herramientas') ?>
 <template id="__bundler_thumbnail" data-bg-color="#E10098">
   <svg viewBox="0 0 1200 800" xmlns="http://www.w3.org/2000/svg">
     <rect width="1200" height="800" fill="#E10098"/>
@@ -2036,29 +2006,31 @@ table.ds-matrix{width:100%;border-collapse:separate;border-spacing:0;min-width:5
     </nav>
   </section>
 
-  <!-- ══ HERRAMIENTAS ══ -->
+  <!-- ══ HERRAMIENTAS ══
+       Consola (24/09/2026): lista agrupada por destino en #gr-herramientas y ficha fija en
+       #csFicha. renderH() pinta las dos; el filtro de texto es el de siempre (.filter-input),
+       porque applySectionSearch, reflejarFiltro y filtroDeSeccion lo buscan por ese selector. -->
   <section id="sec-herramientas" class="view-section">
     <div class="sec-head">
-      <span class="sec-eyebrow"><span class="dot"></span>Acceso rápido</span>
-      <h1 class="sec-title">Tus <em>herramientas</em> de cada día</h1>
-      <p class="sec-sub">Todas las plataformas y sistemas del equipo en un solo lugar — con su acceso, descripción y claves a un clic.</p>
+      <h1 class="sec-title">Tus <em>herramientas</em></h1>
+      <p class="sec-sub"><span class="cs-sub-ancho">Recórrelas con <kbd>↑</kbd> <kbd>↓</kbd>. La ficha de la derecha lo tiene todo: qué es, cómo se entra y a dónde lleva.</span><span class="cs-sub-estrecho">Toca una para ver su ficha: qué es, cómo se entra y a dónde lleva.</span></p>
     </div>
     <div class="filter-bar">
       <div class="filter-input">
         <svg class="fi-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><path d="m21 21-4.3-4.3"/></svg>
-        <input type="text" placeholder="Filtrar herramientas…" oninput="filterSec('herramientas',this.value)">
+        <input type="text" placeholder="Filtrar herramientas…" aria-label="Filtrar herramientas" oninput="filterSec('herramientas',this.value)">
       </div>
+      <div class="cs-chips" id="csChips" role="group" aria-label="Filtrar por destino"></div>
       <span class="result-count-badge" id="rc-herramientas"></span>
     </div>
-    <div id="ld-herramientas" class="sk-grid" data-vx-loader="ruta" data-vx-msg="Cargando tus herramientas…">
-      <div class="sk-card"><div class="sk-line sk-ic"></div><div class="sk-line sk-t"></div><div class="sk-line sk-s"></div><div class="sk-line sk-s short"></div><div class="sk-line sk-btn"></div></div>
-      <div class="sk-card"><div class="sk-line sk-ic"></div><div class="sk-line sk-t"></div><div class="sk-line sk-s"></div><div class="sk-line sk-s short"></div><div class="sk-line sk-btn"></div></div>
-      <div class="sk-card"><div class="sk-line sk-ic"></div><div class="sk-line sk-t"></div><div class="sk-line sk-s"></div><div class="sk-line sk-s short"></div><div class="sk-line sk-btn"></div></div>
-      <div class="sk-card"><div class="sk-line sk-ic"></div><div class="sk-line sk-t"></div><div class="sk-line sk-s"></div><div class="sk-line sk-s short"></div><div class="sk-line sk-btn"></div></div>
-      <div class="sk-card"><div class="sk-line sk-ic"></div><div class="sk-line sk-t"></div><div class="sk-line sk-s"></div><div class="sk-line sk-s short"></div><div class="sk-line sk-btn"></div></div>
-      <div class="sk-card"><div class="sk-line sk-ic"></div><div class="sk-line sk-t"></div><div class="sk-line sk-s"></div><div class="sk-line sk-s short"></div><div class="sk-line sk-btn"></div></div>
+    <div id="ld-herramientas" class="sk-grid cs-sk" data-vx-loader="ruta" data-vx-msg="Cargando tus herramientas…">
+      <div class="sk-card cs-sk-lista"><div class="sk-line sk-t"></div><div class="sk-line sk-row"></div><div class="sk-line sk-row"></div><div class="sk-line sk-row"></div><div class="sk-line sk-row"></div><div class="sk-line sk-row"></div><div class="sk-line sk-row"></div></div>
+      <div class="sk-card cs-sk-ficha"><div class="sk-line cs-sk-cartel"></div><div class="sk-line sk-t"></div><div class="sk-line sk-s"></div><div class="sk-line sk-s"></div><div class="sk-line sk-s short"></div></div>
     </div>
-    <div id="gr-herramientas" class="cards-grid"></div>
+    <div class="cs-cuerpo">
+      <div id="gr-herramientas" class="cs-lista" role="listbox" aria-label="Herramientas"></div>
+      <article class="cs-ficha" id="csFicha" aria-label="Ficha de la herramienta"></article>
+    </div>
   </section>
 
   <!-- ══ PAQUETERÍAS ══ -->
@@ -2916,7 +2888,6 @@ html[data-density="compact"] .cards-grid,
 html[data-density="compact"] .qa-grid,
 html[data-density="compact"] .col-grid,
 html[data-density="compact"] .guide-grid{ gap:.6rem; }
-html[data-density="compact"] .tool-card,
 html[data-density="compact"] .fmt-card,
 html[data-density="compact"] .pres-card,
 html[data-density="compact"] .pago-card,
@@ -2930,6 +2901,10 @@ html[data-density="compact"] .data-table th{ padding-top:.5rem; padding-bottom:.
 html[data-density="compact"] .filter-bar{ margin-bottom:.7rem; }
 html[data-density="compact"] .pres-card,
 html[data-density="compact"] .qa-card{ padding:.85rem .9rem; }
+html[data-density="compact"] .cs-opc{ padding-top:.32rem; padding-bottom:.32rem; }
+html[data-density="compact"] .cs-grupo-hd{ padding-top:.55rem; padding-bottom:.3rem; }
+html[data-density="compact"] .cs-cartel{ min-height:140px; }
+html[data-density="compact"] .cs-ficha-cuerpo{ padding:1rem 1.1rem 1.1rem; gap:.8rem; }
 
 /* ── Alto contraste (refuerza líneas y bordes, sin cambiar el tema) ── */
 html[data-contrast="high"]{
@@ -2938,7 +2913,8 @@ html[data-contrast="high"]{
 html[data-contrast="high"][data-theme="carbon"]{
   --line:#7b8696; --line-soft:#5c6677; --ink-soft:#d6d2da; --ink-faint:#b4afbb;
 }
-html[data-contrast="high"] .tool-card,
+html[data-contrast="high"] .cs-lista,
+html[data-contrast="high"] .cs-ficha,
 html[data-contrast="high"] .fmt-card,
 html[data-contrast="high"] .plt-card,
 html[data-contrast="high"] .pres-card,
@@ -3233,7 +3209,15 @@ const ICONS = {
   contrast:'<circle cx="12" cy="12" r="9"/><path d="M12 3v18a9 9 0 0 0 0-18Z" fill="currentColor"/>',
   layers:'<path d="M12 3 3 8l9 5 9-5-9-5Z"/><path d="M3 13l9 5 9-5M3 18l9 5 9-5" stroke="currentColor"/>',
   wifi:'<path d="M5 12.5a10 10 0 0 1 14 0M8 16a5 5 0 0 1 8 0M2 9a15 15 0 0 1 20 0"/><circle cx="12" cy="19.5" r="1" fill="currentColor"/>',
-  wifioff:'<path d="M2 4l20 20M8.5 16.5a5 5 0 0 1 6-0.8M5 12.5a10 10 0 0 1 4-2.6M19 12.5a10 10 0 0 0-3-2.2M2 9a15 15 0 0 1 4.5-2.9M22 9a15 15 0 0 0-7-3.6"/><circle cx="12" cy="19.5" r="1" fill="currentColor"/>'
+  wifioff:'<path d="M2 4l20 20M8.5 16.5a5 5 0 0 1 6-0.8M5 12.5a10 10 0 0 1 4-2.6M19 12.5a10 10 0 0 0-3-2.2M2 9a15 15 0 0 1 4.5-2.9M22 9a15 15 0 0 0-7-3.6"/><circle cx="12" cy="19.5" r="1" fill="currentColor"/>',
+  /* Iconos de la consola de Herramientas: el tipo de destino de cada enlace. */
+  sheet:'<rect x="4" y="3" width="16" height="18" rx="2"/><path d="M4 9h16M4 15h16M10 9v12"/>',
+  form:'<rect x="4" y="3" width="16" height="18" rx="2"/><path d="M8 8.5h.01M11 8.5h5M8 12.5h.01M11 12.5h5M8 16.5h.01M11 16.5h5"/>',
+  site:'<circle cx="12" cy="12" r="9"/><path d="M3 12h18M12 3a14 14 0 0 1 0 18M12 3a14 14 0 0 0 0 18"/>',
+  app:'<rect x="3" y="4" width="18" height="16" rx="2.5"/><path d="M3 9h18M7 6.5h.01M10 6.5h.01"/>',
+  ayuda:'<circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="3.6"/><path d="m5.6 5.6 3.9 3.9M14.5 14.5l3.9 3.9M18.4 5.6l-3.9 3.9M9.5 14.5l-3.9 3.9"/>',
+  bolsa:'<path d="M5 8h14l-1 12.5H6L5 8Z"/><path d="M9 8V6.5a3 3 0 0 1 6 0V8"/>',
+  nolink:'<path d="M9.5 14.5 14.5 9.5"/><path d="M11 6.5 12.6 5a4 4 0 0 1 5.7 5.7l-1.5 1.6M13 17.5 11.4 19a4 4 0 0 1-5.7-5.7l1.5-1.6"/><path d="M3 3l18 18"/>'
 };
 function icon(name, cls){
   const p = ICONS[name] || ICONS.tools;
@@ -3433,17 +3417,10 @@ document.addEventListener('DOMContentLoaded', () => {
   });
   document.addEventListener('click', e => { if (!e.target.closest('.search')) closeDrop(); });
 
-  // Delegación global: pines, "ver acceso", reportes, avisos y conteo de uso
+  // Delegación global: pines, reportes, avisos y conteo de uso
   document.addEventListener('click', e => {
     const pin = e.target.closest('.pin-btn');
     if (pin) { e.preventDefault(); e.stopPropagation(); togglePin(pin.dataset.name); return; }
-    const tg = e.target.closest('.tc-toggle');
-    if (tg) {
-      const card = tg.closest('.tool-card');
-      const open = card.classList.toggle('expanded');
-      tg.querySelector('span').textContent = open ? 'Ocultar acceso' : 'Ver acceso';
-      return;
-    }
     const rep = e.target.closest('.btn-report');
     if (rep) { e.preventDefault(); reportLink(rep); return; }
     const dis = e.target.closest('.aviso-close');
@@ -4076,6 +4053,7 @@ function switchSec(id, btn){
   document.querySelectorAll('.view-section').forEach(s => s.classList.remove('active'));
   const target = document.getElementById(`sec-${id}`);
   if (target){ target.classList.add('active'); sectionEnter(target); }
+  if (id === 'herramientas' && window.csAlEntrar) csAlEntrar();
   const topClock = document.querySelector('.topbar .clock');
   if (topClock) topClock.style.display = (id === 'inicio') ? 'none' : 'flex';
   if (id === 'formaspago'){ initFpReveals(); logosTiendaFX(); }
@@ -4094,7 +4072,7 @@ function switchSec(id, btn){
 function sectionEnter(section){
   if (!section || !GS()) return;
   const headItems = section.querySelectorAll('.sec-head > *, .hero, .dash-label');
-  const cards = section.querySelectorAll('.cards-grid > *, .table-card, #gr-paqueterias > *, .stat-card, .qa-card, .guide-card');
+  const cards = section.querySelectorAll('.cards-grid > *, .table-card, #gr-paqueterias > *, .stat-card, .qa-card, .guide-card, .cs-lista, .cs-ficha');
   const tl = gsap.timeline({ defaults:{ ease:'power3.out' } });
   tl.fromTo(section, { opacity:0, y:8 }, { opacity:1, y:0, duration:.24 });
   if (headItems.length) tl.fromTo(headItems, { opacity:0, y:8 }, { opacity:1, y:0, duration:.24, stagger:.03, clearProps:'transform' }, '-=.16');
@@ -4323,10 +4301,9 @@ function togglePin(name){
   const i = pins.indexOf(name);
   if (i > -1) pins.splice(i, 1); else pins.unshift(name);
   lsSet('ventel-pins', pins);
-  // sincroniza los pines visibles en las tarjetas de Herramientas
-  document.querySelectorAll('.tool-card .pin-btn').forEach(b => {
-    if (b.dataset.name === name) b.classList.toggle('pinned', i === -1);
-  });
+  // Herramientas se repinta: la fijada sube al grupo «Fijadas» (o sale de él) y el
+  // alfiler de la ficha cambia de estado sin quitarle el foco a quien lo pulsó.
+  if (window.csRepintar) csRepintar(name);
   renderDashboard();
 }
 
@@ -5502,44 +5479,8 @@ function applySectionSearch(sec, query){
 }
 
 /* ──────── RENDERERS ──────── */
-function renderH(items){
-  hideLoader('herramientas');
-  const g = document.getElementById('gr-herramientas');
-  if (!items.length) { g.innerHTML = empty('herramientas'); return; }
-  g.innerHTML = items.map((h, i) => {
-    const color = ACCENT_PALETTE[i % ACCENT_PALETTE.length];
-    const href = linkHref(h.enlace);
-    const hasKey = h.claves && String(h.claves).trim();
-    const safeKey = esc(String(h.claves || ''));
-    const ic = pickIcon(`${h.nombre} ${h.descripcion}`);
-    const pinned = pins.includes(h.nombre);
-    const hasExtra = h.comoAcceder || hasKey;
-    return `
-    <div class="tool-card" style="--accent:${color}">
-      <div class="tc-top">
-        <div class="tc-icon">${icon(ic)}</div>
-        <div class="tc-name">${esc(h.nombre)}</div>
-        ${href ? `<button class="pin-btn${pinned ? ' pinned' : ''}" data-name="${esc(h.nombre)}" title="${pinned ? 'Quitar de accesos rápidos' : 'Fijar en accesos rápidos'}" aria-label="Fijar en accesos rápidos">${icon('pin')}</button>` : ''}
-      </div>
-      ${h.descripcion ? `<div class="tc-desc">${esc(h.descripcion)}</div>` : ''}
-      ${hasExtra ? `
-      <button class="tc-toggle" aria-expanded="false">${icon('chevdown')}<span>Ver acceso</span></button>
-      <div class="tc-more">
-        ${h.comoAcceder ? `<div class="tc-access"><div class="tc-access-lbl">${icon('unlock')} Cómo acceder</div><div class="tc-access-txt">${esc(h.comoAcceder)}</div></div>` : ''}
-        ${hasKey ? `<div><span class="key-chip">${icon('key')} ${safeKey}</span></div>` : ''}
-      </div>` : ''}
-      <div class="tc-footer">
-        ${href
-          ? `<a href="${href}" target="_blank" rel="noopener" class="btn-go" data-track="${esc(h.nombre)}">Abrir ${icon('external')}</a>`
-          : `<span class="btn-go disabled">Sin enlace</span>`}
-        ${hasKey ? `<button class="btn-copy" onclick="copyText('${safeKey.replace(/'/g,"\\'")}',this)">${icon('copy')} Copiar clave</button>` : ''}
-        ${collectBtn('herramientas', h.nombre)}
-        ${reportBtn('Herramientas', h.nombre, h.enlace)}
-      </div>
-    </div>`;
-  }).join('');
-  animateGrid('#gr-herramientas > *');
-}
+/* renderH() y la consola de Herramientas viven en app_herramientas.html: es un parcial,
+   así que el build lo minifica. Se carga antes que este guion y se usa desde DOMContentLoaded. */
 
 function renderP(items){
   hideLoader('presentaciones');
@@ -6422,11 +6363,11 @@ function elementoDeSeccion(secId, name, targetId){
      profundo a Trazabilidad abría la sección correcta y se quedaba arriba, sin señalar
      nada — y eso se lee como que el buscador no encontró lo que dijo que había
      encontrado. */
-  const nameEls = sec.querySelectorAll('.tc-name,.fmt-name,.paq-name,.pago-name,.pres-name,.plt-name,.bt-title');
+  const nameEls = sec.querySelectorAll('.cs-nom,.fmt-name,.paq-name,.pago-name,.pres-name,.plt-name,.bt-title');
   let target = null;
   nameEls.forEach(el => { if (!target && norm(el.textContent) === want) target = el; });
   if (!target) nameEls.forEach(el => { if (!target && norm(el.textContent).includes(want)) target = el; });
-  return (target ? target.closest('.tool-card,.fmt-card,.pago-card,.pres-card,.plt-card,.traz-card,tr') : null) || target;
+  return (target ? target.closest('.cs-fila,.fmt-card,.pago-card,.pres-card,.plt-card,.traz-card,tr') : null) || target;
 }
 
 /* Espera con reintentos (rAF) a que la sección termine de renderizar antes de saltar —
@@ -6446,10 +6387,12 @@ function esperarYRevelar(secId, name, targetId, alRendirse){
 /* Lleva el foco visual al resultado: abre la tarjeta si está colapsada, la centra
    respetando las barras fijas y la resalta con claridad. */
 function revealTarget(scrollEl){
-  // Si es una tarjeta de herramienta con panel colapsado, ábrelo para mostrar el dato al instante
-  if (scrollEl.classList && scrollEl.classList.contains('tool-card') && !scrollEl.classList.contains('expanded')){
-    const tg = scrollEl.querySelector('.tc-toggle');
-    if (tg){ scrollEl.classList.add('expanded'); const lbl = tg.querySelector('span'); if (lbl) lbl.textContent = 'Ocultar acceso'; }
+  // Una herramienta se elige en la consola y su ficha sale con «Cómo entrar» abierto, que
+  // es lo que hacía el panel plegable de la tarjeta de antes. En pantalla angosta la ficha
+  // es una hoja modal y el salto termina ahí: enfocar el buscador de detrás de la hoja
+  // dejaría el teclado en algo que no se ve.
+  if (scrollEl.classList && scrollEl.classList.contains('cs-fila') && window.csRevelar){
+    if (csRevelar(scrollEl)) return;
   }
   // Un proceso de Trazabilidad llega plegado: llegar a él y ver sólo el título
   // obligaría a un clic más justo cuando el asesor ya tiene al cliente al teléfono.
@@ -6463,7 +6406,7 @@ function revealTarget(scrollEl){
   setTimeout(doScroll, 280); // reajusta tras la expansión/animación para clavar la posición
   flashEl(scrollEl);
   // Preparar "segundo Enter abre el enlace" (también tras clic de ratón)
-  const link = scrollEl.querySelector ? scrollEl.querySelector('a.btn-go, a.btn-violet, a.link-sm') : null;
+  const link = scrollEl.querySelector ? scrollEl.querySelector('a.btn-go, a.btn-violet, a.link-sm, a.cs-ir') : null;
   pendingOpenEl = (link && link.href) ? link : null;
   try { document.getElementById('globalSearch').focus({ preventScroll:true }); } catch(e){}
   showKbHint(!!pendingOpenEl);
@@ -6714,7 +6657,12 @@ function linkHref(v){
   if (!v) return null;
   const s = String(v).trim();
   if (!s || s === '#') return null;
-  return s.startsWith('http') ? s : 'https://' + s;
+  if (s.startsWith('http')) return s;
+  /* Un texto con espacios no es una dirección: «Service Center (liverpool.com.mx)» en la
+     columna Enlace se convertía en https://Service Center (…) y el botón llevaba a una
+     página que no existe. Mejor «Sin enlace», que es la verdad. */
+  if (/\s/.test(s)) return null;
+  return 'https://' + s;
 }
 
 /* ──────── COPIAR ──────── */
