@@ -1071,6 +1071,17 @@ y qué se dejó fuera a propósito**. Mismo formato que el registro del document
   - movimiento sin elementos que se queden a medias.
 - `clasp pull` de pruebas idéntico al build, y la `/dev` real muestra la consola con `?item=FMS`.
 
+**Revisión final** (un revisor aparte, sin navegador; disposición *fix*; ajustes en el commit `587d219`, también en pruebas):
+- **Máscara de SplitText:** se deshace al terminar la animación del cartel. Con interlineado .88 recortaba tildes y colas: «CAMPAÑAS» se leía «CAMPANAS». Comprobado con movimiento: al terminar, el título es texto normal.
+- **Cuerpo de la ficha:** ya no se funde al cambiar de herramienta.
+- **Contraste:** el subtítulo del cartel pasa a texto grande sin transparencia (medía 3.9:1 sobre el rosa).
+- **Sin resultados:** la ficha se vacía y se ofrece «Buscar en todas».
+- **CSC:** sin el seudo-botón «Sin enlace»; el aviso dice que se avise con la bandera. «Cómo entrar» sin el rótulo que repetía el botón.
+- **Descripciones:** los subtítulos y rótulos de Spa, XTEND y Trade In se ven como tales. La ficha termina antes del botón flotante del portapapeles.
+- **Textos:** subtítulo de la sección cierto para las 27 sin descripción, y que enseña Enter. Una línea invita a fijar mientras no hay fijadas.
+- **Hoja móvil:** el agarre ahora arrastra. Hay además una red de seguridad para que lista y ficha no se queden a media opacidad si el reloj de GSAP se para.
+- **No se aplicó** invitar a «avisar con la bandera» en las fichas sin descripción: ese reporte no dice qué falta y confundiría a coordinación.
+
 **Qué se dejó fuera a propósito:**
 - **Dato de la hoja:** la URL real de CSC (hoy es texto). Además hay nombres con fechas vencidas («Promociones 30 junio al 23 de Julio»). Son decisiones del contenido, no del código.
 - **Peso:** página + parcial compilados crecen ≈ 23 KB (≈ 8 KB gzip). No se midió el efecto en el primer byte.
