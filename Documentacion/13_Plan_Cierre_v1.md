@@ -1044,7 +1044,7 @@ y qué se dejó fuera a propósito**. Mismo formato que el registro del document
 **Qué se cambió** (commit `570836a`):
 - **`Code.gs`:** cada entrada de `DATOS_INICIALES` declara sus `claves` y arma su respuesta con `leer(lote)`. `datosInicialesDePagina_` pide todas las claves con **un solo `getAll`**; antes era un `get` por respuesta (cuatro en el Portal).
   - **Tope:** `DATOS_TOPE_RESPUESTA` (100 000 caracteres) y `DATOS_TOPE_TOTAL` (150 000). Lo que no cabe se omite y la pantalla lo pide como antes. Si algo tiene que quedarse fuera, cae lo de más abajo de la lista (trazabilidad va detrás de herramientas y promociones). El `Logger` dice qué quedó fuera.
-  - El comentario del bloque F3 se reescribió con caracteres reales: llevaba escapes `á` literales.
+  - El comentario del bloque F3 se reescribió con caracteres reales: llevaba los acentos escritos como escapes de JavaScript (barra invertida, «u» y cuatro cifras), ilegibles en el editor.
 - **`Trazabilidad.gs`:** `trazCacheDesdeLote_` arma la entrada a partir de un mapa. La regla («manda la cabeza; si falta un trozo, se descarta todo») queda en un solo sitio y la usa también `trazCacheGet_`. El `doGet` pide solo la cabeza: **una trazabilidad troceada (más de 90 000 caracteres) no viaja en la página**, y que crezca no encarece esta lectura.
 - **`Portal.gs`** (`portalCacheDeLote_`) y **`Operacion.gs`** (`opEstadoPublicoEnCache_`) aceptan el lote; sin él leen como antes. `Operacion.gs` conserva su única línea LF: se editó con un guion, byte a byte.
 - **`f3_datos_en_pagina.test.js`** (72 → 95): los servicios simulados cuentan sus lecturas.
