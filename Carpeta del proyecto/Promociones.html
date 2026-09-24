@@ -2972,32 +2972,24 @@ document.addEventListener("DOMContentLoaded", () => {
 
     const mm = gsap.matchMedia();
     mm.add("(prefers-reduced-motion: no-preference)", () => {
-      
+
       // Coreografía del Hero
-      const heroTl = gsap.timeline({ 
-        defaults: { ease: "power3.out", duration: 0.8 } 
+      const heroTl = gsap.timeline({
+        defaults: { ease: "power3.out", duration: 0.8 }
       });
-      
+
+      /* Ni las cifras del día (.stat-tile) ni las tarjetas (.card, que son las de
+         promoción) se animan aquí: cada una ya tiene dueño. Las cifras las revela
+         handleDataSuccess y las tarjetas fxRevealCards, en cuanto llegan los datos.
+         Aquí había un segundo revelado con gsap.from(), que toma como destino la
+         opacidad que el elemento tiene AL CREARSE. Mientras los datos tardaban 2-4 s
+         no se notaba: a esta hora no había tarjetas y las cifras estaban a 1. Desde que
+         los datos vienen dentro de la página (F3a) se pintan ANTES que este script, con
+         sus revelados propios arrancando en opacidad 0: el from() las llevaba «de 0 a
+         0», su overwrite mataba el revelado bueno, y el Monitor se quedaba en blanco. */
       heroTl.from(".hero-eyebrow", { y: 15, opacity: 0 })
             .from(".date-hero h1", { y: 25, opacity: 0 }, "-=0.6")
-            .from(".hero-sub", { y: 15, opacity: 0 }, "-=0.6")
-            .from(".stat-tile", { y: 30, opacity: 0, stagger: 0.1 }, "-=0.4");
-
-      // Revelado de Tarjetas en Scroll
-      ScrollTrigger.batch(".card", {
-        start: "top 85%", 
-        onEnter: (elements) => {
-          gsap.from(elements, {
-            y: 40,
-            opacity: 0,
-            stagger: 0.08, 
-            duration: 0.6,
-            ease: "power2.out",
-            overwrite: true
-          });
-        },
-        once: true 
-      });
+            .from(".hero-sub", { y: 15, opacity: 0 }, "-=0.6");
     });
   }
 });
