@@ -1039,6 +1039,43 @@ y qué se dejó fuera a propósito**. Mismo formato que el registro del document
 
 <!-- Las entradas nuevas van arriba, con la más reciente primero. -->
 
+### 2026-09-24 — Herramientas: la sección pasa de 46 tarjetas a una «Consola» (lista agrupada por destino + ficha fija) — en PRUEBAS
+
+**Por qué:** el creador pidió rediseñar las tarjetas tras la portada «Tu turno». Se le enseñaron tres prototipos navegables con las 46 herramientas reales (Teclado, Consola y Catálogo) y eligió la **Consola**. Dato que ordenó el diseño: los sistemas del día a día se abren con Ctrl K. La sección sirve para explorar y entender: qué es cada herramienta, cómo se entra y qué decirle al cliente. Con las tarjetas, 27 de las 46 salían casi vacías y las descripciones largas (Spa, 1 657 caracteres) se cortaban a 3 líneas sin forma de leerlas.
+
+**Qué se cambió** (commit `4b9f857`; el contexto del producto quedó en `PRODUCT.md`, commit `3227e34`):
+- **Parcial nuevo `app_herramientas.html`** (estilos y guion; el build minifica los parciales, no el guion de las páginas).
+  - Lista agrupada por el destino del enlace: Sistemas 13 · Hojas y documentos 14 · Para el cliente 12 · Apps del equipo 4 · Mesas de ayuda 3, más «Fijadas» arriba si hay alfileres.
+  - Ficha fija con el nombre en cartel, tipo y dominio, Abrir, «Cómo entrar» (oculto hasta pedirlo; clave enmascarada con Ver/Copiar), fijar, colección, reportar y la descripción completa en párrafos.
+  - ↑ ↓ Inicio Fin recorren la lista, Enter abre y Espacio o → enseñan cómo se entra.
+  - Bajo 1100 px la ficha sale en una hoja abajo (con Esc, trampa de foco y el foco devuelto).
+- **`Index.html`** conserva el marcado y los enganches:
+  - el mismo filtro de texto (`applySectionSearch`, `reflejarFiltro`, `filtroDeSeccion`);
+  - `elementoDeSeccion` y `revealTarget` saben de `.cs-fila`: el buscador y `?item=` eligen la herramienta con «Cómo entrar» abierto, como el panel plegable de antes, y el segundo Enter abre;
+  - `togglePin` repinta la lista;
+  - densidad compacta y alto contraste cubren la consola.
+- **`linkHref`**: un texto con espacios ya no se convierte en `https://…`. El enlace de CSC en la hoja es «Service Center (liverpool.com.mx)» y el botón llevaba a una página rota. Ahora dice «Sin enlace» y la ficha avisa. `portal_contenido.html` solo cambió el comentario que lo explicaba.
+- **Teléfonos de 440 px o menos:** se oculta el reloj de la barra. Menú + buscador + reloj + sesión medían 431 px en 390 y la página se ensanchaba 27 px en TODAS las secciones.
+
+**Qué se comprobó:**
+- `sintaxis.js` y las 12 baterías de `pruebas/`, en verde.
+- `banco.mjs` antes/después: 0 excepciones, mismos avisos y llamadas; solo cambia la estructura de la sección.
+- `revelado-portal.mjs`: 0 errores.
+- Detector de impeccable sobre el parcial: sin hallazgos.
+- Con las 46 herramientas reales en Chrome headless:
+  - teclado, filtro («viajes» → 2), grupos, fijar y `?item=FMS`;
+  - salto desde el buscador general con «segundo Enter abre»;
+  - «Cómo entrar» oculto hasta el clic;
+  - hoja móvil a 390 px;
+  - Aurora, Slate y Carbón, compacta, texto XL, alto contraste y 1280 de ancho;
+  - movimiento sin elementos que se queden a medias.
+- `clasp pull` de pruebas idéntico al build, y la `/dev` real muestra la consola con `?item=FMS`.
+
+**Qué se dejó fuera a propósito:**
+- **Dato de la hoja:** la URL real de CSC (hoy es texto). Además hay nombres con fechas vencidas («Promociones 30 junio al 23 de Julio»). Son decisiones del contenido, no del código.
+- **Peso:** página + parcial compilados crecen ≈ 23 KB (≈ 8 KB gzip). No se midió el efecto en el primer byte.
+- **Nada en producción.** Respaldo de las tarjetas: etiqueta `respaldo-herramientas-antes-consola`. Los prototipos están en `Desktop\Proyectos\_respaldos\herramientas_propuestas_20260924`.
+
 ### 2026-09-24 — Monitor de promociones: tarjetas y cifras invisibles con los datos dentro de la página (regresión de la F3a) — corregido en PRUEBAS
 
 **Qué pasó:** el creador vio en pruebas el Monitor sin tarjetas, con el recuadro de las cifras del día vacío y, al bajar, tarjetas a medio aparecer. Los contadores (50 promociones, 9 del calendario, 250 de la agenda) sí salían: los datos llegaban y lo que fallaba era el revelado.
