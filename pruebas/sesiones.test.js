@@ -199,6 +199,20 @@ reloj += 130 * MIN;
 ejecucion(() => C.sesParaCliente_('ana.asesora@liverpool.com.mx'));
 ok('al abrir una sesión se borran las vencidas (queda solo la nueva)', Object.keys(props).filter((k) => k.indexOf('ses_') === 0).length === 1, Object.keys(props));
 
+/* ── 8b · Tiempo de servidor (F3) ─────────────────────────────────────── */
+console.log('\n8b · secEjecutar con medir = 1 (AppRun.medidas)');
+const s8 = ejecucion(() => C.sesParaCliente_('ana.asesora@liverpool.com.mx'));
+const medida = ejecucion(() => C.secEjecutar(s8.llave, 'pruebaQuienSoy', [''], reloj, 1));
+ok('con medir = 1 la respuesta viaja envuelta: {__srv: 1, v, ms}', medida && medida.__srv === 1 && typeof medida.ms === 'number' && medida.ms >= 0, medida);
+ok('…y dentro va la respuesta de siempre', medida.v && medida.v.ok === true && medida.v.email === 'ana.asesora@liverpool.com.mx', medida.v);
+const cruda = ejecucion(() => C.secEjecutar(s8.llave, 'pruebaQuienSoy', [''], reloj));
+ok('sin medir, la respuesta de siempre (una pantalla abierta antes del despliegue no nota nada)', cruda && cruda.ok === true && !('__srv' in cruda), cruda);
+ok('cualquier otro valor de medir tampoco envuelve', !('__srv' in ejecucion(() => C.secEjecutar(s8.llave, 'pruebaQuienSoy', [''], reloj, true))));
+err = lanza(() => ejecucion(() => C.secEjecutar('vs1.' + 'b'.repeat(64), 'pruebaQuienSoy', [''], reloj, 1)));
+ok('un error sigue llegando como error, no envuelto (SESION_EXPIRADA intacto)', /^SESION_EXPIRADA/.test(err || ''), err);
+err = lanza(() => ejecucion(() => C.secEjecutar(s8.llave, 'eval', ['1'], reloj, 1)));
+ok('medir no abre el canal a nada nuevo', /no expone la función/.test(err || ''), err);
+
 /* ── 9 · Estático: candados y canal en el código ──────────────────────── */
 console.log('\n9 · Revisión del código');
 const ses = fs.readFileSync(path.join(RAIZ, 'Sesiones.gs'), 'utf8');
@@ -213,7 +227,7 @@ const sinCandado = restringidas.filter((n) => (n === 'promosAutoDisparador')
   : !new RegExp('function ' + n.replace(/\$/g, '\\$') + '\\([^)]*\\)\\s*\\{\\s*secSoloInterno_\\(\'' + n + '\'\\);').test(fuentes));
 ok('las ' + restringidas.length + ' funciones restringidas empiezan con secSoloInterno_', sinCandado.length === 0, sinCandado);
 const core = fs.readFileSync(path.join(RAIZ, 'app_core.html'), 'utf8');
-ok('AppRun manda todo por secEjecutar con llave y actividad', /runner\.secEjecutar\(AppSession\.llave \|\| '', fnName, args, AppSession\.ultimaActividad\(\)\)/.test(core));
+ok('AppRun manda todo por secEjecutar con llave, actividad y medir = 1', /runner\.secEjecutar\(AppSession\.llave \|\| '', fnName, args, AppSession\.ultimaActividad\(\), 1\)/.test(core));
 ok('isLoggedIn exige la llave', /isLoggedIn: function \(\) \{ return !!this\.userEmail && !!this\.llave; \}/.test(core));
 const code = fs.readFileSync(path.join(RAIZ, 'Code.gs'), 'utf8');
 ok('getQuotesForUser exige sesión con el bloque consultar (V-03)', /function getQuotesForUser[\s\S]{0,700}secIdentidadConBloque_\(correo, 'consultar'\)/.test(code));

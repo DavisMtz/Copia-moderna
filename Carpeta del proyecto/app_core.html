@@ -1842,6 +1842,89 @@
     const enVuelo = {};
 
     /**
+     * F3 · RESPUESTAS QUE YA VINIERON DENTRO DE LA PÁGINA.
+     *
+     * El doGet de algunas pantallas (hoy el Portal y el Monitor de promociones) deja en
+     * `__APP__.datos` las respuestas que el servidor ya tenía en caché y que la pantalla
+     * pediría nada más abrir (datosInicialesDePagina_, Code.gs). Así llegan con el primer
+     * byte en vez de costar un viaje de ~2 s cada una. Cada respuesta se usa UNA sola vez y
+     * como si acabara de llegar: después, «Actualizar» y las revalidaciones van al servidor.
+     *
+     * Solo para llamadas sin argumentos: todo lo que se sirve así es público y no depende
+     * de quién mira. Devuelve undefined si no está.
+     */
+    function tomarDePagina(fnName, args) {
+      const datos = window.__APP__ && window.__APP__.datos;
+      if (!datos || (args && args.length) || !Object.prototype.hasOwnProperty.call(datos, fnName)) return undefined;
+      const valor = datos[fnName];
+      delete datos[fnName];
+      return valor;
+    }
+
+    /** Cuándo leyó el servidor esas respuestas: es la hora del «actualizado hace…». */
+    function horaDePagina() {
+      return (window.__APP__ && Number(window.__APP__.datosAt)) || Date.now();
+    }
+
+    /**
+     * F3 · MEDIDAS DE CADA LLAMADA.
+     *
+     * Las herramientas del navegador no ven dentro del iframe de Apps Script, y lo que tarda
+     * una llamada para un asesor de verdad solo se sabe si la propia app lo apunta. Se
+     * guardan las últimas MEDIDAS_MAX en localStorage (sobreviven a recargar y a cambiar de
+     * pantalla), cada una con:
+     *   f  función                    ms  ida y vuelta
+     *   s  ms que trabajó el servidor (-1 si no lo dijo)
+     *   d  ms desde que abrió la pantalla hasta que salió la llamada
+     *   o  'red', o 'pagina' si vino dentro de la página (sin viaje)
+     *   ok 1 o 0                      t   hora de salida (ms desde 1970)
+     * Para verlas, en la consola del navegador y con el marco de la app elegido:
+     * `console.table(AppRun.medidas())` (resumen por función) o `AppRun.medidas(true)`.
+     */
+    const K_MEDIDAS = 'ventel-medidas';
+    const MEDIDAS_MAX = 80;
+
+    function leerMedidas() {
+      let lista = [];
+      try { lista = JSON.parse(localStorage.getItem(K_MEDIDAS) || '[]'); } catch (e) { lista = []; }
+      return Array.isArray(lista) ? lista : [];
+    }
+
+    /** Se relee antes de escribir: otra pestaña pudo apuntar las suyas mientras tanto. */
+    function anotar(fnName, t0, d0, ok, origen, servidorMs) {
+      const lista = leerMedidas();
+      lista.push({ f: fnName, t: t0, d: Math.round(d0), ms: Date.now() - t0, s: servidorMs, ok: ok ? 1 : 0, o: origen });
+      if (lista.length > MEDIDAS_MAX) lista.splice(0, lista.length - MEDIDAS_MAX);
+      try { localStorage.setItem(K_MEDIDAS, JSON.stringify(lista)); } catch (e) {}
+    }
+
+    function relojPantalla() {
+      return (typeof performance !== 'undefined' && performance.now) ? performance.now() : 0;
+    }
+
+    /** Resumen por función: cuántas, cuántas sin viaje, errores y los percentiles 50 y 90. */
+    function medidas(crudo) {
+      const lista = leerMedidas();
+      if (crudo) return lista;
+      const grupos = {};
+      lista.forEach(function (m) { (grupos[m.f] = grupos[m.f] || []).push(m); });
+      const orden = function (a, b) { return a - b; };
+      const pct = function (arr, p) { return arr.length ? arr[Math.min(arr.length - 1, Math.floor(p * arr.length))] : null; };
+      return Object.keys(grupos).map(function (f) {
+        const g = grupos[f];
+        const red = g.filter(function (m) { return m.o === 'red' && m.ok; });
+        const ms = red.map(function (m) { return m.ms; }).sort(orden);
+        const srv = red.map(function (m) { return m.s; }).filter(function (x) { return x >= 0; }).sort(orden);
+        return {
+          fn: f, n: g.length,
+          pagina: g.filter(function (m) { return m.o === 'pagina'; }).length,
+          errores: g.filter(function (m) { return !m.ok; }).length,
+          p50: pct(ms, 0.5), p90: pct(ms, 0.9), servidorP50: pct(srv, 0.5)
+        };
+      }).sort(function (a, b) { return (b.p50 || 0) - (a.p50 || 0); });
+    }
+
+    /**
      * Indicador DENTRO de la sección que está esperando (VentelFX, app_loaders).
      * El disco de la esquina (AppBusy) dice «algo está pasando»; esto dice QUÉ y
      * DÓNDE, y sobre todo dibuja la forma de lo que va a llegar, que es lo que
@@ -1872,6 +1955,16 @@
     function call(fnName, args, opts) {
       args = args || [];
       opts = opts || {};
+      const t0 = Date.now(), d0 = relojPantalla();
+      // Lo que vino en la página, solo si quien llama lo pide: una llamada que cambia algo
+      // jamás debe contestarse con lo que el servidor tenía guardado.
+      if (opts.inline === true) {
+        const dePagina = tomarDePagina(fnName, args);
+        if (dePagina !== undefined) {
+          anotar(fnName, t0, d0, true, 'pagina', -1);
+          return Promise.resolve(dePagina);
+        }
+      }
       const fx = abrirFx(opts.fx);
       const clave = opts.key || (fnName + ':' + JSON.stringify(args));
       // Una llamada fusionada con otra en vuelo no enciende un segundo indicador:
@@ -1893,8 +1986,16 @@
         // El runner se invoca sobre sí mismo (no con `this` nulo): así es como lo
         // espera la librería cliente de Apps Script.
         const runner = google.script.run
-          .withSuccessHandler(function (r) { ultimoContacto = Date.now(); resolve(r); })
+          .withSuccessHandler(function (r) {
+            ultimoContacto = Date.now();
+            // Desde la F3 el servidor dice cuánto trabajó (secEjecutar con medir = 1). Uno
+            // anterior contesta sin envoltorio, y su respuesta se toma tal cual.
+            const envuelta = !!(r && r.__srv === 1);
+            anotar(fnName, t0, d0, true, 'red', envuelta ? (Number(r.ms) || 0) : -1);
+            resolve(envuelta ? r.v : r);
+          })
           .withFailureHandler(function (err) {
+            anotar(fnName, t0, d0, false, 'red', -1);
             // La llave venció o no vale: se avisa UNA vez aquí, en vez de que cada una de las
             // noventa llamadas de la app tenga que saber qué hacer. La promesa se rechaza igual,
             // para que quien llamó apague su indicador y no pinte datos.
@@ -1905,7 +2006,7 @@
         // persona, que es lo que mide la inactividad. Si el servidor fuera uno viejo sin ese
         // canal, se llama directo como antes.
         if (typeof runner.secEjecutar === 'function') {
-          runner.secEjecutar(AppSession.llave || '', fnName, args, AppSession.ultimaActividad());
+          runner.secEjecutar(AppSession.llave || '', fnName, args, AppSession.ultimaActividad(), 1);
           return;
         }
         if (typeof runner[fnName] !== 'function') {
@@ -1935,10 +2036,25 @@
      *
      * `opts.fuerza` salta la caché local (botón "Actualizar"): revalida igual,
      * pero sin enseñar antes lo guardado.
+     *
+     * Si la respuesta vino dentro de la página (F3, ver tomarDePagina), ES la respuesta
+     * del servidor: se guarda y se pinta una sola vez, sin enseñar antes la copia local
+     * —más vieja— ni esperar un viaje. `fuerza` la descarta sin usarla: pide preguntar de
+     * nuevo, y lo que traía la página ya no debe reaparecer después como si fuera nuevo.
      */
     function swr(cacheName, fnName, args, opts) {
       opts = opts || {};
       const store = opts.session ? AppCache.session : AppCache;
+      const t0 = Date.now(), d0 = relojPantalla();
+      const dePagina = tomarDePagina(fnName, args);
+      if (!opts.fuerza && dePagina !== undefined && (!opts.accept || opts.accept(dePagina))) {
+        anotar(fnName, t0, d0, true, 'pagina', -1);
+        store.set(cacheName, dePagina, { ttl: opts.ttl });
+        if (opts.onData) {
+          try { opts.onData(dePagina, false, horaDePagina()); } catch (e) { console.error(e); }
+        }
+        return Promise.resolve(dePagina);
+      }
       const cached = opts.fuerza ? null : store.get(cacheName, opts.maxAge);
       let pintado = false;
       if (cached && opts.onData) {
@@ -1991,6 +2107,7 @@
     return {
       call: call,
       swr: swr,
+      medidas: medidas,
       clearInflight: function () { Object.keys(enVuelo).forEach(function (k) { delete enVuelo[k]; }); }
     };
   })();
@@ -2293,7 +2410,8 @@
       }
 
       sincronizando = true;
-      return AppRun.call('obtenerModulosPublicos', [], { key: 'modulos-publicos', busy: false })
+      // `inline`: en el Portal la lista ya viene dentro de la página (F3) y no hace falta viajar.
+      return AppRun.call('obtenerModulosPublicos', [], { key: 'modulos-publicos', busy: false, inline: true })
         .then(function (r) {
           sincronizando = false;
           if (!r || !r.success) return apagados();

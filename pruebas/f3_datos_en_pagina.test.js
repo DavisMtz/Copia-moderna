@@ -1,0 +1,423 @@
+/*
+ * Pruebas de la Fase 3 (doc 16): respuestas en caché servidas DENTRO de la página, y medidas
+ * de cada llamada.   Ejecutar:  node pruebas/f3_datos_en_pagina.test.js
+ *
+ * Dos mitades:
+ *   A · Servidor. Se cargan los .gs REALES (Code, Portal, Trazabilidad, Operacion, Permisos…) con
+ *       servicios simulados. Lo que importa comprobar no es «devuelve datos», es lo que NO puede
+ *       pasar: que el doGet abra una hoja o el Calendario (primer byte de 5-10 s en frío), que
+ *       escriba (readPortalAnuncios_ y opCalcularEstadoPublico_ escriben), que sirva un status de
+ *       error como si fuera un dato, o que un texto con `</script>` se salga de la etiqueta.
+ *   B · Cliente. Se extrae el AppRun REAL de app_core.html y se ejecuta con un google.script.run
+ *       falso. Se comprueba que la respuesta de la página se usa una sola vez, que `fuerza` y las
+ *       mutaciones nunca la usan, que el tiempo de servidor se desenvuelve (y que un servidor viejo
+ *       sin envoltorio sigue funcionando) y que las medidas no pueden romper una llamada.
+ *
+ * Esta carpeta queda fuera de "Carpeta del proyecto": clasp nunca la sube.
+ */
+const fs = require('fs');
+const vm = require('vm');
+const path = require('path');
+
+const PROY = path.join(__dirname, '..', 'Carpeta del proyecto');
+let total = 0, fallos = 0;
+function ok(nombre, cond, extra) {
+  total++;
+  if (cond) { console.log('  ✔ ' + nombre); return; }
+  fallos++;
+  console.log('  ✖ ' + nombre + (extra !== undefined ? '  → ' + (typeof extra === 'string' ? extra : JSON.stringify(extra)).slice(0, 300) : ''));
+}
+function lanza(fn) { try { fn(); return null; } catch (e) { return String(e && e.message || e); } }
+
+/* ═════════════════════════════════════════════════════════════════════════════════════
+   A · SERVIDOR
+   ═════════════════════════════════════════════════════════════════════════════════════ */
+
+// «Hoy» fijo: la cuenta de promociones depende de la fecha (vigentes, por terminar).
+const HOY = new Date(2026, 8, 24, 12, 0, 0).getTime();
+
+let cache = {}, props = {};
+const cuentas = { hojas: 0, calendario: 0, drive: 0, escriturasProp: 0, escriturasCache: 0 };
+let plantillas = [];
+
+function contextoServidor() {
+  const RelojDate = class extends Date {
+    constructor(...a) { if (a.length) super(...a); else super(HOY); }
+    static now() { return HOY; }
+  };
+  const cacheScript = {
+    get: (k) => (k in cache ? cache[k] : null),
+    getAll: (ks) => { const o = {}; ks.forEach((k) => { if (k in cache) o[k] = cache[k]; }); return o; },
+    put: (k, v) => { cuentas.escriturasCache++; cache[k] = String(v); },
+    putAll: (m) => { cuentas.escriturasCache++; Object.assign(cache, m); },
+    remove: (k) => { delete cache[k]; },
+    removeAll: (ks) => { ks.forEach((k) => delete cache[k]); }
+  };
+  const salida = {
+    setTitle() { return this; }, setXFrameOptionsMode() { return this; }, addMetaTag() { return this; }
+  };
+  const ctx = {
+    console, Math, JSON, String, Number, Object, Array, RegExp, Error, parseInt, parseFloat, isNaN,
+    Date: RelojDate,
+    Logger: { log: () => {} },
+    CacheService: { getScriptCache: () => cacheScript, getUserCache: () => cacheScript },
+    PropertiesService: { getScriptProperties: () => ({
+      getProperty: (k) => (k in props ? props[k] : null),
+      setProperty: (k, v) => { cuentas.escriturasProp++; props[k] = String(v); },
+      deleteProperty: (k) => { delete props[k]; },
+      getProperties: () => Object.assign({}, props)
+    }) },
+    // Si el doGet abre CUALQUIER hoja, el Calendario o Drive, la prueba lo cuenta y la llamada falla.
+    SpreadsheetApp: {
+      openById: () => { cuentas.hojas++; throw new Error('prueba: el doGet no debe abrir hojas'); },
+      getActiveSpreadsheet: () => { cuentas.hojas++; throw new Error('prueba: el doGet no debe abrir hojas'); },
+      flush: () => {}
+    },
+    CalendarApp: { getCalendarById: () => { cuentas.calendario++; throw new Error('prueba: sin Calendario'); } },
+    DriveApp: { getFolderById: () => { cuentas.drive++; throw new Error('prueba: sin Drive'); } },
+    Session: {
+      getScriptTimeZone: () => 'America/Mexico_City',
+      getActiveUser: () => ({ getEmail: () => 'visita@liverpool.com.mx' }),
+      getEffectiveUser: () => ({ getEmail: () => 'dueno@liverpool.com.mx' })
+    },
+    ScriptApp: { getService: () => ({ getUrl: () => 'https://script.google.com/macros/s/PRUEBA/exec' }) },
+    HtmlService: {
+      XFrameOptionsMode: { ALLOWALL: 'ALLOWALL' },
+      createTemplateFromFile: (archivo) => {
+        const t = { __archivo: archivo, evaluate: () => salida };
+        plantillas.push(t);
+        return t;
+      },
+      createHtmlOutput: () => salida
+    }
+  };
+  vm.createContext(ctx);
+  ['Seguridad.gs', 'Sesiones.gs', 'Code.gs', 'Portal.gs', 'Trazabilidad.gs', 'Operacion.gs', 'Permisos.gs', 'Publicaciones.gs']
+    .forEach((f) => vm.runInContext(fs.readFileSync(path.join(PROY, f), 'utf8'), ctx, { filename: f }));
+  return ctx;
+}
+const S = contextoServidor();
+/** Cada petición es una ejecución nueva de Apps Script: los memos de la anterior no existen. */
+function ejecucion(fn) { vm.runInContext('SEC_SESION_ = null; SEC_ENTRADA_ = null; OP_GEN_MEMO = null;', S); return fn(); }
+function reiniciar() {
+  cache = {}; props = {}; plantillas = [];
+  Object.keys(cuentas).forEach((k) => { cuentas[k] = 0; });
+}
+
+// Lo que el Portal deja en caché cuando alguien ya lo abrió (misma forma que las funciones reales).
+const LS = String.fromCharCode(0x2028);
+const TOOLS = {
+  status: 'ok', error: null,
+  herramientas: [{ nombre: 'SOMS', enlace: 'https://soms', comoAcceder: '', descripcion: '', claves: '' }],
+  presentaciones: [], paqueterias: [], formatos: [], pdePago: [], avisos: [], anuncios: [],
+  plantillas: [{ titulo: 'Aviso', tipo: 'correo', asunto: 'x', cuerpo: 'Hola</script><script>alert(1)</script>' + LS + ' & <b>', consideraciones: '' }]
+};
+const APPDATA = {
+  status: 'success', error: null,
+  promociones: [
+    { origen: 'Promociones', direccion: 'Hogar', categoria: 'Banner', promocion: '20% en sábanas', marca: 'X', vigencia: '20 al 30 de septiembre', liga: '#' },
+    { origen: 'Promociones', direccion: 'Moda', categoria: 'Carrusel', promocion: 'Ya pasó', marca: 'Y', vigencia: '1 al 5 de septiembre', liga: '#' }
+  ],
+  eventos: []
+};
+const TRAZ = { status: 'ok', error: null, generado: '2026-09-24T18:00:00.000Z', hojaId: 'h', avisos: [],
+  secciones: [{ id: 'bigticket', prefijo: 'bt', label: 'Big Ticket', etiqueta: 'BT', hoja: 'BT', tieneAvance: false,
+    procesos: [{ n: 1, nombre: 'Entrega', tiempo: '3 días', observaciones: 'x'.repeat(500) }] }] };
+const OP_PUBLICO = { success: true, sistemas: [{ clave: 'connect', nombre: 'Connect', tono: 'ok' }], incidentes: [] };
+
+function calentar() {
+  cache.toolsData_v1 = JSON.stringify(TOOLS);
+  cache.appData_v1 = JSON.stringify(APPDATA);
+  // Trazabilidad se guarda troceada cuando pasa de 90 KB: se prueba el camino de los trozos.
+  const t = JSON.stringify(TRAZ), mitad = Math.floor(t.length / 2);
+  cache.trazData_v1 = 'trozos:2';
+  cache['trazData_v1#0'] = t.slice(0, mitad);
+  cache['trazData_v1#1'] = t.slice(mitad);
+  props.OP_CACHE_GEN = '7';
+  cache.op_g7_publico = JSON.stringify(OP_PUBLICO);
+}
+
+console.log('\nA1 · Caché vacía: no se construye nada');
+reiniciar();
+{
+  const r = ejecucion(() => S.datosInicialesDePagina_('portal'));
+  ok('devuelve { datos, at, ms }', r && typeof r.datos === 'object' && typeof r.at === 'number' && typeof r.ms === 'number', r);
+  ok('solo va la lista de módulos apagados (es una propiedad, no una caché)',
+    JSON.stringify(Object.keys(r.datos)) === '["obtenerModulosPublicos"]', Object.keys(r.datos));
+  ok('no abrió ninguna hoja', cuentas.hojas === 0, cuentas);
+  ok('ni el Calendario ni Drive', cuentas.calendario === 0 && cuentas.drive === 0, cuentas);
+  ok('no escribió nada (ni propiedades ni caché)', cuentas.escriturasProp === 0 && cuentas.escriturasCache === 0, cuentas);
+}
+
+console.log('\nA2 · Caché caliente: las cinco respuestas del Portal');
+reiniciar(); calentar();
+{
+  const r = ejecucion(() => S.datosInicialesDePagina_('portal'));
+  const claves = Object.keys(r.datos).sort();
+  ok('están las cinco', JSON.stringify(claves) === JSON.stringify(['fetchPromoCounts', 'fetchToolsData', 'fetchTrazabilidadData', 'obtenerModulosPublicos', 'opEstadoPublico']), claves);
+  ok('herramientas tal cual estaban en caché', JSON.stringify(r.datos.fetchToolsData) === JSON.stringify(TOOLS));
+  ok('trazabilidad rearmada de sus dos trozos', JSON.stringify(r.datos.fetchTrazabilidadData) === JSON.stringify(TRAZ));
+  ok('estado público de la generación vigente', JSON.stringify(r.datos.opEstadoPublico) === JSON.stringify(OP_PUBLICO));
+  const pc = r.datos.fetchPromoCounts;
+  ok('la cuenta de promociones se hace con la copia de la caché', pc.status === 'ok' && pc.activas === 1 && pc.promociones.length === 1 && pc.promociones[0].promocion === '20% en sábanas', pc);
+  ok('…y da lo mismo que fetchPromoCounts()', JSON.stringify(pc) === JSON.stringify(ejecucion(() => S.fetchPromoCounts())));
+  ok('sigue sin abrir hojas ni Calendario', cuentas.hojas === 0 && cuentas.calendario === 0, cuentas);
+  ok('y sin escribir', cuentas.escriturasProp === 0 && cuentas.escriturasCache === 0, cuentas);
+}
+
+console.log('\nA3 · Lo que el cliente no aceptaría no se sirve');
+reiniciar(); calentar();
+{
+  cache.toolsData_v1 = JSON.stringify({ status: 'error', error: 'hoja movida' });
+  cache.trazData_v1 = JSON.stringify({ status: 'ok' });   // sin secciones
+  cache.op_g7_publico = JSON.stringify({ success: false, message: 'x' });
+  const r = ejecucion(() => S.datosInicialesDePagina_('portal'));
+  ok('un status de error no viaja como dato', !('fetchToolsData' in r.datos), Object.keys(r.datos));
+  ok('trazabilidad sin secciones tampoco', !('fetchTrazabilidadData' in r.datos));
+  ok('ni un estado con success:false', !('opEstadoPublico' in r.datos));
+  ok('lo demás sí', 'fetchPromoCounts' in r.datos && 'obtenerModulosPublicos' in r.datos, Object.keys(r.datos));
+}
+
+console.log('\nA4 · Una lectura que falla no tumba la página');
+reiniciar(); calentar();
+{
+  cache.appData_v1 = '{roto';   // JSON corrupto en la caché
+  vm.runInContext('var __opOriginal = opEstadoPublicoEnCache_; opEstadoPublicoEnCache_ = function () { throw new Error("caché caída"); };', S);
+  let r = null;
+  const err = lanza(() => { r = ejecucion(() => S.datosInicialesDePagina_('portal')); });
+  vm.runInContext('opEstadoPublicoEnCache_ = __opOriginal;', S);
+  ok('no lanza', err === null, err);
+  ok('se omite lo que falló y sigue lo demás', r && !('opEstadoPublico' in r.datos) && !('fetchPromoCounts' in r.datos) && ('fetchToolsData' in r.datos), r && Object.keys(r.datos));
+  ok('y la caché corrupta no provocó una lectura de hojas', cuentas.hojas === 0, cuentas);
+}
+
+console.log('\nA5 · Otras pantallas');
+reiniciar(); calentar();
+{
+  const p = ejecucion(() => S.datosInicialesDePagina_('promociones'));
+  ok('el Monitor recibe fetchApplicationData', p && JSON.stringify(Object.keys(p.datos)) === '["fetchApplicationData"]' && p.datos.fetchApplicationData.promociones.length === 2, p && Object.keys(p.datos));
+  delete cache.appData_v1;
+  const q = ejecucion(() => S.datosInicialesDePagina_('promociones'));
+  ok('sin caché, nada (y sin leer hojas)', q && Object.keys(q.datos).length === 0 && cuentas.hojas === 0, q);
+  ok('una pantalla sin lista (estado) → null', ejecucion(() => S.datosInicialesDePagina_('estado')) === null);
+  ok('las de la app tampoco tienen (cotizacion) → null', ejecucion(() => S.datosInicialesDePagina_('cotizacion')) === null);
+}
+
+console.log('\nA6 · servirPagina_: qué pantalla lleva datos');
+reiniciar(); calentar();
+{
+  const servir = (page) => {
+    plantillas = [];
+    ejecucion(() => S.doGet({ parameter: page ? { page: page } : {} }));
+    const t = plantillas[plantillas.length - 1];
+    return { archivo: t && t.__archivo, estado: t && t.APP_JSON ? JSON.parse(t.APP_JSON) : null, crudo: t && t.APP_JSON };
+  };
+  let r = servir('portal');
+  ok('?page=portal → Index con las cinco respuestas', r.archivo === 'Index' && r.estado && Object.keys(r.estado.datos || {}).length === 5, r.estado && Object.keys(r.estado.datos || {}));
+  ok('…y con la hora y el costo de la lectura', typeof r.estado.datosAt === 'number' && typeof r.estado.datosMs === 'number');
+  ok('el texto de una plantilla no deja "<", ">", "&" ni U+2028 crudos en la página (no puede cerrar el <script>)',
+    !/[<>&]/.test(r.crudo) && r.crudo.indexOf(LS) === -1, r.crudo.slice(0, 200));
+  ok('…pero llega intacto al parsear', r.estado.datos.fetchToolsData.plantillas[0].cuerpo === TOOLS.plantillas[0].cuerpo);
+  r = servir('');
+  ok('sin ?page (la landing) → también', r.archivo === 'Index' && Object.keys(r.estado.datos || {}).length === 5);
+  r = servir('no-existe');
+  ok('una página desconocida cae en el Portal y lleva los del Portal', r.archivo === 'Index' && Object.keys(r.estado.datos || {}).length === 5);
+  r = servir('promociones');
+  ok('?page=promociones → los del Monitor', r.archivo === 'Promociones' && JSON.stringify(Object.keys(r.estado.datos || {})) === '["fetchApplicationData"]');
+  r = servir('estado');
+  ok('?page=estado → sin datos', r.archivo === 'estado' && !('datos' in r.estado), r.estado && Object.keys(r.estado));
+  r = servir('cotizacion');
+  ok('?page=cotizacion (app) → sin datos', r.archivo === 'cotizacion' && !('datos' in r.estado));
+  ok('ninguna de estas peticiones abrió hojas ni escribió', cuentas.hojas === 0 && cuentas.escriturasProp === 0 && cuentas.escriturasCache === 0, cuentas);
+}
+
+console.log('\nA7 · La clave de la caché de operación es la misma al escribir y al leer');
+reiniciar();
+{
+  props.OP_CACHE_GEN = '3';
+  const producido = ejecucion(() => S.opCacheado_('publico', 45, () => ({ success: true, x: 1 })));
+  ok('opCacheado_ guarda como siempre', producido.x === 1 && cache.op_g3_publico !== undefined, Object.keys(cache));
+  ok('opEstadoPublicoEnCache_ lee eso mismo', JSON.stringify(ejecucion(() => S.opEstadoPublicoEnCache_())) === JSON.stringify({ success: true, x: 1 }));
+  ejecucion(() => S.opInvalidarCache_());
+  ok('tras invalidar (generación nueva) ya no hay nada que servir', ejecucion(() => S.opEstadoPublicoEnCache_()) === null);
+}
+
+/* ═════════════════════════════════════════════════════════════════════════════════════
+   B · CLIENTE: el AppRun real de app_core.html
+   ═════════════════════════════════════════════════════════════════════════════════════ */
+
+const CORE = fs.readFileSync(path.join(PROY, 'app_core.html'), 'utf8');
+const BLOQUE = (CORE.match(/  const AppRun = \(function \(\) \{[\s\S]*?\n  \}\)\(\);/) || [])[0];
+if (!BLOQUE) throw new Error('No se encontró el bloque de AppRun en app_core.html');
+
+function contextoCliente(opciones) {
+  opciones = opciones || {};
+  const almacen = {};
+  const llamadas = [];
+  const servidor = {};
+  const vencidas = [];
+  const store = () => {
+    const m = {};
+    return {
+      get: (n) => (n in m ? { data: m[n].data, at: m[n].at } : null),
+      set: (n, data) => { m[n] = { data: JSON.parse(JSON.stringify(data)), at: Date.now() }; return true; },
+      _m: m
+    };
+  };
+  const appCache = store();
+  appCache.session = store();
+  function corredor(conf) {
+    return {
+      withSuccessHandler(fn) { return corredor(Object.assign({}, conf, { bien: fn })); },
+      withFailureHandler(fn) { return corredor(Object.assign({}, conf, { mal: fn })); },
+      secEjecutar(llave, fn, args, actividad, medir) {
+        llamadas.push({ fn, args, medir, n: arguments.length });
+        const r = servidor[fn];
+        setTimeout(() => {
+          if (r instanceof Error) conf.mal(r);
+          else conf.bien(typeof r === 'function' ? r(args, medir) : r);
+        }, 2);
+      }
+    };
+  }
+  const ctx = {
+    console, JSON, Math, Object, Array, String, Number, Error, RegExp, Promise, Date,
+    setTimeout, clearTimeout,
+    requestAnimationFrame: (cb) => setTimeout(cb, 0),
+    performance: { now: () => 1234.4 },
+    localStorage: {
+      getItem: (k) => { if (opciones.almacenRoto) throw new Error('almacén bloqueado'); return k in almacen ? almacen[k] : null; },
+      setItem: (k, v) => { if (opciones.almacenRoto) throw new Error('almacén bloqueado'); almacen[k] = String(v); },
+      removeItem: (k) => { delete almacen[k]; }
+    },
+    AppBusy: { start: () => 1, done: () => {} },
+    AppCache: appCache,
+    AppSession: { llave: 'vs1.llave', ultimaActividad: () => 111 },
+    google: { script: { run: corredor({}) } },
+    __APP__: opciones.app
+  };
+  ctx.window = ctx;
+  vm.createContext(ctx);
+  vm.runInContext('var ultimoContacto = 0; function sesionVencida(m) { __vencidas.push(m || "vencida"); }', Object.assign(ctx, { __vencidas: vencidas }));
+  vm.runInContext(BLOQUE + '\nwindow.AppRunPrueba = AppRun;', ctx, { filename: 'app_core.html (AppRun)' });
+  return { R: ctx.AppRunPrueba, llamadas, servidor, almacen, appCache, vencidas, ctx };
+}
+
+const esperar = (ms) => new Promise((r) => setTimeout(r, ms));
+
+async function cliente() {
+  console.log('\nB1 · swr con la respuesta dentro de la página');
+  {
+    const c = contextoCliente({ app: { datos: { fetchToolsData: { status: 'ok', v: 1 } }, datosAt: 5000 } });
+    c.servidor.fetchToolsData = { __srv: 1, v: { status: 'ok', v: 2 }, ms: 30 };
+    const pintadas = [];
+    const p = c.R.swr('portal-x', 'fetchToolsData', [], { ttl: 60000, accept: (d) => d.status !== 'error', onData: (d, deCache, at) => pintadas.push([d.v, deCache, at]) });
+    ok('se pinta EN EL ACTO, una sola vez, como respuesta del servidor (deCache=false)', pintadas.length === 1 && pintadas[0][0] === 1 && pintadas[0][1] === false, pintadas);
+    ok('con la hora en que el servidor la leyó', pintadas[0][2] === 5000, pintadas[0]);
+    const v = await p;
+    ok('la promesa resuelve con el dato', v && v.v === 1, v);
+    ok('sin viajar al servidor', c.llamadas.length === 0, c.llamadas);
+    ok('y queda guardada en la copia local', c.appCache._m['portal-x'] && c.appCache._m['portal-x'].data.v === 1);
+    ok('se usa UNA vez: sale de __APP__.datos', !('fetchToolsData' in c.ctx.__APP__.datos));
+    const pintadas2 = [];
+    await c.R.swr('portal-x', 'fetchToolsData', [], { onData: (d, deCache) => pintadas2.push([d.v, deCache]) });
+    ok('la siguiente vez revalida contra el servidor (copia local primero, luego la respuesta)',
+      c.llamadas.length === 1 && JSON.stringify(pintadas2) === '[[1,true],[2,false]]', { llamadas: c.llamadas, pintadas2 });
+  }
+
+  console.log('\nB2 · Cuándo NO se usa la respuesta de la página');
+  {
+    let c = contextoCliente({ app: { datos: { fetchToolsData: { status: 'error' } } } });
+    c.servidor.fetchToolsData = { status: 'ok', v: 9 };
+    let pint = [];
+    await c.R.swr('k', 'fetchToolsData', [], { accept: (d) => d.status !== 'error', onData: (d, dc) => pint.push([d.status, dc]) });
+    ok('si el cliente no la acepta, se pide al servidor', c.llamadas.length === 1 && JSON.stringify(pint) === '[["ok",false]]', { l: c.llamadas, pint });
+    ok('…y la rechazada se descarta', !('fetchToolsData' in c.ctx.__APP__.datos));
+
+    c = contextoCliente({ app: { datos: { fetchToolsData: { status: 'ok', v: 1 } } } });
+    c.servidor.fetchToolsData = { status: 'ok', v: 2 };
+    pint = [];
+    await c.R.swr('k', 'fetchToolsData', [], { fuerza: true, onData: (d) => pint.push(d.v) });
+    ok('«Actualizar» (fuerza) va al servidor', c.llamadas.length === 1 && JSON.stringify(pint) === '[2]', pint);
+    ok('…y descarta la de la página para que no reaparezca luego como nueva', !('fetchToolsData' in c.ctx.__APP__.datos));
+
+    c = contextoCliente({ app: { datos: { getQuotesForUser: { v: 1 } } } });
+    c.servidor.getQuotesForUser = { v: 2 };
+    await c.R.swr('q', 'getQuotesForUser', ['a@b.c'], {});
+    ok('con argumentos nunca se usa (todo lo servido así es sin argumentos)', c.llamadas.length === 1 && ('getQuotesForUser' in c.ctx.__APP__.datos));
+
+    c = contextoCliente({ app: { datos: { obtenerModulosPublicos: { success: true, apagados: ['x'] } } } });
+    c.servidor.obtenerModulosPublicos = { success: true, apagados: [] };
+    let r = await c.R.call('obtenerModulosPublicos', [], {});
+    ok('call sin `inline` va al servidor aunque la página la traiga', c.llamadas.length === 1 && r.apagados.length === 0, r);
+    r = await c.R.call('obtenerModulosPublicos', [], { inline: true });
+    ok('call con inline:true la toma de la página, sin viajar', c.llamadas.length === 1 && r.apagados[0] === 'x', r);
+    r = await c.R.call('obtenerModulosPublicos', [], { inline: true });
+    ok('…una sola vez', c.llamadas.length === 2 && r.apagados.length === 0, c.llamadas.length);
+
+    c = contextoCliente({ app: undefined });
+    c.servidor.fetchToolsData = { status: 'ok' };
+    await c.R.swr('k', 'fetchToolsData', [], {});
+    ok('una página sin __APP__ (o sin datos) funciona como antes', c.llamadas.length === 1);
+  }
+
+  console.log('\nB3 · Tiempo de servidor y medidas');
+  {
+    const c = contextoCliente({ app: {} });
+    c.servidor.nueva = { __srv: 1, v: { a: 1 }, ms: 42 };
+    c.servidor.vieja = { a: 2 };
+    c.servidor.nula = null;
+    const a = await c.R.call('nueva', ['x']);
+    ok('la respuesta envuelta se desenvuelve', a && a.a === 1 && !('__srv' in a), a);
+    ok('secEjecutar recibe 5 argumentos y pide medir (= 1)', c.llamadas[0].n === 5 && c.llamadas[0].medir === 1, c.llamadas[0]);
+    const b = await c.R.call('vieja', []);
+    ok('un servidor anterior (sin envoltorio) sigue funcionando', b && b.a === 2, b);
+    ok('una respuesta null (un Date en el servidor) sigue llegando null', (await c.R.call('nula', [])) === null);
+    const crudo = c.R.medidas(true);
+    const mNueva = crudo.find((m) => m.f === 'nueva'), mVieja = crudo.find((m) => m.f === 'vieja');
+    ok('se apunta el tiempo del servidor cuando lo dice', mNueva && mNueva.s === 42 && mNueva.o === 'red' && mNueva.ok === 1 && mNueva.ms >= 0, mNueva);
+    ok('…y -1 cuando no lo dice', mVieja && mVieja.s === -1, mVieja);
+    ok('con el momento de salida relativo a la pantalla', mNueva.d === 1234 && typeof mNueva.t === 'number', mNueva);
+
+    c.servidor.falla = new Error('boom');
+    let err = null;
+    await c.R.call('falla', []).catch((e) => { err = e; });
+    ok('un fallo se sigue rechazando igual', err && err.message === 'boom', err && err.message);
+    ok('…y se apunta como error', c.R.medidas(true).some((m) => m.f === 'falla' && m.ok === 0));
+    c.servidor.vence = new Error('SESION_EXPIRADA: se cerró');
+    await c.R.call('vence', []).catch(() => {});
+    ok('SESION_EXPIRADA sigue avisando a la sesión', c.vencidas.length === 1, c.vencidas);
+
+    for (let i = 0; i < 100; i++) { c.servidor['f' + (i % 3)] = { __srv: 1, v: i, ms: i }; await c.R.call('f' + (i % 3), [i]); }
+    ok('el anillo se queda en las últimas 80', c.R.medidas(true).length === 80, c.R.medidas(true).length);
+    const resumen = c.R.medidas();
+    const f0 = resumen.find((x) => x.fn === 'f0');
+    ok('el resumen trae por función n, errores, p50, p90 y servidorP50',
+      f0 && typeof f0.n === 'number' && f0.errores === 0 && typeof f0.p50 === 'number' && typeof f0.p90 === 'number' && typeof f0.servidorP50 === 'number', f0);
+
+    const d = contextoCliente({ app: { datos: { fetchPromoCounts: { status: 'ok' } } } });
+    await d.R.swr('p', 'fetchPromoCounts', [], {});
+    const mp = d.R.medidas(true)[0];
+    ok('lo que vino en la página se apunta como o:"pagina"', mp && mp.o === 'pagina' && mp.f === 'fetchPromoCounts' && mp.s === -1, mp);
+  }
+
+  console.log('\nB4 · Lo de siempre sigue igual');
+  {
+    const c = contextoCliente({ app: {} });
+    c.servidor.lenta = { __srv: 1, v: 'ok', ms: 1 };
+    const [x, y] = await Promise.all([c.R.call('lenta', [1]), c.R.call('lenta', [1])]);
+    ok('dos llamadas iguales a la vez siguen siendo UN viaje', c.llamadas.length === 1 && x === 'ok' && y === 'ok', c.llamadas.length);
+
+    const roto = contextoCliente({ app: {}, almacenRoto: true });
+    roto.servidor.algo = { __srv: 1, v: 5, ms: 1 };
+    let v = null, e = null;
+    await roto.R.call('algo', []).then((r) => { v = r; }, (er) => { e = er; });
+    ok('con localStorage bloqueado, medir no rompe la llamada', v === 5 && e === null, e && e.message);
+    ok('…y medidas() devuelve una lista vacía en vez de lanzar', Array.isArray(roto.R.medidas()) && roto.R.medidas().length === 0);
+  }
+}
+
+cliente().then(() => {
+  console.log('\n' + (fallos ? '✖ ' + fallos + ' de ' + total + ' fallaron' : '✔ ' + total + ' comprobaciones en verde'));
+  process.exit(fallos ? 1 : 0);
+}, (e) => { console.log('✖ la prueba reventó: ' + (e && e.stack || e)); process.exit(1); });

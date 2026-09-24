@@ -450,55 +450,77 @@ var PROMO_PORTADA_TOPE = 8;
 
 function fetchPromoCounts() {
   try {
-    const data = fetchApplicationData(); // ya cacheado
-    const now = new Date();
-    const DIA = 86400000;
-    let activas = 0, porTerminar = 0;
-    const vigentes = [];
-
-    (data.promociones || []).forEach(function (p) {
-      const r = parseVigencia_(p.vigencia, now);
-      if (r && now >= r.start && now <= r.end) {
-        activas++;
-        if ((r.end - now) / DIA <= 3) porTerminar++;
-        vigentes.push({
-          direccion: String(p.direccion || '').trim(),
-          categoria: String(p.categoria || '').trim(),
-          promocion: String(p.promocion || '').trim(),
-          marca:     String(p.marca || '').trim(),
-          origen:    String(p.origen || ''),
-          vigencia:  String(p.vigencia || ''),
-          fin:       r.end.getTime(),
-          // 0 = termina hoy, 1 = mañana… (el fin es a las 23:59:59 de su último día)
-          dias:      Math.floor((r.end - now) / DIA)
-        });
-      }
-    });
-    vigentes.sort(function (a, b) { return a.fin - b.fin; });
-
-    const desde = now.getTime() - DIA, hasta = now.getTime() + 28 * DIA;
-    const eventos = (data.eventos || [])
-      .filter(function (e) { return e && e.fin >= desde && e.inicio <= hasta; })
-      .sort(function (a, b) { return a.inicio - b.inicio; })
-      .slice(0, 10)
-      .map(function (e) {
-        return {
-          titulo:      String(e.titulo || ''),
-          inicio:      e.inicio,
-          fin:         e.fin,
-          esTodoElDia: !!e.esTodoElDia,
-          descripcion: String(e.descripcion || '').slice(0, 240)
-        };
-      });
-
-    return {
-      status: 'ok', activas: activas, porTerminar: porTerminar,
-      promociones: vigentes.slice(0, PROMO_PORTADA_TOPE),
-      eventos: eventos
-    };
+    return portalContarPromos_(fetchApplicationData()); // ya cacheado
   } catch (error) {
     return { status: 'error', error: error.toString(), activas: 0, porTerminar: 0 };
   }
+}
+
+/**
+ * Lo que calcula fetchPromoCounts, sobre los datos del Monitor ya leídos. Va aparte para que
+ * el doGet pueda hacer la cuenta con la copia de la caché sin arriesgarse a leer las hojas
+ * (portalPromoCountsEnCache_, F3). Puede lanzar: quien la llama decide qué hacer.
+ */
+function portalContarPromos_(data) {
+  const now = new Date();
+  const DIA = 86400000;
+  let activas = 0, porTerminar = 0;
+  const vigentes = [];
+
+  (data.promociones || []).forEach(function (p) {
+    const r = parseVigencia_(p.vigencia, now);
+    if (r && now >= r.start && now <= r.end) {
+      activas++;
+      if ((r.end - now) / DIA <= 3) porTerminar++;
+      vigentes.push({
+        direccion: String(p.direccion || '').trim(),
+        categoria: String(p.categoria || '').trim(),
+        promocion: String(p.promocion || '').trim(),
+        marca:     String(p.marca || '').trim(),
+        origen:    String(p.origen || ''),
+        vigencia:  String(p.vigencia || ''),
+        fin:       r.end.getTime(),
+        // 0 = termina hoy, 1 = mañana… (el fin es a las 23:59:59 de su último día)
+        dias:      Math.floor((r.end - now) / DIA)
+      });
+    }
+  });
+  vigentes.sort(function (a, b) { return a.fin - b.fin; });
+
+  const desde = now.getTime() - DIA, hasta = now.getTime() + 28 * DIA;
+  const eventos = (data.eventos || [])
+    .filter(function (e) { return e && e.fin >= desde && e.inicio <= hasta; })
+    .sort(function (a, b) { return a.inicio - b.inicio; })
+    .slice(0, 10)
+    .map(function (e) {
+      return {
+        titulo:      String(e.titulo || ''),
+        inicio:      e.inicio,
+        fin:         e.fin,
+        esTodoElDia: !!e.esTodoElDia,
+        descripcion: String(e.descripcion || '').slice(0, 240)
+      };
+    });
+
+  return {
+    status: 'ok', activas: activas, porTerminar: porTerminar,
+    promociones: vigentes.slice(0, PROMO_PORTADA_TOPE),
+    eventos: eventos
+  };
+}
+
+// ── F3 · LECTURAS «SOLO SI YA ESTÁ EN CACHÉ» ──────────────────────────────────
+// Las usa el doGet (datosInicialesDePagina_, Code.gs) para servir estos datos dentro de la
+// página. Devuelven null en vez de construir: el doGet no debe leer las hojas del Portal ni
+// escribir los IDs que readPortalAnuncios_ pone en "Anuncios".
+
+function portalToolsEnCache_() { return portalCacheGet_('toolsData_v1'); }
+
+function portalAppDataEnCache_() { return portalCacheGet_('appData_v1'); }
+
+function portalPromoCountsEnCache_() {
+  const data = portalAppDataEnCache_();
+  return data ? portalContarPromos_(data) : null;
 }
 
 // Mismo formato de vigencia que interpreta Promociones.html ("3 al 15 de junio", "10 de mayo"…)

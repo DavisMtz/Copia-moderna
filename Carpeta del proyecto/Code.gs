@@ -169,18 +169,97 @@ const PARAMS_VISTA = ['folio', 'action', 'format', 'q', 'buscar', 'tpl', 'sec', 
  *    secuencias vuelven a ser los mismos caracteres al parsear, pero ya no forman una
  *    etiqueta que el analizador de HTML pueda ver. U+2028/U+2029 van con ellos porque
  *    son saltos de línea para JavaScript aunque JSON los deje pasar crudos.
+ *
+ * `respuestas` (opcional, F3) es lo que devuelve datosInicialesDePagina_: respuestas del
+ * servidor que ya estaban en caché. Viajan en `datos`, por nombre de función, con la hora
+ * en que se leyeron (`datosAt`) y lo que costó leerlas (`datosMs`). Pasan por el MISMO
+ * escapado que los parámetros: las plantillas de correo y los anuncios son texto que
+ * escribe la gente, y un `</script>` dentro de ellos cerraría la etiqueta igual.
  */
-function appEstadoInicialJson_(baseUrl, e) {
-  const datos = { baseUrl: baseUrl || '' };
+function appEstadoInicialJson_(baseUrl, e, respuestas) {
+  const estado = { baseUrl: baseUrl || '' };
   PARAMS_VISTA.forEach(function (nombre) {
-    datos[nombre] = (e && e.parameter && e.parameter[nombre]) || '';
+    estado[nombre] = (e && e.parameter && e.parameter[nombre]) || '';
   });
-  return JSON.stringify(datos)
+  if (respuestas && respuestas.datos && Object.keys(respuestas.datos).length) {
+    estado.datos = respuestas.datos;
+    estado.datosAt = respuestas.at;
+    estado.datosMs = respuestas.ms;
+  }
+  return JSON.stringify(estado)
     .replace(/</g, '\\u003c')
     .replace(/>/g, '\\u003e')
     .replace(/&/g, '\\u0026')
     .replace(/\u2028/g, '\\u2028')
     .replace(/\u2029/g, '\\u2029');
+}
+
+/**
+ * F3 \u00b7 LO QUE UNA PANTALLA PEDIR\u00cdA NADA M\u00c1S ABRIR, SERVIDO DENTRO DE LA P\u00c1GINA.
+ *
+ * Cada google.script.run paga la carga entera del proyecto (1.5-2.3 s cada una, medido en
+ * pruebas el 23/09/2026), y el Portal hac\u00eda cinco al abrir para traer cosas que el servidor
+ * ya ten\u00eda en CacheService. Adem\u00e1s no sal\u00edan hasta que el iframe terminaba de arrancar
+ * (~1 s despu\u00e9s del `load`). Le\u00eddas aqu\u00ed, llegan con el primer byte y se pintan en cuanto
+ * se lee la p\u00e1gina.
+ *
+ * Reglas, y el fallo que evita cada una:
+ *   \u00b7 SOLO SE LEE DE LA CACH\u00c9. Si una respuesta no est\u00e1, se omite y la pantalla la pide como
+ *     siempre (y de paso calienta la cach\u00e9 para el siguiente). Construirla aqu\u00ed subir\u00eda el
+ *     primer byte a 5-10 s en fr\u00edo, y dos de esas construcciones ESCRIBEN en hojas
+ *     (readPortalAnuncios_ pone IDs; opCalcularEstadoPublico_ caduca incidencias). Un doGet
+ *     no debe escribir.
+ *   \u00b7 Solo respuestas p\u00fablicas, las que cualquiera del dominio ya puede pedir sin sesi\u00f3n. Lo
+ *     que depende de qui\u00e9n mira no cabe: el doGet no sabe qui\u00e9n es (la llave de sesi\u00f3n vive
+ *     en el navegador).
+ *   \u00b7 Solo lo que el cliente aceptar\u00eda guardar (`vale` repite el `accept` de la pantalla):
+ *     un status de error servido en la p\u00e1gina se pintar\u00eda como si fuera un dato.
+ *   \u00b7 Nunca lanza. Si algo falla, la p\u00e1gina sale sin datos y se comporta como antes.
+ *
+ * El cliente (AppRun, en app_core) toma cada respuesta UNA sola vez y la trata como reci\u00e9n
+ * llegada del servidor. \u00abActualizar\u00bb y las revalidaciones siguientes van al servidor.
+ */
+const DATOS_INICIALES = {
+  portal: {
+    fetchToolsData:         { leer: function () { return portalToolsEnCache_(); },
+                              vale: function (d) { return d.status !== 'error'; } },
+    fetchPromoCounts:       { leer: function () { return portalPromoCountsEnCache_(); },
+                              vale: function (d) { return d.status === 'ok'; } },
+    fetchTrazabilidadData:  { leer: function () { return trazCacheGet_(); },
+                              vale: function (d) { return d.status !== 'error' && Array.isArray(d.secciones); } },
+    // Es una propiedad del script, no una cach\u00e9: siempre est\u00e1 y cuesta una lectura.
+    obtenerModulosPublicos: { leer: function () { return obtenerModulosPublicos(); },
+                              vale: function (d) { return d.success === true; } },
+    opEstadoPublico:        { leer: function () { return opEstadoPublicoEnCache_(); },
+                              vale: function (d) { return d.success !== false; } }
+  },
+  promociones: {
+    fetchApplicationData:   { leer: function () { return portalAppDataEnCache_(); },
+                              vale: function (d) { return d.status !== 'error'; } }
+  }
+};
+
+/**
+ * Las respuestas en cach\u00e9 de una pantalla: { datos: {funci\u00f3n: respuesta}, at, ms }, o null si
+ * la pantalla no tiene lista.
+ * @param {string} pagina Clave de PORTAL_PAGES.
+ */
+function datosInicialesDePagina_(pagina) {
+  const lista = DATOS_INICIALES[pagina];
+  if (!lista) return null;
+  const t0 = Date.now();
+  const datos = {};
+  Object.keys(lista).forEach(function (fn) {
+    try {
+      const valor = lista[fn].leer();
+      if (valor && typeof valor === 'object' && lista[fn].vale(valor)) datos[fn] = valor;
+    } catch (err) {
+      Logger.log('datosInicialesDePagina_(' + pagina + ') \u00b7 ' + fn + ': ' + err);
+    }
+  });
+  const ms = Date.now() - t0;
+  Logger.log('Datos en la p\u00e1gina (' + pagina + '): ' + (Object.keys(datos).join(', ') || 'ninguno') + ' \u00b7 ' + ms + ' ms');
+  return { datos: datos, at: Date.now(), ms: ms };
 }
 
 function doGet(e) {
@@ -222,8 +301,10 @@ function servirPagina_(e) {
     PARAMS_VISTA.forEach(function (nombre) {
       pTemplate[nombre] = (e && e.parameter && e.parameter[nombre]) || '';
     });
-    // …y el mismo juego ya serializado, que es lo que la plantilla pega en __APP__.
-    pTemplate.APP_JSON = appEstadoInicialJson_(pTemplate.APP_URL, e);
+    // …y el mismo juego ya serializado, que es lo que la plantilla pega en __APP__, con las
+    // respuestas que la pantalla pediría al abrir si ya estaban en caché (F3).
+    pTemplate.APP_JSON = appEstadoInicialJson_(pTemplate.APP_URL, e,
+      datosInicialesDePagina_(PORTAL_PAGES[page] ? page : 'portal'));
     return pTemplate.evaluate()
       .setTitle(pConfig.title)
       .setXFrameOptionsMode(HtmlService.XFrameOptionsMode.ALLOWALL)

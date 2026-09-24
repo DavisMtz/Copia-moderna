@@ -728,10 +728,15 @@ function opInvalidarCache_() {
   }
 }
 
+/** Clave de una entrada de esta caché. Lleva la generación: invalidar es cambiar de clave. */
+function opCacheClave_(nombre) {
+  return 'op_g' + opGeneracion_() + '_' + nombre;
+}
+
 function opCacheado_(nombre, ttl, productor) {
   try {
     const cache = CacheService.getScriptCache();
-    const hit = cache.get('op_g' + opGeneracion_() + '_' + nombre);
+    const hit = cache.get(opCacheClave_(nombre));
     if (hit) return JSON.parse(hit);
 
     const fresco = productor();
@@ -740,7 +745,7 @@ function opCacheado_(nombre, ttl, productor) {
       // La clave se recalcula AQUÍ, no arriba: el productor puede haber invalidado la caché
       // por el camino (opCaducarPosibles_ cierra incidencias abandonadas mientras lee), y
       // guardar bajo la generación anterior dejaba la entrada muerta al nacer.
-      if (json.length < 95000) cache.put('op_g' + opGeneracion_() + '_' + nombre, json, ttl);
+      if (json.length < 95000) cache.put(opCacheClave_(nombre), json, ttl);
     }
     return fresco;
   } catch (e) {
@@ -765,6 +770,20 @@ function opEstadoPublico() {
   } catch (e) {
     Logger.log('opEstadoPublico: ' + e + ' · ' + e.stack);
     return { success: false, message: 'No pudimos consultar el estado en este momento.' };
+  }
+}
+
+/**
+ * opEstadoPublico SOLO si ya está en caché; null si no. La usa el doGet para servir el estado
+ * dentro de la página (datosInicialesDePagina_, Code.gs, F3) y por eso no pasa por el
+ * productor: ese lee las hojas y puede escribir al caducar incidencias abandonadas.
+ */
+function opEstadoPublicoEnCache_() {
+  try {
+    const hit = CacheService.getScriptCache().get(opCacheClave_('publico'));
+    return hit ? JSON.parse(hit) : null;
+  } catch (e) {
+    return null;
   }
 }
 

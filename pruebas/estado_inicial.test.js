@@ -44,7 +44,7 @@ function cargar() {
   const lista = src.match(/const PARAMS_VISTA = \[[^\]]*\];/);
   if (!lista) throw new Error('No se encontró PARAMS_VISTA en Code.gs');
 
-  const fn = src.match(/function appEstadoInicialJson_\(baseUrl, e\) \{[\s\S]*?\n\}/);
+  const fn = src.match(/function appEstadoInicialJson_\(baseUrl, e, respuestas\) \{[\s\S]*?\n\}/);
   if (!fn) throw new Error('No se encontró appEstadoInicialJson_ en Code.gs');
 
   const ctx = { JSON, String, Object, Array };
@@ -144,6 +144,30 @@ console.log('\n8. Un parámetro ajeno al contrato no se copia');
   const dato = JSON.parse(json({ folio: 'F1', maldad: 'no debería estar' }));
   ok('lo que no está en PARAMS_VISTA no viaja', !('maldad' in dato), JSON.stringify(dato));
   eq('lo que sí está, viaja', dato.folio, 'F1');
+}
+
+/* F3: el tercer parámetro trae respuestas del servidor que ya estaban en caché. Son texto
+   que escribe la gente (plantillas de correo, anuncios), así que el `</script>` vale igual
+   que en un parámetro de la URL: tiene que salir escapado. */
+console.log('\n9. Respuestas en caché dentro de la página (F3)');
+{
+  const e = { parameter: { folio: 'F1' } };
+  const sin = JSON.parse(ctx.appEstadoInicialJson_('u', e));
+  ok('sin tercer parámetro no aparece `datos` (la salida de siempre)', !('datos' in sin) && !('datosAt' in sin), JSON.stringify(sin));
+  const vacio = JSON.parse(ctx.appEstadoInicialJson_('u', e, { datos: {}, at: 5, ms: 1 }));
+  ok('con la lista vacía tampoco (nada que servir)', !('datos' in vacio), JSON.stringify(vacio));
+  ok('con null tampoco', !('datos' in JSON.parse(ctx.appEstadoInicialJson_('u', e, null))));
+
+  const plantilla = { titulo: 'Aviso', cuerpo: 'Hola</script><script>alert(1)</script>' + LS + 'fin & <b>' };
+  const s = ctx.appEstadoInicialJson_('u', e, { datos: { fetchToolsData: { status: 'ok', plantillas: [plantilla] } }, at: 1234, ms: 7 });
+  ok('el texto de las respuestas no deja un "</script>" literal', s.indexOf('</script>') === -1, s);
+  ok('ni "<", ">" o "&" sueltos', !/[<>&]/.test(s), s);
+  ok('ni un U+2028 crudo', s.indexOf(LS) === -1);
+  const dato = JSON.parse(s);
+  eq('la respuesta sobrevive intacta al parsear', dato.datos.fetchToolsData.plantillas[0].cuerpo, plantilla.cuerpo);
+  eq('viaja la hora de lectura', dato.datosAt, 1234);
+  eq('y lo que costó leerla', dato.datosMs, 7);
+  eq('los parámetros siguen ahí', dato.folio, 'F1');
 }
 
 console.log('\n─────────────────────────────────────────────');

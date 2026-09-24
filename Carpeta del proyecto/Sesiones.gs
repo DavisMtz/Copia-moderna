@@ -229,8 +229,12 @@ function sesFuncionExpuesta_(nombre) {
  * @param {string} nombre    Función del servidor a ejecutar.
  * @param {Array}  args      Sus argumentos, tal cual.
  * @param {number=} actividad Última interacción de la persona (ms), para la inactividad.
+ * @param {number=} medir     1 = devolver también cuánto trabajó el servidor (F3, AppRun.medidas):
+ *        { __srv: 1, v: respuesta, ms }. Sin él, la respuesta de siempre: una pantalla abierta
+ *        antes de un despliegue sigue recibiendo lo que espera.
  */
-function secEjecutar(llave, nombre, args, actividad) {
+function secEjecutar(llave, nombre, args, actividad, medir) {
+  const t0 = Date.now();
   const fn = String(nombre || '');
   const f = sesFuncionExpuesta_(fn);
   if (!f) throw new Error('El servidor no expone la función ' + fn + '.');
@@ -244,7 +248,8 @@ function secEjecutar(llave, nombre, args, actividad) {
   }
   Logger.log('secEjecutar → ' + fn);
   // Sin try/catch a propósito: un error de la función debe llegar tal cual al withFailureHandler.
-  return f.apply(null, Array.isArray(args) ? args : []);
+  const respuesta = f.apply(null, Array.isArray(args) ? args : []);
+  return medir === 1 ? { __srv: 1, v: respuesta, ms: Date.now() - t0 } : respuesta;
 }
 
 /** Cierra la sesión en el servidor. Se puede llamar sin sesión: solo borra si la llave es válida. */
