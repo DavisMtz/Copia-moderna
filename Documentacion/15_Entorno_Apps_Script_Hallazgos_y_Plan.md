@@ -24,7 +24,7 @@
    Ver §3.12 y la Fase 0.
 2. **La lentitud del Portal no está en el HTML ni en la red: está en el tamaño del código del servidor.**
    - Cada ejecución (cada pantalla y cada `google.script.run`) paga por cargar el proyecto.
-   - Una llamada vacía tarda **~0.75 s en un proyecto vacío y ~1.9 s en uno con el código del Portal**.
+   - Una llamada vacía tarda **~0.8 s en un proyecto vacío y ~1.8-2.0 s en uno con el código del Portal** (medianas de 14 y 21 muestras).
    - Armar la pantalla del Portal con sus 14 `include` cuesta solo **229 ms** en el servidor.
    - Por la red, 1.2 MB llegan en **9 ms**.
 3. **Lo que más ayuda, medido:**
@@ -113,22 +113,28 @@
 
 ### 3.2 El costo del tamaño del proyecto (el hallazgo central) [MEDIDO]
 
-Misma función vacía (`labNoop`) en variantes del mismo proyecto. Llamadas en serie, sin contar la primera («en frío»):
+Misma función vacía (`labNoop`) en variantes del mismo proyecto. Llamadas en serie; **en todas las filas se descarta la primera de cada corrida** («en frío»). Se da la mediana y, entre paréntesis, el rango p25-p75:
 
 | Variante del proyecto | Peso | Llamada vacía | Muestras |
 |---|---|---|---|
-| LAB-mini (solo el laboratorio) | ~10 KB | **~750 ms** (710 / 801) | 2 × 8 |
-| Solo HTML del Portal | 3,554 KB | 914 ms | 8 (`/dev`) |
-| `.gs` comprimidos con esbuild | 574 KB | 1,219 ms | 8 (`/dev`) |
-| `.gs` **sin comentarios, mismas líneas** | 669 KB | **1,063 ms** | 8 (`/exec`) |
-| Solo `.gs` originales | 1,185 KB | 1,451 ms | 8 (`/dev`) |
-| **Portal completo (como producción)** | 4,739 KB | **1,876 ms** (p25-p75: 1,629-1,994) | 16 (`/exec`) |
-| Todo comprimido (`.gs` + HTML) | 2,329 KB | 1,584 ms (p25-p75: 1,222-1,664) | 16 (`/exec`) |
-| Candidata Fase 1 (`.gs` sin comentarios + parciales compilados) | 3,514 KB | 1,318 ms | 8 (`/exec`) |
+| LAB-mini (solo el laboratorio) | ~10 KB | **773 ms** (559-818) | 14 (`/exec`) |
+| Solo HTML del Portal | 3,554 KB | 914 ms (820-971) | 7 (`/dev`) |
+| `.gs` sin comentarios, mismas líneas (sin HTML) | 669 KB | **964 ms** (786-1,162) | 7 (`/exec`) |
+| `.gs` comprimidos con esbuild (sin HTML) | 574 KB | 1,219 ms (1,179-1,354) | 7 (`/dev`) |
+| Candidata (`.gs` sin comentarios + parciales compilados + HTML) | 3,514 KB | 1,384 ms (1,051-1,551) | 7 (`/exec`) |
+| Solo `.gs` originales (sin HTML) | 1,185 KB | 1,451 ms (1,293-1,542) | 7 (`/dev`) |
+| Todo comprimido (`.gs` + HTML) | 2,329 KB | 1,584 ms (1,247-1,663) | 14 (`/exec`) |
+| Portal completo, en `/dev` | 4,739 KB | 1,832 ms (1,689-1,989) | 7 (`/dev`) |
+| **Portal completo (como producción)** | 4,739 KB | **1,994 ms** (1,773-2,481) | 21 (`/exec`) |
+
+Las filas `/dev` y `/exec` se midieron en momentos distintos. Comparar sobre todo dentro de la misma columna de despliegue.
 
 - **Lo que más pesa es el código `.gs`.** Con solo HTML el costo es casi el del proyecto vacío. Con solo `.gs` sube ~0.7 s.
 - **Quitar comentarios de los `.gs` baja cada llamada ~0.3-0.8 s.**
   - Conservar las líneas da casi lo mismo que comprimir del todo, y los errores de Stackdriver siguen apuntando a la línea del fuente.
+  - **Ojo, es una interpolación:** no se midió la combinación exacta que desplegaría la Fase 1 (`.gs` sin comentarios con el HTML original).
+    - La acotan dos saltos medidos: completo → candidata, ~0.6 s en `/exec`; y solo `.gs` → `.gs` sin comentarios, ~0.5 s.
+    - La Fase 1 lo confirma en pruebas antes de ir a producción.
 - **El primer byte varía demasiado para comparar variantes con 5 muestras** (full 1,093-2,219 ms; candidata 1,350-2,576 ms). La latencia de las llamadas es la medida confiable.
 - **Ensamblar la pantalla de antemano** (sin `include` en tiempo de ejecución) bajó el armado de 229 a 115 ms. Insignificante frente al resto.
 - [OFICIAL] «Avoid libraries in UI-heavy scripts… increase script startup time». Mover código a librerías **no** es solución.
@@ -391,7 +397,7 @@ Misma función vacía (`labNoop`) en variantes del mismo proyecto. Llamadas en s
 - **LAB-grande:** `1oX4A114LpawkoXGEYRqZXC0dAZJypsu8c-IWbOy08roBiykLC3yFmkbp`.
   - `/exec`: `AKfycbyGCzpkPobuOLTAk_EaUn2YvB_QrNUa4cP54v8gfevS4l6b61tvmiZ-pfWN_h6j27Vp8w` (va en la @9).
   - `/dev`: `AKfycbxXHfIW2Ot604BuhDh2aMeXQVF9GmGGF98vVqIBAXIh`.
-  - **Se vació al terminar:** ya solo contiene el laboratorio, no la copia del Portal.
+  - **Estado al terminar:** el código actual (HEAD, el que sirve `/dev`) quedó vacío, solo con el laboratorio. Pero **su `/exec` sigue apuntando a la @9, y las versiones @1-@9 conservan la copia del Portal** (sin secretos: `HASH_SALT` y los webhooks anulados). **Recomendado: borrar el proyecto** cuando ya no haga falta.
 - **Acceso:** los dos son `MYSELF` (solo el creador), con `oauthScopes: []`. Se pueden borrar sin consecuencias.
 - **Rutas del laboratorio (`ZZ_Lab.gs`):**
   - `?solo=noop&v=<etiqueta>`: latencia (8 en serie + 8 en paralelo).

@@ -1056,7 +1056,7 @@ Todo queda en `Documentacion/15_Entorno_Apps_Script_Hallazgos_y_Plan.md`, con el
    - `secFijarModoAuth`, `sendWebhookNotification`, `saveQuoteDataToSheets` y `cuentasLimpiarTodo`.
    - Arreglo propuesto: Fase 0 del doc 15. **No aplicado: espera la palabra del creador.**
 2. **La lentitud es el tamaño del código del servidor, no el HTML ni la red.**
-   - Una llamada vacía tarda ~0.75 s en un proyecto vacío y ~1.9 s con el código del Portal.
+   - Una llamada vacía tarda ~0.8 s en un proyecto vacío y ~1.8-2.0 s con el código del Portal.
    - Quitar los comentarios de los `.gs` conservando las líneas la baja ~0.3-0.8 s.
    - Armar la pantalla del Portal cuesta solo 229 ms.
 3. **Datos de la plataforma que cambian decisiones:**
