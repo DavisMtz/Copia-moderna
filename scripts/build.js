@@ -1,5 +1,5 @@
 /*
- * Build del Apps Script (Fase 1 del doc 16): genera `build/` a partir de «Carpeta del proyecto».
+ * Build del Apps Script (Fases 1 y 2 del doc 16): genera `build/` a partir de «Carpeta del proyecto».
  *   node scripts/build.js                         → build/ (hermana de la fuente) con su .clasp.json
  *   node scripts/build.js --salida <dir>          → a otra carpeta (las pruebas usan una temporal)
  *   node scripts/build.js --fuente <dir>          → desde otra fuente (solo para pruebas)
@@ -7,9 +7,9 @@
  *
  * Por qué: cada ejecución de Apps Script (un doGet, un google.script.run) paga por cargar TODO el
  * código .gs del proyecto, y los comentarios cuentan. Medido en el doc 15 §3.2: quitarlos baja
- * ~0.3-0.8 s por llamada. Los .html no se tocan todavía (eso es la Fase 2).
+ * ~0.3-0.8 s por llamada. Los .html (Fase 2, más abajo) pesan en el navegador, no en el servidor.
  *
- * Qué hace con cada .gs:
+ * Qué hace con cada .gs (Fase 1):
  *   · quita los comentarios —los localiza acorn, no un regex, para no confundirlos con cadenas o
  *     expresiones regulares— y CONSERVA LOS SALTOS DE LÍNEA: un error en Stackdriver sigue
  *     apuntando a la misma línea del fuente;
@@ -27,10 +27,28 @@
  *     marcas siguen ahí (la lista se lee del propio Admin.gs, no de una copia);
  *   · la salida tiene exactamente los archivos que subiría clasp desde la fuente: `clasp push`
  *     BORRA en el editor lo que no exista en local.
+ *
+ * Qué hace con cada .html (Fase 2). Google ya sirve el HTML sin comentarios y sin sangría, pero
+ * conserva los saltos de línea y los nombres (doc 15 §3.1): lo que queda por ganar es el JS y el
+ * CSS compilados, 19-27 % menos por pantalla.
+ *   · PARCIALES (app_*.html, *Partial.html): include() los pega tal cual, sin evaluarlos. Se les
+ *     quitan los comentarios HTML y cada <script> y <style> pasa por esbuild. Del JS se quitan los
+ *     espacios y se acortan los nombres LOCALES; la sintaxis no se reescribe (ver OPC_JS). El
+ *     marcado no se toca: su sangría ya la quita Google.
+ *   · PÁGINAS (las plantillas que sirve doGet): solo se quitan los comentarios HTML del marcado, sin
+ *     entrar en sus <script> ni en sus <style>. Un comentario con un scriptlet dentro PARA el build:
+ *     Google ejecuta los <? ?> aunque estén comentados (doc 15 §3.8), y borrarlo cambiaría la página.
+ * Comprobaciones de cada bloque compilado: el JS de salida se deja leer; declara los mismos nombres
+ * globales y del mismo tipo (var, let, function…) que el fuente, porque los demás bloques de la
+ * página los usan; no lleva `</script` ni más `<!--` o `<script` que el fuente; y ninguna
+ * plantilla `…` nueva contiene //, /* ni un salto de línea: el quitacomentarios de Google las toma
+ * por comentarios o por sangría (issue 156139610, doc 15 §3.10). Las que crea esbuild al elegir
+ * comillas se reescriben como cadenas normales, con el mismo valor.
  */
 const fs = require('fs');
 const path = require('path');
 const acorn = require('acorn');
+const esbuild = require('esbuild');
 
 const RAIZ = path.join(__dirname, '..');
 const OPC_ACORN = { ecmaVersion: 'latest', sourceType: 'script' };
@@ -149,6 +167,342 @@ function textoDeFuncion(archivos, nombre) {
   return null;
 }
 
+/* ── Fase 2: los .html ───────────────────────────────────────────────── */
+
+// Parciales: los pega include() sin evaluarlos. Todo lo demás es una página (plantilla).
+const esParcial = (f) => /^(app_.*|.*Partial)\.html$/.test(f);
+
+// JS: sin espacios y con los nombres locales acortados, pero SIN minifySyntax. Esa opción, además
+// de reescribir la sintaxis (if → &&, true → !0…), convierte las cadenas con '\n' en plantillas
+// `…` con el salto de línea dentro, y ahí la sangría que viniera detrás la quitaría Google
+// (medido: 2 casos en los parciales de hoy). Sin ella se pierde 1 punto de compresión.
+// Los nombres globales no se tocan: esbuild no renombra el ámbito superior de un guion.
+const OPC_JS = {
+  loader: 'js', charset: 'utf8', target: 'chrome109', legalComments: 'none',
+  minifyWhitespace: true, minifyIdentifiers: true, minifySyntax: false
+};
+const OPC_CSS = { loader: 'css', charset: 'utf8', target: 'chrome109', minify: true };
+
+// Elementos cuyo contenido el navegador NO lee como marcado: ahí `<!--` es texto y no se toca.
+const OPACOS = ['textarea', 'title', 'xmp', 'iframe', 'noembed', 'noframes', 'noscript'];
+
+// Parte un HTML como lo haría el navegador: comentario, bloque (<script>, <style> u opaco) y
+// marcado. En una PLANTILLA los scriptlets <? ?> son opacos y se saltan en todas las búsquedas:
+// Google los ejecuta antes de que el navegador vea nada. Cada trozo lleva su posición (`ini`).
+function trocearHtml(html, plantilla) {
+  const low = html.toLowerCase();
+  const trozos = [];
+  let i = 0, desde = 0;
+  const marcadoHasta = (fin) => { if (fin > desde) trozos.push({ t: 'marcado', ini: desde, texto: html.slice(desde, fin) }); };
+  const finScriptlet = (ini) => {
+    const f = html.indexOf('?>', ini + 2);
+    if (f === -1) throw new Error('scriptlet <? sin cerrar (posición ' + ini + ')');
+    return f + 2;
+  };
+  // Como indexOf, pero en una plantilla no mira dentro de los scriptlets.
+  const buscar = (aguja, pos) => {
+    for (;;) {
+      const a = low.indexOf(aguja, pos);
+      if (!plantilla || a === -1) return a;
+      const s = html.indexOf('<?', pos);
+      if (s === -1 || a < s) return a;
+      pos = finScriptlet(s);
+    }
+  };
+  while (i < html.length) {
+    if (plantilla && html.startsWith('<?', i)) {
+      const f = finScriptlet(i);
+      marcadoHasta(i);
+      trozos.push({ t: 'scriptlet', ini: i, texto: html.slice(i, f) });
+      i = desde = f;
+      continue;
+    }
+    if (html.startsWith('<!--', i)) {
+      // `<!-->` y `<!--->` son comentarios vacíos completos; `--!>` también cierra (norma HTML).
+      let f;
+      if (html.startsWith('<!-->', i)) f = i + 5;
+      else if (html.startsWith('<!--->', i)) f = i + 6;
+      else {
+        const a = html.indexOf('-->', i + 4), b = html.indexOf('--!>', i + 4);
+        if (a === -1 && b === -1) throw new Error('comentario <!-- sin cerrar (posición ' + i + ')');
+        f = (b !== -1 && (a === -1 || b < a)) ? b + 4 : a + 3;
+      }
+      marcadoHasta(i);
+      trozos.push({ t: 'comentario', ini: i, texto: html.slice(i, f) });
+      i = desde = f;
+      continue;
+    }
+    const m = /^<([a-z]+)[\s>\/]/.exec(low.slice(i, i + 12));
+    if (m && (m[1] === 'script' || m[1] === 'style' || OPACOS.includes(m[1]))) {
+      const tag = m[1];
+      const finApertura = buscar('>', i);
+      if (finApertura === -1) throw new Error('<' + tag + '> sin cerrar la etiqueta (posición ' + i + ')');
+      // El bloque acaba en `</tag` seguido de espacio, `/` o `>`: lo mismo que busca el navegador.
+      let c = finApertura;
+      for (;;) {
+        c = buscar('</' + tag, c + 1);
+        if (c === -1) throw new Error('falta </' + tag + '> (abierto en la posición ' + i + ')');
+        if (/[\s\/>]/.test(html[c + 2 + tag.length] || '')) break;
+      }
+      const finCierre = html.indexOf('>', c);
+      if (finCierre === -1) throw new Error('</' + tag + ' sin «>» (posición ' + c + ')');
+      marcadoHasta(i);
+      trozos.push({
+        t: (tag === 'script' || tag === 'style') ? tag : 'opaco', ini: i, tag,
+        apertura: html.slice(i, finApertura + 1), contenido: html.slice(finApertura + 1, c),
+        cierre: html.slice(c, finCierre + 1), texto: html.slice(i, finCierre + 1)
+      });
+      i = desde = finCierre + 1;
+      continue;
+    }
+    i++;
+  }
+  marcadoHasta(html.length);
+  return trozos;
+}
+
+// Solo el JS clásico se compila. `src`, `type="module"`, plantillas de texto, JSON…: intactos.
+function esJsClasico(apertura) {
+  if (/\ssrc\s*=/i.test(apertura)) return false;
+  const tipo = /\stype\s*=\s*["']?([^"'\s>]*)/i.exec(apertura);
+  return !tipo || tipo[1] === '' || /^(text|application)\/(java|ecma)script$/i.test(tipo[1]);
+}
+
+// Nombres que un bloque deja en el ámbito global, con su tipo: los `var` de cualquier bloque fuera
+// de una función (suben al ámbito global), y los let/const/class/function del nivel superior. Una
+// función declarada dentro de un bloque cuenta aparte: en modo no estricto también es global.
+function globalesDeGuion(js) {
+  const g = [];
+  const dePatron = (p, tipo) => {
+    if (!p) return;
+    if (p.type === 'Identifier') g.push(tipo + ' ' + p.name);
+    else if (p.type === 'ObjectPattern') p.properties.forEach((x) => dePatron(x.value || x.argument, tipo));
+    else if (p.type === 'ArrayPattern') p.elements.forEach((x) => dePatron(x, tipo));
+    else if (p.type === 'AssignmentPattern') dePatron(p.left, tipo);
+    else if (p.type === 'RestElement') dePatron(p.argument, tipo);
+  };
+  const visitar = (n, arriba) => {
+    if (!n || typeof n.type !== 'string') return;
+    if (n.type === 'FunctionDeclaration') { if (n.id) g.push((arriba ? 'function ' : 'function-en-bloque ') + n.id.name); return; }
+    if (n.type === 'FunctionExpression' || n.type === 'ArrowFunctionExpression' ||
+        n.type === 'ClassExpression' || n.type === 'StaticBlock' || n.type === 'MethodDefinition' ||
+        n.type === 'PropertyDefinition') return;
+    if (n.type === 'ClassDeclaration') { if (arriba && n.id) g.push('class ' + n.id.name); return; }
+    if (n.type === 'VariableDeclaration' && (n.kind === 'var' || arriba)) n.declarations.forEach((d) => dePatron(d.id, n.kind));
+    for (const clave of Object.keys(n)) {
+      const v = n[clave];
+      if (Array.isArray(v)) v.forEach((h) => visitar(h, false));
+      else if (v && typeof v.type === 'string') visitar(v, false);
+    }
+  };
+  acorn.parse(js, OPC_ACORN).body.forEach((n) => visitar(n, true));
+  return g.sort();
+}
+
+// Plantillas `…` de un JS, con su padre (para saber si llevan etiqueta).
+function plantillasDe(js) {
+  const out = [];
+  const visitar = (n, padre) => {
+    if (!n || typeof n.type !== 'string') return;
+    if (n.type === 'TemplateLiteral') {
+      out.push({
+        nodo: n, padre,
+        etiquetada: !!(padre && padre.type === 'TaggedTemplateExpression' && padre.quasi === n),
+        crudo: n.quasis.map((q) => q.value.raw).join('${}')
+      });
+    }
+    for (const clave of Object.keys(n)) {
+      const v = n[clave];
+      if (Array.isArray(v)) v.forEach((h) => visitar(h, n));
+      else if (v && typeof v.type === 'string') visitar(v, n);
+    }
+  };
+  visitar(acorn.parse(js, OPC_ACORN), null);
+  return out;
+}
+
+// Lo que el quitacomentarios de Google estropea dentro de una plantilla `…`.
+const PELIGRO_EN_PLANTILLA = /\/\/|\/\*|[\r\n]/;
+
+// Las plantillas peligrosas de la salida que NO estaban ya en el fuente. Las que ya estaban las
+// sirve Google hoy y se quedan como están: tocarlas cambiaría lo que llega al navegador.
+function plantillasPeligrosasNuevas(salida, fuente) {
+  const deFuente = new Map();
+  for (const p of plantillasDe(fuente)) {
+    if (PELIGRO_EN_PLANTILLA.test(p.crudo)) deFuente.set(p.crudo, (deFuente.get(p.crudo) || 0) + 1);
+  }
+  return plantillasDe(salida).filter((p) => {
+    if (!PELIGRO_EN_PLANTILLA.test(p.crudo)) return false;
+    const n = deFuente.get(p.crudo) || 0;
+    if (n > 0) { deFuente.set(p.crudo, n - 1); return false; }
+    return true;
+  });
+}
+
+// Una cadena JS con el mismo valor, que no puede cerrar un <script> ni abrir un comentario HTML.
+const cadenaSegura = (valor) => JSON.stringify(valor)
+  .replace(/</g, '\\u003c').replace(new RegExp('\u2028', 'g'), '\\u2028').replace(new RegExp('\u2029', 'g'), '\\u2029');
+
+// El árbol de un JS sin posiciones, con cada plantilla `…` sin etiqueta ni ${} vista como la
+// cadena que vale: así se compara el programa antes y después de reescribir esas plantillas.
+function arbolComoCadenas(js) {
+  return JSON.stringify(acorn.parse(js, OPC_ACORN), function (clave, v) {
+    if (clave === 'start' || clave === 'end' || clave === 'raw') return undefined;
+    if (v && v.type === 'TemplateLiteral' && clave !== 'quasi' && v.expressions.length === 0) {
+      return { type: 'Literal', value: v.quasis[0].value.cooked };
+    }
+    return v;
+  });
+}
+
+// esbuild elige las comillas que menos escapes piden, y una cadena con comillas simples y dobles
+// puede salir como `…` aunque en el fuente no lo fuera; si lleva //, /* o un salto de línea, Google
+// la estropearía. Se reescriben como cadenas normales con el mismo valor. Una nueva con ${} o con
+// etiqueta no la puede haber creado esa elección y no se sabe arreglar: error.
+function plantillasSeguras(salida, fuente) {
+  const nuevas = plantillasPeligrosasNuevas(salida, fuente);
+  if (!nuevas.length) return salida;
+  const malas = nuevas.filter((p) => p.etiquetada || p.nodo.expressions.length);
+  if (malas.length) {
+    throw new Error('esbuild creó una plantilla `…` con //, /* o un salto de línea que no se puede convertir en cadena: ' +
+      JSON.stringify(malas[0].crudo.slice(0, 80)));
+  }
+  let s = salida;
+  for (const p of nuevas.sort((a, b) => b.nodo.start - a.nodo.start)) {
+    let lit = cadenaSegura(p.nodo.quasis[0].value.cooked);
+    // Como sentencia suelta, una cadena al principio de una función sería una directiva ("use strict").
+    if (p.padre && p.padre.type === 'ExpressionStatement') lit = '(' + lit + ')';
+    s = s.slice(0, p.nodo.start) + lit + s.slice(p.nodo.end);
+  }
+  if (arbolComoCadenas(s) !== arbolComoCadenas(salida)) throw new Error('reescribir las plantillas cambió el programa');
+  return s;
+}
+
+// El programa sin lo que esbuild cambia sin cambiar lo que hace: posiciones y espacios, los nombres
+// de variables (se acortan; las claves y las propiedades con punto no), `{a: a}` → `{a}`,
+// `undefined` → `void 0`, cadenas constantes juntadas (`'a' + 'b'` → `'ab'`) y las plantillas `…`
+// sin ${} reescritas como cadenas. Si dos JS dan lo mismo aquí, son el mismo programa salvo los
+// nombres locales, y los globales ya se comparan aparte. Medido en los 24 bloques de hoy: iguales.
+function arbolNormalizado(js) {
+  const esClave = (clave, padre) => !!padre && !padre.computed && (
+    (clave === 'key' && (padre.type === 'Property' || padre.type === 'MethodDefinition' || padre.type === 'PropertyDefinition')) ||
+    (clave === 'property' && padre.type === 'MemberExpression'));
+  const normal = (n, clave, padre) => {
+    if (Array.isArray(n)) return n.map((x) => normal(x, clave, padre));
+    if (!n || typeof n !== 'object') return n;
+    if (esClave(clave, padre)) return { clave: String(n.type === 'Identifier' ? n.name : n.value) };
+    if ((n.type === 'Identifier' && n.name === 'undefined') ||
+        (n.type === 'UnaryExpression' && n.operator === 'void' && n.argument.type === 'Literal' && n.argument.value === 0)) {
+      return { type: 'undefined' };
+    }
+    if (n.type === 'Identifier' || n.type === 'PrivateIdentifier') return { type: n.type };
+    if (n.type === 'TemplateLiteral' && clave !== 'quasi' && n.expressions.length === 0) {
+      return { type: 'Literal', value: n.quasis[0].value.cooked };
+    }
+    if (n.type === 'BinaryExpression' && n.operator === '+') {
+      // a + b + c es ((a + b) + c): se aplana y se juntan las cadenas vecinas. Juntarlas no cambia
+      // el resultado: a la izquierda de una cadena el valor ya es una cadena.
+      const partes = [];
+      (function aplanar(x) { if (x.type === 'BinaryExpression' && x.operator === '+') { aplanar(x.left); partes.push(x.right); } else partes.push(x); })(n);
+      const juntas = [];
+      for (const p of partes.map((x) => normal(x, 'suma', n))) {
+        const u = juntas[juntas.length - 1];
+        const cadena = (x) => x && x.type === 'Literal' && typeof x.value === 'string';
+        if (cadena(u) && cadena(p)) juntas[juntas.length - 1] = { type: 'Literal', value: u.value + p.value };
+        else juntas.push(p);
+      }
+      return juntas.length === 1 ? juntas[0] : { type: 'Suma', partes: juntas };
+    }
+    const out = {};
+    for (const k of Object.keys(n)) {
+      if (k !== 'start' && k !== 'end' && k !== 'raw' && k !== 'shorthand') out[k] = normal(n[k], k, n);
+    }
+    return out;
+  };
+  return JSON.stringify(normal(acorn.parse(js, OPC_ACORN), null, null));
+}
+
+const cuenta = (s, re) => (s.match(re) || []).length;
+const primeraLinea = (e) => String((e && e.message) || e).split('\n').filter((x) => x.trim())[0];
+
+function compilarJs(fuente, donde, errores) {
+  let globalesFuente;
+  try { globalesFuente = globalesDeGuion(fuente); } catch (e) { errores.push(donde + ': acorn no pudo leer el fuente (' + e.message + ')'); return null; }
+  let salida;
+  try { salida = esbuild.transformSync(fuente, OPC_JS).code.trim(); } catch (e) { errores.push(donde + ': esbuild no lo pudo compilar (' + primeraLinea(e) + ')'); return null; }
+  try { salida = plantillasSeguras(salida, fuente); } catch (e) { errores.push(donde + ': ' + e.message); return null; }
+  try { acorn.parse(salida, OPC_ACORN); } catch (e) { errores.push(donde + ': la salida no se deja leer (' + e.message + ')'); return null; }
+  const antes = errores.length;
+  if (globalesDeGuion(salida).join() !== globalesFuente.join()) errores.push(donde + ': cambiaron los nombres globales o su tipo');
+  if (arbolNormalizado(salida) !== arbolNormalizado(fuente)) {
+    errores.push(donde + ': esbuild cambió el programa más allá de los nombres locales (ver arbolNormalizado en scripts/build.js)');
+  }
+  if (/<\/script/i.test(salida)) errores.push(donde + ': la salida lleva </script');
+  if (cuenta(salida, /<!--/g) > cuenta(fuente, /<!--/g) || cuenta(salida, /<script/gi) > cuenta(fuente, /<script/gi)) {
+    errores.push(donde + ': la salida lleva más <!-- o <script que el fuente');
+  }
+  if (plantillasPeligrosasNuevas(salida, fuente).length) errores.push(donde + ': queda una plantilla `…` nueva con //, /* o un salto de línea');
+  return errores.length === antes ? salida : null;
+}
+
+function compilarCss(fuente, donde, errores) {
+  let r;
+  try { r = esbuild.transformSync(fuente, OPC_CSS); } catch (e) { errores.push(donde + ': esbuild no pudo leer el CSS (' + primeraLinea(e) + ')'); return null; }
+  // Un aviso de esbuild en CSS es algo que no entendió (una cadena sin cerrar, una llave de más):
+  // lo que haga con eso no se puede dar por bueno.
+  if (r.warnings.length) { errores.push(donde + ': esbuild avisa en el CSS: ' + r.warnings[0].text); return null; }
+  const salida = r.code.trim();
+  const antes = errores.length;
+  if (/<\/style/i.test(salida)) errores.push(donde + ': el CSS de salida lleva </style');
+  if (cuenta(salida, /\/\//g) > cuenta(fuente.replace(/\/\*[\s\S]*?\*\//g, ''), /\/\//g)) errores.push(donde + ': el CSS de salida lleva // nuevos');
+  return errores.length === antes ? salida : null;
+}
+
+const lineaDe = (html, pos) => html.slice(0, pos).split('\n').length;
+
+function limpiarParcial(html, nombre, errores) {
+  let trozos;
+  try { trozos = trocearHtml(html, false); } catch (e) { errores.push(nombre + ': ' + e.message); return null; }
+  const antes = errores.length;
+  const out = trozos.map((t) => {
+    const donde = nombre + ':' + lineaDe(html, t.ini);
+    if (t.t === 'comentario') return '';
+    if (t.t === 'script' && esJsClasico(t.apertura) && t.contenido.trim()) {
+      const js = compilarJs(t.contenido, donde, errores);
+      return js === null ? '' : t.apertura + js + t.cierre;
+    }
+    if (t.t === 'style' && t.contenido.trim()) {
+      const css = compilarCss(t.contenido, donde, errores);
+      return css === null ? '' : t.apertura + css + t.cierre;
+    }
+    return t.texto;
+  }).join('');
+  return errores.length === antes ? out : null;
+}
+
+function limpiarPagina(html, nombre, errores) {
+  let trozos;
+  try { trozos = trocearHtml(html, true); } catch (e) { errores.push(nombre + ': ' + e.message); return null; }
+  const antes = errores.length;
+  const out = trozos.map((t) => {
+    if (t.t !== 'comentario') return t.texto;
+    if (t.texto.indexOf('<?') !== -1) {
+      errores.push(nombre + ':' + lineaDe(html, t.ini) + ': un comentario HTML lleva un scriptlet <? ?>. Google lo ' +
+        'ejecuta aunque esté comentado: sácalo del comentario o bórralo');
+      return t.texto;
+    }
+    return '';
+  }).join('');
+  return errores.length === antes ? out : null;
+}
+
+// Las páginas que sirve doGet: las claves `file:` de PAGES y PORTAL_PAGES.
+function paginasServidas(archivosGs) {
+  const paginas = new Set();
+  for (const s of archivosGs) for (const m of s.matchAll(/\bfile:\s*'([^']+)'/g)) paginas.add(m[1] + '.html');
+  return paginas;
+}
+
 /* ── Qué subiría clasp ───────────────────────────────────────────────── */
 
 // clasp sube .gs/.js/.html y cualquier .json de la raíz del rootDir (y de sus subcarpetas).
@@ -212,7 +566,24 @@ function generar(fuente, salida, gs, copiar, errores, opc) {
     bytesAntes += Buffer.byteLength(s);
     bytesDespues += Buffer.byteLength(t);
   }
-  for (const f of copiar) fs.copyFileSync(path.join(fuente, f), path.join(salida, f));
+  // Fase 2. Un parcial compilado como si fuera página (o al revés) rompería la pantalla: si una
+  // página que sirve doGet tiene nombre de parcial, se para aquí.
+  const html = { parciales: 0, paginas: 0, antes: 0, despues: 0 };
+  const servidas = paginasServidas(gs.map((f) => fs.readFileSync(path.join(fuente, f), 'utf8')));
+  const confundidas = [...servidas].filter(esParcial);
+  if (confundidas.length) errores.push('páginas de doGet con nombre de parcial (se compilarían como parcial): ' + confundidas.join(', '));
+  if (copiar.some((f) => f.endsWith('.html')) && !servidas.size) errores.push('no encontré las páginas de doGet (claves file: de PAGES) en los .gs');
+  for (const f of copiar) {
+    if (!f.endsWith('.html')) { fs.copyFileSync(path.join(fuente, f), path.join(salida, f)); continue; }
+    // CRLF → LF, como los .gs: el navegador y JavaScript ya los tratan igual.
+    const s = fs.readFileSync(path.join(fuente, f), 'utf8').replace(/\r\n/g, '\n');
+    const t = esParcial(f) ? limpiarParcial(s, f, errores) : limpiarPagina(s, f, errores);
+    if (t === null) continue;
+    fs.writeFileSync(path.join(salida, f), t, 'utf8');
+    html[esParcial(f) ? 'parciales' : 'paginas']++;
+    html.antes += Buffer.byteLength(s);
+    html.despues += Buffer.byteLength(t);
+  }
   if (fs.existsSync(path.join(fuente, '.claspignore'))) {
     fs.copyFileSync(path.join(fuente, '.claspignore'), path.join(salida, '.claspignore'));
   }
@@ -255,10 +626,15 @@ function generar(fuente, salida, gs, copiar, errores, opc) {
     fs.rmSync(salida, { recursive: true, force: true });
     return { ok: false, errores };
   }
-  return { ok: true, salida, gs: gs.length, copiados: copiar.length, bytesAntes, bytesDespues };
+  return { ok: true, salida, gs: gs.length, bytesAntes, bytesDespues, html };
 }
 
-module.exports = { limpiarGs, arbolSinPosiciones, nombresGlobales, marcasDeVersion, construir };
+module.exports = {
+  limpiarGs, arbolSinPosiciones, nombresGlobales, marcasDeVersion, construir,
+  trocearHtml, esParcial, esJsClasico, globalesDeGuion, plantillasDe, plantillasPeligrosasNuevas,
+  plantillasSeguras, arbolComoCadenas, arbolNormalizado, compilarJs, compilarCss, limpiarParcial,
+  limpiarPagina, paginasServidas, OPC_JS
+};
 
 if (require.main === module) {
   const args = process.argv.slice(2);
@@ -272,7 +648,8 @@ if (require.main === module) {
   }
   const kb = (b) => Math.round(b / 1024) + ' KB';
   console.log('✔ Build en ' + r.salida + ' (' + (Date.now() - t0) + ' ms)');
-  console.log('  ' + r.gs + ' .gs sin comentarios: ' + kb(r.bytesAntes) + ' → ' + kb(r.bytesDespues) +
-              ' (−' + Math.round(100 * (1 - r.bytesDespues / r.bytesAntes)) + ' %)');
-  console.log('  ' + r.copiados + ' archivos copiados tal cual (.html y appsscript.json)');
+  const menos = (a, d) => ' (−' + Math.round(100 * (1 - d / a)) + ' %)';
+  console.log('  ' + r.gs + ' .gs sin comentarios: ' + kb(r.bytesAntes) + ' → ' + kb(r.bytesDespues) + menos(r.bytesAntes, r.bytesDespues));
+  console.log('  ' + r.html.parciales + ' parciales compilados y ' + r.html.paginas + ' páginas sin comentarios: ' +
+              kb(r.html.antes) + ' → ' + kb(r.html.despues) + menos(r.html.antes, r.html.despues));
 }

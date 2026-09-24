@@ -1,11 +1,13 @@
 /*
- * Pruebas del build del Apps Script (scripts/build.js, Fase 1 del doc 16).
+ * Pruebas del build del Apps Script (scripts/build.js, Fases 1 y 2 del doc 16).
  *   Ejecutar:  node pruebas/build.test.js
  *
  * Corre el build REAL a una carpeta temporal y comprueba por su cuenta, sin fiarse de las
  * comprobaciones internas del build, lo que no puede romperse: que se sube lo mismo, que cada
  * .gs es el mismo programa con las mismas líneas y que verificarVersionDelCodigo sigue viendo sus
- * marcas. Después prueba la limpieza con casos trampa y que un fallo no deje nada que subir.
+ * marcas; que cada página es la fuente con comentarios enteros quitados y nada más, y que cada
+ * parcial compilado se deja leer, no pierde globales y no lleva lo que rompe el quitacomentarios
+ * de Google. Después prueba la limpieza con casos trampa y que un fallo no deje nada que subir.
  * Esta carpeta queda fuera de "Carpeta del proyecto": clasp nunca la sube.
  */
 const fs = require('fs');
@@ -47,9 +49,8 @@ const confFuente = JSON.parse(fs.readFileSync(path.join(FUENTE, '.clasp.json'), 
 ok('.clasp.json apunta al mismo proyecto que la fuente, con rootDir "."', conf.scriptId === confFuente.scriptId && conf.rootDir === '.', conf);
 ok('lleva el .claspignore de la fuente', fs.readFileSync(path.join(salida, '.claspignore'), 'utf8') === fs.readFileSync(path.join(FUENTE, '.claspignore'), 'utf8'));
 
-const iguales = subibles(FUENTE).filter((f) => !f.endsWith('.gs'))
-  .filter((f) => !fs.readFileSync(path.join(FUENTE, f)).equals(fs.readFileSync(path.join(salida, f))));
-ok('los .html y appsscript.json salen byte a byte', iguales.length === 0, iguales);
+ok('appsscript.json sale byte a byte',
+   fs.readFileSync(path.join(FUENTE, 'appsscript.json')).equals(fs.readFileSync(path.join(salida, 'appsscript.json'))));
 
 const gs = subibles(FUENTE).filter((f) => f.endsWith('.gs'));
 const lee = (dir, f) => fs.readFileSync(path.join(dir, f), 'utf8');
@@ -95,6 +96,121 @@ ok('ninguna marca que estaba en el fuente se pierde (' + enFuente.length + ' de 
 const code = lee(salida, 'Code.gs');
 ok('el candado de getScriptUrl sigue siendo su primera línea', /function getScriptUrl\(\) \{\nsecSoloInterno_\('getScriptUrl'\);/.test(code));
 
+/* ── 1b · Los .html (Fase 2) ─────────────────────────────────────────── */
+console.log('\n1b · Los .html (Fase 2)');
+const htmls = subibles(FUENTE).filter((f) => f.endsWith('.html'));
+const parciales = htmls.filter(B.esParcial), paginas = htmls.filter((f) => !B.esParcial(f));
+const leeLF = (dir, f) => lee(dir, f).replace(/\r\n/g, '\n');
+ok('hay parciales y páginas (' + parciales.length + ' y ' + paginas.length + ')', parciales.length >= 20 && paginas.length >= 18);
+
+// Páginas: la salida es la fuente sin algunos <!-- … --> enteros, y nada más. Un comentario que la
+// salida conserva (dentro de un <script>, de un <textarea>…) se recorre letra a letra como el resto.
+const malPag = { difiere: [], conScriptlet: [], scriptlets: [], bloques: [] };
+let comentariosQuitados = 0;
+const scriptletsDe = (s) => JSON.stringify(s.match(/<\?[\s\S]*?\?>/g) || []);
+const bloquesDePagina = (s) => JSON.stringify(B.trocearHtml(s, true).filter((t) => t.t !== 'marcado' && t.t !== 'comentario').map((t) => t.texto));
+for (const f of paginas) {
+  const a = leeLF(FUENTE, f), b = lee(salida, f);
+  let i = 0, j = 0;
+  while (i < a.length) {
+    if (a.startsWith('<!--', i)) {
+      const fin = a.indexOf('-->', i + 4) + 3;
+      const comentario = a.slice(i, fin);
+      if (!b.startsWith(comentario, j)) {
+        if (comentario.indexOf('<?') !== -1) malPag.conScriptlet.push(f);
+        comentariosQuitados++; i = fin; continue;
+      }
+    }
+    if (a[i] !== b[j]) { malPag.difiere.push(f + ' @' + i + ': ' + JSON.stringify(a.slice(i, i + 50))); break; }
+    i++; j++;
+  }
+  if (!malPag.difiere.length && j !== b.length) malPag.difiere.push(f + ' (sobra texto al final)');
+  if (scriptletsDe(a) !== scriptletsDe(b)) malPag.scriptlets.push(f);
+  if (bloquesDePagina(a) !== bloquesDePagina(b)) malPag.bloques.push(f);
+}
+ok('cada página es la fuente con comentarios <!-- --> enteros quitados, y nada más', malPag.difiere.length === 0, malPag.difiere);
+ok('…ninguno de los quitados llevaba un scriptlet (Google lo habría ejecutado)', malPag.conScriptlet.length === 0, malPag.conScriptlet);
+ok('…sus scriptlets siguen idénticos y en orden', malPag.scriptlets.length === 0, malPag.scriptlets);
+ok('…sus <script>, <style> y bloques opacos salen byte a byte', malPag.bloques.length === 0, malPag.bloques);
+ok('…y se quitaron comentarios (' + comentariosQuitados + ')', comentariosQuitados > 50);
+
+// Parciales: los mismos bloques y en el mismo orden; el marcado es el de la fuente sin comentarios;
+// cada JS compilado se deja leer, no lleva comentarios ni </script, declara los mismos globales y
+// no trae plantillas `…` nuevas con //, /* o saltos de línea (issue 156139610 de Google).
+const malPar = { bloques: [], marcado: [], lee: [], comentarios: [], cierre: [], globales: [], plantillas: [], css: [] };
+let pesoA = 0, pesoB = 0, bloquesJs = 0;
+const peligrosasDe = (js) => {
+  const out = [];
+  (function visita(n) {
+    if (!n || typeof n.type !== 'string') return;
+    if (n.type === 'TemplateLiteral') {
+      const crudo = n.quasis.map((q) => q.value.raw).join('${}');
+      if (/\/\/|\/\*|[\r\n]/.test(crudo)) out.push(crudo);
+    }
+    for (const k of Object.keys(n)) { const v = n[k]; if (Array.isArray(v)) v.forEach(visita); else if (v && typeof v.type === 'string') visita(v); }
+  })(acorn.parse(js, OPC));
+  return out;
+};
+const firmaBloques = (ts) => JSON.stringify(ts.filter((t) => t.t !== 'marcado' && t.t !== 'comentario').map((t) => t.t + (t.apertura || '')));
+const marcadoDe = (ts) => ts.filter((t) => t.t === 'marcado').map((t) => t.texto).join('');
+for (const f of parciales) {
+  const a = leeLF(FUENTE, f), b = lee(salida, f);
+  pesoA += Buffer.byteLength(a); pesoB += Buffer.byteLength(b);
+  const ta = B.trocearHtml(a, false), tb = B.trocearHtml(b, false);
+  if (firmaBloques(ta) !== firmaBloques(tb)) { malPar.bloques.push(f); continue; }
+  if (tb.some((t) => t.t === 'comentario') || marcadoDe(ta) !== marcadoDe(tb)) malPar.marcado.push(f);
+  const ga = ta.filter((t) => t.t === 'script'), gb = tb.filter((t) => t.t === 'script');
+  gb.forEach((g, k) => {
+    const src = ga[k];
+    if (!B.esJsClasico(g.apertura) || !src.contenido.trim()) {
+      if (g.contenido !== src.contenido) malPar.bloques.push(f + ' (un <script> que no es JS clásico cambió)');
+      return;
+    }
+    bloquesJs++;
+    let n = 0;
+    try { acorn.parse(g.contenido, Object.assign({}, OPC, { onComment: () => n++ })); } catch (e) { malPar.lee.push(f + ': ' + e.message); return; }
+    if (n) malPar.comentarios.push(f);
+    if (/<\/script/i.test(g.contenido)) malPar.cierre.push(f);
+    if (B.globalesDeGuion(g.contenido).join() !== B.globalesDeGuion(src.contenido).join()) malPar.globales.push(f);
+    const yaEstaban = new Set(peligrosasDe(src.contenido));
+    const nuevas = peligrosasDe(g.contenido).filter((x) => !yaEstaban.has(x));
+    if (nuevas.length) malPar.plantillas.push(f + ': ' + nuevas[0].slice(0, 60));
+  });
+  tb.filter((t) => t.t === 'style').forEach((st) => { if (/<\/style|\/\*/i.test(st.contenido)) malPar.css.push(f); });
+}
+ok('cada parcial conserva sus bloques <script>/<style>, en orden y con las mismas etiquetas', malPar.bloques.length === 0, malPar.bloques);
+ok('…su marcado es el de la fuente sin comentarios', malPar.marcado.length === 0, malPar.marcado);
+ok('…sus ' + bloquesJs + ' bloques de JS compilados se dejan leer', bloquesJs >= 20 && malPar.lee.length === 0, malPar.lee);
+ok('…sin comentarios', malPar.comentarios.length === 0, malPar.comentarios);
+ok('…sin </script', malPar.cierre.length === 0, malPar.cierre);
+ok('…con los mismos nombres globales y del mismo tipo', malPar.globales.length === 0, malPar.globales);
+ok('…sin plantillas `…` nuevas con //, /* o saltos de línea', malPar.plantillas.length === 0, malPar.plantillas);
+ok('…y su CSS sale sin comentarios', malPar.css.length === 0, malPar.css);
+ok('los parciales pesan al menos un 35 % menos', pesoB < pesoA * 0.65, { pesoA, pesoB });
+
+// Cada página ensamblada como la ve el navegador: sus scriptlets fuera y los include() pegados
+// (un solo nivel, como hace include()). Misma secuencia de bloques con la fuente y con la salida,
+// y todo el JS que no venía de un scriptlet se deja leer.
+const INCLUDE = /<\?!=\s*include\(\s*['"]([^'"]+)['"]\s*\)\s*;?\s*\?>/g;
+const ensambla = (dir, f) => {
+  const nombres = [];
+  return leeLF(dir, f)
+    .replace(INCLUDE, (m, n) => { nombres.push(n.replace(/\.html$/, '') + '.html'); return 'INCLUIR_' + (nombres.length - 1) + '_'; })
+    .replace(/<\?[\s\S]*?\?>/g, '__SCRIPTLET__')
+    .replace(/INCLUIR_(\d+)_/g, (m, k) => (fs.existsSync(path.join(dir, nombres[+k])) ? leeLF(dir, nombres[+k]) : ''));
+};
+const malEns = [];
+for (const f of paginas) {
+  let ta, tb;
+  try { ta = B.trocearHtml(ensambla(FUENTE, f), false); tb = B.trocearHtml(ensambla(salida, f), false); } catch (e) { malEns.push(f + ': ' + e.message); continue; }
+  if (firmaBloques(ta) !== firmaBloques(tb)) { malEns.push(f + ': cambió la secuencia de bloques'); continue; }
+  for (const t of tb) {
+    if (t.t !== 'script' || !B.esJsClasico(t.apertura) || !t.contenido.trim() || t.contenido.indexOf('__SCRIPTLET__') !== -1) continue;
+    try { acorn.parse(t.contenido, OPC); } catch (e) { malEns.push(f + ': ' + e.message); }
+  }
+}
+ok('cada página ensamblada conserva la secuencia de bloques y todo su JS se deja leer', malEns.length === 0, malEns);
+
 /* ── 2 · La limpieza, con casos trampa ──────────────────────────────── */
 console.log('\n2 · Casos trampa de la limpieza');
 const L = B.limpiarGs;
@@ -111,6 +227,55 @@ ok('un bloque de varias líneas deja sus saltos', L('a();\n/* uno\n   dos */\nb(
 ok('el salto de línea de un bloque sigue separando sentencias', L('var a = 1\n/*\n*/b()') === 'var a = 1\n\nb()');
 ok('CRLF pasa a LF sin cambiar el número de líneas', L('a();\r\n  b();\r\n') === 'a();\nb();\n');
 ok('la continuación de línea en una cadena se respeta', L("var s = 'uno \\\n  dos';") === "var s = 'uno \\\n  dos';");
+
+/* ── 2b · La Fase 2, con casos trampa ────────────────────────────────── */
+console.log('\n2b · Casos trampa de la Fase 2');
+const errs = [];
+const P = (s) => { errs.length = 0; return B.limpiarPagina(s, 'pagina.html', errs); };
+const Q = (s) => { errs.length = 0; return B.limpiarParcial(s, 'app_prueba.html', errs); };
+const dentroDe = (s) => (/^<script>([\s\S]*)<\/script>$/.exec(s || '') || [])[1];
+
+ok('página: se quita un comentario del marcado', P('<p>a</p><!-- c --><p>b</p>') === '<p>a</p><p>b</p>');
+ok('página: <!-- dentro de un <script> no se toca', P("<script>var s = '<!-- no -->';</script>") === "<script>var s = '<!-- no -->';</script>");
+ok('página: <!-- dentro de un <textarea> es texto y se queda', P('<textarea><!-- queda --></textarea>') === '<textarea><!-- queda --></textarea>');
+const conScriptlets = "<?= '<!--' ?><p>x</p><script>var a = <?!= '</script>' ?>;</script><!-- c -->";
+ok('página: un scriptlet con <!-- o </script dentro no confunde al troceador', P(conScriptlets) === "<?= '<!--' ?><p>x</p><script>var a = <?!= '</script>' ?>;</script>", P(conScriptlets));
+ok('página: un scriptlet dentro de una etiqueta no la corta', P('<script src="<?= url ?>"></script><!-- c -->') === '<script src="<?= url ?>"></script>');
+ok('página: un comentario con un scriptlet PARA el build', P("<!-- <?!= include('app_x') ?> -->") === null && /scriptlet/.test(errs.join()), errs);
+ok('página: <!--> y <!---> son comentarios vacíos y no se comen lo que sigue', P('a<!-->b<!--->c<!-- d -->e') === 'abce');
+
+const q1 = Q('<!-- doc --><script>\n// comentario\nvar GLOBAL_X = (function () { var largo = 20; return largo + 1; })();\n</script>');
+ok('parcial: fuera comentarios; JS compilado con el mismo resultado',
+   q1 !== null && !/doc|comentario|largo/.test(q1) && new Function(dentroDe(q1) + '; return GLOBAL_X;')() === 21, q1);
+const comillas = "var c = 'dice \"hola\" y it\\'s https://x.com y /* esto */'; var d = 'uno \"a\" it\\'s\\nsalto';";
+const q2 = dentroDe(Q('<script>' + comillas + '</script>'));
+ok('parcial: una cadena con las dos comillas y // no sale como plantilla `…`', q2 !== undefined && q2.indexOf('`') === -1, q2);
+ok('…y vale lo mismo', q2 !== undefined && new Function(q2 + '; return c + d;')() === new Function(comillas + '; return c + d;')());
+const q3 = Q('<script>var g = "</scr" + "ipt>";</script>');
+ok('parcial: esbuild no deja un </script dentro del JS', q3 !== null && (q3.match(/<\/script/gi) || []).length === 1, q3);
+ok('parcial: el CSS se compila sin comentarios', Q('<style>/* c */ .a { color: red; }</style>') === '<style>.a{color:red}</style>');
+ok('parcial: un CSS que esbuild no entiende PARA el build', Q("<style>.a { content: 'sin cerrar }</style>") === null && /avisa/.test(errs.join()), errs);
+const noJs = '<script type="text/template"><!-- queda --><b>x</b></script><script src="https://x.example/y.js"></script>';
+ok('parcial: un <script> que no es JS clásico (type, src) se queda intacto', Q(noJs) === noJs, Q(noJs));
+ok('parcial: un JS que no compila PARA el build', Q('<script>var = ;</script>') === null && errs.length > 0, errs);
+
+ok('globales: el tipo cuenta (var no es let)', B.globalesDeGuion('var a;').join() !== B.globalesDeGuion('let a;').join());
+ok('globales: un var dentro de un bloque es global; un let no', B.globalesDeGuion('if (x) { var a; let b; }').join() === 'var a');
+ok('arbolNormalizado ve un cambio de programa', B.arbolNormalizado('var a = 1 + 2;') !== B.arbolNormalizado('var a = 3;') &&
+   B.arbolNormalizado('x.uno = 1;') !== B.arbolNormalizado('x.dos = 1;') && B.arbolNormalizado('if (a) b();') !== B.arbolNormalizado('a && b();'));
+ok('…y acepta lo que esbuild abrevia sin cambiarlo', B.arbolNormalizado('var o = {n: n}; if (v === undefined) w("a" + "b"); var t = `z`;') ===
+   B.arbolNormalizado('var o={n};if(v===void 0)w("ab");var t="z";'));
+
+const fuenteC = "var c = 'a \"b\" it\\'s https://x';";
+const seguraC = B.plantillasSeguras("var c=`a \"b\" it's https://x`;", fuenteC);
+ok('plantillasSeguras: reescribe la plantilla nueva como cadena, con el mismo valor',
+   seguraC.indexOf('`') === -1 && new Function(seguraC + '; return c;')() === new Function(fuenteC + '; return c;')(), seguraC);
+ok('plantillasSeguras: deja las que ya estaban en el fuente', B.plantillasSeguras('var t=`a\n  b`;', 'var t = `a\n  b`;') === 'var t=`a\n  b`;');
+ok('plantillasSeguras: como sentencia suelta la envuelve en paréntesis (no es una directiva)',
+   /\("a \\"b\\" it's \/\/"\)/.test(B.plantillasSeguras("function f(){x();`a \"b\" it's //`}", "function f(){x(); 'a \"b\" it\\'s //'}")));
+let lanza = false;
+try { B.plantillasSeguras('var t=`a${x}//b`;', 'var t = "a" + x + "//b";'); } catch (e) { lanza = true; }
+ok('plantillasSeguras: una plantilla nueva con ${} y // no se sabe arreglar: error', lanza);
 
 /* ── 3 · Un fallo no deja nada que subir ────────────────────────────── */
 console.log('\n3 · Fallos');
@@ -147,6 +312,22 @@ ok('se niega a borrar una carpeta que contiene la fuente', r5.codigo !== 0 && fs
 
 const r6 = correr(['--fuente', fuenteRota, '--salida', salidaRota, '--sin-clasp']);
 ok('--sin-clasp no escribe .clasp.json', r6.codigo === 0 && !fs.existsSync(path.join(salidaRota, '.clasp.json')), r6.salida);
+
+// Fase 2: un parcial roto para el build entero, igual que un .gs roto.
+fs.writeFileSync(path.join(fuenteRota, 'Code.gs'), "var PAGES = { a: { file: 'Pagina' } };\n");
+fs.writeFileSync(path.join(fuenteRota, 'Pagina.html'), '<p>hola</p><!-- c -->');
+fs.writeFileSync(path.join(fuenteRota, 'app_roto.html'), '<script>var = ;</script>');
+const r7 = correr(['--fuente', fuenteRota, '--salida', salidaRota]);
+ok('un parcial con JS roto hace fallar el build, con su motivo', r7.codigo !== 0 && /app_roto\.html/.test(r7.salida), r7.salida);
+ok('…y no deja carpeta de salida', !fs.existsSync(salidaRota));
+fs.writeFileSync(path.join(fuenteRota, 'app_roto.html'), '<script>var bien = 1;</script>');
+fs.writeFileSync(path.join(fuenteRota, 'Code.gs'), "var PAGES = { a: { file: 'app_roto' } };\n");
+const r8 = correr(['--fuente', fuenteRota, '--salida', salidaRota]);
+ok('una página de doGet con nombre de parcial PARA el build', r8.codigo !== 0 && /nombre de parcial/.test(r8.salida), r8.salida);
+fs.writeFileSync(path.join(fuenteRota, 'Code.gs'), "var PAGES = { a: { file: 'Pagina' } };\n");
+const r9 = correr(['--fuente', fuenteRota, '--salida', salidaRota, '--sin-clasp']);
+ok('con todo sano pasa, y compila el parcial y la página', r9.codigo === 0 &&
+   lee(salidaRota, 'Pagina.html') === '<p>hola</p>' && lee(salidaRota, 'app_roto.html') === '<script>var bien=1;</script>', r9.salida);
 
 fs.rmSync(tmp, { recursive: true, force: true });
 console.log('\n' + (fallos ? '✖ ' + fallos + ' de ' + total + ' fallaron' : '✔ ' + total + ' comprobaciones en verde'));
