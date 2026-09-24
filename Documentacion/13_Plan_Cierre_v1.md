@@ -1074,6 +1074,8 @@ y qué se dejó fuera a propósito**. Mismo formato que el registro del document
 - Un tope absoluto de sesión (p. ej. 12 h): no se pidió; queda como pregunta.
 - La verificación visual: la herramienta de navegador ve el Portal en blanco también en producción (entorno).
 
+**Corrección posterior (mismo día):** `promosAutoDisparador` marca `SEC_ENTRADA_ = 'activador'` al recibir su `triggerUid`; si no, el candado de `promosAutoCorrerAhora` lo habría tumbado cuando Google no informa la cuenta en el activador. Además, si la sesión se cierra en otra pestaña, esta se tapa con el aviso: navegar sola al login sin clic Chrome lo ignora. Suite de sesiones: 52 comprobaciones.
+
 ### 2026-09-23 — Investigación del entorno Apps Script + plan de modernización (doc 15) — SIN cambios de código
 
 **Qué se hizo.** Investigación a fondo de cómo explotar Apps Script. Se juntaron cuatro fuentes:

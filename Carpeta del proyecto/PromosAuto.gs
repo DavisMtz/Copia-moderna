@@ -463,8 +463,11 @@ function promosAutoCorrerAhora() {
 function promosAutoDisparador(e) {
   // Un activador real trae su triggerUid. Se acepta aunque Google no informe la cuenta activa en
   // ese contexto: si alguien lo forzara desde el navegador, solo correría la misma actualización
-  // diaria. Cualquier otra llamada pasa por el candado de siempre (Sesiones.gs).
-  if (!(e && e.triggerUid)) secSoloInterno_('promosAutoDisparador');
+  // diaria. Se marca la entrada (como doGet) para que las funciones con candado que llama después
+  // —promosAutoCorrerAhora— sepan que las llamó el servidor. Sin marca, el activador fallaría justo
+  // cuando Google no informa la cuenta. Cualquier otra llamada pasa por el candado de siempre.
+  if (e && e.triggerUid) SEC_ENTRADA_ = 'activador';
+  else secSoloInterno_('promosAutoDisparador');
   try {
     promosAutoCorrerAhora();
   } catch (e) {

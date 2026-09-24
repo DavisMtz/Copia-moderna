@@ -143,7 +143,7 @@ ok('consulta automática de fondo con la persona ausente 2 h 05 → SESION_EXPIR
 reloj = inicio + 400 * MIN;
 const s3 = ejecucion(() => C.sesParaCliente_('ana.asesora@liverpool.com.mx'));
 r = llamar(s3.llave, 'pruebaQuienSoy', [''], reloj + 10 * 3600 * 1000);
-ok('una actividad «del futuro» se acota a ahora (no alarga la sesión)', r.ok && JSON.parse(props[Object.keys(props).find((k) => k.indexOf('ses_') === 0)]).u <= reloj);
+ok('una actividad «del futuro» se guarda acotada al reloj del servidor',r.ok && JSON.parse(props[Object.keys(props).find((k) => k.indexOf('ses_') === 0)]).u <= reloj);
 
 /* ── 4 · Cerrar sesión, llaves falsas, baja de la cuenta ──────────────── */
 console.log('\n4 · Cerrar sesión y llaves que no valen');
@@ -177,6 +177,12 @@ activa = efectiva;
 ok('desde el editor → funciona', ejecucion(() => C.cuentasLimpiarTodo()) === 'borrado');
 activa = 'ana.asesora@liverpool.com.mx';
 ok('llamada INTERNA desde una función que entró por el canal → funciona', llamar(s5.llave, 'pruebaLlamaHerramienta', [], reloj) === 'borrado');
+activa = '';   // en un activador, Google puede no informar la cuenta activa
+err = lanza(() => ejecucion(() => C.cuentasLimpiarTodo()));
+ok('activador sin cuenta informada y sin marca de entrada → el candado rechaza', /solo se puede ejecutar/.test(err || ''), err);
+ok('…y funciona cuando el activador marcó su entrada (SEC_ENTRADA_ = activador)',
+   ejecucion(() => { vm.runInContext("SEC_ENTRADA_ = 'activador';", C); return C.cuentasLimpiarTodo(); }) === 'borrado');
+activa = 'ana.asesora@liverpool.com.mx';
 
 /* ── 7 · Interruptor de emergencia ────────────────────────────────────── */
 console.log('\n7 · AUTH_SESIONES = no');
@@ -201,7 +207,7 @@ const restringidas = [...bloque.matchAll(/([A-Za-z_$][\w$]*)\s*:\s*1/g)].map((m)
   .filter((n) => !['doGet', 'doPost', 'include', 'secEjecutar'].includes(n));
 const fuentes = fs.readdirSync(RAIZ).filter((f) => f.endsWith('.gs')).map((f) => fs.readFileSync(path.join(RAIZ, f), 'utf8')).join('\n');
 // El activador diario es la única excepción de forma: acepta su propio triggerUid antes del candado.
-const ACTIVADOR = /function promosAutoDisparador\(e\) \{[\s\S]{0,500}?if \(!\(e && e\.triggerUid\)\) secSoloInterno_\('promosAutoDisparador'\);/;
+const ACTIVADOR = /function promosAutoDisparador\(e\) \{[\s\S]{0,700}?if \(e && e\.triggerUid\) SEC_ENTRADA_ = 'activador';\s*else secSoloInterno_\('promosAutoDisparador'\);/;
 const sinCandado = restringidas.filter((n) => (n === 'promosAutoDisparador')
   ? !ACTIVADOR.test(fuentes)
   : !new RegExp('function ' + n.replace(/\$/g, '\\$') + '\\([^)]*\\)\\s*\\{\\s*secSoloInterno_\\(\'' + n + '\'\\);').test(fuentes));

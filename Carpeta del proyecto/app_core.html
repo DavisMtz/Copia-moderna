@@ -2009,7 +2009,9 @@
     if (!nuevo) {
       AppCache.clearAll();
       AppRun.clearInflight();
-      if (sesionExigida) AppUrl.go('login');
+      // Navegar sola al login no sirve aquí: sin un clic reciente Chrome lo ignora en silencio y
+      // esta pestaña seguiría enseñando datos. Se tapa con el mismo aviso que al vencer.
+      if (sesionExigida) sesionVencida('La sesión se cerró en otra pestaña. Vuelve a iniciar sesión para seguir.');
     } else if (e.oldValue && nuevo !== e.oldValue) {
       // Cambió de cuenta en otra pestaña: esta vista muestra datos de quien ya no es.
       AppCache.clearAll();
@@ -2043,8 +2045,9 @@
   let sesAvisada = false;
   let sesTapada = false;
 
-  function sesionVencida() {
+  function sesionVencida(motivo) {
     if (sesTapada) return;
+    const texto = motivo || 'Pasó demasiado tiempo sin actividad. Vuelve a iniciar sesión para seguir donde estabas.';
     const habia = !!AppSession.userEmail;
     AppSession.clear();
     if (!sesionExigida) {
@@ -2064,8 +2067,7 @@
       '<div style="max-width:26rem;width:100%;background:#fff;color:#1B2330;border-radius:16px;padding:1.6rem 1.5rem;' +
         'box-shadow:0 30px 60px -20px rgba(0,0,0,.45);text-align:center;font-family:inherit">' +
         '<h2 id="ses-vencida-titulo" style="margin:0 0 .5rem;font-size:1.15rem;font-weight:700">Tu sesión se cerró</h2>' +
-        '<p style="margin:0 0 1.25rem;line-height:1.5;color:#5C6B7E">Pasó demasiado tiempo sin actividad. ' +
-          'Vuelve a iniciar sesión para seguir donde estabas.</p>' +
+        '<p style="margin:0 0 1.25rem;line-height:1.5;color:#5C6B7E">' + escapeHtml(texto) + '</p>' +
         '<button type="button" data-ses-entrar style="border:0;border-radius:10px;padding:.7rem 1.4rem;font:inherit;' +
           'font-weight:700;color:#fff;background:#E10098;cursor:pointer">Iniciar sesión</button>' +
       '</div>';
