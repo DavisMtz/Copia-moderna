@@ -1082,6 +1082,8 @@ y qué se dejó fuera a propósito**. Mismo formato que el registro del document
 - **Hoja móvil:** el agarre ahora arrastra. Hay además una red de seguridad para que lista y ficha no se queden a media opacidad si el reloj de GSAP se para.
 - **No se aplicó** invitar a «avisar con la bandera» en las fichas sin descripción: ese reporte no dice qué falta y confundiría a coordinación.
 
+**Después, a pedido del creador** (commit `296bf44`, en pruebas): la sección ya no lleva título ni subtítulo visibles y empieza con el filtro. El h1 «Herramientas» se queda solo para lectores de pantalla.
+
 **Qué se dejó fuera a propósito:**
 - **Dato de la hoja:** la URL real de CSC (hoy es texto). Además hay nombres con fechas vencidas («Promociones 30 junio al 23 de Julio»). Son decisiones del contenido, no del código.
 - **Peso:** página + parcial compilados crecen ≈ 23 KB (≈ 8 KB gzip). No se midió el efecto en el primer byte.
