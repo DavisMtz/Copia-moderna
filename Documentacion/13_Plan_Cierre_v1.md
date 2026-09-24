@@ -1039,6 +1039,41 @@ y qué se dejó fuera a propósito**. Mismo formato que el registro del document
 
 <!-- Las entradas nuevas van arriba, con la más reciente primero. -->
 
+### 2026-09-23 — Fase 0 del doc 15: llave de sesión (2 h de inactividad) y candados — en PRUEBAS, no en producción
+
+**Qué se cambió** (commit `8bfe1cd`):
+- **`Sesiones.gs` (nuevo):**
+  - El login entrega una llave aleatoria. En el almacén se guarda solo su huella, con prefijo `ses_`.
+  - Todas las llamadas del navegador pasan por `secEjecutar(llave, función, args, actividad)`.
+  - `secIdentidad_` usa la sesión, no el correo que declara el navegador. Sin llave, en la webapp se rechaza; en el editor y los activadores sigue la lógica de siempre.
+  - La sesión vence tras 2 h sin que la persona toque la pantalla (propiedad `SESION_INACTIVIDAD_MIN`). Las consultas de fondo no la renuevan.
+  - Interruptor de emergencia: propiedad `AUTH_SESIONES = no`.
+- **Candados:** `secSoloInterno_` en 52 funciones de editor, diagnóstico y ayudantes del servidor. El canal tampoco las acepta como entrada.
+- **`getQuotesForUser` (V-03):** exige el bloque `consultar`.
+- **Viewport:** se añade con `addMetaTag` en las 17 pantallas de la app.
+- **Cliente (`app_core`):**
+  - `isLoggedIn` exige la llave.
+  - Se registra la actividad, compartida entre pestañas.
+  - Aviso 5 min antes de vencer y pantalla tapada al vencer.
+  - Latido cada 20 min mientras hay actividad sin llamadas.
+  - Las sesiones guardadas antes del cambio se limpian: **todos inician sesión una vez**.
+
+**Qué se comprobó:**
+- `pruebas/sesiones.test.js`: 50 comprobaciones sobre los archivos reales.
+  - Llave propia, ajena y ausente.
+  - 1 h 59 vigente y 2 h 01 vencida.
+  - Consultas de fondo y cierre de sesión.
+  - Rechazo de `eval`, de funciones privadas y de las restringidas.
+  - Candados presentes en las 52.
+- Las 9 suites en verde, sintaxis limpia y ninguna pantalla llama a una función restringida.
+- En pruebas `/dev`: el Portal hace sus 5 llamadas por el canal nuevo y recibe los mismos datos que antes.
+
+**Qué se dejó fuera a propósito:**
+- Producción: espera la palabra del creador.
+- La prueba con sesión real: requiere su contraseña; queda a su cargo en pruebas.
+- Un tope absoluto de sesión (p. ej. 12 h): no se pidió; queda como pregunta.
+- La verificación visual: la herramienta de navegador ve el Portal en blanco también en producción (entorno).
+
 ### 2026-09-23 — Investigación del entorno Apps Script + plan de modernización (doc 15) — SIN cambios de código
 
 **Qué se hizo.** Investigación a fondo de cómo explotar Apps Script. Se juntaron cuatro fuentes:
