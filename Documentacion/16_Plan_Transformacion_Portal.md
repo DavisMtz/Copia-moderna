@@ -66,7 +66,7 @@
 | F0 | Llave de sesión (2 h de inactividad), 52 candados, V-03, viewport | **En pruebas.** Falta que el creador lo pruebe y dé su palabra para producción | pruebas HEAD · `11e77a8` |
 | F1 | Build del servidor: `.gs` sin comentarios, mismas líneas | **En pruebas** (hook, workflow y `publicar.sh` suben desde `build/`). Medido: `doGet` del Portal 2.75 → 2.26 s (−0.49 s). Falta su palabra para producción | `2e62a6d` · `7bdc533` |
 | F2 | Build del cliente: parciales compilados | **En pruebas.** Peso servido −26 % (Portal −16 %). Banco local: las 20 pantallas se comportan igual que con la fuente. Google sirve los 40 bloques compilados byte a byte. Falta su vistazo, pantalla por pantalla, y su palabra para producción | `d25bb8d` |
-| F3a | Portal: respuestas en caché dentro de la página; `AppRun.medidas()` | **En pruebas.** Con las cachés calientes, el Portal sin sesión hace 1-2 llamadas al abrir (antes 4-5) y el último dato llega a los 5.8 s en el mejor caso. **Coste: primer byte +0.47 s** (2.23 → 2.70 s) y `userHtml` +92 KB. Falta su vistazo y su palabra | `557875b` |
+| F3a | Portal: respuestas en caché dentro de la página; `AppRun.medidas()` | **En pruebas.** Con las cachés calientes, el Portal sin sesión hace 1-2 llamadas al abrir (antes 4-5) y el último dato llega entre los 5.8 y los 8.0 s (≤ 7 s solo si el primer byte baja de ~3 s). **Coste: primer byte +0.47 s** (2.23 → 2.70 s) y `userHtml` +92 KB (Monitor +65 KB). Falta su vistazo y su palabra | `557875b` |
 | F3b | Pantallas con sesión: juntar permisos, preferencias, operación y onboarding en una llamada | Pendiente. Gana sobre todo cupo (F4), no latencia. Antes: F3a.1 y F3a.2 (§3) | — |
 | F4 | Capacidad: cupo de 30 ejecuciones | Pendiente (requiere ventana fuera de horario) | — |
 | F5 | Navegación: pendiente #1 en la URL; SPA solo si las cifras lo justifican | Pendiente | — |
@@ -167,11 +167,11 @@
 > **F3a hecha en pruebas el 24/09/2026** (`557875b`; detalle y cifras en el §18 del plan 13):
 > - El `doGet` del Portal y del Monitor deja en `__APP__.datos` lo que ya estaba en CacheService (`DATOS_INICIALES` en `Code.gs`), y `AppRun.swr` lo usa una vez, sin viaje. **Solo lee la caché, nunca construye** (construir sube el primer byte y dos constructores escriben en hojas).
 > - `AppRun.medidas()` ya existe (instrumentación del primer punto de abajo), con el tiempo de servidor que devuelve `secEjecutar(…, medir = 1)`.
-> - Resultado: con las cachés calientes, el Portal sin sesión hace 1-2 llamadas al abrir y el último dato llega a los 5.8 s en el mejor caso. **Coste medido: +0.47 s de primer byte.** Solo ~0.15 s son la lectura; el resto, el peso extra de la página.
+> - Resultado: con las cachés calientes, el Portal sin sesión hace 1-2 llamadas al abrir y el último dato llega entre los 5.8 y los 8.0 s: el criterio (≤ 7 s) solo se cumple cuando el primer byte baja de ~3 s. **Coste medido: +0.47 s de primer byte.** Solo ~0.15 s son la lectura; el resto, el peso extra de la página.
 > - «Por qué arrancan ~1 s después del `load`»: ~0.5 s son del propio Portal (leerse y ejecutarse), el resto del envoltorio de Google. Con copia local, además, `swr` esperaba al primer fotograma.
 >
 > **Siguiente, en este orden:**
-> - **F3a.1** · Un solo `getAll` para las claves de caché y las propiedades de una vez: ~0.1 s menos de primer byte.
+> - **F3a.1** · Un solo `getAll` para las claves de caché y las propiedades de una vez: ~0.1 s menos de primer byte. Y un tope a lo que viaja (p. ej. 100 KB por respuesta, 150 KB en total, o se omite): trazabilidad puede rearmarse hasta 12 × 90 KB si la hoja crece.
 > - **F3a.2** · Los resultados de las encuestas dentro de `toolsData` (`readPortalAnuncios_`). `pubResultados` es el último viaje del Portal sin sesión (~3 s).
 > - **F3b** · Pantallas con sesión: juntar `obtenerPermisosSesion`, `prefsLeer`, `opEstadoSesion` y `onbEstado` en una llamada (19 pantallas; sobre todo cupo). Y cachear `getEnabledQuoteFormats`, que abre la plantilla CCL en cada carga de cotización.
 

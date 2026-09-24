@@ -1054,7 +1054,7 @@ y qué se dejó fuera a propósito**. Mismo formato que el registro del document
   - `swr` usa la respuesta de la página si la hay: la guarda y la pinta una sola vez, sin viaje. Es de un solo uso; `fuerza` («Actualizar») la descarta y va al servidor. Solo para llamadas sin argumentos.
   - `call` solo la usa con `inline: true` explícito (una mutación nunca se contesta con la caché). `AppFunciones.sincronizar` lo pasa.
   - **Medidas:** cada llamada apunta función, ida y vuelta, trabajo del servidor, cuándo salió y si vino en la página. Las últimas 80 quedan en `localStorage` (`ventel-medidas`). En la consola, con el marco de la app elegido: `console.table(AppRun.medidas())`.
-- **Pruebas:** `f3_datos_en_pagina.test.js` (nueva, 69), `estado_inicial` (38) y `sesiones` (58).
+- **Pruebas:** `f3_datos_en_pagina.test.js` (nueva, 72), `estado_inicial` (38) y `sesiones` (58).
 - `Index.html` y `Promociones.html` no cambian: sus `swr` toman solos lo que trae la página.
 
 **Qué se comprobó:**
@@ -1062,7 +1062,9 @@ y qué se dejó fuera a propósito**. Mismo formato que el registro del document
 - **Banco local**, las 20 pantallas, build anterior contra F3a (camino sin datos en la página): 19 idénticas; `atenciones` solo difiere en la barra de progreso animada, igual que en la F2.
 - **En pruebas (`/dev`):**
   - **Qué viaja en la página del Portal:** herramientas 40 KB (46), trazabilidad 47 KB (6 secciones), promociones 4.4 KB y módulos. El estado público (0.7 KB) solo cuando su caché de 45 s está viva. Los enlaces llegan intactos tras el quitacomentarios de Google.
-  - **Llamadas al abrir** (espía en la página superior, cargas con las cachés calientes): ni herramientas, ni promociones, ni trazabilidad, ni módulos se piden, ni siquiera forzando fotogramas. Queda `pubResultados` (la tarjeta-encuesta, 2.7-3.0 s) y, si su caché venció, `opEstadoPublico` (~2.9 s). **Mejor caso: una sola llamada y el último dato a los 5.8 s.** Antes, en la primera carga sin copia local: tres llamadas desde los 4.0 s y el último dato a los 8.8 s.
+  - **Llamadas al abrir** (espía en la página superior, cargas con las cachés calientes): ni herramientas, ni promociones, ni trazabilidad, ni módulos se piden, ni siquiera forzando fotogramas. Queda `pubResultados` (la tarjeta-encuesta, 2.7-3.0 s) y, si su caché venció, `opEstadoPublico` (~2.9 s). Antes, en la primera carga sin copia local: tres llamadas desde los 4.0 s y el último dato a los 8.8 s.
+  - **El último dato llega entre los 5.8 y los 8.0 s**, según el primer byte de esa carga (2.1 s y 4.0 s en las dos muestras): `pubResultados` sale al abrir y tarda ~3 s. El criterio de la F3 (≤ 7 s) **solo se cumple cuando el primer byte baja de ~3 s**; lo que falta para cumplirlo siempre es la F3a.2.
+  - **Las 20 pantallas** servidas por `/dev` (receta «Comprobar lo que sirve Google»): todas con `goog.script.init`, ninguna «formato incorrecto» y todos sus bloques de JS se leen tal como los deja Google. `datos` solo aparece en el Portal y en el Monitor; el Monitor trae `fetchApplicationData` (66 KB, 250 promociones) y su página pasa de 481 a 546 KB.
   - Con la caché del servidor fría (más de 10 min sin visitas), la primera carga pide lo que falta y construye desde las hojas (4.5-5.1 s); la siguiente ya lo trae en la página.
   - **Coste: el primer byte sube ~0.47 s.** Tres parejas alternadas del `doGet`, 30 muestras por lado: antes 2.23 s de mediana (tandas 2.13 / 2.31 / 2.43), ahora 2.70 s (2.68 / 2.78 / 2.61). La lectura de la caché explica ~0.15 s (`datosMs`, mediana; 43-498 ms); el resto sale de los +92 KB de `userHtml` (777 → 869 KB) que Google procesa y escapa.
 - **Por qué las llamadas salían ~1 s después del `load`** (sonda local, Chrome sin Google de por medio): el Portal tarda ~0.48 s en leerse y ejecutarse hasta su primera llamada (0.46 s de script; además 0.8 s de estilo y maquetación). El resto lo pone el envoltorio de Google al escribir la página en el iframe. Y con copia local, `swr` esperaba además al primer fotograma para revalidar.
@@ -1070,13 +1072,14 @@ y qué se dejó fuera a propósito**. Mismo formato que el registro del document
 **Qué se dejó fuera a propósito:**
 - **Producción:** espera la palabra del creador, como F0-F2.
 - **El trueque del primer byte, para que el creador decida:** quien vuelve al Portal con copia local ya veía datos al abrir (los guardados); ahora los ve frescos y sin 3-4 ejecuciones de fondo, pero la página tarda ~0.5 s más en aparecer. Quien llega sin copia, o tras más de una semana, gana varios segundos. Para quitarlo basta volver a llamar a `appEstadoInicialJson_` sin tercer argumento en `servirPagina_`.
-- **F3a.1:** leer las claves con un solo `getAll` y las propiedades de una vez. Recupera ~0.1 s; lo del tamaño no.
+- **F3a.1:** leer las claves con un solo `getAll` y las propiedades de una vez. Recupera ~0.1 s; lo del tamaño no. Y ponerle un tope a lo que viaja (p. ej. 100 KB por respuesta y 150 KB en total, o se omite): trazabilidad se rearma hasta 12 × 90 KB, y si la hoja de Homologación crece, la página y el primer byte crecerían con ella sin que nada lo frene.
 - **F3a.2:** `pubResultados` es el último viaje del Portal sin sesión. Lleva argumentos, así que no entra por este mecanismo; la salida es que `readPortalAnuncios_` adjunte los resultados de las encuestas a `toolsData`.
 - **F3b:** fusionar las llamadas con sesión (`obtenerPermisosSesion`, `prefsLeer`, `opEstadoSesion`, `onbEstado`) en una. Aplica a las 19 pantallas y su ganancia es sobre todo de cupo (F4), no de latencia.
 - `getEnabledQuoteFormats` (cotización) no tiene caché y abre la plantilla CCL en cada carga: candidato para la F3b.
 - La hoja «Latencias» del plan: `AppRun.medidas()` ya da las cifras por persona.
 - `opEstadoPublico` casi nunca irá en la página (caché de 45 s y el `doGet` no la produce). No es un fallo.
 - Con `medir`, una función del servidor que no devuelve nada llega como `undefined` y no como `null`. Ninguna pantalla compara una respuesta con `=== null` (revisado).
+- `__APP__` ya no son solo parámetros de la URL. Nadie lo recorre entero (`AppUrl.params()` usa la lista `PARAMS_VISTA` y el resto lee claves concretas), así que `datos` no puede colarse en los enlaces. La suite lo vigila (72 comprobaciones).
 - **La vista con sesión real y la revisión visual:** las hace el creador. La herramienta ve el Portal en blanco y no puede leer el almacenamiento del iframe (Chrome lo aparta por sitio).
 - **Medir desde la herramienta tiene trampas nuevas**, anotadas en el doc 16 §4: la pestaña está oculta, `swr` con copia local no revalida hasta el siguiente fotograma y una captura de pantalla lo fuerza.
 

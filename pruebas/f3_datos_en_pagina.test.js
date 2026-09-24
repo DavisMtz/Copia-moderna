@@ -417,7 +417,28 @@ async function cliente() {
   }
 }
 
+/* ═════════════════════════════════════════════════════════════════════════════════════
+   C · ESTÁTICO: `__APP__` ya no son solo parámetros de la URL
+   Desde la F3 también trae `datos`, `datosAt` y `datosMs`. Si alguna pantalla recorriera
+   __APP__ entero para armar un enlace o reescribir la barra, cada URL del Portal saldría con
+   `&datos=[object Object]&datosAt=…`. Hoy nadie lo hace: AppUrl.params() recorre la lista
+   fija PARAMS_VISTA y el resto lee claves concretas. Esto vigila que siga así.
+   ═════════════════════════════════════════════════════════════════════════════════════ */
+function estatico() {
+  console.log('\nC · Nadie recorre __APP__ entero');
+  ok('AppUrl.params() recorre la lista PARAMS_VISTA, no __APP__',
+    /params: function \(\) \{[\s\S]{0,200}?PARAMS_VISTA\.forEach/.test(CORE));
+  const recorridos = /Object\.(keys|entries|values|assign)\(\s*(\{\}\s*,\s*)?(window\.__APP__|cfg)\b|\.\.\.\s*(window\.__APP__|cfg)\b|\bin\s+(window\.__APP__|cfg)\s*\)/;
+  const culpables = fs.readdirSync(PROY).filter((f) => f.endsWith('.html'))
+    .filter((f) => recorridos.test(fs.readFileSync(path.join(PROY, f), 'utf8')));
+  ok('ningún .html enumera, copia o esparce __APP__ (ni el `cfg` de app_core)', culpables.length === 0, culpables);
+  const code = fs.readFileSync(path.join(PROY, 'Code.gs'), 'utf8');
+  const params = JSON.parse(code.match(/const PARAMS_VISTA = (\[[^\]]*\])/)[1].replace(/'/g, '"'));
+  ok('ningún parámetro de vista se llama como los campos nuevos', !params.some((p) => ['datos', 'datosAt', 'datosMs'].includes(p)), params);
+}
+
 cliente().then(() => {
+  estatico();
   console.log('\n' + (fallos ? '✖ ' + fallos + ' de ' + total + ' fallaron' : '✔ ' + total + ' comprobaciones en verde'));
   process.exit(fallos ? 1 : 0);
 }, (e) => { console.log('✖ la prueba reventó: ' + (e && e.stack || e)); process.exit(1); });
