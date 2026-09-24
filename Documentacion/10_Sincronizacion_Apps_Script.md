@@ -9,6 +9,10 @@ hacía una persona. Con esto, publicar deja de depender de dónde estés. Una co
 escrita desde el móvil en github.com llega a Apps Script sola — ver el §3, que es el que
 interesa si no siempre tienes la computadora a mano.
 
+> **Cambio del 23/09/2026 (Fase 1 del doc 16):** donde este documento dice que clasp sube `Carpeta del proyecto`, ahora sube `build/`.
+> - El flujo corre antes `npm ci` y `node scripts/build.js`, que genera `build/` con los `.gs` sin comentarios y las mismas líneas.
+> - El `scriptId` y el `.claspignore` siguen saliendo de `Carpeta del proyecto`.
+
 ---
 
 ## 1. Qué hace, exactamente
