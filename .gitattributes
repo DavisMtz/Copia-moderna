@@ -11,6 +11,7 @@
 *.html -text
 *.gs   -text
 *.js   -text
+*.mjs  -text
 *.css  -text
 *.json -text
 *.md   -text

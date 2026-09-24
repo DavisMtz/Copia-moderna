@@ -1090,6 +1090,10 @@ y qué se dejó fuera a propósito**. Mismo formato que el registro del document
 - **La revisión visual con sesión real, pantalla por pantalla:** la hace el creador en `/dev`. El banco cubre la carga y los estados de error, no los datos reales ni los clics.
 - **Depuración:** los errores del navegador ahora señalan una línea del código compilado. Para depurar hay que mirar la fuente.
 - **Límite de la comprobación de equivalencia:** borra los nombres de las variables, así que no vería dos variables intercambiadas. Eso queda a cargo del renombrador de esbuild, y el banco lo ejercita.
+- **La extensión de Chrome, sin probar contra pruebas:** su popup rechaza las URL `/dev`, igual que en F0 y F1.
+  - El puente (`bridge.js`, v4) deja la bolsa en `<script type="application/json" id="ventel-bolsa-datos">` y la lee el código propio de `cotizacion.html`. Es una página: la F2 solo le quitó comentarios.
+  - Los parciales que carga esa pantalla (`app_core`, `app_extension_guia`…) sí van compilados.
+  - Hay que probar «Cotizar» desde la bolsa antes de llevar la F2 a producción.
 
 ### 2026-09-23 — Fase 1 del doc 16: build del servidor (`.gs` sin comentarios) — en PRUEBAS, no en producción
 
