@@ -66,15 +66,17 @@
 | F0 | Llave de sesión (2 h de inactividad), 52 candados, V-03, viewport | **En pruebas.** Falta que el creador lo pruebe y dé su palabra para producción | pruebas HEAD · `11e77a8` |
 | F1 | Build del servidor: `.gs` sin comentarios, mismas líneas | **En pruebas** (hook, workflow y `publicar.sh` suben desde `build/`). Medido: `doGet` del Portal 2.75 → 2.26 s (−0.49 s). Falta su palabra para producción | `2e62a6d` · `7bdc533` |
 | F2 | Build del cliente: parciales compilados | **En pruebas.** Peso servido −26 % (Portal −16 %). Banco local: las 20 pantallas se comportan igual que con la fuente. Google sirve los 40 bloques compilados byte a byte. Falta su vistazo, pantalla por pantalla, y su palabra para producción | `d25bb8d` |
-| F3 | Menos llamadas por pantalla y datos iniciales en la página | Pendiente | — |
+| F3a | Portal: respuestas en caché dentro de la página; `AppRun.medidas()` | **En pruebas.** Con las cachés calientes, el Portal sin sesión hace 1-2 llamadas al abrir (antes 4-5) y el último dato llega a los 5.8 s en el mejor caso. **Coste: primer byte +0.47 s** (2.23 → 2.70 s) y `userHtml` +92 KB. Falta su vistazo y su palabra | `557875b` |
+| F3b | Pantallas con sesión: juntar permisos, preferencias, operación y onboarding en una llamada | Pendiente. Gana sobre todo cupo (F4), no latencia. Antes: F3a.1 y F3a.2 (§3) | — |
 | F4 | Capacidad: cupo de 30 ejecuciones | Pendiente (requiere ventana fuera de horario) | — |
 | F5 | Navegación: pendiente #1 en la URL; SPA solo si las cifras lo justifican | Pendiente | — |
 | F6 | Calidad: checkJs y pruebas en CI | Pendiente (opcional) | — |
 | F7 | Publicar sin PC (`CLASPRC_JSON`) | Pendiente (decisión del creador) | — |
 
-**Producción hoy:** @130 (PromosAuto, commit `23144aa`). No tiene F0, F1 ni F2.
+**Producción hoy:** @130 (PromosAuto, commit `23144aa`). No tiene F0, F1, F2 ni F3a.
 
-**Ojo al promover:** lo que se sube es `build/`, hecho con el código actual y el `build.js` actual: hoy lleva **F0 + F1 + F2** juntas. Para subir menos:
+**Ojo al promover:** lo que se sube es `build/`, hecho con el código actual y el `build.js` actual: hoy lleva **F0 + F1 + F2 + F3a** juntas. Para subir menos:
+- **Sin la F3a:** `git worktree add <scratchpad>/f2 a50a234` (el último commit antes de la F3a) y su build, con la misma receta que abajo.
 - **F0 + F1, sin F2:** `git worktree add <scratchpad>/f1 012254b` (el último commit antes de la F2), una unión a `node_modules` dentro (`cmd /c mklink /J`) y `node scripts/build.js` en esa copia: su `build.js` es el de la F1. Se sube su `build/`.
 - **F1 sin F0 (ni F2):** `git worktree add <scratchpad>/sin-f0 23144aa` y, desde la copia de `012254b`, `node scripts/build.js --fuente <scratchpad>/sin-f0/"Carpeta del proyecto" --salida <scratchpad>/build-sin-f0 --sin-clasp`. Luego se sube esa carpeta con la configuración de producción.
 - **F0 sin F1:** subir `Carpeta del proyecto` de `11e77a8` tal cual. Funciona igual, solo que más lento.
@@ -86,6 +88,7 @@
 2. ¿Tope absoluto de sesión (p. ej. 12 h) además de las 2 h de inactividad? Acota el daño de una llave robada.
 3. Ventana fuera de horario para la prueba de capacidad (F4).
 4. ¿`CLASPRC_JSON` en GitHub (F7)? Es la llave de la cuenta corporativa en un repo personal.
+5. ¿F3a a producción con su coste? El Portal tarda ~0.5 s más en aparecer, a cambio de datos frescos al abrir y 3-4 ejecuciones menos por visita (§3, F3).
 
 ---
 
@@ -160,6 +163,17 @@
 - **Ganancia esperada:** 19-27 % menos peso por pantalla (doc 15 §3.1). Poca espera, porque la red no es el cuello.
 
 ### F3 · Menos llamadas y datos iniciales en la página (lo que más notará el asesor)
+
+> **F3a hecha en pruebas el 24/09/2026** (`557875b`; detalle y cifras en el §18 del plan 13):
+> - El `doGet` del Portal y del Monitor deja en `__APP__.datos` lo que ya estaba en CacheService (`DATOS_INICIALES` en `Code.gs`), y `AppRun.swr` lo usa una vez, sin viaje. **Solo lee la caché, nunca construye** (construir sube el primer byte y dos constructores escriben en hojas).
+> - `AppRun.medidas()` ya existe (instrumentación del primer punto de abajo), con el tiempo de servidor que devuelve `secEjecutar(…, medir = 1)`.
+> - Resultado: con las cachés calientes, el Portal sin sesión hace 1-2 llamadas al abrir y el último dato llega a los 5.8 s en el mejor caso. **Coste medido: +0.47 s de primer byte.** Solo ~0.15 s son la lectura; el resto, el peso extra de la página.
+> - «Por qué arrancan ~1 s después del `load`»: ~0.5 s son del propio Portal (leerse y ejecutarse), el resto del envoltorio de Google. Con copia local, además, `swr` esperaba al primer fotograma.
+>
+> **Siguiente, en este orden:**
+> - **F3a.1** · Un solo `getAll` para las claves de caché y las propiedades de una vez: ~0.1 s menos de primer byte.
+> - **F3a.2** · Los resultados de las encuestas dentro de `toolsData` (`readPortalAnuncios_`). `pubResultados` es el último viaje del Portal sin sesión (~3 s).
+> - **F3b** · Pantallas con sesión: juntar `obtenerPermisosSesion`, `prefsLeer`, `opEstadoSesion` y `onbEstado` en una llamada (19 pantallas; sobre todo cupo). Y cachear `getEnabledQuoteFormats`, que abre la plantilla CCL en cada carga de cotización.
 
 - **Instrumentar `AppRun`:**
   - Duración por función, en un anillo en localStorage y en `AppRun.medidas()`.
@@ -242,7 +256,38 @@ const cb = performance.getEntriesByType('resource').filter(r => r.name.includes(
   - La tanda puede quedarse corriendo: se lanza sin `await` guardando las muestras en `window`, y se consultan en otra llamada.
 - **Comparar alternando** (A = antes, B = después: A, B, A, B, A, B) y descartar la primera muestra de cada tanda. Google varía con la hora: en la F1, dos tandas seguidas de A dieron 2.65 y 3.11 s. Con una sola tanda por lado, esa deriva se habría leído como efecto del cambio.
 - No lanzar la subida y la tanda en la misma respuesta: corren a la vez, y las primeras muestras caen sobre el código anterior.
-- Para leer lo que armó el servidor: decodificar el literal de `goog.script.init("…")` y leer `userHtml` (doc 15 §7).
+- Para leer lo que armó el servidor: decodificar el literal de `goog.script.init("…")` y leer `userHtml` (doc 15 §7). Desde la F3a, `__APP__` va dentro: `userHtml.match(/window\.__APP__ = ([^<]*);<\/script>/)` y `JSON.parse` dan `datos` (qué respuestas viajan) y `datosMs` (lo que costó leerlas).
+
+**Qué llama una pantalla, con nombre** (F3). `performance` da la duración de las llamadas, pero no qué función es. Para eso, un espía en el `XMLHttpRequest` de la página superior, instalado justo después de navegar:
+```js
+window.__esp = [];
+const oS = XMLHttpRequest.prototype.send, oO = XMLHttpRequest.prototype.open;
+XMLHttpRequest.prototype.open = function (m, u) { this.__u = String(u); return oO.apply(this, arguments); };
+XMLHttpRequest.prototype.send = function (body) {
+  try { if (this.__u.includes('/callback')) {
+    let fn = '?';
+    try { const arr = JSON.parse(new URLSearchParams(typeof body === 'string' ? body : '').get('request'));
+          const args = JSON.parse(arr[1]);                       // [llave, función, args, actividad, medir]
+          fn = arr[0] === 'secEjecutar' ? args[1] + (args.length > 4 ? '·m' : '') : arr[0]; } catch (e) {}
+    const reg = { fn, t: Math.round(performance.now()) }, x = this; window.__esp.push(reg);
+    this.addEventListener('loadend', () => { reg.ms = Math.round(performance.now() - reg.t); reg.len = (x.responseText || '').length; });
+  } } catch (e) {}
+  return oS.apply(this, arguments);
+};
+```
+- Nunca lee ni devuelve la llave (`args[0]`).
+- El sufijo `·m` (quinto argumento, `medir`) es la huella del cliente de la F3a: si no aparece, pruebas está sirviendo código anterior.
+- Las llamadas que salen antes de instalarlo (la de `pubResultados`, al abrir) solo se ven en `performance`, sin nombre.
+
+**Trampas al medir con la herramienta** (costaron varias tandas en la F3):
+- **Su pestaña está oculta y no pinta fotogramas.** `AppRun.swr` con copia local espera al siguiente fotograma para revalidar, así que en esa pestaña el Portal no llama. Una captura de pantalla fuerza un fotograma y dispara de golpe lo pendiente. Consecuencias:
+  - «0 llamadas» con copia local no distingue un código de otro;
+  - la captura tiene que caer **después del DCL** (~4-5 s tras navegar); antes no sirve, porque `swr` aún no ha pedido su fotograma;
+  - lo que discrimina la F3a del código anterior: tras esa captura, en la F3a siguen sin salir las `fetch*`, y en el anterior sí.
+- **La carga sin copia local sí llama sola**: así se vio que las llamadas salían ~1 s después del `load`.
+- Si la captura se cuelga («renderer frozen»), abrir una pestaña nueva por carga y cerrar la vieja.
+- **El almacenamiento del iframe no se puede leer desde fuera:** Chrome lo aparta por sitio. Abrir el origen `n-…googleusercontent.com` directamente enseña otro `localStorage`, vacío. `AppRun.medidas()` lo lee el creador en su consola (con el marco `userHtmlFrame` elegido): `console.table(AppRun.medidas())`.
+- **Alternar A/B en pruebas:** subir cada variante con `clasp push --force -P <config del scratchpad> -I <su .claspignore>` (el build anterior con `node scripts/build.js --fuente … --salida … --sin-clasp`). **Al terminar, volver a subir el código del repo** (`./scripts/publicar.sh`): si el turno cierra solo con documentación, el hook no corre clasp y pruebas se queda con la variante vieja.
 
 **Comprobar lo que sirve Google** (cada vez que cambie el build o el cliente). Desde la página superior de `/dev`, con `fetch` **en serie** de las 20 claves de `PAGES` y `PORTAL_PAGES`:
 - que ninguna respuesta diga «formato incorrecto» y todas traigan `goog.script.init`;
