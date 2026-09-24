@@ -2013,7 +2013,7 @@ table.ds-matrix{width:100%;border-collapse:separate;border-spacing:0;min-width:5
   <section id="sec-herramientas" class="view-section">
     <div class="sec-head">
       <h1 class="sec-title">Tus <em>herramientas</em></h1>
-      <p class="sec-sub"><span class="cs-sub-ancho">Recórrelas con <kbd>↑</kbd> <kbd>↓</kbd>. La ficha de la derecha lo tiene todo: qué es, cómo se entra y a dónde lleva.</span><span class="cs-sub-estrecho">Toca una para ver su ficha: qué es, cómo se entra y a dónde lleva.</span></p>
+      <p class="sec-sub"><span class="cs-sub-ancho">Recórrelas con <kbd>↑</kbd> <kbd>↓</kbd> y ábrelas con <kbd>Enter</kbd>. A la derecha, lo que la hoja dice de cada una: qué es, cómo se entra y a dónde lleva.</span><span class="cs-sub-estrecho">Toca una para ver lo que la hoja dice de ella y abrirla.</span></p>
     </div>
     <div class="filter-bar">
       <div class="filter-input">
@@ -2028,7 +2028,10 @@ table.ds-matrix{width:100%;border-collapse:separate;border-spacing:0;min-width:5
       <div class="sk-card cs-sk-ficha"><div class="sk-line cs-sk-cartel"></div><div class="sk-line sk-t"></div><div class="sk-line sk-s"></div><div class="sk-line sk-s"></div><div class="sk-line sk-s short"></div></div>
     </div>
     <div class="cs-cuerpo">
-      <div id="gr-herramientas" class="cs-lista" role="listbox" aria-label="Herramientas"></div>
+      <div class="cs-col">
+        <p class="cs-pista" id="csPista" hidden></p>
+        <div id="gr-herramientas" class="cs-lista" role="listbox" aria-label="Herramientas"></div>
+      </div>
       <article class="cs-ficha" id="csFicha" aria-label="Ficha de la herramienta"></article>
     </div>
   </section>

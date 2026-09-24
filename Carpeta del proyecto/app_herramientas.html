@@ -32,14 +32,18 @@
 
 /* — Lista — */
 .cs-cuerpo{display:grid;grid-template-columns:minmax(340px,.9fr) minmax(0,1.1fr);gap:1.6rem;align-items:start}
-.cs-cuerpo:has(> #gr-herramientas:empty){display:none}
+.cs-cuerpo:has(#gr-herramientas:empty){display:none}
+.cs-col{min-width:0;display:grid;gap:.6rem}
+.cs-pista{display:flex;align-items:center;gap:.55rem;padding:.6rem .85rem;border-radius:14px;background:var(--surface-2);color:var(--ink-soft);font-size:.84rem;line-height:1.4}
+.cs-pista[hidden]{display:none}
+.cs-pista .ic{width:15px;height:15px;flex-shrink:0;color:var(--g-ink-brand)}
 .cs-lista{position:relative;min-width:0;background:var(--surface);border:1px solid var(--line);border-radius:22px;padding:.45rem}
 .cs-lista > .empty-card{border:0}
 .cs-sel{position:absolute;left:.45rem;right:.45rem;top:0;height:0;border-radius:14px;background:var(--brand-tint);pointer-events:none;opacity:0;z-index:0}
 .cs-grupo + .cs-grupo{margin-top:.35rem}
 .cs-grupo-hd{position:sticky;top:var(--cs-top);z-index:2;display:flex;align-items:center;gap:.55rem;padding:.8rem .75rem .45rem;background:var(--surface);border-radius:14px 14px 0 0}
 .cs-grupo-hd .ic{width:16px;height:16px;color:var(--fc,var(--g-ink-brand))}
-.cs-grupo-hd h2{font-family:var(--f-display);font-weight:800;font-size:1.02rem;line-height:1.2;letter-spacing:-.005em}
+.cs-grupo-hd h2{font-family:var(--f-display);font-weight:800;font-stretch:84%;font-size:1.12rem;line-height:1.2;letter-spacing:-.005em}
 .cs-grupo-hd b{font-family:var(--f-mono);font-size:.76rem;font-weight:700;color:var(--ink-soft)}
 .cs-fila{position:relative;z-index:1}
 .cs-opc{display:grid;grid-template-columns:36px minmax(0,1fr) auto;align-items:center;gap:.75rem;padding:.5rem 3rem .5rem .6rem;border-radius:14px;cursor:pointer;outline:none;transition:background-color .15s}
@@ -62,10 +66,11 @@
 .cs-ir .ic{width:15px;height:15px}
 .cs-nada{padding:1.4rem 1rem;color:var(--ink-soft);font-size:.92rem;line-height:1.5;text-wrap:pretty}
 .cs-nada b{color:var(--ink)}
+.cs-nada .cs-btn{display:flex;margin-top:.7rem;height:36px}
 .cs-sr{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);clip-path:inset(50%);white-space:nowrap}
 
 /* — Ficha — */
-.cs-ficha{position:sticky;top:calc(var(--cs-top) + 16px);min-width:0;background:var(--surface);border:1px solid var(--line);border-radius:26px;overflow:hidden;max-height:calc(100vh - var(--cs-top) - 32px);display:flex;flex-direction:column}
+.cs-ficha{position:sticky;top:calc(var(--cs-top) + 16px);min-width:0;background:var(--surface);border:1px solid var(--line);border-radius:26px;overflow:hidden;max-height:calc(100vh - var(--cs-top) - 104px);display:flex;flex-direction:column}
 .cs-ficha:empty{display:none}
 .cs-cartel{position:relative;overflow:hidden;isolation:isolate;flex-shrink:0;min-height:190px;display:flex;flex-direction:column;justify-content:flex-end;padding:1.15rem 1.3rem;background:var(--brand);color:#fff}
 [data-theme="carbon"] .cs-cartel{background:#B8007C}
@@ -74,7 +79,7 @@
 .cs-cartel.tam-s .cs-cartel-t{font-size:4rem}
 .cs-cartel.tam-m .cs-cartel-t{font-size:3rem}
 .cs-cartel.tam-l .cs-cartel-t{font-size:2.2rem}
-.cs-cartel-s{font-weight:700;font-size:.9rem;opacity:.92;margin-top:.45rem}
+.cs-cartel-s{font-weight:700;font-size:1.2rem;line-height:1.2;margin-top:.45rem}
 .cs-ficha-cuerpo{padding:1.2rem 1.4rem 1.4rem;overflow:auto;display:grid;gap:1rem;align-content:start}
 .cs-ficha-meta{display:flex;flex-wrap:wrap;align-items:center;gap:.45rem .7rem}
 .cs-tag{display:inline-flex;align-items:center;gap:.35rem;height:24px;padding:0 .55rem;border-radius:7px;font-size:.72rem;font-weight:800;color:var(--fc,var(--ink-soft));background:color-mix(in srgb,var(--fc,var(--ink-soft)) 11%,var(--surface))}
@@ -101,12 +106,15 @@
 .cs-acc-fila{display:grid;grid-template-columns:auto minmax(0,1fr) auto;align-items:center;gap:.7rem}
 .cs-acc-lbl{font-size:.7rem;font-weight:800;letter-spacing:.06em;text-transform:uppercase;color:var(--ink-soft)}
 .cs-acc-txt{font-weight:650;font-size:.92rem;overflow-wrap:anywhere}
+.cs-acc-sola{grid-column:1/-1}
 .cs-clave{font-family:var(--f-mono);font-weight:700;font-size:.9rem;letter-spacing:.06em;overflow-wrap:anywhere}
 .cs-acc-bots{display:flex;gap:.35rem}
 .cs-acceso .cs-btn{height:34px;padding:0 .7rem;font-size:.8rem;border-radius:10px}
 .cs-nota{font-size:.84rem;color:var(--warn);background:var(--warn-bg);border-radius:12px;padding:.6rem .8rem;line-height:1.45}
 .cs-desc{display:grid;gap:.65rem;font-size:.95rem;line-height:1.6;max-width:68ch}
 .cs-desc p{text-wrap:pretty}
+.cs-desc-t{font-family:var(--f-display);font-weight:800;font-size:1.02rem;line-height:1.3;letter-spacing:-.005em;margin-top:.4rem}
+.cs-desc b{font-weight:700}
 .cs-vacia{font-size:.92rem;color:var(--ink-soft);line-height:1.5}
 .cs-ficha-vacia{padding:2rem 1.5rem;color:var(--ink-soft);line-height:1.5}
 
@@ -120,7 +128,7 @@
 .cs-hoja-cerrar{position:absolute;top:.75rem;right:.75rem;z-index:2;width:40px;height:40px;border:0;border-radius:12px;background:rgba(255,255,255,.2);color:#fff;display:grid;place-items:center;cursor:pointer}
 .cs-hoja-cerrar .ic{width:18px;height:18px}
 .cs-hoja-cerrar:focus-visible{outline:2px solid #fff;outline-offset:2px}
-.cs-hoja .cs-cartel{min-height:150px;padding-top:2.4rem}
+.cs-hoja .cs-cartel{min-height:150px;padding-top:2.4rem;touch-action:none;cursor:grab}
 .cs-hoja .cs-cartel.tam-s .cs-cartel-t{font-size:3.2rem}
 .cs-hoja .cs-cartel.tam-m .cs-cartel-t{font-size:2.5rem}
 .cs-hoja .cs-cartel.tam-l .cs-cartel-t{font-size:1.9rem}
@@ -248,12 +256,15 @@ function csPintar(){
     const q = filtroDeSeccion('herramientas');
     g.innerHTML = '<p class="cs-nada">' + (q
       ? 'Nada coincide con <b>«' + esc(q) + '»</b>' + (csFam !== 'todas' ? ' en ' + esc(CS_FAM[csFam].label.toLowerCase()) : '') + '. Prueba con el tipo: «hoja», «formulario», «viajes».'
-      : 'No hay herramientas en este grupo.') + '</p>';
+      : 'No hay herramientas en este grupo.') +
+      (csFam !== 'todas' ? '<button type="button" class="cs-btn" data-cs-fam="todas">Buscar en todas</button>' : '') + '</p>';
     csSelFila = '';
-    csFicha(null, true);
+    const fv = document.getElementById('csFicha'); if (fv) fv.innerHTML = '';
+    csPista(false);
     return;
   }
   const fijadas = pins.map(n => vis.find(it => it.nombre === n)).filter(Boolean);
+  csPista(!pins.some(n => csItems.some(it => it.nombre === n)));
   let h = '<div class="cs-sel" id="csSel" aria-hidden="true"></div>';
   if (fijadas.length) h += csGrupo('fijadas', 'Fijadas', 'pin', fijadas, 'f-');
   CS_ORDEN.forEach(f => {
@@ -266,6 +277,14 @@ function csPintar(){
   if (!fila && csSelId) fila = g.querySelector('.cs-fila[data-cs-id="' + csSelId + '"]');
   if (!fila) fila = g.querySelector('.cs-fila');
   csMarcar(fila, true);
+}
+
+// Mientras no haya fijadas, una línea dice para qué sirve el alfiler (fuera del listbox).
+function csPista(ver){
+  const p = document.getElementById('csPista');
+  if (!p) return;
+  p.hidden = !ver;
+  if (ver && !p.firstChild) p.innerHTML = icon('pin') + '<span>Fija con el alfiler de la ficha las que más uses y saldrán aquí arriba.</span>';
 }
 
 function csPintarChips(items){
@@ -334,8 +353,14 @@ function csDeslizar(de, a){
 }
 
 function csParrafos(t){
-  return String(t).replace(/\r\n?/g, '\n').split(/\n{2,}/)
-    .map(p => '<p>' + esc(p.trim()).replace(/\n/g, '<br>') + '</p>').join('');
+  return String(t).replace(/\r\n?/g, '\n').split(/\n{2,}/).map(p => {
+    p = p.trim();
+    if (!p) return '';
+    if (p.indexOf('\n') < 0 && p.length <= 60 && /:$/.test(p)) return '<h3 class="cs-desc-t">' + esc(p.slice(0, -1)) + '</h3>';
+    const r = /^([^:\n]{2,40}):\s/.exec(p);
+    const cuerpo = r ? '<b>' + esc(r[1]) + ':</b> ' + esc(p.slice(r[0].length)) : esc(p);
+    return '<p>' + cuerpo.replace(/\n/g, '<br>') + '</p>';
+  }).join('');
 }
 
 function csFichaHTML(it, sufijo){
@@ -346,7 +371,7 @@ function csFichaHTML(it, sufijo){
   const tag = it.tipo === it.hostC ? CS_FAM[it.fam].label : it.tipo;
   const abrir = it.url
     ? '<a class="cs-abrir" href="' + esc(it.url) + '" target="_blank" rel="noopener" data-track="' + esc(nombre) + '">Abrir ' + icon('external') + '</a>'
-    : '<span class="cs-abrir is-off" aria-disabled="true">Sin enlace ' + icon('nolink') + '</span>';
+    : '';
   const conAcceso = !!(it.acceso || it.clave);
   const botonAcceso = conAcceso
     ? '<button type="button" class="cs-btn" data-cs-acceso aria-expanded="false" aria-controls="' + idAcc + '">' + icon(it.clave ? 'lock' : 'key') + 'Cómo entrar</button>'
@@ -355,14 +380,14 @@ function csFichaHTML(it, sufijo){
   const pin = '<button type="button" class="pin-btn' + (fijada ? ' pinned' : '') + '" data-name="' + esc(nombre) + '" aria-pressed="' + fijada + '" title="' + txtPin + '" aria-label="' + txtPin + '">' + icon('pin') + '</button>';
   const acceso = conAcceso
     ? '<div class="cs-acceso" id="' + idAcc + '" hidden>' +
-        (it.acceso ? '<div class="cs-acc-fila"><span class="cs-acc-lbl">Cómo entrar</span><span class="cs-acc-txt">' + esc(it.acceso) + '</span><span></span></div>' : '') +
+        (it.acceso ? '<div class="cs-acc-fila"><span class="cs-acc-txt cs-acc-sola">' + esc(it.acceso) + '</span></div>' : '') +
         (it.clave ? '<div class="cs-acc-fila"><span class="cs-acc-lbl">Clave</span><span class="cs-clave" data-cs-clave>••••••••</span>' +
           '<span class="cs-acc-bots"><button type="button" class="cs-btn" data-cs-ver="' + it.id + '">' + icon('eye') + '<span>Ver</span></button>' +
           '<button type="button" class="cs-btn" data-cs-copiar="' + it.id + '">' + icon('copy') + 'Copiar</button></span></div>' : '') +
       '</div>'
     : '';
   const nota = it.nota
-    ? '<p class="cs-nota">En la hoja, el enlace dice «' + esc(it.nota) + '», que no es una dirección que se pueda abrir. Hace falta la URL completa en la columna Enlace.</p>'
+    ? '<p class="cs-nota">En la hoja dice «' + esc(it.nota) + '» en lugar de una dirección, así que no se puede abrir desde aquí. Avísalo con la bandera de esta ficha para que lo corrijan.</p>'
     : '';
   const desc = it.desc
     ? '<div class="cs-desc">' + csParrafos(it.desc) + '</div>'
@@ -393,14 +418,12 @@ function csFicha(it, inmediato){
   // Todo nace visible (fromTo explícito) y la red de seguridad lo termina si el reloj se para.
   const cartel = el.querySelector('.cs-cartel');
   if (cartel) cartel.style.setProperty('--cs-rayas', (Math.round(Math.random() * 40) - 20) + 'px');
-  const tl = gsap.timeline();
   const t = el.querySelector('.cs-cartel-t');
-  if (t && window.SplitText){
-    csSplit = SplitText.create(t, { type: 'words,chars', mask: 'chars' });
-    tl.fromTo(csSplit.chars, { yPercent: 105 }, { yPercent: 0, duration: .55, ease: 'power4.out', stagger: { amount: .22 } }, 0);
-  }
-  tl.fromTo(el.querySelectorAll('.cs-ficha-cuerpo > *'), { opacity: 0, y: 8 },
-    { opacity: 1, y: 0, duration: .32, ease: 'power3.out', stagger: .04, clearProps: 'transform,opacity' }, .05);
+  if (!t || !window.SplitText) return;
+  const deshacer = () => { if (csSplit){ try { csSplit.revert(); } catch (e) {} csSplit = null; } };
+  csSplit = SplitText.create(t, { type: 'words,chars', mask: 'chars' });
+  const tl = gsap.timeline({ onComplete: deshacer });
+  tl.fromTo(csSplit.chars, { yPercent: 105 }, { yPercent: 0, duration: .55, ease: 'power4.out', stagger: { amount: .22 } });
   setTimeout(() => { if (tl.progress() < 1) tl.progress(1); }, 1200);
 }
 
@@ -470,6 +493,7 @@ function csAbrirHoja(it, conAcceso){
         '<div class="cs-hoja-cont"></div></div>';
     document.body.appendChild(h);
     h.addEventListener('keydown', csTrampaFoco);
+    csArrastre(h);
   }
   const cont = h.querySelector('.cs-hoja-cont');
   cont.setAttribute('data-fam', it.fam);
@@ -480,11 +504,36 @@ function csAbrirHoja(it, conAcceso){
   document.body.classList.add('cs-hoja-abierta');
   const panel = h.querySelector('.cs-hoja-panel');
   panel.scrollTop = 0;
+  panel.style.transform = '';
   if (GS()){
     gsap.fromTo(panel, { yPercent: 100 }, { yPercent: 0, duration: .42, ease: 'expo.out', overwrite: 'auto', clearProps: 'transform' });
     gsap.fromTo(h.querySelector('.cs-hoja-fondo'), { opacity: 0 }, { opacity: 1, duration: .25, clearProps: 'opacity' });
   }
   h.querySelector('.cs-hoja-cerrar').focus({ preventScroll: true });
+}
+function csArrastre(h){
+  const panel = h.querySelector('.cs-hoja-panel');
+  let y0 = null, dy = 0, t0 = 0;
+  panel.addEventListener('pointerdown', e => {
+    if (!e.target.closest('.cs-cartel, .cs-hoja-agarre') || e.target.closest('button, a') || panel.scrollTop > 0) return;
+    y0 = e.clientY; dy = 0; t0 = performance.now();
+    try { panel.setPointerCapture(e.pointerId); } catch (err) {}
+  });
+  panel.addEventListener('pointermove', e => {
+    if (y0 === null) return;
+    dy = Math.max(0, e.clientY - y0);
+    panel.style.transform = 'translateY(' + dy + 'px)';
+  });
+  const soltar = () => {
+    if (y0 === null) return;
+    const rapido = dy / Math.max(1, performance.now() - t0) > .6;
+    y0 = null;
+    if (dy > panel.offsetHeight * .25 || (rapido && dy > 24)) { csCerrarHoja(); return; }
+    if (window.gsap && GS()) gsap.to(panel, { y: 0, duration: .25, ease: 'power3.out', overwrite: 'auto', clearProps: 'transform' });
+    else panel.style.transform = '';
+  };
+  panel.addEventListener('pointerup', soltar);
+  panel.addEventListener('pointercancel', soltar);
 }
 function csCerrarHoja(){
   const h = document.getElementById('csHoja');
@@ -495,6 +544,7 @@ function csCerrarHoja(){
     if (hecho) return; hecho = true;
     h.hidden = true;
     document.body.classList.remove('cs-hoja-abierta');
+    panel.style.transform = '';   // lo que dejó un arrastre, con o sin GSAP
     if (window.gsap) gsap.set(panel, { clearProps: 'transform' });
     if (csHojaAntes && csHojaAntes.focus && document.contains(csHojaAntes)) csHojaAntes.focus({ preventScroll: true });
   };
@@ -535,7 +585,17 @@ window.csRevelar = function(fila){
   if (b) csAlternarAcceso(b, true);
   return false;
 };
-window.csAlEntrar = function(){ csMedirTop(); };
+/* sectionEnter() revela la lista y la ficha desde opacidad 0, y son contenedores que NO se
+   repintan (las tarjetas de antes sí). Si el reloj de GSAP se para —pestaña oculta—, que no
+   se queden a medias: la red de seguridad los deja visibles. */
+window.csAlEntrar = function(){
+  csMedirTop();
+  setTimeout(() => {
+    document.querySelectorAll('#sec-herramientas .cs-lista, #sec-herramientas .cs-ficha').forEach(el => {
+      if (parseFloat(getComputedStyle(el).opacity) < 1){ if (window.gsap) gsap.set(el, { opacity: 1, clearProps: 'opacity,transform' }); else el.style.opacity = ''; }
+    });
+  }, 1500);
+};
 
 document.addEventListener('click', e => {
   const t = e.target;
