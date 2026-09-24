@@ -18,12 +18,7 @@
 [data-theme="carbon"] [data-fam="equipo"]{--fc:#B99BFF}
 [data-theme="carbon"] [data-fam="ayuda"]{--fc:#5FD0E6}
 
-/* — Encabezado y barra — */
-#sec-herramientas .sec-head{margin-bottom:1.3rem}
-#sec-herramientas .sec-title{font-stretch:78%;font-size:clamp(2.3rem,4.2vw,3.4rem);line-height:.95;letter-spacing:-.012em;margin-bottom:.6rem}
-#sec-herramientas .sec-title em{color:var(--g-ink-brand)}
-#sec-herramientas .sec-sub kbd{font-family:var(--f-mono);font-size:.78em;font-weight:700;border:1px solid currentColor;border-bottom-width:2px;border-radius:6px;padding:.02rem .36rem}
-.cs-sub-estrecho{display:none}
+/* — Barra: filtro y chips (la sección no lleva título visible) — */
 #sec-herramientas .filter-bar{gap:.8rem 1rem;margin-bottom:1.3rem}
 .cs-chips{display:flex;gap:.4rem;flex-wrap:wrap}
 .cs-chips .g-chip{height:34px;display:inline-flex;align-items:center;gap:.45rem;white-space:nowrap}
@@ -146,8 +141,6 @@ body.cs-hoja-abierta{overflow:hidden}
 @media (max-width:1100px){
   .cs-cuerpo,.sk-grid.cs-sk{grid-template-columns:minmax(0,1fr)}
   .cs-ficha,.cs-sk .cs-sk-ficha{display:none}
-  .cs-sub-ancho{display:none}
-  .cs-sub-estrecho{display:inline}
 }
 @media (hover:none){ .cs-ir{opacity:1} }
 @media (max-width:600px){

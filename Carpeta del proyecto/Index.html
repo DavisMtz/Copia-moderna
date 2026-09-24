@@ -2011,10 +2011,9 @@ table.ds-matrix{width:100%;border-collapse:separate;border-spacing:0;min-width:5
        #csFicha. renderH() pinta las dos; el filtro de texto es el de siempre (.filter-input),
        porque applySectionSearch, reflejarFiltro y filtroDeSeccion lo buscan por ese selector. -->
   <section id="sec-herramientas" class="view-section">
-    <div class="sec-head">
-      <h1 class="sec-title">Tus <em>herramientas</em></h1>
-      <p class="sec-sub"><span class="cs-sub-ancho">Recórrelas con <kbd>↑</kbd> <kbd>↓</kbd> y ábrelas con <kbd>Enter</kbd>. A la derecha, lo que la hoja dice de cada una: qué es, cómo se entra y a dónde lleva.</span><span class="cs-sub-estrecho">Toca una para ver lo que la hoja dice de ella y abrirla.</span></p>
-    </div>
+    <!-- Sin encabezado visible, a pedido del creador (24/09/2026): la sección empieza con el
+         filtro. El h1 se queda solo para lectores de pantalla. -->
+    <h1 class="cs-sr">Herramientas</h1>
     <div class="filter-bar">
       <div class="filter-input">
         <svg class="fi-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><path d="m21 21-4.3-4.3"/></svg>
