@@ -1,0 +1,17 @@
+{
+  "detector": {
+    "ignoreRules": [],
+    "ignoreFiles": [],
+    "ignoreValues": [
+      {
+        "rule": "marquee",
+        "value": "*",
+        "files": [
+          "Carpeta del proyecto/app_loaders.html"
+        ],
+        "createdAt": "2026-09-24T02:09:49.605Z",
+        "reason": "Claude, verificado en el código 23/09/2026: los 3 hallazgos son indicadores de carga (brillo de esqueletos vfx-shimmer en .vfx-imgfx y .vfx-sk-b, barra indeterminada vfx-slide), no contenido que se desplace; los brillos se apagan con prefers-reduced-motion y la barra queda como única señal de espera"
+      }
+    ]
+  }
+}
