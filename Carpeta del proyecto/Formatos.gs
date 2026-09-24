@@ -155,7 +155,9 @@ function getFormatSettings(email) {
 
     const flags = readFormatFlags_();
     const formats = QUOTE_FORMATS.map(f => {
+      // El panel mira siempre de verdad, y lo que ve corrige la caché de getEnabledQuoteFormats.
       const availability = checkFormatAvailability_(f.id);
+      formatoDisponibleGuardar_(f.id, availability);
       return {
         id: f.id,
         name: f.name,
@@ -229,6 +231,53 @@ function checkFormatAvailability_(formatId) {
 }
 
 /**
+ * F3b · La disponibilidad de un formato, con caché para la plantilla CCL.
+ *
+ * getEnabledQuoteFormats se pide al abrir cotización, la vista previa y el correo, y otra vez
+ * al guardar cada cotización. Para la CCL eso abría la plantilla (SpreadsheetApp.openById) en
+ * cada una de esas veces, solo para confirmar que sigue ahí: cerca de un segundo por carga para
+ * algo que cambia muy de vez en cuando.
+ *   · Se guarda solo lo que salió DISPONIBLE, FORMATO_DISP_TTL segundos. Si la plantilla falta,
+ *     la siguiente carga vuelve a mirar: arreglarla se nota al momento.
+ *   · La clave lleva el id de la plantilla: apuntar CCL_TEMPLATE_SHEET_ID a otra obliga a mirar.
+ *   · El precio: si alguien borra la plantilla, durante ese rato se sigue ofreciendo un formato
+ *     que avisará del problema al generarse (generateCclPdfBlob_ y el enlace a la hoja la
+ *     comprueban siempre de verdad, sin caché).
+ *   · El panel de administración (getFormatSettings) mira siempre de verdad y deja la caché al
+ *     día con lo que vio.
+ * Los demás formatos no abren nada: se responden sin caché.
+ */
+var FORMATO_DISP_TTL = 600;
+
+function formatoAbrePlantilla_(formatId) {
+  return formatId === 'ccl_liverpool';
+}
+
+function formatoDispClave_(formatId) {
+  return 'fmtDisp_v1_' + formatId + '_' + cclTemplateId_();
+}
+
+function formatoDisponible_(formatId) {
+  if (!formatoAbrePlantilla_(formatId)) return checkFormatAvailability_(formatId);
+  try {
+    const hit = CacheService.getScriptCache().get(formatoDispClave_(formatId));
+    if (hit) return JSON.parse(hit);
+  } catch (e) {}
+  const r = checkFormatAvailability_(formatId);
+  formatoDisponibleGuardar_(formatId, r);
+  return r;
+}
+
+function formatoDisponibleGuardar_(formatId, r) {
+  if (!formatoAbrePlantilla_(formatId)) return;
+  try {
+    const cache = CacheService.getScriptCache();
+    if (r && r.available) cache.put(formatoDispClave_(formatId), JSON.stringify(r), FORMATO_DISP_TTL);
+    else cache.remove(formatoDispClave_(formatId));
+  } catch (e) {}
+}
+
+/**
  * Devuelve los formatos que el asesor puede elegir al cotizar: habilitados y utilizables.
  * @return {object} { success, formats: [{id, name, description}], defaultId }
  */
@@ -241,7 +290,7 @@ function getEnabledQuoteFormats() {
           Logger.log(`getEnabledQuoteFormats: '${f.id}' está deshabilitado en el panel de administración.`);
           return false;
         }
-        const availability = checkFormatAvailability_(f.id);
+        const availability = formatoDisponible_(f.id);
         if (!availability.available) {
           Logger.log(`getEnabledQuoteFormats: '${f.id}' no está disponible. Motivo: ${availability.reason}`);
           return false;
