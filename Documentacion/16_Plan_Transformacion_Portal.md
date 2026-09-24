@@ -68,17 +68,20 @@
 | F2 | Build del cliente: parciales compilados | **En pruebas.** Peso servido −26 % (Portal −16 %). Banco local: las 20 pantallas se comportan igual que con la fuente. Google sirve los 40 bloques compilados byte a byte. Falta su vistazo, pantalla por pantalla, y su palabra para producción | `d25bb8d` |
 | F3a | Portal: respuestas en caché dentro de la página; `AppRun.medidas()` | **En pruebas.** Con las cachés calientes, el Portal sin sesión hace 1-2 llamadas al abrir (antes 4-5) y el último dato llega entre los 5.8 y los 8.0 s (≤ 7 s solo si el primer byte baja de ~3 s). **Coste: primer byte +0.47 s** (2.23 → 2.70 s) y `userHtml` +92 KB (Monitor +65 KB). Falta su vistazo y su palabra | `557875b` |
 | F3a.1 | El `doGet` lee su caché en un solo `getAll`; tope de 100 000 / 150 000 caracteres a lo que viaja en la página | **En pruebas.** Lectura en el servidor 147.5 → 90.5 ms de mediana (A/B alternado, 30 por lado); primer byte sin cambio medible. Va junto con la F3a | `570836a` |
-| F3b | Pantallas con sesión: juntar permisos, preferencias, operación y onboarding en una llamada | Pendiente, **la siguiente**. Gana sobre todo cupo (F4), no latencia. Es además donde cabe el `miVoto` con sesión de la F3a.2 (§3) | — |
-| F3a.2 | Encuestas del Portal sin su viaje al abrir | **Replanteada** (§3): la versión del plan chocaba con la caché propia de 30 s de los votos. Va después de la F3b | — |
+| (arreglo) | Monitor de promociones invisible con los datos en la página: regresión de la F3a que vio el creador | **En pruebas.** Reproducido y corregido; el Portal revisado con la misma sonda. **La F3a no se promueve sin él** | `f02a0ad` |
+| F3b | Las llamadas de fondo del arranque viajan en un lote (`secEjecutarLote`); disponibilidad de la plantilla CCL en caché | **En pruebas.** Viajes al abrir las 20 pantallas: 105 → 64 (banco). Lote verificado de punta a punta en pruebas. Falta su vistazo con `AppRun.medidas()` (columna `enLote`) y su palabra | `7dd7e6f` · `7a05cd7` |
+| F3a.2 | Encuestas del Portal sin su viaje al abrir | Pendiente, **la siguiente**. Replanteada (§3): la versión del plan chocaba con la caché propia de 30 s de los votos | — |
 | F4 | Capacidad: cupo de 30 ejecuciones | Pendiente (requiere ventana fuera de horario) | — |
 | F5 | Navegación: pendiente #1 en la URL; SPA solo si las cifras lo justifican | Pendiente | — |
 | F6 | Calidad: checkJs y pruebas en CI | Pendiente (opcional) | — |
 | F7 | Publicar sin PC (`CLASPRC_JSON`) | Pendiente (decisión del creador) | — |
 
-**Producción hoy:** @130 (PromosAuto, commit `23144aa`). No tiene F0, F1, F2 ni F3a.
+**Producción hoy:** @130 (PromosAuto, commit `23144aa`). No tiene F0, F1, F2, F3a, F3a.1 ni F3b.
 
-**Ojo al promover:** lo que se sube es `build/`, hecho con el código actual y el `build.js` actual: hoy lleva **F0 + F1 + F2 + F3a + F3a.1** juntas. Para subir menos:
-- **Sin la F3a.1:** `git worktree add <scratchpad>/f3a e990fff` (el último commit antes de la F3a.1) y su build. No tiene sentido subir la F3a.1 sin la F3a: solo toca su lectura.
+**Ojo al promover:** lo que se sube es `build/`, hecho con el código actual y el `build.js` actual: hoy lleva **F0 + F1 + F2 + F3a + F3a.1 + F3b** juntas, más el arreglo del Monitor. Para subir menos:
+- **La F3a NUNCA sin el arreglo del Monitor (`f02a0ad`)**: sin él, el Monitor de promociones sale en blanco. Cualquier copia que lleve la F3a y sea anterior a `f02a0ad` necesita `git cherry-pick f02a0ad`.
+- **Sin la F3b:** `git worktree add <scratchpad>/f3a1 5ba5c4c` (el último commit antes de la F3b), `git cherry-pick f02a0ad` dentro, y su build.
+- **Sin la F3a.1:** `git worktree add <scratchpad>/f3a e990fff` (el último commit antes de la F3a.1), el mismo `cherry-pick` y su build. No tiene sentido subir la F3a.1 sin la F3a: solo toca su lectura.
 - **Sin la F3a (ni la F3a.1):** `git worktree add <scratchpad>/f2 a50a234` (el último commit antes de la F3a) y su build, con la misma receta que abajo.
 - **F0 + F1, sin F2:** `git worktree add <scratchpad>/f1 012254b` (el último commit antes de la F2), una unión a `node_modules` dentro (`cmd /c mklink /J`) y `node scripts/build.js` en esa copia: su `build.js` es el de la F1. Se sube su `build/`.
 - **F1 sin F0 (ni F2):** `git worktree add <scratchpad>/sin-f0 23144aa` y, desde la copia de `012254b`, `node scripts/build.js --fuente <scratchpad>/sin-f0/"Carpeta del proyecto" --salida <scratchpad>/build-sin-f0 --sin-clasp`. Luego se sube esa carpeta con la configuración de producción.
@@ -92,6 +95,7 @@
 3. Ventana fuera de horario para la prueba de capacidad (F4).
 4. ¿`CLASPRC_JSON` en GitHub (F7)? Es la llave de la cuenta corporativa en un repo personal.
 5. ¿F3a a producción con su coste? El Portal tarda ~0.5 s más en aparecer, a cambio de datos frescos al abrir y 3-4 ejecuciones menos por visita (§3, F3). La F3a.1 le quita ~0.06 s de lectura; el resto es el peso de la página, que ahora tiene tope.
+6. ¿`opEstadoSesion` dentro del lote de arranque (F3b)? Hoy sale sola, porque `app_operacion` la retrasa 900 ms a propósito para no competir con el primer pintado. Meterla quitaría 17 de los 64 viajes al abrir las 20 pantallas, pero o la pastilla de estado se pinta 0.9 s antes, o las otras llamadas de fondo esperan 0.9 s más.
 
 ---
 
@@ -184,9 +188,15 @@
 > - `miVoto` sin sesión: con `Session.getActiveUser()`, que es la misma identidad con la que `pubQuienVota_` cuenta ese voto. Nunca viaja `porCorreo` (quién votó qué).
 > - Con sesión, `miVoto` depende del correo de la sesión, que el `doGet` no conoce: tiene que ir dentro de la llamada fusionada de la F3b. **Por eso la F3b va antes.**
 >
-> **Siguiente, en este orden:**
-> - **F3b** · Pantallas con sesión: juntar `obtenerPermisosSesion`, `prefsLeer`, `opEstadoSesion` y `onbEstado` en una llamada (19 pantallas; sobre todo cupo). Y cachear `getEnabledQuoteFormats`, que abre la plantilla CCL en cada carga de cotización.
-> - **F3a.2** · Como arriba. `pubResultados` es el último viaje del Portal sin sesión (~3 s).
+> **F3b hecha en pruebas el 24/09/2026** (`7dd7e6f`, `7a05cd7`; detalle en el §18 del plan 13):
+> - No hizo falta una `sesInicio` con nombre: las cuatro llamadas no salen a la vez (cada parcial pide lo suyo a su hora) y dos se repiten después. `AppRun.call` junta en una cola las funciones de `EN_LOTE` y las manda por `secEjecutarLote` (Sesiones.gs), que valida la sesión una vez y responde `{ v, ms }` o `{ e }` por función. Ningún parcial cambió.
+> - Viajes al abrir las 20 pantallas: 105 → 64 (banco). En pruebas, `lote[prefsLeer+opEstadoSesion]` en un viaje: 3.1 s en caliente.
+> - `getEnabledQuoteFormats` guarda 10 min la disponibilidad de la plantilla CCL (solo si está disponible).
+> - Queda fuera `opEstadoSesion` al abrir (decisión 6 del §2).
+>
+> **Regresión de la F3a, corregida (`f02a0ad`):** con los datos dentro de la página, el Monitor de promociones se quedaba sin tarjetas ni cifras. Un segundo revelado con `gsap.from()` las llevaba «de 0 a 0». El banco no lo vio porque fuerza el movimiento reducido: ver `revelado-monitor.mjs` y `revelado-portal.mjs` en el laboratorio.
+>
+> **Siguiente:** **F3a.2** · como arriba. `pubResultados` es el último viaje del Portal sin sesión (~3 s). Su parte con sesión puede ir en el lote de la F3b, que ya existe: basta con que la llamada caiga en la ventana del arranque.
 
 - **Instrumentar `AppRun`:**
   - Duración por función, en un anillo en localStorage y en `AppRun.medidas()`.
@@ -282,7 +292,10 @@ XMLHttpRequest.prototype.send = function (body) {
     let fn = '?';
     try { const arr = JSON.parse(new URLSearchParams(typeof body === 'string' ? body : '').get('request'));
           const args = JSON.parse(arr[1]);                       // [llave, función, args, actividad, medir]
-          fn = arr[0] === 'secEjecutar' ? args[1] + (args.length > 4 ? '·m' : '') : arr[0]; } catch (e) {}
+          fn = arr[0] === 'secEjecutar' ? args[1] + (args.length > 4 ? '·m' : '')
+             // F3b: [llave, [[función, args]…], actividad]
+             : arr[0] === 'secEjecutarLote' ? 'lote[' + (args[1] || []).map((x) => x[0]).join('+') + ']'
+             : arr[0]; } catch (e) {}
     const reg = { fn, t: Math.round(performance.now()) }, x = this; window.__esp.push(reg);
     this.addEventListener('loadend', () => { reg.ms = Math.round(performance.now() - reg.t); reg.len = (x.responseText || '').length; });
   } } catch (e) {}
@@ -291,6 +304,8 @@ XMLHttpRequest.prototype.send = function (body) {
 ```
 - Nunca lee ni devuelve la llave (`args[0]`).
 - El sufijo `·m` (quinto argumento, `medir`) es la huella del cliente de la F3a: si no aparece, pruebas está sirviendo código anterior.
+- Un lote (F3b) sale como `lote[a+b]`. Para saber lo que trabajó el servidor en cada función sin leer los datos, basta sacar de la respuesta solo los números: en el `loadend`, `Array.from(x.responseText.matchAll(/\\*"ms\\*":\s*(\d+)/g)).map((m) => +m[1])`, y `/\\*"e\\*":/.test(x.responseText)` dice si alguna falló.
+- **La pestaña de la herramienta tiene sesión en pruebas** (24/09/2026): en las pantallas con sesión salen también `prefsLeer`, `opEstadoSesion`… Solo se miran nombres y tiempos, nunca el contenido.
 - Las llamadas que salen antes de instalarlo (la de `pubResultados`, al abrir) solo se ven en `performance`, sin nombre.
 
 **Trampas al medir con la herramienta** (costaron varias tandas en la F3):
@@ -310,6 +325,7 @@ XMLHttpRequest.prototype.send = function (body) {
 - huellas: SHA-256 de cada bloque compilado de `build/` en local y de cada bloque servido con `crypto.subtle.digest`. Si coinciden, Google los sirve byte a byte y lo probado en el banco local es lo que llega (F2: 40 de 40).
 
 **Banco local** (`scripts/laboratorio/banco.mjs`): ensambla las 20 pantallas como `include()` con dos carpetas (p. ej. la fuente y `build/`) y las abre en Chrome headless con una sesión falsa y un `google.script.run` que responde siempre con fallo. Compara excepciones, avisos, llamadas al servidor, texto, estructura y píxeles, y mide el ruido cargando dos veces la primera carpeta. La salida (capturas, perfil) va a una carpeta del scratchpad, nunca al repo. Cubre la carga y los estados de error; los datos reales y los clics los ve el creador.
+- **Punto ciego: fuerza el movimiento reducido.** Un revelado de GSAP roto no se ve ahí (así pasó la regresión del Monitor en la F3a). Para eso, `revelado-monitor.mjs` y `revelado-portal.mjs`: datos en la página contra datos por red, sin movimiento reducido. Pasarlos siempre que un cambio adelante o atrase la llegada de los datos, o toque una animación de entrada.
 
 **Laboratorio:** `scripts/laboratorio/` y los proyectos LAB-mini y LAB-grande (ids en el doc 15 §7). Sus rutas apuntan a un scratchpad viejo y hay que ajustarlas.
 

@@ -1039,6 +1039,66 @@ y qué se dejó fuera a propósito**. Mismo formato que el registro del document
 
 <!-- Las entradas nuevas van arriba, con la más reciente primero. -->
 
+### 2026-09-24 — Monitor de promociones: tarjetas y cifras invisibles con los datos dentro de la página (regresión de la F3a) — corregido en PRUEBAS
+
+**Qué pasó:** el creador vio en pruebas el Monitor sin tarjetas, con el recuadro de las cifras del día vacío y, al bajar, tarjetas a medio aparecer. Los contadores (50 promociones, 9 del calendario, 250 de la agenda) sí salían: los datos llegaban y lo que fallaba era el revelado.
+
+**Causa:** el último `<script>` del Monitor montaba en el `DOMContentLoaded` un segundo revelado con `gsap.from()`: `.stat-tile` dentro de `heroTl` y un `ScrollTrigger.batch(".card")` (las únicas `.card` son las tarjetas de promoción). `from()` toma como destino la opacidad que el elemento tiene al crearse.
+- Con los datos por red (2-4 s) no se notaba: a esa hora no había tarjetas y las cifras estaban a 1.
+- Desde la F3a los datos se pintan en el `DOMContentLoaded`, ANTES que ese script, y los revelados propios (`handleDataSuccess` y `fxRevealCards`) arrancan en opacidad 0. El `from()` las llevaba «de 0 a 0», y su `overwrite: true` mataba el revelado bueno.
+- Antes de la F3a ya pasaba con la copia local (también se pinta en el `DOMContentLoaded`), pero la respuesta del servidor, segundos después, lo repintaba todo y lo tapaba.
+
+**Qué se cambió** (commit `f02a0ad`, solo `Promociones.html`): se quitan esas dos piezas del script final, porque cada elemento ya tenía dueño. El resto de la coreografía del hero sigue igual.
+
+**Qué se comprobó:**
+- **Reproducido en Chrome headless sin movimiento reducido**, con 50 promociones y en dos variantes: datos en la página y datos por red a los 2 s.
+  - Antes del arreglo, con los datos en la página, las tarjetas a la vista y las cifras quedaban en 0 para siempre, con 103 disparadores de ScrollTrigger (50 de más). Al bajar: 0, 0.83, 0.67, 0.42…, lo mismo que la captura del creador.
+  - Después del arreglo: todo a 1 y 53 disparadores. Al bajar se comporta igual que con los datos por red.
+- **El Portal**, que también recibe datos dentro de la página, se revisó con la misma sonda (textos a la vista con opacidad efectiva < 0.2, bajando por toda la página): sale igual con datos en la página que por red. Sus `gsap.from()` son del saludo y de una caja de aviso, y terminan con `clearProps`.
+- Suites en verde; en pruebas el Monitor ya sirve el arreglo.
+
+**Qué se dejó fuera a propósito / lección:**
+- **El banco (`banco.mjs`) fuerza el movimiento reducido**, así que no ve un revelado roto: por eso la F3a pasó el banco. Las dos reproducciones quedan en el laboratorio (`revelado-monitor.mjs`, `revelado-portal.mjs`); hay que pasarlas después de cualquier cambio que mueva la hora de llegada de los datos o toque un revelado.
+- La F3a se verificó solo por el camino «sin datos en la página» del banco; el camino con datos no tenía prueba visual. Ahora la tiene.
+- La vista del creador: que recargue el Monitor en pruebas y confirme.
+
+### 2026-09-24 — Fase 3b del doc 16: las llamadas de fondo del arranque viajan en un solo lote, y la disponibilidad de la plantilla CCL se guarda en caché — en PRUEBAS, no en producción
+
+**Qué se cambió:**
+- **Lote** (commit `7dd7e6f`):
+  - **`Sesiones.gs`:** `secEjecutarLote(llave, [[función, args]…], actividad)`.
+    - Valida la sesión UNA vez, con la misma regla que `secEjecutar` (`sesAbrirEjecucion_`, compartida).
+    - Cada función pasa `sesFuncionExpuesta_`: el lote no abre nada que el canal no abra.
+    - Responde `{ v, ms }` o `{ e }` por función y en orden; una que falla no tumba a las demás. Como mucho `SES_LOTE_MAX` (8).
+    - Está en `SES_NO_EXPUESTAS`: no se puede anidar (tampoco `secEjecutar` dentro de un lote).
+  - **`app_core.html` (`AppRun.call`):** las funciones de `EN_LOTE` (`obtenerPermisosSesion`, `prefsLeer`, `opEstadoSesion`, `onbEstado`, `opEstadoPublico`, `obtenerModulosPublicos`, `pubResultados`) esperan en una cola.
+    - Ventana: al abrir, hasta el `DOMContentLoaded` + 60 ms (tope de 400 ms desde la primera); después, 30 ms.
+    - La que se queda sola viaja por `secEjecutar` como siempre, y con un servidor sin `secEjecutarLote` cada una sale por su lado.
+    - `SESION_EXPIRADA` del lote avisa una sola vez. Las medidas llevan `l` (tamaño del lote) y el resumen, la columna `enLote`.
+    - **Ningún parcial cambia**: cada uno sigue pidiendo lo suyo.
+  - **Pruebas:** `sesiones.test.js` 58 → 76 y `f3_datos_en_pagina.test.js` 95 → 114. `banco.mjs` apunta cada lote como un viaje, con la hora de salida.
+- **Formatos** (commit `7a05cd7`): `getEnabledQuoteFormats` —cotización, vista previa, correo y al guardar cada cotización— abría la plantilla CCL cada vez solo para confirmar que existe.
+  - Ahora `formatoDisponible_` la guarda 10 minutos, pero solo cuando SÍ está disponible: arreglar la plantilla se nota al momento.
+  - La clave lleva el id de la plantilla. El panel de administración mira siempre de verdad y corrige la caché. Generar el PDF y el enlace a la hoja siguen comprobando sin caché.
+  - Suite nueva `formatos_cache.test.js` (15). Cuatro mutaciones detectadas.
+
+**Qué se comprobó:**
+- Las 12 suites en verde, la sintaxis limpia y el build (78).
+- **Banco, las 20 pantallas, código anterior contra F3b:** viajes al servidor al abrir, **105 → 64 (−39 %)**. Sin cambios en errores, avisos, texto ni píxeles; `atenciones` difiere solo en su barra animada, como siempre.
+  - En cada pantalla con sesión, permisos, preferencias, módulos y tutoriales salen en un solo lote.
+  - El lote sale unos 60 ms después del `DOMContentLoaded`, que es lo que se retrasan esas llamadas de fondo.
+- **En pruebas, de punta a punta**: la pestaña de la herramienta tiene sesión en pruebas. En `?page=estado`, el espía vio `lote[prefsLeer+opEstadoSesion]` en UN viaje.
+  - En frío: 7.6 s, con la caché de operación vacía.
+  - En caliente: 3.1 s, con 186 ms de servidor para `prefsLeer` y 963 ms para `opEstadoSesion`. Ningún `{ e }`.
+- **Lo que sirve Google (`/dev`, 20 pantallas):** todas con `goog.script.init`, ninguna «formato incorrecto», los 398 bloques de JS se leen tal como los deja Google, y el bloque compilado de `app_core` llega byte a byte (huella `7633f8bd…`, la misma que el build local).
+
+**Qué se dejó fuera a propósito:**
+- **`opEstadoSesion` al abrir sigue saliendo aparte**: `app_operacion` la pide 900 ms después del `DOMContentLoaded` a propósito («no compite con el primer pintado»), así que no cae en la ventana. Meterla en el lote bajaría de 64 a ~47 viajes, pero o se adelanta su pintado o las demás esperan ~0.9 s más. **Decisión del creador.**
+- **Cambio de latencia:** el servidor corre el lote en serie, así que la más rápida espera a la más lenta. Son llamadas de fondo que corrigen algo ya pintado (menú, preferencias, tutoriales, estado); la F3b gana cupo (F4), no tiempo.
+- **Las pantallas con sesión en uso real** las confirma el creador con `console.table(AppRun.medidas())` (marco de la app elegido en la consola): la columna `enLote` dice cuántas llamadas de cada función viajaron juntas.
+- El Portal sin sesión no gana nada aquí: le queda `pubResultados` sola al abrir, y `opEstadoPublico` a los 900 ms. Lo suyo es la F3a.2.
+- **Producción:** espera la palabra del creador, como F0-F3a.1.
+
 ### 2026-09-24 — Fase 3a.1 del doc 16: el `doGet` del Portal lee su caché en un solo viaje, y lo que viaja en la página tiene tope — en PRUEBAS, no en producción
 
 **Qué se cambió** (commit `570836a`):

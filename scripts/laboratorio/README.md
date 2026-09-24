@@ -22,6 +22,12 @@ Son los guiones con que se midió todo lo que cuenta `Documentacion/15_Entorno_A
   - Uso: `node scripts/laboratorio/banco.mjs "Carpeta del proyecto" build <carpeta del scratchpad> [Index cotizacion …]`.
   - La salida tiene que ir fuera del repo: si no, se niega.
   - Resultado de la F2 (23/09/2026): las 20 pantallas iguales, con 0 excepciones en ambas carpetas.
+  - Desde la F3b apunta cada lote como un solo viaje (`secEjecutarLote:a+b+c`) y guarda en `viajes` la hora de salida de cada uno.
+  - **Punto ciego: fuerza el movimiento reducido**, y con él las animaciones de entrada ponen el contenido visible sin animar. Un revelado de GSAP roto NO se ve aquí: para eso están los dos siguientes.
+- `revelado-monitor.mjs` y `revelado-portal.mjs` (24/09/2026): el Monitor y el Portal en Chrome headless **sin** movimiento reducido, en dos variantes: con los datos dentro de la página (`__APP__.datos`, F3a) y con los datos llegando por red a los 2 s (como antes de la F3a).
+  - El Monitor mide la opacidad de las tarjetas a la vista y de las cifras del día, a 1.5, 3.5 y 7 s y al bajar. El Portal busca textos a la vista con opacidad efectiva < 0.2 mientras baja por la página.
+  - Nacieron de la regresión del Monitor del 24/09 (tarjetas invisibles con los datos en la página; ver el §18 del plan 13). Pasarlos después de cualquier cambio que adelante o atrase la llegada de los datos, o que toque un revelado.
+  - Uso: `node scripts/laboratorio/revelado-monitor.mjs "Carpeta del proyecto" <scratchpad>/revelado [pagina|red]`. La salida va fuera del repo o se niegan.
 
 ## Antes de usarlos
 
