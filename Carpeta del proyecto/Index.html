@@ -3901,6 +3901,8 @@ window.Novedades = (function(){
     if (primera){ lista.forEach(x => vistos[tipo].add(x.id)); guardar(); return; }
     nuevos[tipo] = lista.filter(x => !vistos[tipo].has(x.id));
     if (nuevos[tipo].length) conNoticias[tipo] = true;
+    // Se guarda aunque no haya nada nuevo: la próxima vez, «tu última visita» es esta.
+    guardar();
     pintar();
   }
 
