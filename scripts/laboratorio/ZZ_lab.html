@@ -1,0 +1,121 @@
+<!DOCTYPE html>
+<html>
+<head><base target="_top"><meta charset="utf-8"><title>LAB</title>
+<style>body{font:14px/1.5 system-ui,sans-serif;margin:24px}pre{background:#f4f4f4;padding:12px;white-space:pre-wrap}</style>
+</head>
+<body>
+<h1>Laboratorio · proyecto <?= PROYECTO ?> · render <?= RENDER_MS ?> ms</h1>
+<p id="estado">Corriendo…</p>
+<pre id="salida"></pre>
+<script>
+var URL_BASE = '<?= URL ?>';
+var SOLO = '<?= SOLO ?>';
+var R = { proyecto: '<?= PROYECTO ?>', render_ms: <?= RENDER_MS ?>, origen: window.origin, ua: navigator.userAgent.slice(-40) };
+var salida = document.getElementById('salida');
+function log(k, v) { R[k] = v; salida.textContent = JSON.stringify(R, null, 1); }
+function llamar(fn, arg) {
+  return new Promise(function (ok) {
+    var t = performance.now();
+    var r = google.script.run
+      .withSuccessHandler(function (v) { ok({ ms: Math.round(performance.now() - t), ok: true, v: v }); })
+      .withFailureHandler(function (e) { ok({ ms: Math.round(performance.now() - t), ok: false, err: String(e && e.message || e).slice(0, 160) }); });
+    arg === undefined ? r[fn]() : r[fn](arg);
+  });
+}
+function mediana(a) { var s = a.slice().sort(function (x, y) { return x - y; }); return s[Math.floor(s.length / 2)]; }
+
+function cargarAsset(sufijo) {
+  return new Promise(function (ok) {
+    var t = performance.now();
+    var s = document.createElement('script');
+    s.src = URL_BASE + '?exp=asset' + (sufijo || '');
+    s.onload = function () { ok({ ms: Math.round(performance.now() - t), ok: true }); };
+    s.onerror = function () { ok({ ms: Math.round(performance.now() - t), ok: false }); };
+    document.head.appendChild(s);
+  });
+}
+async function correr() {
+  if (SOLO === 'asset') {
+    // ¿El navegador guarda en caché el JS servido por ContentService? Misma URL dos veces.
+    var a1 = await cargarAsset(''), a2 = await cargarAsset(''), a3 = await cargarAsset('');
+    var ent = performance.getEntriesByType('resource').filter(function (e) { return e.name.indexOf('exp=asset') !== -1; })
+      .map(function (e) { return { ms: Math.round(e.duration), transfer: e.transferSize, redirect_ms: Math.round(e.redirectEnd - e.redirectStart) }; });
+    log('asset_3_cargas_ms', [a1.ms, a2.ms, a3.ms]); log('asset_entradas', ent);
+    fin(); return;
+  }
+  // 1 · Latencia en serie (la primera es "en frío")
+  var serie = [];
+  for (var i = 0; i < 8; i++) serie.push((await llamar('labNoop')).ms);
+  log('noop_serie_ms', serie); log('noop_mediana_ms', mediana(serie.slice(1)));
+
+  // 2 · 8 llamadas en paralelo: ¿se atienden a la vez o se hacen fila?
+  var t = performance.now();
+  var par = await Promise.all([0,1,2,3,4,5,6,7].map(function () { return llamar('labNoop'); }));
+  log('paralelo_8_total_ms', Math.round(performance.now() - t));
+  log('paralelo_8_cada_ms', par.map(function (x) { return x.ms; }));
+
+  if (SOLO === 'noop') { fin(); return; }
+  // 3 · Tamaño de lo que DEVUELVE el servidor
+  var tamRet = {};
+  for (var n of [100000, 1000000, 5000000, 10000000, 20000000, 40000000]) {
+    var x = await llamar('labEco', n);
+    tamRet[n] = x.ok ? (x.ms + ' ms, ' + (x.v ? x.v.length : 0) + ' car.') : ('FALLA ' + x.ms + ' ms: ' + x.err);
+    log('retorno', tamRet);
+    if (!x.ok) break;
+  }
+  // 4 · Tamaño de lo que se ENVÍA al servidor
+  var tamArg = {};
+  for (var m of [100000, 1000000, 5000000, 10000000, 20000000]) {
+    var y = await llamar('labLongitud', new Array(m + 1).join('y'));
+    tamArg[m] = y.ok ? (y.ms + ' ms, llegó ' + y.v) : ('FALLA ' + y.ms + ' ms: ' + y.err);
+    log('argumento', tamArg);
+    if (!y.ok) break;
+  }
+  // 5 · Qué tipos sobreviven el viaje
+  var ti = await llamar('labTipos');
+  log('tipos', ti.ok ? JSON.stringify(ti.v) : ('FALLA: ' + ti.err));
+
+  // 6 · Almacenamiento del iframe
+  var alm = {};
+  try { localStorage.setItem('lab', '1'); alm.localStorage = localStorage.getItem('lab') === '1' ? 'sí' : 'no'; } catch (e) { alm.localStorage = 'error ' + e.name; }
+  try { sessionStorage.setItem('lab', '1'); alm.sessionStorage = 'sí'; } catch (e) { alm.sessionStorage = 'error ' + e.name; }
+  alm.indexedDB = await new Promise(function (ok) {
+    try { var rq = indexedDB.open('lab', 1); rq.onsuccess = function () { ok('sí'); }; rq.onerror = function () { ok('error ' + (rq.error && rq.error.name)); }; }
+    catch (e) { ok('error ' + e.name); }
+  });
+  alm.cacheAPI = typeof caches !== 'undefined' ? await caches.open('lab').then(function () { return 'sí'; }, function (e) { return 'error ' + e.name; }) : 'no existe';
+  alm.serviceWorker = 'serviceWorker' in navigator ? 'API presente' : 'no existe';
+  try { var est = await navigator.storage.estimate(); alm.cuota_MB = Math.round(est.quota / 1048576); } catch (e) { alm.cuota_MB = 'error'; }
+  alm.persistente = navigator.storage && navigator.storage.persisted ? await navigator.storage.persisted() : 'n/d';
+  alm.clave_previa_lab = localStorage.getItem('lab-visita') || '(primera visita)';
+  try { localStorage.setItem('lab-visita', new Date().toISOString() + ' ' + R.proyecto); } catch (e) {}
+  log('almacenamiento', alm);
+
+  // 7 · ¿Se puede cargar JS desde la propia webapp con <script src>?
+  var asset = await new Promise(function (ok) {
+    var s = document.createElement('script');
+    s.src = URL_BASE + '?exp=asset';
+    s.onload = function () { ok('onload · window.__labAsset=' + (window.__labAsset || 'vacío')); };
+    s.onerror = function () { ok('onerror (no cargó)'); };
+    document.head.appendChild(s);
+    setTimeout(function () { ok('sin respuesta en 8 s'); }, 8000);
+  });
+  log('script_src_contentservice', asset);
+
+  // 8 · Historial: dónde queda lo que se empuja
+  google.script.url.getLocation(function (loc) {
+    log('ubicacion_al_cargar', { parametros: loc.parameter, hash: loc.hash });
+    if (!loc.parameter.paso) {
+      google.script.history.push({ paso: 2 }, { exp: 'panel', paso: '2' }, 'ancla-lab');
+      google.script.url.getLocation(function (loc2) { log('ubicacion_tras_push', { parametros: loc2.parameter, hash: loc2.hash }); fin(); });
+    } else { fin(); }
+  });
+}
+function fin() {
+  document.getElementById('estado').textContent = 'Listo';
+  google.script.run.withSuccessHandler(function () { document.getElementById('estado').textContent = 'Listo y guardado'; }).labGuardar(JSON.stringify(R));
+}
+correr();
+</script>
+</body>
+</html>

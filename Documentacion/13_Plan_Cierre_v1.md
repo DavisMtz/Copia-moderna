@@ -1039,6 +1039,60 @@ y qué se dejó fuera a propósito**. Mismo formato que el registro del document
 
 <!-- Las entradas nuevas van arriba, con la más reciente primero. -->
 
+### 2026-09-23 — Investigación del entorno Apps Script + plan de modernización (doc 15) — SIN cambios de código
+
+**Qué se hizo.** Investigación a fondo de cómo explotar Apps Script. Se juntaron cuatro fuentes:
+- la documentación oficial;
+- los experimentos publicados por la comunidad;
+- lo que el proyecto ya había aprendido;
+- mediciones propias en el Portal real y en dos proyectos de laboratorio: LAB-mini y LAB-grande, visibles solo para el creador.
+
+Todo queda en `Documentacion/15_Entorno_Apps_Script_Hallazgos_y_Plan.md`, con el plan por fases. Los guiones del laboratorio quedan en `scripts/laboratorio/`.
+
+**Qué se comprobó (lo más importante):**
+1. **HALLAZGO DE SEGURIDAD.** 60 de las 176 funciones públicas no las usa ninguna pantalla, y varias no tienen candado. Cualquiera del dominio puede ejecutarlas desde la consola del navegador:
+   - `permSembrarMaestro`: nombrarse maestro.
+   - `secGuardarConfiguracion`: devuelve `HASH_SALT` y el webhook.
+   - `secFijarModoAuth`, `sendWebhookNotification`, `saveQuoteDataToSheets` y `cuentasLimpiarTodo`.
+   - Arreglo propuesto: Fase 0 del doc 15. **No aplicado: espera la palabra del creador.**
+2. **La lentitud es el tamaño del código del servidor, no el HTML ni la red.**
+   - Una llamada vacía tarda ~0.75 s en un proyecto vacío y ~1.9 s con el código del Portal.
+   - Quitar los comentarios de los `.gs` conservando las líneas la baja ~0.3-0.8 s.
+   - Armar la pantalla del Portal cuesta solo 229 ms.
+3. **Datos de la plataforma que cambian decisiones:**
+   - Google ya quita los comentarios del HTML servido.
+   - `<script src>` hacia la webapp no se cachea.
+   - El historial sobrevive a F5.
+   - Hay un origen de almacenamiento por proyecto, compartido por `/dev` y `/exec`.
+   - Un `Date` devuelto convierte toda la respuesta en `null`.
+   - Tras un `deploy`, `/exec` puede servir una versión vieja ~1 min.
+   - Tope de 200 versiones.
+   - Los `<meta>` del HTML se ignoran: 17 pantallas sin viewport.
+   - Todos los asesores comparten 30 ejecuciones simultáneas de la cuenta dueña.
+
+**Qué se dejó fuera a propósito:**
+- La prueba de concurrencia real: saturaría la cuenta de producción en horario de operación.
+- La verificación visual de pantallas compiladas: en el laboratorio las pantallas salen en blanco por falta de datos. Se hará en pruebas, en la Fase 2.
+- Ningún cambio al Portal: el plan espera la decisión del creador.
+
+### 2026-09-23 — Retirada de la pantalla «Acerca del Portal» — PRODUCCIÓN @129
+
+**Qué se cambió** (commit `19ec7d9`):
+- Se borraron `acerca.html` y sus parciales exclusivos: `app_creditos`, `app_instructivos` y `app_firma`.
+- Se quitaron:
+  - la ruta en `Code.gs`;
+  - los enlaces del pie en `app_shell` e `Index`;
+  - la entrada del buscador (`app_indices`) y del cargador (`app_loaders`);
+  - las listas de páginas de `app_core`;
+  - la suite `pruebas/f10_acerca.test.js`.
+- A petición del creador se desplegó en producción como @129. Esa versión se llevó también la limpieza de la traza `[diag]`.
+
+**Qué se comprobó.**
+- Las 7 suites restantes quedaron en verde y `Code.gs` compila.
+- `clasp pull` de producción: 78/78 archivos idénticos.
+
+**Qué se dejó fuera.** La superficie `'acerca'` de `AppIndices.funciones` quedó sin uso. Es inofensiva.
+
 ### 2026-09-23 — Promociones y Marketplace se actualizan solas (`PromosAuto.gs`) — en PRODUCCIÓN (@130), confirmado por el creador
 
 **Qué se cambió.** Archivo nuevo `PromosAuto.gs`. Hace lo que hasta hoy era a mano en
