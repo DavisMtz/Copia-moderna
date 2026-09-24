@@ -13,3 +13,10 @@ $RECYCLE.BIN/
 *.tmp
 *.bak
 ~$*
+
+# Build del Apps Script (Fase 1 del doc 16). `build/` lo genera
+# scripts/build.js en cada subida y NUNCA se edita a mano: la fuente es
+# «Carpeta del proyecto». node_modules lo instala `npm ci`. El
+# package-lock.json SÍ se versiona: sin él, `npm ci` falla en el workflow.
+node_modules/
+build/
