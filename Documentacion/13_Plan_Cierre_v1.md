@@ -1039,6 +1039,33 @@ y qué se dejó fuera a propósito**. Mismo formato que el registro del document
 
 <!-- Las entradas nuevas van arriba, con la más reciente primero. -->
 
+### 2026-09-24 — Fase 3a.1 del doc 16: el `doGet` del Portal lee su caché en un solo viaje, y lo que viaja en la página tiene tope — en PRUEBAS, no en producción
+
+**Qué se cambió** (commit `570836a`):
+- **`Code.gs`:** cada entrada de `DATOS_INICIALES` declara sus `claves` y arma su respuesta con `leer(lote)`. `datosInicialesDePagina_` pide todas las claves con **un solo `getAll`**; antes era un `get` por respuesta (cuatro en el Portal).
+  - **Tope:** `DATOS_TOPE_RESPUESTA` (100 000 caracteres) y `DATOS_TOPE_TOTAL` (150 000). Lo que no cabe se omite y la pantalla lo pide como antes. Si algo tiene que quedarse fuera, cae lo de más abajo de la lista (trazabilidad va detrás de herramientas y promociones). El `Logger` dice qué quedó fuera.
+  - El comentario del bloque F3 se reescribió con caracteres reales: llevaba escapes `á` literales.
+- **`Trazabilidad.gs`:** `trazCacheDesdeLote_` arma la entrada a partir de un mapa. La regla («manda la cabeza; si falta un trozo, se descarta todo») queda en un solo sitio y la usa también `trazCacheGet_`. El `doGet` pide solo la cabeza: **una trazabilidad troceada (más de 90 000 caracteres) no viaja en la página**, y que crezca no encarece esta lectura.
+- **`Portal.gs`** (`portalCacheDeLote_`) y **`Operacion.gs`** (`opEstadoPublicoEnCache_`) aceptan el lote; sin él leen como antes. `Operacion.gs` conserva su única línea LF: se editó con un guion, byte a byte.
+- **`f3_datos_en_pagina.test.js`** (72 → 95): los servicios simulados cuentan sus lecturas.
+  - Un `doGet` del Portal hace un `getAll`, ningún `get`, como mucho dos `getProperty` y nunca `getProperties`. El Monitor, un `getAll` y ninguna propiedad.
+  - Casos de los dos topes, de la troceada (sin pedir trozos), de un `getAll` caído y de unas claves que lanzan.
+  - Nueve mutaciones, todas detectadas.
+
+**Qué se comprobó:**
+- Las 11 suites en verde, la sintaxis limpia y el build (78). El build del repo es idéntico, archivo por archivo, al que quedó subido en pruebas.
+- **En pruebas (`/dev`), A/B alternado:** A = `e990fff`, B = F3a.1, en el orden A, B, A, B, A, B; 11 cargas por tanda descartando la primera, 30 por lado. Las 60 muestras traían lo mismo: herramientas, promociones, trazabilidad y módulos (88 KB). El estado público no estaba en caché en ninguna.
+  - **Lectura en el servidor (`datosMs`): mediana 147.5 → 90.5 ms (−39 %)**; p25 107 → 77; p75 303 → 163; máximo 481 → 293.
+  - Por tanda: A 211 / 122.5 / 136 y B 90 / 85 / 183. B gana en dos de las tres parejas; en la tercera manda la deriva de Google.
+  - **Primer byte: sin cambio medible** (medianas 2.60 y 2.62 s). Entre tandas del mismo lado va de 2.32 a 2.98 s, así que los ~57 ms quedan por debajo del ruido del envoltorio de Google.
+- Hoy nada toca el tope: 88 KB de 150 KB.
+
+**Qué se dejó fuera a propósito:**
+- **`getProperties()`** (el doc 16 decía «las propiedades de una vez»). En producción el almacén lleva las sesiones abiertas, hasta 500 fichas `rev-ultima-*` y los códigos `cta_*`: traerlo entero en cada visita al Portal para leer dos valores sale más caro que dos `getProperty`.
+- **Pedir los trozos de trazabilidad por si acaso, en el mismo `getAll`.** Si la hoja crece por encima del tope, esos trozos viajarían al servidor en cada visita solo para tirarlos. Se pierde la franja de 90 000 a 100 000 caracteres, que antes habría viajado.
+- **La F3a.2 tal como estaba escrita** (los resultados de las encuestas dentro de `toolsData`). Choca con una decisión escrita en `Publicaciones.gs`: los votos tienen caché propia de 30 s porque `toolsData` vive 10 min en el servidor y 7 días en el navegador, y un resultado de esas edades «miente». Además `miVoto` es de cada persona. Análisis y propuesta en el doc 16 §3.
+- **Producción:** espera la palabra del creador, como F0-F3a.
+
 ### 2026-09-24 — Fase 3a del doc 16: el Portal recibe dentro de la página lo que ya estaba en caché, y AppRun mide cada llamada — en PRUEBAS, no en producción
 
 **Qué se cambió** (commit `557875b`):
