@@ -1039,6 +1039,39 @@ y qué se dejó fuera a propósito**. Mismo formato que el registro del document
 
 <!-- Las entradas nuevas van arriba, con la más reciente primero. -->
 
+### 2026-09-23 — Fase 1 del doc 16: build del servidor (`.gs` sin comentarios) — en PRUEBAS, no en producción
+
+**Qué se cambió** (commits `2e62a6d` y `7bdc533`):
+- **`scripts/build.js` (nuevo):** genera `build/`, hermana de `Carpeta del proyecto` y fuera de git.
+  - Cada `.gs` sale sin comentarios (los localiza acorn), sin sangría y en LF, **con las mismas líneas**. Dentro de cadenas y plantillas de texto multilínea no se toca nada: ahí el espacio es dato.
+  - Los `.html` y `appsscript.json` se copian tal cual (compilarlos es la F2).
+  - Se niega a terminar si algo no cuadra, y entonces borra la salida: mismo árbol sintáctico que el fuente, mismas líneas, mismos globales, marcas de `verificarVersionDelCodigo` y los mismos archivos que subiría clasp desde la fuente.
+  - Resultado real: 33 `.gs`, **1,207 KB → 684 KB (−43 %)**.
+- **Subida desde `build/`**, en las tres vías:
+  - el hook (`~/.claude/hooks/auto-push-proyecto.ps1`, fuera del repo; la versión anterior quedó en `auto-push-proyecto.antes-F1.ps1`): compila y, si falla, **no sube** y dice por qué;
+  - el workflow: `npm ci` y el build antes de las credenciales;
+  - `scripts/publicar.sh`.
+- `package.json` + `package-lock.json` (acorn 8.18, esbuild 0.28.2); `node_modules/` y `build/` en `.gitignore`.
+
+**Qué se comprobó:**
+- **Ganancia, en pruebas.** Se alternó fuente y build en tres parejas de tandas, 28 muestras por lado del `doGet` de `?page=portal`, pedidas desde la página superior:
+  - mediana **2.75 s → 2.26 s (−0.49 s)**;
+  - las tres parejas en la misma dirección (−0.21, −0.90 y −0.34 s).
+  - Cumple el criterio del doc 16 (≥ 0.3 s).
+- `pruebas/build.test.js`: 35 comprobaciones. Cubre el build real, los casos trampa de la limpieza (`a/**/b`, `//` en cadenas y expresiones regulares, sangría en plantillas, CRLF, continuación de línea) y que un fallo no deje nada que subir. Las 10 suites en verde y la sintaxis limpia.
+- **Prueba en seco del hook** con un clon desechable y un clasp falso, en cuatro casos: cambio válido, `.gs` roto, sin dependencias y recuperado. Encontró dos fallos, ya corregidos:
+  - el build dejaba `build/` a medias si un `.gs` roto convivía con Admin.gs;
+  - los acentos del aviso llegaban rotos al JSON.
+- `clasp status` desde las dos carpetas: los mismos 80 archivos. Después de subir, `clasp pull` de pruebas comparado con `build/`: 80 de 80 idénticos.
+- En GitHub, `npm ci` y el build pasan en Linux con Node 20. El job sigue en rojo en «credenciales» por falta de `CLASPRC_JSON`, igual que antes (es la F7).
+- `portal`, `inicio` y `consulta_cotizacion` de pruebas responden sin la página de error.
+
+**Qué se dejó fuera a propósito:**
+- Producción: espera la palabra del creador. La receta del §4 del doc 16 ya dice subir desde `build/`.
+- La duración de las llamadas `google.script.run`: la pestaña de la herramienta estaba oculta y el Portal no llama mientras no se ve. Se midió el `doGet`, que paga la misma carga del código.
+- La prueba con sesión real (cotizar, consultar, buscar): la hace el creador, junto con la de la F0.
+- `verificarVersionDelCodigo` busca `permBloquesEfectivos_` dentro de `secIdentidad_`, que ya no lo llama directamente: hoy pasa por `permUsuario_`. **Ya sale ✖ con el código fuente, antes del build.** Se avisa en la suite; no se tocó.
+
 ### 2026-09-23 — Fase 0 del doc 15: llave de sesión (2 h de inactividad) y candados — en PRUEBAS, no en producción
 
 **Qué se cambió** (commit `8bfe1cd`):

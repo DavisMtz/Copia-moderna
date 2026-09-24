@@ -36,8 +36,8 @@
 
 ## 1. Reglas de trabajo (costaron incidentes; no son opcionales)
 
-1. **El hook sube solo** al terminar cada turno: `git push` a `main` y `clasp push` a **pruebas**. Puede dispararse a mitad de una tarea.
-   - Los cambios grandes se hacen en una **copia de trabajo en el scratchpad**: `cp -r` de `Carpeta del proyecto`, `pruebas` y `scripts`, quitando `.clasp.json` de la copia.
+1. **El hook sube solo** al terminar cada turno: `git push` a `main` y `clasp push` a **pruebas**, desde `build/` (F1). Puede dispararse a mitad de una tarea.
+   - Los cambios grandes se hacen en una **copia de trabajo en el scratchpad**: `cp -r` de `Carpeta del proyecto`, `pruebas`, `scripts`, `package.json` y `node_modules`, quitando `.clasp.json` de la copia.
    - Se prueban ahí y se copian al repo **todos juntos** cuando las suites estén en verde.
 2. **Producción** (solo con su palabra): receta en §4.
    - Tras `clasp deploy`, `/exec` puede servir una versión vieja **~1 min**: verificar con `&cb=N`.
@@ -64,7 +64,7 @@
 | Fase | Qué | Estado | Dónde / commit |
 |---|---|---|---|
 | F0 | Llave de sesión (2 h de inactividad), 52 candados, V-03, viewport | **En pruebas.** Falta que el creador lo pruebe y dé su palabra para producción | pruebas HEAD · `11e77a8` |
-| F1 | Build del servidor: `.gs` sin comentarios, mismas líneas | Pendiente | — |
+| F1 | Build del servidor: `.gs` sin comentarios, mismas líneas | **En pruebas** (hook, workflow y `publicar.sh` suben desde `build/`). Medido: `doGet` del Portal 2.75 → 2.26 s (−0.49 s). Falta su palabra para producción | `2e62a6d` · `7bdc533` |
 | F2 | Build del cliente: parciales compilados | Pendiente | — |
 | F3 | Menos llamadas por pantalla y datos iniciales en la página | Pendiente | — |
 | F4 | Capacidad: cupo de 30 ejecuciones | Pendiente (requiere ventana fuera de horario) | — |
@@ -72,7 +72,11 @@
 | F6 | Calidad: checkJs y pruebas en CI | Pendiente (opcional) | — |
 | F7 | Publicar sin PC (`CLASPRC_JSON`) | Pendiente (decisión del creador) | — |
 
-**Producción hoy:** @130 (PromosAuto, commit `23144aa`). No tiene F0.
+**Producción hoy:** @130 (PromosAuto, commit `23144aa`). No tiene F0 ni F1.
+
+**Ojo al promover:** desde la F1 lo que se sube es `build/`, y el build se hace del código actual, que **ya lleva la F0**. Para subir solo una de las dos:
+- **F1 sin F0:** `git worktree add <scratchpad>/sin-f0 23144aa` y, desde el repo, `node scripts/build.js --fuente <scratchpad>/sin-f0/"Carpeta del proyecto" --salida <scratchpad>/build-sin-f0 --sin-clasp`. Luego se sube esa carpeta con la configuración de producción.
+- **F0 sin F1:** subir `Carpeta del proyecto` de `11e77a8` tal cual. Funciona igual, solo que más lento.
 
 **Decisiones pendientes del creador** (preguntar solo cuando toquen):
 1. ¿F0 a producción? Antes, avisar a los asesores: **todos inician sesión una vez**.
@@ -101,6 +105,11 @@
 - **Podar versiones** sin deployment desde el historial del proyecto, dejando las de rollback recientes.
 
 ### F1 · Build del servidor (la mayor ganancia medida)
+
+> **Hecha en pruebas el 23/09/2026** (`2e62a6d`, `7bdc533`; detalle en el §18 del plan 13). Tres diferencias con lo planeado:
+> - La sangría **no** se quita dentro de cadenas y plantillas multilínea. Además, el build compara el árbol sintáctico completo con el del fuente: más estricto que «mismos globales».
+> - Un fallo del build borra `build/`, así que no queda nada a medias que se pueda subir.
+> - La medición fue del `doGet` y no de las llamadas: la pestaña de la herramienta estaba oculta y el Portal no llama mientras no se ve. Se alternó fuente y build en tres parejas (§4).
 
 - **Objetivo:** subir los `.gs` sin comentarios y **con las mismas líneas**, para que los errores sigan apuntando a la línea del fuente. Medido: ~0.3-0.8 s menos por llamada y por pantalla (doc 15 §3.2, interpolado).
 - **Pasos:**
@@ -177,15 +186,17 @@
 
 ## 4. Recetas
 
-**Subir a pruebas.** Lo hace el hook al terminar el turno. A mano: `clasp push --force` desde `Carpeta del proyecto`, o desde `build/` después de F1.
+**Subir a pruebas.** Lo hace el hook al terminar el turno: compila y sube desde `build/`. Si el build falla, no sube y lo dice; el registro queda en `%TEMP%\auto-push-build.txt`. A mano: `node scripts/build.js` en la raíz del repo y `clasp push --force` desde `build/` (o `./scripts/publicar.sh`, que hace las dos cosas).
+- Si falta `node_modules`: `npm ci` en la raíz del repo (con el sandbox desactivado: necesita red).
+- Nunca editar `build/` a mano: el siguiente build la borra entera.
 
-**Promover a producción** (solo con su palabra):
-1. Crear la configuración FUERA del repo, en el scratchpad:
+**Promover a producción** (solo con su palabra; leer antes el «Ojo al promover» del §2):
+1. `node scripts/build.js`. Crear la configuración FUERA del repo, en el scratchpad:
    ```json
-   {"scriptId":"1m1pwHzRuIWpUOlSzw7cwrdmbA06_lPEHgkmGpiFdDA6XpO6Y-2jyZCHz","rootDir":"<ruta ABSOLUTA a Carpeta del proyecto, o a build/ tras F1>"}
+   {"scriptId":"1m1pwHzRuIWpUOlSzw7cwrdmbA06_lPEHgkmGpiFdDA6XpO6Y-2jyZCHz","rootDir":"<ruta ABSOLUTA a build/>"}
    ```
-2. Subir: `clasp push --force -P <config> -I .claspignore`.
-3. Verificar 1:1: `clasp pull` a una carpeta temporal y comparar contenido (los `.gs` bajan como `.js`).
+2. Subir: `clasp push --force -P <config> -I <ruta a build/.claspignore>`.
+3. Verificar 1:1: `clasp pull` a una carpeta temporal y comparar contenido con `build/` (los `.gs` bajan como `.js`).
 4. Desplegar: `clasp deploy -P <config> -i AKfycbwGYZs3C-dsZbIWVn27uEaLm_rXQGhiQc9Q54btPxPb-Z1SX0Enx7NlPqKw4STizaOU -d "<qué lleva>"`.
 5. Esperar ~1 min y abrir `/exec?page=portal&cb=N`.
 6. Anotar la versión en el §18 y en la memoria `produccion-y-pruebas-portal`.
@@ -201,6 +212,17 @@ const cb = performance.getEntriesByType('resource').filter(r => r.name.includes(
    fin_ms: Math.max(0, ...cb.map(r => Math.round(r.responseEnd))) })
 ```
 - Repetir 5 veces con `&cb=N` distinto y comparar medianas.
+- **Si la pestaña está oculta** (`document.visibilityState === 'hidden'`, lo normal con la herramienta), el Portal no hace sus llamadas. Entonces se mide el `doGet`, que paga la misma carga del código, pidiéndolo desde la página superior:
+  ```js
+  const base = location.origin + location.pathname, out = [];
+  for (let i = 0; i < 11; i++) { const t0 = performance.now();
+    const r = await fetch(base + '?page=portal&cb=' + Date.now(), { credentials: 'include', cache: 'no-store' });
+    const t1 = performance.now(); const txt = await r.text();
+    out.push(Math.round(t1 - t0) + (txt.length > 1000000 ? '' : '!')); }   // '!' = no llegó el Portal
+  JSON.stringify(out)
+  ```
+- **Comparar alternando** (A = antes, B = después: A, B, A, B, A, B) y descartar la primera muestra de cada tanda. Google varía con la hora: en la F1, dos tandas seguidas de A dieron 2.65 y 3.11 s. Con una sola tanda por lado, esa deriva se habría leído como efecto del cambio.
+- No lanzar la subida y la tanda en la misma respuesta: corren a la vez, y las primeras muestras caen sobre el código anterior.
 - Para leer lo que armó el servidor: decodificar el literal de `goog.script.init("…")` y leer `userHtml` (doc 15 §7).
 
 **Laboratorio:** `scripts/laboratorio/` y los proyectos LAB-mini y LAB-grande (ids en el doc 15 §7). Sus rutas apuntan a un scratchpad viejo y hay que ajustarlas.
