@@ -38,6 +38,9 @@ const HOY = new Date(2026, 8, 24, 12, 0, 0).getTime();
 
 let cache = {}, props = {};
 const cuentas = { hojas: 0, calendario: 0, drive: 0, escriturasProp: 0, escriturasCache: 0 };
+// Viajes a CacheService y a las propiedades (F3a.1): cada uno cuesta decenas de ms del primer byte.
+const lecturas = { get: 0, getAll: 0, getProperty: 0, getProperties: 0, pedidas: [] };
+let getAllRoto = false;
 let plantillas = [];
 
 function contextoServidor() {
@@ -46,8 +49,12 @@ function contextoServidor() {
     static now() { return HOY; }
   };
   const cacheScript = {
-    get: (k) => (k in cache ? cache[k] : null),
-    getAll: (ks) => { const o = {}; ks.forEach((k) => { if (k in cache) o[k] = cache[k]; }); return o; },
+    get: (k) => { lecturas.get++; return (k in cache ? cache[k] : null); },
+    getAll: (ks) => {
+      lecturas.getAll++; lecturas.pedidas.push(ks.slice());
+      if (getAllRoto) throw new Error('prueba: CacheService caído');
+      const o = {}; ks.forEach((k) => { if (k in cache) o[k] = cache[k]; }); return o;
+    },
     put: (k, v) => { cuentas.escriturasCache++; cache[k] = String(v); },
     putAll: (m) => { cuentas.escriturasCache++; Object.assign(cache, m); },
     remove: (k) => { delete cache[k]; },
@@ -62,10 +69,10 @@ function contextoServidor() {
     Logger: { log: () => {} },
     CacheService: { getScriptCache: () => cacheScript, getUserCache: () => cacheScript },
     PropertiesService: { getScriptProperties: () => ({
-      getProperty: (k) => (k in props ? props[k] : null),
+      getProperty: (k) => { lecturas.getProperty++; return (k in props ? props[k] : null); },
       setProperty: (k, v) => { cuentas.escriturasProp++; props[k] = String(v); },
       deleteProperty: (k) => { delete props[k]; },
-      getProperties: () => Object.assign({}, props)
+      getProperties: () => { lecturas.getProperties++; return Object.assign({}, props); }
     }) },
     // Si el doGet abre CUALQUIER hoja, el Calendario o Drive, la prueba lo cuenta y la llamada falla.
     SpreadsheetApp: {
@@ -100,8 +107,13 @@ const S = contextoServidor();
 /** Cada petición es una ejecución nueva de Apps Script: los memos de la anterior no existen. */
 function ejecucion(fn) { vm.runInContext('SEC_SESION_ = null; SEC_ENTRADA_ = null; OP_GEN_MEMO = null;', S); return fn(); }
 function reiniciar() {
-  cache = {}; props = {}; plantillas = [];
+  cache = {}; props = {}; plantillas = []; getAllRoto = false;
   Object.keys(cuentas).forEach((k) => { cuentas[k] = 0; });
+  ponerLecturasACero();
+}
+function ponerLecturasACero() {
+  lecturas.get = lecturas.getAll = lecturas.getProperty = lecturas.getProperties = 0;
+  lecturas.pedidas = [];
 }
 
 // Lo que el Portal deja en caché cuando alguien ya lo abrió (misma forma que las funciones reales).
@@ -128,13 +140,18 @@ const OP_PUBLICO = { success: true, sistemas: [{ clave: 'connect', nombre: 'Conn
 function calentar() {
   cache.toolsData_v1 = JSON.stringify(TOOLS);
   cache.appData_v1 = JSON.stringify(APPDATA);
-  // Trazabilidad se guarda troceada cuando pasa de 90 KB: se prueba el camino de los trozos.
-  const t = JSON.stringify(TRAZ), mitad = Math.floor(t.length / 2);
-  cache.trazData_v1 = 'trozos:2';
-  cache['trazData_v1#0'] = t.slice(0, mitad);
-  cache['trazData_v1#1'] = t.slice(mitad);
+  // Trazabilidad en una sola llave, como hoy (~47 KB). La troceada tiene su caso en A8.
+  cache.trazData_v1 = JSON.stringify(TRAZ);
   props.OP_CACHE_GEN = '7';
   cache.op_g7_publico = JSON.stringify(OP_PUBLICO);
+}
+
+/** Trazabilidad guardada en `n` trozos, como la deja trazCachePut_ cuando pasa de 90 KB. */
+function trocearTraz(n) {
+  const t = JSON.stringify(TRAZ), paso = Math.ceil(t.length / n);
+  Object.keys(cache).filter((k) => k.indexOf('trazData_v1') === 0).forEach((k) => delete cache[k]);
+  cache.trazData_v1 = 'trozos:' + n;
+  for (let i = 0; i < n; i++) cache['trazData_v1#' + i] = t.slice(i * paso, (i + 1) * paso);
 }
 
 console.log('\nA1 · Caché vacía: no se construye nada');
@@ -156,7 +173,7 @@ reiniciar(); calentar();
   const claves = Object.keys(r.datos).sort();
   ok('están las cinco', JSON.stringify(claves) === JSON.stringify(['fetchPromoCounts', 'fetchToolsData', 'fetchTrazabilidadData', 'obtenerModulosPublicos', 'opEstadoPublico']), claves);
   ok('herramientas tal cual estaban en caché', JSON.stringify(r.datos.fetchToolsData) === JSON.stringify(TOOLS));
-  ok('trazabilidad rearmada de sus dos trozos', JSON.stringify(r.datos.fetchTrazabilidadData) === JSON.stringify(TRAZ));
+  ok('trazabilidad tal cual estaba en caché', JSON.stringify(r.datos.fetchTrazabilidadData) === JSON.stringify(TRAZ));
   ok('estado público de la generación vigente', JSON.stringify(r.datos.opEstadoPublico) === JSON.stringify(OP_PUBLICO));
   const pc = r.datos.fetchPromoCounts;
   ok('la cuenta de promociones se hace con la copia de la caché', pc.status === 'ok' && pc.activas === 1 && pc.promociones.length === 1 && pc.promociones[0].promocion === '20% en sábanas', pc);
@@ -240,6 +257,104 @@ reiniciar();
   ok('opEstadoPublicoEnCache_ lee eso mismo', JSON.stringify(ejecucion(() => S.opEstadoPublicoEnCache_())) === JSON.stringify({ success: true, x: 1 }));
   ejecucion(() => S.opInvalidarCache_());
   ok('tras invalidar (generación nueva) ya no hay nada que servir', ejecucion(() => S.opEstadoPublicoEnCache_()) === null);
+}
+
+console.log('\nA8 · F3a.1: un solo viaje a la caché y un tope a lo que viaja');
+{
+  // Lo que arma servirPagina_ para una pantalla, con las lecturas que costó.
+  const servir = (page) => {
+    plantillas = [];
+    ponerLecturasACero();
+    ejecucion(() => S.doGet({ parameter: { page: page } }));
+    const t = plantillas[plantillas.length - 1];
+    const estado = t && t.APP_JSON ? JSON.parse(t.APP_JSON) : {};
+    return { datos: estado.datos || {}, lecturas: JSON.parse(JSON.stringify(lecturas)) };
+  };
+  const pedidas = (r) => [].concat(...r.lecturas.pedidas);
+  const cinco = ['fetchPromoCounts', 'fetchToolsData', 'fetchTrazabilidadData', 'obtenerModulosPublicos', 'opEstadoPublico'];
+  const claves = (r) => JSON.stringify(Object.keys(r.datos).sort());
+
+  reiniciar(); calentar();
+  let r = servir('portal');
+  ok('Portal: las cinco respuestas…', claves(r) === JSON.stringify(cinco), Object.keys(r.datos));
+  ok('…con UN solo getAll y ningún get suelto', r.lecturas.getAll === 1 && r.lecturas.get === 0, r.lecturas);
+  ok('…que pide las cuatro claves y ninguna más',
+    JSON.stringify(pedidas(r).slice().sort()) === JSON.stringify(['appData_v1', 'op_g7_publico', 'toolsData_v1', 'trazData_v1']), pedidas(r));
+  ok('…y dos lecturas de propiedades como mucho (generación y módulos), nunca el almacén entero',
+    r.lecturas.getProperty <= 2 && r.lecturas.getProperties === 0, r.lecturas);
+
+  r = servir('promociones');
+  ok('Monitor: un getAll con appData_v1 y nada más',
+    r.lecturas.getAll === 1 && r.lecturas.get === 0 && JSON.stringify(pedidas(r)) === '["appData_v1"]' && r.lecturas.getProperty === 0, r.lecturas);
+  r = servir('estado');
+  ok('una pantalla sin lista no lee nada', r.lecturas.getAll === 0 && r.lecturas.get === 0 && r.lecturas.getProperty === 0, r.lecturas);
+
+  // Trazabilidad troceada (su hoja creció de 90 KB): no viaja, y sus trozos ni se piden.
+  reiniciar(); calentar(); trocearTraz(2);
+  r = servir('portal');
+  ok('troceada: trazabilidad se omite y las otras cuatro siguen',
+    claves(r) === JSON.stringify(cinco.filter((f) => f !== 'fetchTrazabilidadData')), Object.keys(r.datos));
+  ok('…sin pedir ningún trozo (crecer no encarece esta lectura)', !pedidas(r).some((k) => k.indexOf('#') !== -1) && r.lecturas.getAll === 1, pedidas(r));
+  ponerLecturasACero();
+  ok('la ejecución normal (trazCacheGet_) la sigue rearmando de sus trozos',
+    JSON.stringify(ejecucion(() => S.trazCacheGet_())) === JSON.stringify(TRAZ));
+  trocearTraz(3);
+  cache['trazData_v1#3'] = 'basura de una escritura anterior más grande';
+  ok('…un trozo de más, de una escritura anterior, se ignora', JSON.stringify(ejecucion(() => S.trazCacheGet_())) === JSON.stringify(TRAZ));
+  delete cache['trazData_v1#1'];
+  ok('…y si falta uno, la entrada entera se descarta', ejecucion(() => S.trazCacheGet_()) === null);
+  // Sin el trozo del medio, lo que queda aquí SÍ sería un JSON válido: descartarlo es la regla,
+  // no un accidente del JSON.parse.
+  const cojo = { trazData_v1: 'trozos:3', 'trazData_v1#0': '{"status":"ok","secciones":[]', 'trazData_v1#2': ',"x":1}' };
+  let armadoCojo = 'sin llamar';
+  const errCojo = lanza(() => { armadoCojo = S.trazCacheDesdeLote_(cojo); });
+  ok('…aunque lo que quede se pudiera leer', errCojo === null && armadoCojo === null, errCojo || armadoCojo);
+  // Manda la cabeza también al armar: un lote que trae un trozo de más (p. ej. un getAll que los
+  // pidiera todos) no lo pega.
+  const t2 = JSON.stringify(TRAZ), mitad2 = Math.ceil(t2.length / 2);
+  const conSobra = { trazData_v1: 'trozos:2', 'trazData_v1#0': t2.slice(0, mitad2), 'trazData_v1#1': t2.slice(mitad2), 'trazData_v1#2': 'basura' };
+  let armado = null;
+  const errArmado = lanza(() => { armado = S.trazCacheDesdeLote_(conSobra); });
+  ok('…y el armado usa los N trozos de la cabeza, ni uno más', errArmado === null && JSON.stringify(armado) === JSON.stringify(TRAZ), errArmado);
+
+  // Tope por respuesta: una de más de DATOS_TOPE_RESPUESTA no viaja.
+  reiniciar(); calentar();
+  const tope = vm.runInContext('DATOS_TOPE_RESPUESTA', S), topeTotal = vm.runInContext('DATOS_TOPE_TOTAL', S);
+  ok('los topes son 100 000 y 150 000 caracteres', tope === 100000 && topeTotal === 150000, [tope, topeTotal]);
+  cache.toolsData_v1 = JSON.stringify(Object.assign({}, TOOLS, { relleno: 'x'.repeat(tope + 1000) }));
+  r = servir('portal');
+  ok('herramientas de más de 100 000 caracteres se omiten…', !('fetchToolsData' in r.datos), Object.keys(r.datos));
+  ok('…y las otras cuatro siguen', claves(r) === JSON.stringify(cinco.filter((f) => f !== 'fetchToolsData')), Object.keys(r.datos));
+
+  // Tope total: cada una cabe sola, juntas no. Cae la que va más abajo en la lista.
+  reiniciar(); calentar();
+  cache.toolsData_v1 = JSON.stringify(Object.assign({}, TOOLS, { relleno: 'x'.repeat(90000) }));
+  const trazGrande = JSON.parse(JSON.stringify(TRAZ));
+  trazGrande.secciones[0].procesos[0].observaciones = 'x'.repeat(80000);
+  cache.trazData_v1 = JSON.stringify(trazGrande);
+  r = servir('portal');
+  ok('90 KB + 80 KB: trazabilidad (declarada después) se queda fuera…', !('fetchTrazabilidadData' in r.datos) && 'fetchToolsData' in r.datos, Object.keys(r.datos));
+  ok('…y las pequeñas de más abajo sí caben', 'obtenerModulosPublicos' in r.datos && 'opEstadoPublico' in r.datos && 'fetchPromoCounts' in r.datos, Object.keys(r.datos));
+  const suma = Object.keys(r.datos).reduce((s, f) => s + JSON.stringify(r.datos[f]).length, 0);
+  ok('lo que viaja no pasa del tope total', suma <= topeTotal, suma);
+  ok('y el tope no provocó ninguna lectura de hojas', cuentas.hojas === 0, cuentas);
+
+  // Si la caché entera falla, la página sale con lo que no depende de ella.
+  reiniciar(); calentar();
+  getAllRoto = true;
+  let err = null;
+  err = lanza(() => { r = servir('portal'); });
+  ok('getAll caído: la página sale igual, sin lanzar…', err === null, err);
+  ok('…con los módulos (una propiedad) y sin nada de la caché', claves(r) === '["obtenerModulosPublicos"]', r && Object.keys(r.datos));
+  getAllRoto = false;
+
+  // Una entrada cuyas claves no se pueden calcular no arrastra a las demás.
+  reiniciar(); calentar();
+  vm.runInContext('var __claveOriginal = opCacheClave_; opCacheClave_ = function () { throw new Error("propiedades caídas"); };', S);
+  err = lanza(() => { r = servir('portal'); });
+  vm.runInContext('opCacheClave_ = __claveOriginal;', S);
+  ok('si falla la clave del estado público, no lanza y las otras cuatro siguen',
+    err === null && claves(r) === JSON.stringify(cinco.filter((f) => f !== 'opEstadoPublico')), err || (r && Object.keys(r.datos)));
 }
 
 /* ═════════════════════════════════════════════════════════════════════════════════════

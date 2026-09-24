@@ -777,10 +777,13 @@ function opEstadoPublico() {
  * opEstadoPublico SOLO si ya está en caché; null si no. La usa el doGet para servir el estado
  * dentro de la página (datosInicialesDePagina_, Code.gs, F3) y por eso no pasa por el
  * productor: ese lee las hojas y puede escribir al caducar incidencias abandonadas.
+ * `lote` (F3a.1) es lo que devolvió el único getAll del doGet, que ya pidió esta misma clave.
+ * Sin él, se lee aquí.
  */
-function opEstadoPublicoEnCache_() {
+function opEstadoPublicoEnCache_(lote) {
   try {
-    const hit = CacheService.getScriptCache().get(opCacheClave_('publico'));
+    const clave = opCacheClave_('publico');
+    const hit = lote ? lote[clave] : CacheService.getScriptCache().get(clave);
     return hit ? JSON.parse(hit) : null;
   } catch (e) {
     return null;

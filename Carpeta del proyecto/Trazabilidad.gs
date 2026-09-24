@@ -80,22 +80,41 @@ function trazCacheGet_() {
     const cache = CacheService.getScriptCache();
     const cabeza = cache.get(TRAZ_CACHE_CLAVE);
     if (!cabeza) return null;
-    if (cabeza.indexOf('trozos:') !== 0) return JSON.parse(cabeza);
-
-    const total = parseInt(cabeza.substring(7), 10);
-    const claves = [];
-    for (let i = 0; i < total; i++) claves.push(TRAZ_CACHE_CLAVE + '#' + i);
-    const partes = cache.getAll(claves);
-    let json = '';
-    for (let i = 0; i < total; i++) {
-      const parte = partes[claves[i]];
-      if (parte == null) return null;   // un trozo caducó: la entrada completa se descarta
-      json += parte;
+    const lote = {};
+    lote[TRAZ_CACHE_CLAVE] = cabeza;
+    if (cabeza.indexOf('trozos:') === 0) {
+      const total = parseInt(cabeza.substring(7), 10);
+      const claves = [];
+      for (let i = 0; i < total; i++) claves.push(TRAZ_CACHE_CLAVE + '#' + i);
+      Object.assign(lote, cache.getAll(claves));
     }
-    return JSON.parse(json);
+    return trazCacheDesdeLote_(lote);
   } catch (e) {
     return null;
   }
+}
+
+/**
+ * La entrada de caché armada a partir de un mapa {clave: texto}, como el que devuelve getAll.
+ * Manda la cabeza: si dice `trozos:N` hacen falta sus N trozos, y si falta uno la entrada entera
+ * se descarta (null); los que sobren de una escritura anterior más grande se ignoran. Puede
+ * lanzar si el JSON está roto: quien la llama decide.
+ * La usan trazCacheGet_ y el doGet del Portal (datosInicialesDePagina_, Code.gs, F3a.1). El
+ * doGet solo pide la cabeza, así que una trazabilidad troceada no viaja dentro de la página.
+ */
+function trazCacheDesdeLote_(lote) {
+  const cabeza = lote && lote[TRAZ_CACHE_CLAVE];
+  if (!cabeza) return null;
+  if (cabeza.indexOf('trozos:') !== 0) return JSON.parse(cabeza);
+
+  const total = parseInt(cabeza.substring(7), 10);
+  let json = '';
+  for (let i = 0; i < total; i++) {
+    const parte = lote[TRAZ_CACHE_CLAVE + '#' + i];
+    if (parte == null) return null;   // un trozo caducó (o no se pidió): la entrada completa se descarta
+    json += parte;
+  }
+  return JSON.parse(json);
 }
 
 function trazCachePut_(objeto) {

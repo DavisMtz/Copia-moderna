@@ -195,52 +195,79 @@ function appEstadoInicialJson_(baseUrl, e, respuestas) {
 }
 
 /**
- * F3 \u00b7 LO QUE UNA PANTALLA PEDIR\u00cdA NADA M\u00c1S ABRIR, SERVIDO DENTRO DE LA P\u00c1GINA.
+ * F3 · LO QUE UNA PANTALLA PEDIRÍA NADA MÁS ABRIR, SERVIDO DENTRO DE LA PÁGINA.
  *
  * Cada google.script.run paga la carga entera del proyecto (1.5-2.3 s cada una, medido en
- * pruebas el 23/09/2026), y el Portal hac\u00eda cinco al abrir para traer cosas que el servidor
- * ya ten\u00eda en CacheService. Adem\u00e1s no sal\u00edan hasta que el iframe terminaba de arrancar
- * (~1 s despu\u00e9s del `load`). Le\u00eddas aqu\u00ed, llegan con el primer byte y se pintan en cuanto
- * se lee la p\u00e1gina.
+ * pruebas el 23/09/2026), y el Portal hacía cinco al abrir para traer cosas que el servidor
+ * ya tenía en CacheService. Además no salían hasta que el iframe terminaba de arrancar
+ * (~1 s después del `load`). Leídas aquí, llegan con el primer byte y se pintan en cuanto
+ * se lee la página.
  *
  * Reglas, y el fallo que evita cada una:
- *   \u00b7 SOLO SE LEE DE LA CACH\u00c9. Si una respuesta no est\u00e1, se omite y la pantalla la pide como
- *     siempre (y de paso calienta la cach\u00e9 para el siguiente). Construirla aqu\u00ed subir\u00eda el
- *     primer byte a 5-10 s en fr\u00edo, y dos de esas construcciones ESCRIBEN en hojas
+ *   · SOLO SE LEE DE LA CACHÉ. Si una respuesta no está, se omite y la pantalla la pide como
+ *     siempre (y de paso calienta la caché para el siguiente). Construirla aquí subiría el
+ *     primer byte a 5-10 s en frío, y dos de esas construcciones ESCRIBEN en hojas
  *     (readPortalAnuncios_ pone IDs; opCalcularEstadoPublico_ caduca incidencias). Un doGet
  *     no debe escribir.
- *   \u00b7 Solo respuestas p\u00fablicas, las que cualquiera del dominio ya puede pedir sin sesi\u00f3n. Lo
- *     que depende de qui\u00e9n mira no cabe: el doGet no sabe qui\u00e9n es (la llave de sesi\u00f3n vive
+ *   · Solo respuestas públicas, las que cualquiera del dominio ya puede pedir sin sesión. Lo
+ *     que depende de quién mira no cabe: el doGet no sabe quién es (la llave de sesión vive
  *     en el navegador).
- *   \u00b7 Solo lo que el cliente aceptar\u00eda guardar (`vale` repite el `accept` de la pantalla):
- *     un status de error servido en la p\u00e1gina se pintar\u00eda como si fuera un dato.
- *   \u00b7 Nunca lanza. Si algo falla, la p\u00e1gina sale sin datos y se comporta como antes.
+ *   · Solo lo que el cliente aceptaría guardar (`vale` repite el `accept` de la pantalla):
+ *     un status de error servido en la página se pintaría como si fuera un dato.
+ *   · Nunca lanza. Si algo falla, la página sale sin datos y se comporta como antes.
  *
- * El cliente (AppRun, en app_core) toma cada respuesta UNA sola vez y la trata como reci\u00e9n
- * llegada del servidor. \u00abActualizar\u00bb y las revalidaciones siguientes van al servidor.
+ * F3a.1 · Lo que cuesta leerlas y lo que pueden pesar:
+ *   · UN SOLO VIAJE A LA CACHÉ. Cada entrada dice qué claves necesita (`claves`), el doGet las
+ *     pide todas con un único getAll y cada lector arma su respuesta con lo que volvió
+ *     (`leer(lote)`). Antes era un viaje por respuesta. Las propiedades siguen siendo dos
+ *     lecturas sueltas (la generación de Operación, que forma la clave del estado público, y
+ *     los módulos apagados): getProperties() traería en cada visita el almacén entero, con las
+ *     sesiones abiertas y hasta 500 fichas de revisión.
+ *   · TOPE. No viaja una respuesta de más de DATOS_TOPE_RESPUESTA caracteres, ni la que haría
+ *     pasar el total de DATOS_TOPE_TOTAL: se omite y la pantalla la pide como antes. Lo que va
+ *     en la página lo paga el primer byte de CADA visita (F3a: +92 KB de página, ~0.3 s más), y
+ *     trazabilidad crece con su hoja. El orden de la lista es la prioridad: si algo tiene que
+ *     quedarse fuera, cae lo de más abajo. Una trazabilidad troceada (más de 90 000 caracteres)
+ *     tampoco viaja: aquí solo se pide su cabeza, nunca sus trozos, así que crecer no le
+ *     cuesta nada a esta lectura.
+ *
+ * El cliente (AppRun, en app_core) toma cada respuesta UNA sola vez y la trata como recién
+ * llegada del servidor. «Actualizar» y las revalidaciones siguientes van al servidor.
  */
+var DATOS_TOPE_RESPUESTA = 100000;
+var DATOS_TOPE_TOTAL = 150000;
+
+// `claves` es una función y no una lista porque la del estado público depende de una propiedad
+// y la de trazabilidad es una variable de otro archivo, que aún no existe al cargarse este.
 const DATOS_INICIALES = {
   portal: {
-    fetchToolsData:         { leer: function () { return portalToolsEnCache_(); },
+    fetchToolsData:         { claves: function () { return ['toolsData_v1']; },
+                              leer: function (lote) { return portalToolsEnCache_(lote); },
                               vale: function (d) { return d.status !== 'error'; } },
-    fetchPromoCounts:       { leer: function () { return portalPromoCountsEnCache_(); },
+    fetchPromoCounts:       { claves: function () { return ['appData_v1']; },
+                              leer: function (lote) { return portalPromoCountsEnCache_(lote); },
                               vale: function (d) { return d.status === 'ok'; } },
-    fetchTrazabilidadData:  { leer: function () { return trazCacheGet_(); },
+    fetchTrazabilidadData:  { claves: function () { return [TRAZ_CACHE_CLAVE]; },
+                              leer: function (lote) { return trazCacheDesdeLote_(lote); },
                               vale: function (d) { return d.status !== 'error' && Array.isArray(d.secciones); } },
-    // Es una propiedad del script, no una cach\u00e9: siempre est\u00e1 y cuesta una lectura.
-    obtenerModulosPublicos: { leer: function () { return obtenerModulosPublicos(); },
+    // Es una propiedad del script, no una caché: siempre está y cuesta una lectura.
+    obtenerModulosPublicos: { claves: function () { return []; },
+                              leer: function () { return obtenerModulosPublicos(); },
                               vale: function (d) { return d.success === true; } },
-    opEstadoPublico:        { leer: function () { return opEstadoPublicoEnCache_(); },
+    // Su clave lleva la generación de Operación: saberla cuesta la otra lectura de propiedades.
+    opEstadoPublico:        { claves: function () { return [opCacheClave_('publico')]; },
+                              leer: function (lote) { return opEstadoPublicoEnCache_(lote); },
                               vale: function (d) { return d.success !== false; } }
   },
   promociones: {
-    fetchApplicationData:   { leer: function () { return portalAppDataEnCache_(); },
+    fetchApplicationData:   { claves: function () { return ['appData_v1']; },
+                              leer: function (lote) { return portalAppDataEnCache_(lote); },
                               vale: function (d) { return d.status !== 'error'; } }
   }
 };
 
 /**
- * Las respuestas en cach\u00e9 de una pantalla: { datos: {funci\u00f3n: respuesta}, at, ms }, o null si
+ * Las respuestas en caché de una pantalla: { datos: {función: respuesta}, at, ms }, o null si
  * la pantalla no tiene lista.
  * @param {string} pagina Clave de PORTAL_PAGES.
  */
@@ -248,17 +275,51 @@ function datosInicialesDePagina_(pagina) {
   const lista = DATOS_INICIALES[pagina];
   if (!lista) return null;
   const t0 = Date.now();
-  const datos = {};
-  Object.keys(lista).forEach(function (fn) {
+  const nombres = Object.keys(lista);
+
+  // 1 · Las claves de todas las entradas, sin repetir.
+  const claves = [];
+  nombres.forEach(function (fn) {
     try {
-      const valor = lista[fn].leer();
-      if (valor && typeof valor === 'object' && lista[fn].vale(valor)) datos[fn] = valor;
+      lista[fn].claves().forEach(function (k) { if (claves.indexOf(k) === -1) claves.push(k); });
     } catch (err) {
-      Logger.log('datosInicialesDePagina_(' + pagina + ') \u00b7 ' + fn + ': ' + err);
+      Logger.log('datosInicialesDePagina_(' + pagina + ') · claves de ' + fn + ': ' + err);
+    }
+  });
+
+  // 2 · Un solo viaje a la caché. Si falla, cada lector encuentra el lote vacío y se omite.
+  let lote = {};
+  if (claves.length) {
+    try {
+      lote = CacheService.getScriptCache().getAll(claves) || {};
+    } catch (err) {
+      Logger.log('datosInicialesDePagina_(' + pagina + ') · getAll: ' + err);
+    }
+  }
+
+  // 3 · Pasa lo que el cliente aceptaría y cabe en el tope, en el orden de la lista.
+  const datos = {};
+  const fuera = [];
+  let total = 0;
+  nombres.forEach(function (fn) {
+    try {
+      const valor = lista[fn].leer(lote);
+      if (!valor || typeof valor !== 'object' || !lista[fn].vale(valor)) return;
+      const tam = JSON.stringify(valor).length;
+      if (tam > DATOS_TOPE_RESPUESTA || total + tam > DATOS_TOPE_TOTAL) {
+        fuera.push(fn + ' (' + Math.round(tam / 1024) + ' KB)');
+        return;
+      }
+      datos[fn] = valor;
+      total += tam;
+    } catch (err) {
+      Logger.log('datosInicialesDePagina_(' + pagina + ') · ' + fn + ': ' + err);
     }
   });
   const ms = Date.now() - t0;
-  Logger.log('Datos en la p\u00e1gina (' + pagina + '): ' + (Object.keys(datos).join(', ') || 'ninguno') + ' \u00b7 ' + ms + ' ms');
+  Logger.log('Datos en la página (' + pagina + '): ' + (Object.keys(datos).join(', ') || 'ninguno') +
+    ' · ' + Math.round(total / 1024) + ' KB · ' + ms + ' ms' +
+    (fuera.length ? ' · fuera por el tope: ' + fuera.join(', ') : ''));
   return { datos: datos, at: Date.now(), ms: ms };
 }
 

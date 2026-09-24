@@ -513,13 +513,21 @@ function portalContarPromos_(data) {
 // Las usa el doGet (datosInicialesDePagina_, Code.gs) para servir estos datos dentro de la
 // página. Devuelven null en vez de construir: el doGet no debe leer las hojas del Portal ni
 // escribir los IDs que readPortalAnuncios_ pone en "Anuncios".
+// `lote` (F3a.1) es lo que devolvió el único getAll del doGet: {clave: texto}. Sin lote, cada
+// una lee su clave por su cuenta. Un JSON roto lanza: el doGet omite esa respuesta y sigue.
 
-function portalToolsEnCache_() { return portalCacheGet_('toolsData_v1'); }
+function portalCacheDeLote_(lote, key) {
+  if (!lote) return portalCacheGet_(key);
+  const hit = lote[key];
+  return hit ? JSON.parse(hit) : null;
+}
 
-function portalAppDataEnCache_() { return portalCacheGet_('appData_v1'); }
+function portalToolsEnCache_(lote) { return portalCacheDeLote_(lote, 'toolsData_v1'); }
 
-function portalPromoCountsEnCache_() {
-  const data = portalAppDataEnCache_();
+function portalAppDataEnCache_(lote) { return portalCacheDeLote_(lote, 'appData_v1'); }
+
+function portalPromoCountsEnCache_(lote) {
+  const data = portalAppDataEnCache_(lote);
   return data ? portalContarPromos_(data) : null;
 }
 
