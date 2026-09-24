@@ -1,0 +1,251 @@
+<style>
+/* ════════════════════════════════════════════════════════════
+   PAQUETERÍAS · DIRECTORIO (24/09/2026)
+   TESIS: una página de directorio. Nombre, guía de puntos y el código de SOMS a la
+   derecha, como un teléfono; la fila entera abre. Sustituye a la tabla de tres
+   columnas con el código al final y un color al azar por fila.
+   MUNDO: el de «Tu turno». Hojas blancas con borde de 1 px, Archivo condensada en los
+   encabezados, JetBrains Mono para códigos y dominios. El rosa solo aparece al pasar
+   el cursor, en el foco y en lo que coincide.
+   HISTORIA: el asesor llega con el nombre que le da el cliente, lo encuentra de un
+   vistazo (orden alfabético), confirma el código de SOMS y abre la página en un clic.
+   Las de 4PL llevan a la herramienta 4PL.
+   PRIMERA VISTA: filtro; hoja «Rastreo en su página» en dos columnas; hoja 4PL
+   debajo con su botón. Las 16 caben a 1440×900.
+   FORMA: Directorio, 4.º de 6 estructuras; tirada b7965cb6. Sin revisión final, no
+   está terminado.
+   Una paquetería = nombre + enlace: Estafeta llega en dos filas (ETF, EFD) y se ve
+   una sola vez con sus dos códigos. La hoja no cambió.
+   Respaldo: etiqueta git «respaldo-paqueterias-antes-directorio».
+════════════════════════════════════════════════════════════ */
+#sec-paqueterias{--g-ink-brand:var(--brand-deep);--g-linea:color-mix(in srgb,var(--ink) 20%,var(--line))}
+[data-theme="carbon"] #sec-paqueterias{--g-ink-brand:#F46BC6}
+.pq-sr{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);clip-path:inset(50%);white-space:nowrap}
+
+/* — Barra: filtro, cuenta y la pista de Enter (la sección no lleva título visible) — */
+#sec-paqueterias .filter-bar{gap:.8rem 1rem;margin-bottom:1.3rem}
+#sec-paqueterias .result-count-badge:empty{display:none}
+.pq-enter{display:inline-flex;align-items:center;gap:.45rem;font-size:.8rem;font-weight:700;color:var(--g-ink-brand)}
+.pq-enter[hidden]{display:none}
+/* La pista habla del Enter del filtro: fuera de él (llegando desde Ctrl K, por ejemplo) sobra */
+#sec-paqueterias .filter-bar:not(:focus-within) .pq-enter{display:none}
+.pq-enter kbd{font-family:var(--f-mono);font-size:.7rem;font-weight:700;padding:.12rem .4rem;border-radius:6px;border:1px solid var(--g-linea);background:var(--surface);color:var(--ink)}
+
+/* — Hojas del directorio — */
+.pq-dir:empty{display:none}
+.pq-hoja{container:pqhoja/inline-size;background:var(--surface);border:1px solid var(--line);border-radius:24px;padding:1.35rem 1.8rem 1.5rem}
+.pq-hoja + .pq-hoja{margin-top:1rem}
+.pq-hoja.es-4pl{background:var(--surface-2)}
+.pq-hoja-hd{display:flex;flex-wrap:wrap;align-items:baseline;gap:.3rem .7rem;padding-bottom:.9rem;margin-bottom:.35rem;border-bottom:1px solid var(--line)}
+.pq-hoja-hd h2{font-family:var(--f-display);font-weight:800;font-stretch:84%;font-size:1.22rem;line-height:1.2;letter-spacing:-.005em}
+.pq-hoja-hd b{font-family:var(--f-mono);font-size:.78rem;font-weight:700;color:var(--ink-soft)}
+.pq-hoja-hd span{font-size:.84rem;color:var(--ink-soft)}
+.pq-4pl-ir{margin-left:auto;align-self:center;display:inline-flex;align-items:center;gap:.45rem;height:36px;padding:0 .9rem;border-radius:11px;border:0;background:var(--ink);color:var(--surface);font:inherit;font-size:.84rem;font-weight:750;cursor:pointer;white-space:nowrap;transition:background-color .15s}
+.pq-4pl-ir:hover{background:var(--brand);color:#fff}
+.pq-4pl-ir:focus-visible{outline:2.5px solid var(--brand);outline-offset:2px}
+.pq-4pl-ir .ic{width:15px;height:15px}
+.pq-cols{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));column-gap:3rem}
+.pq-col{display:grid;align-content:start;list-style:none;margin:0;padding:0}
+/* Dos columnas mientras quepa la fila más larga; con texto grande, una. En em para que
+   escale con los cuatro tamaños de texto del Portal. */
+@container pqhoja (max-width:54em){ .pq-cols{grid-template-columns:minmax(0,1fr)} }
+
+/* — Entrada: nombre · dominio · guía de puntos · código(s) · abrir — */
+.pq-ent{position:relative;display:flex;align-items:baseline;gap:.55rem;padding:.72rem .6rem;margin:0 -.6rem;border-radius:12px;transition:background-color .15s}
+.pq-ent::after{content:"";position:absolute;left:.6rem;right:.6rem;bottom:0;height:1px;background:var(--line-soft)}
+.pq-col .pq-ent:last-child::after,.pq-ent:hover::after,.pq-ent:focus-within::after{display:none}
+.pq-ent:hover,.pq-ent:focus-within{background:var(--brand-tint)}
+.pq-ent .paq-name{font-weight:700;font-size:1.02rem;line-height:1.3;white-space:nowrap}
+.pq-ent .paq-name mark{background:var(--brand-soft);color:inherit;border-radius:3px}
+.pq-host{font-family:var(--f-mono);font-size:.72rem;color:var(--ink-soft);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;min-width:0;flex:0 1 auto}
+.pq-guia{flex:1 1 1.5rem;min-width:1.5rem;align-self:center;height:0;margin-top:.45em;border-bottom:2px dotted var(--g-linea);transform-origin:0 50%;transition:border-color .2s}
+.pq-ent:hover .pq-guia,.pq-ent:focus-within .pq-guia{border-bottom-color:var(--brand)}
+.pq-cods{display:flex;gap:.55rem;font-family:var(--f-mono);font-weight:700;font-size:1rem;letter-spacing:.04em;font-variant-numeric:tabular-nums;white-space:nowrap;color:var(--ink)}
+/* Lo que coincide con el filtro lleva la misma marca en el código que en el nombre */
+.pq-cod.es-hit{background:var(--brand-soft);color:inherit;border-radius:3px;padding:0 .2rem;margin:0 -.2rem}
+.pq-ir{display:grid;place-items:center;align-self:center;width:30px;height:30px;flex-shrink:0;border-radius:9px;color:var(--ink-soft);transition:color .15s,background-color .15s}
+.pq-ir .ic{width:15px;height:15px}
+.pq-ent:hover .pq-ir,.pq-ent:focus-within .pq-ir{background:var(--brand);color:#fff}
+/* Enlace estirado: toda la fila se pulsa; la estrella y el reporte quedan por encima */
+.pq-link{position:absolute;inset:0;z-index:1;border-radius:12px;border:0;background:none;padding:0;cursor:pointer}
+.pq-link:focus-visible{outline:2.5px solid var(--brand);outline-offset:0}
+/* Estrella y reporte: no guardan sitio. Al acercarse salen entre la guía y el código, y la
+   guía de puntos, que es relleno, les cede el espacio; el código y la flecha no se mueven. */
+.pq-mas{position:relative;z-index:2;align-self:center;display:flex;gap:.1rem;flex-shrink:0;max-width:0;overflow:clip;overflow-clip-margin:3px;
+  margin-right:-.55rem;opacity:0;transition:max-width .22s cubic-bezier(.16,1,.3,1),margin-right .22s cubic-bezier(.16,1,.3,1),opacity .15s}
+.pq-ent:hover .pq-mas,.pq-ent:focus-within .pq-mas,.pq-mas:has(.saved){max-width:4.5rem;margin-right:0;opacity:1}
+.pq-ent:not(:hover):not(:focus-within) .pq-mas .btn-report{display:none}
+.pq-mas .collect-btn,.pq-mas .btn-report{width:30px;height:30px;border-radius:9px;background:transparent;border-color:transparent;color:var(--ink-soft)}
+.pq-mas .collect-btn.saved{color:#E0A100}
+.pq-nada{padding:1.6rem 0 .4rem;color:var(--ink-soft);font-size:.95rem;line-height:1.5;text-wrap:pretty}
+.pq-nada b{color:var(--ink)}
+
+/* — Densidad compacta (Ajustes de vista), con las medidas del resto del Portal — */
+html[data-density="compact"] #sec-paqueterias .filter-bar{margin-bottom:.7rem}
+html[data-density="compact"] .pq-hoja{padding:.95rem 1.3rem 1rem}
+html[data-density="compact"] .pq-hoja-hd{padding-bottom:.6rem}
+html[data-density="compact"] .pq-ent{padding-top:.45rem;padding-bottom:.45rem}
+
+/* — Esqueleto con la forma de la hoja — */
+.pq-sk-hoja{background:var(--surface);border:1px solid var(--line);border-radius:24px;padding:1.6rem 1.8rem;display:grid;grid-template-columns:1fr 1fr;gap:.9rem 3rem}
+.pq-sk-fila{height:30px;border-radius:8px}
+
+@media (max-width:600px){
+  .pq-hoja{padding:1.1rem 1.1rem 1.2rem}
+  .pq-sk-hoja{grid-template-columns:1fr}
+  .pq-host,.pq-mas{display:none}
+  .pq-4pl-ir{margin-left:0}
+}
+@media (hover:none){ .pq-mas{max-width:4.5rem;margin-right:0;opacity:1} .pq-mas .btn-report{display:none} }
+@media (prefers-reduced-motion:reduce){ .pq-ent,.pq-guia,.pq-ir,.pq-mas{transition:none} }
+</style>
+<script>
+(function(){
+  /* «4PL» en la columna Liga: sin página propia, se rastrea dentro de la herramienta 4PL. */
+  const es4pl = v => /(^|[^a-z0-9])4\s*pl([^a-z0-9]|$)/i.test(String(v || ''));
+  const dominio = href => { try { return new URL(href).hostname.replace(/^www\./, ''); } catch(e){ return ''; } };
+  let vis = [];          // paqueterías que se ven
+  let unica = null;      // la que abre Enter cuando el filtro deja solo una
+
+  /* Una paquetería = nombre + enlace. Se arma siempre con la hoja entera: así filtrar por
+     «EFD» enseña a Estafeta con sus dos códigos y marca el que coincide. */
+  function modelo(filas){
+    const grupos = [], idx = new Map();
+    (filas || []).forEach(p => {
+      const nombre = String(p.nombre || '').trim();
+      if (!nombre) return;
+      const liga = String(p.liga || '').trim();
+      const k = norm(nombre).replace(/\s+/g, ' ').trim() + '|' + liga.toLowerCase();
+      let g = idx.get(k);
+      if (!g){
+        const cuatro = es4pl(liga);
+        const href = cuatro ? null : linkHref(liga);
+        g = { nombre, liga, es4pl: cuatro, href, host: href ? dominio(href) : '', codigos: [], filas: [] };
+        idx.set(k, g); grupos.push(g);
+      }
+      const c = String(p.soms || '').trim();
+      if (c && !g.codigos.includes(c)) g.codigos.push(c);
+      g.filas.push(p);
+    });
+    return grupos;
+  }
+  window.pqContar = filas => modelo(filas).length;
+
+  function entrada(g, q){
+    const cods = g.codigos.map(c => '<span class="pq-cod' + (g.hit.includes(c) ? ' es-hit' : '') + '">' + esc(c) + '</span>').join('');
+    const dice = esc(g.nombre) + (g.codigos.length ? ', en SOMS ' + esc(g.codigos.join(' y ')) : '');
+    const enlace = g.es4pl
+      ? '<button type="button" class="pq-link" data-pq-4pl aria-label="' + dice + ': rastrear en la herramienta 4PL"></button>'
+      : g.href ? '<a class="pq-link" href="' + esc(g.href) + '" target="_blank" rel="noopener" aria-label="' + dice + ': abrir ' + esc(g.host) + '"></a>' : '';
+    return '<li class="pq-ent">' + enlace +
+      '<span class="paq-name">' + hilite(g.nombre, q) + '</span>' +
+      (g.es4pl ? '' : '<span class="pq-host">' + esc(g.host || 'sin enlace') + '</span>') +
+      '<span class="pq-guia" aria-hidden="true"></span>' +
+      '<span class="pq-mas">' + collectBtn('paqueterias', g.nombre, 'mini') + reportBtn('Paqueterias', g.nombre, g.liga) + '</span>' +
+      '<span class="pq-cods">' + cods + '</span>' +
+      (g.es4pl || g.href ? '<span class="pq-ir" aria-hidden="true">' + icon(g.es4pl ? 'arrow' : 'external') + '</span>' : '') +
+    '</li>';
+  }
+
+  function hoja(titulo, nota, lista, cuatro, q){
+    if (!lista.length) return '';
+    const orden = lista.slice().sort((a, b) => a.nombre.localeCompare(b.nombre, 'es', { sensitivity: 'base', numeric: true }));
+    const mitad = Math.ceil(orden.length / 2);
+    const col = arr => arr.length ? '<ul class="pq-col">' + arr.map(g => entrada(g, q)).join('') + '</ul>' : '';
+    return '<section class="pq-hoja' + (cuatro ? ' es-4pl' : '') + '">' +
+      '<div class="pq-hoja-hd"><h2>' + titulo + '</h2><b>' + lista.length + '</b>' + (nota ? '<span>' + nota + '</span>' : '') +
+        (cuatro ? '<button type="button" class="pq-4pl-ir" data-pq-4pl>Abrir la herramienta 4PL ' + icon('arrow') + '</button>' : '') + '</div>' +
+      '<div class="pq-cols">' + col(orden.slice(0, mitad)) + col(orden.slice(mitad)) + '</div>' +
+    '</section>';
+  }
+
+  /* El momento de la sección: las guías de puntos se tiran de izquierda a derecha, como un
+     directorio que se compone. Nombres y códigos están visibles desde el principio: si la
+     animación no corre (pestaña oculta, movimiento reducido), no falta nada. */
+  function tirarGuias(){
+    if (!GS()) return;
+    const guias = document.querySelectorAll('#gr-paqueterias .pq-guia');
+    if (!guias.length) return;
+    const tw = gsap.fromTo(guias, { scaleX: 0 }, { scaleX: 1, duration: .55, stagger: .03, ease: 'power3.out', delay: .12, clearProps: 'transform' });
+    setTimeout(() => { if (tw.progress() < 1) tw.progress(1); }, 1800);
+  }
+  const activa = () => { const s = document.getElementById('sec-paqueterias'); return !!(s && s.classList.contains('active')); };
+
+  window.renderPaq = function(items){
+    hideLoader('paqueterias');
+    const g = document.getElementById('gr-paqueterias');
+    if (!g) return;
+    const primera = !g.children.length;
+    const q = filtroDeSeccion('paqueterias');
+    const t = norm(q).trim();
+    const orden = new Map();
+    (items || []).forEach((f, i) => { if (!orden.has(f)) orden.set(f, i); });
+    vis = modelo(store.paqueterias).filter(x => x.filas.some(f => orden.has(f)));
+    vis.forEach(x => { x.hit = t ? x.codigos.filter(c => norm(c).trim().includes(t)) : []; });
+
+    // La cuenta que pone filterSec() es de filas de la hoja; aquí se cuentan paqueterías.
+    const rc = document.getElementById('rc-paqueterias');
+    if (rc) rc.innerHTML = t ? '<strong>' + vis.length + '</strong> paqueterí' + (vis.length === 1 ? 'a' : 'as') : '';
+    unica = (t && vis.length === 1 && (vis[0].href || vis[0].es4pl)) ? vis[0] : null;
+    const pista = document.getElementById('pqEnter');
+    if (pista){
+      pista.hidden = !unica;
+      if (unica) pista.innerHTML = '<kbd>Enter ↵</kbd> ' + (unica.es4pl ? 'abre la herramienta 4PL' : 'abre ' + esc(unica.nombre));
+    }
+
+    if (!vis.length){
+      g.innerHTML = store.paqueterias.length
+        ? '<section class="pq-hoja"><p class="pq-nada">Nada coincide con <b>«' + esc(q) + '»</b>. Prueba con el nombre de la paquetería o con su código en SOMS.</p></section>'
+        : '<div class="empty-card"><span class="big">' + icon('package') + '</span><h3>Sin paqueterías</h3><p>La hoja «Paqueterias» todavía no tiene filas.</p></div>';
+      return;
+    }
+    g.innerHTML =
+      hoja('Rastreo en su página', '', vis.filter(x => !x.es4pl), false, q) +
+      hoja('Por la herramienta 4PL', 'No tienen página propia: se rastrean dentro de 4PL.', vis.filter(x => x.es4pl), true, q);
+    if (primera && activa()) tirarGuias();
+  };
+
+  /* switchSec() la llama al entrar. sectionEnter() revela las hojas desde opacidad 0 y no se
+     repintan al entrar: si el reloj de GSAP se para, la red de seguridad las deja visibles. */
+  window.pqAlEntrar = function(){
+    tirarGuias();
+    setTimeout(() => {
+      document.querySelectorAll('#gr-paqueterias > *').forEach(el => {
+        if (parseFloat(getComputedStyle(el).opacity) < 1){ if (window.gsap) gsap.set(el, { clearProps: 'opacity,transform' }); else el.style.opacity = ''; }
+      });
+    }, 1500);
+  };
+
+  /* 4PL: la herramienta se busca en la hoja de Herramientas por su nombre, al vuelo. La consola
+     queda en «Todas», filtrada por ese nombre y con su fila elegida como si la tocara el asesor:
+     ficha a la vista y «Cómo entrar» CERRADO, porque ahí puede haber contraseñas y solo se
+     enseñan cuando alguien las pide. */
+  window.pqAbrir4PL = function(){
+    const h = (store.herramientas || []).find(x => es4pl(x.nombre));
+    switchSec('herramientas', document.querySelector('.side-link[data-sec="herramientas"]'));
+    const todas = document.querySelector('#csChips [data-cs-fam="todas"]');
+    if (todas && todas.getAttribute('aria-pressed') !== 'true') todas.click();
+    applySectionSearch('herramientas', h ? h.nombre : '4PL');
+    if (!h) return;
+    const quiero = norm(h.nombre).trim();
+    const fila = Array.from(document.querySelectorAll('#gr-herramientas .cs-fila'))
+      .find(f => { const n = f.querySelector('.cs-nom'); return n && norm(n.textContent).trim() === quiero; });
+    const opc = fila && fila.querySelector('.cs-opc');
+    if (!opc) return;
+    opc.click();
+    if (typeof flashEl === 'function') flashEl(fila);
+  };
+
+  document.addEventListener('click', e => {
+    const b = e.target && e.target.closest ? e.target.closest('#sec-paqueterias [data-pq-4pl]') : null;
+    if (b) window.pqAbrir4PL();
+  });
+  /* Enter en el filtro: si solo queda una paquetería, la abre. */
+  document.addEventListener('keydown', e => {
+    if (e.key !== 'Enter' || !unica || !e.target || !e.target.matches || !e.target.matches('#sec-paqueterias .filter-input input')) return;
+    e.preventDefault();
+    if (unica.es4pl) window.pqAbrir4PL();
+    else window.open(unica.href, '_blank', 'noopener');
+  });
+})();
+</script>

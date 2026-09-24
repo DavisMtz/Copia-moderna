@@ -418,7 +418,7 @@ main{flex:1}
 .btn-violet:hover{box-shadow:0 12px 22px -8px rgba(91,33,182,.55);filter:brightness(1.07)}
 .btn-violet.disabled{background:var(--surface-2);color:var(--ink-faint);box-shadow:none;cursor:default;transform:none;border:1px solid var(--line)}
 
-/* — Tabla paqueterías — */
+/* — Tabla (hoy solo la usa Formas de Pago; Paqueterías vive en app_paqueterias.html) — */
 .table-card{background:var(--surface);border:1px solid var(--line);border-radius:var(--rad);box-shadow:var(--sh-sm);overflow:hidden}
 .data-table{width:100%;border-collapse:collapse}
 .data-table th{background:var(--surface-2);padding:.9rem 1.15rem;font-size:.68rem;font-weight:800;letter-spacing:.12em;text-transform:uppercase;color:var(--ink-soft);text-align:left;border-bottom:1px solid var(--line)}
@@ -426,11 +426,6 @@ main{flex:1}
 .data-table tr:last-child td{border-bottom:none}
 .data-table tbody tr{transition:background .16s}
 .data-table tbody tr:hover{background:var(--brand-tint)}
-.paq-name{display:flex;align-items:center;gap:.65rem;font-weight:700}
-.paq-dot{width:9px;height:9px;border-radius:50%;background:var(--accent,var(--brand));flex-shrink:0;box-shadow:0 0 0 3px color-mix(in srgb,var(--accent,var(--brand)) 18%,transparent)}
-.soms-tag{display:inline-block;background:var(--ok-bg);color:var(--ok);border:1px solid color-mix(in srgb,var(--ok) 22%,transparent);border-radius:8px;padding:.24rem .6rem;font-family:var(--f-mono);font-size:.77rem;font-weight:700}
-.pl4-tag{display:inline-flex;align-items:center;gap:.35rem;background:var(--warn-bg);color:var(--warn);border:1px solid color-mix(in srgb,var(--warn) 25%,transparent);border-radius:8px;padding:.24rem .6rem;font-size:.77rem;font-weight:800}
-.pl4-tag .ic{width:13px;height:13px}
 .link-sm{display:inline-flex;align-items:center;gap:.35rem;color:var(--brand);font-weight:800;font-size:.81rem;padding:.32rem .7rem;border-radius:9px;border:1.5px solid var(--brand-soft);transition:var(--tr)}
 .link-sm .ic{width:14px;height:14px}
 .link-sm:hover{background:var(--grad-brand);color:#fff;border-color:transparent;box-shadow:0 6px 14px -7px rgba(225,0,152,.5)}
@@ -1758,6 +1753,9 @@ table.ds-matrix{width:100%;border-collapse:separate;border-spacing:0;min-width:5
      parcial para que el build lo minifique; el guion grande de abajo lo usa a partir de
      DOMContentLoaded, cuando ya está definido. -->
 <?!= include('app_herramientas') ?>
+<!-- Directorio de Paqueterías (24/09/2026): renderPaq() y todo lo de #sec-paqueterias. Es un
+     parcial por la misma razón que el de Herramientas: el build lo minifica. -->
+<?!= include('app_paqueterias') ?>
 <template id="__bundler_thumbnail" data-bg-color="#E10098">
   <svg viewBox="0 0 1200 800" xmlns="http://www.w3.org/2000/svg">
     <rect width="1200" height="800" fill="#E10098"/>
@@ -2035,24 +2033,26 @@ table.ds-matrix{width:100%;border-collapse:separate;border-spacing:0;min-width:5
     </div>
   </section>
 
-  <!-- ══ PAQUETERÍAS ══ -->
+  <!-- ══ PAQUETERÍAS ══
+       Directorio (24/09/2026): una hoja por forma de rastreo en #gr-paqueterias; renderPaq() vive
+       en app_paqueterias.html. El filtro es el de siempre (.filter-input), porque
+       applySectionSearch, reflejarFiltro y filtroDeSeccion lo buscan por ese selector. -->
   <section id="sec-paqueterias" class="view-section">
-    <div class="sec-head">
-      <span class="sec-eyebrow"><span class="dot"></span>Guía de envíos</span>
-      <h1 class="sec-title">Paqueterías y su código en <em>SOMS</em></h1>
-      <p class="sec-sub">Identifica cómo aparece cada paquetería en el sistema y accede a su portal de rastreo.</p>
-    </div>
+    <!-- Sin encabezado visible, como Herramientas: la sección empieza con el filtro. El h1 se
+         queda solo para lectores de pantalla. -->
+    <h1 class="pq-sr">Paqueterías</h1>
     <div class="filter-bar">
       <div class="filter-input">
         <svg class="fi-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><path d="m21 21-4.3-4.3"/></svg>
-        <input type="text" placeholder="Buscar paquetería o código SOMS…" oninput="filterSec('paqueterias',this.value)">
+        <input type="text" placeholder="Busca la paquetería o su código en SOMS…" aria-label="Filtrar paqueterías" oninput="filterSec('paqueterias',this.value)">
       </div>
       <span class="result-count-badge" id="rc-paqueterias"></span>
+      <span class="pq-enter" id="pqEnter" hidden></span>
     </div>
-    <div id="ld-paqueterias" data-vx-loader="cajas" data-vx-msg="Cargando las paqueterías…" style="display:flex;flex-direction:column;gap:.7rem;">
-      <div class="sk-line sk-row"></div><div class="sk-line sk-row"></div><div class="sk-line sk-row"></div><div class="sk-line sk-row"></div><div class="sk-line sk-row"></div><div class="sk-line sk-row"></div>
+    <div id="ld-paqueterias" data-vx-loader="cajas" data-vx-msg="Cargando las paqueterías…">
+      <div class="sk-card pq-sk-hoja"><div class="sk-line pq-sk-fila"></div><div class="sk-line pq-sk-fila"></div><div class="sk-line pq-sk-fila"></div><div class="sk-line pq-sk-fila"></div><div class="sk-line pq-sk-fila"></div><div class="sk-line pq-sk-fila"></div><div class="sk-line pq-sk-fila"></div><div class="sk-line pq-sk-fila"></div><div class="sk-line pq-sk-fila"></div><div class="sk-line pq-sk-fila"></div><div class="sk-line pq-sk-fila"></div><div class="sk-line pq-sk-fila"></div><div class="sk-line pq-sk-fila"></div><div class="sk-line pq-sk-fila"></div></div>
     </div>
-    <div id="gr-paqueterias"></div>
+    <div id="gr-paqueterias" class="pq-dir"></div>
   </section>
 
   <!-- ══ FORMAS DE PAGO (guía estática) ══ -->
@@ -3374,7 +3374,8 @@ document.addEventListener('DOMContentLoaded', () => {
     if (e.key === 'Enter' && !open && pendingOpenEl) {
       e.preventDefault();
       const el = pendingOpenEl; clearPendingOpen();
-      window.open(el.href, '_blank', 'noopener');
+      if (el.href) window.open(el.href, '_blank', 'noopener');
+      else el.click();   // el botón de una paquetería de 4PL: lleva a su herramienta
       return;
     }
     if (!open) return;
@@ -4056,6 +4057,7 @@ function switchSec(id, btn){
   const target = document.getElementById(`sec-${id}`);
   if (target){ target.classList.add('active'); sectionEnter(target); }
   if (id === 'herramientas' && window.csAlEntrar) csAlEntrar();
+  if (id === 'paqueterias' && window.pqAlEntrar) pqAlEntrar();
   const topClock = document.querySelector('.topbar .clock');
   if (topClock) topClock.style.display = (id === 'inicio') ? 'none' : 'flex';
   if (id === 'formaspago'){ initFpReveals(); logosTiendaFX(); }
@@ -4175,7 +4177,7 @@ function onToolsData(data, fromCache, at){
   };
   setCount('herramientas', store.herramientas.length);
   setCount('presentaciones', store.presentaciones.length);
-  setCount('paqueterias', store.paqueterias.length);
+  setCount('paqueterias', window.pqContar ? pqContar(store.paqueterias) : store.paqueterias.length);
   setCount('formatos', store.formatos.length);
   setCount('pdepago', store.pdePago.length);
   setCount('plantillas', store.plantillas.length);
@@ -5509,39 +5511,8 @@ function renderP(items){
   animateGrid('#gr-presentaciones > *');
 }
 
-function renderPaq(items){
-  hideLoader('paqueterias');
-  const g = document.getElementById('gr-paqueterias');
-  if (!items.length) { g.innerHTML = `<div class="empty-card"><span class="big">${icon('package')}</span><h3>Sin paqueterías</h3><p>No se encontraron resultados.</p></div>`; return; }
-  g.innerHTML = `
-  <div class="table-card">
-  <table class="data-table">
-    <thead><tr><th>Paquetería</th><th>Liga / Acceso</th><th>En SOMS</th></tr></thead>
-    <tbody>
-      ${items.map((p, i) => {
-        const color = ACCENT_PALETTE[i % ACCENT_PALETTE.length];
-        const ligaStr = String(p.liga || '').trim();
-        const is4PL = ligaStr.toLowerCase().includes('4pl');
-        const isUrl = ligaStr.startsWith('http');
-        const ligaHtml = is4PL
-          ? `<span class="pl4-tag">${icon('gear')} 4PL — ver portal 4PL</span>`
-          : isUrl
-          ? `<a href="${esc(ligaStr)}" target="_blank" rel="noopener" class="link-sm">Abrir ${icon('external')}</a>`
-          : (ligaStr ? `<span style="font-size:.85rem;">${esc(ligaStr)}</span>` : '—');
-        return `<tr>
-          <td><span class="paq-name" style="--accent:${color}"><span class="paq-dot"></span>${esc(p.nombre)}</span> ${collectBtn('paqueterias', p.nombre, 'mini')}</td>
-          <td>${ligaHtml}</td>
-          <td>${p.soms ? `<span class="soms-tag">${esc(String(p.soms))}</span>` : '<span style="color:var(--ink-soft)">—</span>'}</td>
-        </tr>`;
-      }).join('')}
-    </tbody>
-  </table>
-  </div>`;
-  if (GS()) {
-    gsap.fromTo('#gr-paqueterias .table-card', { opacity:0, y:10 }, { opacity:1, y:0, duration:.28, ease:'power3.out' });
-    gsap.fromTo('#gr-paqueterias tbody tr', { opacity:0, x:-8 }, { opacity:1, x:0, duration:.24, stagger:.03, ease:'power2.out', delay:.1, clearProps:'transform' });
-  }
-}
+/* renderPaq() y el directorio de Paqueterías viven en app_paqueterias.html (parcial: el build lo
+   minifica). Se carga antes que este guion y se usa desde DOMContentLoaded. */
 
 function renderF(items){
   hideLoader('formatos');
@@ -6285,12 +6256,12 @@ function closeDrop(){ document.getElementById('searchDrop').classList.remove('op
 let sdIndex = -1;
 /* Estado para el "segundo Enter abre el enlace" */
 let pendingOpenEl = null, kbHintTimer = null;
-function showKbHint(hasLink){
+function showKbHint(hasLink, accion){
   let h = document.getElementById('kbOpenHint');
   if (!h) { h = document.createElement('div'); h.id = 'kbOpenHint'; document.body.appendChild(h); }
   h.className = hasLink ? '' : 'nolink';
   h.innerHTML = hasLink
-    ? '<kbd>Enter ↵</kbd><span>Presiona <b>Enter</b> de nuevo para abrir el enlace</span>'
+    ? '<kbd>Enter ↵</kbd><span>Presiona <b>Enter</b> de nuevo para ' + (accion || 'abrir el enlace') + '</span>'
     : '<kbd>↵</kbd><span>Esta opción no tiene un enlace disponible</span>';
   requestAnimationFrame(() => h.classList.add('show'));
   clearTimeout(kbHintTimer);
@@ -6369,7 +6340,7 @@ function elementoDeSeccion(secId, name, targetId){
   let target = null;
   nameEls.forEach(el => { if (!target && norm(el.textContent) === want) target = el; });
   if (!target) nameEls.forEach(el => { if (!target && norm(el.textContent).includes(want)) target = el; });
-  return (target ? target.closest('.cs-fila,.fmt-card,.pago-card,.pres-card,.plt-card,.traz-card,tr') : null) || target;
+  return (target ? target.closest('.cs-fila,.pq-ent,.fmt-card,.pago-card,.pres-card,.plt-card,.traz-card,tr') : null) || target;
 }
 
 /* Espera con reintentos (rAF) a que la sección termine de renderizar antes de saltar —
@@ -6408,10 +6379,11 @@ function revealTarget(scrollEl){
   setTimeout(doScroll, 280); // reajusta tras la expansión/animación para clavar la posición
   flashEl(scrollEl);
   // Preparar "segundo Enter abre el enlace" (también tras clic de ratón)
-  const link = scrollEl.querySelector ? scrollEl.querySelector('a.btn-go, a.btn-violet, a.link-sm, a.cs-ir') : null;
-  pendingOpenEl = (link && link.href) ? link : null;
+  const link = scrollEl.querySelector ? scrollEl.querySelector('a.btn-go, a.btn-violet, a.link-sm, a.cs-ir, a.pq-link, button[data-pq-4pl]') : null;
+  // Una paquetería de 4PL no tiene enlace: su botón lleva a la herramienta 4PL.
+  pendingOpenEl = (link && (link.href || link.hasAttribute('data-pq-4pl'))) ? link : null;
   try { document.getElementById('globalSearch').focus({ preventScroll:true }); } catch(e){}
-  showKbHint(!!pendingOpenEl);
+  showKbHint(!!pendingOpenEl, (link && link.hasAttribute('data-pq-4pl')) ? 'ir a la herramienta 4PL' : '');
 }
 function flashEl(el){ el.classList.remove('search-flash'); void el.offsetWidth; el.classList.add('search-flash'); setTimeout(() => el.classList.remove('search-flash'), 2200); }
 
@@ -6664,6 +6636,9 @@ function linkHref(v){
      columna Enlace se convertía en https://Service Center (…) y el botón llevaba a una
      página que no existe. Mejor «Sin enlace», que es la verdad. */
   if (/\s/.test(s)) return null;
+  /* Ni una palabra suelta: «4PL» en la columna Liga de Paqueterías dice DÓNDE se rastrea y
+     salía como https://4PL en el buscador y en las colecciones. Sin punto no hay dominio. */
+  if (!/\./.test(s)) return null;
   return 'https://' + s;
 }
 
@@ -7677,12 +7652,13 @@ function mockData(){
       { nombre:'Guía de Paqueterías', liga:'', descripcion:'Cómo identificar paqueterías en SOMS y gestionar rastreos de envíos.' }
     ],
     paqueterias:[
-      { nombre:'DHL', liga:'https://www.dhl.com.mx', soms:'DHL-MX' },
-      { nombre:'FedEx', liga:'https://www.fedex.com/es-mx/', soms:'FEDEX' },
-      { nombre:'Estafeta', liga:'4PL', soms:'ESTAFETA' },
-      { nombre:'UPS', liga:'https://www.ups.com/mx/', soms:'UPS-MEX' },
-      { nombre:'Paquetexpress', liga:'4PL', soms:'PKT-EXP' },
-      { nombre:'Redpack', liga:'https://www.redpack.com.mx', soms:'REDPACK' }
+      { nombre:'Estafeta', liga:'https://www.estafeta.com/Herramientas/Rastreo', soms:'ETF' },
+      { nombre:'Estafeta', liga:'https://www.estafeta.com/Herramientas/Rastreo', soms:'EFD' },
+      { nombre:'UPS', liga:'https://www.ups.com/track?loc=es_MX&requester=ST/', soms:'UPS' },
+      { nombre:'DHL', liga:'https://www.dhl.com/mx-es/home/rastreo.html', soms:'DHL' },
+      { nombre:'Fedex', liga:'https://www.fedex.com/es-mx/tracking.html', soms:'FDX' },
+      { nombre:'99 Minutos', liga:'https://tracking.99minutos.com/search', soms:'99D' },
+      { nombre:'LiverGreen', liga:'4PL', soms:'LIG' }
     ],
     formatos:[
       { acceso:'Formato de Devolución', observaciones:'Debe estar firmado por el supervisor de área antes de procesarse', liga:'' },
