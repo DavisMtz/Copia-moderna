@@ -1227,7 +1227,6 @@ a:focus-visible,button:focus-visible,input:focus-visible,[tabindex]:focus-visibl
 .g-low{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1.1fr);gap:2rem;align-items:start}
 .g-low:has(#articulosCarril:empty){grid-template-columns:minmax(0,1fr)}
 #gArts:has(#articulosCarril:empty){display:none}
-#sec-inicio .qa-grid{grid-template-columns:repeat(auto-fill,minmax(220px,1fr))}
 #sec-inicio .art-carril{grid-template-columns:repeat(auto-fill,minmax(210px,1fr));margin-bottom:0}
 .g-guias{display:flex;flex-wrap:wrap;align-items:center;gap:.4rem 1.3rem;margin:2.2rem 0 .5rem;font-size:.9rem}
 .g-guias-lbl{font-weight:700;color:var(--ink-soft)}
@@ -1940,11 +1939,8 @@ table.ds-matrix{width:100%;border-collapse:separate;border-spacing:0;min-width:5
 
     <div class="g-low">
       <div class="g-col">
-        <div class="dash-label"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M13 2 4 14h7l-2 8 9-12h-7l2-8Z"/></svg> Tus accesos rápidos <span class="qa-hint">se ordenan según tu uso · fíjalos con el pin</span><span class="dl-line"></span></div>
-        <div class="qa-grid" id="qaGrid" data-vx-loader="isotipo" data-vx-msg="Buscando tus accesos rápidos…">
-          <div class="sk-line sk-qa"></div><div class="sk-line sk-qa"></div><div class="sk-line sk-qa"></div><div class="sk-line sk-qa"></div>
-        </div>
-
+        <!-- Los accesos rápidos (#qaGrid) se retiraron de la portada el 23/09/2026 a pedido del
+             creador; renderDashboard y el relevo de carga toleran que el bloque no exista. -->
         <div class="dash-label"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3 3 8l9 5 9-5-9-5Z"/><path d="m3 13 9 5 9-5M3 18l9 5 9-5"/></svg> Mis colecciones <span class="qa-hint">agrupa herramientas, plantillas y formatos en bloques propios</span><span class="dl-line"></span></div>
         <div class="col-grid" id="colGrid"></div>
       </div>
@@ -3491,7 +3487,8 @@ function requestData(manual){
      demás que hay delante sigue siendo válido mientras llega el dato nuevo.
      En la revalidación de fondo el destino va en null y VentelFX devuelve un
      manejador inerte, así que las llamadas de abajo son las mismas en los dos casos. */
-  const fxQuick  = FX().section(manual ? '#qaGrid'     : null, 'camion',   { mode:'cover' });
+  // #qaGrid ya no está en la portada: la escena de carga no tiene dónde ir.
+  const fxQuick  = FX().section(manual && document.getElementById('qaGrid') ? '#qaGrid' : null, 'camion', { mode:'cover' });
   const fxPromos = FX().section(manual ? '#promoStrip' : null, 'etiqueta', { mode:'cover' });
 
   // Vista de diseño: el Portal abierto fuera de Apps Script se pinta con datos de
@@ -4212,6 +4209,7 @@ function renderDashboard(){
 
   // Accesos rápidos personalizados: fijados primero, luego los más usados
   const qg = document.getElementById('qaGrid');
+  if (!qg) return;   // la portada ya no enseña accesos rápidos (23/09/2026)
   const quick = personalizedQuick(store.herramientas.filter(h => linkHref(h.enlace))).slice(0, 8);
   if (!quick.length) {
     qg.innerHTML = `<div class="empty-card"><span class="big">${icon('bolt')}</span><h3>Sin accesos directos</h3><p>Las herramientas con enlace aparecerán aquí.</p></div>`;
