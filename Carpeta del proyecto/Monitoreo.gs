@@ -727,6 +727,7 @@ function monRespuesta_(r, rango, extra) {
 
 /** Estado de los cuatro rastros que alimenta esta sección. Ejecutar desde el editor. */
 function monDiagnostico() {
+  secSoloInterno_('monDiagnostico');
   Logger.log('═══ MONITOREO ═══');
   const ss = SpreadsheetApp.getActiveSpreadsheet();
   const filas = function (nombre) {

@@ -260,6 +260,7 @@ function cotHash_(texto) {
  * No forma parte del flujo de la app.
  */
 function cotCacheDiagnostico() {
+  secSoloInterno_('cotCacheDiagnostico');
   const est = cotEstado_();
   const antes = est.gen;
   const silencio = est.ultima ? Math.max(0, cotAhora_() - est.ultima) : null;

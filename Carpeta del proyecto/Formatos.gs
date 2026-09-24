@@ -131,6 +131,7 @@ function readFormatFlags_() {
  * @return {boolean}
  */
 function isAdvancedUser(email) {
+  secSoloInterno_('isAdvancedUser');
   try {
     // Delegado a Seguridad.gs: una sola definición de "quién eres" y de cómo se lee
     // la columna 'Avanzado' (tolera 'Si', 'si', 'SI', 'Sí').
@@ -271,6 +272,7 @@ function getEnabledQuoteFormats() {
  * @return {Blob} El PDF listo para adjuntar o descargar.
  */
 function generateQuotePdfBlob(folio, formatId) {
+  secSoloInterno_('generateQuotePdfBlob');
   if (!folio) throw new Error("El folio es requerido para generar el PDF.");
 
   let format = formatId;
@@ -796,6 +798,7 @@ function previewSheetCcl(folio) {
  * El resultado se ve en Ver > Registros (Ctrl+Enter).
  */
 function probarAccesoCcl() {
+  secSoloInterno_('probarAccesoCcl');
   Logger.log("Plantilla configurada: " + (cclTemplateId_() || "(vacía)"));
 
   const archivo = DriveApp.getFileById(cclTemplateId_());

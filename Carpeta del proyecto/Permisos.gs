@@ -904,6 +904,7 @@ function permEscribirRegistros_(correo, campos) {
 const MAESTRO_INICIAL = 'dmartineza02@liverpool.com.mx';
 
 function NOMBRAR_MAESTRO() {
+  secSoloInterno_('NOMBRAR_MAESTRO');
   if (MAESTRO_INICIAL.indexOf('escribe.tu.correo') === 0) {
     throw new Error('Todavía no cambiaste el correo: edita la constante MAESTRO_INICIAL ' +
       'al principio de esta sección (Permisos.gs), guarda y vuelve a ejecutar.');
@@ -921,6 +922,7 @@ function NOMBRAR_MAESTRO() {
  * y las cuatro se ven aquí de un vistazo.
  */
 function REPARAR_MAESTRO() {
+  secSoloInterno_('REPARAR_MAESTRO');
   const correo = secNormalizarCorreo_(MAESTRO_INICIAL);
   Logger.log('═══════════ DIAGNÓSTICO DEL ROL ═══════════');
   Logger.log('Correo a revisar: ' + correo);
@@ -990,6 +992,7 @@ function REPARAR_MAESTRO() {
  * mostrarla en Sheets. Útil para comprobar de un vistazo quién tiene qué.
  */
 function VER_PERMISOS_GUARDADOS() {
+  secSoloInterno_('VER_PERMISOS_GUARDADOS');
   const permisos = permIndicePermisos_();
   const correos = Object.keys(permisos).sort();
   Logger.log('═══ HOJA OCULTA "' + PERM_HOJA + '" ═══');
@@ -1014,6 +1017,7 @@ function VER_PERMISOS_GUARDADOS() {
  * están escritos, y puedes copiar el que corresponda.
  */
 function VER_CORREOS_REGISTRADOS() {
+  secSoloInterno_('VER_CORREOS_REGISTRADOS');
   const indice = secIndiceRegistros_();
   const correos = Object.keys(indice);
   Logger.log('═══ CORREOS EN LA HOJA "' + REGISTROS_SHEET_NAME + '" ═══');
@@ -1048,6 +1052,7 @@ function VER_CORREOS_REGISTRADOS() {
  *        Google que está ejecutando la función.
  */
 function permSembrarMaestro(correo) {
+  secSoloInterno_('permSembrarMaestro');
   const objetivo = secNormalizarCorreo_(correo) || secUsuarioGoogle_();
   if (!objetivo) {
     throw new Error('No se pudo determinar a quién nombrar maestro. Llama a ' +
@@ -1251,6 +1256,7 @@ function permCatalogoPara_(usuario) {
  * @param {string=} correo Correo a examinar. Si se omite, usa la cuenta de Google.
  */
 function permDiagnostico(correo) {
+  secSoloInterno_('permDiagnostico');
   const objetivo = secNormalizarCorreo_(correo) || secUsuarioGoogle_();
   Logger.log('═══ PERMISOS ═══');
   Logger.log('Bloques definidos: ' + PERM_IDS.length + ' (' + PERM_IDS_APP.length + ' de app, ' +

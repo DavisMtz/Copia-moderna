@@ -715,6 +715,7 @@ function revpolSellarAprobacionAutomatica_(folio, decision) {
  * comportan. No toca lo que hay guardado.
  */
 function revpolDiagnostico() {
+  secSoloInterno_('revpolDiagnostico');
   const lineas = ['POLÍTICA DE REVISIÓN — diagnóstico'];
   const anota = function (ok, txt) { lineas.push((ok ? '✔ ' : '✖ ') + txt); };
 

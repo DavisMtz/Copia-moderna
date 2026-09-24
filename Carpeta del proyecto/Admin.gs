@@ -17,6 +17,7 @@
  */
 
 function revisionMaestra() {
+  secSoloInterno_('revisionMaestra');
   const inicio = new Date();
   const reporte = { fecha: inicio.toISOString(), usuario: '', url: '', checks: [] };
 
@@ -486,6 +487,7 @@ function revisionMaestra() {
  * proyecto y hay que borrar la copia.
  */
 function verificarVersionDelCodigo() {
+  secSoloInterno_('verificarVersionDelCodigo');
   const esperado = [
     { nombre: 'metVerificarAsesor_', fn: typeof metVerificarAsesor_ === 'function' ? metVerificarAsesor_ : null,
       marca: 'secIdentidad_', pista: 'debe delegar en Seguridad.gs' },
@@ -542,6 +544,7 @@ function verificarVersionDelCodigo() {
  * en pantalla sin abrir el editor de Apps Script.
  */
 function getSystemHealth(email) {
+  secSoloInterno_('getSystemHealth');
   if (!isAdvancedUser(email)) {
     return { success: false, message: 'Solo los usuarios avanzados pueden ver el estado del sistema.' };
   }

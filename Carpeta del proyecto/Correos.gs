@@ -137,6 +137,7 @@ function calcularMailSenderInfo_() {
  * @return {string} La cantidad formateada como string (ej. $1,234.50).
  */
 function formatCurrencyGS(amount) {
+  secSoloInterno_('formatCurrencyGS');
   if (isNaN(parseFloat(amount))) return "$0.00";
   return parseFloat(amount).toLocaleString('es-MX', { style: 'currency', currency: 'MXN' });
 }
@@ -894,6 +895,7 @@ const IMG_PLACEHOLDER = "https://assets.liverpool.com.mx/assets/images/placehold
 const IMG_CACHE_SEGUNDOS = 21600; // 6 horas: las imágenes de catálogo no cambian de sitio.
 
 function getVerifiedImageUrl(sku, preferredUrl) {
+  secSoloInterno_('getVerifiedImageUrl');
   const skuLimpio = String(sku || '').trim();
 
   // Caché: sin ella, una cotización de 10 productos podía disparar hasta 100

@@ -368,6 +368,7 @@ function portalPromosLeer(p) {
  * comercial cambió el formato de una hoja antes de que alguien lo sufra publicando.
  */
 function promosRevisarHojas() {
+  secSoloInterno_('promosRevisarHojas');
   const r = portalPromosHojas(Session.getActiveUser().getEmail());
   if (r.status !== 'ok') { Logger.log('No se pudo listar: ' + r.error); return r; }
 

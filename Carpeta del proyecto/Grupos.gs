@@ -595,6 +595,7 @@ function grpFijarMiembros(email, id, correos, base) {
 
 /** Qué grupos hay y a cuánta gente alcanzan. Ejecutar desde el editor de Apps Script. */
 function grpDiagnostico() {
+  secSoloInterno_('grpDiagnostico');
   Logger.log('═══ GRUPOS ═══');
   const ventel = grpVentel_();
   Logger.log('Ventel (virtual): ' + ventel.miembros.length + ' persona(s) activas.');

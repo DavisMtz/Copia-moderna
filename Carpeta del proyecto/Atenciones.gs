@@ -970,6 +970,7 @@ function atencionesResumen(email) {
 
 /** Radiografía desde el editor. @param {string=} correo */
 function atencionesDiagnostico(correo) {
+  secSoloInterno_('atencionesDiagnostico');
   var objetivo = secNormalizarCorreo_(correo) || secUsuarioGoogle_();
   Logger.log('═══ ATENCIONES ═══');
 

@@ -57,6 +57,7 @@ function secConfig_(clave, respaldo) {
  * Después de correrla se pueden vaciar las constantes de Code.gs / Portal.gs.
  */
 function secGuardarConfiguracion() {
+  secSoloInterno_('secGuardarConfiguracion');
   const props = PropertiesService.getScriptProperties();
   const actual = {
     AUTH_MODO:              secConfig_('AUTH_MODO', 'portal'),
@@ -83,6 +84,7 @@ function secGuardarConfiguracion() {
  * @param {string=} modo 'portal' (predeterminado), 'auto', 'estricto' o 'legado'.
  */
 function secFijarModoAuth(modo) {
+  secSoloInterno_('secFijarModoAuth');
   const valor = String(modo || 'portal').trim().toLowerCase();
   if (['portal', 'auto', 'estricto', 'legado'].indexOf(valor) < 0) {
     throw new Error('Modo desconocido: "' + valor + '" (usa portal, auto, estricto o legado).');
@@ -257,6 +259,31 @@ function secIdentidad_(emailCliente) {
       error: ''
     };
   };
+
+  /* LA LLAVE DE SESIÓN MANDA (Sesiones.gs). En este orden:
+       1. Hay sesión validada en esta ejecución → es ella quien llama. Un correo declarado
+          distinto del de la llave se rechaza: eso es lo que impide hacerse pasar por otro.
+       2. No hay sesión y es el editor o un activador → sigue la lógica de siempre (abajo).
+       3. No hay sesión y es la webapp → se rechaza: el correo que diga el navegador ya no
+          basta. (Llave vencida no llega aquí: secEjecutar corta antes con SESION_EXPIRADA.)
+     La sesión gana AUNQUE la cuenta activa sea la del dueño: así el dueño puede probar roles
+     entrando al Portal como otra persona. Se devuelve {ok:false}, nunca se lanza: hay
+     funciones que con !id.ok siguen en modo visitante. 'estricto' no usa sesiones (manda
+     Google) y AUTH_SESIONES='no' devuelve el comportamiento anterior. */
+  if (modo !== 'estricto' && typeof sesObligatorias_ === 'function' && sesObligatorias_()) {
+    if (typeof SEC_SESION_ !== 'undefined' && SEC_SESION_ && SEC_SESION_.email) {
+      if (declarado && declarado !== SEC_SESION_.email) {
+        return fallo('La sesión abierta es de otra cuenta. Cierra sesión y vuelve a entrar con ' + declarado + '.');
+      }
+      const regSesion = secBuscarRegistro_(SEC_SESION_.email);
+      return regSesion.encontrado
+        ? exito(regSesion, 'sesion')
+        : fallo('El usuario ' + SEC_SESION_.email + ' ya no está dado de alta. Inicia sesión de nuevo.');
+    }
+    if (!secContextoEditor_()) {
+      return fallo('Tu sesión no es válida o expiró. Inicia sesión de nuevo.');
+    }
+  }
 
   // Modo predeterminado: la sesión es la del PORTAL. La cuenta de Google del navegador
   // no interviene salvo que no llegue ningún correo declarado (editor, disparadores).
@@ -456,6 +483,7 @@ function secCorreoValido_(email) {
  *        se prueba con la cuenta de Google (que es el respaldo del modo 'portal').
  */
 function secDiagnostico(correoPortal) {
+  secSoloInterno_('secDiagnostico');
   const google = secUsuarioGoogle_();
   const modo = String(secConfig_('AUTH_MODO', 'portal')).trim().toLowerCase();
   Logger.log('Modo de autenticación: ' + modo +

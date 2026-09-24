@@ -897,6 +897,7 @@ function subirImagenAnuncio(payload) {
  * script sí puede abrir la carpeta destino y con qué nombre. No la llama el cliente.
  */
 function probarCarpetaAnuncios() {
+  secSoloInterno_('probarCarpetaAnuncios');
   const f = portalCarpetaAnuncios_();
   const info = 'Carpeta destino: ' + f.getName() + ' — ID: ' + f.getId() + ' — ' + f.getUrl();
   Logger.log(info);

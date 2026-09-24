@@ -445,6 +445,7 @@ function promosAutoLog_(r) {
 
 /** Qué haría hoy, sin escribir nada. */
 function promosAutoSimular() {
+  secSoloInterno_('promosAutoSimular');
   const r = promosAutoCorrer_({ simular: true });
   promosAutoLog_(r);
   return r;
@@ -452,13 +453,18 @@ function promosAutoSimular() {
 
 /** Lo hace ya, igual que el activador diario. */
 function promosAutoCorrerAhora() {
+  secSoloInterno_('promosAutoCorrerAhora');
   const r = promosAutoCorrer_({ simular: false });
   promosAutoLog_(r);
   return r;
 }
 
 /** La llama el activador diario. Un fallo queda en la bitácora, no se traga. */
-function promosAutoDisparador() {
+function promosAutoDisparador(e) {
+  // Un activador real trae su triggerUid. Se acepta aunque Google no informe la cuenta activa en
+  // ese contexto: si alguien lo forzara desde el navegador, solo correría la misma actualización
+  // diaria. Cualquier otra llamada pasa por el candado de siempre (Sesiones.gs).
+  if (!(e && e.triggerUid)) secSoloInterno_('promosAutoDisparador');
   try {
     promosAutoCorrerAhora();
   } catch (e) {

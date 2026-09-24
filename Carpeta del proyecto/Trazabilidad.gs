@@ -131,6 +131,7 @@ function trazCachePut_(objeto) {
 
 /** Ejecutar a mano tras editar la hoja para que el cambio se vea sin esperar el TTL. */
 function trazInvalidarCache() {
+  secSoloInterno_('trazInvalidarCache');
   try {
     const claves = [TRAZ_CACHE_CLAVE];
     for (let i = 0; i < TRAZ_CACHE_MAX; i++) claves.push(TRAZ_CACHE_CLAVE + '#' + i);
@@ -361,6 +362,7 @@ function trazEsVacio_(s) {
  * Es lo primero que hay que mirar si una sección del Portal aparece vacía.
  */
 function trazDiagnostico() {
+  secSoloInterno_('trazDiagnostico');
   const id = trazSheetId_();
   Logger.log('Hoja: %s', id);
 

@@ -39,6 +39,7 @@ const LOGIN_VENTANA_SEGUNDOS = 900;
  * @return {string | null} La URL de la aplicación web desplegada, o null si ocurre un error.
  */
 function getScriptUrl() {
+  secSoloInterno_('getScriptUrl');
   try {
   
     return ScriptApp.getService().getUrl();
@@ -183,6 +184,9 @@ function appEstadoInicialJson_(baseUrl, e) {
 }
 
 function doGet(e) {
+  // Las funciones internas que arman la página (getScriptUrl, formatCurrencyGS…) llevan secSoloInterno_:
+  // así saben que las llamó el servidor y no el navegador (ver Sesiones.gs).
+  SEC_ENTRADA_ = 'doGet';
   try {
     return servirPagina_(e);
   } catch (error) {
@@ -240,9 +244,13 @@ function servirPagina_(e) {
   // …y el mismo juego ya serializado, que es lo que la plantilla pega en __APP__.
   template.APP_JSON = appEstadoInicialJson_(template.baseUrl, e);
 
+  // El <meta viewport> escrito dentro del HTML se IGNORA en Apps Script (documentación de
+  // HtmlOutput): solo cuenta addMetaTag. Sin esto, en un teléfono las pantallas de la app se
+  // dibujaban a ancho de escritorio y encogidas. Las públicas ya lo tenían (arriba).
   return template.evaluate()
     .setTitle(config.title)
-    .setXFrameOptionsMode(HtmlService.XFrameOptionsMode.ALLOWALL);
+    .setXFrameOptionsMode(HtmlService.XFrameOptionsMode.ALLOWALL)
+    .addMetaTag('viewport', 'width=device-width, initial-scale=1');
 }
 
 /**
@@ -261,6 +269,7 @@ function include(filename) {
  * {string=} correoPortal - AppSession.userEmail.
  */
 function getUserEmail(correoPortal) {
+  secSoloInterno_('getUserEmail');
   try {
     return secCorreoEfectivo_(correoPortal) || null;
   } catch (e) {
@@ -287,6 +296,7 @@ function getUserEmail(correoPortal) {
  * {string} password - La contraseña en texto plano.
  */
 function registerUser(name, email, password) {
+  secSoloInterno_('registerUser');
   Logger.log('registerUser (obsoleta) llamada para ' + secNormalizarCorreo_(email) +
              '. El alta requiere verificación por código.');
   return {
@@ -397,11 +407,24 @@ function loginUser(email, password) {
 
       Logger.log(`Login exitoso para: ${correo}. Rol: ${permisos.rol}`);
 
+      // La llave de sesión (Sesiones.gs): sin ella el navegador no puede hablar como esta
+      // persona. Si no se pudo abrir, no se entra: un login "a medias" dejaría a la pantalla
+      // creyendo que hay sesión y al servidor rechazando cada llamada.
+      let sesionNueva;
+      try {
+        sesionNueva = sesParaCliente_(secNormalizarCorreo_(userRow[emailColumnIndex]));
+      } catch (eSesion) {
+        Logger.log('loginUser: no se pudo abrir la sesión: ' + eSesion);
+        return { success: false, message: 'No pudimos abrir tu sesión. Inténtalo de nuevo en un momento.' };
+      }
+
       return {
         success: true,
         message: "Inicio de sesión exitoso.",
         userName: userRow[nameColumnIndex],
         userEmail: secNormalizarCorreo_(userRow[emailColumnIndex]),
+        llave: sesionNueva.llave,
+        inactividadMin: sesionNueva.inactividadMin,
         isAdvanced: permisos.avanzado, // El cliente usará esto para redirigir.
         rol: permisos.rol,
         rolNombre: permisos.rolNombre || '',
@@ -425,6 +448,7 @@ function loginUser(email, password) {
  * {GoogleAppsScript.Spreadsheet.Sheet} sheet - La hoja de 'Cotizaciones'.
  */
 function generateLvpFolio(sheet) {
+  secSoloInterno_('generateLvpFolio');
   const HOY = new Date();
   const ANIO = HOY.getFullYear().toString().slice(-2); // Últimos 2 dígitos del año
   const MES = (HOY.getMonth() + 1).toString().padStart(2, '0'); // Mes con 2 dígitos
@@ -454,6 +478,7 @@ function generateLvpFolio(sheet) {
  * status - El estado de la cotización (ej. "Folio Generado").
  */
 function saveQuoteDataToSheets(quoteData, status, pdfLink = null) {
+  secSoloInterno_('saveQuoteDataToSheets');
   const ss = SpreadsheetApp.getActiveSpreadsheet();
   const cotizacionesSheet = ss.getSheetByName(COTIZACIONES_SHEET_NAME);
   const detalleSheet = ss.getSheetByName(DETALLE_COTIZACIONES_SHEET_NAME);
@@ -760,6 +785,14 @@ function saveQuoteAndGoToPreview(quoteDataFromClient) {
 function getQuotesForUser(callingUserEmail, searchTerm, forzarRecarga) {
   const termino = String(searchTerm || '').trim();
   const correo = String(callingUserEmail || '').trim().toLowerCase();
+
+  /* V-03 (doc 14): esta función no tenía candado y cualquiera del dominio podía listar folio,
+     cliente, correo, teléfono y total de TODAS las cotizaciones. Ahora exige sesión (la llave de
+     Sesiones.gs) con el bloque 'consultar', que tienen los roles de asesor y avanzado. */
+  const idConsulta = secIdentidadConBloque_(correo, 'consultar');
+  if (!idConsulta.ok) {
+    return { success: false, quotes: null, message: idConsulta.error || 'Inicia sesión para ver las cotizaciones.' };
+  }
 
   /* T9.4: se apunta QUÉ se buscó, y se apunta aquí — fuera de la caché.
      Dentro del productor de cotCacheado_ solo se ejecutaría cuando la caché falla (TTL de 90 s),
@@ -1320,6 +1353,7 @@ function leerSupervision_() {
  *        revisión, el aviso lo dice en vez de mandar a supervisión a una cola vacía.
  */
 function sendWebhookNotification(folio, quoteData, estatus) {
+  secSoloInterno_('sendWebhookNotification');
   // La URL trae una llave de Google Chat: se lee de las propiedades del script si
   // está configurada (recomendado) y solo si no, de la constante del archivo.
   const url = secConfig_('WEBHOOK_URL', WEBHOOK_URL);

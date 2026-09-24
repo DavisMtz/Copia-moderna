@@ -1267,6 +1267,7 @@ function portalContenidoAplicarImport(p) {
  * él no llega a ninguna parte: es el fallo más silencioso que puede tener este archivo.
  */
 function pcRevisarCatalogo() {
+  secSoloInterno_('pcRevisarCatalogo');
   const ss = portalSS_();
   const problemas = [];
   Logger.log('═══ CONTENIDO DEL PORTAL · columnas por sección ═══');

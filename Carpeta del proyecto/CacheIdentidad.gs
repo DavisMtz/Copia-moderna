@@ -185,6 +185,7 @@ function idcGuardar_(nombre, indice) {
  * relectura de dos hojas.
  */
 function idcRefrescar() {
+  secSoloInterno_('idcRefrescar');
   idcInvalidar_();
   Logger.log('Caché de identidad refrescada. La próxima llamada leerá las hojas.');
   return { success: true, generacion: idcGeneracion_() };
@@ -195,6 +196,7 @@ function idcRefrescar() {
  * No forma parte del flujo de la app.
  */
 function idcDiagnostico() {
+  secSoloInterno_('idcDiagnostico');
   const antes = idcGeneracion_();
 
   // Ida y vuelta con un índice de mentira que sí tiene claves (uno vacío no se guarda a propósito).

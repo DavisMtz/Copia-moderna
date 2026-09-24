@@ -14,6 +14,7 @@
  * No escribe nada en ninguna hoja: solo lee y reporta.
  */
 function diagPromos() {
+  secSoloInterno_('diagPromos');
   const L = [];
   const di = function (s) { L.push(s); };
 
@@ -153,6 +154,7 @@ function diagPromos() {
 
 /** Tira la copia en caché para que la siguiente carga vuelva a leer la hoja. */
 function diagLimpiarCache() {
+  secSoloInterno_('diagLimpiarCache');
   try { CacheService.getScriptCache().remove('appData_v1'); } catch (e) {}
   try { CacheService.getScriptCache().remove('toolsData_v1'); } catch (e) {}
   Logger.log('Caché de promociones limpiada. Recarga el monitor.');

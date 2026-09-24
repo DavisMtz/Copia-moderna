@@ -3073,6 +3073,7 @@ function opAvisarEstado_(incidente, opciones) {
  * Comprueba hojas, catálogo, webhooks y los algoritmos de agrupación.
  */
 function opDiagnostico() {
+  secSoloInterno_('opDiagnostico');
   const lineas = [];
   const anota = function (etiqueta, ok, detalle) {
     lineas.push((ok ? '✔ ' : '✖ ') + etiqueta + (detalle ? ' — ' + detalle : ''));

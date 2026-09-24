@@ -1795,6 +1795,7 @@ function consolaBitacora(email, limite) {
  * puede escribir y que los ajustes se leen. Ejecutar desde el editor.
  */
 function consolaDiagnostico() {
+  secSoloInterno_('consolaDiagnostico');
   Logger.log('═══ CONSOLA MAESTRA ═══');
 
   const maestros = permListaMaestros_();

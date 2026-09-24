@@ -23,6 +23,8 @@ let logs = [];
 
 function nuevoContexto() {
   const ctx = {
+    // Las funciones de diagnóstico llevan el candado de Sesiones.gs; aquí se prueba la caché, no la seguridad (eso lo cubre sesiones.test.js).
+    secSoloInterno_: () => {},
     Date: { now: () => reloj * 1000 },
     Math, JSON, String, Number, Object, Array, parseInt, parseFloat, isNaN,
     PropertiesService: {

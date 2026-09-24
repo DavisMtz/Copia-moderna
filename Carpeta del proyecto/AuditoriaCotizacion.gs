@@ -1095,6 +1095,7 @@ function audCompararConFicha_(producto, ficha) {
  * tocarle algo?". Devuelve el mismo texto que escribe en el Logger.
  */
 function audDiagnostico() {
+  secSoloInterno_('audDiagnostico');
   const lineas = [];
   let fallos = 0;
   const comprueba = function (descripcion, obtenido, esperado) {

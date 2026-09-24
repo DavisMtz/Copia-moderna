@@ -40,6 +40,14 @@
   // vuelve a resolverlos en cada llamada. Aquí solo deciden qué botones se pintan.
   const K_ROL = 'ventel-user-role';
   const K_BLOQUES = 'ventel-user-blocks';
+  // Llave de sesión (Sesiones.gs): ESTA sí es una credencial. La entrega el servidor al
+  // iniciar sesión y viaja en cada llamada (AppRun → secEjecutar); sin ella el servidor
+  // no reconoce a nadie, diga el correo que diga el navegador.
+  const K_LLAVE = 'ventel-llave';
+  // Última vez que la persona TOCÓ la pantalla (ms). Se comparte entre pestañas a propósito:
+  // una pestaña olvidada no debe cerrar la sesión de quien trabaja en otra.
+  const K_ACTIVIDAD = 'ventel-sesion-actividad';
+  const K_INACTIVIDAD = 'ventel-sesion-inactividad-min';
   const LEGACY_KEYS = {
     'userName': K_NAME,
     'userEmail': K_EMAIL,
@@ -178,11 +186,21 @@
     /** Último correo con el que se inició sesión; sobrevive al cierre de sesión
      *  para precargar el login (persistencia amable, no credencial). */
     get lastEmail() { return lsGet('ventel-last-email'); },
-    isLoggedIn: function () { return !!this.userEmail; },
+    /** Llave de sesión del servidor. Sin ella no hay sesión, aunque quede un correo guardado. */
+    get llave() { return lsGet(K_LLAVE); },
+    isLoggedIn: function () { return !!this.userEmail && !!this.llave; },
+    /** Última interacción de la persona con la pantalla (ms); 0 si no hay registro. */
+    ultimaActividad: function () { return Number(lsGet(K_ACTIVIDAD)) || 0; },
+    /** Minutos sin actividad tras los que vence la sesión (los dice el servidor al entrar). */
+    inactividadMs: function () { const n = Number(lsGet(K_INACTIVIDAD)); return (n > 0 ? n : 120) * 60000; },
+    marcarActividad: function () { try { localStorage.setItem(K_ACTIVIDAD, String(Date.now())); } catch (e) {} },
     save: function (data) {
       try {
         localStorage.setItem(K_NAME, data.userName || '');
         localStorage.setItem(K_EMAIL, data.userEmail || '');
+        if (data.llave) localStorage.setItem(K_LLAVE, data.llave);
+        if (data.inactividadMin) localStorage.setItem(K_INACTIVIDAD, String(data.inactividadMin));
+        localStorage.setItem(K_ACTIVIDAD, String(Date.now()));
         localStorage.setItem(K_ADV, String(data.isAdvanced === true));
         localStorage.setItem(K_ROL, data.rol || (data.isAdvanced ? 'avanzado' : 'normal'));
         localStorage.setItem(K_BLOQUES, JSON.stringify(Array.isArray(data.bloques) ? data.bloques : []));
@@ -205,9 +223,16 @@
      * rastro del anterior.
      */
     clear: function () {
+      const llave = lsGet(K_LLAVE);
       try {
-        [K_NAME, K_EMAIL, K_ADV, K_ROL, K_BLOQUES, K_FOLIO].forEach(function (k) { localStorage.removeItem(k); });
+        [K_NAME, K_EMAIL, K_ADV, K_ROL, K_BLOQUES, K_FOLIO, K_LLAVE, K_ACTIVIDAD, K_INACTIVIDAD]
+          .forEach(function (k) { localStorage.removeItem(k); });
       } catch (e) {}
+      // La llave también se anula en el servidor, sin esperar respuesta: si la red falla,
+      // vence sola por inactividad. Directo y no por AppRun: no debe encender indicadores.
+      if (llave) {
+        try { google.script.run.withFailureHandler(function () {}).sesCerrar(llave); } catch (e) {}
+      }
       try {
         Object.keys(localStorage)
           .filter(function (k) { return k.indexOf('pendingQuoteData') === 0; })
@@ -1228,6 +1253,10 @@
 
   /** Pantallas que exigieron sesión: solo esas se expulsan si otra pestaña cierra sesión. */
   let sesionExigida = false;
+  // Clave de la pantalla que exigió sesión, para volver a ella tras iniciar sesión otra vez.
+  let paginaExigida = '';
+  // Última respuesta del servidor en ESTA pestaña (para el latido de sesionVigilar).
+  let ultimoContacto = Date.now();
 
   /**
    * Redirige a login cuando no hay sesión. Devuelve true si se puede continuar.
@@ -1238,6 +1267,7 @@
    */
   function requireSession(paginaActual) {
     sesionExigida = true;
+    if (paginaActual) paginaExigida = paginaActual;
     if (AppSession.isLoggedIn()) return true;
     if (!paginaActual) {
       AppUrl.go('login');
@@ -1862,7 +1892,22 @@
         }
         // El runner se invoca sobre sí mismo (no con `this` nulo): así es como lo
         // espera la librería cliente de Apps Script.
-        const runner = google.script.run.withSuccessHandler(resolve).withFailureHandler(reject);
+        const runner = google.script.run
+          .withSuccessHandler(function (r) { ultimoContacto = Date.now(); resolve(r); })
+          .withFailureHandler(function (err) {
+            // La llave venció o no vale: se avisa UNA vez aquí, en vez de que cada una de las
+            // noventa llamadas de la app tenga que saber qué hacer. La promesa se rechaza igual,
+            // para que quien llamó apague su indicador y no pinte datos.
+            if (/^SESION_EXPIRADA/.test(String((err && err.message) || err || ''))) sesionVencida();
+            reject(err);
+          });
+        // TODO pasa por secEjecutar (Sesiones.gs): lleva la llave y la última interacción de la
+        // persona, que es lo que mide la inactividad. Si el servidor fuera uno viejo sin ese
+        // canal, se llama directo como antes.
+        if (typeof runner.secEjecutar === 'function') {
+          runner.secEjecutar(AppSession.llave || '', fnName, args, AppSession.ultimaActividad());
+          return;
+        }
         if (typeof runner[fnName] !== 'function') {
           reject(new Error('El servidor no expone la función ' + fnName + '.'));
           return;
@@ -1971,6 +2016,110 @@
       window.location.reload();
     }
   });
+
+  /**
+   * ===========================================================================
+   * INACTIVIDAD DE LA SESIÓN (la llave de Sesiones.gs)
+   * ===========================================================================
+   * La sesión vence tras N minutos sin que la persona toque la pantalla (120 por
+   * omisión; el número lo dice el servidor al entrar). Tres piezas:
+   *
+   *   · Se apunta la última interacción (ratón, teclado, toque, rueda) en
+   *     localStorage, como mucho cada 20 s y compartida entre pestañas: una pestaña
+   *     olvidada no cierra la sesión de quien trabaja en otra.
+   *   · Cada 30 s se mira el reloj: a 5 min del vencimiento se avisa, y al vencer se
+   *     cierra la sesión y se TAPA la pantalla con un aviso y el botón para volver a
+   *     entrar. No se navega sola: Chrome ignora en silencio que el iframe mueva la
+   *     ventana sin un clic reciente. Y tapar además esconde los datos de clientes
+   *     en un equipo compartido.
+   *   · Latido: si la persona trabaja sin hablar con el servidor (un formulario
+   *     largo), cada 20 min se manda sesTocar para que el servidor sepa que sigue ahí.
+   *
+   * El servidor aplica la misma regla por su lado (cada llamada informa la última
+   * interacción): aunque alguien quitara este vigilante, la llave vence igual.
+   */
+  const SES_AVISO_ANTES = 5 * 60000;
+  const SES_LATIDO = 20 * 60000;
+  let sesAvisada = false;
+  let sesTapada = false;
+
+  function sesionVencida() {
+    if (sesTapada) return;
+    const habia = !!AppSession.userEmail;
+    AppSession.clear();
+    if (!sesionExigida) {
+      // Página pública (Portal, Promociones…): se sigue como visitante, solo se avisa.
+      if (habia) { try { if (window.AppMotion) AppMotion.toast('Tu sesión se cerró por inactividad.', 'warn'); } catch (e) {} }
+      return;
+    }
+    if (!document.body) { document.addEventListener('DOMContentLoaded', sesionVencida); return; }
+    sesTapada = true;
+    const capa = document.createElement('div');
+    capa.setAttribute('role', 'alertdialog');
+    capa.setAttribute('aria-modal', 'true');
+    capa.setAttribute('aria-labelledby', 'ses-vencida-titulo');
+    capa.style.cssText = 'position:fixed;inset:0;z-index:2147483000;display:flex;align-items:center;justify-content:center;' +
+      'padding:1.5rem;background:rgba(15,23,42,.72);backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px)';
+    capa.innerHTML =
+      '<div style="max-width:26rem;width:100%;background:#fff;color:#1B2330;border-radius:16px;padding:1.6rem 1.5rem;' +
+        'box-shadow:0 30px 60px -20px rgba(0,0,0,.45);text-align:center;font-family:inherit">' +
+        '<h2 id="ses-vencida-titulo" style="margin:0 0 .5rem;font-size:1.15rem;font-weight:700">Tu sesión se cerró</h2>' +
+        '<p style="margin:0 0 1.25rem;line-height:1.5;color:#5C6B7E">Pasó demasiado tiempo sin actividad. ' +
+          'Vuelve a iniciar sesión para seguir donde estabas.</p>' +
+        '<button type="button" data-ses-entrar style="border:0;border-radius:10px;padding:.7rem 1.4rem;font:inherit;' +
+          'font-weight:700;color:#fff;background:#E10098;cursor:pointer">Iniciar sesión</button>' +
+      '</div>';
+    document.body.appendChild(capa);
+    const boton = capa.querySelector('[data-ses-entrar]');
+    boton.addEventListener('click', function () {
+      const params = AppUrl.params();
+      delete params.next;
+      if (paginaExigida) params.next = paginaExigida;
+      AppUrl.go('login', params);
+    });
+    try { boton.focus(); } catch (e) {}
+  }
+
+  function sesionRegistrarActividad() {
+    if (!AppSession.userEmail || sesTapada) return;
+    const ahora = Date.now();
+    if (ahora - AppSession.ultimaActividad() < 20000) return;
+    AppSession.marcarActividad();
+    sesAvisada = false;
+    if (AppSession.isLoggedIn() && ahora - ultimoContacto > SES_LATIDO) {
+      ultimoContacto = ahora;
+      AppRun.call('sesTocar', [], { busy: false }).catch(function () {});
+    }
+  }
+
+  function sesionVigilar() {
+    if (!AppSession.isLoggedIn() || sesTapada) return;
+    const actividad = AppSession.ultimaActividad();
+    if (!actividad) { AppSession.marcarActividad(); return; }
+    const resta = AppSession.inactividadMs() - (Date.now() - actividad);
+    if (resta <= 0) { sesionVencida(); return; }
+    if (resta <= SES_AVISO_ANTES && !sesAvisada) {
+      sesAvisada = true;
+      try {
+        if (window.AppMotion) {
+          AppMotion.toast('Tu sesión se cerrará en ' + Math.max(1, Math.ceil(resta / 60000)) +
+            ' min por inactividad. Mueve el ratón o pulsa una tecla para seguir.', 'warn');
+        }
+      } catch (e) {}
+    }
+  }
+
+  ['pointerdown', 'keydown', 'wheel', 'touchstart'].forEach(function (evento) {
+    try { document.addEventListener(evento, sesionRegistrarActividad, { capture: true, passive: true }); } catch (e) {}
+  });
+  document.addEventListener('visibilitychange', function () { if (!document.hidden) sesionVigilar(); });
+  setInterval(sesionVigilar, 30000);
+
+  // Una sola vez tras el cambio: una sesión guardada SIN llave (de antes de Sesiones.gs) ya no
+  // sirve de nada en el servidor. Se limpia y la pantalla pide entrar: todos los asesores
+  // inician sesión de nuevo UNA vez tras el despliegue.
+  if (AppSession.userEmail && !AppSession.llave) { try { AppSession.clear(); } catch (e) {} }
+  sesionVigilar();
 
   /**
    * ===========================================================================

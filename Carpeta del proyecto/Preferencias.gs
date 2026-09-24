@@ -443,6 +443,7 @@ function prefsRestablecer(email) {
  * @param {string=} correo
  */
 function prefsDiagnostico(correo) {
+  secSoloInterno_('prefsDiagnostico');
   const objetivo = secNormalizarCorreo_(correo) || secUsuarioGoogle_();
   Logger.log('═══ PREFERENCIAS ═══');
 

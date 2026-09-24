@@ -337,6 +337,7 @@ function revListaPendientes(email) {
  * @return {{success:boolean, pendientes:number, message:string}}
  */
 function revContarPendientes(email) {
+  secSoloInterno_('revContarPendientes');
   try {
     const id = secIdentidadConBloque_(email, 'revisar');
     if (!id.ok) {
@@ -1886,6 +1887,7 @@ function revArmarPaginaIncrustada_(partes, urlOriginal, cssExternos) {
  * si la validación de URLs se comporta como debe.
  */
 function revDiagnostico() {
+  secSoloInterno_('revDiagnostico');
   const lineas = [];
   const anota = function (ok, txt) { lineas.push((ok ? '✔ ' : '✖ ') + txt); };
 
@@ -2010,6 +2012,7 @@ function revDiagnostico() {
  * @param {string} [url] Un artículo cualquiera; si se omite se usa uno de ejemplo.
  */
 function revDiagnosticoFicha(url) {
+  secSoloInterno_('revDiagnosticoFicha');
   const prueba = url || 'https://www.liverpool.com.mx/tienda/pdp/anillo-map-brillante/1182166315?skuid=1182166321';
   const lineas = ['FICHA EN VIVO — diagnóstico', 'URL: ' + prueba];
 

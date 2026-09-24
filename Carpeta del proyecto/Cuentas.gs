@@ -756,7 +756,17 @@ function establecerPasswordInicial(email, vale, nueva) {
     cuentasBorrar_(claveVale);
     secIntentosLimpiar_(correo);
 
-    // Sesión: se resuelve igual que en loginUser, por el mismo camino de permisos.
+    // Sesión: el vale que se acaba de consumir PRUEBA quién es, así que se abre la llave aquí
+    // (Sesiones.gs) y se resuelve la identidad con ella. Sin llave, secIdentidad_ rechazaría la
+    // llamada: en la webapp el correo declarado ya no basta.
+    let sesionNueva;
+    try {
+      sesionNueva = sesParaCliente_(correo);
+      SEC_SESION_ = { email: correo };
+    } catch (eSesion) {
+      Logger.log('establecerPasswordInicial: no se pudo abrir la sesión: ' + eSesion);
+      return { success: false, message: 'Tu contraseña se guardó, pero no pudimos abrir la sesión. Inicia sesión de nuevo.' };
+    }
     const id = secIdentidad_(correo);
     if (!id.ok) {
       return { success: false, message: id.error || 'Tu contraseña se guardó, pero no pudimos abrir la sesión. Inicia sesión de nuevo.' };
@@ -768,6 +778,8 @@ function establecerPasswordInicial(email, vale, nueva) {
       message: 'Listo. Esta es tu contraseña a partir de ahora.',
       userName: id.nombre,
       userEmail: id.email,
+      llave: sesionNueva.llave,
+      inactividadMin: sesionNueva.inactividadMin,
       isAdvanced: id.avanzado,
       rol: id.rol,
       rolNombre: (typeof PERM_ROLES !== 'undefined' && PERM_ROLES[id.rol]) ? PERM_ROLES[id.rol].nombre : '',
@@ -1254,6 +1266,7 @@ function cuentasPlantillaCorreo_(op) {
  * @param {string=} correoPrueba correo al que mandar un código real de prueba (opcional).
  */
 function cuentasDiagnostico(correoPrueba) {
+  secSoloInterno_('cuentasDiagnostico');
   const dominio = cuentasDominioPermitido_();
   Logger.log('Dominio exigido en altas nuevas: ' + (dominio ? '@' + dominio : '(sin restricción)'));
   Logger.log('Vigencia del código: ' + CUENTAS_CODIGO_MINUTOS + ' min · vale: ' + CUENTAS_VALE_MINUTOS + ' min');
@@ -1297,6 +1310,7 @@ function cuentasDiagnostico(correoPrueba) {
  * @return {string} URL del archivo de vista previa en Drive.
  */
 function cuentasPreviaCorreos(enviarA) {
+  secSoloInterno_('cuentasPreviaCorreos');
   const muestra = {
     correo: 'asesor.demo@liverpool.com.mx',
     nombre: 'María Fernanda Ruiz',
@@ -1392,6 +1406,7 @@ function cuentasPreviaCorreos(enviarA) {
  * atascado (p. ej. un correo bloqueado por el tope horario).
  */
 function cuentasLimpiarTodo() {
+  secSoloInterno_('cuentasLimpiarTodo');
   const props = cuentasProps_();
   const todas = props.getProperties();
   let n = 0;

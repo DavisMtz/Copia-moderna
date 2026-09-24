@@ -455,6 +455,7 @@ function difEnviar(email, payload) {
 
 /** Comprueba que la difusión tiene todo lo que necesita. Ejecutar desde el editor. */
 function difDiagnostico() {
+  secSoloInterno_('difDiagnostico');
   Logger.log('═══ DIFUSIÓN ═══');
   const piezas = {
     'Grupos.gs': typeof grpListar === 'function',

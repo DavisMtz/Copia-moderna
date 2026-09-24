@@ -89,6 +89,7 @@ function equipoGuardarMiembro(email, cambio) {
  * @param {string} correo
  */
 function equipoDiagnostico(correo) {
+  secSoloInterno_('equipoDiagnostico');
   const r = equipoPanorama(correo);
   if (!r.success) { Logger.log('SIN ACCESO: ' + r.message); return r; }
   Logger.log('Gestor: ' + r.yo.nombre + ' (' + r.yo.email + ') · ' + r.yo.rolNombre +
