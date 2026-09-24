@@ -894,7 +894,7 @@ a:focus-visible,button:focus-visible,input:focus-visible,[tabindex]:focus-visibl
 /* ── Anuncio TARJETA (imagen + descripción + CTA) ── */
 .anuncios-cards{display:grid;grid-template-columns:repeat(auto-fill,minmax(248px,1fr));gap:1rem;margin-bottom:1.4rem}
 .anuncios-cards:empty{display:none}
-.anc-card{display:flex;flex-direction:column;border-radius:16px;overflow:hidden;background:var(--card,#fff);border:1px solid var(--line,#e5e7eb);box-shadow:var(--sh-xs);transition:transform .25s,box-shadow .25s}
+.anc-card{display:flex;flex-direction:column;border-radius:16px;overflow:hidden;background:var(--surface);border:1px solid var(--line,#e5e7eb);box-shadow:var(--sh-xs);transition:transform .25s,box-shadow .25s}
 .anc-card:hover{transform:translateY(-3px);box-shadow:var(--sh-md,0 10px 26px rgba(20,20,40,.12))}
 .anc-card-img{height:140px;background-size:cover;background-position:center;background-color:#eef0f5}
 .anc-card-body{padding:.95rem 1.05rem 1.1rem;display:flex;flex-direction:column}
@@ -924,7 +924,7 @@ a:focus-visible,button:focus-visible,input:focus-visible,[tabindex]:focus-visibl
 .art-carril{display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:1rem;margin-bottom:1.4rem}
 .art-carril:empty{display:none}
 .art-ficha{display:flex;flex-direction:column;gap:.35rem;text-align:left;width:100%;font:inherit;
-  background:var(--card,#fff);border:1px solid var(--line,#e5e7eb);border-left:3px solid var(--brand,#E10098);
+  background:var(--surface);border:1px solid var(--line,#e5e7eb);border-left:3px solid var(--brand,#E10098);
   border-radius:12px;padding:.85rem 1rem;cursor:pointer;transition:transform .2s,box-shadow .2s,border-color .2s}
 .art-ficha:hover{transform:translateY(-2px);box-shadow:var(--sh-md,0 10px 26px rgba(20,20,40,.12))}
 .art-ficha:focus-visible{outline:none;box-shadow:var(--ring)}
@@ -1077,6 +1077,182 @@ a:focus-visible,button:focus-visible,input:focus-visible,[tabindex]:focus-visibl
 .promo-strip .stat-card.cta .stat-name{color:rgba(255,255,255,.92);font-weight:700}
 .promo-strip .stat-card.cta .go{color:rgba(255,255,255,.85)}
 .promo-strip .stat-card.cta:hover .go{color:#fff}
+
+/* ════════════════════════════════════════════════════════════
+   PORTADA «TU TURNO» (23/09/2026)
+   Una capa encima de las piezas de siempre: el encabezado con la hora grande y el cielo
+   del turno, lo nuevo desde tu última visita, los avisos en dos columnas, Publicaciones
+   junto a Promociones, el calendario comercial y la franja baja. Todo cuelga de
+   #sec-inicio o de clases g-*: las demás secciones del Portal no se enteran.
+   Respaldo de la portada anterior: etiqueta git «respaldo-portada-antes-tu-turno».
+════════════════════════════════════════════════════════════ */
+#sec-inicio{--g-ink-brand:var(--brand-deep);--g-linea:color-mix(in srgb,var(--ink) 20%,var(--line))}
+[data-theme="carbon"] #sec-inicio{--g-ink-brand:#F46BC6}
+
+/* — Encabezado — */
+#gHero.g-hero{display:grid;grid-template-columns:minmax(0,1.35fr) minmax(0,1fr);align-items:end;gap:2rem;
+  padding:2.1rem 2.4rem;min-height:300px;border-radius:26px;background:var(--g-sky,var(--grad-brand));
+  isolation:isolate;margin-bottom:1rem;box-shadow:none}
+#gHero.g-hero:has(> .g-since[hidden]){grid-template-columns:minmax(0,1fr)}
+#gHero.g-hero:has(> .g-since[hidden]) .g-sun{left:88%!important}
+.g-sky{position:absolute;inset:0;width:100%;height:100%;z-index:-1;pointer-events:none}
+.g-sun{position:absolute;left:60%;top:24%;width:84px;height:84px;border-radius:50%;background:#FFE7F2;z-index:-1;
+  box-shadow:0 0 0 16px rgba(255,231,242,.14),0 0 0 36px rgba(255,231,242,.07);transform:translate(-50%,-50%)}
+.g-hero.is-noche .g-sun{background:#F6E9F1;box-shadow:inset -16px -8px 0 0 #5A0D43,0 0 0 16px rgba(246,233,241,.07)}
+.g-when{display:flex;flex-wrap:wrap;align-items:center;gap:.6rem 1rem;margin-bottom:.9rem}
+.g-clock{display:inline-flex;align-items:baseline;font-family:var(--f-display);font-weight:900;font-stretch:82%;
+  font-size:clamp(2.8rem,5vw,4.2rem);line-height:.9;letter-spacing:-.01em;font-variant-numeric:tabular-nums}
+.g-colon{padding:0 .04em;animation:g-respira 2.4s ease-in-out infinite}
+@keyframes g-respira{50%{opacity:.35}}
+.g-mm-w{display:inline-block;overflow:hidden;height:1em;line-height:1}
+.g-mm{display:inline-block}
+.g-date{display:flex;flex-direction:column;line-height:1.25;font-size:.95rem;font-weight:700}
+.g-date #heroDate{font-weight:500;opacity:.92}
+.g-date #heroDate::first-letter{text-transform:uppercase}
+#gHero .hero-sync{margin-top:0}
+#gHero h1{font-stretch:76%;font-size:clamp(2.3rem,4.4vw,3.9rem);line-height:.95;max-width:14ch;margin-bottom:.7rem}
+#gHero p{font-size:1.02rem;max-width:46ch}
+/* Mañana: el cielo es claro y la tinta pasa a oscura */
+.g-hero.is-manana{color:#3A0D2E}
+.g-hero.is-manana p{color:rgba(58,13,46,.86)}
+.g-hero.is-manana .hero-sync{background:rgba(255,255,255,.62);border-color:rgba(58,13,46,.14)}
+.g-hero.is-manana .hero-sync .hs-text{color:#3A0D2E}
+.g-hero.is-manana .hero-sync .hs-refresh{background:rgba(58,13,46,.1);color:#3A0D2E}
+.g-hero.is-manana .hero-sync .hs-dot{background:#0E7A4F}
+
+/* — Desde tu última visita — */
+.g-since{position:relative;z-index:1;background:var(--surface);color:var(--ink);border-radius:22px;padding:1rem 1rem .45rem;
+  box-shadow:0 24px 40px -26px rgba(40,0,25,.55)}
+.g-since-hd{display:flex;align-items:baseline;justify-content:space-between;gap:.6rem;padding:0 .3rem .5rem}
+.g-since-hd b{font-family:var(--f-display);font-weight:800;font-size:1rem}
+.g-since-hd small{font-size:.78rem;color:var(--ink-soft)}
+.g-sr{display:grid;grid-template-columns:44px minmax(0,1fr) auto;align-items:center;gap:.75rem;width:100%;padding:.55rem .4rem;
+  border:0;border-top:1px solid var(--line);border-radius:10px;background:none;color:inherit;font:inherit;text-align:left;cursor:pointer;transition:background .12s}
+.g-sr:hover{background:var(--surface-2)}
+.g-sr-n{height:40px;border-radius:12px;background:var(--brand-tint);color:var(--g-ink-brand);display:grid;place-items:center;
+  font-family:var(--f-mono);font-weight:700;font-size:1.1rem;overflow:hidden}
+.g-sr.is-cero .g-sr-n{background:var(--ok-bg);color:var(--ok)}
+.g-sr-t{font-weight:650;font-size:.93rem;line-height:1.25;min-width:0}
+.g-sr-t small{display:block;font-weight:500;font-size:.78rem;color:var(--ink-soft);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.g-sr > .ic{width:16px;height:16px;color:var(--ink-soft);transition:transform .18s}
+.g-sr:hover > .ic{transform:translateX(3px);color:var(--g-ink-brand)}
+.g-al-dia{padding:.65rem .4rem .7rem;border-top:1px solid var(--line);font-size:.88rem;color:var(--ink-soft);line-height:1.45}
+.g-al-dia b{color:var(--ok)}
+/* Marca «Nuevo»: se apaga cuando lo miras */
+.g-nv{display:inline-flex;align-items:center;gap:.35rem;font-size:.72rem;font-weight:800;color:var(--g-ink-brand);white-space:nowrap}
+.g-nv::before{content:"";width:7px;height:7px;border-radius:50%;background:var(--brand)}
+.anc-card .g-nv{align-self:flex-start;margin-bottom:.35rem}
+.art-ficha .g-nv{margin-bottom:.25rem}
+.g-flash{animation:g-flash 1.2s ease}
+@keyframes g-flash{25%{box-shadow:0 0 0 5px var(--brand-soft)}}
+
+/* — Avisos: dos columnas bajo el encabezado — */
+#sec-inicio .avisos-wrap{display:grid;grid-template-columns:repeat(auto-fit,minmax(320px,1fr));align-items:start;gap:.75rem;margin:0 0 .4rem}
+#sec-inicio .avisos-wrap:empty{display:none}
+
+/* — Publicaciones + Promociones — */
+.g-main{display:grid;grid-template-columns:minmax(0,1.42fr) minmax(0,1fr);gap:2rem;align-items:start}
+.g-main:has(#anunciosCards:empty){grid-template-columns:minmax(0,1fr)}
+#gPubs:has(#anunciosCards:empty){display:none}
+#sec-inicio .dash-label{font-size:1.28rem;font-stretch:100%;letter-spacing:-.01em;margin:1.8rem 0 .9rem}
+#sec-inicio .dash-label .ic{display:none}
+#sec-inicio .dash-label .dl-line{visibility:hidden}
+#sec-inicio .anuncios-cards{grid-template-columns:repeat(2,minmax(0,1fr));gap:.9rem;margin-bottom:0}
+#sec-inicio .anc-card{border-radius:20px}
+#sec-inicio .anc-card.es-principal{grid-column:1/-1;border-radius:22px}
+#sec-inicio .anc-card.es-principal:has(> .anc-card-img){flex-direction:row}
+#sec-inicio .anc-card.es-principal .anc-card-img{height:auto;min-height:250px;flex:0 0 44%}
+#sec-inicio .anc-card.es-principal .anc-card-body{padding:1.3rem 1.45rem}
+#sec-inicio .anc-card.es-principal .anc-card-title{font-size:1.5rem;line-height:1.12;letter-spacing:-.01em}
+
+#promoStrip.is-lista{display:block}
+.g-pr-head{display:grid;grid-template-columns:auto minmax(0,1fr);gap:.15rem 1rem;align-items:end;padding:1.1rem 1.25rem;
+  border-radius:22px;background:var(--surface);border:1px solid var(--line);margin-bottom:.75rem}
+.g-pr-big{font-family:var(--f-display);font-weight:900;font-stretch:80%;font-size:4rem;line-height:.85;grid-row:span 2;font-variant-numeric:tabular-nums}
+.g-pr-a{font-weight:700;font-size:1rem}
+.g-pr-b{font-size:.88rem;color:var(--ink-soft)}
+.g-pr-b b{color:var(--g-ink-brand)}
+.g-chips{display:flex;gap:.4rem;flex-wrap:wrap;margin-bottom:.75rem}
+.g-chip{height:32px;padding:0 .8rem;border-radius:999px;border:1px solid var(--line);background:var(--surface);font:inherit;font-size:.82rem;
+  font-weight:700;color:var(--ink-soft);cursor:pointer;transition:background .15s,color .15s,border-color .15s}
+.g-chip:hover{color:var(--ink);border-color:var(--g-linea)}
+.g-chip[aria-pressed="true"]{background:var(--ink);border-color:var(--ink);color:var(--surface)}
+.g-tks{display:grid;gap:.6rem}
+/* Boleto: cuerpo y talón con muescas; el talón dice cuánto le queda */
+.g-tk{--st:86px;display:grid;grid-template-columns:minmax(0,1fr) var(--st);color:inherit;text-decoration:none;
+  filter:drop-shadow(0 8px 12px rgba(27,35,48,.07));transition:transform .25s cubic-bezier(.16,1,.3,1)}
+.g-tk:hover{transform:translateX(-3px)}
+.g-tk[hidden]{display:none}
+.g-tk-bd,.g-tk-st{background:var(--surface);border:1px solid var(--line)}
+.g-tk-bd{padding:.8rem 1rem;border-radius:16px 0 0 16px;border-right:0;min-width:0;
+  -webkit-mask:radial-gradient(circle at 100% 0,#0000 8px,#000 8.5px) top/100% 51% no-repeat,radial-gradient(circle at 100% 100%,#0000 8px,#000 8.5px) bottom/100% 51% no-repeat;
+  mask:radial-gradient(circle at 100% 0,#0000 8px,#000 8.5px) top/100% 51% no-repeat,radial-gradient(circle at 100% 100%,#0000 8px,#000 8.5px) bottom/100% 51% no-repeat}
+.g-tk-st{border-radius:0 16px 16px 0;border-left:2px dashed var(--g-linea);display:flex;flex-direction:column;align-items:center;justify-content:center;
+  text-align:center;padding:.4rem .25rem;transform-origin:0 0;transition:transform .45s cubic-bezier(.16,1,.3,1);
+  -webkit-mask:radial-gradient(circle at 0 0,#0000 8px,#000 8.5px) top/100% 51% no-repeat,radial-gradient(circle at 0 100%,#0000 8px,#000 8.5px) bottom/100% 51% no-repeat;
+  mask:radial-gradient(circle at 0 0,#0000 8px,#000 8.5px) top/100% 51% no-repeat,radial-gradient(circle at 0 100%,#0000 8px,#000 8.5px) bottom/100% 51% no-repeat}
+.g-tk:hover .g-tk-st{transform:rotate(4deg) translate(3px,1px)}
+.g-tk.is-pronto .g-tk-st{background:var(--brand);border-color:var(--brand);border-left-color:rgba(255,255,255,.55);color:#fff}
+.g-tk-d{font-family:var(--f-display);font-weight:900;font-stretch:80%;font-size:1.85rem;line-height:.9}
+.g-tk-d.is-palabra{font-size:1.08rem}
+.g-tk-st small{font-size:.74rem;font-weight:700;line-height:1.15}
+.g-tk-hasta{font-size:.78rem;font-weight:700;line-height:1.2;color:var(--ink-soft)}
+.g-tk-dep{display:flex;flex-wrap:wrap;align-items:center;gap:.2rem .5rem;font-size:.72rem;font-weight:800;letter-spacing:.02em;color:var(--ink-soft);text-transform:uppercase}
+.g-tk-pro{display:block;font-weight:700;font-size:.93rem;line-height:1.3;margin:.1rem 0 .15rem}
+.g-tk-mk{display:block;font-size:.8rem;color:var(--ink-soft)}
+.g-pr-mas{display:inline-flex;align-items:center;gap:.4rem;margin-top:.8rem;font-size:.86rem;font-weight:700;color:var(--g-ink-brand);text-decoration:none}
+.g-pr-mas:hover{text-decoration:underline;text-underline-offset:3px}
+.g-pr-mas .ic{width:15px;height:15px}
+
+/* — Lo que viene: calendario comercial — */
+.g-cal{margin-top:2rem;border-radius:24px;background:var(--surface);border:1px solid var(--line);padding:1.15rem 1.3rem 1rem}
+.g-cal[hidden]{display:none}
+.g-cal-hd{display:flex;flex-wrap:wrap;align-items:baseline;gap:.2rem .75rem}
+.g-cal-hd h2{font-family:var(--f-display);font-weight:800;font-size:1.28rem;letter-spacing:-.01em}
+.g-cal-hd span{font-size:.84rem;color:var(--ink-soft)}
+.g-cal-sc{overflow-x:auto;padding-top:2.2rem}
+.g-cal-in{min-width:640px}
+.g-axis{position:relative;height:26px;border-bottom:1px solid var(--line)}
+.g-axis span{position:absolute;bottom:6px;transform:translateX(-50%);font-size:.76rem;font-weight:700;color:var(--ink-soft);white-space:nowrap}
+.g-lanes{position:relative;margin-top:10px}
+.g-today{position:absolute;top:-36px;bottom:-4px;width:2px;background:var(--brand);border-radius:2px}
+.g-today::before{content:"Hoy";position:absolute;top:-22px;left:50%;transform:translateX(-50%);font-size:.7rem;font-weight:800;color:#fff;background:var(--brand);border-radius:6px;padding:1px 6px}
+.g-ev{position:absolute;z-index:1;height:40px;line-height:40px;border-radius:12px;padding:0 .75rem;font-size:.8rem;font-weight:700;white-space:nowrap;
+  overflow:hidden;text-overflow:ellipsis;transform-origin:left center;transition:transform .2s cubic-bezier(.16,1,.3,1)}
+.g-ev:hover{transform:translateY(-2px)}
+.g-ev.is-ahora{background:var(--brand);color:#fff}
+.g-ev.is-luego{background:var(--brand-tint);color:var(--g-ink-brand);outline:1.5px dashed var(--brand);outline-offset:-1.5px}
+
+/* — Franja baja: accesos + colecciones | artículos — */
+.g-low{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1.1fr);gap:2rem;align-items:start}
+.g-low:has(#articulosCarril:empty){grid-template-columns:minmax(0,1fr)}
+#gArts:has(#articulosCarril:empty){display:none}
+#sec-inicio .qa-grid{grid-template-columns:repeat(auto-fill,minmax(220px,1fr))}
+#sec-inicio .art-carril{grid-template-columns:repeat(auto-fill,minmax(210px,1fr));margin-bottom:0}
+.g-guias{display:flex;flex-wrap:wrap;align-items:center;gap:.4rem 1.3rem;margin:2.2rem 0 .5rem;font-size:.9rem}
+.g-guias-lbl{font-weight:700;color:var(--ink-soft)}
+.g-guia{background:none;border:0;padding:.3rem 0;font:inherit;font-weight:650;color:var(--ink);border-bottom:1.5px solid transparent;cursor:pointer;transition:border-color .15s,color .15s}
+.g-guia:hover{border-color:var(--brand);color:var(--g-ink-brand)}
+
+@media (max-width:1180px){ .g-main,.g-low{grid-template-columns:minmax(0,1fr)} }
+@media (max-width:720px){
+  #gHero.g-hero{grid-template-columns:minmax(0,1fr);padding:1.5rem 1.3rem;gap:1.2rem;border-radius:22px;min-height:0}
+  .g-sun{left:auto!important;right:-18px;top:44px!important;width:64px;height:64px;transform:none}
+  #sec-inicio .anuncios-cards{grid-template-columns:minmax(0,1fr)}
+  #sec-inicio .anc-card.es-principal:has(> .anc-card-img){flex-direction:column}
+  #sec-inicio .anc-card.es-principal .anc-card-img{min-height:170px;flex-basis:auto}
+  #sec-inicio .avisos-wrap{grid-template-columns:minmax(0,1fr)}
+}
+@media (prefers-reduced-motion: reduce){
+  .g-colon{animation:none}
+  .g-tk,.g-tk-st,.g-ev,.g-sr > .ic{transition:none}
+}
+/* Colores del cielo por franja (el JS solo pone la clase) */
+.g-hero.is-manana{--g-sky:linear-gradient(165deg,#FFE3EF 0%,#FFD1C4 100%)}
+.g-hero.is-tarde{--g-sky:linear-gradient(165deg,#E10098 0%,#CC0089 60%,#B8007C 100%)}
+[data-theme="carbon"] .g-hero.is-tarde{--g-sky:linear-gradient(165deg,#B8007C 0%,#9E006B 100%)}
+.g-hero.is-noche{--g-sky:linear-gradient(165deg,#3A0D2E 0%,#6A0F4F 100%)}
+
 
 /* ════════════════════════════════════════════════════════════
    FAVORITOS · botón pin en tarjetas y accesos rápidos
@@ -1686,9 +1862,18 @@ table.ds-matrix{width:100%;border-collapse:separate;border-spacing:0;min-width:5
 
   <main>
 
-  <!-- ══ INICIO / DASHBOARD ══ -->
+  <!-- ══ INICIO / DASHBOARD · «Tu turno» ══
+       Orden de la portada, de lo que cambia lo que harás en cinco minutos a lo que consultas:
+         1. Estado de operación y la recomendación de atenciones (solo si algo falla).
+         2. El encabezado personal: la hora, la frase de PortalFrase y lo nuevo desde tu
+            última visita.
+         3. Los avisos cortos (banners y destacados de la hoja «Anuncios»).
+         4. Publicaciones (las tarjetas de esa hoja) junto a Promociones.
+         5. El calendario comercial, tus accesos, tus colecciones y los artículos.
+       Los ids son los de siempre: los pintan renderAnuncios, renderPromoStrip,
+       renderDashboard, renderArticulos, las colecciones y el recorrido guiado, y ninguno
+       sabe que la portada se reordenó. -->
   <section id="sec-inicio" class="view-section active">
-    <div class="avisos-wrap" id="avisosWrap"></div>
     <!-- Estado de operación: las incidencias vivas se pintan aquí, ARRIBA de todo lo demás.
          Un sistema caído es la única noticia que puede cambiar lo que alguien va a hacer en
          los siguientes cinco minutos, así que va antes que los anuncios y que las promos.
@@ -1698,78 +1883,89 @@ table.ds-matrix{width:100%;border-collapse:separate;border-spacing:0;min-width:5
          en la línea, guarda sus datos ahora. Lo pinta el bloque "RECOMENDACIÓN DE
          ATENCIONES" del final; vacío, no ocupa espacio. -->
     <div id="atencionesTip"></div>
-    <div class="hero">
+
+    <!-- Encabezado personal. El cielo sigue la hora del turno (mañana, tarde, noche) y el
+         sol —o la luna— recorre su arco detrás de la tarjeta de novedades. El titular y su
+         bajada los reescribe PortalFrase con el nombre de quien tiene la sesión abierta; lo
+         escrito aquí es la versión sin sesión y la red de seguridad si el JS no corre. -->
+    <div class="hero g-hero" id="gHero">
+      <svg class="g-sky" viewBox="0 0 600 320" preserveAspectRatio="none" aria-hidden="true" focusable="false"><path d="M0 250 C 120 205, 230 235, 330 214 C 430 193, 520 222, 600 204 L600 320 L0 320Z" fill="rgba(255,255,255,.09)"/><path d="M0 285 C 150 250, 260 282, 390 262 C 480 248, 540 266, 600 256 L600 320 L0 320Z" fill="rgba(255,255,255,.08)"/></svg>
+      <span class="g-sun" id="gSun" aria-hidden="true"></span>
       <div class="hero-l">
-        <div class="hero-greet"><span id="heroGreet">Buen día</span> · <span id="heroWho">Equipo VENTEL</span></div>
-        <!-- El titular y su bajada los reescribe PortalFrase con el nombre de quien
-             tiene la sesión abierta. Lo que está escrito aquí es la versión sin sesión,
-             y es también la red de seguridad: si el JS no corre, el hero se lee igual. -->
-        <h1 id="heroTitle" style="font-family: Archivo">Tu centro de operación, <br>todo a un clic</h1>
+        <div class="g-when">
+          <time class="g-clock" id="heroTime" aria-label="Hora actual"><span class="g-hh">--</span><span class="g-colon">:</span><span class="g-mm-w"><span class="g-mm">--</span></span></time>
+          <span class="g-date"><span id="heroGreet">Buen día</span><span id="heroDate"></span></span>
+          <div class="hero-sync" id="heroSync" title="Última actualización de los datos">
+            <span class="hs-dot"></span>
+            <span class="hs-text" id="syncText">Cargando datos…</span>
+            <button class="hs-refresh" id="syncBtn" type="button" onclick="refreshData(this)" title="Actualizar datos" aria-label="Actualizar datos">
+              <svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12a9 9 0 1 1-2.64-6.36"/><path d="M21 3v6h-6"/></svg>
+            </button>
+          </div>
+        </div>
+        <h1 id="heroTitle">Tu centro de operación, todo a un clic</h1>
         <p id="heroSub">Herramientas, paqueterías, guías de pago y formatos del equipo — organizados y siempre a la mano.</p>
       </div>
-      <div class="hero-clock">
-        <div class="hc-time" id="heroTime">--:--</div>
-        <div class="hc-date" id="heroDate"></div>
-        <div class="hero-sync" id="heroSync" title="Última actualización de los datos">
-          <span class="hs-dot"></span>
-          <span class="hs-text" id="syncText">Cargando datos…</span>
-          <button class="hs-refresh" id="syncBtn" type="button" onclick="refreshData(this)" title="Actualizar datos" aria-label="Actualizar datos">
-            <svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12a9 9 0 1 1-2.64-6.36"/><path d="M21 3v6h-6"/></svg>
-          </button>
+      <!-- Lo nuevo desde la última visita en ESTE navegador (bloque NOVEDADES del final).
+           Nace oculta: en la primera visita no hay contra qué comparar. -->
+      <aside class="g-since" id="gSince" hidden aria-labelledby="gSinceT">
+        <div class="g-since-hd"><b id="gSinceT">Desde tu última visita</b><small id="gSinceWhen"></small></div>
+        <div id="gSinceRows"></div>
+      </aside>
+    </div>
+
+    <!-- Avisos cortos: banners descartables y destacados fijos (renderAnuncios). -->
+    <div class="avisos-wrap" id="avisosWrap"></div>
+
+    <div class="g-main">
+      <!-- Publicaciones: las tarjetas de la hoja «Anuncios». La de menor orden sale como
+           principal (renderAnuncios); el recorrido guiado la busca por .es-principal. -->
+      <div class="g-col" id="gPubs">
+        <div class="dash-label" id="anunciosLabel" style="display:none"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M3 11v3a1 1 0 0 0 1 1h2l4 4V6L6 10H4a1 1 0 0 0-1 1Z"/><path d="M14 7.5a5 5 0 0 1 0 7M17.5 5a9 9 0 0 1 0 12"/></svg> Publicaciones <span class="dl-line"></span></div>
+        <div class="anuncios-cards" id="anunciosCards"></div>
+      </div>
+      <div class="g-col" id="gPromos">
+        <div class="dash-label"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3l2.3 6.2L21 11l-6 2 6 2-6.7 1.8L12 21l-2.3-4.2L3 15l6-2-6-2 6.7-1.8Z"/></svg> Promociones <span class="dl-line"></span><a class="dl-mas" id="promoVerMonitor" href="<?= APP_URL ?>?page=promociones" target="_top" onclick="handlePromoNav(event,this)">Monitor</a></div>
+        <div class="promo-strip" id="promoStrip">
+          <div class="sk-card sk-line sk-qa" style="height:118px"></div>
+          <div class="sk-card sk-line sk-qa" style="height:118px"></div>
+          <div class="sk-card sk-line sk-qa" style="height:118px"></div>
         </div>
       </div>
     </div>
 
-    <div class="dash-label" id="anunciosLabel" style="display:none"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M3 11v3a1 1 0 0 0 1 1h2l4 4V6L6 10H4a1 1 0 0 0-1 1Z"/><path d="M14 7.5a5 5 0 0 1 0 7M17.5 5a9 9 0 0 1 0 12"/></svg> Anuncios del equipo <span class="dl-line"></span></div>
-    <div class="anuncios-cards" id="anunciosCards"></div>
+    <!-- Lo que viene: el calendario comercial de las próximas semanas (renderPromoCal).
+         Nace oculto y solo aparece si el calendario trae eventos. -->
+    <div class="g-cal" id="promoCal" hidden></div>
 
-    <!-- Artículos recientes (fase 8). Nace oculto y solo aparece si hay alguno
-         publicado: una franja vacía con un rótulo es peor que no tener franja. -->
-    <div class="dash-label" id="articulosLabel" style="display:none"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M6 3h9l4 4v14H6z"/><path d="M14 3v5h5M9 12h7M9 16h5"/></svg> Artículos del equipo <span class="dl-line"></span><button type="button" class="dl-mas" id="articulosVerTodos" style="display:none"></button></div>
-    <div class="art-carril" id="articulosCarril"></div>
+    <div class="g-low">
+      <div class="g-col">
+        <div class="dash-label"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M13 2 4 14h7l-2 8 9-12h-7l2-8Z"/></svg> Tus accesos rápidos <span class="qa-hint">se ordenan según tu uso · fíjalos con el pin</span><span class="dl-line"></span></div>
+        <div class="qa-grid" id="qaGrid" data-vx-loader="isotipo" data-vx-msg="Buscando tus accesos rápidos…">
+          <div class="sk-line sk-qa"></div><div class="sk-line sk-qa"></div><div class="sk-line sk-qa"></div><div class="sk-line sk-qa"></div>
+        </div>
 
-    <div class="dash-label"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3l2.3 6.2L21 11l-6 2 6 2-6.7 1.8L12 21l-2.3-4.2L3 15l6-2-6-2 6.7-1.8Z"/></svg> Hoy en promociones <span class="dl-line"></span></div>
-    <div class="promo-strip" id="promoStrip">
-      <div class="sk-card sk-line sk-qa" style="height:118px"></div>
-      <div class="sk-card sk-line sk-qa" style="height:118px"></div>
-      <div class="sk-card sk-line sk-qa" style="height:118px"></div>
+        <div class="dash-label"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3 3 8l9 5 9-5-9-5Z"/><path d="m3 13 9 5 9-5M3 18l9 5 9-5"/></svg> Mis colecciones <span class="qa-hint">agrupa herramientas, plantillas y formatos en bloques propios</span><span class="dl-line"></span></div>
+        <div class="col-grid" id="colGrid"></div>
+      </div>
+      <!-- Artículos recientes (fase 8). Nace oculto y solo aparece si hay alguno
+           publicado: una franja vacía con un rótulo es peor que no tener franja. -->
+      <div class="g-col" id="gArts">
+        <div class="dash-label" id="articulosLabel" style="display:none"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M6 3h9l4 4v14H6z"/><path d="M14 3v5h5M9 12h7M9 16h5"/></svg> Artículos del equipo <span class="dl-line"></span><button type="button" class="dl-mas" id="articulosVerTodos" style="display:none"></button></div>
+        <div class="art-carril" id="articulosCarril"></div>
+      </div>
     </div>
 
-    <div class="dash-label"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M13 2 4 14h7l-2 8 9-12h-7l2-8Z"/></svg> Tus accesos rápidos <span class="qa-hint">se ordenan según tu uso · fíjalos con el pin</span><span class="dl-line"></span></div>
-    <div class="qa-grid" id="qaGrid" data-vx-loader="isotipo" data-vx-msg="Buscando tus accesos rápidos…">
-      <div class="sk-line sk-qa"></div><div class="sk-line sk-qa"></div><div class="sk-line sk-qa"></div><div class="sk-line sk-qa"></div>
-    </div>
-
-    <div class="dash-label"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3 3 8l9 5 9-5-9-5Z"/><path d="m3 13 9 5 9-5M3 18l9 5 9-5"/></svg> Mis colecciones <span class="qa-hint">agrupa herramientas, plantillas y formatos en bloques propios</span><span class="dl-line"></span></div>
-    <div class="col-grid" id="colGrid"></div>
-
-    <div class="dash-label"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2Z"/></svg> Guías operativas <span class="dl-line"></span></div>
-    <div class="guide-grid">
-      <button class="guide-card" style="--accent:#E10098" onclick="jumpToFp('fp-efectivo')">
-        <span class="guide-ic"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M3 7l1.4-3h15.2L21 7M3 7h18v3a2.6 2.6 0 0 1-5.2 0 2.6 2.6 0 0 1-5.2 0 2.6 2.6 0 0 1-5.2 0V7ZM5 12.5V20h14v-7.5"/></svg></span>
-        <span class="guide-name">Pago en Efectivo</span>
-        <span class="guide-sub">Referencia Paynet, SBB y Suburbia paso a paso.</span>
-        <span class="guide-go">Ver guía <svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M13 6l6 6-6 6"/></svg></span>
-      </button>
-      <button class="guide-card" style="--accent:#1D4ED8" onclick="jumpToFp('fp-transfer')">
-        <span class="guide-ic"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M3 21h18M5 21V10M19 21V10M3 10l9-6 9 6M9.5 21v-5h5v5"/></svg></span>
-        <span class="guide-name">Transferencia BBVA</span>
-        <span class="guide-sub">Convenio, CLABE y pasos desde cualquier banco.</span>
-        <span class="guide-go">Ver guía <svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M13 6l6 6-6 6"/></svg></span>
-      </button>
-      <button class="guide-card" style="--accent:#0E7A4F" onclick="jumpToFp('fp-fiscal')">
-        <span class="guide-ic"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M6 2h12v20l-3-2-3 2-3-2-3 2Z"/><path d="M9 8h6M9 12h6"/></svg></span>
-        <span class="guide-name">Datos Fiscales</span>
-        <span class="guide-sub">RFC, razón social y régimen para facturación.</span>
-        <span class="guide-go">Ver guía <svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M13 6l6 6-6 6"/></svg></span>
-      </button>
-      <button class="guide-card" style="--accent:#6D28D9" onclick="jumpToFp('fp-fraudes')">
-        <span class="guide-ic"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3l8 3v5c0 5-3.4 8.5-8 10-4.6-1.5-8-5-8-10V6Z"/><path d="m9 12 2 2 4-4"/></svg></span>
-        <span class="guide-name">Prevención de Fraudes</span>
-        <span class="guide-sub">Flujo de validación Cybersource, SAF y SVL.</span>
-        <span class="guide-go">Ver guía <svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M13 6l6 6-6 6"/></svg></span>
-      </button>
-    </div>
+    <!-- Guías operativas: los mismos cuatro saltos a Formas de Pago de siempre, en una línea.
+         En la portada importan las publicaciones y las promociones; los datos de pago viven
+         en su sección y se encuentran con el buscador. -->
+    <nav class="g-guias" aria-label="Guías operativas">
+      <span class="g-guias-lbl">Guías operativas</span>
+      <button type="button" class="g-guia" onclick="jumpToFp('fp-efectivo')">Pago en efectivo</button>
+      <button type="button" class="g-guia" onclick="jumpToFp('fp-transfer')">Transferencia BBVA</button>
+      <button type="button" class="g-guia" onclick="jumpToFp('fp-fiscal')">Datos fiscales</button>
+      <button type="button" class="g-guia" onclick="jumpToFp('fp-fraudes')">Prevención de fraudes</button>
+    </nav>
   </section>
 
   <!-- ══ HERRAMIENTAS ══ -->
@@ -3306,7 +3502,7 @@ function requestData(manual){
       fxQuick.done(); fxPromos.done();
       onToolsData(mockData(), false);
       onTrazData(trazMock(), false);
-      renderPromoStrip({ status:'ok', activas:12, porTerminar:3 });
+      renderPromoStrip(promoMock());
       finishRefresh(true, manual);
     }, manual ? 700 : 380);
     return;
@@ -3610,12 +3806,191 @@ function tickClock(){
   document.getElementById('clockTime').textContent = hms;
   document.getElementById('clockDate').textContent = `${n.getDate()} ${MESES_ABR[n.getMonth()]} ${n.getFullYear()}`;
   const ht = document.getElementById('heroTime'), hd = document.getElementById('heroDate');
-  if (ht) ht.textContent = hm;
+  if (ht) pintarRelojGrande(ht, n);
   if (hd) hd.textContent = `${DIAS[n.getDay()]}, ${n.getDate()} de ${MESES[n.getMonth()]}`;
   const hg = document.getElementById('heroGreet');
   if (hg){ const h = n.getHours(); hg.textContent = h < 12 ? 'Buen día' : h < 19 ? 'Buenas tardes' : 'Buenas noches'; }
+  cieloDelTurno(n);
 }
 function pad(v){ return String(v).padStart(2,'0'); }
+
+/* ──────── PORTADA «TU TURNO»: reloj grande y cielo del turno ────────
+   El reloj de la portada es grande y lee de un vistazo con un cliente en la línea. El
+   minuto nuevo sube y empuja al anterior; con movimiento reducido, o con la pestaña en
+   segundo plano, simplemente cambia (un tween congelado dejaría el minuto a medias). */
+function pintarRelojGrande(el, n){
+  const hh = el.querySelector('.g-hh'), mm = el.querySelector('.g-mm');
+  const H = pad(n.getHours()), M = pad(n.getMinutes());
+  if (!hh || !mm){ el.textContent = H + ':' + M; return; }
+  el.setAttribute('datetime', H + ':' + M);
+  if (hh.textContent !== H) hh.textContent = H;
+  if (mm.textContent === M || mm.dataset.va === M) return;
+  if (GS() && mm.textContent !== '--' && !document.hidden){
+    mm.dataset.va = M;
+    gsap.timeline({ onComplete: () => { mm.textContent = M; delete mm.dataset.va; gsap.set(mm, { clearProps:'transform' }); } })
+      .to(mm, { yPercent:-100, duration:.22, ease:'power2.in' })
+      .call(() => { mm.textContent = M; })
+      .fromTo(mm, { yPercent:100 }, { yPercent:0, duration:.38, ease:'back.out(1.6)' });
+  } else {
+    mm.textContent = M;
+  }
+}
+
+/* El cielo del encabezado sigue la franja del turno —las mismas fronteras que el saludo
+   y que PortalFrase— y el sol (de noche, la luna) recorre un arco corto detrás de la
+   tarjeta de novedades. Los colores viven en el CSS (.is-manana/.is-tarde/.is-noche). */
+let cieloMinuto = -1;
+function cieloDelTurno(n){
+  const hero = document.getElementById('gHero'), sol = document.getElementById('gSun');
+  if (!hero || !sol) return;
+  const minuto = n.getHours() * 60 + n.getMinutes();
+  if (minuto === cieloMinuto) return;
+  cieloMinuto = minuto;
+  const h = minuto / 60;
+  const franja = h < 12 && h >= 6 ? 'manana' : h >= 12 && h < 19 ? 'tarde' : 'noche';
+  hero.classList.toggle('is-manana', franja === 'manana');
+  hero.classList.toggle('is-tarde', franja === 'tarde');
+  hero.classList.toggle('is-noche', franja === 'noche');
+  let t = Math.min(1, Math.max(0, (h - 6) / 15));
+  if (franja === 'noche') t = ((h < 6 ? h + 24 : h) - 19) / 11;
+  sol.style.left = (58 + t * 4) + '%';
+  sol.style.top  = (27 - Math.sin(Math.PI * t) * 8) + '%';
+}
+
+/* ═══════════════════════════════════════════════════════════
+   NOVEDADES · «Desde tu última visita»
+   ───────────────────────────────────────────────────────────
+   Qué hay de nuevo en publicaciones, promociones y artículos desde la última vez que
+   ESTE navegador abrió el Portal. Se guarda en localStorage (clave ventel-portal-visita):
+   la hora de la visita y, por tipo, los ids ya vistos. No hay servidor de por medio: es
+   memoria de este puesto, como el tema o los avisos descartados.
+
+   · Primera visita: todo cuenta como visto y la tarjeta no sale. No hay contra qué
+     comparar, y marcar como «nuevo» todo el Portal no le dice nada a nadie.
+   · Algo deja de ser nuevo cuando lo miras de verdad: pasar el cursor un momento,
+     enfocarlo con el teclado, abrirlo o tocarlo. El contador baja al instante.
+   · Los artículos solo llegan con sesión, así que sin sesión esa fila no existe.
+   · Las promociones no tienen ID en la hoja: se identifican por su contenido
+     (departamento, categoría, texto y vigencia). Si cambian de texto, cuentan como nuevas,
+     que es justo lo que interesa saber.
+═══════════════════════════════════════════════════════════ */
+window.Novedades = (function(){
+  const CLAVE = 'ventel-portal-visita';
+  const TIPOS = {
+    pub:   { uno:'publicación nueva',   varios:'publicaciones nuevas',   cero:'Ya viste las publicaciones nuevas', destino:'gPubs',   nombre:'publicaciones', marca:'Nueva' },
+    promo: { uno:'promoción nueva',     varios:'promociones nuevas',     cero:'Ya viste las promociones nuevas',   destino:'gPromos', nombre:'promociones',   marca:'Nueva' },
+    art:   { uno:'artículo del equipo', varios:'artículos del equipo',   cero:'Ya viste lo nuevo del equipo',      destino:'gArts',   nombre:'artículos',     marca:'Nuevo' }
+  };
+  const previa = lsGet(CLAVE, null);
+  const primera = !(previa && previa.vistos && previa.ts);
+  const inicio = Date.now();
+  const vistos = {}, nuevos = {}, llegaron = {}, conNoticias = {};
+  Object.keys(TIPOS).forEach(t => { vistos[t] = new Set((previa && previa.vistos && previa.vistos[t]) || []); nuevos[t] = []; });
+
+  function guardar(){
+    const out = {};
+    // Tope por tipo: lo visto hace meses ya no vuelve a aparecer, y la clave no crece sin fin.
+    Object.keys(TIPOS).forEach(t => { out[t] = Array.from(vistos[t]).slice(-400); });
+    lsSet(CLAVE, { ts: inicio, vistos: out });
+  }
+
+  function reportar(tipo, items){
+    if (!TIPOS[tipo]) return;
+    const lista = (items || []).filter(x => x && x.id);
+    llegaron[tipo] = true;
+    if (primera){ lista.forEach(x => vistos[tipo].add(x.id)); guardar(); return; }
+    nuevos[tipo] = lista.filter(x => !vistos[tipo].has(x.id));
+    if (nuevos[tipo].length) conNoticias[tipo] = true;
+    pintar();
+  }
+
+  function esNueva(tipo, id){ return !primera && (nuevos[tipo] || []).some(x => x.id === id); }
+
+  /* Pone la marca «Nueva» y engancha el «ya lo vi». */
+  function marcar(el, tipo, id){
+    if (!el || !esNueva(tipo, id)) return;
+    el.setAttribute('data-nov', tipo + ':' + id);
+    const nv = document.createElement('span');
+    nv.className = 'g-nv';
+    nv.textContent = TIPOS[tipo].marca;
+    const sitio = el.querySelector('.g-tk-dep');
+    const cuerpo = el.querySelector('.anc-card-body');
+    if (sitio) sitio.appendChild(nv); else if (cuerpo) cuerpo.prepend(nv); else el.prepend(nv);
+    let espera;
+    el.addEventListener('pointerenter', () => { espera = setTimeout(() => visto(tipo, id), 800); });
+    el.addEventListener('pointerleave', () => clearTimeout(espera));
+    el.addEventListener('focusin', () => visto(tipo, id));
+    el.addEventListener('click', () => visto(tipo, id));
+  }
+
+  function visto(tipo, id){
+    const i = (nuevos[tipo] || []).findIndex(x => x.id === id);
+    if (i < 0) return;
+    nuevos[tipo].splice(i, 1);
+    vistos[tipo].add(id);
+    guardar();
+    document.querySelectorAll('[data-nov="' + tipo + ':' + CSS.escape(id) + '"] .g-nv').forEach(nv => {
+      if (GS() && !document.hidden) gsap.to(nv, { scale:0, opacity:0, duration:.28, ease:'back.in(2)', onComplete: () => nv.remove() });
+      else nv.remove();
+    });
+    pintar(tipo);
+  }
+
+  function cuando(ts){
+    const d = new Date(ts), hoy = new Date(); hoy.setHours(0,0,0,0);
+    const dia = new Date(ts); dia.setHours(0,0,0,0);
+    const diff = Math.round((dia - hoy) / 864e5);
+    const hm = pad(d.getHours()) + ':' + pad(d.getMinutes());
+    if (diff === 0) return 'hoy, ' + hm;
+    if (diff === -1) return 'ayer, ' + hm;
+    if (diff > -7) return 'el ' + DIAS[d.getDay()] + ', ' + hm;
+    return 'el ' + d.getDate() + ' de ' + MESES[d.getMonth()];
+  }
+
+  function pintar(cambio){
+    const caja = document.getElementById('gSince'), filas = document.getElementById('gSinceRows');
+    if (!caja || !filas || primera) return;
+    const tipos = Object.keys(TIPOS).filter(t => llegaron[t]);
+    if (!tipos.length) return;
+    const when = document.getElementById('gSinceWhen');
+    if (when) when.textContent = cuando(previa.ts);
+    const conFila = tipos.filter(t => conNoticias[t]);
+    caja.hidden = false;
+    if (!conFila.length){
+      const nombres = tipos.map(t => TIPOS[t].nombre);
+      const texto = nombres.length > 1 ? nombres.slice(0, -1).join(', ') + ' ni ' + nombres[nombres.length - 1] : nombres[0];
+      filas.innerHTML = `<p class="g-al-dia"><b>Estás al día.</b> Nada nuevo en ${esc(texto)} desde tu última visita.</p>`;
+      return;
+    }
+    filas.innerHTML = conFila.map(t => {
+      const n = nuevos[t].length;
+      const ej = nuevos[t].slice(0, 2).map(x => x.txt).filter(Boolean).join(' · ');
+      return `<button type="button" class="g-sr${n ? '' : ' is-cero'}" data-g-ir="${t}">
+          <span class="g-sr-n">${n ? n : icon('check')}</span>
+          <span class="g-sr-t">${n ? (n === 1 ? TIPOS[t].uno : TIPOS[t].varios) : 'Al día'}<small>${esc(n ? ej : TIPOS[t].cero)}</small></span>
+          ${icon('arrow')}
+        </button>`;
+    }).join('');
+    filas.querySelectorAll('.g-sr').forEach(b => b.addEventListener('click', () => ir(b.dataset.gIr)));
+    if (cambio && GS() && !document.hidden){
+      const num = filas.querySelector('.g-sr[data-g-ir="' + cambio + '"] .g-sr-n > *, .g-sr[data-g-ir="' + cambio + '"] .g-sr-n');
+      if (num) gsap.fromTo(num, { yPercent:70, opacity:0 }, { yPercent:0, opacity:1, duration:.35, ease:'back.out(2)', clearProps:'transform,opacity' });
+    }
+  }
+
+  /* Lleva a la franja y hace destellar lo nuevo que hay en ella. */
+  function ir(tipo){
+    const destino = document.getElementById(TIPOS[tipo].destino);
+    if (!destino) return;
+    destino.scrollIntoView({ behavior: RM ? 'auto' : 'smooth', block:'start' });
+    setTimeout(() => {
+      destino.querySelectorAll('[data-nov^="' + tipo + ':"]').forEach(x => { x.classList.remove('g-flash'); void x.offsetWidth; x.classList.add('g-flash'); });
+    }, RM ? 0 : 420);
+  }
+
+  return { reportar, marcar, visto };
+})();
+
 
 /* ──────── NAVEGACIÓN ──────── */
 function switchSec(id, btn){
@@ -4132,6 +4507,7 @@ function renderArticulos(){
         mas.onclick = () => { if (window.AppUrl && AppUrl.base) AppUrl.go('articulo'); };
       }
 
+      if (window.Novedades) Novedades.reportar('art', arts.map(a => ({ id: a.id, txt: a.titulo || '' })));
       if (!arts.length) return;
       arts.forEach(a => {
         const b = document.createElement('button');
@@ -4156,6 +4532,7 @@ function renderArticulos(){
         b.addEventListener('click', () => {
           if (window.AppUrl && AppUrl.base) AppUrl.go('articulo', { art: a.id });
         });
+        if (window.Novedades) Novedades.marcar(b, 'art', a.id);
         carril.appendChild(b);
       });
     },
@@ -4301,6 +4678,11 @@ function renderAnuncios(){
     }).join('');
     const lbl = document.getElementById('anunciosLabel');
     if (lbl) lbl.style.display = tarjetas.length ? '' : 'none';
+    // Lo nuevo desde la última visita (bloque NOVEDADES): cuenta y marca las tarjetas.
+    if (window.Novedades) {
+      Novedades.reportar('pub', tarjetas.map(a => ({ id: a.id, txt: a.titulo || '' })));
+      tarjetas.forEach(a => Novedades.marcar(cards.querySelector('[data-anc-expand="' + CSS.escape(a.id) + '"]'), 'pub', a.id));
+    }
     // Los resultados de cada encuesta visible, una vez por carga (ver pedirResultados).
     tarjetas.forEach(a => { if (a.encuesta) pedirResultados(a.id); });
   }
@@ -4398,6 +4780,7 @@ function expandTarjeta(id, opts){
   root.classList.add('open');
   pubAbierta = a.id;
   pubPendiente = '';
+  if (window.Novedades) Novedades.visto('pub', a.id);
   if (!opts.sinUrl) navUrlEstado(true);   // abrir una publicación APILA: se cierra con «atrás»
   if (a.encuesta) pedirResultados(a.id);
   if (GS()) gsap.fromTo(root.querySelector('.anc-modal-card'),
@@ -4769,7 +5152,7 @@ function dismissAviso(btn){
    solo lleva al Monitor no engaña a nadie: el Monitor sí trae el dato exacto.
 
    Guardar y leer lo hace `AppRun.swr` en requestData(); aquí solo queda pintar. */
-const PROMO_CACHE_CLAVE = 'portal-promos-v1';
+const PROMO_CACHE_CLAVE = 'portal-promos-v2';   // v2: trae la lista de promociones y el calendario
 const PROMO_CACHE_TTL   = 30 * 60 * 1000;
 
 function renderPromoStrip(counts){
@@ -4777,6 +5160,18 @@ function renderPromoStrip(counts){
   if (!strip) return;
   const promoLink = document.getElementById('promoNavLink');
   const href = promoLink ? promoLink.getAttribute('href') : '#';
+  const ok = !!(counts && counts.status === 'ok');
+  /* Desde «Tu turno» el servidor manda, además de los dos contadores, las promociones
+     vigentes (las que terminan antes, primero) y el calendario comercial. Una respuesta
+     vieja —la caché de 30 min de otra versión, o un servidor sin actualizar— solo trae los
+     contadores: entonces se pinta la franja de siempre y nada se rompe. */
+  renderPromoCal(ok ? counts.eventos : null);
+  if (ok && Array.isArray(counts.promociones) && counts.promociones.length) {
+    pintarPromosLista(strip, counts, counts.promociones, href);
+    return;
+  }
+  strip.classList.remove('is-lista');
+
   const cta = `
     <a class="stat-card cta" href="${esc(href)}" target="_top" onclick="handlePromoNav(event,this)">
       <div class="stat-top"><span class="go">${icon('arrow')}</span></div>
@@ -4797,7 +5192,135 @@ function renderPromoStrip(counts){
   animateGrid('#promoStrip > *');
 }
 
+/* ── Promociones como boletos (portada «Tu turno») ──
+   Cada promoción vigente es un boleto: departamento y categoría, el texto de la promoción
+   y las marcas, y un talón que dice cuánto le queda. Las que terminan en tres días o
+   menos llevan el talón en rosa. Tocar un boleto abre el Monitor, que es donde vive el
+   detalle; aquí se decide si vale la pena ir. */
+function promoId(p){
+  // Identidad por contenido: la hoja de promociones no tiene ID propio.
+  const s = [p.direccion, p.categoria, p.promocion, p.vigencia].join('|');
+  let h = 0;
+  for (let i = 0; i < s.length; i++) h = (h * 31 + s.charCodeAt(i)) >>> 0;
+  return 'pr-' + h.toString(36);
+}
+function tituloDep(d){
+  const s = String(d || '').trim().toLowerCase();
+  return s.charAt(0).toUpperCase() + s.slice(1);
+}
+function pintarPromosLista(strip, c, lista, href){
+  strip.classList.add('is-lista');
+  const activas = Number(c.activas) || lista.length, pronto = Number(c.porTerminar) || 0;
+  const deps = [...new Set(lista.map(p => String(p.direccion || '').trim()).filter(Boolean))].slice(0, 6);
+  const boletos = lista.map(p => {
+    const d = Number(p.dias), esPronto = d <= 3;
+    let talon;
+    if (d <= 0)      talon = '<small>termina</small><span class="g-tk-d is-palabra">hoy</span>';
+    else if (d === 1) talon = '<small>termina</small><span class="g-tk-d is-palabra">mañana</span>';
+    else if (esPronto) talon = `<span class="g-tk-d">${d}</span><small>días</small>`;
+    else {
+      const f = new Date(Number(p.fin));
+      talon = isNaN(f) ? `<span class="g-tk-d">${d}</span><small>días</small>`
+                       : `<span class="g-tk-hasta">hasta el<br>${f.getDate()} ${MESES_ABR[f.getMonth()].toLowerCase()}</span>`;
+    }
+    const dep = [p.direccion, p.categoria].map(x => String(x || '').trim()).filter(Boolean).map(esc).join(' · ');
+    return `<a class="g-tk${esPronto ? ' is-pronto' : ''}" href="${esc(href)}" target="_top" onclick="handlePromoNav(event,this)"
+               data-dir="${esc(String(p.direccion || '').trim())}" data-promo-id="${promoId(p)}">
+        <span class="g-tk-bd"><span class="g-tk-dep">${dep || 'Promoción'}</span><span class="g-tk-pro">${esc(p.promocion || '')}</span>${p.marca ? `<span class="g-tk-mk">${esc(p.marca)}</span>` : ''}</span>
+        <span class="g-tk-st">${talon}</span>
+      </a>`;
+  }).join('');
+  strip.innerHTML = `
+    <div class="g-pr-head">
+      <span class="g-pr-big" id="gPromoN">${activas}</span>
+      <span class="g-pr-a">${activas === 1 ? 'activa hoy' : 'activas hoy'}</span>
+      <span class="g-pr-b">${pronto ? `<b>${pronto} ${pronto === 1 ? 'termina' : 'terminan'}</b> en 3 días o menos` : 'Ninguna termina en los próximos 3 días'}</span>
+    </div>
+    ${deps.length > 1 ? `<div class="g-chips" role="group" aria-label="Filtrar promociones por departamento">
+        <button type="button" class="g-chip" data-g-dep="*" aria-pressed="true">Todas</button>
+        ${deps.map(d => `<button type="button" class="g-chip" data-g-dep="${esc(d)}" aria-pressed="false">${esc(tituloDep(d))}</button>`).join('')}
+      </div>` : ''}
+    <div class="g-tks">${boletos}</div>
+    ${activas > lista.length ? `<a class="g-pr-mas" href="${esc(href)}" target="_top" onclick="handlePromoNav(event,this)">Ver las ${activas} en el Monitor ${icon('arrow')}</a>` : ''}`;
+  if (window.Novedades) {
+    Novedades.reportar('promo', lista.map(p => ({ id: promoId(p), txt: p.categoria || p.promocion || '' })));
+    strip.querySelectorAll('.g-tk').forEach(el => Novedades.marcar(el, 'promo', el.dataset.promoId));
+  }
+  strip.querySelectorAll('.g-chip').forEach(ch => ch.addEventListener('click', () => filtrarPromos(strip, ch)));
+  /* Entrada: el número cuenta hasta su valor y los boletos llegan desde el talón. Solo con
+     la pestaña a la vista: con el rAF congelado el número se quedaría a medias. */
+  if (GS() && !document.hidden) {
+    const num = document.getElementById('gPromoN'), n = { v: 0 };
+    const tw1 = gsap.to(n, { v: activas, duration: .9, ease: 'power2.out', onUpdate: () => { if (num) num.textContent = Math.round(n.v); } });
+    const tw2 = gsap.fromTo(strip.querySelectorAll('.g-tk'), { x: 16, opacity: 0 },
+      { x: 0, opacity: 1, duration: .45, stagger: .05, ease: 'power3.out', clearProps: 'transform,opacity' });
+    setTimeout(() => { tw1.progress(1); tw2.progress(1); }, 2200);
+  }
+}
+function filtrarPromos(strip, chip){
+  const dep = chip.dataset.gDep;
+  strip.querySelectorAll('.g-chip').forEach(x => x.setAttribute('aria-pressed', x === chip ? 'true' : 'false'));
+  const visibles = [];
+  strip.querySelectorAll('.g-tk').forEach(t => {
+    const ver = dep === '*' || t.dataset.dir === dep;
+    t.hidden = !ver;
+    if (ver) visibles.push(t);
+  });
+  if (GS() && !document.hidden && visibles.length)
+    gsap.fromTo(visibles, { y: 8, opacity: 0 }, { y: 0, opacity: 1, duration: .3, stagger: .035, ease: 'power3.out', clearProps: 'transform,opacity' });
+}
+
+/* ── Lo que viene: el calendario comercial en franjas ──
+   Las próximas cuatro semanas (y tres días hacia atrás, para ver lo que ya corre), con la
+   línea de hoy. Los eventos vienen del mismo Calendario que usa el Monitor de
+   Promociones; sin eventos, la franja no aparece. */
+function renderPromoCal(eventos){
+  const caja = document.getElementById('promoCal');
+  if (!caja) return;
+  const DIA = 864e5, hoy0 = new Date(); hoy0.setHours(0, 0, 0, 0);
+  const W0 = -3, W1 = 28, ini = hoy0.getTime() + W0 * DIA, fin = hoy0.getTime() + (W1 + 1) * DIA, ahora = Date.now();
+  const evs = (Array.isArray(eventos) ? eventos : [])
+    .map(e => ({ t: String(e.titulo || '').trim(), a: Number(e.inicio), b: Number(e.fin) - (e.esTodoElDia ? 1 : 0), d: String(e.descripcion || '').trim() }))
+    .filter(e => e.t && isFinite(e.a) && isFinite(e.b) && e.b >= hoy0.getTime() && e.a < fin)
+    .sort((x, y) => x.a - y.a)
+    .slice(0, 8);
+  if (!evs.length) { caja.hidden = true; caja.innerHTML = ''; return; }
+  const pct = ms => Math.max(0, Math.min(100, (ms - ini) / (fin - ini) * 100));
+  let eje = '';
+  for (let n = W0 + 1; n <= W1; n++) {
+    const d = new Date(hoy0.getTime() + n * DIA);
+    if (d.getDay() === 1 && Math.abs(n) > 2) eje += `<span style="left:${pct(d.getTime() + DIA / 2)}%">Lun ${d.getDate()}</span>`;
+  }
+  const carriles = [];
+  let franjas = '';
+  evs.forEach(e => {
+    const a = Math.max(ini, e.a), b = Math.min(fin, e.b);
+    let l = 0;
+    while (carriles[l] !== undefined && carriles[l] > a) l++;
+    carriles[l] = b;
+    const corre = e.a <= ahora && e.b >= ahora;
+    const fa = new Date(e.a), fb = new Date(e.b);
+    const rango = fa.getDate() + ' ' + MESES_ABR[fa.getMonth()].toLowerCase() + ' – ' + fb.getDate() + ' ' + MESES_ABR[fb.getMonth()].toLowerCase();
+    const dias = corre ? Math.ceil((e.b - ahora) / DIA) : Math.ceil((e.a - ahora) / DIA);
+    const cuando = corre ? (dias <= 1 ? 'termina hoy' : `termina en ${dias} días`) : (dias <= 1 ? 'empieza mañana' : `empieza en ${dias} días`);
+    const tip = e.t + ' · ' + rango + ' · ' + cuando + (e.d ? ' — ' + e.d.slice(0, 160) : '');
+    franjas += `<span class="g-ev ${corre ? 'is-ahora' : 'is-luego'}" style="left:${pct(a)}%;width:max(28px, calc(${pct(b) - pct(a)}% - 4px));top:${l * 48}px" title="${esc(tip)}">${esc(e.t)}</span>`;
+  });
+  caja.innerHTML = `
+    <div class="g-cal-hd"><h2>Lo que viene</h2><span>calendario comercial · próximas 4 semanas</span></div>
+    <div class="g-cal-sc"><div class="g-cal-in">
+      <div class="g-axis">${eje}</div>
+      <div class="g-lanes" style="height:${carriles.length * 48}px"><span class="g-today" style="left:${pct(ahora)}%"></span>${franjas}</div>
+    </div></div>`;
+  caja.hidden = false;
+  if (GS() && !document.hidden) {
+    const tw = gsap.fromTo(caja.querySelectorAll('.g-ev'), { scaleX: 0 }, { scaleX: 1, duration: .8, stagger: .1, ease: 'power3.out', clearProps: 'transform' });
+    setTimeout(() => tw.progress(1), 2400);
+  }
+}
+
 /* ── Reporte de enlace caído → hoja "Reportes" ── */
+
 function reportLink(btn){
   const payload = { seccion: btn.dataset.sec || '', nombre: btn.dataset.name || '', enlace: btn.dataset.link || '' };
   btn.classList.add('sent');
@@ -7048,7 +7571,31 @@ function trazMock(){
 function empty(label){ return `<div class="empty-card"><span class="big">${icon('search')}</span><h3>Sin resultados</h3><p>No se encontraron ${label} disponibles.</p></div>`; }
 
 /* ──────── MOCK DATA (preview fuera de GAS) ──────── */
+/* Promociones y calendario de muestra para la vista de diseño (fuera de Apps Script):
+   la misma forma que devuelve fetchPromoCounts, con fechas relativas a hoy. */
+function promoMock(){
+  const DIA = 864e5, hoy = new Date(); hoy.setHours(0, 0, 0, 0);
+  const p = (direccion, categoria, promocion, marca, n) =>
+    ({ direccion, categoria, promocion, marca, vigencia: 'muestra ' + n, fin: hoy.getTime() + n * DIA + DIA - 1000, dias: n });
+  return {
+    status: 'ok', activas: 12, porTerminar: 3,
+    promociones: [
+      p('HOGAR', 'Línea blanca', 'Hasta 58% de descuento', 'Whirlpool, Mabe', 1),
+      p('MUJER', 'Bolsas y accesorios', '30% de descuento adicional en rebajas', 'Marketplace', 2),
+      p('BELLEZA', 'Fragancias', 'Hasta 35% + regalo en compras mayores a $1,500', 'Carolina Herrera, Dior', 3),
+      p('MULTIMEDIA', 'Pantallas', 'Hasta 55% de descuento + 13 MSI', 'Samsung, LG, Hisense', 9),
+      p('MULTIMEDIA', 'Laptops y cómputo', 'Hasta 40% de descuento o 30% + 18 MSI', 'Apple, HP, Lenovo', 13),
+      p('DEPORTES', 'Tenis y ropa deportiva', 'Hasta 45% de descuento', 'Nike, Adidas', 20)
+    ],
+    eventos: [
+      { titulo: 'GRADUACIONES: SL 15% ME O 9 MSI DILISA', inicio: hoy.getTime() - DIA, fin: hoy.getTime() + 7 * DIA, esTodoElDia: true },
+      { titulo: 'LIFESTYLE: HL HASTA 20% DE DESC.', inicio: hoy.getTime() - DIA, fin: hoy.getTime() + 14 * DIA, esTodoElDia: true },
+      { titulo: 'GRAN BARATA: HASTA 40% DE DESC', inicio: hoy.getTime() + 13 * DIA, fin: hoy.getTime() + 29 * DIA, esTodoElDia: true, descripcion: 'Preventa los primeros 4 días.' }
+    ]
+  };
+}
 function mockData(){
+
   return {
     status:'ok',
     anuncios:[

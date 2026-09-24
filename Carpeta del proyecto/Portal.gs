@@ -430,21 +430,72 @@ function buildApplicationData_() {
 
 // ── CONTADORES DE PROMOS (widget del dashboard en Index.html) ─────────────────
 
+/**
+ * Lo que la portada del Portal enseña de promociones.
+ *
+ * Los dos contadores de siempre (`activas`, `porTerminar`) siguen igual y con el mismo
+ * significado. Desde la portada «Tu turno» se suman dos campos, sin quitar ninguno, para
+ * que un cliente viejo siga funcionando contra este servidor y uno nuevo contra el viejo:
+ *
+ *   promociones → las vigentes, las que terminan antes primero (hasta PROMO_PORTADA_TOPE),
+ *                 con los días que les quedan calculados aquí con el MISMO parseVigencia_
+ *                 que decide si están activas. El cliente no vuelve a interpretar fechas.
+ *   eventos     → el calendario comercial que ya se lee para el Monitor, recortado a lo
+ *                 que toca las próximas cuatro semanas.
+ *
+ * Todo sale de fetchApplicationData(), que ya está en caché: no hay lectura nueva de hojas
+ * ni del Calendario.
+ */
+var PROMO_PORTADA_TOPE = 8;
+
 function fetchPromoCounts() {
   try {
     const data = fetchApplicationData(); // ya cacheado
     const now = new Date();
+    const DIA = 86400000;
     let activas = 0, porTerminar = 0;
+    const vigentes = [];
 
     (data.promociones || []).forEach(function (p) {
       const r = parseVigencia_(p.vigencia, now);
       if (r && now >= r.start && now <= r.end) {
         activas++;
-        if ((r.end - now) / 86400000 <= 3) porTerminar++;
+        if ((r.end - now) / DIA <= 3) porTerminar++;
+        vigentes.push({
+          direccion: String(p.direccion || '').trim(),
+          categoria: String(p.categoria || '').trim(),
+          promocion: String(p.promocion || '').trim(),
+          marca:     String(p.marca || '').trim(),
+          origen:    String(p.origen || ''),
+          vigencia:  String(p.vigencia || ''),
+          fin:       r.end.getTime(),
+          // 0 = termina hoy, 1 = mañana… (el fin es a las 23:59:59 de su último día)
+          dias:      Math.floor((r.end - now) / DIA)
+        });
       }
     });
+    vigentes.sort(function (a, b) { return a.fin - b.fin; });
 
-    return { status: 'ok', activas: activas, porTerminar: porTerminar };
+    const desde = now.getTime() - DIA, hasta = now.getTime() + 28 * DIA;
+    const eventos = (data.eventos || [])
+      .filter(function (e) { return e && e.fin >= desde && e.inicio <= hasta; })
+      .sort(function (a, b) { return a.inicio - b.inicio; })
+      .slice(0, 10)
+      .map(function (e) {
+        return {
+          titulo:      String(e.titulo || ''),
+          inicio:      e.inicio,
+          fin:         e.fin,
+          esTodoElDia: !!e.esTodoElDia,
+          descripcion: String(e.descripcion || '').slice(0, 240)
+        };
+      });
+
+    return {
+      status: 'ok', activas: activas, porTerminar: porTerminar,
+      promociones: vigentes.slice(0, PROMO_PORTADA_TOPE),
+      eventos: eventos
+    };
   } catch (error) {
     return { status: 'error', error: error.toString(), activas: 0, porTerminar: 0 };
   }
