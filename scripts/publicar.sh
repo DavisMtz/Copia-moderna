@@ -65,11 +65,22 @@ gris "Publicando como: ${CUENTA}"
 gris "Proyecto:        $(basename "${PROYECTO}")"
 echo
 
+# ── Build (Fase 1 del doc 16) ─────────────────────────────────────────────
+# No se sube la fuente sino build/, con los .gs sin comentarios y las mismas
+# líneas. Es el mismo build que corren el hook y el flujo de GitHub.
+if [ ! -d "${RAIZ}/node_modules/acorn" ]; then
+  rojo "Faltan las dependencias del build."
+  rojo "Instálalas una vez con:  (cd \"${RAIZ}\" && npm ci)"
+  exit 1
+fi
+node "${RAIZ}/scripts/build.js"
+
 # ── Subida ────────────────────────────────────────────────────────────────
 # --force evita la pregunta interactiva del manifiesto. Lo que sube y lo que no
-# lo decide «Carpeta del proyecto/.claspignore», igual que en el flujo de GitHub:
-# este script no aplica reglas propias, para que local y CI no puedan divergir.
-cd "${PROYECTO}"
+# lo decide «Carpeta del proyecto/.claspignore» (el build lo copia a build/),
+# igual que en el flujo de GitHub: este script no aplica reglas propias, para
+# que local y CI no puedan divergir.
+cd "${RAIZ}/build"
 clasp push --force
 
 verde "✓ Código subido. La URL /dev ya sirve esta versión."

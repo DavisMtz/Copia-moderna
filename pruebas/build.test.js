@@ -126,6 +126,14 @@ const r2 = correr(['--fuente', fuenteRota, '--salida', salidaRota]);
 ok('un .gs roto hace fallar el build', r2.codigo !== 0, r2.salida);
 ok('…y no deja carpeta de salida (ni el build anterior)', !fs.existsSync(salidaRota));
 
+// Con el Admin.gs real al lado, la lectura de marcas recorre también el archivo roto: pasó en
+// la prueba del hook que eso reventaba el build y dejaba la salida a medias.
+fs.copyFileSync(path.join(FUENTE, 'Admin.gs'), path.join(fuenteRota, 'Admin.gs'));
+fs.mkdirSync(salidaRota);
+const r2b = correr(['--fuente', fuenteRota, '--salida', salidaRota]);
+ok('un .gs roto junto a Admin.gs falla con su motivo, sin reventar', r2b.codigo !== 0 && /· Roto\.gs: no se pudo leer/.test(r2b.salida) && !/at .*acorn/.test(r2b.salida), r2b.salida);
+ok('…y tampoco deja carpeta de salida', !fs.existsSync(salidaRota));
+
 fs.writeFileSync(path.join(fuenteRota, 'Roto.gs'), 'function b() {}\n');
 fs.writeFileSync(path.join(fuenteRota, 'suelto.js'), 'var z;');
 const r3 = correr(['--fuente', fuenteRota, '--salida', salidaRota]);

@@ -137,9 +137,12 @@ function marcasDeVersion(adminGs) {
 }
 
 // El texto de una función global tal como lo devolvería fn.toString() en Apps Script.
+// Un archivo que no se deja leer se salta: ese error ya lo reporta la limpieza.
 function textoDeFuncion(archivos, nombre) {
   for (const s of archivos) {
-    for (const n of acorn.parse(s, OPC_ACORN).body) {
+    let cuerpo;
+    try { cuerpo = acorn.parse(s, OPC_ACORN).body; } catch (e) { continue; }
+    for (const n of cuerpo) {
       if (n.type === 'FunctionDeclaration' && n.id && n.id.name === nombre) return s.slice(n.start, n.end);
     }
   }
@@ -184,7 +187,16 @@ function construir(opc) {
 
   fs.rmSync(salida, { recursive: true, force: true });
   fs.mkdirSync(salida, { recursive: true });
+  // Pase lo que pase a partir de aquí, un fallo no puede dejar una salida a medias.
+  try {
+    return generar(fuente, salida, gs, copiar, errores, opc);
+  } catch (e) {
+    fs.rmSync(salida, { recursive: true, force: true });
+    return { ok: false, errores: errores.concat(['error inesperado del build: ' + (e && e.stack || e)]) };
+  }
+}
 
+function generar(fuente, salida, gs, copiar, errores, opc) {
   let bytesAntes = 0, bytesDespues = 0;
   const limpios = {};
   for (const f of gs) {

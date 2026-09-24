@@ -21,6 +21,9 @@ on:
     branches: [main]
     paths:
       - 'Carpeta del proyecto/**'
+      - 'scripts/build.js'
+      - 'package.json'
+      - 'package-lock.json'
       - '.github/workflows/apps-script-sync.yml'
   workflow_dispatch:
 
@@ -47,6 +50,15 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: '20'
+
+      # Fase 1 del doc 16: no se sube la fuente sino build/, con los .gs sin
+      # comentarios (mismas lineas). Va ANTES de las credenciales a proposito:
+      # aunque falte el secreto, cada push comprueba que el build sigue sano.
+      - name: Instalar las dependencias del build
+        run: npm ci
+
+      - name: Compilar (build/)
+        run: node scripts/build.js
 
       # Version fija a proposito. clasp cambio el formato de credenciales y el
       # nombre de varios comandos entre la 2.x y la 3.x; si esto flotara en
@@ -89,7 +101,7 @@ jobs:
 
       - name: Subir el codigo
         if: steps.cred.outputs.hay == 'si'
-        working-directory: 'Carpeta del proyecto'
+        working-directory: build
         run: clasp push --force
 
       # Opcional. `clasp push` deja el codigo nuevo en el proyecto y en la URL
@@ -99,7 +111,7 @@ jobs:
       # ese despliegue a ella. Si no lo defines, el paso se salta y lo dice.
       - name: Actualizar el despliegue de produccion
         if: steps.cred.outputs.hay == 'si'
-        working-directory: 'Carpeta del proyecto'
+        working-directory: build
         env:
           DEPLOYMENT_ID: ${{ secrets.APPS_SCRIPT_DEPLOYMENT_ID }}
         run: |
