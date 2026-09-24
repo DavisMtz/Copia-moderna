@@ -991,7 +991,7 @@ a:focus-visible,button:focus-visible,input:focus-visible,[tabindex]:focus-visibl
 .pub-enc-q{font-size:.92rem;font-weight:700;line-height:1.35;color:var(--ink);margin:.35rem 0 .6rem}
 .pub-enc-ops{display:flex;flex-direction:column;gap:.4rem}
 .pub-op{width:100%;text-align:left;font:inherit;font-size:.85rem;font-weight:600;color:var(--ink);
-  background:var(--card,#fff);border:1.5px solid var(--line,#e5e7eb);border-radius:10px;
+  background:var(--surface);border:1.5px solid var(--line,#e5e7eb);border-radius:10px;
   padding:.5rem .75rem;cursor:pointer;transition:border-color .2s,background .2s,transform .2s}
 .pub-op:hover:not(:disabled){border-color:var(--brand,#E10098);background:var(--brand-tint);transform:translateX(2px)}
 .pub-op:disabled{opacity:.55;cursor:progress}
@@ -1017,7 +1017,7 @@ a:focus-visible,button:focus-visible,input:focus-visible,[tabindex]:focus-visibl
 /* ── Anuncio MODAL (pop-up de bienvenida / tarjeta expandida) ── */
 .anc-modal-overlay{position:fixed;inset:0;z-index:1200;display:none;align-items:center;justify-content:center;padding:1.2rem;background:rgba(15,18,30,.55);backdrop-filter:blur(3px)}
 .anc-modal-overlay.open{display:flex}
-.anc-modal-card{position:relative;width:min(440px,100%);background:var(--card,#fff);border-radius:20px;overflow:hidden;box-shadow:0 24px 60px rgba(0,0,0,.35)}
+.anc-modal-card{position:relative;width:min(440px,100%);background:var(--surface);border-radius:20px;overflow:hidden;box-shadow:0 24px 60px rgba(0,0,0,.35)}
 .anc-modal-img{height:180px;background-size:cover;background-position:center;background-color:#eef0f5}
 /* Imagen del modal: se prioriza mostrarla COMPLETA según su relación de aspecto */
 .anc-modal-photo{display:block;width:100%;max-height:60vh;height:auto;object-fit:contain;background:#0e1119}
@@ -1232,6 +1232,78 @@ a:focus-visible,button:focus-visible,input:focus-visible,[tabindex]:focus-visibl
 .g-guias-lbl{font-weight:700;color:var(--ink-soft)}
 .g-guia{background:none;border:0;padding:.3rem 0;font:inherit;font-weight:650;color:var(--ink);border-bottom:1.5px solid transparent;cursor:pointer;transition:border-color .15s,color .15s}
 .g-guia:hover{border-color:var(--brand);color:var(--g-ink-brand)}
+
+
+/* — Publicaciones (tarjetas de la hoja «Anuncios») con el lenguaje de «Tu turno» —
+   El tono de la publicación ya no es un filete de color arriba: vive en la etiqueta.
+   La principal sin imagen lleva un cartel tipográfico con su título; con imagen, la
+   imagen va a la izquierda. Pie común: quién la publicó y «Copiar enlace». */
+#sec-inicio .anc-card{border:1px solid var(--line);box-shadow:none;border-radius:20px;
+  transition:transform .25s cubic-bezier(.16,1,.3,1),border-color .15s,box-shadow .25s}
+#sec-inicio .anc-card:hover{transform:translateY(-2px);border-color:var(--g-linea);box-shadow:0 22px 40px -30px rgba(27,35,48,.45)}
+#sec-inicio .anc-card-body{padding:1.15rem 1.25rem 1rem}
+#sec-inicio .anc-card-title{font-family:var(--f-display);font-weight:800;font-size:1.12rem;line-height:1.2;letter-spacing:-.005em}
+#sec-inicio .anc-card.es-principal .anc-card-title{font-size:1.6rem;line-height:1.08;letter-spacing:-.01em}
+#sec-inicio .anc-card-vig{color:var(--ink-soft);font-size:.82rem;margin-top:.45rem}
+#sec-inicio .anc-card-desc{font-size:.9rem;line-height:1.5;margin-top:.5rem}
+#sec-inicio .anc-card.con-img:not(.es-principal) .anc-card-img{height:150px}
+.anc-card-tags{display:flex;align-items:center;flex-wrap:wrap;gap:.5rem;margin-bottom:.5rem}
+.anc-card-tags .anc-card-tag{margin:0}
+.anc-card-tags .g-nv{margin:0}
+.anc-card-tag.es-tono{background:var(--surface-2);color:var(--ink-soft)}
+[data-theme="carbon"] .anc-card-tag:not(.es-tono){color:#F46BC6}
+[data-theme="carbon"] .anc-card.info  .anc-card-tag.es-tono{color:#93C5FD}
+[data-theme="carbon"] .anc-card.ok    .anc-card-tag.es-tono{color:#4ADE80}
+[data-theme="carbon"] .anc-card.warn  .anc-card-tag.es-tono{color:#FBBF24}
+[data-theme="carbon"] .anc-card.alert .anc-card-tag.es-tono{color:#FCA5A5}
+[data-theme="carbon"] .pub-enc-tag{color:#F46BC6}
+.anc-card.info  .anc-card-tag.es-tono{background:var(--info-bg);color:var(--info)}
+.anc-card.ok    .anc-card-tag.es-tono{background:var(--ok-bg);color:var(--ok)}
+.anc-card.warn  .anc-card-tag.es-tono{background:var(--warn-bg);color:var(--warn)}
+.anc-card.alert .anc-card-tag.es-tono{background:var(--alert-bg);color:var(--alert)}
+.anc-card.marca .anc-card-tag.es-tono{background:var(--brand-tint);color:var(--g-ink-brand,var(--brand-deep))}
+.anc-card-body > :nth-last-child(2){margin-bottom:.95rem}
+.anc-card-pie{display:flex;align-items:center;flex-wrap:wrap;gap:.5rem .8rem;margin-top:auto;padding-top:.75rem;border-top:1px solid var(--line);font-size:.8rem;color:var(--ink-soft)}
+.anc-card-quien{display:inline-flex;align-items:center;gap:.5rem;min-width:0}
+.anc-card-quien b{color:var(--ink);font-weight:700}
+.anc-card-av{width:26px;height:26px;border-radius:50%;flex-shrink:0;background:var(--surface-2);color:var(--ink);display:grid;place-items:center;font-size:.66rem;font-weight:800;letter-spacing:.02em}
+.anc-card-enlace{margin-left:auto;display:inline-flex;align-items:center;gap:.35rem;background:none;border:0;border-radius:8px;padding:.3rem .5rem;
+  font:inherit;font-size:.8rem;font-weight:700;color:var(--ink-soft);cursor:pointer;white-space:nowrap;transition:background .15s,color .15s}
+.anc-card-enlace:hover{background:var(--surface-2);color:var(--ink)}
+.anc-card-enlace .ic{width:14px;height:14px}
+/* Cartel tipográfico: solo el título, en el rosa de la marca y con trama de cartel de ofertas */
+.anc-cartel{position:relative;overflow:hidden;background:var(--brand);color:#fff;display:flex;align-items:flex-end;padding:1.25rem 1.35rem;min-height:220px}
+[data-theme="carbon"] .anc-cartel{background:#B8007C}
+.anc-cartel::before{content:"";position:absolute;inset:-40%;background:repeating-linear-gradient(-32deg,rgba(255,255,255,.09) 0 22px,transparent 22px 54px);
+  transition:transform 1.2s cubic-bezier(.16,1,.3,1)}
+.anc-card:hover .anc-cartel::before{transform:translateX(30px)}
+.anc-cartel span{position:relative;font-family:var(--f-display);font-weight:900;font-stretch:66%;text-transform:uppercase;line-height:.88;
+  letter-spacing:-.005em;overflow-wrap:anywhere;display:-webkit-box;-webkit-line-clamp:4;-webkit-box-orient:vertical;overflow:hidden}
+.anc-cartel.tam-s span{font-size:4.2rem}
+.anc-cartel.tam-m span{font-size:3.1rem}
+.anc-cartel.tam-l span{font-size:2.3rem}
+#sec-inicio .anc-card.es-principal:has(> .anc-cartel){flex-direction:row}
+#sec-inicio .anc-card.es-principal > .anc-cartel{flex:0 0 42%;min-height:260px}
+/* Encuesta dentro de la tarjeta y del modal */
+#sec-inicio .pub-enc,.anc-modal-card .pub-enc{border-top:0;padding-top:0}
+#sec-inicio .pub-op,.anc-modal-card .pub-op{border-radius:12px;padding:.62rem .85rem}
+/* Vista ampliada: dos columnas en pantallas anchas, imagen o cartel a la izquierda */
+.anc-modal-card .anc-cartel{min-height:220px}
+.anc-modal-card.is-expand .anc-modal-body h3{font-family:var(--f-display);font-size:1.65rem;line-height:1.1;letter-spacing:-.01em}
+@media (min-width:820px){
+  .anc-modal-card.is-expand.g-dos{width:min(900px,100%);display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);max-height:88vh}
+  .anc-modal-card.is-expand.g-dos > .anc-modal-imgwrap,
+  .anc-modal-card.is-expand.g-dos > .anc-cartel{height:100%;max-height:88vh;min-height:380px}
+  .anc-modal-card.is-expand.g-dos .anc-modal-photo{max-height:88vh}
+  .anc-modal-card.is-expand.g-dos .anc-modal-body{max-height:88vh;overflow:auto;padding:2rem 1.8rem 1.8rem}
+  .anc-modal-card.is-expand.g-dos .anc-cartel.tam-s span{font-size:5.2rem}
+}
+@media (max-width:720px){
+  #sec-inicio .anc-card.es-principal:has(> .anc-cartel){flex-direction:column}
+  #sec-inicio .anc-card.es-principal > .anc-cartel{flex-basis:auto;min-height:170px}
+  .anc-cartel.tam-s span{font-size:3.2rem}
+}
+@media (prefers-reduced-motion: reduce){ .anc-cartel::before{transition:none} #sec-inicio .anc-card{transition:none} }
 
 @media (max-width:1180px){ .g-main,.g-low{grid-template-columns:minmax(0,1fr)} }
 @media (max-width:720px){
@@ -3913,8 +3985,8 @@ window.Novedades = (function(){
     nv.className = 'g-nv';
     nv.textContent = TIPOS[tipo].marca;
     const sitio = el.querySelector('.g-tk-dep');
-    const cuerpo = el.querySelector('.anc-card-body');
-    if (sitio) sitio.appendChild(nv); else if (cuerpo) cuerpo.prepend(nv); else el.prepend(nv);
+    const tags = el.querySelector('.anc-card-tags'), cuerpo = el.querySelector('.anc-card-body');
+    if (sitio) sitio.appendChild(nv); else if (tags) tags.appendChild(nv); else if (cuerpo) cuerpo.prepend(nv); else el.prepend(nv);
     let espera;
     el.addEventListener('pointerenter', () => { espera = setTimeout(() => visto(tipo, id), 800); });
     el.addEventListener('pointerleave', () => clearTimeout(espera));
@@ -4261,7 +4333,21 @@ function togglePin(name){
 /* ── Anuncios del equipo (hoja "Anuncios" — JSON multi-formato) ── */
 function anuTone(t){ return ['info','warn','alert','ok'].includes(t) ? t : 'info'; }
 function safeUrl(u){ u = String(u || '').trim(); return /^https?:\/\//i.test(u) ? u : ''; }
+/* Cartel tipográfico para una publicación sin imagen: su título, en grande, en el rosa de
+   la marca. No inventa nada —solo lo que el publicador escribió— y el tamaño de letra se
+   ajusta al largo para que un título largo no se salga. */
+function cartelHtml(a){
+  const t = String((a && a.titulo) || 'Publicación').trim();
+  const tam = t.length <= 14 ? 's' : t.length <= 28 ? 'm' : 'l';
+  return `<div class="anc-cartel tam-${tam}" aria-hidden="true"><span>${esc(t)}</span></div>`;
+}
+/** Iniciales para el avatar de quien publicó: «Coordinación Ventel» → «CV». */
+function iniciales(nombre){
+  const p = String(nombre || '').trim().split(/\s+/).filter(Boolean);
+  return ((p[0] || '').charAt(0) + (p[1] || '').charAt(0)).toUpperCase() || '·';
+}
 function ctaHtml(a){
+
   const u  = safeUrl(a.ctaUrl),  u2 = safeUrl(a.cta2Url);
   let btns = '';
   if (u  && a.ctaTexto)  btns += `<a class="anc-cta" href="${u}" target="_blank" rel="noopener">${esc(a.ctaTexto)} ${icon('external')}</a>`;
@@ -4661,18 +4747,26 @@ function renderAnuncios(){
       const img = safeUrl(a.imagenUrl);
       const tone = anuTone(a.tono);
       const principal = esPrincipal(a, i);
+      const quien = a.responsable ? String(a.responsable).trim() : '';
+      /* Lenguaje de «Tu turno»: etiquetas arriba (Principal / Especial en el color de su
+         tono), y un pie con quién la publicó y «Copiar enlace» (lo atiende el mismo
+         data-anc-share del modal, antes de ampliar la tarjeta). La principal sin imagen
+         lleva un cartel con su título en vez de quedarse en texto plano. */
       return `
-      <article class="anc-card ${tone}${principal ? ' es-principal' : ' es-especial'}" data-anc-expand="${esc(a.id)}" tabindex="0" role="button" aria-label="Ampliar: ${esc(a.titulo || 'anuncio')}">
+      <article class="anc-card ${tone}${principal ? ' es-principal' : ' es-especial'}${img ? ' con-img' : ''}" data-anc-expand="${esc(a.id)}" tabindex="0" role="button" aria-label="Ampliar: ${esc(a.titulo || 'anuncio')}">
         <span class="anc-card-zoom" aria-hidden="true">${icon('maximize')}</span>
-        ${img ? `<div class="anc-card-img" style="background-image:url('${img}')"></div>` : ''}
+        ${img ? `<div class="anc-card-img" style="background-image:url('${img}')"></div>` : (principal ? cartelHtml(a) : '')}
         <div class="anc-card-body">
-          ${principal ? `<span class="anc-card-tag">${icon('star')} Principal</span>` : ''}
+          <div class="anc-card-tags">${principal ? `<span class="anc-card-tag">${icon('star')} Principal</span>` : '<span class="anc-card-tag es-tono">Especial</span>'}</div>
           <div class="anc-card-title">${esc(a.titulo || '')}</div>
           ${a.vigencia ? `<div class="anc-card-vig">${icon('calendar')} ${esc(a.vigencia)}</div>` : ''}
           ${a.descripcion ? `<p class="anc-card-desc">${esc(a.descripcion)}</p>` : ''}
           ${encuestaHtml(a)}
           ${ctaHtml(a)}
-          ${pubResponsableHtml(a)}
+          <div class="anc-card-pie">
+            ${quien ? `<span class="anc-card-quien" title="Publicado por ${esc(quien)}"><span class="anc-card-av" aria-hidden="true">${esc(iniciales(quien))}</span><span>Publicó <b>${esc(quien)}</b></span></span>` : ''}
+            <button type="button" class="anc-card-enlace" data-anc-share="${esc(a.id)}" aria-label="Copiar enlace de «${esc(a.titulo || 'la publicación')}»">${icon('copy')}<span>Enlace</span></button>
+          </div>
         </div>
       </article>`;
     }).join('');
@@ -4761,9 +4855,9 @@ function expandTarjeta(id, opts){
   const img = safeUrl(a.imagenUrl);
   const cuerpo = a.descripcion || a.cuerpo || a.mensaje || '';
   root.innerHTML = `
-    <div class="anc-modal-card is-expand" role="dialog" aria-modal="true" aria-label="${esc(a.titulo || 'Anuncio')}">
+    <div class="anc-modal-card is-expand g-dos" role="dialog" aria-modal="true" aria-label="${esc(a.titulo || 'Anuncio')}">
       <button class="anc-modal-close" aria-label="Cerrar">${icon('close')}</button>
-      ${ancImgHTML(img, a.titulo)}
+      ${img ? ancImgHTML(img, a.titulo) : cartelHtml(a)}
       <div class="anc-modal-body">
         ${pubAvisoEstadoHtml(a)}
         ${a.titulo ? `<h3>${esc(a.titulo)}</h3>` : ''}
@@ -4783,8 +4877,23 @@ function expandTarjeta(id, opts){
   if (window.Novedades) Novedades.visto('pub', a.id);
   if (!opts.sinUrl) navUrlEstado(true);   // abrir una publicación APILA: se cierra con «atrás»
   if (a.encuesta) pedirResultados(a.id);
-  if (GS()) gsap.fromTo(root.querySelector('.anc-modal-card'),
-    { opacity:0, y:14, scale:.97 }, { opacity:1, y:0, scale:1, duration:.24, ease:'power3.out' });
+  /* La publicación crece desde su propia tarjeta (si está en pantalla): se entiende de
+     dónde salió. Desde un enlace o el buscador no hay tarjeta de origen y entra como antes.
+     Con la pestaña en segundo plano no se anima: un tween congelado dejaría el modal a medias. */
+  const mc = root.querySelector('.anc-modal-card');
+  const origen = document.querySelector('.anc-card[data-anc-expand="' + (window.CSS && CSS.escape ? CSS.escape(a.id) : a.id) + '"]');
+  if (GS() && !document.hidden) {
+    if (origen && origen.offsetParent) {
+      const r = origen.getBoundingClientRect(), m = mc.getBoundingClientRect();
+      const t1 = gsap.fromTo(mc, { x: r.left - m.left, y: r.top - m.top, scaleX: r.width / m.width, scaleY: r.height / m.height, transformOrigin: '0 0', opacity: .6 },
+        { x: 0, y: 0, scaleX: 1, scaleY: 1, opacity: 1, duration: .5, ease: 'power3.out', clearProps: 'transform,opacity' });
+      const t2 = gsap.fromTo(mc.querySelectorAll('.anc-modal-body > *'), { y: 10, opacity: 0 },
+        { y: 0, opacity: 1, duration: .32, stagger: .04, delay: .2, ease: 'power3.out', clearProps: 'transform,opacity' });
+      setTimeout(() => { t1.progress(1); t2.progress(1); }, 1400);
+    } else {
+      gsap.fromTo(mc, { opacity:0, y:14, scale:.97 }, { opacity:1, y:0, scale:1, duration:.24, ease:'power3.out' });
+    }
+  }
 }
 
 /* Abre la publicación de un enlace compartido (?pub=…).
@@ -7601,7 +7710,9 @@ function mockData(){
     anuncios:[
       { id:'anc-demo-1', formato:'banner', tono:'info', mensaje:'Vista previa con datos de ejemplo — los anuncios reales se crean desde el menú "📢 Anuncios" de la hoja.' },
       { id:'anc-demo-2', formato:'destacado', tono:'ok', icono:'truck', titulo:'Nueva política de envíos', cuerpo:'Ya está disponible la guía actualizada de tiempos de entrega para Marketplace.', ctaTexto:'Ver guía', ctaUrl:'https://www.liverpool.com.mx', cta2Texto:'Preguntas', cta2Url:'https://www.liverpool.com.mx' },
-      { id:'anc-demo-3', formato:'tarjeta', tono:'warn', titulo:'Hot Sale 2026', descripcion:'Prepara tus herramientas: arranca la campaña con descuentos en todas las categorías.', vigencia:'25 al 31 de mayo', imagenUrl:'', ctaTexto:'Abrir promociones', ctaUrl:'https://www.liverpool.com.mx' }
+      { id:'anc-demo-3', formato:'tarjeta', tono:'warn', titulo:'Hot Sale 2026', descripcion:'Prepara tus herramientas: arranca la campaña con descuentos en todas las categorías.', vigencia:'25 al 31 de mayo', imagenUrl:'', ctaTexto:'Abrir promociones', ctaUrl:'https://www.liverpool.com.mx', responsable:'Coordinación Ventel' },
+      { id:'anc-demo-4', formato:'tarjeta', tono:'info', titulo:'¿En qué horario prefieres la capacitación?', descripcion:'Ayúdanos a elegir el horario de la próxima capacitación del equipo.', vigencia:'Hasta el viernes', imagenUrl:'', responsable:'Coordinación Ventel', encuesta:{ pregunta:'¿Qué horario te acomoda mejor?', opciones:['9:00 a 10:00','13:00 a 14:00','17:00 a 18:00'], cierre:'2099-12-31' } },
+      { id:'anc-demo-5', formato:'tarjeta', tono:'ok', titulo:'Nueva guía de entregas Big Ticket', descripcion:'Tiempos por zona, qué decirle al cliente cuando la ventana cambia y a quién escalar.', vigencia:'Hasta el 30 de septiembre', imagenUrl:'', responsable:'Jorge López' }
     ],
     herramientas:[
       { nombre:'SOMS', enlace:'', comoAcceder:'VPN requerida + usuario corporativo', descripcion:'Sistema Operativo de Manejo de Servicios. Gestiona pedidos, envíos y operaciones diarias.', claves:'' },
