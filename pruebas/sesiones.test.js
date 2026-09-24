@@ -213,12 +213,66 @@ ok('un error sigue llegando como error, no envuelto (SESION_EXPIRADA intacto)', 
 err = lanza(() => ejecucion(() => C.secEjecutar(s8.llave, 'eval', ['1'], reloj, 1)));
 ok('medir no abre el canal a nada nuevo', /no expone la función/.test(err || ''), err);
 
+/* ── 8c · Varias llamadas en una sola ejecución (F3b) ─────────────────── */
+console.log('\n8c · secEjecutarLote');
+vm.runInContext(`
+  var PRUEBA_CORRIDAS = [];
+  function pruebaEco(x) { PRUEBA_CORRIDAS.push(x); return { eco: x, entrada: SEC_ENTRADA_ }; }
+  function pruebaFalla() { PRUEBA_CORRIDAS.push('falla'); throw new Error('se cayó a propósito'); }
+  var __validaciones = 0, __sesValidarOriginal = sesValidar_;
+  sesValidar_ = function (llave, actividad) { __validaciones++; return __sesValidarOriginal(llave, actividad); };
+`, C);
+const corridas = () => vm.runInContext('PRUEBA_CORRIDAS.slice()', C);
+const validaciones = () => vm.runInContext('__validaciones', C);
+const reiniciarLote = () => vm.runInContext('PRUEBA_CORRIDAS = []; __validaciones = 0;', C);
+const lote = (llave, items, actividad) => ejecucion(() => C.secEjecutarLote(llave, items, actividad));
+const s8c = ejecucion(() => C.sesParaCliente_('ana.asesora@liverpool.com.mx'));
+
+reiniciarLote();
+let rl = lote(s8c.llave, [['pruebaQuienSoy', ['']], ['pruebaEco', ['a']], ['pruebaEco', ['b']]], reloj);
+ok('tres llamadas → tres respuestas, en el mismo orden', Array.isArray(rl) && rl.length === 3 &&
+  rl[0].v.email === 'ana.asesora@liverpool.com.mx' && rl[1].v.eco === 'a' && rl[2].v.eco === 'b', rl);
+ok('cada una con su tiempo de servidor', rl.every((x) => typeof x.ms === 'number' && x.ms >= 0), rl);
+ok('la sesión se valida UNA vez para todo el lote', validaciones() === 1, validaciones());
+ok('dentro del lote se entra como por secEjecutar (los candados internos no cambian)', rl[1].v.entrada === 'secEjecutar', rl[1].v);
+
+reiniciarLote();
+rl = lote(s8c.llave, [['pruebaEco', ['antes']], ['pruebaFalla', []], ['pruebaEco', ['después']]], reloj);
+ok('una que falla lleva { e } y no tumba a las demás', rl[1].e === 'se cayó a propósito' && !('v' in rl[1]) &&
+  rl[0].v.eco === 'antes' && rl[2].v.eco === 'después', rl);
+ok('…y todas corrieron, en orden', JSON.stringify(corridas()) === JSON.stringify(['antes', 'falla', 'después']), corridas());
+
+reiniciarLote();
+const vetadas = ['eval', 'secEjecutar', 'secEjecutarLote', 'cuentasLimpiarTodo', 'sesCrear_', 'doGet', 'noExiste', 'constructor'];
+rl = lote(s8c.llave, vetadas.map((n) => [n, ['1']]).slice(0, 7).concat([['pruebaEco', ['sí']]]), reloj);
+ok('el lote no abre nada que el canal no abra: ' + vetadas.slice(0, 7).join(', ') + ' → { e }',
+  rl.slice(0, 7).every((x) => /no expone la función/.test(x.e || '')), rl.slice(0, 7));
+ok('…ninguna de ellas corrió, y la permitida del mismo lote sí', rl[7].v && rl[7].v.eco === 'sí' && JSON.stringify(corridas()) === '["sí"]', corridas());
+ok('una llamada interna a una herramienta restringida pasa igual que por secEjecutar',
+  lote(s8c.llave, [['pruebaLlamaHerramienta', []]], reloj)[0].v === 'borrado');
+rl = lote(s8c.llave, [['pruebaQuienSoy', ['maestro@liverpool.com.mx']], ['pruebaQuienSoy', ['']]], reloj);
+ok('la sesión manda en todo el lote: declarar a otro sigue rechazado', !rl[0].v.ok && /otra cuenta/.test(rl[0].v.error) && rl[1].v.ok, rl);
+
+reiniciarLote();
+err = lanza(() => lote('vs1.' + 'c'.repeat(64), [['pruebaEco', ['x']], ['pruebaEco', ['y']]], reloj));
+ok('llave que no vale → SESION_EXPIRADA para el lote entero', /^SESION_EXPIRADA/.test(err || ''), err);
+ok('…sin correr ninguna', corridas().length === 0, corridas());
+rl = lote('', [['pruebaQuienSoy', ['']], ['pruebaEco', ['anónimo']]], reloj);
+ok('sin llave (páginas públicas) corre como visitante anónimo', rl[0].v && rl[0].v.ok === false && rl[1].v.eco === 'anónimo', rl);
+
+[[], null, 'pruebaEco', new Array(vm.runInContext('SES_LOTE_MAX', C) + 1).fill(['pruebaEco', ['z']])].forEach((malo, i) => {
+  const e = lanza(() => lote(s8c.llave, malo, reloj));
+  ok('lote no válido #' + (i + 1) + ' (vacío, nulo, texto, demasiado largo) → error, nada corre', /no válido/.test(e || ''), e);
+});
+
 /* ── 9 · Estático: candados y canal en el código ──────────────────────── */
 console.log('\n9 · Revisión del código');
 const ses = fs.readFileSync(path.join(RAIZ, 'Sesiones.gs'), 'utf8');
 const bloque = ses.slice(ses.indexOf('var SES_NO_EXPUESTAS = {'), ses.indexOf('};', ses.indexOf('var SES_NO_EXPUESTAS = {')));
+// Las puertas del canal no llevan candado (se llaman desde el navegador), pero tampoco pueden ir
+// DENTRO de una llamada: por eso están en la lista.
 const restringidas = [...bloque.matchAll(/([A-Za-z_$][\w$]*)\s*:\s*1/g)].map((m) => m[1])
-  .filter((n) => !['doGet', 'doPost', 'include', 'secEjecutar'].includes(n));
+  .filter((n) => !['doGet', 'doPost', 'include', 'secEjecutar', 'secEjecutarLote'].includes(n));
 const fuentes = fs.readdirSync(RAIZ).filter((f) => f.endsWith('.gs')).map((f) => fs.readFileSync(path.join(RAIZ, f), 'utf8')).join('\n');
 // El activador diario es la única excepción de forma: acepta su propio triggerUid antes del candado.
 const ACTIVADOR = /function promosAutoDisparador\(e\) \{[\s\S]{0,700}?if \(e && e\.triggerUid\) SEC_ENTRADA_ = 'activador';\s*else secSoloInterno_\('promosAutoDisparador'\);/;
@@ -228,6 +282,8 @@ const sinCandado = restringidas.filter((n) => (n === 'promosAutoDisparador')
 ok('las ' + restringidas.length + ' funciones restringidas empiezan con secSoloInterno_', sinCandado.length === 0, sinCandado);
 const core = fs.readFileSync(path.join(RAIZ, 'app_core.html'), 'utf8');
 ok('AppRun manda todo por secEjecutar con llave, actividad y medir = 1', /runner\.secEjecutar\(AppSession\.llave \|\| '', fnName, args, AppSession\.ultimaActividad\(\), 1\)/.test(core));
+ok('…y los lotes por secEjecutarLote, también con llave y actividad (F3b)',
+  /runner\.secEjecutarLote\(AppSession\.llave \|\| '',\s*lote\.map\([\s\S]{0,120}?\), AppSession\.ultimaActividad\(\)\)/.test(core));
 ok('isLoggedIn exige la llave', /isLoggedIn: function \(\) \{ return !!this\.userEmail && !!this\.llave; \}/.test(core));
 const code = fs.readFileSync(path.join(RAIZ, 'Code.gs'), 'utf8');
 ok('getQuotesForUser exige sesión con el bloque consultar (V-03)', /function getQuotesForUser[\s\S]{0,700}secIdentidadConBloque_\(correo, 'consultar'\)/.test(code));

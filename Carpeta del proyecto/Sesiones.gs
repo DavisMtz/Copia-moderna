@@ -53,10 +53,11 @@ var SEC_ENTRADA_ = null;
 /**
  * Funciones que el canal NO acepta como punto de entrada: herramientas del editor y ayudantes que
  * solo debe usar el propio servidor. Todas llevan además secSoloInterno_ en su primera línea (así
- * tampoco se pueden llamar directo con google.script.run). doGet/include/secEjecutar tampoco.
+ * tampoco se pueden llamar directo con google.script.run). doGet/include/secEjecutar tampoco, ni
+ * secEjecutarLote: son las puertas, y una puerta no puede ir dentro de otra.
  */
 var SES_NO_EXPUESTAS = {
-  doGet: 1, doPost: 1, include: 1, secEjecutar: 1,
+  doGet: 1, doPost: 1, include: 1, secEjecutar: 1, secEjecutarLote: 1,
   // Herramientas de editor y diagnóstico
   NOMBRAR_MAESTRO: 1, REPARAR_MAESTRO: 1, VER_CORREOS_REGISTRADOS: 1, VER_PERMISOS_GUARDADOS: 1,
   permSembrarMaestro: 1, secGuardarConfiguracion: 1, secFijarModoAuth: 1, cuentasLimpiarTodo: 1,
@@ -239,6 +240,18 @@ function secEjecutar(llave, nombre, args, actividad, medir) {
   const f = sesFuncionExpuesta_(fn);
   if (!f) throw new Error('El servidor no expone la función ' + fn + '.');
 
+  sesAbrirEjecucion_(llave, actividad);
+  Logger.log('secEjecutar → ' + fn);
+  // Sin try/catch a propósito: un error de la función debe llegar tal cual al withFailureHandler.
+  const respuesta = f.apply(null, Array.isArray(args) ? args : []);
+  return medir === 1 ? { __srv: 1, v: respuesta, ms: Date.now() - t0 } : respuesta;
+}
+
+/**
+ * Marca la entrada por el canal y, si hay llave, valida la sesión y la deja en SEC_SESION_.
+ * Una sola copia para secEjecutar y secEjecutarLote: la regla de la sesión no puede divergir.
+ */
+function sesAbrirEjecucion_(llave, actividad) {
   SEC_ENTRADA_ = 'secEjecutar';
   SEC_SESION_ = null;
   if (llave) {
@@ -246,10 +259,52 @@ function secEjecutar(llave, nombre, args, actividad, medir) {
     if (!s) throw new Error(SES_ERROR_VENCIDA);
     SEC_SESION_ = s;
   }
-  Logger.log('secEjecutar → ' + fn);
-  // Sin try/catch a propósito: un error de la función debe llegar tal cual al withFailureHandler.
-  const respuesta = f.apply(null, Array.isArray(args) ? args : []);
-  return medir === 1 ? { __srv: 1, v: respuesta, ms: Date.now() - t0 } : respuesta;
+}
+
+/** Más de esto no es un arranque de pantalla: es otra cosa, y se rechaza. */
+var SES_LOTE_MAX = 8;
+
+/**
+ * F3b · VARIAS LLAMADAS DEL NAVEGADOR EN UNA SOLA EJECUCIÓN.
+ *
+ * Cada google.script.run es una ejecución que paga la carga entera del proyecto y ocupa una de
+ * las 30 simultáneas que comparten TODOS los asesores (executeAs: USER_DEPLOYING). Al abrir una
+ * pantalla con sesión salían cuatro seguidas (permisos, preferencias, estado de operación y
+ * tutoriales), cada una por su lado. AppRun (app_core) junta las que se piden a la vez y las
+ * manda aquí: una ejecución en vez de cuatro.
+ *
+ * Reglas:
+ *   · La sesión se valida UNA vez, antes de nada: es la misma para todas. Si venció, falla el
+ *     lote entero con SESION_EXPIRADA, igual que habría fallado cada llamada por separado.
+ *   · Cada función pasa el mismo filtro que en secEjecutar (sesFuncionExpuesta_): el lote no
+ *     abre nada que el canal no abriera ya. Ni este ni secEjecutar pueden ir dentro de un lote.
+ *   · Una función que falla no tumba a las demás: su lugar lleva { e: mensaje }; el de las que
+ *     van bien, { v: respuesta, ms }. El orden de la respuesta es el del lote.
+ *   · Corren en serie, en el orden en que llegan: la respuesta tarda lo que suman sus trabajos.
+ *     Por eso AppRun solo junta llamadas cortas de fondo, nunca las que pintan la pantalla.
+ *
+ * @param {string} llave      Llave de sesión, o '' si no hay.
+ * @param {Array}  lote       [[función, args], …], como mucho SES_LOTE_MAX.
+ * @param {number=} actividad Última interacción de la persona (ms).
+ * @return {Array<{v:*, ms:number}|{e:string}>}
+ */
+function secEjecutarLote(llave, lote, actividad) {
+  if (!Array.isArray(lote) || !lote.length || lote.length > SES_LOTE_MAX) {
+    throw new Error('Lote de llamadas no válido.');
+  }
+  sesAbrirEjecucion_(llave, actividad);
+  return lote.map(function (item) {
+    const t0 = Date.now();
+    const fn = String((Array.isArray(item) && item[0]) || '');
+    const f = sesFuncionExpuesta_(fn);
+    if (!f) return { e: 'El servidor no expone la función ' + fn + '.' };
+    Logger.log('secEjecutar → ' + fn + ' (en lote de ' + lote.length + ')');
+    try {
+      return { v: f.apply(null, Array.isArray(item[1]) ? item[1] : []), ms: Date.now() - t0 };
+    } catch (err) {
+      return { e: String((err && err.message) || err) };
+    }
+  });
 }
 
 /** Cierra la sesión en el servidor. Se puede llamar sin sesión: solo borra si la llave es válida. */

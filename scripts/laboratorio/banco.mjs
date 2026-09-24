@@ -84,7 +84,10 @@ const stub = (conSesion) => `(() => {
       if (prop === 'withFailureHandler') return (fn) => corredor(Object.assign({}, conf, { mal: fn }));
       if (prop === 'withUserObject') return (o) => corredor(Object.assign({}, conf, { obj: o }));
       return (...args) => {
-        banco.llamadas.push({ fn: String(prop), sub: String(prop) === 'secEjecutar' ? String(args[1]) : '' });
+        // Un lote (F3b) se apunta como UN viaje con sus funciones unidas por «+».
+        const sub = String(prop) === 'secEjecutar' ? String(args[1])
+          : String(prop) === 'secEjecutarLote' && Array.isArray(args[1]) ? args[1].map((x) => String(x && x[0])).join('+') : '';
+        banco.llamadas.push({ fn: String(prop), sub, t: Math.round(performance.now() - t0) });
         setTimeout(() => { if (conf.mal) conf.mal(new Error('Sin servidor (banco)'), conf.obj); }, 40);
       };
     } });
@@ -107,6 +110,8 @@ const FIRMA = `(() => {
     texto: document.body ? document.body.innerText.replace(/\\s+/g, ' ').trim() : '',
     estructura: els.map((e) => e.tagName + (e.id ? '#' + e.id : '') + '.' + (typeof e.className === 'string' ? e.className.trim().split(/\\s+/).sort().join('.') : '')).join('|'),
     llamadas: (window.__banco ? window.__banco.llamadas : []).map((x) => x.fn + (x.sub ? ':' + x.sub : '')).sort().join(','),
+    // Los viajes en el orden en que salieron, con su hora (ms desde que empezó el documento).
+    viajes: (window.__banco ? window.__banco.llamadas : []).map((x) => x.t + ' ' + (x.sub || x.fn)).join(' | '),
     globales: Object.keys(window).length
   };
 })()`;

@@ -382,7 +382,7 @@ function contextoCliente(opciones) {
   const appCache = store();
   appCache.session = store();
   function corredor(conf) {
-    return {
+    const run = {
       withSuccessHandler(fn) { return corredor(Object.assign({}, conf, { bien: fn })); },
       withFailureHandler(fn) { return corredor(Object.assign({}, conf, { mal: fn })); },
       secEjecutar(llave, fn, args, actividad, medir) {
@@ -394,6 +394,24 @@ function contextoCliente(opciones) {
         }, 2);
       }
     };
+    // F3b. Como el de Sesiones.gs: { v, ms } o { e } por función, en orden. `servidor.__lote`
+    // puede tumbar el lote entero (un Error) o contestar otra cosa (una función).
+    if (!opciones.sinLote) {
+      run.secEjecutarLote = function (llave, lote, actividad) {
+        llamadas.push({ fn: 'secEjecutarLote', lote: lote.map((x) => x[0]), args: lote.map((x) => x[1]), llave, actividad, n: arguments.length });
+        const todo = servidor.__lote;
+        setTimeout(() => {
+          if (todo instanceof Error) return conf.mal(todo);
+          if (typeof todo === 'function') return conf.bien(todo(lote));
+          conf.bien(lote.map((x) => {
+            const r = servidor[x[0]];
+            if (r instanceof Error) return { e: r.message };
+            return { v: typeof r === 'function' ? r(x[1]) : r, ms: 7 };
+          }));
+        }, 2);
+      };
+    }
+    return run;
   }
   const ctx = {
     console, JSON, Math, Object, Array, String, Number, Error, RegExp, Promise, Date,
@@ -529,6 +547,82 @@ async function cliente() {
     await roto.R.call('algo', []).then((r) => { v = r; }, (er) => { e = er; });
     ok('con localStorage bloqueado, medir no rompe la llamada', v === 5 && e === null, e && e.message);
     ok('…y medidas() devuelve una lista vacía en vez de lanzar', Array.isArray(roto.R.medidas()) && roto.R.medidas().length === 0);
+  }
+
+  console.log('\nB5 · F3b: las llamadas de fondo viajan juntas');
+  {
+    const c = contextoCliente({ app: {} });
+    c.servidor.obtenerPermisosSesion = { success: true, rol: 'normal' };
+    c.servidor.prefsLeer = { success: true, prefs: { tema: 'claro' } };
+    c.servidor.onbEstado = { success: true, vistos: { portal: 1 } };
+    c.servidor.fetchToolsData = { __srv: 1, v: { status: 'ok' }, ms: 3 };
+    const pa = c.R.call('obtenerPermisosSesion', ['a@b.c'], { key: 'permisos-sesion' });
+    const pb = c.R.call('prefsLeer', ['a@b.c'], { key: 'prefs-prefsLeer', busy: false });
+    const pc = c.R.call('onbEstado', ['a@b.c'], { key: 'onb-estado' });
+    ok('las de la lista esperan en la cola: todavía no salió ninguna', c.llamadas.length === 0, c.llamadas);
+    const pd = c.R.call('fetchToolsData', [], {});
+    ok('una que no está en la lista (pinta la pantalla) sale en el acto', c.llamadas.length === 1 && c.llamadas[0].fn === 'fetchToolsData', c.llamadas);
+    const [a, b, d] = await Promise.all([pa, pb, pc]);
+    const lotes = c.llamadas.filter((x) => x.fn === 'secEjecutarLote');
+    ok('las tres salen en UN solo viaje (secEjecutarLote)', lotes.length === 1 &&
+      JSON.stringify(lotes[0].lote) === '["obtenerPermisosSesion","prefsLeer","onbEstado"]', c.llamadas);
+    ok('…con sus argumentos, la llave y la actividad', JSON.stringify(lotes[0].args) === '[["a@b.c"],["a@b.c"],["a@b.c"]]' &&
+      lotes[0].llave === 'vs1.llave' && lotes[0].actividad === 111 && lotes[0].n === 3, lotes[0]);
+    ok('cada promesa recibe SU respuesta', a.rol === 'normal' && b.prefs.tema === 'claro' && d.vistos.portal === 1, [a, b, d]);
+    const enLote = c.R.medidas(true).filter((m) => m.l === 3);
+    ok('las medidas dicen que viajaron juntas (l = 3), con su tiempo de servidor', enLote.length === 3 && enLote.every((m) => m.s === 7 && m.ok === 1), enLote);
+    ok('…y el resumen lo cuenta (enLote)', c.R.medidas().find((x) => x.fn === 'prefsLeer').enLote === 1);
+    ok('la que fue sola no lleva `l`', !('l' in c.R.medidas(true).find((m) => m.f === 'fetchToolsData')));
+    await pd;
+  }
+  {
+    const c = contextoCliente({ app: {} });
+    c.servidor.opEstadoSesion = { __srv: 1, v: { success: true, x: 1 }, ms: 2 };
+    const r = await c.R.call('opEstadoSesion', ['a@b.c'], {});
+    ok('una sola en su ventana viaja por secEjecutar, como siempre', c.llamadas.length === 1 && c.llamadas[0].fn === 'opEstadoSesion' &&
+      c.llamadas[0].medir === 1 && r.x === 1, c.llamadas);
+  }
+  {
+    const c = contextoCliente({ app: {} });
+    c.servidor.prefsLeer = new Error('hoja caída');
+    c.servidor.onbEstado = { success: true };
+    const res = await Promise.allSettled([c.R.call('prefsLeer', ['a']), c.R.call('onbEstado', ['a'])]);
+    ok('una que falla dentro del lote se rechaza SOLA, con su mensaje', res[0].status === 'rejected' && res[0].reason.message === 'hoja caída' &&
+      res[1].status === 'fulfilled' && res[1].value.success === true, res.map((x) => x.status));
+    ok('…se apunta como error, en lote', c.R.medidas(true).some((m) => m.f === 'prefsLeer' && m.ok === 0 && m.l === 2));
+    ok('…y no toca la sesión', c.vencidas.length === 0, c.vencidas);
+  }
+  {
+    const c = contextoCliente({ app: {} });
+    c.servidor.__lote = new Error('SESION_EXPIRADA: se cerró');
+    const res = await Promise.allSettled(['prefsLeer', 'onbEstado', 'obtenerPermisosSesion'].map((f) => c.R.call(f, ['a'])));
+    ok('SESION_EXPIRADA en el lote rechaza las tres', res.every((x) => x.status === 'rejected' && /^SESION_EXPIRADA/.test(x.reason.message)), res.map((x) => x.status));
+    ok('…y avisa a la sesión UNA sola vez', c.vencidas.length === 1, c.vencidas);
+  }
+  {
+    const c = contextoCliente({ app: {} });
+    c.servidor.__lote = () => null;   // p. ej. un Date dentro: Apps Script entrega la respuesta entera como null
+    const res = await Promise.allSettled([c.R.call('prefsLeer', ['a']), c.R.call('onbEstado', ['a'])]);
+    ok('una respuesta de lote que no cuadra rechaza todas (nadie pinta basura)', res.every((x) => x.status === 'rejected'), res.map((x) => x.status));
+  }
+  {
+    const c = contextoCliente({ app: {}, sinLote: true });
+    c.servidor.prefsLeer = { success: true, a: 1 };
+    c.servidor.onbEstado = { success: true, b: 2 };
+    const [x, y] = await Promise.all([c.R.call('prefsLeer', ['a']), c.R.call('onbEstado', ['a'])]);
+    ok('con un servidor sin secEjecutarLote, cada una sale por su lado', c.llamadas.length === 2 &&
+      c.llamadas.every((l) => l.fn !== 'secEjecutarLote') && x.a === 1 && y.b === 2, c.llamadas);
+  }
+  {
+    const c = contextoCliente({ app: {} });
+    c.servidor.pubResultados = (args) => ({ status: 'ok', id: args[0] });
+    const dup = await Promise.all([c.R.call('pubResultados', ['p1', '']), c.R.call('pubResultados', ['p1', ''])]);
+    ok('dos iguales a la vez siguen siendo UNA en la cola', c.llamadas.length === 1 && c.llamadas[0].fn === 'pubResultados' && dup[0] === dup[1], c.llamadas);
+    c.llamadas.length = 0;
+    const muchas = await Promise.all([...Array(9)].map((_, i) => c.R.call('pubResultados', ['q' + i, ''])));
+    const viajes = c.llamadas.map((x) => (x.fn === 'secEjecutarLote' ? x.lote.length : 1));
+    ok('nueve a la vez → un lote de 8 y la que sobra, sola', JSON.stringify(viajes) === '[8,1]', viajes);
+    ok('…y cada una con la suya', muchas.every((r, i) => r.id === 'q' + i), muchas);
   }
 }
 

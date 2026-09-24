@@ -1878,6 +1878,7 @@
      *   d  ms desde que abrió la pantalla hasta que salió la llamada
      *   o  'red', o 'pagina' si vino dentro de la página (sin viaje)
      *   ok 1 o 0                      t   hora de salida (ms desde 1970)
+     *   l  cuántas llamadas viajaron juntas en su lote (F3b); no está si fue sola
      * Para verlas, en la consola del navegador y con el marco de la app elegido:
      * `console.table(AppRun.medidas())` (resumen por función) o `AppRun.medidas(true)`.
      */
@@ -1891,9 +1892,11 @@
     }
 
     /** Se relee antes de escribir: otra pestaña pudo apuntar las suyas mientras tanto. */
-    function anotar(fnName, t0, d0, ok, origen, servidorMs) {
+    function anotar(fnName, t0, d0, ok, origen, servidorMs, enLote) {
       const lista = leerMedidas();
-      lista.push({ f: fnName, t: t0, d: Math.round(d0), ms: Date.now() - t0, s: servidorMs, ok: ok ? 1 : 0, o: origen });
+      const m = { f: fnName, t: t0, d: Math.round(d0), ms: Date.now() - t0, s: servidorMs, ok: ok ? 1 : 0, o: origen };
+      if (enLote > 1) m.l = enLote;
+      lista.push(m);
       if (lista.length > MEDIDAS_MAX) lista.splice(0, lista.length - MEDIDAS_MAX);
       try { localStorage.setItem(K_MEDIDAS, JSON.stringify(lista)); } catch (e) {}
     }
@@ -1918,6 +1921,7 @@
         return {
           fn: f, n: g.length,
           pagina: g.filter(function (m) { return m.o === 'pagina'; }).length,
+          enLote: g.filter(function (m) { return m.l > 1; }).length,
           errores: g.filter(function (m) { return !m.ok; }).length,
           p50: pct(ms, 0.5), p90: pct(ms, 0.9), servidorP50: pct(srv, 0.5)
         };
@@ -1952,6 +1956,143 @@
       return o;
     }
 
+    /**
+     * F3b · LLAMADAS DE FONDO QUE VIAJAN JUNTAS.
+     *
+     * Cada llamada es una ejecución de Apps Script: paga la carga entera del proyecto y ocupa
+     * una de las 30 simultáneas que comparten TODOS los asesores. Al abrir una pantalla con
+     * sesión salían cuatro de fondo, cada una desde su parcial y a su hora: permisos
+     * (AppSession.refrescar), preferencias (app_prefs), estado de operación (app_operacion) y
+     * tutoriales (app_onboarding). Las funciones de EN_LOTE esperan un momento en una cola y
+     * salen juntas por secEjecutarLote (Sesiones.gs): una ejecución en vez de cuatro, sin que
+     * ninguno de esos parciales tenga que saberlo.
+     *
+     * Solo entran llamadas cortas de fondo, cuya respuesta corrige algo que ya está pintado. El
+     * servidor corre el lote en serie y contesta cuando acaba la última: juntar con ellas una
+     * llamada que pinta la pantalla la haría esperar por las demás.
+     *
+     * La ventana: mientras la página se está leyendo, hasta DOMContentLoaded + LOTE_TRAS_DCL_MS
+     * (para entonces ya salió casi todo lo del arranque, también lo que swr deja para el primer
+     * fotograma), con un tope de LOTE_TOPE_MS desde la primera de la cola. Con la página ya
+     * leída, LOTE_VENTANA_MS. La que se queda sola viaja como siempre, por secEjecutar, y con un
+     * servidor sin secEjecutarLote (el minuto que tarda /exec en cambiar de versión) cada una
+     * sale por su lado.
+     */
+    const EN_LOTE = {
+      obtenerPermisosSesion: 1, prefsLeer: 1, opEstadoSesion: 1, onbEstado: 1,
+      opEstadoPublico: 1, obtenerModulosPublicos: 1, pubResultados: 1
+    };
+    const LOTE_VENTANA_MS = 30, LOTE_TRAS_DCL_MS = 60, LOTE_TOPE_MS = 400, LOTE_MAX = 8;
+    const cola = [];
+    let temporizador = null;
+    let esperandoDcl = false;
+
+    function leyendoPagina() {
+      return typeof document !== 'undefined' && document.readyState === 'loading';
+    }
+
+    function programarVaciado() {
+      if (temporizador) return;
+      if (!leyendoPagina()) {
+        temporizador = setTimeout(vaciarCola, LOTE_VENTANA_MS);
+        return;
+      }
+      temporizador = setTimeout(vaciarCola, LOTE_TOPE_MS);
+      if (esperandoDcl) return;
+      esperandoDcl = true;
+      document.addEventListener('DOMContentLoaded', function () {
+        esperandoDcl = false;
+        if (!temporizador) return;
+        clearTimeout(temporizador);
+        temporizador = setTimeout(vaciarCola, LOTE_TRAS_DCL_MS);
+      });
+    }
+
+    function vaciarCola() {
+      temporizador = null;
+      while (cola.length) enviar(cola.splice(0, LOTE_MAX));
+    }
+
+    /** Manda las llamadas de `lote` ([{fnName, args, resolve, reject, t0, d0}]): juntas si puede. */
+    function enviar(lote) {
+      if (!(window.google && google.script && google.script.run)) {
+        const err = new Error('El entorno de Apps Script no está disponible.');
+        lote.forEach(function (x) { x.reject(err); });
+        return;
+      }
+      if (lote.length > 1 && typeof google.script.run.secEjecutarLote === 'function') {
+        enviarLote(lote);
+        return;
+      }
+      lote.forEach(enviarSola);
+    }
+
+    function enviarSola(x) {
+      const fnName = x.fnName, args = x.args;
+      // El runner se invoca sobre sí mismo (no con `this` nulo): así es como lo
+      // espera la librería cliente de Apps Script.
+      const runner = google.script.run
+        .withSuccessHandler(function (r) {
+          ultimoContacto = Date.now();
+          // Desde la F3 el servidor dice cuánto trabajó (secEjecutar con medir = 1). Uno
+          // anterior contesta sin envoltorio, y su respuesta se toma tal cual.
+          const envuelta = !!(r && r.__srv === 1);
+          anotar(fnName, x.t0, x.d0, true, 'red', envuelta ? (Number(r.ms) || 0) : -1);
+          x.resolve(envuelta ? r.v : r);
+        })
+        .withFailureHandler(function (err) {
+          anotar(fnName, x.t0, x.d0, false, 'red', -1);
+          // La llave venció o no vale: se avisa UNA vez aquí, en vez de que cada una de las
+          // noventa llamadas de la app tenga que saber qué hacer. La promesa se rechaza igual,
+          // para que quien llamó apague su indicador y no pinte datos.
+          if (/^SESION_EXPIRADA/.test(String((err && err.message) || err || ''))) sesionVencida();
+          x.reject(err);
+        });
+      // TODO pasa por secEjecutar (Sesiones.gs): lleva la llave y la última interacción de la
+      // persona, que es lo que mide la inactividad. Si el servidor fuera uno viejo sin ese
+      // canal, se llama directo como antes.
+      if (typeof runner.secEjecutar === 'function') {
+        runner.secEjecutar(AppSession.llave || '', fnName, args, AppSession.ultimaActividad(), 1);
+        return;
+      }
+      if (typeof runner[fnName] !== 'function') {
+        x.reject(new Error('El servidor no expone la función ' + fnName + '.'));
+        return;
+      }
+      runner[fnName].apply(runner, args);
+    }
+
+    /**
+     * El servidor contesta una lista en el mismo orden: { v, ms } para las que fueron bien y
+     * { e } para las que fallaron, que se rechazan SOLAS. Si falla el lote entero (la sesión
+     * venció, la red) se rechazan todas y se avisa una sola vez.
+     */
+    function enviarLote(lote) {
+      const n = lote.length;
+      const runner = google.script.run
+        .withSuccessHandler(function (rs) {
+          ultimoContacto = Date.now();
+          const completa = Array.isArray(rs) && rs.length === n;
+          lote.forEach(function (x, i) {
+            const r = completa ? rs[i] : null;
+            if (r && !Object.prototype.hasOwnProperty.call(r, 'e')) {
+              anotar(x.fnName, x.t0, x.d0, true, 'red', Number(r.ms) || 0, n);
+              x.resolve(r.v);
+              return;
+            }
+            anotar(x.fnName, x.t0, x.d0, false, 'red', -1, n);
+            x.reject(new Error(r ? String(r.e) : 'El servidor no devolvió la respuesta de ' + x.fnName + '.'));
+          });
+        })
+        .withFailureHandler(function (err) {
+          lote.forEach(function (x) { anotar(x.fnName, x.t0, x.d0, false, 'red', -1, n); });
+          if (/^SESION_EXPIRADA/.test(String((err && err.message) || err || ''))) sesionVencida();
+          lote.forEach(function (x) { x.reject(err); });
+        });
+      runner.secEjecutarLote(AppSession.llave || '',
+        lote.map(function (x) { return [x.fnName, x.args]; }), AppSession.ultimaActividad());
+    }
+
     function call(fnName, args, opts) {
       args = args || [];
       opts = opts || {};
@@ -1979,41 +2120,13 @@
       const token = opts.busy === false ? 0 : AppBusy.start(typeof opts.busy === 'string' ? opts.busy : '');
 
       const p = new Promise(function (resolve, reject) {
-        if (!(window.google && google.script && google.script.run)) {
-          reject(new Error('El entorno de Apps Script no está disponible.'));
+        const x = { fnName: fnName, args: args, resolve: resolve, reject: reject, t0: t0, d0: d0 };
+        if (EN_LOTE[fnName] === 1) {
+          cola.push(x);
+          programarVaciado();
           return;
         }
-        // El runner se invoca sobre sí mismo (no con `this` nulo): así es como lo
-        // espera la librería cliente de Apps Script.
-        const runner = google.script.run
-          .withSuccessHandler(function (r) {
-            ultimoContacto = Date.now();
-            // Desde la F3 el servidor dice cuánto trabajó (secEjecutar con medir = 1). Uno
-            // anterior contesta sin envoltorio, y su respuesta se toma tal cual.
-            const envuelta = !!(r && r.__srv === 1);
-            anotar(fnName, t0, d0, true, 'red', envuelta ? (Number(r.ms) || 0) : -1);
-            resolve(envuelta ? r.v : r);
-          })
-          .withFailureHandler(function (err) {
-            anotar(fnName, t0, d0, false, 'red', -1);
-            // La llave venció o no vale: se avisa UNA vez aquí, en vez de que cada una de las
-            // noventa llamadas de la app tenga que saber qué hacer. La promesa se rechaza igual,
-            // para que quien llamó apague su indicador y no pinte datos.
-            if (/^SESION_EXPIRADA/.test(String((err && err.message) || err || ''))) sesionVencida();
-            reject(err);
-          });
-        // TODO pasa por secEjecutar (Sesiones.gs): lleva la llave y la última interacción de la
-        // persona, que es lo que mide la inactividad. Si el servidor fuera uno viejo sin ese
-        // canal, se llama directo como antes.
-        if (typeof runner.secEjecutar === 'function') {
-          runner.secEjecutar(AppSession.llave || '', fnName, args, AppSession.ultimaActividad(), 1);
-          return;
-        }
-        if (typeof runner[fnName] !== 'function') {
-          reject(new Error('El servidor no expone la función ' + fnName + '.'));
-          return;
-        }
-        runner[fnName].apply(runner, args);
+        enviar([x]);
       });
       const limpiar = function () { delete enVuelo[clave]; AppBusy.done(token); if (fx) fx.done(); };
       p.then(limpiar, limpiar);
