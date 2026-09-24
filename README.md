@@ -36,7 +36,9 @@ resultado: lo que se edita en el escritorio acaba en el proyecto de Apps Script
 sin copiar y pegar nada.
 
 > **Desde el 23/09/2026 no se sube la fuente, sino `build/`.** La genera `scripts/build.js`:
-> los `.gs` van sin comentarios y con las mismas líneas. El hook, el workflow y
+> los `.gs` van sin comentarios y con las mismas líneas (F1); los parciales `.html` llevan su JS y
+> su CSS compilados con esbuild, y las páginas van sin comentarios HTML (F2). Por eso un error del
+> navegador señala código compilado: se depura mirando la fuente. El hook, el workflow y
 > `scripts/publicar.sh` compilan antes de subir. `Carpeta del proyecto/` sigue siendo lo único
 > que se edita. La primera vez hay que correr `npm ci` en la raíz. Detalle: `Documentacion/16_Plan_Transformacion_Portal.md`.
 

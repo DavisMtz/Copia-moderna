@@ -1039,6 +1039,58 @@ y qué se dejó fuera a propósito**. Mismo formato que el registro del document
 
 <!-- Las entradas nuevas van arriba, con la más reciente primero. -->
 
+### 2026-09-23 — Fase 2 del doc 16: build del cliente (parciales compilados) — en PRUEBAS, no en producción
+
+**Qué se cambió** (commit `d25bb8d`):
+- **`scripts/build.js`** ahora también trata los `.html`:
+  - **Parciales** (`app_*.html`, `*Partial.html`; 26):
+    - fuera los comentarios HTML;
+    - cada `<script>` y cada `<style>` pasan por esbuild;
+    - el JS pierde los espacios y acorta los nombres **locales**; los globales no se tocan;
+    - el marcado queda igual: Google ya le quita la sangría al servir.
+  - **Páginas** (20 plantillas): solo se quitan los comentarios HTML del marcado (293 en total). No entra en `<script>`, `<style>` ni `<textarea>`. Si un comentario lleva un scriptlet, el build se para: Google lo ejecutaría.
+  - **Sin `minifySyntax`:** con esa opción esbuild convertía dos cadenas con `\n` en plantillas `…` con el salto de línea dentro, y el quitacomentarios de Google puede estropearlas. Cuesta 1 punto de compresión.
+  - **Comprobaciones nuevas.** Cualquier fallo para el build entero:
+    - cada bloque se deja leer;
+    - declara los mismos globales, y del mismo tipo;
+    - es el mismo programa salvo nombres locales y tres abreviaturas equivalentes (`arbolNormalizado`);
+    - no lleva `</script`;
+    - no trae plantillas `…` nuevas con `//`, `/*` o saltos de línea.
+  - Las plantillas que esbuild crea al elegir comillas (una cadena con `'` y `"`) se reescriben como cadenas normales, con el mismo valor (`plantillasSeguras`).
+  - Resultado: 46 `.html`, **3,572 KB → 2,869 KB**. El JS de los parciales pasa de 889 a 372 KB y su CSS, de 211 a 124 KB.
+- **`pruebas/build.test.js`:** de 35 a 78 comprobaciones.
+  - Cada página es la fuente con comentarios enteros quitados.
+  - Los parciales se dejan leer, sin comentarios y con los mismos globales.
+  - Cada página ensamblada con sus `include` conserva sus bloques.
+  - Casos trampa: comillas, `</script`, `<textarea>`, scriptlets y CSS roto.
+- **`scripts/laboratorio/banco.mjs` (nuevo):** el banco local con que se verificó (ver abajo).
+- El hook, el workflow y `publicar.sh` no cambian: desde la F1 ya compilan y suben `build/`.
+
+**Qué se comprobó:**
+- **Banco local** (Chrome headless): las 20 pantallas, ensambladas con la fuente y con el build, con sesión y `google.script.run` falsos.
+  - **Iguales en todo:** 0 excepciones en ambas, mismos avisos, mismas llamadas al servidor, mismo texto y misma estructura.
+  - Mismos píxeles, salvo la barra de progreso animada de `atenciones`, que cambia igual entre dos cargas de la fuente.
+- Los 24 bloques de JS son el mismo programa que la fuente, salvo nombres locales (`arbolNormalizado`).
+- **En pruebas (`/dev`)**, las 20 pantallas pedidas desde la página superior:
+  - ninguna con «formato incorrecto»;
+  - **todos sus bloques de JS, tal como los deja el quitacomentarios de Google, se dejan leer**;
+  - **los 40 bloques compilados llegan byte a byte** (huellas SHA-256). Google no toca el código minificado: lo probado en el banco es lo que se sirve;
+  - **peso servido −26 %**: 12.8 → 9.5 MB entre las 20. El Portal pasa de 927 a 777 KB (−16 %); el resto baja entre un 24 y un 30 %.
+- **`doGet` del Portal**, alternando F1 y F2 (A, B, A, B; 10 muestras por tanda): 2.42 → 2.22 s y 2.13 → 2.13 s.
+  - No empeora; la diferencia está dentro del ruido.
+  - Es lo que preveía el doc 15: la F2 aligera el navegador, no el servidor.
+- `clasp pull` de pruebas comparado con `build/`: 80 de 80 idénticos.
+- En GitHub (Linux, Node 20), `npm ci` y el build pasan con las mismas cifras. El job sigue en rojo en «credenciales» (es la F7).
+- Las 10 suites en verde y la sintaxis limpia.
+
+**Qué se dejó fuera a propósito:**
+- **Producción:** espera la palabra del creador, junto con F0 y F1. Hoy `build/` lleva las tres; cómo subir solo algunas está en el «Ojo al promover» del doc 16 §2.
+- **Los `<script>` y `<style>` propios de cada página:** compilarlos obliga a tratar scriptlets vivos, y el doc 15 midió solo un 1-3 % más.
+- **La sangría del marcado de los parciales:** Google ya la quita al servir; tocarla solo añadía riesgo (`<pre>`, `<textarea>`, `white-space: pre`).
+- **La revisión visual con sesión real, pantalla por pantalla:** la hace el creador en `/dev`. El banco cubre la carga y los estados de error, no los datos reales ni los clics.
+- **Depuración:** los errores del navegador ahora señalan una línea del código compilado. Para depurar hay que mirar la fuente.
+- **Límite de la comprobación de equivalencia:** borra los nombres de las variables, así que no vería dos variables intercambiadas. Eso queda a cargo del renombrador de esbuild, y el banco lo ejercita.
+
 ### 2026-09-23 — Fase 1 del doc 16: build del servidor (`.gs` sin comentarios) — en PRUEBAS, no en producción
 
 **Qué se cambió** (commits `2e62a6d` y `7bdc533`):

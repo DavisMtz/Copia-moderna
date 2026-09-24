@@ -15,6 +15,13 @@ Son los guiones con que se midió todo lo que cuenta `Documentacion/15_Entorno_A
 - `medir2.js`: imita la minimización que Google ya hace (sin comentarios ni sangría) y mide cuánto gana esbuild sobre eso.
 - `preparar-labs.js`: arma las carpetas `lab-mini` y `lab-grande`. La grande lleva copia del Portal **sin secretos**: anula `HASH_SALT`, `WEBHOOK_URL` y los webhooks de Chat, y renombra `doGet`.
 - `variantes.js`: las variantes del proyecto grande (completo, solo `.gs`, `.gs` comprimidos, sin comentarios con las mismas líneas, solo HTML, todo comprimido y la candidata de la Fase 1). Genera también un `.clasp.json` por variante para subirla con `clasp push --force -P var-X.clasp.json`.
+- `banco.mjs` (Fase 2): compara dos carpetas del proyecto pantalla por pantalla en Chrome headless. Por ejemplo, la fuente contra `build/`, o el código antes y después de un cambio de cliente.
+  - Ensambla cada pantalla como `include()`, con una sesión falsa y un `google.script.run` que siempre falla.
+  - Compara excepciones, avisos, llamadas al servidor, texto, estructura y píxeles.
+  - Carga dos veces la primera carpeta para medir el ruido: hay barras de progreso que avanzan con el tiempo.
+  - Uso: `node scripts/laboratorio/banco.mjs "Carpeta del proyecto" build <carpeta del scratchpad> [Index cotizacion …]`.
+  - La salida tiene que ir fuera del repo: si no, se niega.
+  - Resultado de la F2 (23/09/2026): las 20 pantallas iguales, con 0 excepciones en ambas carpetas.
 
 ## Antes de usarlos
 
