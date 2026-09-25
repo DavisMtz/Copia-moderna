@@ -17,7 +17,7 @@
  * corta, aunque esté dentro de una cadena de verdad. Por eso el build no deja ni un // ni un /* en
  * ningún <script> (sinBarrasCortables en scripts/build.js).
  *
- * Uso: quitar(js) → el JS como lo serviría Google (sin la sangría, que aquí no se modela).
+ * Uso: quitar(js) → el JS como lo serviría Google (la sangría la deja: medido el 25/09/2026).
  *      quitar(js, true) → { out, eventos }: lo que reconoció, con su tipo ('//', '/*', "'", '"',
  *      're') y su posición.
  * Desde la consola, para revisar algo que se va a subir SIN pasar por el build actual (una copia
