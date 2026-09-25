@@ -12,6 +12,7 @@
  *   fetchPromoCounts()     → Index.html  (widget "Hoy en promociones")
  *   fetchApplicationData() → Promociones.html (promos, MKP y calendario)
  *   reportBrokenLink(r)    → ambas (botón "Reportar" de las tarjetas → hoja "Reportes" del Portal)
+ *   fpLogosTiendas()       → Index.html  (logos de las tiendas de Formas de Pago, al abrir la sección)
  */
 
 // ── HOJA DEL PORTAL ───────────────────────────────────────────────────────────
@@ -932,6 +933,17 @@ function probarCarpetaAnuncios() {
   const info = 'Carpeta destino: ' + f.getName() + ' — ID: ' + f.getId() + ' — ' + f.getUrl();
   Logger.log(info);
   return info;
+}
+
+/**
+ * Logos de las tiendas afiliadas de Formas de Pago: { nombre de la tienda: data URI }.
+ * Viven en fp_logos.html (un JSON de ~32 KB) y NO en la página: en Index.html costarían
+ * ~0.1 s de primer byte en cada visita, y solo se ven en una sección. El cliente los pide la
+ * primera vez que se abre Formas de Pago y los guarda 30 días (app_formaspago.html).
+ * Pública a propósito: no recibe argumentos ni devuelve nada de nadie.
+ */
+function fpLogosTiendas() {
+  return JSON.parse(HtmlService.createHtmlOutputFromFile('fp_logos').getContent());
 }
 
 function reportBrokenLink(report) {

@@ -1,0 +1,552 @@
+<style>
+/* ════════════════════════════════════════════════════════════
+   FORMAS DE PAGO · PESTAÑAS POR MÉTODO (25/09/2026)
+   TESIS: una pestaña por forma de pago, y abre en Efectivo porque en llamada lo que más
+   se pregunta es dónde pagar y cómo. Sustituye a los seis capítulos numerados de una
+   sola página larga (5443 px a 1440).
+   MUNDO: el de «Tu turno». Hojas blancas con borde de 1 px, Archivo condensada en títulos
+   y cifras, JetBrains Mono para lo que se dicta o se copia. El rosa marca la pestaña, el
+   paso, la línea del monto y lo que coincide; nunca es superficie.
+   HISTORIA: el asesor escribe el monto y el estado del cliente y ve qué tiendas lo aceptan
+   (la línea rosa cae entre los topes); a la derecha, el paso a paso para leérselo. En las
+   demás pestañas: la CLABE agrupada para dictarla, los datos fiscales, la consulta de BIN,
+   FBL5N y el mapa de fraudes, todo con el texto de siempre.
+   PRIMERA VISTA: pestañas; «¿Dónde puede pagar?» (monto, estado, escalera de topes) junto a
+   «Paso a paso en tienda». A 1440×900 se ven enteros los topes hasta $10,000; el de $5,000 asoma.
+   FORMA: Pestañas por método, 7.º de 7 estructuras; tirada 698e6aed.
+   El contenido vive en Index.html (#sec-formaspago); aquí, cómo se ve y cómo se comporta.
+   Los id fp-* son destinos del buscador (app_indices.html): no se renombran sin tocarlo.
+   Respaldo: etiqueta git «respaldo-formaspago-antes-pestanas».
+════════════════════════════════════════════════════════════ */
+#sec-formaspago{--g-ink-brand:var(--brand-deep);--g-linea:color-mix(in srgb,var(--ink) 20%,var(--line));container:fpg/inline-size}
+[data-theme="carbon"] #sec-formaspago{--g-ink-brand:#F46BC6}
+#sec-formaspago ::selection{background:var(--brand-soft);color:var(--ink)}
+.fpg-sr{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);clip-path:inset(50%);white-space:nowrap}
+
+/* — Pestañas: una fila con subtítulo; sin subtítulo cuando no cabe; en rejilla cuando ni así — */
+.fpg-tabs{position:relative;display:flex;gap:.3rem;padding:.35rem;margin-bottom:1rem;border-radius:20px;background:var(--surface);border:1px solid var(--line)}
+.fpg-tab{flex:1 1 auto;display:flex;align-items:center;gap:.6rem;min-width:0;min-height:56px;padding:.45rem .9rem .45rem .75rem;border:0;border-radius:15px;background:none;color:var(--ink-soft);font:inherit;text-align:left;cursor:pointer;transition:background-color .15s,color .15s}
+.fpg-tab .ic{width:20px;height:20px;flex-shrink:0}
+.fpg-tab > span{min-width:0}
+.fpg-tab b{display:block;font-weight:750;font-size:.95rem;line-height:1.25;color:var(--ink);white-space:nowrap}
+.fpg-tab small{display:block;font-size:.78rem;font-weight:600;white-space:nowrap}
+.fpg-tab:hover{background:var(--surface-2)}
+.fpg-tab[aria-selected="true"]{background:var(--ink);color:color-mix(in srgb,var(--surface) 72%,transparent)}
+.fpg-tab[aria-selected="true"] b{color:var(--surface)}
+.fpg-tab[aria-selected="true"] .ic{color:var(--brand-bright)}
+.fpg-tab:focus-visible{outline:2.5px solid var(--brand);outline-offset:2px}
+.fpg-panel:focus{outline:0}
+.fpg-panel:focus-visible{outline:2.5px solid var(--brand);outline-offset:4px;border-radius:24px}
+.fpg-panel[hidden]{display:none}
+
+/* — Hojas — */
+.fpg-dos{display:grid;grid-template-columns:minmax(0,1.2fr) minmax(0,1fr);gap:1rem;align-items:start}
+.fpg-dos.es-efectivo{grid-template-columns:minmax(0,1.55fr) minmax(0,1fr)}
+.fpg-dos.es-parejo{grid-template-columns:minmax(0,1fr) minmax(0,1fr)}
+.fpg-hoja{background:var(--surface);border:1px solid var(--line);border-radius:24px;padding:1.3rem 1.6rem 1.45rem;min-width:0}
+.fpg-hoja-hd{display:flex;flex-wrap:wrap;align-items:baseline;gap:.3rem .8rem;margin-bottom:1rem}
+.fpg-hoja-hd h2{font-family:var(--f-display);font-weight:800;font-stretch:84%;font-size:1.24rem;line-height:1.2;letter-spacing:-.005em}
+.fpg-hoja-hd span{font-size:.86rem;color:var(--ink-soft)}
+.fpg-meta{font-size:.8rem!important;font-weight:700;color:var(--ink-soft)}
+.fpg-sub{font-family:var(--f-display);font-weight:800;font-stretch:84%;font-size:1.05rem;line-height:1.25;margin:1.3rem 0 .2rem}
+.fpg-intro{font-size:.9rem;color:var(--ink-soft);line-height:1.5;margin:-.2rem 0 .6rem;text-wrap:pretty}
+
+/* — Datos que se dictan o se copian — */
+.fpg-datos.es-tres{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));column-gap:2.2rem}
+.fpg-datos.es-tres .fpg-dato{border-bottom:0;border-top:1px solid var(--line-soft)}
+.fpg-datos.es-tres .fpg-dato:nth-child(-n+3){border-top:0}
+.fpg-datos.es-tres .fpg-dato.es-ancho{grid-column:span 2}
+.fpg-dato{display:grid;grid-template-columns:minmax(0,1fr) auto;grid-template-areas:"etq btn" "val btn";align-items:center;column-gap:.8rem;padding:.7rem 0;border-bottom:1px solid var(--line-soft)}
+.fpg-dato:last-child{border-bottom:0}
+.fpg-dato-etq{grid-area:etq;font-size:.8rem;font-weight:700;color:var(--ink-soft)}
+.fpg-dato-val{grid-area:val;font-family:var(--f-mono);font-weight:700;font-size:1rem;color:var(--ink);font-variant-numeric:tabular-nums;overflow-wrap:anywhere}
+.fpg-dato.es-letra .fpg-dato-val{font-family:inherit;font-size:1.02rem}
+.fpg-dato.es-texto .fpg-dato-val{font-family:inherit;font-weight:600;font-size:.94rem}
+.fpg-dato.es-grande .fpg-dato-val{font-size:1.32rem;letter-spacing:.01em}
+.fpg-grupos{display:inline-flex;flex-wrap:wrap;gap:0 .42em}
+.fpg-copiar{grid-area:btn;display:inline-grid;place-items:center;width:36px;height:36px;padding:0;border-radius:10px;border:1px solid var(--line);background:var(--surface);color:var(--ink-soft);font:inherit;cursor:pointer;transition:color .15s,border-color .15s,background-color .15s}
+.fpg-copiar .ic{width:16px;height:16px}
+.fpg-copiar:hover{color:var(--g-ink-brand);border-color:var(--brand-soft);background:var(--brand-tint)}
+.fpg-copiar:focus-visible{outline:2.5px solid var(--brand);outline-offset:2px}
+.fpg-copiar.es-listo{color:var(--ok);border-color:color-mix(in srgb,var(--ok) 40%,var(--line));background:var(--ok-bg)}
+
+/* — Pasos: el número manda, el texto corre en un solo bloque — */
+.fpg-pasos{list-style:none;display:grid;gap:.1rem}
+.fpg-pasos li{display:grid;grid-template-columns:2.1rem minmax(0,1fr);gap:.2rem .8rem;align-items:baseline;padding:.55rem 0}
+.fpg-paso-n{font-family:var(--f-display);font-weight:900;font-stretch:80%;font-size:1.7rem;line-height:.9;color:var(--g-ink-brand);font-variant-numeric:tabular-nums;text-align:right}
+.fpg-paso-t{font-size:.95rem;line-height:1.5;color:var(--ink);text-wrap:pretty}
+.fpg-paso-t strong{font-weight:750}
+.fpg-paso-t em{font-style:normal;font-weight:800;color:var(--alert)}
+.fpg-kbd{display:inline-block;font-family:var(--f-mono);font-size:.8em;font-weight:700;padding:.05rem .45rem .12rem;border-radius:6px;border:1px solid var(--g-linea);box-shadow:inset 0 -2px 0 var(--g-linea);background:var(--surface);color:var(--ink)}
+/* El convenio, como la CLABE: mono en tinta y grande; el rosa no es superficie */
+.fpg-conv{display:flex;flex-wrap:wrap;align-items:center;gap:.7rem;margin:.35rem 0 .1rem}
+.fpg-conv b{font-family:var(--f-mono);font-weight:700;font-size:1.32rem;letter-spacing:.04em;color:var(--ink);font-variant-numeric:tabular-nums}
+
+/* — Avisos: icono y fondo teñido, sin filete lateral — */
+.fpg-nota{display:flex;gap:.6rem;align-items:flex-start;margin-top:.9rem;padding:.75rem .95rem;border-radius:14px;font-size:.88rem;line-height:1.5}
+.fpg-nota .ic{width:18px;height:18px;flex-shrink:0;margin-top:.1rem}
+.fpg-nota.es-warn{background:var(--warn-bg);color:color-mix(in srgb,var(--warn) 78%,var(--ink))}
+.fpg-nota.es-warn .ic{color:var(--warn)}
+.fpg-nota.es-ok{background:var(--ok-bg);color:color-mix(in srgb,var(--ok) 80%,var(--ink))}
+.fpg-nota.es-ok .ic{color:var(--ok)}
+.fpg-nota.es-info{background:var(--info-bg);color:color-mix(in srgb,var(--info) 75%,var(--ink))}
+.fpg-nota.es-info .ic{color:var(--info)}
+[data-theme="carbon"] .fpg-nota{color:var(--ink)}
+
+/* — Referencia de ejemplo — */
+.fpg-ref{display:grid;gap:.45rem;margin-top:.6rem;padding:1rem 1.1rem;border-radius:16px;background:var(--surface-2);border:1px dashed var(--g-linea)}
+.fpg-ref-etq{font-size:.8rem;font-weight:700;color:var(--ink-soft)}
+.fpg-ref-num{display:flex;flex-wrap:wrap;gap:.2rem .6rem;font-family:var(--f-mono);font-weight:700;font-size:1.35rem;letter-spacing:.06em;color:var(--ink);font-variant-numeric:tabular-nums}
+.fpg-ref-pie{font-size:.8rem;color:var(--ink-soft);line-height:1.45}
+
+/* — Buscador de tiendas: monto y estado; el resumen a la derecha mientras quepa — */
+.fpg-busca{display:grid;grid-template-columns:minmax(0,10.5rem) minmax(0,12.5rem) minmax(0,1fr);align-items:end;gap:.7rem 1rem}
+.fpg-campo{display:grid;grid-template-columns:minmax(0,1fr);gap:.3rem;min-width:0}
+.fpg-campo > span:first-child{font-size:.8rem;font-weight:700;color:var(--ink-soft)}
+.fpg-monto{display:flex;align-items:center;height:44px;border-radius:12px;border:1px solid var(--g-linea);background:var(--surface);padding:0 .8rem;transition:border-color .15s,box-shadow .15s}
+.fpg-monto:focus-within{border-color:var(--brand);box-shadow:var(--ring)}
+.fpg-monto i{font-style:normal;font-family:var(--f-mono);font-weight:700;color:var(--ink-soft);margin-right:.35rem}
+.fpg-monto input{flex:1;min-width:0;width:100%;border:0;background:none;outline:0;font-family:var(--f-mono);font-weight:700;font-size:1.1rem;color:var(--ink);font-variant-numeric:tabular-nums}
+.fpg-sel{position:relative;display:block}
+.fpg-sel select{appearance:none;-webkit-appearance:none;width:100%;height:44px;border-radius:12px;border:1px solid var(--g-linea);background:var(--surface);color:var(--ink);font:inherit;font-size:.92rem;font-weight:600;padding:0 2.2rem 0 .75rem;cursor:pointer}
+.fpg-sel select:focus-visible{outline:none;border-color:var(--brand);box-shadow:var(--ring)}
+.fpg-sel::after{content:"";position:absolute;right:.95rem;top:50%;width:.42rem;height:.42rem;border-right:2px solid var(--ink-soft);border-bottom:2px solid var(--ink-soft);transform:translateY(-70%) rotate(45deg);pointer-events:none}
+.fpg-res{align-self:end;padding-bottom:.35rem;font-size:.9rem;line-height:1.4;color:var(--ink-soft);text-wrap:pretty}
+.fpg-res b{color:var(--ink);font-weight:750}
+/* Salto al paso a paso: solo cuando las dos hojas van una debajo de la otra */
+.fpg-salto{display:none;align-items:center;gap:.4rem;justify-self:start;height:36px;padding:0 .85rem;border-radius:10px;border:1px solid var(--line);background:var(--surface);color:var(--ink);font:inherit;font-size:.86rem;font-weight:700;cursor:pointer}
+.fpg-salto .ic{width:15px;height:15px}
+.fpg-salto:hover{border-color:var(--g-linea)}
+.fpg-salto:focus-visible{outline:2.5px solid var(--brand);outline-offset:2px}
+
+/* — Escalera de topes: cada tope con sus tiendas; la línea rosa es el monto del cliente — */
+/* La hoja de tiendas mide su propio ancho: por debajo de 37em (1366 y menos) el resumen baja bajo los
+   campos y cada tope va encima de sus tiendas, para que nombres y coberturas no se partan */
+#fp-tiendas{container:fpgt/inline-size}
+.fpg-escalera{list-style:none;display:grid;margin-top:.9rem}
+.fpg-esc{display:grid;grid-template-columns:7.2rem minmax(0,1fr);gap:.35rem .9rem;align-items:start;padding:.55rem 0;border-top:1px solid var(--line-soft)}
+.fpg-esc-m{display:grid;padding-top:.3rem}
+.fpg-esc-m b{font-family:var(--f-display);font-weight:900;font-stretch:80%;font-size:1.7rem;line-height:1;font-variant-numeric:tabular-nums;letter-spacing:-.01em}
+.fpg-esc-m small{font-size:.78rem;font-weight:600;color:var(--ink-soft)}
+.fpg-esc.es-corto .fpg-esc-m small{color:var(--alert);font-weight:700}
+.fpg-esc-ts{list-style:none;display:grid;grid-template-columns:repeat(auto-fill,minmax(215px,1fr));gap:.35rem .8rem}
+.fpg-t{display:flex;align-items:center;gap:.65rem;min-width:0;padding:.15rem;border-radius:12px}
+.fpg-t-tx{display:grid;min-width:0}
+.fpg-t-tx b{font-weight:700;font-size:.93rem;line-height:1.25}
+.fpg-t-tx small{display:flex;align-items:center;gap:.25rem;font-size:.78rem;color:var(--ink-soft);line-height:1.3}
+.fpg-t-tx small .ic{width:12px;height:12px;flex-shrink:0}
+/* Lo que no sirve se apaga (placa y nombre); el motivo se queda legible */
+.fpg-esc-m b,.fpg-t .fpg-logo,.fpg-t-tx b{transition:opacity .2s}
+.fpg-esc.es-corto .fpg-esc-m b,.fpg-esc.es-corto .fpg-t .fpg-logo,.fpg-esc.es-corto .fpg-t-tx b,
+.fpg-t.es-fuera .fpg-logo,.fpg-t.es-fuera .fpg-t-tx b{opacity:.4}
+.fpg-t.es-fuera .fpg-t-tx b{text-decoration:line-through;text-decoration-thickness:1.5px}
+.fpg-linea{position:relative;height:0;margin:.35rem 0}
+.fpg-linea i{position:absolute;left:0;right:0;top:-1px;border-top:2px dashed var(--brand);transform-origin:0 50%}
+.fpg-linea span{position:absolute;left:0;top:50%;transform:translateY(-50%);padding:.15rem .6rem;border-radius:999px;background:var(--brand);color:#fff;font-family:var(--f-mono);font-weight:700;font-size:.8rem}
+
+/* Logo en placa blanca en los tres temas (los logos están hechos para blanco). Sin logo, iniciales.
+   La altura de cada logo la fija el guion por su proporción: los cuadrados no se ven motas y
+   los apaisados no se comen la placa. */
+.fpg-logo{display:inline-grid;place-items:center;flex-shrink:0;width:104px;height:42px;padding:4px 8px;border-radius:10px;background:#fff;border:1px solid var(--line)}
+[data-theme="carbon"] .fpg-logo{border-color:transparent}
+.fpg-logo img{display:block;max-width:100%;max-height:34px;width:auto;object-fit:contain;animation:fpg-logo .25s ease-out}
+@keyframes fpg-logo{from{opacity:0}}
+.fpg-logo b{font-family:var(--f-display);font-weight:900;font-stretch:80%;font-size:1.05rem;letter-spacing:.02em;color:#5C6B7E}
+
+/* — Monedero: consulta de BIN — */
+.fpg-binchk{display:grid;grid-template-columns:9.5rem minmax(0,1fr);align-items:end;gap:.9rem 1.2rem}
+.fpg-bin-inp{height:56px;width:100%;border-radius:14px;border:1px solid var(--g-linea);background:var(--surface);font-family:var(--f-mono);font-weight:700;font-size:1.7rem;letter-spacing:.14em;text-align:center;color:var(--ink);outline:0;transition:border-color .15s,box-shadow .15s}
+.fpg-bin-inp:focus{border-color:var(--brand);box-shadow:var(--ring)}
+.fpg-veredicto{min-height:56px;display:flex;flex-wrap:wrap;align-items:center;gap:.4rem .8rem;font-size:.95rem;line-height:1.4}
+.fpg-ver-vacio{color:var(--ink-soft)}
+.fpg-ver-sello{display:inline-flex;align-items:center;gap:.4rem;height:40px;padding:0 .95rem;border-radius:12px;font-family:var(--f-display);font-weight:900;font-stretch:84%;font-size:1.15rem;color:#fff}
+.fpg-ver-sello .ic{width:20px;height:20px}
+.fpg-veredicto.es-si .fpg-ver-sello{background:var(--ok)}
+.fpg-veredicto.es-no .fpg-ver-sello{background:var(--alert)}
+.fpg-ver-que b{font-family:var(--f-mono)}
+.fpg-bin-tabla{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:1rem 1.6rem;margin-top:1.1rem}
+.fpg-bin-tabla h3{display:flex;align-items:center;gap:.45rem;font-size:.86rem;font-weight:750;margin-bottom:.35rem}
+.fpg-bin-tabla h3 i{font-style:normal;font-family:var(--f-mono);font-size:.8rem;color:var(--ink-soft)}
+.fpg-bin-ico{display:grid;place-items:center;width:20px;height:20px;border-radius:6px}
+.fpg-bin-ico .ic{width:13px;height:13px}
+.fpg-bin-ico.es-si{background:var(--ok-bg);color:var(--ok)}
+.fpg-bin-ico.es-no{background:var(--alert-bg);color:var(--alert)}
+.fpg-bin-tabla ul{list-style:none}
+.fpg-bin-fila{display:grid;grid-template-columns:3rem minmax(0,1fr);gap:.6rem;align-items:baseline;padding:.42rem .5rem;margin:0 -.5rem;border-radius:9px;font-size:.88rem;transition:background-color .15s,color .15s}
+.fpg-bin-fila b{font-family:var(--f-mono);font-weight:700;font-variant-numeric:tabular-nums}
+.fpg-bin-fila.es-si b{color:var(--ok)}
+.fpg-bin-fila.es-no b{color:var(--alert)}
+.fpg-bin-fila.es-hit{background:var(--brand-tint)}
+/* Las que no coinciden se apagan con color, no con opacidad: así el rosa marca solo la coincidencia */
+.fpg-bin-fila.es-apagada,.fpg-bin-fila.es-apagada b{color:var(--ink-soft)}
+.fpg-canales{display:flex;flex-wrap:wrap;gap:.5rem;margin-bottom:.8rem}
+.fpg-canales span{display:grid;padding:.5rem .8rem;border-radius:12px;background:var(--surface-2);border:1px solid var(--line)}
+.fpg-canales b{font-size:.86rem}
+.fpg-canales small{font-size:.78rem;color:var(--ink-soft)}
+.fpg-reglas{list-style:none;display:grid;gap:.45rem}
+.fpg-reglas li{position:relative;padding-left:1.05rem;font-size:.9rem;line-height:1.5}
+.fpg-reglas li::before{content:"";position:absolute;left:.15rem;top:.6em;width:5px;height:5px;border-radius:50%;background:var(--ink-faint)}
+
+/* — Fraudes: dos carriles que se leen de arriba abajo. Un solo nivel de nodo (la caja); las
+     preguntas son rótulos de arista y las aristas son líneas de 1 px, como en el mapa original. — */
+.fpg-fr{--fr:var(--g-linea);--sal:1.15rem}
+.fpg-fr-carriles{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:1.6rem 3rem}
+.fpg-fr-carril{display:flex;flex-direction:column;min-width:0}
+.fpg-fr-carril > h3{text-align:center;font-family:var(--f-display);font-weight:800;font-stretch:84%;font-size:1.12rem;line-height:1.2;margin-bottom:.5rem}
+.fpg-fr-carril > * + :not(h3),.fpg-fr-sub > * + *{position:relative;margin-top:var(--sal)}
+.fpg-fr-carril > h3 + *{margin-top:0}
+.fpg-fr-carril > :not(h3) + :not(h3)::before,.fpg-fr-sub > * + *::before{content:"";position:absolute;left:50%;top:calc(var(--sal) * -1);height:var(--sal);width:1px;background:var(--fr)}
+/* Flecha al llegar a una caja */
+.fpg-fr-carril > :not(h3) + .fpg-fr-caja::after,.fpg-fr-sub > * + .fpg-fr-caja::after{content:"";position:absolute;left:calc(50% - 4px);top:-6px;border:4px solid transparent;border-top:5px solid var(--fr);border-bottom:0}
+.fpg-fr-q{text-align:center;font-size:.8rem;font-weight:700;color:var(--ink-soft);line-height:1.35;text-wrap:balance;padding:0 .4rem}
+.fpg-fr-caja{position:relative;background:var(--surface);border:1px solid var(--line);border-radius:14px;padding:.7rem .85rem;font-size:.88rem;line-height:1.4}
+.fpg-fr-caja small{display:block;font-size:.78rem;color:var(--ink-soft);margin:-.1rem 0 .35rem}
+.fpg-fr-sis{display:block;font-family:var(--f-display);font-weight:900;font-stretch:90%;font-size:.98rem;letter-spacing:.01em;margin-bottom:.3rem}
+.fpg-fr-lista{list-style:none;display:grid;gap:.22rem}
+.fpg-fr-lista li{display:flex;gap:.45rem;font-size:.84rem;line-height:1.4}
+.fpg-fr-lista li::before{content:"";flex-shrink:0;width:5px;height:5px;margin-top:.5em;border-radius:50%;background:var(--ink-faint)}
+/* Bifurcación: la barra de reparto va dibujada como fondo; en .es-junta, también la de abajo */
+.fpg-fr-rama{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:0 1rem;padding-top:var(--sal);
+  background:linear-gradient(var(--fr),var(--fr)) 50% 0/calc(50% + .5rem) 1px no-repeat}
+.fpg-fr-rama.es-junta{padding-bottom:var(--sal);
+  background:linear-gradient(var(--fr),var(--fr)) 50% 0/calc(50% + .5rem) 1px no-repeat,linear-gradient(var(--fr),var(--fr)) 50% 100%/calc(50% + .5rem) 1px no-repeat}
+.fpg-fr-sub{position:relative;display:flex;flex-direction:column;min-width:0}
+.fpg-fr-sub::before{content:"";position:absolute;left:50%;top:calc(var(--sal) * -1);height:var(--sal);width:1px;background:var(--fr)}
+.fpg-fr-rama.es-junta .fpg-fr-sub::after{content:"";position:absolute;left:50%;bottom:calc(var(--sal) * -1);height:var(--sal);width:1px;background:var(--fr)}
+.fpg-fr-rama.es-junta .fpg-fr-caja{flex:1}
+.fpg-fr-caja.es-ok{background:var(--ok-bg);border-color:color-mix(in srgb,var(--ok) 30%,var(--line));color:color-mix(in srgb,var(--ok) 85%,var(--ink))}
+.fpg-fr-caja.es-no{background:var(--alert-bg);border-color:color-mix(in srgb,var(--alert) 30%,var(--line));color:color-mix(in srgb,var(--alert) 85%,var(--ink))}
+.fpg-fr-caja.es-fin{font-weight:750}
+[data-theme="carbon"] .fpg-fr-caja.es-ok,[data-theme="carbon"] .fpg-fr-caja.es-no{color:var(--ink)}
+.fpg-fr-caja.es-decision{display:grid;gap:.35rem;text-align:center}
+.fpg-fr-dec{display:flex;justify-content:center;gap:1.4rem}
+.fpg-fr-dec i{display:inline-flex;align-items:center;gap:.4rem;font-style:normal;font-weight:750;font-size:.88rem}
+.fpg-fr-dec i::before{content:"";width:8px;height:8px;border-radius:50%}
+.fpg-fr-dec .es-ok{color:var(--ok)}
+.fpg-fr-dec .es-ok::before{background:var(--ok)}
+.fpg-fr-dec .es-no{color:var(--alert)}
+.fpg-fr-dec .es-no::before{background:var(--alert)}
+
+/* — Densidad compacta y alto contraste (Ajustes de vista) — */
+html[data-density="compact"] .fpg-tab{min-height:46px}
+html[data-density="compact"] .fpg-hoja{padding:.95rem 1.2rem 1.05rem}
+html[data-density="compact"] .fpg-hoja-hd{margin-bottom:.6rem}
+html[data-density="compact"] .fpg-esc{padding:.35rem 0}
+html[data-density="compact"] .fpg-pasos li{padding:.35rem 0}
+html[data-density="compact"] .fpg-dato{padding:.45rem 0}
+html[data-contrast="high"] .fpg-tabs,html[data-contrast="high"] .fpg-hoja{border-width:2px}
+html[data-contrast="high"] .fpg-esc.es-corto .fpg-esc-m b,html[data-contrast="high"] .fpg-esc.es-corto .fpg-t .fpg-logo,html[data-contrast="high"] .fpg-esc.es-corto .fpg-t-tx b,
+html[data-contrast="high"] .fpg-t.es-fuera .fpg-logo,html[data-contrast="high"] .fpg-t.es-fuera .fpg-t-tx b{opacity:.62}
+
+/* Según el ancho de la sección, en em: escala con los cuatro tamaños de texto. */
+@container fpg (max-width:65em){ .fpg-tab small{display:none} .fpg-tab{min-height:48px} }
+@container fpg (max-width:56em){
+  .fpg-dos,.fpg-dos.es-efectivo,.fpg-dos.es-parejo{grid-template-columns:minmax(0,1fr)}
+  /* Sin subtítulos las seis necesitan ~55em: por debajo, rejilla de 3×2 en vez de un desplazamiento que no se ve */
+  .fpg-tabs{display:grid;grid-template-columns:repeat(3,minmax(0,1fr))}
+  .fpg-tab{min-height:44px;padding:.4rem .6rem;gap:.45rem}
+  .fpg-tab b{white-space:normal;font-size:.88rem;line-height:1.2}
+  .fpg-salto{display:inline-flex}
+  /* Una columna: lo que no alcanza el monto se queda en una línea (su tope y «no alcanza») */
+  .fpg-esc.es-corto{padding:.3rem 0}
+  .fpg-esc.es-corto .fpg-esc-ts{display:none}
+  .fpg-esc.es-corto .fpg-esc-m{grid-auto-flow:column;justify-content:start;align-items:baseline;gap:.6rem}
+  .fpg-esc.es-corto .fpg-esc-m b{font-size:1.2rem}
+}
+@container fpg (max-width:54em){
+  .fpg-datos.es-tres{grid-template-columns:repeat(2,minmax(0,1fr))}
+  .fpg-datos.es-tres .fpg-dato:nth-child(3){border-top:1px solid var(--line-soft)}
+}
+@container fpg (max-width:44em){
+  .fpg-busca{grid-template-columns:minmax(0,1fr) minmax(0,1fr)}
+  .fpg-res{grid-column:1/-1;padding-bottom:0}
+  .fpg-datos.es-tres,.fpg-bin-tabla,.fpg-fr-carriles{grid-template-columns:minmax(0,1fr)}
+  .fpg-datos.es-tres .fpg-dato:nth-child(2){border-top:1px solid var(--line-soft)}
+  .fpg-datos.es-tres .fpg-dato.es-ancho{grid-column:auto}
+  .fpg-hoja{padding:1.1rem 1.1rem 1.2rem;border-radius:20px}
+}
+/* Hoja de tiendas angosta: el tope va encima de sus tiendas y las tiendas ganan el ancho */
+@container fpgt (max-width:37em){
+  .fpg-busca{grid-template-columns:minmax(0,10.5rem) minmax(0,12.5rem)}
+  .fpg-res{grid-column:1/-1;padding-bottom:0}
+  .fpg-esc{grid-template-columns:minmax(0,1fr)}
+  .fpg-esc-m{grid-auto-flow:column;justify-content:start;align-items:baseline;gap:.5rem}
+}
+@container fpg (max-width:34em){
+  .fpg-tabs{grid-template-columns:repeat(2,minmax(0,1fr))}
+  .fpg-binchk{grid-template-columns:minmax(0,1fr)}
+}
+@media (prefers-reduced-motion:reduce){ .fpg-tab,.fpg-copiar,.fpg-bin-fila,.fpg-monto,.fpg-esc-m b,.fpg-t .fpg-logo,.fpg-t-tx b{transition:none} .fpg-logo img{animation:none} }
+</style>
+<script>
+/* Formas de Pago · comportamiento de #sec-formaspago (el marcado y el contenido viven en
+   Index.html). Se engancha una sola vez en DOMContentLoaded; lo que el guion grande llama:
+     · fpAlEntrar()   — switchSec al abrir la sección (idempotente): pide los logos.
+     · fpRevelar(el)  — revealTarget y jumpToFp: abre la pestaña que contiene `el` y devuelve
+                        lo que hay que resaltar (la primera hoja si `el` es la pestaña entera). */
+(function(){
+  'use strict';
+  var montada = false;
+  var sec, tabs = [], activa = '';
+  var MXN = new Intl.NumberFormat('es-MX', { style:'currency', currency:'MXN', maximumFractionDigits:0 });
+  var ICO_LISTO = '<svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.3" stroke-linecap="round" stroke-linejoin="round"><path d="m5 12.5 4.5 4.5L19 7.5"/></svg>';
+  var ICO_NO = '<svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.3" stroke-linecap="round" stroke-linejoin="round"><path d="M6 6l12 12M18 6 6 18"/></svg>';
+
+  /* GS() es del guion grande (const global, no cuelga de window): se consulta al usarse. */
+  function gs(){ try { return typeof GS === 'function' ? !!GS() : false; } catch (e) { return false; } }
+  function dinero(n){ return MXN.format(n); }
+  function escHtml(s){ return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
+  /* «12500», «12,500», «$12,500.50»: todo vale. Cero o nada = sin monto. */
+  function leerMonto(s){ var n = parseFloat(String(s || '').replace(/[^\d.]/g, '')); return isFinite(n) && n > 0 ? n : 0; }
+
+  /* ── Pestañas (patrón ARIA; se activan al moverse con las flechas) ── */
+  function activar(id, foco){
+    if (!id) return;
+    tabs.forEach(function(t){
+      var on = t.getAttribute('aria-controls') === id;
+      t.setAttribute('aria-selected', on ? 'true' : 'false');
+      t.tabIndex = on ? 0 : -1;
+      if (on && foco) t.focus();
+    });
+    var cambio = activa && activa !== id;
+    sec.querySelectorAll('.fpg-panel').forEach(function(p){ p.hidden = p.id !== id; });
+    activa = id;
+    if (cambio && gs()){
+      // Parte de un estado visible: si el reloj de la animación se para, nada se queda en blanco.
+      var hojas = sec.querySelectorAll('#' + id + ' .fpg-hoja');
+      gsap.fromTo(hojas, { opacity:.6, y:8 }, { opacity:1, y:0, duration:.28, ease:'expo.out',
+        stagger:{ amount: Math.min(.1, hojas.length * .05) }, clearProps:'transform,opacity', overwrite:'auto' });
+    }
+  }
+  function enlazarPestanas(){
+    tabs = Array.prototype.slice.call(sec.querySelectorAll('.fpg-tab'));
+    tabs.forEach(function(t, i){
+      t.addEventListener('click', function(){ activar(t.getAttribute('aria-controls')); });
+      t.addEventListener('keydown', function(e){
+        var paso = e.key === 'ArrowRight' ? 1 : e.key === 'ArrowLeft' ? -1 : 0;
+        var dest = paso ? tabs[(i + paso + tabs.length) % tabs.length] : e.key === 'Home' ? tabs[0] : e.key === 'End' ? tabs[tabs.length - 1] : null;
+        if (!dest) return;
+        e.preventDefault();
+        activar(dest.getAttribute('aria-controls'), true);
+      });
+    });
+    var sel = tabs.filter(function(t){ return t.getAttribute('aria-selected') === 'true'; })[0] || tabs[0];
+    if (sel) activar(sel.getAttribute('aria-controls'));
+  }
+
+  /* ── ¿Dónde puede pagar? Monto + estado sobre la escalera de topes ── */
+  function enlazarTiendas(){
+    var inp = sec.querySelector('#fpgMonto'), sel = sec.querySelector('#fpgEstado'), res = sec.querySelector('#fpgRes');
+    var lista = sec.querySelector('#fpgEscalera');
+    if (!inp || !sel || !res || !lista) return;
+    var escalones = Array.prototype.slice.call(lista.querySelectorAll('.fpg-esc'));
+    var tiendas = [];
+    escalones.forEach(function(e){
+      var m = Number(e.getAttribute('data-m')) || 0;
+      e._nota = e.querySelector('.fpg-esc-m small');
+      e._notaBase = e._nota ? e._nota.textContent : '';
+      e.querySelectorAll('.fpg-t').forEach(function(t){
+        var est = (t.getAttribute('data-est') || '').split(/\s+/).filter(Boolean);
+        var donde = t.querySelector('.fpg-t-tx small');
+        tiendas.push({ el:t, m:m, est:est, donde:donde, dondeBase: donde ? donde.innerHTML : '', cob: t.getAttribute('data-cob') || '' });
+      });
+    });
+    var linea = document.createElement('li');
+    linea.className = 'fpg-linea';
+    linea.setAttribute('aria-hidden', 'true');
+    linea.appendChild(document.createElement('i'));
+    linea.appendChild(document.createElement('span'));
+    var antesDe = null;   // tras qué escalón quedó la línea la última vez
+
+    function correr(){
+      var monto = leerMonto(inp.value), est = sel.value;
+      var nombreEst = est ? sel.options[sel.selectedIndex].text : '';
+      var vis = 0, sirven = 0, tope = 0, topeNombres = [];
+      tiendas.forEach(function(t){
+        var fuera = !!est && t.est.length > 0 && t.est.indexOf(est) === -1;
+        t.el.classList.toggle('es-fuera', fuera);
+        if (t.donde) t.donde.innerHTML = fuera ? 'Solo en ' + escHtml(t.cob) : t.dondeBase;
+        if (fuera) return;
+        vis++;
+        if (!monto || t.m >= monto) sirven++;
+        if (t.m > tope){ tope = t.m; topeNombres = []; }
+        if (t.m === tope) topeNombres.push(t.el.querySelector('.fpg-t-tx b').textContent);
+      });
+      var destino = null;
+      escalones.forEach(function(e){
+        var m = Number(e.getAttribute('data-m')) || 0;
+        var corto = !!monto && m < monto;
+        e.classList.toggle('es-corto', corto);
+        if (e._nota) e._nota.textContent = corto ? 'no alcanza ' + dinero(monto) : e._notaBase;
+        if (corto && !destino) destino = e;
+      });
+      if (monto){
+        linea.lastChild.textContent = dinero(monto);
+        var nueva = !linea.parentNode || antesDe !== destino;
+        if (destino) lista.insertBefore(linea, destino); else lista.appendChild(linea);
+        antesDe = destino;
+        // La única escena de la sección: la línea se tiende cuando cae en otro sitio.
+        if (nueva && gs()) gsap.fromTo(linea.firstChild, { scaleX:0 }, { scaleX:1, duration:.2, ease:'expo.out', clearProps:'transform', overwrite:'auto' });
+      } else if (linea.parentNode){
+        linea.parentNode.removeChild(linea);
+        antesDe = null;
+      }
+
+      var donde = est ? ' en ' + escHtml(nombreEst) : '';
+      if (!monto) res.innerHTML = '<b>' + vis + '</b> tiendas' + (est ? donde : ' en todo el país') + '. Escribe el monto para ver cuáles lo aceptan.';
+      else if (!sirven) res.innerHTML = 'Ninguna tienda' + donde + ' acepta <b>' + dinero(monto) + '</b> en un pago: el tope más alto es ' + dinero(tope) + ' (' + escHtml(topeNombres.join(', ')) + ').';
+      else res.innerHTML = '<b>' + sirven + '</b> de ' + vis + ' tiendas' + donde + ' aceptan <b>' + dinero(monto) + '</b>.';
+    }
+    inp.addEventListener('input', correr);
+    sel.addEventListener('change', correr);
+    inp.addEventListener('keydown', function(e){
+      if (e.key === 'Escape' && inp.value){ inp.value = ''; correr(); e.stopPropagation(); }
+    });
+    correr();
+  }
+
+  /* ── Salto al paso a paso cuando las hojas van en una sola columna ── */
+  function enlazarSalto(){
+    sec.addEventListener('click', function(e){
+      var b = e.target.closest && e.target.closest('[data-fpg-salto]');
+      if (!b) return;
+      var h = document.getElementById(b.getAttribute('data-fpg-salto'));
+      if (!h) return;
+      var hoja = h.closest('.fpg-hoja') || h;
+      var y = hoja.getBoundingClientRect().top + window.scrollY - 80;
+      window.scrollTo({ top: Math.max(0, y), behavior: gs() ? 'smooth' : 'auto' });
+    });
+  }
+
+  /* ── Monedero: el BIN de 3 dígitos contra la tabla ── */
+  function enlazarBin(){
+    var inp = sec.querySelector('#fpgBin'), ver = sec.querySelector('#fpgVeredicto');
+    if (!inp || !ver) return;
+    var filas = Array.prototype.slice.call(sec.querySelectorAll('.fpg-bin-fila'));
+    var vacio = ver.innerHTML;
+    function correr(){
+      var v = inp.value.replace(/\D/g, '').slice(0, 3);
+      if (v !== inp.value) inp.value = v;
+      filas.forEach(function(f){
+        var hit = !!v && f.getAttribute('data-bin').indexOf(v) === 0;
+        f.classList.toggle('es-hit', hit);
+        f.classList.toggle('es-apagada', !!v && !hit);
+      });
+      ver.className = 'fpg-veredicto';
+      if (v.length < 3){
+        ver.innerHTML = v ? '<span class="fpg-ver-vacio">Faltan ' + (3 - v.length) + ' dígito' + (v.length === 2 ? '' : 's') + '.</span>' : vacio;
+        return;
+      }
+      var f = filas.filter(function(x){ return x.getAttribute('data-bin') === v; })[0];
+      if (!f){ ver.classList.add('es-nada'); ver.innerHTML = '<span><b>' + v + '</b> no está en la tabla de BINes.</span>'; return; }
+      var ok = f.classList.contains('es-si');
+      ver.classList.add(ok ? 'es-si' : 'es-no');
+      ver.innerHTML = '<span class="fpg-ver-sello">' + (ok ? ICO_LISTO + 'Sí se traspasa' : ICO_NO + 'No se traspasa') + '</span>' +
+        '<span class="fpg-ver-que"><b>' + v + '</b> · ' + escHtml(f.querySelector('span').textContent) + '</span>';
+      if (gs()) gsap.fromTo(ver.querySelector('.fpg-ver-sello'), { opacity:.6, y:4 }, { opacity:1, y:0, duration:.22, ease:'expo.out', clearProps:'transform,opacity', overwrite:'auto' });
+    }
+    inp.addEventListener('input', correr);
+    inp.addEventListener('keydown', function(e){
+      if (e.key === 'Escape' && inp.value){ inp.value = ''; correr(); e.stopPropagation(); }
+    });
+  }
+
+  /* ── Copiar: el botón lleva el valor corrido (la CLABE sin los espacios de dictado) ── */
+  function enlazarCopiar(){
+    sec.addEventListener('click', function(e){
+      var b = e.target.closest && e.target.closest('[data-fpg-copia]');
+      if (!b) return;
+      if (typeof window.copyText === 'function') window.copyText(b.getAttribute('data-fpg-copia'), null);
+      var ic = b.querySelector('svg');
+      if (!b._ic && ic) b._ic = ic.outerHTML;
+      if (ic) ic.outerHTML = ICO_LISTO;
+      b.classList.add('es-listo');
+      clearTimeout(b._t);
+      b._t = setTimeout(function(){
+        b.classList.remove('es-listo');
+        var ahora = b.querySelector('svg');
+        if (ahora && b._ic) ahora.outerHTML = b._ic;
+      }, 1400);
+    });
+  }
+
+  /* ── Logos de las tiendas: cada placa lleva data-logo con el nombre; sin logo, iniciales.
+     No viajan en la página: son ~32 KB, que en Index costarían ~0.1 s de primer byte en CADA
+     visita, y solo se ven aquí. Se piden la primera vez que se abre la sección
+     (fpLogosTiendas en Portal.gs, datos en fp_logos.html) y se guardan 30 días. Si cambian,
+     se sube la versión de la clave. En la vista previa local llegan en window.FP_LOGOS. ── */
+  var LOGOS_CLAVE = 'fp-logos-v1', LOGOS_TTL = 30 * 864e5;
+  var logosListos = false, logosPidiendo = false;
+  function cargarLogos(){
+    if (logosListos || logosPidiendo) return;
+    var mapa = window.FP_LOGOS || null;
+    if (!mapa && window.AppCache){ var g = AppCache.get(LOGOS_CLAVE); if (g && g.data) mapa = g.data; }
+    if (mapa){ aplicarLogos(mapa); logosListos = true; return; }
+    if (!(window.AppRun && AppRun.call)) return;
+    logosPidiendo = true;
+    AppRun.call('fpLogosTiendas', [], { busy: false }).then(function(m){
+      logosPidiendo = false;
+      if (!m || typeof m !== 'object') return;
+      if (window.AppCache) AppCache.set(LOGOS_CLAVE, m, { ttl: LOGOS_TTL });
+      aplicarLogos(m);
+      logosListos = true;
+    }, function(){ logosPidiendo = false; });
+  }
+  /* Altura óptica común: a igual área, un logo cuadrado y uno apaisado pesan lo mismo a la
+     vista. Tope de 34 px de alto y del ancho útil de la placa. */
+  function medirLogo(img){
+    var r = img.naturalWidth / Math.max(1, img.naturalHeight);
+    var h = Math.sqrt(1500 / Math.max(.2, r));
+    h = Math.min(34, h, 88 / r);
+    img.style.height = Math.round(h) + 'px';
+  }
+  function aplicarLogos(mapa){
+    if (!mapa) return;
+    sec.querySelectorAll('.fpg-logo[data-logo]').forEach(function(pl){
+      var src = mapa[pl.getAttribute('data-logo')];
+      if (!src || pl.querySelector('img')) return;
+      var img = new Image();
+      img.alt = ''; img.decoding = 'async';
+      img.onload = function(){ medirLogo(img); pl.textContent = ''; pl.appendChild(img); };
+      img.src = src;
+    });
+  }
+
+  /* Cuentas que antes se escribían a mano (el «16» de las tiendas vivía en dos sitios). */
+  function contar(){
+    var n = sec.querySelectorAll('#fpgEscalera .fpg-t').length;
+    var b = sec.querySelectorAll('.fpg-bin-fila').length;
+    sec.querySelectorAll('[data-fpg-cuenta="tiendas"]').forEach(function(el){ el.textContent = n; });
+    sec.querySelectorAll('[data-fpg-cuenta="bines"]').forEach(function(el){ el.textContent = b; });
+  }
+
+  function montar(){
+    if (montada) return;
+    sec = document.getElementById('sec-formaspago');
+    if (!sec) return;
+    montada = true;
+    contar();
+    enlazarPestanas();
+    enlazarTiendas();
+    enlazarSalto();
+    enlazarBin();
+    enlazarCopiar();
+  }
+
+  window.fpAlEntrar = function(){
+    montar();
+    if (sec) cargarLogos();
+  };
+  window.fpRevelar = function(el){
+    montar();
+    if (!sec || !el || !el.closest || !sec.contains(el)) return null;
+    var p = el.closest('.fpg-panel');
+    if (!p) return el;
+    if (p.id !== activa) activar(p.id);
+    return el === p ? (p.querySelector('.fpg-hoja') || p) : el;
+  };
+
+  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', montar);
+  else montar();
+})();
+</script>
