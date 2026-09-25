@@ -5,9 +5,10 @@
  * Corre el build REAL a una carpeta temporal y comprueba por su cuenta, sin fiarse de las
  * comprobaciones internas del build, lo que no puede romperse: que se sube lo mismo, que cada
  * .gs es el mismo programa con las mismas líneas y que verificarVersionDelCodigo sigue viendo sus
- * marcas; que cada página es la fuente con comentarios enteros quitados y nada más, y que cada
- * parcial compilado se deja leer, no pierde globales y no lleva lo que rompe el quitacomentarios
- * de Google. Después prueba la limpieza con casos trampa y que un fallo no deje nada que subir.
+ * marcas; que cada página es la fuente sin comentarios, con el mismo marcado y el mismo JS; que
+ * cada parcial compilado se deja leer y no pierde globales; y que ningún <script> de la salida
+ * lleva lo que corta el quitacomentarios de Google (modelo en pruebas/quitacomentarios_google.js).
+ * Después prueba la limpieza con casos trampa y que un fallo no deje nada que subir.
  * Esta carpeta queda fuera de "Carpeta del proyecto": clasp nunca la sube.
  */
 const fs = require('fs');
@@ -103,36 +104,60 @@ const parciales = htmls.filter(B.esParcial), paginas = htmls.filter((f) => !B.es
 const leeLF = (dir, f) => lee(dir, f).replace(/\r\n/g, '\n');
 ok('hay parciales y páginas (' + parciales.length + ' y ' + paginas.length + ')', parciales.length >= 20 && paginas.length >= 18);
 
-// Páginas: la salida es la fuente sin algunos <!-- … --> enteros, y nada más. Un comentario que la
-// salida conserva (dentro de un <script>, de un <textarea>…) se recorre letra a letra como el resto.
-const malPag = { difiere: [], conScriptlet: [], scriptlets: [], bloques: [] };
-let comentariosQuitados = 0;
+// Páginas: fuera los <!-- … --> del marcado (ninguno con un scriptlet), y todo lo demás sale como
+// estaba salvo el JS clásico: cada <script> es el MISMO programa que el de la fuente, con sus mismas
+// líneas y sin comentarios. Sus scriptlets se cambian por el mismo nombre en los dos lados para
+// poder leerlos.
+const malPag = { conScriptlet: [], quedan: [], secuencia: [], difiere: [], scriptlets: [], programa: [], lineas: [], comentarios: [] };
+let comentariosQuitados = 0, guionesDePagina = 0, conComentarios = 0;
+const lineaEn = (s, pos) => s.slice(0, pos).split('\n').length;
 const scriptletsDe = (s) => JSON.stringify(s.match(/<\?[\s\S]*?\?>/g) || []);
-const bloquesDePagina = (s) => JSON.stringify(B.trocearHtml(s, true).filter((t) => t.t !== 'marcado' && t.t !== 'comentario').map((t) => t.texto));
+const conRelleno = (js) => { let k = 0; return js.replace(/<\?[\s\S]*?\?>/g, () => '__relleno' + (k++) + '__'); };
+const trozosSinComentarios = (s) => {
+  const out = [];
+  for (const t of B.trocearHtml(s, true)) {
+    if (t.t === 'comentario') continue;
+    const u = out[out.length - 1];
+    if (t.t === 'marcado' && u && u.t === 'marcado') u.texto += t.texto;   // lo que un comentario separaba
+    else out.push(Object.assign({}, t));
+  }
+  return out;
+};
 for (const f of paginas) {
   const a = leeLF(FUENTE, f), b = lee(salida, f);
-  let i = 0, j = 0;
-  while (i < a.length) {
-    if (a.startsWith('<!--', i)) {
-      const fin = a.indexOf('-->', i + 4) + 3;
-      const comentario = a.slice(i, fin);
-      if (!b.startsWith(comentario, j)) {
-        if (comentario.indexOf('<?') !== -1) malPag.conScriptlet.push(f);
-        comentariosQuitados++; i = fin; continue;
-      }
-    }
-    if (a[i] !== b[j]) { malPag.difiere.push(f + ' @' + i + ': ' + JSON.stringify(a.slice(i, i + 50))); break; }
-    i++; j++;
-  }
-  if (!malPag.difiere.length && j !== b.length) malPag.difiere.push(f + ' (sobra texto al final)');
+  const deFuente = B.trocearHtml(a, true).filter((t) => t.t === 'comentario');
+  comentariosQuitados += deFuente.length;
+  if (deFuente.some((t) => t.texto.indexOf('<?') !== -1)) malPag.conScriptlet.push(f);
+  if (B.trocearHtml(b, true).some((t) => t.t === 'comentario')) malPag.quedan.push(f);
   if (scriptletsDe(a) !== scriptletsDe(b)) malPag.scriptlets.push(f);
-  if (bloquesDePagina(a) !== bloquesDePagina(b)) malPag.bloques.push(f);
+  const ta = trozosSinComentarios(a), tb = trozosSinComentarios(b);
+  if (ta.map((t) => t.t).join() !== tb.map((t) => t.t).join()) { malPag.secuencia.push(f); continue; }
+  ta.forEach((x, k) => {
+    const y = tb[k], donde = f + ':' + lineaEn(a, x.ini);
+    if (!(x.t === 'script' && B.esJsClasico(x.apertura) && x.contenido.trim())) {
+      if (x.texto !== y.texto) malPag.difiere.push(donde + ' ' + JSON.stringify(x.texto.slice(0, 50)));
+      return;
+    }
+    guionesDePagina++;
+    if (x.apertura !== y.apertura || x.cierre !== y.cierre) { malPag.difiere.push(donde + ': las etiquetas de un <script>'); return; }
+    const ja = conRelleno(x.contenido), jb = conRelleno(y.contenido);
+    try {
+      if (comentarios(ja)) conComentarios++;
+      if (B.arbolSinCrudo(ja) !== B.arbolSinCrudo(jb)) malPag.programa.push(donde);
+      if (comentarios(jb)) malPag.comentarios.push(donde);
+    } catch (e) { malPag.programa.push(donde + ' ' + e.message); }
+    if (lineas(x.contenido) !== lineas(y.contenido)) malPag.lineas.push(donde);
+  });
 }
-ok('cada página es la fuente con comentarios <!-- --> enteros quitados, y nada más', malPag.difiere.length === 0, malPag.difiere);
-ok('…ninguno de los quitados llevaba un scriptlet (Google lo habría ejecutado)', malPag.conScriptlet.length === 0, malPag.conScriptlet);
+ok('páginas: se quitaron los comentarios del marcado (' + comentariosQuitados + ')', comentariosQuitados > 50);
+ok('…ninguno llevaba un scriptlet (Google lo habría ejecutado)', malPag.conScriptlet.length === 0, malPag.conScriptlet);
+ok('…y no queda ninguno', malPag.quedan.length === 0, malPag.quedan);
 ok('…sus scriptlets siguen idénticos y en orden', malPag.scriptlets.length === 0, malPag.scriptlets);
-ok('…sus <script>, <style> y bloques opacos salen byte a byte', malPag.bloques.length === 0, malPag.bloques);
-ok('…y se quitaron comentarios (' + comentariosQuitados + ')', comentariosQuitados > 50);
+ok('…la misma secuencia de marcado y bloques', malPag.secuencia.length === 0, malPag.secuencia);
+ok('…el marcado, los <style>, los bloques opacos y el JS que no es clásico salen byte a byte', malPag.difiere.length === 0, malPag.difiere);
+ok('…cada uno de sus ' + guionesDePagina + ' <script> es el mismo programa que en la fuente', guionesDePagina >= 60 && malPag.programa.length === 0, malPag.programa);
+ok('…con las mismas líneas', malPag.lineas.length === 0, malPag.lineas);
+ok('…y sin comentarios (' + conComentarios + ' los tenían)', conComentarios >= 20 && malPag.comentarios.length === 0, malPag.comentarios);
 
 // Parciales: los mismos bloques y en el mismo orden; el marcado es el de la fuente sin comentarios;
 // cada JS compilado se deja leer, no lleva comentarios ni </script, declara los mismos globales y
@@ -211,6 +236,33 @@ for (const f of paginas) {
 }
 ok('cada página ensamblada conserva la secuencia de bloques y todo su JS se deja leer', malEns.length === 0, malEns);
 
+/* ── 1c · Lo que cortaría el quitacomentarios de Google ─────────────── */
+// El 24/09/2026 Google cortó 'https://mail.google.com…' en el bloque principal de Index.html y el
+// Portal de pruebas se quedó en «Cargando datos…» (sinBarrasCortables en scripts/build.js). Aquí se
+// comprueba por separado que ningún <script> de la salida lleva // ni /*, y que el modelo de lo que
+// hace Google no les quita nada.
+console.log('\n1c · El quitacomentarios de Google');
+const G = require('./quitacomentarios_google.js');
+// Lo que escribe <?!= APP_JSON ?> al servir, con lo peor que puede traer una URL.
+const APP_JSON_MUESTRA = '{"baseUrl":"https://script.google.com/a/macros/x/s/y/dev","datos":{"u":"http://a.b/*c*/d"}}';
+const malG = { cortables: [], modelo: [], lee: [] };
+let guionesSalida = 0;
+for (const f of htmls) {
+  const html = lee(salida, f);
+  for (const t of B.trocearHtml(html, !B.esParcial(f))) {
+    if (t.t !== 'script' || !B.esJsClasico(t.apertura) || !t.contenido.trim()) continue;
+    guionesSalida++;
+    const donde = f + ':' + lineaEn(html, t.ini);
+    if (/\/\/|\/\*/.test(t.contenido.replace(/<\?[\s\S]*?\?>/g, '0'))) malG.cortables.push(donde);
+    const servido = t.contenido.replace(/<\?[\s\S]*?\?>/g, APP_JSON_MUESTRA);
+    if (G.quitar(servido) !== servido) malG.modelo.push(donde);
+    try { new Function(G.quitar(servido)); } catch (e) { malG.lee.push(donde + ' ' + e.message); }
+  }
+}
+ok('ningún <script> de la salida (' + guionesSalida + ') lleva // ni /*', guionesSalida >= 100 && malG.cortables.length === 0, malG.cortables);
+ok('…el modelo de Google no les quita nada, tampoco al JSON de APP_JSON con URLs', malG.modelo.length === 0, malG.modelo);
+ok('…y todos se dejan leer después de pasar por él', malG.lee.length === 0, malG.lee);
+
 /* ── 2 · La limpieza, con casos trampa ──────────────────────────────── */
 console.log('\n2 · Casos trampa de la limpieza');
 const L = B.limpiarGs;
@@ -277,6 +329,51 @@ let lanza = false;
 try { B.plantillasSeguras('var t=`a${x}//b`;', 'var t = "a" + x + "//b";'); } catch (e) { lanza = true; }
 ok('plantillasSeguras: una plantilla nueva con ${} y // no se sabe arreglar: error', lanza);
 
+/* ── 2c · Sin // ni /*, con casos trampa ─────────────────────────────── */
+console.log('\n2c · Casos trampa de sinBarrasCortables');
+const S = B.sinBarrasCortables;
+const sinCortables = (js) => !/\/\/|\/\*/.test(js);
+const vale = (js, expr) => new Function(js + '; return ' + expr + ';')();
+const lanzaCon = (js, re) => { try { S(js); return false; } catch (e) { return re.test(e.message); } };
+
+// Lo del 24/09 en pequeño: una plantilla con apóstrofo desfasa al quitacomentarios y el // de la
+// cadena de abajo le queda fuera de lo que él cree una cadena.
+const trampa = "var a = `it's`;\nvar u = 'https://mail.google.com/mail/?view=cm';\n";
+let rota = false;
+try { new Function(G.quitar(trampa)); } catch (e) { rota = true; }
+ok('el modelo reproduce el fallo: plantilla con apóstrofo y una URL después', rota);
+const arreglada = S(trampa);
+ok('…y con sinBarrasCortables no le queda nada que cortar, con el mismo valor',
+   sinCortables(arreglada) && G.quitar(arreglada) === arreglada && vale(arreglada, 'u') === vale(trampa, 'u'), arreglada);
+
+const cadenas = String.raw`var a = 'https://x.com/a', b = "c/*d*/e", c = 'f\//g', d = 'h\\//i', e = '//*/';`;
+const cadenasS = S(cadenas);
+ok('cadenas: sin // ni /*, y cada una vale lo mismo (también con \\/ y \\\\ delante)',
+   sinCortables(cadenasS) && ['a', 'b', 'c', 'd', 'e'].every((v) => vale(cadenasS, v) === vale(cadenas, v)), cadenasS);
+ok('…las que no llevan // ni /* no se tocan', S("var s = '</div>', t = 'a/b';") === "var s = '</div>', t = 'a/b';");
+
+const regex = String.raw`var r = /^https?:\/\//i, s = /a[/*]b/, t = /\/*x/g, q = 8 / 2 / 2;`;
+const regexS = S(regex);
+const prueba = (js) => { const f = new Function(js + '; return [r.test("https://a"), r.test("HTTP://a"), r.test("https:/a"), s.test("a/b"), s.test("a*b"), s.test("axb"), "x//x /x".match(t).join("|"), q];'); return JSON.stringify(f()); };
+ok('expresiones regulares: sin // ni /*, y encuentran lo mismo', sinCortables(regexS) && prueba(regexS) === prueba(regex), [regexS, prueba(regexS)]);
+
+const plantilla = 'var x = 1, t = `a//b${x}c/*d*/${ "http://y" }`;';
+const plantillaS = S(plantilla);
+ok('plantillas: sin // ni /*, también dentro de ${…}, con el mismo valor',
+   sinCortables(plantillaS) && vale(plantillaS, 't') === vale(plantilla, 't'), plantillaS);
+ok('…una con etiqueta no se puede tocar (recibe el texto crudo): error', lanzaCon('var t = String.raw`a//b`;', /etiqueta/));
+ok('un comentario que quedara es un error, no se deja pasar', lanzaCon('var a = 1; // fin', /queda un \/\//));
+ok('"use strict" sigue siendo una directiva', vale(S("'use strict'; var u = 'a//b';"), '(function () { return this === undefined; })()'));
+
+const errsG = [];
+const guion = B.limpiarGuionDePagina('\n    /* la URL base */\n    window.__APP__ = <?!= APP_JSON ?>; // fin\n  ', 'p.html:1', errsG);
+ok('página: un <script> con scriptlet pierde sus comentarios y conserva el scriptlet',
+   guion === '\n\nwindow.__APP__ = <?!= APP_JSON ?>;\n' && errsG.length === 0, [guion, errsG]);
+ok('página: un <script> pierde sus comentarios, su sangría y sus // dentro de cadenas',
+   P("<script>\n  // abre Gmail\n  var u = 'https://mail.google.com';\n</script>") === "<script>\n\nvar u = 'https:\\/\\/mail.google.com';\n</script>",
+   P("<script>\n  // abre Gmail\n  var u = 'https://mail.google.com';\n</script>"));
+ok('parcial: su JS compilado tampoco lleva // ni /*', sinCortables(dentroDe(Q("<script>var u = 'https://x.com/*y*/';</script>")) || '//'));
+
 /* ── 3 · Un fallo no deja nada que subir ────────────────────────────── */
 console.log('\n3 · Fallos');
 const fuenteRota = path.join(tmp, 'fuente-rota');
@@ -328,6 +425,12 @@ fs.writeFileSync(path.join(fuenteRota, 'Code.gs'), "var PAGES = { a: { file: 'Pa
 const r9 = correr(['--fuente', fuenteRota, '--salida', salidaRota, '--sin-clasp']);
 ok('con todo sano pasa, y compila el parcial y la página', r9.codigo === 0 &&
    lee(salidaRota, 'Pagina.html') === '<p>hola</p>' && lee(salidaRota, 'app_roto.html') === '<script>var bien=1;</script>', r9.salida);
+
+// Un <script> de página con un // que el build no sabe quitar sin cambiar el programa.
+fs.writeFileSync(path.join(fuenteRota, 'Pagina.html'), '<p>hola</p><script>var t = String.raw`https://x`;</script>');
+const r10 = correr(['--fuente', fuenteRota, '--salida', salidaRota, '--sin-clasp']);
+ok('una página con una plantilla con etiqueta y // PARA el build, con su motivo', r10.codigo !== 0 && /Pagina\.html:1: .*etiqueta/.test(r10.salida), r10.salida);
+ok('…y no deja carpeta de salida', !fs.existsSync(salidaRota));
 
 fs.rmSync(tmp, { recursive: true, force: true });
 console.log('\n' + (fallos ? '✖ ' + fallos + ' de ' + total + ' fallaron' : '✔ ' + total + ' comprobaciones en verde'));

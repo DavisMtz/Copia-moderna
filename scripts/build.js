@@ -35,15 +35,22 @@
  *     quitan los comentarios HTML y cada <script> y <style> pasa por esbuild. Del JS se quitan los
  *     espacios y se acortan los nombres LOCALES; la sintaxis no se reescribe (ver OPC_JS). El
  *     marcado no se toca: su sangría ya la quita Google.
- *   · PÁGINAS (las plantillas que sirve doGet): solo se quitan los comentarios HTML del marcado, sin
- *     entrar en sus <script> ni en sus <style>. Un comentario con un scriptlet dentro PARA el build:
- *     Google ejecuta los <? ?> aunque estén comentados (doc 15 §3.8), y borrarlo cambiaría la página.
+ *   · PÁGINAS (las plantillas que sirve doGet): se quitan los comentarios HTML del marcado, sin
+ *     entrar en sus <style>. Un comentario con un scriptlet dentro PARA el build: Google ejecuta
+ *     los <? ?> aunque estén comentados (doc 15 §3.8), y borrarlo cambiaría la página. Sus <script>
+ *     NO se compilan: pierden los comentarios y la sangría como un .gs (mismas líneas, mismo árbol).
  * Comprobaciones de cada bloque compilado: el JS de salida se deja leer; declara los mismos nombres
  * globales y del mismo tipo (var, let, function…) que el fuente, porque los demás bloques de la
  * página los usan; no lleva `</script` ni más `<!--` o `<script` que el fuente; y ninguna
  * plantilla `…` nueva contiene //, /* ni un salto de línea: el quitacomentarios de Google las toma
  * por comentarios o por sangría (issue 156139610, doc 15 §3.10). Las que crea esbuild al elegir
  * comillas se reescriben como cadenas normales, con el mismo valor.
+ *
+ * Y en NINGÚN <script> de la salida, página o parcial, queda un // ni un /* (sinBarrasCortables).
+ * El quitacomentarios de Google no es un analizador de JS: cuando pierde el hilo, corta como
+ * comentario el primer // que encuentra, esté donde esté. Pasó en pruebas el 24/09/2026 y el Portal
+ * entero se quedó en «Cargando datos…». Sin comentarios y sin esas dos secuencias no tiene nada que
+ * cortar, vaya o no desfasado.
  */
 const fs = require('fs');
 const path = require('path');
@@ -422,6 +429,122 @@ function arbolNormalizado(js) {
   return JSON.stringify(normal(acorn.parse(js, OPC_ACORN), null, null));
 }
 
+/* ── Lo que el quitacomentarios de Google no puede cortar ─────────────── */
+
+// Google pasa cada <script> que sirve por un quitacomentarios que NO es un analizador de JS
+// (modelado byte a byte el 24/09/2026: pruebas/quitacomentarios_google.js). Entiende las cadenas
+// '…' y "…", pero no las plantillas `…` ni las clases [/] de una expresión regular, y adivina si
+// una / abre una expresión regular mirando lo que va delante. Cuando se equivoca pierde el hilo el
+// resto del bloque, y corta como comentario el primer // o /* que encuentra. En pruebas le tocó a
+// 'https://mail.google.com…' de Index.html, desfasado desde el `</svg>` de una plantilla muy
+// anterior, y el Portal entero dejó de leerse. El arreglo no depende de por dónde vaya: en el
+// bloque no queda ni un // ni un /*. Los comentarios ya no están, y dentro de cadenas, plantillas
+// y expresiones regulares esas dos secuencias se escriben de otra forma, con el mismo valor.
+const CORTABLE = /\/\/|\/\*/;
+
+// El texto de una cadena o de una plantilla (sin sus comillas) con cada / escrita \/ y cada * que
+// siga a una / escrita \*: vale lo mismo (\/ y \* son / y *, también en modo estricto) y ya no
+// lleva // ni /*. Las secuencias de escape que ya estaban se copian enteras.
+function barrasEscapadas(crudo) {
+  let out = '';
+  for (let i = 0; i < crudo.length; i++) {
+    const c = crudo[i];
+    if (c === '\\') { out += crudo.slice(i, i + 2); i++; }
+    else if (c === '/') out += '\\/';
+    else if (c === '*' && out.endsWith('/')) out += '\\*';
+    else out += c;
+  }
+  return out;
+}
+
+// Una expresión regular (`/patrón/banderas`) con cada / del patrón escrita \x2f: la misma expresión,
+// también con las banderas u y v. Sin / dentro del patrón no puede quedar ni // ni /*: el patrón
+// nunca empieza por / ni por * (eso sería un comentario).
+function barrasDeRegex(crudo) {
+  const fin = crudo.lastIndexOf('/');
+  const patron = crudo.slice(1, fin);
+  let out = '';
+  for (let i = 0; i < patron.length; i++) {
+    const c = patron[i];
+    if (c === '\\') { out += patron[i + 1] === '/' ? '\\x2f' : patron.slice(i, i + 2); i++; }
+    else out += c === '/' ? '\\x2f' : c;
+  }
+  return '/' + out + crudo.slice(fin);
+}
+
+// Un patrón con \/, \x2f y la / suelta de una clase escritas igual: para comparar dos expresiones.
+function patronCanonico(p) {
+  let out = '';
+  for (let i = 0; i < p.length; i++) {
+    if (p[i] !== '\\') { out += p[i]; continue; }
+    if (p[i + 1] === '/') { out += '/'; i++; }
+    else if (/^x2f$/i.test(p.slice(i + 1, i + 4))) { out += '/'; i += 3; }
+    else { out += p.slice(i, i + 2); i++; }
+  }
+  return out;
+}
+
+// El árbol sin posiciones ni texto crudo y con los patrones en su forma canónica. Si dos JS dan lo
+// mismo, sus cadenas valen lo mismo y sus expresiones regulares son las mismas. (`directive` es el
+// texto crudo de una cadena suelta al principio de una función; solo cuenta si es "use strict", y
+// esa no lleva barras.)
+function arbolSinCrudo(js) {
+  return JSON.stringify(acorn.parse(js, OPC_ACORN), function (clave, v) {
+    if (clave === 'start' || clave === 'end' || clave === 'raw' || clave === 'directive') return undefined;
+    if (v && v.type === 'Literal' && v.regex) return { type: 'Literal', patron: patronCanonico(v.regex.pattern), banderas: v.regex.flags };
+    return v;
+  });
+}
+
+// El JS con sus cadenas, plantillas y expresiones regulares escritas sin // ni /*. Lanza si no sabe
+// hacerlo sin cambiar el programa, o si aun así queda alguna (solo podría ser un comentario).
+function sinBarrasCortables(js) {
+  const cambios = [];
+  const visitar = (n, padre) => {
+    if (!n || typeof n.type !== 'string') return;
+    const crudo = js.slice(n.start, n.end);
+    if (n.type === 'Literal' && typeof n.value === 'string' && CORTABLE.test(crudo)) {
+      cambios.push([n.start, n.end, crudo[0] + barrasEscapadas(crudo.slice(1, -1)) + crudo[0]]);
+    } else if (n.type === 'Literal' && n.regex && CORTABLE.test(crudo)) {
+      cambios.push([n.start, n.end, barrasDeRegex(crudo)]);
+    } else if (n.type === 'TemplateLiteral') {
+      const etiquetada = !!(padre && padre.type === 'TaggedTemplateExpression' && padre.quasi === n);
+      for (const q of n.quasis) {
+        const texto = js.slice(q.start, q.end);
+        if (!CORTABLE.test(texto)) continue;
+        // La función de una plantilla con etiqueta recibe también el texto crudo, y ahí \/ no es /.
+        if (etiquetada) throw new Error('una plantilla `…` con etiqueta lleva // o /*: escríbelo de otra forma en el fuente (' + JSON.stringify(texto.slice(0, 60)) + ')');
+        cambios.push([q.start, q.end, barrasEscapadas(texto)]);
+      }
+    }
+    for (const clave of Object.keys(n)) {
+      const v = n[clave];
+      if (Array.isArray(v)) v.forEach((h) => visitar(h, n));
+      else if (v && typeof v.type === 'string') visitar(v, n);
+    }
+  };
+  visitar(acorn.parse(js, OPC_ACORN), null);
+  let s = js;
+  for (const [ini, fin, texto] of cambios.sort((a, b) => b[0] - a[0])) s = s.slice(0, ini) + texto + s.slice(fin);
+  if (arbolSinCrudo(s) !== arbolSinCrudo(js)) throw new Error('escribir de otra forma las // y /* cambió el programa');
+  const m = CORTABLE.exec(s);
+  if (m) throw new Error('queda un ' + m[0] + ' que el quitacomentarios de Google cortaría: ' + JSON.stringify(s.slice(Math.max(0, m.index - 30), m.index + 30)));
+  return s;
+}
+
+// Los <script> de un .html de salida en los que el quitacomentarios de Google aún podría cortar
+// algo. Lo que escriba un scriptlet no se ve aquí (cuenta como un 0).
+function guionesCortables(html, plantilla) {
+  const out = [];
+  for (const t of trocearHtml(html, plantilla)) {
+    if (t.t !== 'script' || !esJsClasico(t.apertura)) continue;
+    const js = t.contenido.replace(/<\?[\s\S]*?\?>/g, '0');
+    const m = CORTABLE.exec(js);
+    if (m) out.push({ linea: html.slice(0, t.ini).split('\n').length, trozo: js.slice(Math.max(0, m.index - 30), m.index + 30) });
+  }
+  return out;
+}
+
 const cuenta = (s, re) => (s.match(re) || []).length;
 const primeraLinea = (e) => String((e && e.message) || e).split('\n').filter((x) => x.trim())[0];
 
@@ -442,7 +565,8 @@ function compilarJs(fuente, donde, errores) {
     errores.push(donde + ': la salida lleva más <!-- o <script que el fuente');
   }
   if (plantillasPeligrosasNuevas(salida, fuente).length) errores.push(donde + ': queda una plantilla `…` nueva con //, /* o un salto de línea');
-  return errores.length === antes ? salida : null;
+  if (errores.length !== antes) return null;
+  try { return sinBarrasCortables(salida); } catch (e) { errores.push(donde + ': ' + e.message); return null; }
 }
 
 function compilarCss(fuente, donde, errores) {
@@ -480,11 +604,36 @@ function limpiarParcial(html, nombre, errores) {
   return errores.length === antes ? out : null;
 }
 
+// Un <script> de página: sin comentarios ni sangría (la limpieza de los .gs: mismas líneas y mismo
+// árbol) y sin // ni /*. Sus scriptlets (hoy solo `window.__APP__ = <?!= APP_JSON ?>;`) los cambia
+// Google por texto antes de servir: aquí se sustituyen por un nombre de relleno para poder leer el
+// JS y vuelven después, intactos. El JSON que escribe APP_JSON va al principio de su propio bloque y
+// solo lleva cadenas "…", que el quitacomentarios sí sabe leer.
+function limpiarGuionDePagina(contenido, donde, errores) {
+  if (/__scriptlet\d+__/.test(contenido)) { errores.push(donde + ': el JS usa un nombre __scriptletN__, que el build reserva'); return null; }
+  const scriptlets = [];
+  const js = contenido.replace(/<\?[\s\S]*?\?>/g, (m) => { scriptlets.push(m); return '__scriptlet' + (scriptlets.length - 1) + '__'; });
+  const conRelleno = scriptlets.length ? ' (con sus scriptlets cambiados por un nombre)' : '';
+  let limpio;
+  try { limpio = limpiarGs(js); } catch (e) { errores.push(donde + ': acorn no pudo leer el JS' + conRelleno + ' (' + e.message + ')'); return null; }
+  if (lineas(limpio) !== lineas(js)) { errores.push(donde + ': quitar los comentarios cambió el número de líneas'); return null; }
+  if (arbolSinPosiciones(limpio) !== arbolSinPosiciones(js)) { errores.push(donde + ': quitar los comentarios cambió el programa'); return null; }
+  try { limpio = sinBarrasCortables(limpio); } catch (e) { errores.push(donde + ': ' + e.message); return null; }
+  let devueltos = 0;
+  const salida = limpio.replace(/__scriptlet(\d+)__/g, (m, k) => { devueltos++; return scriptlets[+k]; });
+  if (devueltos !== scriptlets.length) { errores.push(donde + ': se perdió un scriptlet por el camino'); return null; }
+  return salida;
+}
+
 function limpiarPagina(html, nombre, errores) {
   let trozos;
   try { trozos = trocearHtml(html, true); } catch (e) { errores.push(nombre + ': ' + e.message); return null; }
   const antes = errores.length;
   const out = trozos.map((t) => {
+    if (t.t === 'script' && esJsClasico(t.apertura) && t.contenido.trim()) {
+      const js = limpiarGuionDePagina(t.contenido, nombre + ':' + lineaDe(html, t.ini), errores);
+      return js === null ? t.texto : t.apertura + js + t.cierre;
+    }
     if (t.t !== 'comentario') return t.texto;
     if (t.texto.indexOf('<?') !== -1) {
       errores.push(nombre + ':' + lineaDe(html, t.ini) + ': un comentario HTML lleva un scriptlet <? ?>. Google lo ' +
@@ -579,6 +728,10 @@ function generar(fuente, salida, gs, copiar, errores, opc) {
     const s = fs.readFileSync(path.join(fuente, f), 'utf8').replace(/\r\n/g, '\n');
     const t = esParcial(f) ? limpiarParcial(s, f, errores) : limpiarPagina(s, f, errores);
     if (t === null) continue;
+    // La salida entera, bloque a bloque, por si algún camino se saltara la limpieza.
+    for (const c of guionesCortables(t, !esParcial(f))) {
+      errores.push(f + ':' + c.linea + ': un <script> de la salida lleva // o /*, y el quitacomentarios de Google lo cortaría: ' + JSON.stringify(c.trozo));
+    }
     fs.writeFileSync(path.join(salida, f), t, 'utf8');
     html[esParcial(f) ? 'parciales' : 'paginas']++;
     html.antes += Buffer.byteLength(s);
@@ -633,7 +786,9 @@ module.exports = {
   limpiarGs, arbolSinPosiciones, nombresGlobales, marcasDeVersion, construir,
   trocearHtml, esParcial, esJsClasico, globalesDeGuion, plantillasDe, plantillasPeligrosasNuevas,
   plantillasSeguras, arbolComoCadenas, arbolNormalizado, compilarJs, compilarCss, limpiarParcial,
-  limpiarPagina, paginasServidas, OPC_JS
+  limpiarPagina, paginasServidas, OPC_JS,
+  CORTABLE, barrasEscapadas, barrasDeRegex, patronCanonico, arbolSinCrudo, sinBarrasCortables,
+  guionesCortables, limpiarGuionDePagina
 };
 
 if (require.main === module) {
