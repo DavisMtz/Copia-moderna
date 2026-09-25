@@ -1039,6 +1039,83 @@ y qué se dejó fuera a propósito**. Mismo formato que el registro del document
 
 <!-- Las entradas nuevas van arriba, con la más reciente primero. -->
 
+### 2026-09-25 — Formas de Pago: seis capítulos en una sola página pasan a «pestañas por método» — en PRUEBAS
+
+**Por qué:** el creador pidió rediseñar la sección «analizando qué datos tiene». Era una página de 5443 px (a 1440) con seis capítulos numerados. Los pasos se partían en columnas: `strong` dentro de un `li` flex, así que «Indica al cajero que es un pago de | **Servicio Paynet**» salía en dos bloques. Diez de las 16 tiendas estaban ocultas tras «Ver las 16», y sus logos venían de ~10 dominios ajenos: Farmacias del Ahorro no cargaba y Tiendas K usaba el logo de Circle K.
+
+Sus respuestas:
+- en llamada, lo que más se busca es **dónde pagar en efectivo** y **guiar paso a paso** al cliente;
+- los logos van **dentro del Portal**;
+- para el monedero, el asesor llega **solo con el BIN** (3 dígitos).
+
+Hubo tres prototipos navegables con el contenido real (Pestañas por método, Guion de llamada y Boletos de tienda) y eligió las **Pestañas**: la tercera vez que elige la opción eficiente en una sección de trabajo.
+
+**Qué se cambió** (commit `8bbbbf9`):
+- **Parcial nuevo `app_formaspago.html`** (estilos y guion; el build lo minifica). Expone `fpAlEntrar()` y `fpRevelar(el)`.
+- **Seis pestañas** (patrón ARIA; flechas, Inicio y Fin): Efectivo en tienda · Transferencia · Datos fiscales · Monedero · FBL5N · Fraudes. Abre en Efectivo. Las cuentas de las pestañas (16 tiendas, 14 BINes) se calculan del marcado.
+- **Efectivo:**
+  - «¿Dónde puede pagar?»: monto del pedido y estado del cliente sobre una **escalera de topes** ($35,000 · $29,999 · $15,000 · $10,000 · $5,000). La línea rosa cae entre los topes que aceptan el monto y los que no, y dice «no alcanza $X» en cada tope que no llega.
+  - Una tienda fuera del estado se tacha con «Solo en …». El resumen dice cuántas aceptan: «8 de 13 tiendas en Jalisco aceptan $12,500».
+  - Junto, el paso a paso en tienda, la referencia de ejemplo y el aviso.
+- **Transferencia:** los pasos de la app de BBVA con el convenio 1422286 dentro del paso 3, y «desde cualquier otro banco» con la CLABE agrupada de 3 en 3 para dictarla (se copia corrida).
+- **Monedero:** consulta de BIN. Se escriben 3 dígitos y sale «Sí se traspasa / No se traspasa» con el nombre, o «no está en la tabla». La tabla, partida en «Sí» (6) y «No» (8). Al lado, reglas, canales, datos requeridos y avisos.
+- **FBL5N y Fraudes:** el mismo contenido. El mapa de fraudes se lee de arriba abajo en dos carriles, sin el logotipo imitado de Cybersource.
+- **Copiar:** botón visible en cada dato (antes solo se sabía al pasar el cursor).
+- **Avisos** con icono y fondo teñido, sin el filete lateral de 4 px.
+- **Logos:** los 16, verificados contra la lista de Paynet (Openpay/BBVA) y guardados en el proyecto (`fp_logos.html`, un JSON de 31.7 KB: 7 SVG y 9 PNG). NO viajan en la página: en Index costarían ~0.1 s de primer byte en cada visita. `fpLogosTiendas()` (Portal.gs) los devuelve la primera vez que se abre la sección, y el cliente los guarda 30 días (`AppCache`, clave `fp-logos-v1`); mientras tanto, iniciales. Placa blanca de 104×42 en los tres temas y altura óptica común (el guion fija la altura de cada logo por su proporción). Farmacias del Ahorro ya no depende de un sitio bloqueado y Tiendas K deja de usar el logo de Circle K.
+- **`Index.html`:**
+  - el marcado nuevo (el contenido sigue escrito ahí, sin cambiar un dato; los id `fp-*` del buscador se conservan);
+  - `switchSec` → `fpAlEntrar`;
+  - `revealTarget` y `jumpToFp` pasan por `fpRevelar`: abren la pestaña que contiene el destino y, si el destino es la pestaña entera, resaltan su primera hoja;
+  - `sectionEnter` conoce `.fpg-tabs` y las hojas del panel visible;
+  - fuera `initFpReveals`, `logosTiendaFX`, `toggleStores`, `initCopyables` y todo el CSS que solo usaba la sección vieja (tabla, tarjetas, tiendas, mapa, copiables);
+  - se quedan `.fp-nav`, `.fp-num` y `.step-list`, que usan Devoluciones SAP y Trazabilidad.
+- **`pruebas/formaspago.test.js`** (nueva, 49 comprobaciones): los 8 destinos del buscador existen una vez, pestañas y paneles se nombran entre sí, 16 tiendas con estados válidos, 14 BINes de 3 dígitos sin repetir, los valores que se copian, y que nada llame a lo que se quitó.
+
+**Qué se comprobó:**
+- `sintaxis.js` y las 13 baterías de `pruebas/` en verde (las 12 de siempre + `formaspago.test.js`), en la copia integrada y otra vez en el repo antes del commit.
+- **Build:** compila y `quitacomentarios_google.js` no encuentra nada que cortar. El `Index.html` compilado baja de 465 a 441 KB y el parcial nuevo pesa 27 KB compilado: la página sube 3.7 KB en total. Los logos (31.7 KB) no viajan en ella.
+- **Detector de impeccable:** la primera pasada encontró texto secundario de menos de 12 px, «Copiar» repetido en cada fila y un borde grueso en la tecla F8. Se corrigió todo; las pasadas siguientes, sin hallazgos.
+- **Revisión final aparte** (revisor sin el contexto de la construcción):
+  - primera vuelta, «fix», con 8 correcciones: pestañas cortadas a 1280, con texto XL y en el teléfono; cajas anidadas en el mapa de fraudes; contraste de lo atenuado y de los marcadores de ejemplo (el «815» era un BIN real); rosa usado como superficie (convenio, viñetas, BIN «No»); escalera fuera de la primera vista; hueco en Datos fiscales; paso a paso muy abajo en el teléfono; rebote en el sello del BIN;
+  - se aplicaron en un lote y la puntuación las dio por resueltas. Señaló 3 retrocesos del lote (resumen estrecho con texto XL, nombres partidos a 1366, los dos regímenes en diagonal), que también se corrigieron: la última puntuación dio «ship». Cubre las 8 correcciones y los 3 retrocesos; no certifica toda la sección.
+- **Chrome headless sobre el build compilado, con los 16 logos:**
+  - 1440, 1366, 1280, 1024, 768 y 390;
+  - Aurora y Carbón, alto contraste, densidad compacta y texto XL;
+  - con y sin movimiento reducido;
+  - 0 errores de consola.
+- **Medido a 1440×900:**
+  - el tope de $5,000 empieza en y=872 (los de hasta $10,000 se ven enteros);
+  - las seis pestañas caben: 1033 px con subtítulo y 881 sin él;
+  - ningún ancho desborda la barra.
+- **Comportamiento:**
+  - 12500 + Jalisco → «8 de 13 tiendas en Jalisco aceptan $12,500». Las 7 de $29,999 y $35,000 que cubren Jalisco más 7-Eleven; Pagaqui queda fuera porque solo está en CDMX;
+  - BIN 815 → «Sí se traspasa»; 813 y 881 → «No se traspasa»; 999 → «no está en la tabla»;
+  - la CLABE se copia corrida.
+- **Buscador:**
+  - Ctrl K «clabe» → pestaña Transferencia;
+  - `?sec=formaspago&item=fp-bin` → Monedero, resaltado;
+  - `jumpToFp('fp-fraudes')` desde la portada → Fraudes.
+- **Pantallas vecinas** (usan `.fp-nav`, `.fp-num` y `.step-list`): Devoluciones SAP, Big Ticket y la portada, comparadas píxel a píxel antes y después. Idénticas, salvo el segundero del reloj.
+- **Pruebas (`/dev`):** se revisó después de subir, en Chrome con la cuenta del trabajo.
+  - La sección abre con los 16 logos, traídos por `fpLogosTiendas` porque no había copia local.
+  - «12500» → «9 de 16 tiendas aceptan $12,500», con la línea entre $15,000 y $10,000.
+  - En Monedero, 881 → «No se traspasa · Consentido — Mesa de regalo».
+  - La primera captura salió con el área principal vacía: era la entrada de la sección, con la pestaña de la herramienta en segundo plano. Apareció al primer cuadro.
+  - Un clic de la extensión no entró en el campo del BIN, pero con el teclado sí. En local, el elemento bajo el centro del campo es el propio campo: nada lo tapa.
+
+**Qué se dejó fuera a propósito:**
+- **El contenido no cambió.** Solo se corrigió la forma: comillas «», mayúsculas de oración y «Transferencia o pago en efectivo» en lugar de «Transferencia de Pago | Pago en efectivo».
+- **La sección sigue sin hoja.** Los montos, los BINes y el convenio se editan en `Index.html` (un comentario explica cómo añadir una tienda). Pasarla a una hoja sería otro trabajo; queda anotado, no se hizo.
+- **Nadie ha confirmado que los datos sigan vigentes** (montos por tienda, BINes, convenio): se copiaron tal cual.
+- **La lista de Paynet ya cambió.** La de las 16 tiendas coincide con la página de Paynet archivada el 04/03/2026 (mismas tiendas, orden y montos). Su lista vigente (septiembre de 2026) ya no trae VIA Servicios y suma Eleczion, Más Bodega y MercaDía. El Portal conserva las 16 de siempre: decidir si se actualiza le toca al equipo.
+- **Logos con confianza media:**
+  - Extra: la palabra roja que usa hoy Circle K México. Paynet todavía enseña el emblema viejo, que está en el respaldo por si se prefiere.
+  - Tiendas K: la K cuadrada de Circle K, la misma que enseña Paynet. No hay una marca aparte.
+  - VIA Servicios: el logo de Paynet. Su dominio está estacionado.
+- **Producción (@130) no se toca.** Para promover las fases sin este rediseño, ver el doc 16 §2, «Ojo al promover».
+- Respaldo del diseño anterior: etiqueta git `respaldo-formaspago-antes-pestanas` (= `5e27d6d`, también en GitHub). Prototipos, guiones y capturas: `Desktop\Proyectos\_respaldos\formaspago_propuestas_20260925`.
+
 ### 2026-09-25 — El Portal de pruebas no cargaba: el quitacomentarios de Google cortaba un `//` en Index.html. El build ya no deja `//` ni `/*` en ningún `<script>` — en PRUEBAS
 
 **Por qué:** desde el 24/09 por la tarde, el inicio del Portal de pruebas se quedaba en «Cargando datos…», con el reloj en `--:--:--` y las promociones en esqueleto. El `<script>` principal de `Index.html` llegaba al navegador sin poder leerse («Invalid or unexpected token»): Google le había cortado `//mail.google.com/mail/?view=cm&fs=1'` a la cadena de `pltOpenGmail`, como si fuera un comentario.
