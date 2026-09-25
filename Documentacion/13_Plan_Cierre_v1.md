@@ -1039,6 +1039,43 @@ y qué se dejó fuera a propósito**. Mismo formato que el registro del document
 
 <!-- Las entradas nuevas van arriba, con la más reciente primero. -->
 
+### 2026-09-25 — El Portal de pruebas no cargaba: el quitacomentarios de Google cortaba un `//` en Index.html. El build ya no deja `//` ni `/*` en ningún `<script>` — en PRUEBAS
+
+**Por qué:** desde el 24/09 por la tarde, el inicio del Portal de pruebas se quedaba en «Cargando datos…», con el reloj en `--:--:--` y las promociones en esqueleto. El `<script>` principal de `Index.html` llegaba al navegador sin poder leerse («Invalid or unexpected token»): Google le había cortado `//mail.google.com/mail/?view=cm&fs=1'` a la cadena de `pltOpenGmail`, como si fuera un comentario.
+- El quitacomentarios que Google aplica a cada `<script>` al servir no es un analizador de JS. Se modeló el 24/09 y da la misma huella SHA-256 que lo servido: entiende las cadenas `'…'` y `"…"`, pero no las plantillas `` `…` `` ni las clases `[/]`, y decide si una `/` abre una expresión regular por el carácter anterior.
+- Se desfasa en código VIEJO: la `/` de `</svg>` dentro de la plantilla de `icon()` le abre una expresión regular falsa, y desde ahí es suerte qué corta. Producción (@130) y las versiones anteriores al Directorio iban igual de desfasadas, pero sin cortes dañinos. `c49a3c7` sacó de Index.html la plantilla de `renderPaq`, cambió la paridad y el corte cayó dentro de una cadena.
+- Ni las suites ni el banco lo veían: ninguno simulaba a Google.
+
+**Qué se cambió** (commit `2198c96`):
+- **`scripts/build.js`:**
+  - el JS de las **páginas** pierde los comentarios y la sangría con la misma limpieza que los `.gs` (mismas líneas y mismo árbol). Sus scriptlets (`window.__APP__ = <?!= APP_JSON ?>`) se cambian por un nombre para poder leer el JS y vuelven intactos;
+  - `sinBarrasCortables`: en cadenas, plantillas y expresiones regulares, todo `//` y `/*` se escribe de otra forma con el mismo valor (`\/`, `\*`, y `\x2f` en los patrones), en páginas y en parciales. Una plantilla con etiqueta que lo lleve para el build, porque su función recibe el texto crudo;
+  - comprobación final sobre toda la salida: si un `<script>` clásico lleva `//` o `/*`, el build falla y no se sube nada.
+  - Con eso, el quitacomentarios ya no tiene nada que cortar, vaya o no desfasado.
+- **`pruebas/quitacomentarios_google.js`:** el modelo, como módulo y como herramienta de consola (`node pruebas/quitacomentarios_google.js <carpeta>/*.html` dice qué cortaría Google).
+- **`pruebas/build.test.js`** (78 → 99 comprobaciones):
+  - las páginas se comparan con la fuente por programa, no letra a letra;
+  - ningún `<script>` de la salida lleva `//` ni `/*`, y el modelo no les quita nada, tampoco a un `APP_JSON` con URLs;
+  - casos trampa, entre ellos el fallo en pequeño: una plantilla con apóstrofo y una URL después.
+
+**Qué se comprobó:**
+- `sintaxis.js` y las 12 baterías en verde, en la copia de trabajo y otra vez en el repo antes del commit.
+- **Prueba de mutación:** con el arreglo apagado fallan 7 comprobaciones, entre ellas «Index.html:3018 Invalid or unexpected token», el fallo de ayer.
+- **Modelo:** el build de antes da 1 corte dañino (el de `pltOpenGmail`); el nuevo, 0 en los 104 bloques. La fuente de producción (`23144aa`), 0.
+- **Banco local**, build de antes contra el nuevo, 20 pantallas: mismos errores (0), avisos y llamadas. 0 píxeles distintos, salvo el Portal (28, igual que su ruido) y Atenciones (0, con ruido 450).
+- **En pruebas (`/dev`), antes y después de subir, `new Function` sobre cada bloque servido de las 20 pantallas:**
+  - antes: el Portal con el bloque 18 roto (197 377 caracteres); las otras 19, bien;
+  - después: ningún bloque roto y ninguno con `//` ni `/*`;
+  - huellas: los 380 bloques servidos (sin contar `APP_JSON`) coinciden byte a byte con el build local, 84 de 84. Google ya no les cambia nada.
+- **El Portal de pruebas carga:** reloj, «Actualizado hace un momento», 50 promociones activas y «6 promociones nuevas» desde la última visita.
+- **Peso servido:** el `userHtml` del Portal baja de 814 a 777 KB, y el de las demás pantallas entre 1 y 27 KB. En el build, `Index.html` pasa de 580 a 465 KB.
+
+**Qué se dejó fuera a propósito:**
+- **La fuente no cambia.** `Index.html` conserva su `'https://mail.google.com…'` y sus comentarios: el arreglo vive en el build, que es lo que se sube.
+- **Producción (@130) no se toca.** Sirve la fuente sin build: va desfasada, pero el modelo no le encuentra ningún corte dañino. Cualquier promoción hecha con el build actual lleva el arreglo (doc 16 §2, «Ojo al promover»).
+- **Lo que escribe `APP_JSON`** no se toca: va al principio de su propio bloque y solo lleva cadenas `"…"`, que el quitacomentarios sí sabe leer. El modelo lo comprueba con URLs de muestra.
+- **Las causas del desfase** (la plantilla de `icon()` y otras): con el arreglo ya no importan.
+
 ### 2026-09-24 — Paqueterías: la tabla pasa a un «Directorio» (nombre, guía de puntos y código de SOMS) — en PRUEBAS
 
 **Por qué:** el creador pidió actualizar el diseño de la sección. Tres respuestas lo ordenaron todo:

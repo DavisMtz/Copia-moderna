@@ -233,6 +233,9 @@ Las filas `/dev` y `/exec` se midieron en momentos distintos. Comparar sobre tod
   - **El código actual del Portal no tiene ninguno** (102 bloques revisados). [MEDIDO]
   - La salida de esbuild probada tampoco lo introdujo. [MEDIDO]
   - **El build debe comprobarlo siempre**, porque un compilador puede convertir `'https://' + x` en `` `https://${x}` ``.
+- **Es más amplio que ese issue.** El quitacomentarios no es un analizador de JS: no entiende las plantillas `` `…` `` ni las clases `[/]` de una expresión regular, y decide si una `/` abre una expresión regular por el carácter anterior. Cuando se equivoca, pierde el hilo el resto del bloque y corta el primer `//` que le queda fuera de lo que cree una cadena, aunque esté dentro de una cadena de verdad. [MEDIDO: modelo con la misma huella SHA-256 que lo servido, en `pruebas/quitacomentarios_google.js`]
+  - Así se rompió el Portal de pruebas el 24/09/2026: `'https://mail.google.com…'` en Index.html, desfasado desde el `</svg>` de una plantilla muy anterior.
+  - Arreglo (25/09/2026, `2198c96`): el build no deja ni `//` ni `/*` en ningún `<script>`. Desde entonces Google sirve el JS byte a byte: 380 bloques de 380 en las 20 pantallas. Detalle en el §18 del plan 13.
 
 ### 3.11 La extensión de Chrome y el iframe
 

@@ -50,10 +50,10 @@
    - **Desde la F3b, un `Date` en UNA función de `EN_LOTE` (app_core) tumba el lote entero**: la respuesta completa llega `null` y el cliente rechaza todas las llamadas de ese viaje. Antes de añadir una función a `EN_LOTE`, comprobar que nunca devuelve un `Date`.
 4. **HTML:**
    - Nunca meter parciales dentro de una plantilla sin quitar antes sus comentarios: los `<? ?>` dentro de comentarios se EJECUTAN.
-   - Nunca `//` ni `/*` dentro de plantillas de texto `` `…` ``: el quitacomentarios de Google las rompe.
+   - **Ningún `<script>` puede llegarle a Google con `//` ni `/*`.** Su quitacomentarios no es un analizador: pierde el hilo con una plantilla `` `…` `` (un apóstrofo, un `</svg>`) y corta el primer `//` que encuentra, aunque esté dentro de una cadena. Así se quedó sin cargar el Portal de pruebas el 24/09/2026. El build lo resuelve solo (`sinBarrasCortables`) y falla si no puede. Lo único que no sabe arreglar es una plantilla con etiqueta (`` String.raw`…//…` ``).
    - `include()` sigue siendo la forma segura de armar páginas.
 5. **Verificación:**
-   - La herramienta de navegador ve el Portal **en blanco** (animaciones congeladas en su pestaña): lo visual lo confirma el creador.
+   - La herramienta de navegador ve el Portal **en blanco** mientras su ventana está oculta (animaciones congeladas): lo visual lo confirma el creador. **Excepción (25/09/2026):** tras `resize_window`, la pestaña pasó a `visible` y la captura enseñó el Portal entero.
    - Medir con `performance` desde la página superior (§4). No se puede entrar con su cuenta: los recorridos con sesión los prueba él.
 6. **Capacidad:** pruebas y producción corren como la **misma cuenta dueña**. Una prueba de concurrencia en pruebas gasta el cupo de 30 ejecuciones simultáneas de producción: **solo fuera de horario y con su permiso**.
 7. **Datos:** pruebas y producción escriben en **la misma hoja**. Nada de pruebas que escriban basura masiva.
@@ -70,6 +70,7 @@
 | F3a | Portal: respuestas en caché dentro de la página; `AppRun.medidas()` | **En pruebas.** Con las cachés calientes, el Portal sin sesión hace 1-2 llamadas al abrir (antes 4-5) y el último dato llega entre los 5.8 y los 8.0 s (≤ 7 s solo si el primer byte baja de ~3 s). **Coste: primer byte +0.47 s** (2.23 → 2.70 s) y `userHtml` +92 KB (Monitor +65 KB). Falta su vistazo y su palabra | `557875b` |
 | F3a.1 | El `doGet` lee su caché en un solo `getAll`; tope de 100 000 / 150 000 caracteres a lo que viaja en la página | **En pruebas.** Lectura en el servidor 147.5 → 90.5 ms de mediana (A/B alternado, 30 por lado); primer byte sin cambio medible. Va junto con la F3a | `570836a` |
 | (arreglo) | Monitor de promociones invisible con los datos en la página: regresión de la F3a que vio el creador | **En pruebas.** Reproducido y corregido; el Portal revisado con la misma sonda. **La F3a no se promueve sin él** | `f02a0ad` |
+| (arreglo) | Portal de pruebas en «Cargando datos…»: el quitacomentarios de Google cortaba un `//` dentro de una cadena de Index.html | **En pruebas.** El build quita los comentarios del JS de las páginas y no deja `//` ni `/*` en ningún `<script>`. Las 20 pantallas de `/dev` se leen enteras y Google las sirve byte a byte (380 bloques). Producción no estaba afectada. Va con cualquier promoción hecha con el build actual | `2198c96` |
 | F3b | Las llamadas de fondo del arranque viajan en un lote (`secEjecutarLote`); disponibilidad de la plantilla CCL en caché | **En pruebas.** Viajes al abrir las 20 pantallas: 105 → 64 (banco). Lote verificado de punta a punta en pruebas. Falta su vistazo con `AppRun.medidas()` (columna `enLote`) y su palabra | `7dd7e6f` · `7a05cd7` |
 | F3a.2 | Encuestas del Portal sin su viaje al abrir | Pendiente, **la siguiente**. Replanteada (§3): la versión del plan chocaba con la caché propia de 30 s de los votos | — |
 | F4 | Capacidad: cupo de 30 ejecuciones | Pendiente (requiere ventana fuera de horario) | — |
@@ -90,6 +91,7 @@
 - **F1 sin F0 (ni F2):** `git worktree add <scratchpad>/sin-f0 23144aa` y, desde la copia de `012254b`, `node scripts/build.js --fuente <scratchpad>/sin-f0/"Carpeta del proyecto" --salida <scratchpad>/build-sin-f0 --sin-clasp`. Luego se sube esa carpeta con la configuración de producción.
 - **F0 sin F1:** subir `Carpeta del proyecto` de `11e77a8` tal cual. Funciona igual, solo que más lento.
 - La F2 no va sin la F1: su build incluye la limpieza de los `.gs`.
+- **Desde el 25/09/2026 el build lleva el arreglo del quitacomentarios** (`2198c96`). Una copia vieja compilada con SU `build.js` no lo lleva: compílala con el actual (`node scripts/build.js --fuente <copia>/"Carpeta del proyecto" --salida <scratchpad>/build-x --sin-clasp`), salvo en «F0 + F1, sin F2», que a propósito no compila los `.html`. Lo que se suba sin pasar por el build actual se revisa antes con `node pruebas/quitacomentarios_google.js <carpeta>/*.html`: tiene que decir que Google no cortaría nada.
 - Al terminar, `git worktree remove` de cada copia.
 
 **Decisiones pendientes del creador** (preguntar solo cuando toquen):
@@ -161,7 +163,7 @@
 
 - **En `scripts/build.js`:**
   - **Parciales** (`app_*.html`, `*Partial.html`): los bloques `<script>` y `<style>` se compilan con esbuild (`minify`, `charset:'utf8'`, `target:'chrome109'`, `legalComments:'none'`) y el marcado queda sin comentarios ni sangría. Se escriben **como archivos separados**; `include()` los sigue pegando.
-  - **Páginas** (plantillas): solo se quitan los comentarios HTML de nivel de marcado. Así además dejan de ejecutarse scriptlets escondidos en ellos.
+  - **Páginas** (plantillas): solo se quitan los comentarios HTML de nivel de marcado. Así además dejan de ejecutarse scriptlets escondidos en ellos. **Desde el 25/09/2026 (`2198c96`)** su JS también pierde comentarios y sangría, y ningún `<script>` sale con `//` ni `/*` (§1, regla 4).
   - Referencia: `scripts/laboratorio/medir.js` y `medir2.js` (`trocear`, `completo`).
 - **Comprobaciones:**
   - sintaxis de cada bloque;
@@ -321,11 +323,12 @@ XMLHttpRequest.prototype.send = function (body) {
 - **El almacenamiento del iframe no se puede leer desde fuera:** Chrome lo aparta por sitio. Abrir el origen `n-…googleusercontent.com` directamente enseña otro `localStorage`, vacío. `AppRun.medidas()` lo lee el creador en su consola (con el marco `userHtmlFrame` elegido): `console.table(AppRun.medidas())`.
 - **Alternar A/B en pruebas:** subir cada variante con `clasp push --force -P <config del scratchpad> -I <su .claspignore>` (el build anterior con `node scripts/build.js --fuente … --salida … --sin-clasp`). **Al terminar, volver a subir el código del repo** (`./scripts/publicar.sh`): si el turno cierra solo con documentación, el hook no corre clasp y pruebas se queda con la variante vieja.
 
-**Comprobar lo que sirve Google** (cada vez que cambie el build o el cliente). Desde la página superior de `/dev`, con `fetch` **en serie** de las 20 claves de `PAGES` y `PORTAL_PAGES`:
+**Comprobar lo que sirve Google** (cada vez que cambie el build o el cliente). La `/dev` de pruebas lleva el dominio: `https://script.google.com/a/macros/liverpool.com.mx/s/AKfycbxSjCvwk_f3pqcmIzyqlsPbPxlEHj91C6gjJdLXdLOS/dev` (sin `/a/macros/liverpool.com.mx` sale «No se encontró la página»). Desde su página superior, con `fetch` **en serie** de las 20 claves de `PAGES` y `PORTAL_PAGES`:
 - que ninguna respuesta diga «formato incorrecto» y todas traigan `goog.script.init`;
 - el peso de cada `userHtml`, antes y después;
 - que cada `<script>` clásico de `userHtml` pase `new Function(bloque)`: es el código tal como lo dejó el quitacomentarios de Google, y el único lugar donde se ve si lo rompió;
-- huellas: SHA-256 de cada bloque compilado de `build/` en local y de cada bloque servido con `crypto.subtle.digest`. Si coinciden, Google los sirve byte a byte y lo probado en el banco local es lo que llega (F2: 40 de 40).
+- huellas: SHA-256 de cada bloque compilado de `build/` en local y de cada bloque servido con `crypto.subtle.digest`. Si coinciden, Google los sirve byte a byte y lo probado en el banco local es lo que llega (F2: 40 de 40; desde `2198c96`, todos: 380 bloques servidos, 84 de 84 huellas).
+- En local, el modelo del quitacomentarios: `node pruebas/quitacomentarios_google.js build/*.html`. El build ya lo garantiza; sirve para lo que se suba sin pasar por él.
 
 **Banco local** (`scripts/laboratorio/banco.mjs`): ensambla las 20 pantallas como `include()` con dos carpetas (p. ej. la fuente y `build/`) y las abre en Chrome headless con una sesión falsa y un `google.script.run` que responde siempre con fallo. Compara excepciones, avisos, llamadas al servidor, texto, estructura y píxeles, y mide el ruido cargando dos veces la primera carpeta. La salida (capturas, perfil) va a una carpeta del scratchpad, nunca al repo. Cubre la carga y los estados de error; los datos reales y los clics los ve el creador.
 - **Punto ciego: fuerza el movimiento reducido.** Un revelado de GSAP roto no se ve ahí (así pasó la regresión del Monitor en la F3a). Para eso, `revelado-monitor.mjs` y `revelado-portal.mjs`: datos en la página contra datos por red, sin movimiento reducido. Pasarlos siempre que un cambio adelante o atrase la llegada de los datos, o toque una animación de entrada.
