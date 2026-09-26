@@ -1039,6 +1039,140 @@ y qué se dejó fuera a propósito**. Mismo formato que el registro del document
 
 <!-- Las entradas nuevas van arriba, con la más reciente primero. -->
 
+### 2026-09-26 — Devoluciones SAP: el glosario y las dos matrices de ✓ y ✕ pasan a una «consola por lo que le pasó al cliente» — en PRUEBAS
+
+**Por qué:** el creador pidió seguir con Devoluciones SAP después de Trazabilidad. Era la única sección escrita a mano en `Index.html` (no sale de ninguna hoja), y a 1440 medía 2,700 px:
+- una caja roja con «Autorización escrita obligatoria» arriba, y la misma advertencia otra vez al final;
+- cinco chips de anclas;
+- el glosario de cuatro leyendas, cada una con su botón de copiar;
+- dos matrices de Soft Line (mayor y menor a $3,000), de 7 escenarios × 4 acciones con ✓ y ✕;
+- cinco criterios en una lista.
+
+Lo que se encontró al pasarla a datos:
+- **cada fila de las matrices tiene UN solo ✓** y la columna «Recogido» (sola) no la usa ningún escenario: 56 celdas decían 14 respuestas;
+- **solo tres de los siete escenarios cambian con el monto**: Servicio SL, C&C Servicio SL y Sin tienda Liverpool cercana;
+- la leyenda de Servicio SL se escribía distinto en el Portal («ServicioSL/dañada») y en la hoja de Homologación («Servicio SL/dañada»); MKP la escribe «SERVICIO SL dañada/incompleta/equivocada»;
+- varios procesos de Trazabilidad (SL, SL Mensajerías, MarketPlace y Tienda) dicen «consulta la tabla actualizada para validar si procede por servicio SL o Satisfacción SL» o nombran la leyenda, y no llevaban a ningún lado.
+
+Sus respuestas:
+- lo primero que buscan es **qué procede**;
+- llegan con **lo que le pasó al cliente y el monto**;
+- la leyenda se escribe **«Servicio SL/dañada»**, con espacio;
+- **sí** a enlazar esos procesos de Trazabilidad, al caso exacto;
+- donde la tabla no nombra la leyenda, va **la de lo que le pasó**: llegó dañada, incompleta o equivocada → Servicio SL/…; no le gustó → Satisfacción SL. También en C&C, frágil, grandes y sin tienda de más de $3,000;
+- al canalizar a tienda **no se registra** leyenda en SAP (lo preguntó la revisión final);
+- sobre la frase del glosario de Satisfacción SL («…el producto es menor a $3,000…»), frente a la regla de arriba: **«No lo sé»**.
+
+Hubo tres prototipos navegables con el contenido real: Consola por escenario, Matriz única y Pestañas por lo que le pasó (tirada `07cd07c0`, que puso la Consola al frente). Eligió la **Consola**: la séptima sección de trabajo en la que elige la opción eficiente.
+
+**Qué se cambió** (commit `039a5db`):
+- **Parcial nuevo `app_devsap.html`** (estilos, guion y el contenido como datos; el build lo minifica). Expone `dvAlEntrar()` y `dvRevelar(el)`.
+- **La autorización, UNA vez**, en una franja arriba: la regla y el correo de Ventas CCL con «Copiar».
+- **La consola:**
+  - A la izquierda, la lista por lo que le pasó al cliente:
+    - Le llegó mal: Servicio SL · Mercancía frágil rota · C&C Servicio SL;
+    - No le gustó: Satisfacción SL · Sin tienda Liverpool cercana · C&C Satisfacción SL;
+    - Es un producto grande: Mercancía de dimensiones grandes SL;
+    - No reconoce la entrega: ENR;
+    - Otros casos: Correo soporte;
+    - y, aparte, «Las cuatro leyendas» y «Criterios y excepciones».
+
+    Cada caso lleva su respuesta debajo del nombre. Arriba, «¿Cuánto vale? Hasta $3,000 · Más de $3,000»:
+    - sin monto, los tres casos que cambian dicen cada respuesta con su monto delante («Hasta $3,000 · Devolución / Más de $3,000 · Recogido y devolución») y los demás, «Cualquier monto»;
+    - con monto, cada caso dice la suya;
+    - el monto se quita volviendo a pulsarlo.
+
+    Flechas ↑ ↓, Inicio y Fin; Enter lleva a la primera leyenda de la ficha.
+  - A la derecha, la ficha fija con el nombre en el cartel de Herramientas y, en orden:
+    1. **qué procede**, en grande; con monto, la baldosa de su monto resaltada;
+    2. **la leyenda en SAP**, que se copia con un clic sobre el chip; al canalizar a tienda dice «Al canalizar a tienda no se registra leyenda en SAP.» (su respuesta);
+    3. **los criterios** del caso: cada criterio de un monto lleva ese monto, y con un monto elegido el del otro no sale (la ficha de un horno de $12,000 no dice «menor a $3,000»);
+    4. **revisa también**: el caso más específico («¿Es frágil y llegó rota?», «¿Es pedido C&C?», «¿No tiene un Liverpool cerca?») o el general. En ENR, en cambio, «El proceso en Trazabilidad»: Soft Line, SL Mensajerías y MarketPlace, filtrados por «no reconocida» y con el proceso abierto.
+  - Correo soporte enseña sus cinco supuestos en una lista con viñeta.
+  - El glosario dice, en «Va en», los casos de cada leyenda con su condición o su monto («C&C Servicio SL · hasta $3,000», «Mercancía de dimensiones grandes SL · si no le gustó»).
+  - Bajo 54 em (unos 860 px a tamaño normal) se apila: la lista arriba, la ficha abajo, y tocar un caso baja hasta ella.
+- **El contenido (el de antes, pasado a datos):**
+  - la acción sale de las matrices, palabra por palabra; «Hasta $3,000» incluye los $3,000 (la matriz menor decía «de hasta $3,000 pesos»);
+  - los criterios, el glosario y el correo, con el texto de antes;
+  - un cambio pedido: «ServicioSL/…» → «Servicio SL/…».
+  - Donde la tabla no nombraba la leyenda, va por lo que le pasó al cliente (su regla):
+    - Mercancía frágil rota: solo «Servicio SL/dañada»;
+    - C&C Servicio SL: la de Servicio SL, hasta $3,000;
+    - Sin tienda Liverpool cercana: «Satisfacción SL» con los dos montos;
+    - grandes: las dos, con «Si llegó dañada, incompleta o equivocada» y «Si no le gustó».
+- **`Index.html`:**
+  - la sección queda como un hueco: h1 para lectores de pantalla y `<div id="dv-app">`, sin encabezado visible;
+  - `switchSec` pinta la consola antes de `sectionEnter`, y `sectionEnter` anima la franja, la lista y la ficha;
+  - `revealTarget` pasa por `dvRevelar`: elige el caso, pone el monto (`ds-mayor`, `ds-menor`) o abre el glosario desplazado a la leyenda. Si la opción no se ve entera, el foco va a la ficha;
+  - `elementoDeSeccion` reconoce `.dv-nom` → `.dv-opc`.
+  - Se fueron `jumpToDevsap`, `initDevsapReveals` y `devsapRevealsReady`, y el CSS que solo usaba la sección de antes: `.ds-auth`, `.ds-gloss*`, `.ds-leyenda`, `.ds-matrix*`, `.bt-*` y sus tonos de Carbón, `.fp-nav`, `.fp-num`, `.step-list` y `.step-n`.
+  - Se quedan las insignias del menú (`.ds-badge`, `.bt-badge`).
+- **`app_indices.html`:** Devoluciones SAP pasa de 9 a 16 entradas.
+  - Los nueve id de antes siguen llegando: las leyendas de Servicio SL y Satisfacción SL van al glosario; ENR y Correo soporte, a su caso; SL mayor y menor a $3,000, al monto.
+  - Los siete escenarios tienen entrada propia (`ds-esc-*`).
+  - «serviciosl» sigue en las palabras, para quien la escriba junta.
+- **`app_trazabilidad.html`:** en la ficha de un proceso, lo que se lleva a Devoluciones SAP es:
+  - «Servicio SL/dañada», «/incompleta» y «/equivocada», y «SERVICIO SL dañada/incompleta/equivocada», al caso Servicio SL;
+  - «Reconocida», a ENR;
+  - «consulta la tabla actualizada…», al caso que dice el nombre del proceso (dañada → Servicio SL, satisfacción → Satisfacción SL); si dice los dos, a la consola sin elegir.
+
+  Va en la misma pasada del resaltado: nunca dentro del atributo de «Copiar la frase», y «Entrega no reconocida», en minúscula, no se enlaza.
+- **Pruebas:**
+  - `pruebas/devsap.test.js` (nueva, 87 comprobaciones): el modelo contra la sección de antes, que quedó como caso fijo en `pruebas/devsap_antes_20260926.html` (matrices celda por celda, leyendas, cuándo va cada una, criterios y correo); cada ficha por monto, sin ninguna que diga el otro monto; cada id del buscador, pintado una vez; y los enganches con Index.
+  - `trazabilidad_situaciones.test.js` suma 9 comprobaciones de los enlaces y cambia su guarda vieja («Devoluciones SAP sigue con sus bloques .bt-*») por la de la consola.
+  - `f6_buscador_paridad.test.js` busca los id también en la consola.
+  - `formaspago.test.js` ya no exige `.fp-nav`, `.fp-num` ni `.step-list`.
+
+**Qué se comprobó:**
+- `sintaxis.js` y las 17 baterías de `pruebas/` en verde (las 16 de siempre y la nueva), en la copia integrada y otra vez en el repo antes de subir.
+- **Build:** compila (99 comprobaciones de `build.test.js`) y `quitacomentarios_google.js` no encuentra nada que cortar. Medido en el `build/` final:
+  - el `Index.html` compilado baja 26.6 KB (4.6 KB comprimido);
+  - el parcial compilado pesa 31.2 KB (9.1 KB comprimido);
+  - Trazabilidad e índices suben 2.8 KB (0.7 KB comprimido);
+  - en total, la página sube ~7.3 KB (~5.1 KB comprimidos). Estimado ~0.05 s de primer byte; no se midió.
+- **Detector de impeccable:** 0 hallazgos en el parcial. En la página servida, de 64 a 55: se fueron 5 franjas laterales de los bloques viejos y ninguno es nuevo.
+- **Banco del Portal** (`Index`, antes contra después): 0 errores en las dos, los mismos 2 avisos, las mismas 5 llamadas y la portada dentro del ruido (28 contra 28 píxeles). Cambia solo la estructura de `#sec-devsap`.
+- **Sin movimiento reducido:** 0 textos con opacidad efectiva < 0.2 tras la entrada, y el título del cartel termina entero al cambiar de caso.
+- **Chrome headless con el contenido real** (Trazabilidad con los 73 procesos del 26/09):
+  - 1440, 1024 y 390; Aurora y Carbón (con el cursor sobre un chip); densidad compacta; texto XL; con y sin movimiento reducido;
+  - cada caso, con y sin monto; el glosario y los criterios;
+  - `?item=ds-enr` (elige ENR y lo marca) y `?item=ds-satisfaccion-sl` (abre el glosario en esa leyenda y la franja sigue arriba, también con el recorrido de bienvenida);
+  - el buscador general hasta «Sin tienda»;
+  - de Trazabilidad (SL «Resurtido…») a Servicio SL, y de ENR a MarketPlace, con el proceso abierto;
+  - 0 errores de consola.
+- **Revisión final aparte:** un revisor sin el contexto de la construcción (el agente `impeccable-finish-reviewer`), con el contrato, el parcial, los diffs y 21 capturas.
+  - **Primera vuelta: «fix», con 5 correcciones.**
+    1. Texto de otro monto en la ficha: en grandes, «Si no le gustó» arrastraba la frase del glosario con «menor a $3,000», y en Sin tienda con «Más de $3,000» el único criterio hablaba de «menor a $3,000».
+    2. En la lista sin monto, «Devolución o Recogido y devolución» no decía qué respuesta era de qué monto, y la «o» parecía una elección.
+    3. Los supuestos de Correo soporte tenían forma de botón sin serlo.
+    4. Que al canalizar a tienda no haya leyenda se sostenía solo con un comentario del código.
+    5. La primera vez, al entrar por enlace, el recorrido de bienvenida devolvía el foco sin `preventScroll` y la franja de autorización se salía de la vista.
+  - **Se aplicaron en un lote.**
+    - Los criterios llevan su monto: con un monto elegido, el del otro no sale.
+    - Cada respuesta de la lista lleva su monto delante.
+    - Correo soporte pasa a una lista con viñeta.
+    - Si la opción no se ve entera, el foco va a la ficha.
+    - La 4 se le preguntó al creador: «No, no se registra». La ficha ahora lo dice: «Al canalizar a tienda no se registra leyenda en SAP.»
+    - Sobre la frase del glosario de Satisfacción SL contestó «No lo sé»: no se tocó, y «Va en» dice la condición o el monto de cada caso.
+    - La prueba subió a 87 comprobaciones y exige, entre otras cosas, que ninguna ficha diga el otro monto.
+  - **Segunda vuelta: las cinco resueltas y sin regresiones materiales; «ship».**
+    - Cubre esas correcciones, no certifica toda la sección.
+    - Se recapturaron las mismas vistas y cuatro fichas más (Satisfacción SL, C&C Satisfacción SL, frágil y criterios).
+    - Nota no material: al entrar por enlace, el foco en la ficha pinta su anillo; se dejó, porque quien llega con el teclado necesita verlo.
+- **En la `/dev` de pruebas:** publicada con `./scripts/publicar.sh` (producción sin tocar). El HTML que arma el servidor, leído con `fetch` desde la página superior y decodificado de `goog.script.init`, trae el hueco de la consola, `dvAlEntrar` y `dvRevelar`, los enlaces de Trazabilidad y «Servicio SL/dañada», y nada de lo de antes (`ServicioSL/`, `ds-gloss`, `initDevsapReveals`, `jumpToDevsap`). **No se vio pintada:** la captura volvió a colgar el renderizador. Lo visual en la `/dev` lo confirma el creador.
+
+**Qué se dejó fuera a propósito:**
+- **Pendiente del equipo: la frase del glosario de «Satisfacción SL».** Dice que aplica con el producto «menor a $3,000», pero por la regla del creador también va en «Sin tienda Liverpool cercana» de más de $3,000, y él contestó «No lo sé». El texto no se tocó; «Va en» dice en qué casos va. Cuando haya respuesta:
+  - si también va con más de $3,000, se quita «el producto es menor a $3,000» de la frase;
+  - si no, se quita la leyenda de la rama de más de $3,000.
+
+  Es una línea del modelo y su comprobación.
+- **ENR no dice monto**, porque el glosario no lo dice. La hoja de Homologación sí: en SL y SL Mensajerías no aplica en mercancía de más de $3,000. Eso lo lleva su proceso en Trazabilidad, que la ficha enlaza.
+- **El contenido sigue escrito en el código**, ahora en el modelo del parcial y no en el marcado. Pasarlo a una pestaña de la hoja del Portal (para que lo edite el equipo) sería un cambio de servidor aparte.
+- **El recorrido de bienvenida** (`app_onboarding.html`) devuelve el foco sin `preventScroll` al cerrarse. Para que no baje la página al llegar por enlace, `dvRevelar` deja el foco en la ficha cuando la opción no se ve entera. El recorrido no se tocó.
+- **DESIGN.md:** no se crea. Es una sección dentro del mundo ya aprobado, como las anteriores.
+- **Producción intacta** (@130).
+
 ### 2026-09-26 — Trazabilidad: seis secciones de tarjetas plegables pasan a una sola, «por situación» — en PRUEBAS
 
 **Por qué:** el creador pidió seguir con Trazabilidad después de Formatos. Eran seis secciones del menú (Big Ticket, Soft Line, SL Mensajerías, MarketPlace, Tienda y Generales), cada una con el mismo componente:
