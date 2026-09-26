@@ -946,6 +946,79 @@ function fpLogosTiendas() {
   return JSON.parse(HtmlService.createHtmlOutputFromFile('fp_logos').getContent());
 }
 
+/**
+ * Pago Web (25/09/2026): lo que la consola de #sec-pdepago no saca de la hoja PdePago.
+ *   · factores: la tabla de «Pagos Fijos 3.0» (mensualidad = precio × factor), leída de la hoja
+ *     del simulador y guardada 6 h. null si no se puede abrir: el cliente usa su copia del
+ *     30/06/2026 y lo dice junto a la cifra.
+ *   · promos: las promociones vigentes y las que empiezan en los próximos 14 días que traen MSI,
+ *     «pague en…» o pagos fijos, con los campos que ya enseña la portada. El cliente las reparte.
+ * Pública y sin sesión, como fetchPromoCounts: no hay nada personal ni sensible. El id del
+ * simulador no lo manda el cliente (sería leer cualquier hoja con la cuenta del script): es esta
+ * constante, o la propiedad de script PDP_SIMULADOR_ID si un día cambia de hoja.
+ */
+var PDP_SIMULADOR_ID = '19DI40fC95VDXqS942USq1WXsXhNoGb2VirQLLBInQi4';
+
+function pdpDatos() {
+  const out = { status: 'ok', factores: null, promos: [] };
+  try { out.factores = pdpFactores_(); } catch (e) { out.factoresError = String((e && e.message) || e).slice(0, 200); }
+  try { out.promos = pdpPromos_(); } catch (e) { out.promosError = String((e && e.message) || e).slice(0, 200); }
+  return out;
+}
+
+function pdpFactores_() {
+  const cache = CacheService.getScriptCache();
+  const hit = cache.get('pdpFactores_v1');
+  if (hit) return JSON.parse(hit);
+  const id = PropertiesService.getScriptProperties().getProperty('PDP_SIMULADOR_ID') || PDP_SIMULADOR_ID;
+  const v = SpreadsheetApp.openById(id).getSheets()[0].getDataRange().getValues();
+  // «MENSUALIDADES» y «FACTOR» van en la misma fila de encabezados (hoy la 2).
+  let fila = -1, cM = -1, cF = -1;
+  for (let i = 0; i < Math.min(10, v.length) && fila < 0; i++) {
+    const h = v[i].map(function (x) { return String(x).toLowerCase().trim(); });
+    cM = h.findIndex(function (x) { return x.indexOf('mensualidades') === 0; });
+    cF = h.findIndex(function (x) { return x === 'factor'; });
+    if (cM > -1 && cF > -1) fila = i;
+  }
+  if (fila < 0) return null;
+  const f = {};
+  for (let i = fila + 1; i < v.length; i++) {
+    const n = Number(v[i][cM]), x = Number(v[i][cF]);
+    if (n >= 2 && n <= 60 && Math.floor(n) === n && x > 0 && x < 1) f[n] = x;
+  }
+  if (Object.keys(f).length < 2) return null;
+  cache.put('pdpFactores_v1', JSON.stringify(f), 21600);
+  return f;
+}
+
+function pdpPromos_() {
+  const now = new Date(), DIA = 864e5;
+  const re = /\d+\s*msi|meses sin inter|pag(?:ue|a|ar)?\s+(?:en|hasta)\s+[a-z]|mensualidad|pagos fijos/i;
+  const out = [];
+  (fetchApplicationData().promociones || []).forEach(function (p) {
+    const txt = String(p.promocion || '').trim();
+    if (!txt || !re.test(txt)) return;
+    const r = parseVigencia_(p.vigencia, now);
+    if (!r) return;
+    const vigente = now >= r.start && now <= r.end;
+    const empieza = r.start > now ? Math.ceil((r.start - now) / DIA) : 0;
+    if (!vigente && !(empieza > 0 && empieza <= 14)) return;
+    out.push({
+      direccion: String(p.direccion || '').trim(),
+      categoria: String(p.categoria || '').trim(),
+      promocion: txt,
+      marca:     String(p.marca || '').trim(),
+      vigencia:  String(p.vigencia || ''),
+      inicio:    r.start.getTime(),
+      fin:       r.end.getTime(),
+      dias:      Math.floor((r.end - now) / DIA),
+      empieza:   vigente ? 0 : empieza
+    });
+  });
+  out.sort(function (a, b) { return a.inicio - b.inicio || a.fin - b.fin; });
+  return out.slice(0, 200);
+}
+
 function reportBrokenLink(report) {
   try {
     // El Portal es público dentro del dominio y esta es su única escritura abierta:

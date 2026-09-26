@@ -1,0 +1,626 @@
+<style>
+/* ════════════════════════════════════════════════════════════
+   PAGO WEB · CONSOLA (25/09/2026): los planes de la hoja «PdePago» en una lista y, al lado,
+   la ficha del plan: el nombre en el cartel de Herramientas (.cs-cartel), la explicación de
+   la hoja, la tira de cargos, la calculadora (MSI o pagos fijos, con los factores de «Pagos
+   Fijos 3.0») y las promociones vigentes que lo traen, con los boletos de la portada (.g-tk).
+   La hoja la editan personas: cada plan se reconoce por su NOMBRE, nunca por su fila, y lo que
+   no se reconoce se pinta sin extras. Respaldo: etiqueta git «respaldo-pdepago-antes-consola».
+════════════════════════════════════════════════════════════ */
+#sec-pdepago{--g-ink-brand:var(--brand-deep);--g-linea:color-mix(in srgb,var(--ink) 20%,var(--line));--pdc-barra:color-mix(in srgb,var(--ink) 80%,var(--surface));container:pdc/inline-size}
+[data-theme="carbon"] #sec-pdepago{--g-ink-brand:#F46BC6;--pdc-barra:color-mix(in srgb,var(--ink) 66%,var(--surface))}
+#sec-pdepago ::selection{background:var(--brand-soft);color:var(--ink)}
+.pdc-sr{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);clip-path:inset(50%);white-space:nowrap}
+
+/* — Consola: lista y ficha — */
+.pdc-cuerpo{display:grid;grid-template-columns:minmax(290px,.78fr) minmax(0,1.3fr);gap:1.5rem;align-items:start}
+.pdc-cuerpo:has(.pdc-lista:empty){display:none}
+.pdc-lista{position:sticky;top:88px;background:var(--surface);border:1px solid var(--line);border-radius:22px;padding:.45rem;display:grid;gap:.15rem;min-width:0}
+.pdc-lista > .empty-card{border:0}
+.pdc-opc{display:grid;grid-template-columns:38px minmax(0,1fr) auto;align-items:center;gap:.75rem;padding:.6rem .7rem .6rem .6rem;border-radius:14px;cursor:pointer;outline:none;transition:background-color .15s}
+.pdc-opc:hover{background:var(--surface-2)}
+.pdc-opc[aria-selected="true"]{background:var(--brand-tint)}
+.pdc-opc:focus-visible{box-shadow:inset 0 0 0 2px var(--brand)}
+.pdc-ico{width:38px;height:38px;border-radius:11px;display:grid;place-items:center;color:var(--g-ink-brand);background:color-mix(in srgb,var(--brand) 10%,var(--surface))}
+.pdc-ico .ic{width:18px;height:18px}
+.pdc-txt{min-width:0;display:grid;gap:.1rem}
+.pdc-nom{font-weight:680;font-size:.95rem;line-height:1.25;overflow-wrap:anywhere}
+.pdc-opc[aria-selected="true"] .pdc-nom{color:var(--g-ink-brand)}
+.pdc-meta{font-size:.76rem;color:var(--ink-soft);line-height:1.3}
+.pdc-n{display:grid;justify-items:center;min-width:42px;padding:.28rem .45rem;border-radius:10px;background:var(--brand);color:#fff;font-family:var(--f-display);font-weight:900;font-stretch:80%;font-size:1.15rem;line-height:1;font-variant-numeric:tabular-nums}
+.pdc-n small{font-family:var(--f-body);font-stretch:100%;font-weight:700;font-size:.62rem;line-height:1.2}
+.pdc-ficha{background:var(--surface);border:1px solid var(--line);border-radius:26px;overflow:hidden;min-width:0;scroll-margin-top:96px}
+.pdc-ficha:empty{display:none}
+.pdc-ficha .cs-cartel{min-height:156px}
+.pdc-ficha-cuerpo{padding:1.25rem 1.45rem 1.4rem;display:grid;gap:1.15rem}
+.pdc-det{font-size:1rem;line-height:1.6;max-width:66ch;text-wrap:pretty;white-space:pre-line}
+.pdc-bloque{display:grid;gap:.75rem;padding-top:1.05rem;border-top:1px solid var(--line-soft)}
+.pdc-bloque[hidden]{display:none}
+.pdc-bloque h3{font-family:var(--f-display);font-weight:800;font-stretch:84%;font-size:1.08rem;line-height:1.25;letter-spacing:-.005em}
+.pdc-bloque h3 b{font-family:var(--f-mono);font-size:.82rem;font-weight:700;color:var(--ink-soft);margin-left:.35rem}
+.pdc-cifras{display:flex;flex-wrap:wrap;gap:.6rem 2.2rem}
+.pdc-cifra{display:grid;gap:.1rem}
+.pdc-cifra span{font-size:.8rem;font-weight:700;color:var(--ink-soft)}
+.pdc-cifra b{font-family:var(--f-display);font-weight:900;font-stretch:80%;font-size:2.6rem;line-height:.95;font-variant-numeric:tabular-nums}
+.pdc-vacio{font-size:.9rem;color:var(--ink-soft);line-height:1.5}
+.pdc-vacio.es-error{color:var(--ink)}
+.pdc-vacio a{color:var(--g-ink-brand);font-weight:700;text-underline-offset:3px}
+.pdc-acc{display:flex;flex-wrap:wrap;align-items:center;gap:.4rem;padding-top:.95rem;border-top:1px solid var(--line-soft)}
+.pdc-acc .collect-btn,.pdc-acc .btn-report{width:40px;height:40px;border-radius:12px;margin:0}
+.pdc-abrir{display:inline-flex;align-items:center;gap:.45rem;height:40px;padding:0 .95rem;border-radius:12px;border:1px solid var(--line);background:var(--surface);color:var(--ink);font-weight:650;font-size:.86rem;text-decoration:none;white-space:nowrap;transition:border-color .15s,background-color .15s}
+.pdc-abrir:hover{border-color:var(--g-linea);background:var(--surface-2)}
+.pdc-abrir:focus-visible{outline:2px solid var(--brand);outline-offset:2px}
+.pdc-abrir .ic{width:16px;height:16px}
+.pdc-abrir .ic:last-child{width:14px;height:14px;color:var(--ink-soft)}
+
+/* — Tira de cargos: cada barra es un corte; el punto, un corte sin cargo; lo rosa, interés — */
+.pdc-tira{display:flex;flex-wrap:wrap;align-items:flex-end;gap:.6rem 1.3rem;margin:0;padding:.9rem 1.1rem .85rem;border-radius:14px;background:var(--surface-2);min-width:0}
+/* El ancho lo dan el número de cortes (--n) y el ancho de cada barra (--w, que pone tira()):
+   seis barras no se pierden en una bandeja de 600 px y cuarenta y ocho caben sin encimarse. */
+.pdc-t-barras{display:flex;align-items:flex-end;gap:3px;height:64px;flex:0 1 auto;width:calc(var(--n,6) * var(--w,26px) + (var(--n,6) - 1) * 3px);max-width:100%;min-width:0}
+.pdc-tira:has(em) .pdc-t-barras{margin-top:1rem}
+.pdc-t-barras i{flex:1 1 0;min-width:2px;display:block;position:relative;transform-origin:50% 100%}
+.pdc-tira.es-mal .pdc-t-barras{opacity:.35}
+.pdc-t-v{height:5px;border-radius:3px;background:var(--line)}
+.pdc-t-p{height:100%;border-radius:4px 4px 2px 2px;background:linear-gradient(to bottom,var(--brand) 0 var(--int,0%),var(--pdc-barra) var(--int,0%) 100%)}
+.pdc-t-p em{position:absolute;left:50%;bottom:calc(100% + 4px);transform:translateX(-50%);font-style:normal;font-size:.68rem;font-weight:800;letter-spacing:.04em;text-transform:uppercase;color:var(--g-ink-brand);white-space:nowrap}
+.pdc-tira figcaption{flex:1 1 13rem;display:grid;gap:.15rem;font-size:.82rem;color:var(--ink-soft);line-height:1.35}
+.pdc-tira figcaption span:last-child{font-size:.95rem;color:var(--ink)}
+.pdc-tira figcaption b{color:var(--ink);font-weight:750;font-variant-numeric:tabular-nums}
+.pdc-ley{display:flex;align-items:center;gap:.4rem;font-size:.74rem;color:var(--ink-soft)}
+.pdc-ley i{display:inline-block;width:10px;height:10px;border-radius:3px;background:var(--brand)}
+.pdc-ley i + span + i{background:var(--pdc-barra);margin-left:.5rem}
+
+/* — Calculadora — */
+.pdc-calc{display:grid;gap:.85rem;min-width:0}
+.pdc-calc-in{display:grid;grid-template-columns:minmax(0,1.5fr) minmax(0,1fr);gap:.7rem;max-width:520px}
+.pdc-campo{display:grid;gap:.3rem;min-width:0}
+.pdc-campo > span:first-child{font-size:.8rem;font-weight:700;color:var(--ink-soft)}
+.pdc-caja{display:flex;align-items:center;height:46px;border-radius:12px;border:1px solid var(--g-linea);background:var(--surface);padding:0 .8rem;transition:border-color .15s,box-shadow .15s}
+.pdc-caja:focus-within{border-color:var(--brand);box-shadow:var(--ring)}
+.pdc-caja i{font-style:normal;font-family:var(--f-mono);font-weight:700;color:var(--ink-soft)}
+.pdc-caja i:first-child{margin-right:.35rem}
+.pdc-caja i:last-child{margin-left:.35rem;font-family:var(--f-body);font-size:.8rem}
+.pdc-caja input{flex:1;min-width:0;width:100%;border:0;background:none;outline:0;font-family:var(--f-mono);font-weight:700;font-size:1.12rem;color:var(--ink);font-variant-numeric:tabular-nums;caret-color:var(--brand)}
+.pdc-caja input::placeholder{color:var(--ink-soft);font-weight:500}
+.pdc-caja input[type=number]{-moz-appearance:textfield}
+.pdc-caja input::-webkit-outer-spin-button,.pdc-caja input::-webkit-inner-spin-button{-webkit-appearance:none;margin:0}
+.pdc-chips{display:flex;flex-wrap:wrap;align-items:center;gap:.35rem}
+.pdc-chips > span{font-size:.78rem;font-weight:700;color:var(--ink-soft);margin-right:.2rem}
+.pdc-chips .g-chip{height:30px;min-width:40px;font-family:var(--f-mono);font-variant-numeric:tabular-nums}
+.pdc-chips .g-chip:focus-visible{outline:2px solid var(--brand);outline-offset:2px}
+.pdc-res{display:grid;gap:.3rem}
+.pdc-grande{display:flex;align-items:baseline;flex-wrap:wrap;gap:.2rem .55rem}
+.pdc-grande b{font-family:var(--f-display);font-weight:900;font-stretch:80%;font-size:2.7rem;line-height:.95;letter-spacing:-.01em;font-variant-numeric:tabular-nums}
+.pdc-grande span{font-weight:700;color:var(--ink-soft)}
+.pdc-grande.es-vacia b{color:color-mix(in srgb,var(--ink-soft) 80%,var(--surface))}
+.pdc-aprox{font-style:normal;font-size:.72rem;font-weight:800;letter-spacing:.04em;text-transform:uppercase;color:var(--warn);background:var(--warn-bg);border-radius:6px;padding:.12rem .45rem;align-self:center}
+.pdc-desglose{font-size:.9rem;line-height:1.45;color:var(--ink-soft)}
+.pdc-desglose b{color:var(--ink);font-weight:750;font-variant-numeric:tabular-nums}
+.pdc-desglose.es-error{color:var(--alert);font-weight:650}
+.pdc-caja:has(input[aria-invalid="true"]){border-color:var(--alert)}
+.pdc-int{color:var(--g-ink-brand);font-weight:750;font-variant-numeric:tabular-nums}
+.pdc-nota{font-size:.8rem;line-height:1.45;color:color-mix(in srgb,var(--warn) 80%,var(--ink))}
+[data-theme="carbon"] .pdc-nota,[data-theme="carbon"] .pdc-aprox{color:color-mix(in srgb,var(--warn) 45%,var(--ink))}
+.pdc-plazos{width:100%;border-collapse:collapse;font-size:.86rem;font-variant-numeric:tabular-nums}
+.pdc-plazos th,.pdc-plazos td{padding:0 .6rem;height:2.3rem;text-align:right;border-top:1px solid var(--line-soft)}
+.pdc-plazos thead th{height:auto;padding-bottom:.4rem;border-top:0;font-size:.72rem;font-weight:800;letter-spacing:.05em;text-transform:uppercase;color:var(--ink-soft)}
+.pdc-plazos th:first-child{text-align:left;padding-left:0}
+.pdc-plazos tbody tr{transition:background-color .12s}
+.pdc-plazos tbody tr:hover{background:var(--surface-2)}
+.pdc-plazos tbody tr.is-sel{background:var(--brand-tint)}
+.pdc-plazos tbody tr.is-sel th button,.pdc-plazos tbody tr.is-sel td{color:var(--g-ink-brand);font-weight:750}
+.pdc-plazos tbody tr > *:first-child{border-radius:8px 0 0 8px}
+.pdc-plazos tbody tr > *:last-child{border-radius:0 8px 8px 0}
+.pdc-plazos th button{width:100%;height:100%;padding:0 .6rem;border:0;background:none;font:inherit;font-weight:650;color:var(--ink);text-align:left;cursor:pointer;border-radius:8px}
+.pdc-plazos th button:focus-visible{outline:2px solid var(--brand);outline-offset:-2px}
+
+/* — Promociones: los boletos de la portada (.g-tk), en dos columnas — */
+.pdc-tks{grid-template-columns:repeat(auto-fill,minmax(270px,1fr))}
+.pdc-tks .g-tk-pro{overflow-wrap:anywhere}
+.pdc-luego summary{cursor:pointer;font-size:.86rem;font-weight:700;color:var(--g-ink-brand);width:max-content;max-width:100%;border-radius:6px}
+.pdc-luego summary:focus-visible{outline:2px solid var(--brand);outline-offset:2px}
+.pdc-luego[open] summary{margin-bottom:.6rem}
+.pdc-luego .g-tk:not(.is-pronto) .g-tk-st{background:var(--surface-2)}
+
+/* — Esqueleto con la forma de la consola — */
+.sk-grid.pdc-sk{grid-template-columns:minmax(290px,.78fr) minmax(0,1.3fr);gap:1.5rem;align-items:start}
+.pdc-sk > .vt-strip{grid-column:1/-1}
+.pdc-sk .pdc-sk-lista{border-radius:22px;gap:.55rem;padding:1rem}
+.pdc-sk .pdc-sk-ficha{border-radius:26px;padding:0 0 1.4rem;overflow:hidden}
+.pdc-sk .pdc-sk-ficha > .sk-line:not(.pdc-sk-cartel){margin:0 1.4rem}
+.pdc-sk .pdc-sk-cartel{height:156px;width:100%;border-radius:0}
+
+/* — Densidad compacta y alto contraste (Ajustes de vista) — */
+html[data-density="compact"] .pdc-opc{padding-top:.4rem;padding-bottom:.4rem}
+html[data-density="compact"] .pdc-ficha .cs-cartel{min-height:120px}
+html[data-density="compact"] .pdc-ficha-cuerpo{gap:.85rem;padding:1rem 1.2rem 1.1rem}
+html[data-density="compact"] .pdc-bloque{padding-top:.8rem;gap:.55rem}
+html[data-density="compact"] .pdc-plazos th,html[data-density="compact"] .pdc-plazos td{height:2rem}
+html[data-contrast="high"] .pdc-lista,html[data-contrast="high"] .pdc-ficha{border-width:2px}
+html[data-contrast="high"] .pdc-caja{border-color:var(--ink-soft)}
+
+/* Según el ancho de la sección, en em: escala con los cuatro tamaños de texto. Debajo, la lista
+   va arriba (sin quedarse fija) y la ficha abajo; tocar un plan baja hasta su ficha. */
+@container pdc (max-width:54em){
+  .pdc-cuerpo,.sk-grid.pdc-sk{grid-template-columns:minmax(0,1fr)}
+  .pdc-lista{position:static}
+  .pdc-meta{display:none}
+}
+@container pdc (max-width:34em){
+  .pdc-ficha-cuerpo{padding:1rem 1.05rem 1.2rem}
+  .pdc-ficha .cs-cartel{min-height:118px}
+  .pdc-calc-in{grid-template-columns:minmax(0,1.35fr) minmax(0,1fr);align-items:end;gap:.55rem}
+  .pdc-bloque-calc{order:1}
+  .pdc-tira-w{order:2}
+  .pdc-ficha-cuerpo > [data-pdc-promos]{order:3}
+  .pdc-acc{order:4}
+  .pdc-grande b{font-size:2.3rem}
+  .pdc-ficha .cs-cartel.tam-s .cs-cartel-t{font-size:2.7rem}
+  .pdc-ficha .cs-cartel.tam-m .cs-cartel-t{font-size:2.1rem}
+  .pdc-ficha .cs-cartel.tam-l .cs-cartel-t{font-size:1.75rem}
+  .pdc-ficha .cs-cartel-s{font-size:1rem}
+  .pdc-plazos th,.pdc-plazos td{padding:0 .35rem}
+  .pdc-plazos th button{padding:0 .35rem}
+}
+@media (prefers-reduced-motion:reduce){ #sec-pdepago .pdc-opc,#sec-pdepago .pdc-abrir,#sec-pdepago .pdc-plazos tbody tr{transition:none} }
+</style>
+<script>
+/* Pago Web · comportamiento de #sec-pdepago (el marcado de la sección vive en Index.html).
+   Lo que el guion grande llama:
+     · renderPP(items) — onToolsData y filterSec: pinta la consola con TODOS los planes de la
+                         hoja; si llega un subconjunto (un ?q= o el buscador), elige el primero.
+     · pdpAlEntrar()   — switchSec al abrir la sección: pide pdpDatos una vez por carga.
+     · pdpRevelar(el)  — revealTarget, con el buscador o un ?item=: elige el plan y deja el
+                         cursor en el monto si el plan calcula. Devuelve true si lo atendió.
+   pdpDatos (Portal.gs) trae los factores de «Pagos Fijos 3.0» y las promociones de MSI y
+   «pague en…». Sin respuesta, la calculadora usa FACTORES_COPIA y no hay promociones. */
+(function(){
+  'use strict';
+  var sec = null, lista = null, ficha = null;
+  var planes = [], actual = '';
+  var estado = { monto: 0, nF: 12, nM: 6 };
+  var datos = null, pidiendo = false, fallo = false;
+  var plazoMal = { msi: false, fijos: false };   // lo escrito en «Meses» no es un plazo válido
+  var DATOS_CLAVE = 'pdp-datos-v1', DATOS_TTL = 30 * 60000;
+
+  /* «Pagos Fijos 3.0» (hoja de lasilvao) tal como estaba el 30/06/2026: mensualidad = precio ×
+     factor; total = precio × factor × meses. Solo manda si el servidor no puede abrir la hoja. */
+  var FACTORES_COPIA = { 2:0.53535, 3:0.364993, 4:0.2799034, 5:0.2289208, 6:0.1949914, 7:0.1708067,
+    8:0.1527122, 9:0.1386778, 10:0.1274853, 11:0.1183596, 12:0.1107838, 13:0.1044001, 14:0.0989529,
+    15:0.0942548, 16:0.0901653, 17:0.0865767, 18:0.0834055, 19:0.0805857, 20:0.0780644, 21:0.0757988,
+    22:0.073754, 23:0.071901, 24:0.0702157, 25:0.0686779, 26:0.0678705, 27:0.0659787, 28:0.0647902,
+    29:0.0636942, 30:0.0626812, 31:0.0617431, 32:0.0608728, 33:0.0600639, 34:0.0593111, 35:0.0586093,
+    36:0.0579542, 37:0.0573419, 38:0.056769, 39:0.0562322, 40:0.0557288, 41:0.0552563, 42:0.0548123,
+    43:0.0543947, 44:0.0540017, 45:0.0536316, 46:0.0532827, 47:0.0529535, 48:0.0526429 };
+  var factores = FACTORES_COPIA, deLaHoja = false;
+
+  var MES = ['enero','febrero','marzo','abril','mayo','junio','julio','agosto','septiembre','octubre','noviembre','diciembre'];
+  var MES3 = ['ene','feb','mar','abr','may','jun','jul','ago','sep','oct','nov','dic'];
+  var MXN = new Intl.NumberFormat('es-MX', { style:'currency', currency:'MXN', minimumFractionDigits:2, maximumFractionDigits:2 });
+  var NUM = new Intl.NumberFormat('es-MX', { maximumFractionDigits:2 });
+
+  /* GS(), icon(), esc()… son del guion grande (globales, no cuelgan de window): se consultan al usarse. */
+  function gs(){ try { return typeof GS === 'function' ? !!GS() : false; } catch (e) { return false; } }
+  function ic(n){ return typeof icon === 'function' ? icon(n) : ''; }
+  function escHtml(s){ return String(s == null ? '' : s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
+  function norm(s){ return String(s == null ? '' : s).toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, ''); }
+  function dinero(n){ return MXN.format(n); }
+  /* «12500», «12,500», «$12,500.50»: todo vale. Cero o nada = sin monto. */
+  function leerMonto(s){ var n = parseFloat(String(s || '').replace(/[^\d.]/g, '')); return isFinite(n) && n > 0 ? n : 0; }
+  function pintarMonto(n){ return n ? NUM.format(n) : ''; }
+  function clave(nombre){ return norm(nombre).replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '').slice(0, 60) || 'plan'; }
+
+  /* ── Factores ── */
+  function plazos(){ return Object.keys(factores).map(Number).filter(function(n){ return n >= 2; }).sort(function(a, b){ return a - b; }); }
+  function fMin(){ var p = plazos(); return p[0] || 2; }
+  function fMax(){ var p = plazos(); return p[p.length - 1] || 48; }
+  function fijos(monto, n){
+    var f = Number(factores[n]); if (!f) return null;
+    var men = monto * f, total = men * n;
+    return { n: n, mensualidad: men, total: total, interes: total - monto, veces: f * n };
+  }
+
+  /* ── Qué plan es, por su nombre ── */
+  function tipoDe(nombre){
+    var n = norm(nombre);
+    if (/minimo|monto/.test(n)) return 'regla';
+    if (/mensualidad|pagos? fijos?/.test(n)) return /pagar en|empieza/.test(n) ? 'fijosdif' : 'fijos';
+    if (/\bmsi\b|sin intereses/.test(n)) return 'msi';
+    if (/empieza a pagar|diferid|pague en|paga en/.test(n)) return 'diferido';
+    if (/presupuesto|contado|una sola|exhibicion/.test(n)) return 'contado';
+    return 'otro';
+  }
+  function rasgo(t){
+    switch (t) {
+      case 'contado':  return { t:'Un solo pago', s:'en su siguiente corte', ic:'receipt' };
+      case 'msi':      return { t:'Sin intereses', s:'pagos iguales', ic:'calendar' };
+      case 'diferido': return { t:'Todo en un mes', s:'el de la promoción', ic:'clock' };
+      case 'fijos':    return { t:'Con interés', s:'de ' + fMin() + ' a ' + fMax() + ' pagos fijos', ic:'chart' };
+      case 'fijosdif': return { t:'Con interés, después', s:'empieza el mes que elija', ic:'history' };
+      case 'regla':    return { t:'Regla', s:'antes de diferir a MSI', ic:'info' };
+      default:         return { t:'', s:'', ic:'card' };
+    }
+  }
+  function calcula(t){ return t === 'msi' || t === 'fijos' || t === 'fijosdif'; }
+  function conTira(t){ return t !== 'regla' && t !== 'otro'; }
+
+  /* ── Promociones que traen cada plan (pdpDatos las filtra; aquí se reparten) ── */
+  function msiDe(txt){
+    var t = norm(txt), m, ns = [], re = /(\d{1,2})\s*msi/g;
+    while ((m = re.exec(t))) ns.push(+m[1]);
+    return ns.length ? ns : null;
+  }
+  function mesDe(txt){ var m = /pag(?:ue|a|ar)?\s+(?:en|hasta)\s+(ene|feb|mar|abr|may|jun|jul|ago|sep|oct|nov|dic)/.exec(norm(txt)); return m ? MES3.indexOf(m[1]) : -1; }
+  function planDePromo(p){
+    if (msiDe(p.promocion)) return 'msi';
+    if (mesDe(p.promocion) >= 0) return 'diferido';
+    if (/mensualidad|pagos fijos/.test(norm(p.promocion))) return 'fijos';
+    return '';
+  }
+  function promosDe(t){
+    var l = ((datos && datos.promos) || []).filter(function(p){ var d = planDePromo(p); return d && (d === t || (d === 'fijos' && t === 'fijosdif')); });
+    return {
+      hoy: l.filter(function(p){ return !p.empieza; }).sort(function(a, b){ return a.fin - b.fin; }),
+      luego: l.filter(function(p){ return p.empieza; }).sort(function(a, b){ return a.inicio - b.inicio || a.fin - b.fin; })
+    };
+  }
+  function plazosMsiHoy(){
+    var s = {};
+    promosDe('msi').hoy.forEach(function(p){ (msiDe(p.promocion) || []).forEach(function(n){ if (n >= 2 && n <= 48) s[n] = 1; }); });
+    return Object.keys(s).map(Number).sort(function(a, b){ return a - b; });
+  }
+  /* Meses a los que mandan el cobro las promociones «pague en…» de hoy (sin repetir, en orden). */
+  function mesesDiferidoHoy(){
+    var s = {};
+    promosDe('diferido').hoy.forEach(function(p){ var m = mesDe(p.promocion); if (m >= 0) s[m] = 1; });
+    var sig = (new Date().getMonth() + 1) % 12;
+    return Object.keys(s).map(Number).sort(function(a, b){ return ((a - sig + 12) % 12) - ((b - sig + 12) % 12); });
+  }
+  function fechaCorta(ms){ var d = new Date(ms); return d.getDate() + ' ' + MES3[d.getMonth()]; }
+  function monitorHref(){ var a = document.getElementById('promoNavLink'); return (a && a.getAttribute('href')) || '#'; }
+  /* El boleto de la portada, sin cambiarle nada: tocarlo abre el Monitor. */
+  function boleto(p){
+    var d = Number(p.dias), pronto = !p.empieza && d <= 3, st;
+    if (p.empieza) st = '<span class="g-tk-hasta">desde el<br>' + fechaCorta(p.inicio) + '</span>';
+    else if (d <= 0) st = '<small>termina</small><span class="g-tk-d is-palabra">hoy</span>';
+    else if (d === 1) st = '<small>termina</small><span class="g-tk-d is-palabra">mañana</span>';
+    else if (pronto) st = '<span class="g-tk-d">' + d + '</span><small>días</small>';
+    else st = '<span class="g-tk-hasta">hasta el<br>' + fechaCorta(p.fin) + '</span>';
+    var dep = [p.direccion, p.categoria].map(function(x){ return String(x || '').trim(); }).filter(Boolean).map(escHtml).join(' · ');
+    return '<a class="g-tk' + (pronto ? ' is-pronto' : '') + '" href="' + escHtml(monitorHref()) + '" target="_top" onclick="handlePromoNav(event,this)">' +
+      '<span class="g-tk-bd"><span class="g-tk-dep">' + (dep || 'Promoción') + '</span><span class="g-tk-pro">' + escHtml(p.promocion) + '</span>' +
+      (p.marca ? '<span class="g-tk-mk">' + escHtml(p.marca) + '</span>' : '') + '</span><span class="g-tk-st">' + st + '</span></a>';
+  }
+
+  /* ── Tira de cargos: el plan en los estados de cuenta. Explica, no mide: cada tira va a su
+     propia escala; con monto, las cifras van al pie. ── */
+  function tira(t){
+    var m = estado.monto, slots = [], inicio = 'Desde el siguiente corte', resumen = '', i;
+    var sig = (new Date().getMonth() + 1) % 12, meses = t === 'diferido' ? mesesDiferidoHoy() : [];
+    var mes = meses.length === 1 ? meses[0] : -1;   // con varios meses, la tira no elige uno
+    var espera = mes >= 0 ? (mes - sig + 12) % 12 : 2;
+    if (t === 'contado') {
+      slots = [{ p:1 }, { v:1 }, { v:1 }, { v:1 }, { v:1 }, { v:1 }];
+      inicio = 'Siguiente corte';
+      resumen = m ? '1 pago de <b>' + dinero(m) + '</b>' : '<b>1 pago</b> y listo';
+    } else if (t === 'msi') {
+      for (i = 0; i < estado.nM; i++) slots.push({ p:1 });
+      resumen = m ? estado.nM + ' × <b>' + dinero(m / estado.nM) + '</b> · sin intereses' : '<b>' + estado.nM + ' pagos iguales</b> · sin intereses';
+    } else if (t === 'diferido') {
+      for (i = 0; i < espera; i++) slots.push({ v:1 });
+      slots.push({ p:1, marca: mes >= 0 ? MES3[mes] : '' });
+      inicio = 'Nada hasta ' + (mes >= 0 ? MES[mes] : 'el mes de la promoción');
+      resumen = (m ? '<b>' + dinero(m) + '</b>' : '<b>Todo</b>') + ' en ' + (mes >= 0 ? MES[mes]
+        : meses.length ? meses.map(function(x){ return MES[x]; }).join(' o ') + ', según la promoción' : 'ese mes');
+    } else if (t === 'fijos' || t === 'fijosdif') {
+      var r = fijos(m || 1, estado.nF), parte = r ? 1 - 1 / r.veces : 0;
+      if (t === 'fijosdif') { for (i = 0; i < 2; i++) slots.push({ v:1 }); inicio = 'Empieza el mes que elija'; }
+      for (i = 0; i < estado.nF; i++) slots.push({ p:1, i: parte });
+      resumen = !r ? '' : m ? estado.nF + ' × <b>' + dinero(r.mensualidad) + '</b> · paga ' + dinero(r.total)
+        : estado.nF + ' pagos · paga <b>' + r.veces.toFixed(2) + ' veces</b> el precio';
+    } else return '';
+    var mal = (t === 'msi' && plazoMal.msi) || ((t === 'fijos' || t === 'fijosdif') && plazoMal.fijos);
+    if (mal) resumen = 'Escribe un plazo de ' + (t === 'msi' ? 2 : fMin()) + ' a ' + (t === 'msi' ? 48 : fMax()) + ' meses';
+    var pagos = slots.filter(function(s){ return s.p; }).length;
+    var w = pagos <= 6 ? 30 : pagos <= 12 ? 22 : pagos <= 24 ? 12 : 8;   // mismo plazo, misma barra
+    var barras = slots.map(function(s){
+      if (s.v) return '<i class="pdc-t-v"></i>';
+      return '<i class="pdc-t-p"' + (s.i ? ' style="--int:' + (s.i * 100).toFixed(1) + '%"' : '') + '>' + (s.marca ? '<em>' + s.marca + '</em>' : '') + '</i>';
+    }).join('');
+    var etiqueta = (inicio + '. ' + resumen).replace(/<[^>]+>/g, '');
+    return '<figure class="pdc-tira' + (mal ? ' es-mal' : '') + '" role="img" aria-label="' + escHtml(etiqueta) + '"><span class="pdc-t-barras" style="--n:' + slots.length + ';--w:' + w + 'px">' + barras + '</span>' +
+      '<figcaption><span>' + inicio + '</span><span>' + resumen + '</span></figcaption></figure>' +
+      ((t === 'fijos' || t === 'fijosdif') ? '<p class="pdc-ley"><i></i><span>interés de cada pago</span><i></i><span>precio</span></p>' : '');
+  }
+
+  /* ── Calculadora ── */
+  function calcHtml(t){
+    var msi = t === 'msi', n = msi ? estado.nM : estado.nF, chips = msi ? plazosMsiHoy() : [];
+    return '<div class="pdc-calc" data-pdc-calc="' + (msi ? 'msi' : 'fijos') + '">' +
+      '<div class="pdc-calc-in">' +
+        '<label class="pdc-campo"><span>Monto de la compra</span><span class="pdc-caja"><i>$</i><input type="text" data-pdc-monto inputmode="decimal" autocomplete="off" placeholder="0.00" value="' + pintarMonto(estado.monto) + '" aria-describedby="pdcRes"></span></label>' +
+        '<label class="pdc-campo"><span>' + (msi ? 'Meses sin intereses' : 'Meses') + '</span><span class="pdc-caja"><input type="number" data-pdc-meses min="' + (msi ? 2 : fMin()) + '" max="' + (msi ? 48 : fMax()) + '" step="1" inputmode="numeric" value="' + n + '"><i>meses</i></span></label>' +
+      '</div>' +
+      (chips.length ? '<div class="pdc-chips" role="group" aria-label="Meses que traen hoy las promociones"><span>Hoy traen</span>' +
+        chips.map(function(c){ return '<button type="button" class="g-chip" data-pdc-n="' + c + '" aria-pressed="' + (c === n) + '">' + c + '</button>'; }).join('') + '</div>' : '') +
+      '<div class="pdc-res" id="pdcRes" data-pdc-res aria-live="polite"></div>' +
+      (msi ? '' : '<table class="pdc-plazos"><caption class="pdc-sr">Mensualidad por plazo</caption><thead><tr><th scope="col">Plazo</th><th scope="col" data-pdc-th>Al mes</th><th scope="col">Paga en total</th></tr></thead><tbody data-pdc-tabla></tbody></table>') +
+    '</div>';
+  }
+  function pintarCalc(){
+    var root = ficha && ficha.querySelector('[data-pdc-calc]');
+    if (!root) return;
+    var msi = root.getAttribute('data-pdc-calc') === 'msi', m = estado.monto, n = msi ? estado.nM : estado.nF;
+    var res = root.querySelector('[data-pdc-res]'), mal = plazoMal[msi ? 'msi' : 'fijos'];
+    if (mal) {
+      res.innerHTML = '<p class="pdc-desglose es-error">' + (msi ? 'Meses sin intereses: de 2 a 48.' : 'Pagos fijos: de ' + fMin() + ' a ' + fMax() + ' meses.') + '</p>';
+      root.querySelectorAll('[data-pdc-n]').forEach(function(b){ b.setAttribute('aria-pressed', 'false'); });
+      root.querySelectorAll('.pdc-plazos tbody tr').forEach(function(tr){ tr.classList.remove('is-sel'); });
+      return;
+    }
+    if (msi) {
+      res.innerHTML = m
+        ? '<p class="pdc-grande"><b>' + dinero(m / n) + '</b><span>al mes</span></p><p class="pdc-desglose">' + n + ' pagos · <b>sin intereses</b> · paga ' + dinero(m) + ' en total</p>'
+        : '<p class="pdc-grande es-vacia"><b>$0.00</b><span>al mes</span></p><p class="pdc-desglose">Escribe el monto: se divide entre los meses, sin intereses. Los meses los pone la promoción.</p>';
+      root.querySelectorAll('[data-pdc-n]').forEach(function(b){ b.setAttribute('aria-pressed', String(+b.getAttribute('data-pdc-n') === n)); });
+    } else {
+      var r = fijos(m || 1000, n);
+      var fuente = deLaHoja ? '«Pagos Fijos 3.0»' : 'la copia de «Pagos Fijos 3.0» del 30/06/2026';
+      res.innerHTML = !r
+        ? '<p class="pdc-desglose es-error">Pagos fijos: de ' + fMin() + ' a ' + fMax() + ' meses.</p>'
+        : '<p class="pdc-grande' + (m ? '' : ' es-vacia') + '"><b>' + dinero(m ? r.mensualidad : 0) + '</b><span>al mes</span><em class="pdc-aprox">aprox.</em></p>' +
+          '<p class="pdc-desglose">' + (m ? n + ' pagos · paga <b>' + dinero(r.total) + '</b> · <span class="pdc-int">' + dinero(r.interes) + ' de interés</span>'
+            : 'Escribe el monto. A ' + n + ' meses paga <b>' + r.veces.toFixed(2) + ' veces</b> el precio.') + '</p>' +
+          '<p class="pdc-nota">Es una referencia con los factores de ' + fuente + ': la mensualidad real depende del historial crediticio del cliente.</p>';
+      var th = root.querySelector('[data-pdc-th]'), tb = root.querySelector('[data-pdc-tabla]');
+      if (th) th.textContent = m ? 'Al mes' : 'Por cada $1,000';
+      if (tb) tb.innerHTML = [3, 6, 9, 12, 18, 24, 36, 48].filter(function(k){ return factores[k]; }).map(function(k){
+        var x = fijos(m || 1000, k);
+        return '<tr' + (k === n && !mal ? ' class="is-sel"' : '') + '><th scope="row"><button type="button" data-pdc-n="' + k + '" aria-pressed="' + (k === n) + '">' + k + ' meses</button></th><td>' + dinero(x.mensualidad) + '</td><td>' + dinero(x.total) + '</td></tr>';
+      }).join('');
+    }
+  }
+  function refrescarCifras(){
+    pintarCalc();
+    var t = ficha && ficha.querySelector('[data-pdc-tira]');
+    if (t) t.innerHTML = tira(t.getAttribute('data-pdc-tira'));
+    var root = ficha && ficha.querySelector('[data-pdc-calc]');
+    if (!root) return;
+    var inM = root.querySelector('[data-pdc-monto]'), inN = root.querySelector('[data-pdc-meses]');
+    if (inM && document.activeElement !== inM) inM.value = pintarMonto(estado.monto);
+    if (inN && document.activeElement !== inN) inN.value = root.getAttribute('data-pdc-calc') === 'msi' ? estado.nM : estado.nF;
+  }
+
+  /* ── Lista y ficha ── */
+  function filaHtml(pl){
+    var r = rasgo(pl.tipo), n = (pl.tipo === 'msi' || pl.tipo === 'diferido') ? promosDe(pl.tipo).hoy.length : 0;
+    var sel = pl.clave === actual;
+    return '<div class="pdc-opc" id="pdc-o-' + pl.clave + '" role="option" tabindex="' + (sel ? 0 : -1) + '" aria-selected="' + sel + '" data-pdc-clave="' + pl.clave + '">' +
+      '<span class="pdc-ico">' + ic(r.ic) + '</span>' +
+      '<span class="pdc-txt"><span class="pdc-nom">' + escHtml(pl.nombre) + '</span>' + (r.t ? '<span class="pdc-meta">' + r.t + ' · ' + r.s + '</span>' : '') + '</span>' +
+      (n ? '<span class="pdc-n" title="Promociones vigentes que lo traen">' + n + '<small>hoy</small></span>' : '') + '</div>';
+  }
+  function promosHtml(t){
+    var conPromos = t === 'msi' || t === 'diferido';
+    if (!datos || datos.promosError) {
+      if (!conPromos) return '';
+      if (fallo || (datos && datos.promosError))
+        return '<h3>Lo traen hoy</h3><p class="pdc-vacio es-error">No se pudieron cargar las promociones de hoy. <a href="' + escHtml(monitorHref()) + '" target="_top" onclick="handlePromoNav(event,this)">Revísalas en el Monitor</a>.</p>';
+      return pidiendo ? '<h3>Lo traen hoy</h3><p class="pdc-vacio">Buscando las promociones de hoy…</p>' : '';
+    }
+    var pr = promosDe(t);
+    if (!conPromos && !pr.hoy.length && !pr.luego.length) return '';
+    return '<h3>Lo traen hoy<b>' + pr.hoy.length + '</b></h3>' +
+      (pr.hoy.length ? '<div class="g-tks pdc-tks">' + pr.hoy.map(boleto).join('') + '</div>' : '<p class="pdc-vacio">Hoy ninguna promoción lo trae.</p>') +
+      (pr.luego.length ? '<details class="pdc-luego"><summary>' + pr.luego.length + (pr.luego.length === 1 ? ' empieza' : ' empiezan') + ' en los próximos 14 días</summary><div class="g-tks pdc-tks">' + pr.luego.map(boleto).join('') + '</div></details>' : '');
+  }
+  /* «Liverpool $500 / SBB $1,000»: si el texto es una lista de montos, cada uno va en grande.
+     Si alguien lo escribe de otra forma, se enseña tal cual. */
+  function cifrasHtml(txt){
+    var partes = String(txt || '').split(/\s*\/\s*/), out = [];
+    if (partes.length < 1 || partes.length > 4) return '';
+    for (var i = 0; i < partes.length; i++) {
+      var m = /^(.{1,30}?)\s*(\$\s?[\d,]+(?:\.\d{1,2})?)$/.exec(partes[i].trim());
+      if (!m) return '';
+      out.push('<span class="pdc-cifra"><span>' + escHtml(m[1]) + '</span><b>' + escHtml(m[2].replace(/\s/g, '')) + '</b></span>');
+    }
+    return '<div class="pdc-cifras">' + out.join('') + '</div>';
+  }
+  function fichaHtml(pl){
+    var r = rasgo(pl.tipo), t = pl.tipo, n = pl.nombre.length;
+    var tam = n <= 16 ? 'tam-s' : n <= 34 ? 'tam-m' : 'tam-l';
+    var href = typeof linkHref === 'function' ? linkHref(pl.liga) : '';
+    var promos = promosHtml(t);
+    return '<div class="cs-cartel ' + tam + '"><span class="cs-cartel-t" id="pdcTitulo">' + escHtml(pl.nombre) + '</span>' + (r.t ? '<span class="cs-cartel-s">' + r.t + ' · ' + r.s + '</span>' : '') + '</div>' +
+      '<div class="pdc-ficha-cuerpo">' +
+        (pl.detalles ? ((t === 'regla' && cifrasHtml(pl.detalles)) || '<p class="pdc-det">' + escHtml(pl.detalles) + '</p>') : '') +
+        (conTira(t) ? '<div class="pdc-tira-w" data-pdc-tira="' + t + '">' + tira(t) + '</div>' : '') +
+        (calcula(t) ? '<section class="pdc-bloque pdc-bloque-calc" aria-labelledby="pdcCalcT"><h3 id="pdcCalcT">' + (t === 'msi' ? 'Cuánto paga al mes' : 'Calcular la mensualidad') + '</h3>' + calcHtml(t) + '</section>' : '') +
+        '<section class="pdc-bloque" data-pdc-promos aria-label="Promociones que lo traen"' + (promos ? '' : ' hidden') + '>' + promos + '</section>' +
+        '<div class="pdc-acc">' + (href ? '<a class="pdc-abrir" href="' + escHtml(href) + '" target="_blank" rel="noopener">' + ic('sheet') + 'Ver simulador' + ic('external') + '</a>' : '') +
+          (typeof collectBtn === 'function' ? collectBtn('pdePago', pl.nombre) : '') +
+          (typeof reportBtn === 'function' ? reportBtn('Pago Web', pl.nombre, pl.liga) : '') + '</div>' +
+      '</div>';
+  }
+  function pintarLista(){
+    if (!lista) return;
+    var enFila = lista.contains(document.activeElement);
+    lista.innerHTML = planes.map(filaHtml).join('');
+    if (enFila) { var o = lista.querySelector('[aria-selected="true"]'); if (o) o.focus({ preventScroll: true }); }
+  }
+  function elegir(c, opts){
+    opts = opts || {};
+    var pl = planes.filter(function(x){ return x.clave === c; })[0] || planes[0];
+    if (!pl || !ficha) return null;
+    actual = pl.clave;
+    lista.querySelectorAll('.pdc-opc').forEach(function(o){
+      var on = o.getAttribute('data-pdc-clave') === pl.clave;
+      o.setAttribute('aria-selected', String(on)); o.tabIndex = on ? 0 : -1;
+      if (on && opts.foco) o.focus({ preventScroll: true });
+    });
+    ficha.innerHTML = fichaHtml(pl);
+    ficha.setAttribute('aria-labelledby', 'pdcTitulo');
+    enlazarCalc();
+    pintarCalc();
+    if (!opts.quieto && gs() && !document.hidden) {
+      var tw = [];
+      var t = ficha.querySelector('.cs-cartel-t');
+      if (t) tw.push(gsap.fromTo(t, { y: 14, opacity: 0 }, { y: 0, opacity: 1, duration: .3, ease: 'power3.out', clearProps: 'transform,opacity' }));
+      var b = ficha.querySelectorAll('.pdc-t-p');
+      if (b.length) tw.push(gsap.fromTo(b, { scaleY: .25 }, { scaleY: 1, duration: .4, stagger: Math.min(.015, .45 / b.length), ease: 'power3.out', clearProps: 'transform' }));
+      // Red de seguridad: con el reloj de la pestaña congelado, la ficha no se queda a medias.
+      setTimeout(function(){ tw.forEach(function(x){ x.progress(1); }); }, 1100);
+    }
+    return pl;
+  }
+  function enlazarCalc(){
+    var root = ficha.querySelector('[data-pdc-calc]');
+    if (!root) return;
+    var msi = root.getAttribute('data-pdc-calc') === 'msi';
+    var inM = root.querySelector('[data-pdc-monto]'), inN = root.querySelector('[data-pdc-meses]');
+    inM.addEventListener('input', function(){ estado.monto = leerMonto(inM.value); refrescarCifras(); });
+    inM.addEventListener('blur', function(){ inM.value = pintarMonto(estado.monto); });
+    var clave = msi ? 'msi' : 'fijos';
+    function marcar(mal){ plazoMal[clave] = mal; if (mal) inN.setAttribute('aria-invalid', 'true'); else inN.removeAttribute('aria-invalid'); }
+    inN.addEventListener('input', function(){
+      var txt = inN.value.trim(), v = Number(txt), lo = msi ? 2 : fMin(), hi = msi ? 48 : fMax();
+      var bien = txt !== '' && Number.isInteger(v) && v >= lo && v <= hi;
+      marcar(!bien);
+      if (bien) { if (msi) estado.nM = v; else estado.nF = v; }
+      refrescarCifras();
+    });
+    // Al salir del campo vuelve el último plazo válido, que es el que están enseñando las cifras.
+    inN.addEventListener('blur', function(){ if (plazoMal[clave]) { marcar(false); inN.value = msi ? estado.nM : estado.nF; refrescarCifras(); } });
+    root.addEventListener('click', function(ev){
+      var b = ev.target.closest('[data-pdc-n]'); if (!b) return;
+      var v = +b.getAttribute('data-pdc-n');
+      if (msi) estado.nM = v; else estado.nF = v;
+      marcar(false); inN.value = v;
+      refrescarCifras();
+    });
+  }
+  /* Sin columna al lado (sección angosta), la ficha queda debajo de la lista: se baja a ella. */
+  function bajarAFicha(){
+    if (!ficha || !lista) return;
+    var apilada = ficha.getBoundingClientRect().top > lista.getBoundingClientRect().bottom - 4;
+    if (!apilada || ficha.getBoundingClientRect().top < window.innerHeight * .55) return;
+    var y = ficha.getBoundingClientRect().top + window.scrollY - 96;
+    var suave = !(window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches);
+    window.scrollTo({ top: Math.max(0, y), behavior: suave ? 'smooth' : 'auto' });
+  }
+
+  function montar(){
+    if (sec) return true;
+    sec = document.getElementById('sec-pdepago');
+    if (!sec) return false;
+    lista = sec.querySelector('.pdc-lista');
+    ficha = sec.querySelector('.pdc-ficha');
+    if (!lista || !ficha) { sec = null; return false; }
+    lista.addEventListener('click', function(ev){
+      var o = ev.target.closest('.pdc-opc'); if (!o) return;
+      elegir(o.getAttribute('data-pdc-clave'));
+      bajarAFicha();
+    });
+    lista.addEventListener('keydown', function(ev){
+      var l = Array.prototype.slice.call(lista.querySelectorAll('.pdc-opc'));
+      if (!l.length) return;
+      var i = l.findIndex(function(o){ return o.getAttribute('data-pdc-clave') === actual; }), j = i;
+      if (ev.key === 'ArrowDown') j = Math.min(l.length - 1, i + 1);
+      else if (ev.key === 'ArrowUp') j = Math.max(0, i - 1);
+      else if (ev.key === 'Home') j = 0;
+      else if (ev.key === 'End') j = l.length - 1;
+      else if (ev.key === 'Enter' || ev.key === ' ') {
+        var inM = ficha.querySelector('[data-pdc-monto]');
+        if (inM) { inM.focus(); ev.preventDefault(); }
+        return;
+      } else return;
+      ev.preventDefault();
+      if (j !== i) elegir(l[j].getAttribute('data-pdc-clave'), { foco: true });
+    });
+    return true;
+  }
+
+  /* Pinta la consola con todos los planes. `items` es lo que manda el guion grande: la lista
+     entera, o la filtrada por un ?q= o el buscador; con 6 planes no se recorta, se elige. */
+  window.renderPP = function(items){
+    if (typeof hideLoader === 'function') hideLoader('pdepago');
+    if (!montar()) return;
+    var todos = (typeof store !== 'undefined' && store && Array.isArray(store.pdePago)) ? store.pdePago : (items || []);
+    var vistos = {};
+    planes = todos.filter(function(f){ return f && String(f.nombre || '').trim(); }).map(function(f){
+      var c = clave(f.nombre), k = c, i = 2;
+      while (vistos[k]) k = c + '-' + (i++);
+      vistos[k] = 1;
+      return { nombre: String(f.nombre).trim(), detalles: String(f.detalles || '').trim(), liga: String(f.liga || '').trim(), tipo: tipoDe(f.nombre), clave: k };
+    });
+    if (!planes.length) {
+      lista.innerHTML = typeof empty === 'function' ? empty('planes de pago') : '';
+      ficha.innerHTML = ''; actual = '';
+      return;
+    }
+    var parcial = Array.isArray(items) && items.length && items.length < todos.length ? clave(items[0].nombre) : '';
+    var hay = function(c){ return planes.some(function(p){ return p.clave === c; }); };
+    var msi = planes.filter(function(p){ return p.tipo === 'msi'; })[0];
+    actual = parcial && hay(parcial) ? parcial : hay(actual) ? actual : (msi || planes[0]).clave;
+    pintarLista();
+    elegir(actual, { quieto: true });
+  };
+
+  /* ── Datos del servidor: factores y promociones (una vez por carga; la copia local manda
+     mientras llega, y 30 minutos después se vuelve a preguntar). En la vista previa local
+     llegan en window.PDP_DATOS. ── */
+  function aplicarDatos(d){
+    if (!d || d.status !== 'ok') return;
+    datos = d;
+    if (d.factores && typeof d.factores === 'object' && Object.keys(d.factores).length > 1) { factores = d.factores; deLaHoja = true; }
+    if (!sec || !planes.length) return;
+    pintarLista();
+    /* Con el cursor en la ficha no se rehace: se cambian las promociones y las cifras, y los
+       plazos de «Hoy traen» salen la próxima vez que se elija el plan. */
+    if (!ficha.contains(document.activeElement)) { elegir(actual, { quieto: true }); return; }
+    repintarPromos();
+    refrescarCifras();
+  }
+  function repintarPromos(){
+    if (!ficha) return;
+    var pr = ficha.querySelector('[data-pdc-promos]'), pl = planes.filter(function(x){ return x.clave === actual; })[0];
+    if (pr && pl) { var h = promosHtml(pl.tipo); pr.innerHTML = h; pr.hidden = !h; }
+  }
+  function cargarDatos(){
+    if (pidiendo || datos) return;
+    if (window.PDP_DATOS) { aplicarDatos(window.PDP_DATOS); return; }
+    if (!(typeof google !== 'undefined' && google.script && google.script.run) || !(window.AppRun && AppRun.swr)) return;
+    pidiendo = true; fallo = false;
+    repintarPromos();
+    AppRun.swr(DATOS_CLAVE, 'pdpDatos', [], {
+      ttl: DATOS_TTL,
+      // Una respuesta con las promociones caídas se usa, pero no se guarda: la próxima vez se vuelve a preguntar.
+      accept: function(d){ return !!(d && d.status === 'ok' && !d.promosError); },
+      onData: function(d){ aplicarDatos(d); },
+      onError: function(){ pidiendo = false; if (!datos) { fallo = true; repintarPromos(); } }
+    }).then(function(){ pidiendo = false; }, function(){ pidiendo = false; if (!datos) { fallo = true; repintarPromos(); } });
+  }
+
+  window.pdpAlEntrar = function(){ montar(); cargarDatos(); };
+  window.pdpRevelar = function(el){
+    if (!montar() || !el || !el.closest) return false;
+    var o = el.closest('.pdc-opc');
+    if (!o || !sec.contains(o)) return false;
+    var pl = elegir(o.getAttribute('data-pdc-clave'));
+    if (!pl) return false;
+    // Lado a lado la ficha empieza arriba: se va al principio de la sección. Apilada, a la ficha.
+    var apilada = ficha.getBoundingClientRect().top > lista.getBoundingClientRect().bottom - 4;
+    var y = (apilada ? ficha : sec).getBoundingClientRect().top + window.scrollY - 96;
+    window.scrollTo({ top: Math.max(0, y), behavior: 'auto' });
+    if (typeof flashEl === 'function') flashEl(o);
+    if (typeof clearPendingOpen === 'function') clearPendingOpen();
+    var inM = ficha.querySelector('[data-pdc-monto]');
+    if (inM) inM.focus({ preventScroll: true }); else o.focus({ preventScroll: true });
+    return true;
+  };
+
+  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', montar);
+  else montar();
+})();
+</script>

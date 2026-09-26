@@ -393,7 +393,7 @@ main{flex:1}
    Hover de tarjetas de contenido: solo elevación + borde acentuado
    (un efecto por tarjeta para no saturar y rendir mejor).
 ════════════════════════════════════════════════════════════ */
-.pres-card>*,.pago-card>*,.fmt-card>*{position:relative;z-index:1}
+.pres-card>*,.fmt-card>*{position:relative;z-index:1}
 
 /* — Herramientas: la consola (estilos y guion) vive en app_herramientas.html — */
 .btn-go{flex:1;text-align:center;padding:.7rem .9rem;background:var(--grad-brand);color:#fff;border:none;border-radius:8px;font-weight:800;font-size:.86rem;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:.4rem;transition:var(--tr);box-shadow:0 6px 14px -8px rgba(225,0,152,.55)}
@@ -479,18 +479,6 @@ main{flex:1}
 .plt-actions{display:flex;gap:.5rem;flex-wrap:wrap;margin-top:auto}
 .plt-actions .btn-go{flex:1 1 auto}
 
-/* — Pago Web — */
-.pago-card{background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:1.4rem;box-shadow:var(--sh-sm);display:flex;flex-direction:column;gap:.8rem;position:relative;overflow:hidden;will-change:transform;transition:transform .22s cubic-bezier(.22,1,.36,1),box-shadow .22s cubic-bezier(.22,1,.36,1),border-color .22s ease}
-.pago-card::before{content:'';position:absolute;top:0;left:0;width:100%;height:3px;z-index:2;background:linear-gradient(90deg,var(--accent,var(--brand)),color-mix(in srgb,var(--accent,var(--brand)) 45%,var(--brand-bright)));transform:scaleX(.34);transform-origin:left;transition:transform .3s cubic-bezier(.22,1,.36,1)}
-.pago-card:hover::before{transform:scaleX(1)}
-.pago-card:hover{box-shadow:0 10px 24px -14px rgba(27,35,48,.20),var(--sh-sm);border-color:color-mix(in srgb,var(--accent,var(--brand)) 40%,var(--line))}
-.pago-head{display:flex;align-items:center;gap:.8rem}
-.pago-icon{width:46px;height:46px;border-radius:10px;flex-shrink:0;color:#fff;background:var(--accent,var(--brand));display:flex;align-items:center;justify-content:center;box-shadow:0 4px 10px -6px color-mix(in srgb,var(--accent,var(--brand)) 55%,transparent)}
-.pago-icon .ic{width:21px;height:21px}
-.pago-name{font-family:var(--f-display);font-weight:800;font-stretch:108%;font-size:1.01rem;line-height:1.25}
-.pago-det{font-size:.87rem;color:var(--ink);line-height:1.55}
-.sim-note{font-size:.71rem;font-weight:700;color:var(--warn);background:var(--warn-bg);border-radius:8px;padding:.32rem .65rem;display:inline-flex;align-items:center;gap:.35rem}
-.sim-note .ic{width:13px;height:13px}
 
 /* ════════════════════════════════════════════════════════════
    DASHBOARD · INICIO
@@ -1603,6 +1591,9 @@ table.ds-matrix{width:100%;border-collapse:separate;border-spacing:0;min-width:5
 <!-- Formas de Pago en pestañas (25/09/2026): fpAlEntrar(), fpRevelar() y todo el comportamiento de
      #sec-formaspago; el contenido está escrito en la sección. Parcial para que el build lo minifique. -->
 <?!= include('app_formaspago') ?>
+<!-- Pago Web en consola (25/09/2026): renderPP(), pdpAlEntrar(), pdpRevelar() y todo lo de #sec-pdepago.
+     Parcial para que el build lo minifique; el guion grande de abajo lo usa desde DOMContentLoaded. -->
+<?!= include('app_pdepago') ?>
 <template id="__bundler_thumbnail" data-bg-color="#E10098">
   <svg viewBox="0 0 1200 800" xmlns="http://www.w3.org/2000/svg">
     <rect width="1200" height="800" fill="#E10098"/>
@@ -2054,26 +2045,23 @@ table.ds-matrix{width:100%;border-collapse:separate;border-spacing:0;min-width:5
     </div>
   </section>
 
-  <!-- ══ PAGO WEB ══ -->
+  <!-- ══ PAGO WEB · consola (25/09/2026) ══
+       Los planes de la hoja «PdePago» en .pdc-lista y la ficha del elegido en .pdc-ficha; los pinta
+       renderPP() de app_pdepago.html. Sin barra de filtro: con seis planes se elige, no se busca;
+       un ?q= o el buscador eligen el primero que coincide. Respaldo del diseño anterior: etiqueta
+       git «respaldo-pdepago-antes-consola». -->
   <section id="sec-pdepago" class="view-section">
-    <div class="sec-head">
-      <span class="sec-eyebrow"><span class="dot"></span>Promociones de pago</span>
-      <h1 class="sec-title">Cómo funcionan los <em>pagos web</em></h1>
-      <p class="sec-sub">Las promociones de pago disponibles en la plataforma, explicadas. Los simuladores son solo una referencia y pueden variar.</p>
+    <!-- Sin encabezado visible, como Herramientas, Paqueterías y Formas de Pago. El h1 se queda
+         solo para lectores de pantalla. -->
+    <h1 class="pdc-sr">Pago Web</h1>
+    <div id="ld-pdepago" class="sk-grid pdc-sk" data-vx-loader="isotipo" data-vx-msg="Cargando los planes de pago…">
+      <div class="sk-card pdc-sk-lista"><div class="sk-line sk-t"></div><div class="sk-line sk-row"></div><div class="sk-line sk-row"></div><div class="sk-line sk-row"></div><div class="sk-line sk-row"></div><div class="sk-line sk-row"></div><div class="sk-line sk-row"></div></div>
+      <div class="sk-card pdc-sk-ficha"><div class="sk-line pdc-sk-cartel"></div><div class="sk-line sk-t"></div><div class="sk-line sk-s"></div><div class="sk-line sk-s"></div><div class="sk-line sk-s short"></div></div>
     </div>
-    <div class="filter-bar">
-      <div class="filter-input">
-        <svg class="fi-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><path d="m21 21-4.3-4.3"/></svg>
-        <input type="text" placeholder="Buscar promoción…" oninput="filterSec('pdepago',this.value)">
-      </div>
-      <span class="result-count-badge" id="rc-pdepago"></span>
+    <div id="gr-pdepago" class="pdc-cuerpo">
+      <div class="pdc-lista" role="listbox" aria-label="Planes de pago"></div>
+      <article class="pdc-ficha"></article>
     </div>
-    <div id="ld-pdepago" class="sk-grid" data-vx-loader="isotipo" data-vx-msg="Cargando las promociones de pago…">
-      <div class="sk-card"><div class="sk-line sk-ic"></div><div class="sk-line sk-t"></div><div class="sk-line sk-s"></div><div class="sk-line sk-s short"></div></div>
-      <div class="sk-card"><div class="sk-line sk-ic"></div><div class="sk-line sk-t"></div><div class="sk-line sk-s"></div><div class="sk-line sk-s short"></div></div>
-      <div class="sk-card"><div class="sk-line sk-ic"></div><div class="sk-line sk-t"></div><div class="sk-line sk-s"></div><div class="sk-line sk-s short"></div></div>
-    </div>
-    <div id="gr-pdepago" class="cards-grid"></div>
   </section>
 
   <!-- ══ FORMATOS ══ -->
@@ -2498,7 +2486,6 @@ html[data-density="compact"] .col-grid,
 html[data-density="compact"] .guide-grid{ gap:.6rem; }
 html[data-density="compact"] .fmt-card,
 html[data-density="compact"] .pres-card,
-html[data-density="compact"] .pago-card,
 html[data-density="compact"] .plt-card{ padding:.85rem .9rem; }
 html[data-density="compact"] .sec-head{ margin-bottom:.7rem; }
 html[data-density="compact"] .dash-label{ margin:1.1rem 0 .6rem; }
@@ -2523,7 +2510,6 @@ html[data-contrast="high"] .cs-ficha,
 html[data-contrast="high"] .fmt-card,
 html[data-contrast="high"] .plt-card,
 html[data-contrast="high"] .pres-card,
-html[data-contrast="high"] .pago-card,
 html[data-contrast="high"] .qa-card,
 html[data-contrast="high"] .col-card-tile{ border-width:2px; }
 html[data-contrast="high"] :focus-visible{ outline:3px solid var(--brand); outline-offset:2px; }
@@ -3662,6 +3648,7 @@ function switchSec(id, btn){
   const topClock = document.querySelector('.topbar .clock');
   if (topClock) topClock.style.display = (id === 'inicio') ? 'none' : 'flex';
   if (id === 'formaspago' && window.fpAlEntrar) fpAlEntrar();
+  if (id === 'pdepago' && window.pdpAlEntrar) pdpAlEntrar();
   if (id === 'bigticket') initBtReveals();
   if (id === 'softline') initSlReveals();
   if (id === 'slmensajerias') initSlmReveals();
@@ -3677,7 +3664,7 @@ function switchSec(id, btn){
 function sectionEnter(section){
   if (!section || !GS()) return;
   const headItems = section.querySelectorAll('.sec-head > *, .hero, .dash-label');
-  const cards = section.querySelectorAll('.cards-grid > *, .fpg-tabs, .fpg-panel:not([hidden]) .fpg-hoja, #gr-paqueterias > *, .stat-card, .qa-card, .guide-card, .cs-lista, .cs-ficha');
+  const cards = section.querySelectorAll('.cards-grid > *, .fpg-tabs, .fpg-panel:not([hidden]) .fpg-hoja, #gr-paqueterias > *, .stat-card, .qa-card, .guide-card, .cs-lista, .cs-ficha, .pdc-lista, .pdc-ficha');
   const tl = gsap.timeline({ defaults:{ ease:'power3.out' } });
   tl.fromTo(section, { opacity:0, y:8 }, { opacity:1, y:0, duration:.24 });
   if (headItems.length) tl.fromTo(headItems, { opacity:0, y:8 }, { opacity:1, y:0, duration:.24, stagger:.03, clearProps:'transform' }, '-=.16');
@@ -5041,7 +5028,9 @@ function reportBtn(sec, nombre, enlace){
 /* ──────── FILTRO POR SECCIÓN ──────── */
 /* Campo "nombre" principal de cada sección: se usa para que, al filtrar, los
    elementos que coinciden por su nombre se muestren primero (más intuitivo). */
-const NAME_FIELD = { herramientas:'nombre', presentaciones:'nombre', paqueterias:'nombre', formatos:'acceso', pdepago:'nombre', plantillas:'titulo' };
+/* Pago Web no está: con seis planes no se filtra al saltar desde el buscador, se elige el plan
+   (pdpRevelar). Un ?q= sí llega a filterSec, y renderPP elige el primero que coincide. */
+const NAME_FIELD = { herramientas:'nombre', presentaciones:'nombre', paqueterias:'nombre', formatos:'acceso', plantillas:'titulo' };
 function filterSec(sec, term){
   reflejarFiltro(sec, term);
   if (sec === 'plantillas') { applyPltFilters(); return; }
@@ -5141,31 +5130,8 @@ function renderF(items){
   animateGrid('#gr-formatos > *');
 }
 
-function renderPP(items){
-  hideLoader('pdepago');
-  const g = document.getElementById('gr-pdepago');
-  if (!items.length) { g.innerHTML = empty('pagos'); return; }
-  g.innerHTML = items.map((p, i) => {
-    const color = ACCENT_PALETTE[i % ACCENT_PALETTE.length];
-    const href = linkHref(p.liga);
-    return `
-    <div class="pago-card" style="--accent:${color}">
-      <div class="pago-head">
-        <div class="pago-icon">${icon('card')}</div>
-        <div class="pago-name">${esc(p.nombre)}</div>
-      </div>
-      ${p.detalles ? `<div class="pago-det">${esc(p.detalles)}</div>` : ''}
-      ${href ? `
-      <div style="display:flex;align-items:center;gap:.6rem;flex-wrap:wrap;margin-top:auto;">
-        <a href="${href}" target="_blank" rel="noopener" class="link-sm">Ver simulador ${icon('external')}</a>
-        <span class="sim-note">${icon('bolt')} Solo referencia</span>
-        ${collectBtn('pdePago', p.nombre)}
-        ${reportBtn('Pago Web', p.nombre, p.liga)}
-      </div>` : ''}
-    </div>`;
-  }).join('');
-  animateGrid('#gr-pdepago > *');
-}
+/* renderPP() y la consola de Pago Web viven en app_pdepago.html (parcial: el build lo minifica).
+   Se carga antes que este guion y se usa desde DOMContentLoaded. */
 
 /* ──────── PLANTILLAS (correo / Salesforce) ──────── */
 /* Clasifica una plantilla por su columna "Tipo": 'mail' (correo) o 'sf' (Salesforce). */
@@ -5939,11 +5905,11 @@ function elementoDeSeccion(secId, name, targetId){
      profundo a Trazabilidad abría la sección correcta y se quedaba arriba, sin señalar
      nada — y eso se lee como que el buscador no encontró lo que dijo que había
      encontrado. */
-  const nameEls = sec.querySelectorAll('.cs-nom,.fmt-name,.paq-name,.pago-name,.pres-name,.plt-name,.bt-title');
+  const nameEls = sec.querySelectorAll('.cs-nom,.fmt-name,.paq-name,.pdc-nom,.pres-name,.plt-name,.bt-title');
   let target = null;
   nameEls.forEach(el => { if (!target && norm(el.textContent) === want) target = el; });
   if (!target) nameEls.forEach(el => { if (!target && norm(el.textContent).includes(want)) target = el; });
-  return (target ? target.closest('.cs-fila,.pq-ent,.fmt-card,.pago-card,.pres-card,.plt-card,.traz-card,tr') : null) || target;
+  return (target ? target.closest('.cs-fila,.pq-ent,.fmt-card,.pdc-opc,.pres-card,.plt-card,.traz-card,tr') : null) || target;
 }
 
 /* Espera con reintentos (rAF) a que la sección termine de renderizar antes de saltar —
@@ -5973,6 +5939,11 @@ function revealTarget(scrollEl){
   // Formas de Pago va en pestañas: se abre la que contiene el destino. Si el destino es la
   // pestaña entera se resalta su primera hoja: el anillo sobre todo el ancho no dice nada.
   if (window.fpRevelar) scrollEl = fpRevelar(scrollEl) || scrollEl;
+  // Un plan de Pago Web se elige en la consola y el cursor queda en el monto (si el plan calcula):
+  // lo siguiente que hace el asesor es escribir cuánto es la compra.
+  if (scrollEl.classList && scrollEl.classList.contains('pdc-opc') && window.pdpRevelar){
+    if (pdpRevelar(scrollEl)) return;
+  }
   // Un proceso de Trazabilidad llega plegado: llegar a él y ver sólo el título
   // obligaría a un clic más justo cuando el asesor ya tiene al cliente al teléfono.
   if (scrollEl.classList && scrollEl.classList.contains('traz-card')) trazToggle(scrollEl.id, true);
@@ -7221,9 +7192,12 @@ function mockData(){
       { acceso:'Formulario de Incidencia Operativa', observaciones:'Para reportar fallas en sistema, envíos o atención', liga:'' }
     ],
     pdePago:[
-      { nombre:'Meses Sin Intereses BBVA', detalles:'De 3 a 18 MSI con tarjeta BBVA en compras mínimas de $600 MXN. Aplica en tiendas y en línea.', liga:'' },
-      { nombre:'Plan Paga Después', detalles:'Diferimiento de primer pago hasta 30 días sin cargo adicional. Solo tarjeta Liverpool.', liga:'' },
-      { nombre:'Descuento en Efectivo', detalles:'5% adicional de descuento pagando con efectivo en tienda física. Sin mínimo de compra.', liga:'' }
+      { nombre:'Presupuesto Liverpool', detalles:'Pago en un sola exhibición, se solicita el pago en su siguiente fecha de corte', liga:'' },
+      { nombre:'Meses sin intereses (msi)', detalles:'El monto de la compra  se divide en el numero de meses que selecciona el cliente', liga:'' },
+      { nombre:'Empieza a pagar a X mes (presupuesto diferido)', detalles:'Esta promocion se le cobra el total en el mes de corte de la promoción, en caso de no pagar el total en dicho mes, genera intereses la compra', liga:'' },
+      { nombre:'Hasta 48 mensualidades (pagos fijos)', detalles:'Esta promoción lleva un interés incluido en cada mensualidad, para calcular la mensualidad  haz una copia del sig drive, el calculo es un monto aproximado  ya que depende de su historial crediticio, ademas que entre mayor numero de meses seleccione mayor sera el interés a pagar', liga:'https://docs.google.com/spreadsheets/d/19DI40fC95VDXqS942USq1WXsXhNoGb2VirQLLBInQi4/edit?gid=851673633#gid=851673633' },
+      { nombre:'Hasta 48 mensualidad a pagar en x mes', detalles:'Esta promoción lleva un interés incluido en cada mensualidad iniciando sus pagos en el mes de corte seleccionado, para calcular la mensualidad  haz una copia del sig drive, el calculo es un monto aproximado ya que depende de su historial crediticio, ademas que entre mayor numero de meses seleccione mayor sera el interés a pagar', liga:'https://docs.google.com/spreadsheets/d/19DI40fC95VDXqS942USq1WXsXhNoGb2VirQLLBInQi4/edit?gid=851673633#gid=851673633' },
+      { nombre:'Montos mínimos para diferir compra a MSI de forma manual por credito', detalles:'Liverpool $500 / SBB $1,000', liga:'' }
     ],
     plantillas:[
       { titulo:'Confirmación de cambio de domicilio', tipo:'Correo',

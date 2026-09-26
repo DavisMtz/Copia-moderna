@@ -28,7 +28,10 @@ function ok(nombre, cond, extra) {
 const index = fs.readFileSync(path.join(PROY, 'Index.html'), 'utf8').replace(/\r\n/g, '\n');
 const parcial = fs.readFileSync(path.join(PROY, 'app_formaspago.html'), 'utf8').replace(/\r\n/g, '\n');
 const i0 = index.indexOf('<section id="sec-formaspago"');
-const i1 = index.indexOf('<!-- ══ PAGO WEB ══ -->');
+// Termina donde empieza Pago Web: su comentario cambió con la consola (25/09/2026), así que se
+// busca por el principio, y si falta la prueba lo dice en vez de tomar el archivo entero.
+const i1 = index.indexOf('<!-- ══ PAGO WEB');
+if (i0 < 0 || i1 <= i0) { console.log('✖ no encontré dónde empieza y termina #sec-formaspago'); process.exit(1); }
 const sec = index.slice(i0, i1);
 const atr = (html, re) => { const out = []; let m; while ((m = re.exec(html))) out.push(m); return out; };
 
