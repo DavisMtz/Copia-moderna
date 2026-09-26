@@ -1,0 +1,433 @@
+<style>
+/* ════════════════════════════════════════════════════════════
+   FORMATOS · PESTAÑAS POR USO (26/09/2026)
+   TESIS: una pestaña por uso (Para el cliente, Contactos, Lo tuyo, Seguimiento y Otros) y abre en
+   «Para el cliente», porque el trámite del cliente es a lo que más se entra. Sustituye a las 28
+   tarjetas iguales, cada una con un color al azar y un solo botón «Abrir formato».
+   MUNDO: el de «Tu turno» y las pestañas de Formas de Pago. Hojas blancas con borde de 1 px,
+   Archivo condensada en el título de la hoja, JetBrains Mono en dominios. El rosa solo en la
+   acción, la pestaña elegida y lo que coincide; las observaciones que son instrucción, en ámbar.
+   HISTORIA: el asesor abre la pestaña de lo que va a hacer, lee la observación y pulsa el verbo:
+   Llenar el formulario, Hacer una copia (directo al «Copiar documento» de Google) o Abrir la hoja.
+   Si el formulario tiene hoja de respuestas, va debajo con su nombre y su botón.
+   PRIMERA VISTA: filtro; las cinco pestañas con su cuenta; la hoja «Para el cliente» con sus filas.
+   FORMA: Pestañas por uso, 4.ª de 7 estructuras; tirada 2cdadbb1.
+   La hoja «Formatos» no cambia: cada fila se reconoce por su nombre y su enlace (modelo()).
+   Respaldo: etiqueta git «respaldo-formatos-antes-pestanas».
+════════════════════════════════════════════════════════════ */
+#sec-formatos{--g-ink-brand:var(--brand-deep);--g-linea:color-mix(in srgb,var(--ink) 20%,var(--line));container:fmt/inline-size}
+[data-theme="carbon"] #sec-formatos{--g-ink-brand:#F46BC6}
+#sec-formatos ::selection{background:var(--brand-soft);color:var(--ink)}
+#sec-formatos mark{background:var(--brand-soft);color:inherit;border-radius:3px}
+.fmt-sr{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);clip-path:inset(50%);white-space:nowrap}
+
+/* — Barra: filtro, cuenta y la pista de Enter (la sección no lleva título visible) — */
+#sec-formatos .filter-bar{gap:.8rem 1rem;margin-bottom:1.1rem}
+#sec-formatos .result-count-badge:empty{display:none}
+.fmt-enter{display:inline-flex;align-items:center;gap:.45rem;font-size:.8rem;font-weight:700;color:var(--g-ink-brand)}
+.fmt-enter[hidden]{display:none}
+/* La pista habla del Enter del filtro: fuera de él (llegando desde Ctrl K, por ejemplo) sobra */
+#sec-formatos .filter-bar:not(:focus-within) .fmt-enter{display:none}
+.fmt-enter kbd{font-family:var(--f-mono);font-size:.7rem;font-weight:700;padding:.12rem .4rem;border-radius:6px;border:1px solid var(--g-linea);background:var(--surface);color:var(--ink)}
+
+/* — Pestañas: las de Formas de Pago, con la cuenta debajo del nombre — */
+.fmt-cuerpo:empty{display:none}
+.fmt-tabs{display:flex;gap:.3rem;padding:.35rem;margin-bottom:1rem;border-radius:20px;background:var(--surface);border:1px solid var(--line)}
+.fmt-tab{flex:1 1 0;display:flex;align-items:center;gap:.6rem;min-width:0;min-height:56px;padding:.45rem .9rem .45rem .75rem;border:0;border-radius:15px;background:none;color:var(--ink-soft);font:inherit;text-align:left;cursor:pointer;transition:background-color .15s,color .15s}
+.fmt-tab .ic{width:20px;height:20px;flex-shrink:0}
+.fmt-tab > span{min-width:0}
+.fmt-n{font-variant-numeric:tabular-nums}
+.fmt-tab b{display:block;font-weight:750;font-size:.95rem;line-height:1.25;color:var(--ink);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.fmt-tab small{display:block;font-size:.78rem;font-weight:600;white-space:nowrap;font-variant-numeric:tabular-nums}
+.fmt-tab:hover{background:var(--surface-2)}
+.fmt-tab[aria-selected="true"]{background:var(--ink);color:color-mix(in srgb,var(--surface) 72%,transparent)}
+.fmt-tab[aria-selected="true"] b{color:var(--surface)}
+.fmt-tab[aria-selected="true"] .ic{color:var(--brand-bright)}
+/* Con el filtro, la pestaña sin coincidencias baja de tono sin perder contraste */
+.fmt-tab.es-cero:not([aria-selected="true"]) b{color:var(--ink-soft);font-weight:650}
+.fmt-tab:focus-visible{outline:2.5px solid var(--brand);outline-offset:2px}
+
+/* — Hoja de la pestaña — */
+.fmt-hoja{background:var(--surface);border:1px solid var(--line);border-radius:24px;padding:1.3rem 1.6rem .45rem}
+.fmt-hoja[hidden]{display:none}
+.fmt-hoja:focus{outline:0}
+.fmt-hoja:focus-visible{outline:2.5px solid var(--brand);outline-offset:4px}
+.fmt-hd{display:flex;flex-wrap:wrap;align-items:baseline;gap:.3rem .7rem;padding-bottom:.9rem;border-bottom:1px solid var(--line)}
+.fmt-hd h2{font-family:var(--f-display);font-weight:800;font-stretch:84%;font-size:1.24rem;line-height:1.2;letter-spacing:-.005em}
+.fmt-hd b{font-family:var(--f-mono);font-size:.78rem;font-weight:700;color:var(--ink-soft)}
+.fmt-hd span{font-size:.86rem;color:var(--ink-soft)}
+.fmt-lista{list-style:none;margin:0;padding:0}
+
+/* — Fila: tipo · nombre y observación · acción. Las respuestas, debajo del texto — */
+.fmt-fila{display:grid;grid-template-columns:40px minmax(0,1fr) auto;grid-template-areas:"ico txt acc" ". resp acc";column-gap:1rem;align-items:start;padding:1.05rem 0;border-bottom:1px solid var(--line-soft)}
+.fmt-fila:last-child{border-bottom:0}
+.fmt-ico{grid-area:ico;width:40px;height:40px;border-radius:12px;display:grid;place-items:center;background:var(--surface-2);color:var(--ink-soft)}
+.fmt-ico .ic{width:19px;height:19px}
+.fmt-txt{grid-area:txt;min-width:0}
+.fmt-nom{font-weight:750;font-size:1.04rem;line-height:1.3;overflow-wrap:anywhere}
+.fmt-meta{font-size:.78rem;color:var(--ink-soft);margin-top:.12rem}
+.fmt-host{font-family:var(--f-mono);font-size:.72rem}
+.fmt-obs{font-size:.9rem;line-height:1.5;max-width:72ch;margin-top:.5rem;text-wrap:pretty}
+/* Una observación que empieza con infinitivo («Enviar antes…», «Hacer una copia…») es una instrucción */
+.fmt-obs.es-instr{display:flex;gap:.5rem;align-items:flex-start;width:fit-content;background:var(--warn-bg);border-radius:12px;padding:.55rem .8rem}
+.fmt-obs.es-instr .ic{width:15px;height:15px;color:var(--warn);flex-shrink:0;margin-top:.2rem}
+.fmt-resps{grid-area:resp;display:grid;gap:.35rem;margin-top:.6rem;min-width:0}
+.fmt-resp{display:flex;flex-wrap:wrap;align-items:center;gap:.3rem .6rem;font-size:.84rem;line-height:1.4;color:var(--ink-soft)}
+/* El icono va DENTRO del texto: en pantalla angosta se parte el texto, no se queda el icono solo */
+.fmt-rtx{min-width:0}
+.fmt-rtx .ic{width:15px;height:15px;vertical-align:-3px;margin-right:.35rem}
+.fmt-rnom{font-weight:650;color:var(--ink)}
+.fmt-rir{display:inline-flex;align-items:center;gap:.35rem;height:32px;padding:0 .7rem;border-radius:10px;border:1px solid var(--line);background:var(--surface);color:var(--ink);font-weight:650;font-size:.8rem;white-space:nowrap;transition:border-color .15s,color .15s}
+.fmt-rir .ic{width:13px;height:13px}
+.fmt-rir:hover{border-color:var(--brand);color:var(--g-ink-brand)}
+.fmt-acc{grid-area:acc;display:flex;align-items:center;justify-content:flex-end;gap:.45rem;align-self:center}
+.fmt-prin{display:inline-flex;align-items:center;gap:.45rem;height:42px;padding:0 1rem 0 .95rem;border-radius:12px;background:var(--brand);color:#fff;font-weight:750;font-size:.88rem;white-space:nowrap;transition:background-color .15s}
+.fmt-prin:hover{background:var(--brand-deep)}
+/* En Carbón el rosa brillante con texto blanco no llega a 4.5:1: el fondo se queda y el paso del cursor se marca con un filete */
+[data-theme="carbon"] .fmt-prin:hover{background:var(--brand);box-shadow:inset 0 0 0 1.5px rgba(255,255,255,.62)}
+.fmt-prin .ic{width:16px;height:16px}
+.fmt-prin .ic:last-child{width:14px;height:14px;opacity:.85}
+.fmt-prin.is-off{background:var(--surface-2);color:var(--ink-soft);border:1px solid var(--line);cursor:default}
+.fmt-sec{display:inline-flex;align-items:center;gap:.45rem;height:42px;padding:0 .9rem;border-radius:12px;border:1px solid var(--line);background:var(--surface);color:var(--ink);font-weight:650;font-size:.85rem;white-space:nowrap;transition:border-color .15s,background-color .15s}
+.fmt-sec:hover{border-color:var(--g-linea);background:var(--surface-2)}
+.fmt-sec .ic{width:16px;height:16px;color:var(--ink-soft)}
+.fmt-prin:focus-visible,.fmt-sec:focus-visible,.fmt-rir:focus-visible{outline:2.5px solid var(--brand);outline-offset:2px}
+.fmt-mas{display:flex;gap:.1rem}
+.fmt-mas .collect-btn,.fmt-mas .btn-report{width:36px;height:36px;border-radius:10px;background:transparent;border-color:transparent;color:var(--ink-soft)}
+.fmt-mas .collect-btn.saved{color:#E0A100}
+.fmt-fila:not(:hover):not(:focus-within) .fmt-mas .btn-report{visibility:hidden}
+/* Destino del buscador o de ?item=: marca fija hasta el segundo Enter (el destello dura 2 s y con
+   movimiento reducido no se ve). Un tinte que no mueve nada: la sombra extiende el fondo sin tocar el
+   acomodo. */
+.fmt-fila.es-destino{background:var(--brand-tint);box-shadow:0 0 0 .55rem var(--brand-tint);border-radius:12px}
+.fmt-resp.es-destino{background:var(--brand-tint);box-shadow:0 0 0 .4rem var(--brand-tint);border-radius:10px;color:var(--ink)}
+.fmt-nada{padding:1.3rem 0 1rem;color:var(--ink-soft);font-size:.95rem;line-height:1.5;text-wrap:pretty}
+.fmt-nada b{color:var(--ink)}
+
+/* — Esqueleto con la forma de pestañas y hoja — */
+.fmt-sk{display:grid;gap:1rem}
+.fmt-sk .fmt-sk-tabs{flex-direction:row;gap:.4rem;padding:.4rem;border-radius:20px}
+.fmt-sk .fmt-sk-tabs .sk-line{flex:1;height:48px;border-radius:14px}
+.fmt-sk .fmt-sk-hoja{border-radius:24px;padding:1.3rem 1.6rem;gap:.9rem}
+.fmt-sk .fmt-sk-hoja .sk-row{height:60px}
+
+/* — Densidad compacta y alto contraste (Ajustes de vista) — */
+html[data-density="compact"] #sec-formatos .filter-bar{margin-bottom:.7rem}
+html[data-density="compact"] .fmt-tab{min-height:46px}
+html[data-density="compact"] .fmt-hoja{padding-top:1rem}
+html[data-density="compact"] .fmt-fila{padding:.65rem 0}
+html[data-contrast="high"] .fmt-tabs,html[data-contrast="high"] .fmt-hoja{border-width:2px}
+
+/* — Anchos: en em, para que escalen con los cuatro tamaños de texto del Portal — */
+/* Con poco ancho (o texto grande) se va la palabra, no la cifra: «Contactos 6», «Lo tuyo 0» al filtrar */
+@container fmt (max-width:65em){ .fmt-tab{min-height:48px} .fmt-tab-tx{display:flex;align-items:baseline;gap:.4rem} .fmt-nw{display:none} }
+@container fmt (max-width:56em){
+  .fmt-tabs{display:grid;grid-template-columns:repeat(3,minmax(0,1fr))}
+  .fmt-tab{min-height:44px;padding:.4rem .6rem;gap:.45rem}
+  .fmt-tab b{white-space:normal;font-size:.88rem;line-height:1.2}
+  .fmt-hoja{padding:1.1rem 1.2rem .4rem}
+  .fmt-fila{grid-template-columns:36px minmax(0,1fr);grid-template-areas:"ico txt" ". resp" "acc acc";row-gap:.75rem}
+  .fmt-ico{width:36px;height:36px}
+  .fmt-acc{justify-content:flex-start;flex-wrap:wrap}
+  .fmt-sk .fmt-sk-tabs .sk-line{height:40px}
+}
+/* Teléfono: el botón principal del mismo ancho en todas las filas, con la estrella y el reporte a su
+   lado; «Ver el original», debajo y a lo ancho. */
+@container fmt (max-width:34em){
+  .fmt-tabs{grid-template-columns:repeat(2,minmax(0,1fr))}
+  .fmt-prin{flex:1 1 0;justify-content:center}
+  .fmt-mas{order:2}
+  .fmt-sec{order:3;flex:1 1 100%;justify-content:center}
+}
+@media (hover:none){ .fmt-mas .btn-report{visibility:visible} }
+@media (prefers-reduced-motion:reduce){ .fmt-tab,.fmt-prin,.fmt-sec,.fmt-rir{transition:none} }
+</style>
+<script>
+(function(){
+  /* ── Modelo ──────────────────────────────────────────────────────────────────
+     La hoja «Formatos» (ACCESO | OBSERVACIONES | LIGA) la editan personas: nada cuelga de la
+     posición de una fila. Cada formato se reconoce por su nombre y su enlace:
+     · el tipo, por el enlace (formulario de Google, hoja, documento, tablero de Looker…);
+     · «Hacer una copia» solo si la OBSERVACIÓN pide copia y el enlace es de Docs, Sheets o Slides;
+     · una hoja «Respuestas…», «Espejo…» o «…Resultados» se junta con SU formulario solo si
+       comparten una palabra distintiva y ese formulario es el único que la tiene. Si no, queda sola
+       en Seguimiento: juntarla mal mandaría a revisar la hoja equivocada;
+     · el grupo por uso, primero por el nombre y luego por la observación. Lo que no se reconoce va
+       a «Otros formatos»: una fila nueva nunca desaparece. */
+  /* Sin acentos: tras NFD se quita lo que no es ASCII imprimible ni espacio (el acento y la tilde de
+     la ñ quedan aparte). Sin \p{…}: esbuild lo reescribe como new RegExp y el build lo rechaza. */
+  function norm(s){ return String(s == null ? '' : s).toLowerCase().normalize('NFD').replace(/[^\s -~]/g, ''); }
+  function tipoDe(href){
+    var u = String(href || '');
+    if (!u) return 'sin';
+    if (/docs\.google\.com\/forms\/|forms\.gle\//i.test(u)) return 'form';
+    if (/docs\.google\.com\/spreadsheets\//i.test(u)) return 'hoja';
+    if (/docs\.google\.com\/document\//i.test(u)) return 'doc';
+    if (/docs\.google\.com\/presentation\//i.test(u)) return 'pres';
+    if (/lookerstudio\.google\.com|datastudio\.google\.com/i.test(u)) return 'tablero';
+    if (/drive\.google\.com/i.test(u)) return 'drive';
+    return 'web';
+  }
+  /* El «Copiar documento» de Google: /copy sobre el mismo id, sin edit?gid=… */
+  function copiaDe(href, obs){
+    if (!/(^|[^a-z])copia([^a-z]|$)/.test(norm(obs))) return null;
+    var m = /docs\.google\.com\/(spreadsheets|document|presentation)\/d\/([\w-]{20,})/i.exec(String(href || ''));
+    return m ? 'https://docs.google.com/' + m[1] + '/d/' + m[2] + '/copy' : null;
+  }
+  var RESPUESTA = /(^|[^a-z])(respuestas?|espejos?|resultados?)([^a-z]|$)/;
+  var VACIAS = ['de', 'del', 'la', 'las', 'el', 'los', 'a', 'al', 'y', 'e', 'o', 'u', 'en', 'para', 'por', 'con', 'sin', 'su', 'sus', 'formulario', 'formularios', 'respuesta', 'respuestas', 'espejo', 'espejos', 'resultado', 'resultados', 'drive', 'hoja', 'hojas', 'formato', 'formatos', 'actualizado', 'nuevo', 'nueva'];
+  /* «mesa de regalos» es MDR y «centros de servicio» es CS. Sin raíces: «regalo» no es «regalos». */
+  function alias(s){ return norm(s).replace(/mesas?\s+de\s+regalos?/g, ' mdr ').replace(/centros?\s+de\s+servicios?/g, ' cs '); }
+  function palabras(nombre){
+    return alias(nombre).split(/[^a-z0-9]+/).filter(function(p){ return p.length >= 2 && VACIAS.indexOf(p) < 0 && !/^\d+$/.test(p); });
+  }
+  /* Grupos por uso, en el orden que dio el creador (26/09/2026). */
+  var GRUPOS = [
+    { id: 'cliente',     t: 'Para el cliente', s: 'Trámites y consultas de la llamada', ic: 'user' },
+    { id: 'contactos',   t: 'Contactos',       s: 'Directorios y guardias',             ic: 'store' },
+    { id: 'tuyo',        t: 'Lo tuyo',         s: 'Tu horario y tus accesos',           ic: 'calendar' },
+    { id: 'seguimiento', t: 'Seguimiento',     s: 'Cómo va un caso',                    ic: 'history' },
+    { id: 'otros',       t: 'Otros formatos',  s: 'Lo demás de la hoja',                ic: 'layers' }
+  ];
+  var REGLAS = [
+    ['seguimiento', /(^|[^a-z])(rechazos?|concluidos?|resurtidos?|logistica|postventa|seguimiento|incidencias?)([^a-z]|$)/],
+    ['contactos',   /(^|[^a-z])(directorios?|guardias?|contactos?|extensiones)([^a-z]|$)/],
+    ['tuyo',        /(^|[^a-z])(retardos?|permutas?|break|descansos?|cau|contrasenas?|desbloqueo|horarios?|vacaciones|incapacidad)([^a-z]|$)/],
+    ['cliente',     /(^|[^a-z])(tickets?|mdr|sobregiros?|garantias?|cs|cotizacion(es)?|clientes?|devolucion(es)?|facturas?|reembolsos?)([^a-z]|$)/]
+  ];
+  function regla(g){ for (var i = 0; i < REGLAS.length; i++) if (REGLAS[i][0] === g) return REGLAS[i][1]; return null; }
+  function grupoDe(nombre, obs, esRespuesta){
+    if (esRespuesta) return 'seguimiento';
+    var n = alias(nombre), i;
+    for (i = 0; i < REGLAS.length; i++) if (REGLAS[i][1].test(n)) return REGLAS[i][0];
+    var o = alias(obs), orden = ['cliente', 'contactos', 'tuyo', 'seguimiento'];
+    for (i = 0; i < orden.length; i++) if (regla(orden[i]).test(o)) return orden[i];
+    return 'otros';
+  }
+  /* verbo: el botón. enter: la pista del filtro («Enter ↵ abre…»). accion: la pista del segundo Enter
+     del buscador («Presiona Enter de nuevo para…»), que lee revealTarget del data-accion del enlace. */
+  var TIPO = {
+    form:    { t: 'Formulario',               verbo: 'Llenar el formulario',  ic: 'form',         enter: 'abre el formulario', accion: 'llenar el formulario' },
+    copia:   { t: 'Formato para copiar',      verbo: 'Hacer una copia',       ic: 'copy',         enter: 'hace una copia de',  accion: 'hacer una copia de' },
+    hoja:    { t: 'Hoja de cálculo',          verbo: 'Abrir la hoja',         ic: 'sheet',        enter: 'abre',               accion: 'abrir' },
+    doc:     { t: 'Documento',                verbo: 'Abrir el documento',    ic: 'document',     enter: 'abre',               accion: 'abrir' },
+    pres:    { t: 'Presentación',             verbo: 'Abrir la presentación', ic: 'presentation', enter: 'abre',               accion: 'abrir' },
+    tablero: { t: 'Tablero de Looker Studio', verbo: 'Abrir el tablero',      ic: 'chart',        enter: 'abre el tablero',    accion: 'abrir el tablero' },
+    drive:   { t: 'Archivo en Drive',         verbo: 'Abrir en Drive',        ic: 'folder',       enter: 'abre',               accion: 'abrir' },
+    web:     { t: 'Página',                   verbo: 'Abrir',                 ic: 'site',         enter: 'abre',               accion: 'abrir' },
+    sin:     { t: 'Sin enlace',               verbo: '',                      ic: 'nolink',       enter: '',                   accion: '' }
+  };
+  /* «Enviar antes…», «Subir la petición…», «Hacer una copia…»: una instrucción. Las demás describen. */
+  function esInstruccion(obs){
+    var s = String(obs || '').trim();
+    return /^[a-záéíóúñ]+(ar|er|ir)(\s|,|:|$)/i.test(s) && !/^para(\s|$)/i.test(s);
+  }
+  function modelo(filas){
+    var base = (filas || []).map(function(f){
+      var nombre = String(f.acceso || f.nombre || '').trim(), obs = String(f.observaciones || '').trim();
+      var href = linkHref(f.liga), tipo = tipoDe(href);
+      var copia = (tipo === 'hoja' || tipo === 'doc' || tipo === 'pres') ? copiaDe(href, obs) : null;
+      return { fila: f, nombre: nombre, obs: obs, href: href, tipo: copia ? 'copia' : tipo, copia: copia,
+               instruccion: !!obs && esInstruccion(obs), esRespuesta: tipo !== 'form' && RESPUESTA.test(norm(nombre)),
+               palabras: palabras(nombre), respuestas: [], de: null, grupo: '' };
+    }).filter(function(x){ return x.nombre; });
+    var forms = base.filter(function(x){ return x.tipo === 'form'; });
+    base.forEach(function(x){
+      if (!x.esRespuesta) return;
+      var cand = forms.filter(function(f){ return x.palabras.some(function(p){ return f.palabras.indexOf(p) > -1; }); });
+      if (cand.length === 1){ x.de = cand[0]; cand[0].respuestas.push(x); }
+    });
+    var entradas = base.filter(function(x){ return !x.de; });
+    entradas.forEach(function(x){ x.grupo = grupoDe(x.nombre, x.obs, x.esRespuesta); });
+    return entradas;
+  }
+
+  /* ── Pintado ─────────────────────────────────────────────────────────────── */
+  var activo = 'cliente';     // pestaña abierta (se recuerda mientras dure la página)
+  var unica = null;           // { href, dice }: lo que abre Enter cuando el filtro deja un solo formato
+  var memo = null, memoDe = null, porFila = new Map();
+  function todas(){
+    var filas = store.formatos || [];
+    if (memoDe !== filas){
+      memo = modelo(filas); memoDe = filas; porFila = new Map();
+      memo.forEach(function(x){ porFila.set(x.fila, x); x.respuestas.forEach(function(r){ porFila.set(r.fila, r); }); });
+    }
+    return memo;
+  }
+  /* El filtro de la sección (filterSec y applySectionSearch, en Index) pregunta aquí por cada FILA.
+     No se busca en la LIGA: «cs» coincidía con todo docs.google.com y «tablero» no encontraba el de
+     Looker. Se busca en el nombre, la observación y el tipo que se ve («Formulario», «Hoja de
+     cálculo»…). t llega normalizado con el norm() de Index, así que el texto se normaliza igual. */
+  function coincide(fila, t){
+    todas();
+    var x = porFila.get(fila), tipo = x ? (TIPO[x.tipo] || TIPO.web).t : '';
+    return window.norm([fila.acceso || fila.nombre || '', fila.observaciones || '', tipo].join(' ')).indexOf(t) > -1;
+  }
+  window.fmtCoincide = coincide;
+  function marca(t, q){ return q ? hilite(t, q) : esc(t); }
+  function dominio(h){ try { return new URL(h).hostname.replace(/^www\./, ''); } catch (e){ return ''; } }
+
+  function fila(x, q){
+    var t = TIPO[x.tipo] || TIPO.web, h = x.copia || x.href, host = x.href ? dominio(x.href) : '';
+    var prin = h
+      ? '<a class="fmt-prin fmt-ir" href="' + esc(h) + '" target="_blank" rel="noopener" data-accion="' + esc(t.accion + ' «' + x.nombre + '»') + '">' + icon(t.ic) + '<span>' + esc(t.verbo) + '</span>' + icon('external') + '</a>'
+      : '<span class="fmt-prin is-off">' + icon('nolink') + '<span>Sin enlace</span></span>';
+    var orig = (x.copia && x.href) ? '<a class="fmt-sec" href="' + esc(x.href) + '" target="_blank" rel="noopener">' + icon('eye') + '<span>Ver el original</span></a>' : '';
+    /* El nombre real de la hoja de respuestas va escrito: el buscador y ?item= llegan con él.
+       Va después de las acciones en el documento para que el segundo Enter de una fila abra el
+       formulario y el de una hoja de respuestas abra esa hoja. */
+    var resps = x.respuestas.map(function(r){
+      return '<p class="fmt-resp"><span class="fmt-rtx">' + icon('sheet') + 'Respuestas en <b class="fmt-rnom">' + marca(r.nombre, q) + '</b></span>' +
+        (r.href ? '<a class="fmt-rir fmt-ir" href="' + esc(r.href) + '" target="_blank" rel="noopener" data-accion="' + esc('abrir «' + r.nombre + '»') + '">Ver respuestas' + icon('external') + '</a>' : '') + '</p>';
+    }).join('');
+    return '<li class="fmt-fila">' +
+      '<span class="fmt-ico" aria-hidden="true">' + icon(t.ic) + '</span>' +
+      '<div class="fmt-txt"><h3 class="fmt-nom">' + marca(x.nombre, q) + '</h3>' +
+        '<p class="fmt-meta">' + marca(t.t, q) + (host ? ' · <span class="fmt-host">' + esc(host) + '</span>' : '') + '</p>' +
+        (x.obs ? '<p class="fmt-obs' + (x.instruccion ? ' es-instr' : '') + '">' + (x.instruccion ? icon('bolt') : '') + '<span>' + marca(x.obs, q) + '</span></p>' : '') +
+      '</div>' +
+      '<div class="fmt-acc">' + prin + orig + '<span class="fmt-mas">' + collectBtn('formatos', x.nombre, 'mini') + reportBtn('Formatos', x.nombre, x.fila.liga) + '</span></div>' +
+      (resps ? '<div class="fmt-resps">' + resps + '</div>' : '') +
+    '</li>';
+  }
+
+  /* filterSec manda las FILAS que coinciden: una entrada se ve si coincide su fila o la de alguna
+     de sus hojas de respuestas (buscar «resultados» enseña Sobregiro entero). */
+  window.renderF = function(items){
+    hideLoader('formatos');
+    var g = document.getElementById('gr-formatos');
+    if (!g) return;
+    var q = filtroDeSeccion('formatos'), t = norm(q).trim();
+    var set = new Set(items || []);
+    var lista = todas();
+    var vis = lista.filter(function(x){ return set.has(x.fila) || x.respuestas.some(function(r){ return set.has(r.fila); }); });
+
+    // La cuenta que pone filterSec() es de filas de la hoja; aquí se cuentan formatos.
+    var rc = document.getElementById('rc-formatos');
+    if (rc) rc.innerHTML = t ? '<strong>' + vis.length + '</strong> formato' + (vis.length === 1 ? '' : 's') : '';
+    /* Si solo queda un formato, Enter hace su acción. Si coincidió solo por su hoja de respuestas
+       (buscar «resultados»), Enter abre esa hoja: es lo que se buscó. */
+    unica = null;
+    if (t && vis.length === 1){
+      var x = vis[0];
+      var r = set.has(x.fila) ? null : x.respuestas.filter(function(rr){ return set.has(rr.fila) && rr.href; })[0];
+      if (r) unica = { href: r.href, dice: 'abre «' + r.nombre + '»' };
+      else if (x.copia || x.href) unica = { href: x.copia || x.href, dice: (TIPO[x.tipo] || TIPO.web).enter + ' «' + x.nombre + '»' };
+    }
+    var pista = document.getElementById('fmtEnter');
+    if (pista){
+      pista.hidden = !unica;
+      if (unica) pista.innerHTML = '<kbd>Enter ↵</kbd> ' + esc(unica.dice);
+    }
+
+    if (!lista.length){
+      g.innerHTML = '<div class="empty-card"><span class="big">' + icon('document') + '</span><h3>Sin formatos</h3><p>La hoja «Formatos» todavía no tiene filas.</p></div>';
+      return;
+    }
+    var grupos = GRUPOS.filter(function(gr){ return lista.some(function(x){ return x.grupo === gr.id; }); });
+    var de = function(id, arr){ return arr.filter(function(x){ return x.grupo === id; }); };
+    if (!grupos.some(function(gr){ return gr.id === activo; })) activo = grupos[0].id;
+    // Con el filtro, si la pestaña abierta se queda sin nada, se pasa a la primera que tenga.
+    if (t && !de(activo, vis).length){
+      var hay = grupos.filter(function(gr){ return de(gr.id, vis).length; })[0];
+      if (hay) activo = hay.id;
+    }
+
+    /* La cifra se queda siempre (también con poco ancho o texto grande); la palabra, solo si cabe. */
+    var tabs = grupos.map(function(gr){
+      var n = de(gr.id, vis).length, total = de(gr.id, lista).length, sel = gr.id === activo;
+      var cifra = t ? n : total;
+      var palabra = t ? (n === 1 ? ' coincide' : n ? ' coinciden' : ' coincidencias') : (total === 1 ? ' formato' : ' formatos');
+      return '<button type="button" role="tab" class="fmt-tab' + (t && !n ? ' es-cero' : '') + '" id="fmt-t-' + gr.id + '" data-fmt-g="' + gr.id + '"' +
+        ' aria-controls="fmt-p-' + gr.id + '" aria-selected="' + sel + '" tabindex="' + (sel ? 0 : -1) + '">' +
+        icon(gr.ic) + '<span class="fmt-tab-tx"><b>' + esc(gr.t) + '</b><small><span class="fmt-n">' + cifra + '</span><span class="fmt-nw">' + palabra + '</span></small></span></button>';
+    }).join('');
+    var hojas = grupos.map(function(gr){
+      var l = de(gr.id, vis), sel = gr.id === activo;
+      var cuerpo = l.length
+        ? '<ul class="fmt-lista">' + l.map(function(x){ return fila(x, q); }).join('') + '</ul>'
+        : '<p class="fmt-nada">' + (vis.length ? 'En «' + esc(gr.t) + '» nada coincide con <b>«' + esc(q) + '»</b>.' : 'Nada coincide con <b>«' + esc(q) + '»</b>. Prueba con otra palabra del nombre o de la observación.') + '</p>';
+      return '<section class="fmt-hoja" id="fmt-p-' + gr.id + '" data-fmt-g="' + gr.id + '" role="tabpanel" aria-labelledby="fmt-t-' + gr.id + '" tabindex="0"' + (sel ? '' : ' hidden') + '>' +
+        '<header class="fmt-hd"><h2>' + esc(gr.t) + '</h2><b>' + l.length + '</b><span>' + esc(gr.s) + '</span></header>' + cuerpo + '</section>';
+    }).join('');
+    g.innerHTML = '<div class="fmt-tabs" role="tablist" aria-label="Formatos por uso">' + tabs + '</div>' + hojas;
+  };
+  /* El menú cuenta formatos, no filas: tres hojas de respuestas van dentro de su formulario. */
+  window.fmtContar = function(filas){ return modelo(filas).length; };
+
+  /* Cambiar de pestaña no repinta: solo enseña otra hoja. Así un destino que el buscador ya
+     encontró (en una hoja escondida) sigue siendo el mismo nodo cuando se abre su pestaña. */
+  function elegir(id, foco){
+    var sec = document.getElementById('sec-formatos');
+    var tab = sec ? sec.querySelector('.fmt-tab[data-fmt-g="' + id + '"]') : null;
+    if (!tab) return false;
+    var cambia = activo !== id || tab.getAttribute('aria-selected') !== 'true';
+    activo = id;
+    sec.querySelectorAll('.fmt-tab').forEach(function(b){ var on = b === tab; b.setAttribute('aria-selected', String(on)); b.tabIndex = on ? 0 : -1; });
+    sec.querySelectorAll('.fmt-hoja').forEach(function(p){ p.hidden = p.getAttribute('data-fmt-g') !== id; });
+    if (foco) tab.focus();
+    return cambia;
+  }
+  /* El momento de la sección: al cambiar de pestaña, las filas suben 6 px en cascada. Están
+     visibles desde el principio; con movimiento reducido o sin GSAP, no se anima nada. */
+  function entrarFilas(id){
+    if (!GS()) return;
+    var filas = document.querySelectorAll('#fmt-p-' + id + ' .fmt-fila');
+    if (!filas.length) return;
+    var tw = gsap.fromTo(filas, { opacity: 0, y: 6 }, { opacity: 1, y: 0, duration: .22, stagger: .025, ease: 'power3.out', clearProps: 'opacity,transform' });
+    setTimeout(function(){ if (tw.progress() < 1) tw.progress(1); }, 1200);
+  }
+
+  /* switchSec() la llama al entrar. sectionEnter() revela pestañas y hoja desde opacidad 0: si el
+     reloj de GSAP se para, la red de seguridad las deja visibles. */
+  function quitarDestino(){
+    document.querySelectorAll('#sec-formatos .es-destino').forEach(function(el){ el.classList.remove('es-destino'); });
+  }
+  window.fmtAlEntrar = function(){
+    quitarDestino();   // una marca de una visita anterior ya no dice nada
+    setTimeout(function(){
+      document.querySelectorAll('#sec-formatos .fmt-tabs, #sec-formatos .fmt-hoja').forEach(function(el){
+        if (parseFloat(getComputedStyle(el).opacity) < 1){ if (window.gsap) gsap.set(el, { clearProps: 'opacity,transform' }); else el.style.opacity = ''; }
+      });
+    }, 1500);
+  };
+  /* revealTarget() la llama con lo que encontró el buscador (o ?item=): abre su pestaña y deja una
+     marca FIJA en la fila o en la línea de respuestas. El destello dura 2 s y con movimiento reducido
+     no se ve; la marca se va con clearPendingOpen() (segundo Enter, Esc o una búsqueda nueva). */
+  window.fmtRevelar = function(el){
+    var hoja = el && el.closest ? el.closest('#sec-formatos .fmt-hoja') : null;
+    if (!hoja) return null;
+    elegir(hoja.getAttribute('data-fmt-g'), false);
+    quitarDestino();
+    if (el.classList && (el.classList.contains('fmt-fila') || el.classList.contains('fmt-resp'))) el.classList.add('es-destino');
+    return el;
+  };
+
+  document.addEventListener('click', function(e){
+    var b = e.target && e.target.closest ? e.target.closest('#sec-formatos .fmt-tab') : null;
+    if (!b) return;
+    var id = b.getAttribute('data-fmt-g');
+    if (elegir(id, false)){ quitarDestino(); entrarFilas(id); }
+  });
+  document.addEventListener('keydown', function(e){
+    var b = e.target && e.target.closest ? e.target.closest('#sec-formatos .fmt-tab') : null;
+    if (b){
+      var todos = Array.prototype.slice.call(document.querySelectorAll('#sec-formatos .fmt-tab'));
+      var i = todos.indexOf(b), j = null;
+      if (e.key === 'ArrowRight' || e.key === 'ArrowDown') j = (i + 1) % todos.length;
+      else if (e.key === 'ArrowLeft' || e.key === 'ArrowUp') j = (i - 1 + todos.length) % todos.length;
+      else if (e.key === 'Home') j = 0;
+      else if (e.key === 'End') j = todos.length - 1;
+      if (j === null) return;
+      e.preventDefault();
+      var id = todos[j].getAttribute('data-fmt-g');
+      if (elegir(id, true)){ quitarDestino(); entrarFilas(id); }
+      return;
+    }
+    /* Enter en el filtro: si solo queda un formato, hace su acción (la copia, en los tickets). */
+    if (e.key !== 'Enter' || !unica || !e.target || !e.target.matches || !e.target.matches('#sec-formatos .filter-input input')) return;
+    e.preventDefault();
+    window.open(unica.href, '_blank', 'noopener');
+  });
+})();
+</script>

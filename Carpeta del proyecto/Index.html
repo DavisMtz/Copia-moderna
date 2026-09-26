@@ -393,7 +393,7 @@ main{flex:1}
    Hover de tarjetas de contenido: solo elevación + borde acentuado
    (un efecto por tarjeta para no saturar y rendir mejor).
 ════════════════════════════════════════════════════════════ */
-.pres-card>*,.fmt-card>*{position:relative;z-index:1}
+.pres-card>*{position:relative;z-index:1}
 
 /* — Herramientas: la consola (estilos y guion) vive en app_herramientas.html — */
 .btn-go{flex:1;text-align:center;padding:.7rem .9rem;background:var(--grad-brand);color:#fff;border:none;border-radius:8px;font-weight:800;font-size:.86rem;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:.4rem;transition:var(--tr);box-shadow:0 6px 14px -8px rgba(225,0,152,.55)}
@@ -421,23 +421,6 @@ main{flex:1}
 .link-sm{display:inline-flex;align-items:center;gap:.35rem;color:var(--brand);font-weight:800;font-size:.81rem;padding:.32rem .7rem;border-radius:9px;border:1.5px solid var(--brand-soft);transition:var(--tr)}
 .link-sm .ic{width:14px;height:14px}
 .link-sm:hover{background:var(--grad-brand);color:#fff;border-color:transparent;box-shadow:0 6px 14px -7px rgba(225,0,152,.5)}
-
-/* — Formato — */
-.fmt-card{background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:1.25rem 1.35rem;box-shadow:var(--sh-sm);display:flex;flex-direction:column;gap:.7rem;position:relative;overflow:hidden;will-change:transform;transition:transform .22s cubic-bezier(.22,1,.36,1),box-shadow .22s cubic-bezier(.22,1,.36,1),border-color .22s ease}
-.fmt-card::before{content:'';position:absolute;left:0;top:0;width:4px;height:100%;z-index:2;background:linear-gradient(180deg,var(--accent,var(--brand)),color-mix(in srgb,var(--accent,var(--brand)) 40%,transparent));transform:scaleY(.4);transform-origin:top;transition:transform .3s cubic-bezier(.22,1,.36,1)}
-.fmt-card:hover::before{transform:scaleY(1)}
-.fmt-card:hover{box-shadow:0 10px 24px -14px rgba(27,35,48,.20),var(--sh-sm);border-color:color-mix(in srgb,var(--accent,var(--brand)) 38%,var(--line))}
-.fmt-head{display:flex;align-items:center;gap:.7rem}
-.fmt-emoji{width:38px;height:38px;border-radius:10px;flex-shrink:0;color:var(--accent,var(--brand));background:color-mix(in srgb,var(--accent,var(--brand)) 12%,var(--surface));display:flex;align-items:center;justify-content:center}
-.fmt-emoji .ic{width:19px;height:19px}
-.fmt-name{font-weight:800;font-size:.96rem;line-height:1.3}
-.fmt-obs{font-size:.82rem;color:var(--ink-soft);line-height:1.5;background:var(--surface-2);border-radius:8px;padding:.6rem .75rem;display:flex;gap:.5rem;align-items:flex-start}
-.fmt-obs .ic{width:15px;height:15px;color:var(--warn);flex-shrink:0;margin-top:.1rem}
-.fmt-obs span{text-wrap:pretty}
-/* El botón es hijo directo de una columna flex: nunca debe crecer en vertical
-   (antes heredaba flex:1 de .btn-go y llenaba toda la tarjeta). Queda anclado
-   abajo con su altura natural y a lo ancho completo, para una rejilla armónica. */
-.fmt-card>.btn-go{flex:0 0 auto;align-self:stretch;width:100%}
 
 /* — Plantillas (correo / Salesforce) — */
 .plt-tag-inline{font-family:var(--f-mono);font-size:.8em;font-weight:700;color:var(--brand);background:var(--brand-tint);border-radius:5px;padding:.05em .35em}
@@ -1594,6 +1577,9 @@ table.ds-matrix{width:100%;border-collapse:separate;border-spacing:0;min-width:5
 <!-- Pago Web en consola (25/09/2026): renderPP(), pdpAlEntrar(), pdpRevelar() y todo lo de #sec-pdepago.
      Parcial para que el build lo minifique; el guion grande de abajo lo usa desde DOMContentLoaded. -->
 <?!= include('app_pdepago') ?>
+<!-- Formatos en pestañas por uso (26/09/2026): renderF(), fmtContar(), fmtAlEntrar(), fmtRevelar() y todo lo de
+     #sec-formatos. Parcial para que el build lo minifique; el guion grande de abajo lo usa desde DOMContentLoaded. -->
+<?!= include('app_formatos') ?>
 <template id="__bundler_thumbnail" data-bg-color="#E10098">
   <svg viewBox="0 0 1200 800" xmlns="http://www.w3.org/2000/svg">
     <rect width="1200" height="800" fill="#E10098"/>
@@ -2064,26 +2050,25 @@ table.ds-matrix{width:100%;border-collapse:separate;border-spacing:0;min-width:5
     </div>
   </section>
 
-  <!-- ══ FORMATOS ══ -->
+  <!-- ══ FORMATOS · pestañas por uso (26/09/2026) ══
+       Sin encabezado visible, como Herramientas: la sección empieza con el filtro. Las pestañas y
+       sus hojas las pinta renderF() (app_formatos.html) con la hoja «Formatos»; los id rc-, ld- y
+       gr-formatos los usan el filtro, el esqueleto y el estado sin conexión. -->
   <section id="sec-formatos" class="view-section">
-    <div class="sec-head">
-      <span class="sec-eyebrow"><span class="dot"></span>Documentos operativos</span>
-      <h1 class="sec-title">Formatos y <em>formularios</em></h1>
-      <p class="sec-sub">Los documentos que necesitas en la operación, con sus observaciones importantes.</p>
-    </div>
+    <h1 class="fmt-sr">Formatos</h1>
     <div class="filter-bar">
       <div class="filter-input">
         <svg class="fi-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><path d="m21 21-4.3-4.3"/></svg>
-        <input type="text" placeholder="Buscar formato…" oninput="filterSec('formatos',this.value)">
+        <input type="text" placeholder="Busca un formato, formulario o directorio…" aria-label="Filtrar formatos" oninput="filterSec('formatos',this.value)">
       </div>
       <span class="result-count-badge" id="rc-formatos"></span>
+      <span class="fmt-enter" id="fmtEnter" hidden></span>
     </div>
-    <div id="ld-formatos" class="sk-grid" data-vx-loader="onda" data-vx-msg="Cargando los formatos…">
-      <div class="sk-card"><div class="sk-line sk-ic"></div><div class="sk-line sk-t"></div><div class="sk-line sk-s"></div><div class="sk-line sk-btn"></div></div>
-      <div class="sk-card"><div class="sk-line sk-ic"></div><div class="sk-line sk-t"></div><div class="sk-line sk-s"></div><div class="sk-line sk-btn"></div></div>
-      <div class="sk-card"><div class="sk-line sk-ic"></div><div class="sk-line sk-t"></div><div class="sk-line sk-s"></div><div class="sk-line sk-btn"></div></div>
+    <div id="ld-formatos" class="fmt-sk" data-vx-loader="onda" data-vx-msg="Cargando los formatos…">
+      <div class="sk-card fmt-sk-tabs"><div class="sk-line"></div><div class="sk-line"></div><div class="sk-line"></div><div class="sk-line"></div><div class="sk-line"></div></div>
+      <div class="sk-card fmt-sk-hoja"><div class="sk-line sk-t"></div><div class="sk-line sk-row"></div><div class="sk-line sk-row"></div><div class="sk-line sk-row"></div><div class="sk-line sk-row"></div></div>
     </div>
-    <div id="gr-formatos" class="cards-grid"></div>
+    <div id="gr-formatos" class="fmt-cuerpo"></div>
   </section>
 
   <!-- ══ PRESENTACIONES ══ -->
@@ -2484,7 +2469,6 @@ html[data-density="compact"] .cards-grid,
 html[data-density="compact"] .qa-grid,
 html[data-density="compact"] .col-grid,
 html[data-density="compact"] .guide-grid{ gap:.6rem; }
-html[data-density="compact"] .fmt-card,
 html[data-density="compact"] .pres-card,
 html[data-density="compact"] .plt-card{ padding:.85rem .9rem; }
 html[data-density="compact"] .sec-head{ margin-bottom:.7rem; }
@@ -2507,7 +2491,6 @@ html[data-contrast="high"][data-theme="carbon"]{
 }
 html[data-contrast="high"] .cs-lista,
 html[data-contrast="high"] .cs-ficha,
-html[data-contrast="high"] .fmt-card,
 html[data-contrast="high"] .plt-card,
 html[data-contrast="high"] .pres-card,
 html[data-contrast="high"] .qa-card,
@@ -3649,6 +3632,7 @@ function switchSec(id, btn){
   if (topClock) topClock.style.display = (id === 'inicio') ? 'none' : 'flex';
   if (id === 'formaspago' && window.fpAlEntrar) fpAlEntrar();
   if (id === 'pdepago' && window.pdpAlEntrar) pdpAlEntrar();
+  if (id === 'formatos' && window.fmtAlEntrar) fmtAlEntrar();
   if (id === 'bigticket') initBtReveals();
   if (id === 'softline') initSlReveals();
   if (id === 'slmensajerias') initSlmReveals();
@@ -3664,7 +3648,7 @@ function switchSec(id, btn){
 function sectionEnter(section){
   if (!section || !GS()) return;
   const headItems = section.querySelectorAll('.sec-head > *, .hero, .dash-label');
-  const cards = section.querySelectorAll('.cards-grid > *, .fpg-tabs, .fpg-panel:not([hidden]) .fpg-hoja, #gr-paqueterias > *, .stat-card, .qa-card, .guide-card, .cs-lista, .cs-ficha, .pdc-lista, .pdc-ficha');
+  const cards = section.querySelectorAll('.cards-grid > *, .fpg-tabs, .fpg-panel:not([hidden]) .fpg-hoja, #gr-paqueterias > *, .stat-card, .qa-card, .guide-card, .cs-lista, .cs-ficha, .pdc-lista, .pdc-ficha, .fmt-tabs, .fmt-hoja:not([hidden])');
   const tl = gsap.timeline({ defaults:{ ease:'power3.out' } });
   tl.fromTo(section, { opacity:0, y:8 }, { opacity:1, y:0, duration:.24 });
   if (headItems.length) tl.fromTo(headItems, { opacity:0, y:8 }, { opacity:1, y:0, duration:.24, stagger:.03, clearProps:'transform' }, '-=.16');
@@ -3768,7 +3752,7 @@ function onToolsData(data, fromCache, at){
   setCount('herramientas', store.herramientas.length);
   setCount('presentaciones', store.presentaciones.length);
   setCount('paqueterias', window.pqContar ? pqContar(store.paqueterias) : store.paqueterias.length);
-  setCount('formatos', store.formatos.length);
+  setCount('formatos', window.fmtContar ? fmtContar(store.formatos) : store.formatos.length);
   setCount('pdepago', store.pdePago.length);
   setCount('plantillas', store.plantillas.length);
   renderDashboard();
@@ -5037,7 +5021,7 @@ function filterSec(sec, term){
   const t = norm(term);
   const key = sec === 'pdepago' ? 'pdePago' : sec;
   const all = store[key] || [];
-  let filtered = t ? all.filter(item => objMatch(item, t)) : all;
+  let filtered = t ? all.filter(item => coincideEnSeccion(sec, item, t)) : all;
   // Pone primero las coincidencias por nombre (luego las demás), conservando el orden.
   if (t && filtered.length > 1){
     const nf = NAME_FIELD[sec];
@@ -5059,6 +5043,9 @@ function sectionRank(item, nameField, t){
   return 1;
 }
 function objMatch(item, t){ return Object.values(item).some(v => v && norm(String(v)).includes(t)); }
+/* Formatos no busca en la LIGA («cs» coincidía con todo docs.google.com): le pregunta a
+   app_formatos.html, que mira nombre, observación y el tipo que se ve. Las demás, como siempre. */
+function coincideEnSeccion(sec, item, t){ return (sec === 'formatos' && window.fmtCoincide) ? fmtCoincide(item, t) : objMatch(item, t); }
 /* Aplica el término del buscador global como filtro de la sección destino: limita la
    vista a lo que coincide y deja primero las coincidencias por nombre. Devuelve cuántos
    resultados quedaron, para decidir si conviene resaltar uno o mostrar el listado. */
@@ -5071,7 +5058,7 @@ function applySectionSearch(sec, query){
   filterSec(sec === 'pdePago' ? 'pdepago' : sec, q);
   const key = sec === 'pdepago' ? 'pdePago' : sec;
   const t = norm(q);
-  return (store[key] || []).filter(item => objMatch(item, t)).length;
+  return (store[key] || []).filter(item => coincideEnSeccion(sec, item, t)).length;
 }
 
 /* ──────── RENDERERS ──────── */
@@ -5106,29 +5093,9 @@ function renderP(items){
 /* renderPaq() y el directorio de Paqueterías viven en app_paqueterias.html (parcial: el build lo
    minifica). Se carga antes que este guion y se usa desde DOMContentLoaded. */
 
-function renderF(items){
-  hideLoader('formatos');
-  const g = document.getElementById('gr-formatos');
-  if (!items.length) { g.innerHTML = empty('formatos'); return; }
-  g.innerHTML = items.map((f, i) => {
-    const color = ACCENT_PALETTE[i % ACCENT_PALETTE.length];
-    const href = linkHref(f.liga);
-    return `
-    <div class="fmt-card" style="--accent:${color}">
-      <div class="fmt-head">
-        <div class="fmt-emoji">${icon('document')}</div>
-        <div class="fmt-name">${esc(f.acceso || f.nombre || '—')}</div>
-      </div>
-      ${f.observaciones ? `<div class="fmt-obs">${icon('bolt')}<span>${esc(f.observaciones)}</span></div>` : ''}
-      <div style="display:flex;gap:.5rem;margin-top:auto;">
-        ${href ? `<a href="${href}" target="_blank" rel="noopener" class="btn-go" style="flex:1;font-size:.83rem;padding:.62rem .9rem;">Abrir formato ${icon('external')}</a>` : ''}
-        ${collectBtn('formatos', f.acceso || f.nombre || '—')}
-        ${reportBtn('Formatos', f.acceso || f.nombre || '—', f.liga)}
-      </div>
-    </div>`;
-  }).join('');
-  animateGrid('#gr-formatos > *');
-}
+/* renderF() y las pestañas de Formatos viven en app_formatos.html (parcial: el build lo minifica).
+   Se carga antes que este guion y se usa desde DOMContentLoaded. Aquí no se vuelve a declarar:
+   una declaración en este guion pisaría a la del parcial. */
 
 /* renderPP() y la consola de Pago Web viven en app_pdepago.html (parcial: el build lo minifica).
    Se carga antes que este guion y se usa desde DOMContentLoaded. */
@@ -5837,7 +5804,11 @@ function showKbHint(hasLink, accion){
   kbHintTimer = setTimeout(hideKbHint, hasLink ? 6000 : 3500);
 }
 function hideKbHint(){ const h = document.getElementById('kbOpenHint'); if (h) h.classList.remove('show'); }
-function clearPendingOpen(){ pendingOpenEl = null; hideKbHint(); }
+function clearPendingOpen(){
+  pendingOpenEl = null; hideKbHint();
+  // La marca fija que deja Formatos en su destino (fmtRevelar) se va con él
+  document.querySelectorAll('.es-destino').forEach(el => el.classList.remove('es-destino'));
+}
 function sdItems(){ return Array.from(document.querySelectorAll('#searchDrop .sd-item')); }
 function setSdActive(i){
   const items = sdItems();
@@ -5905,11 +5876,11 @@ function elementoDeSeccion(secId, name, targetId){
      profundo a Trazabilidad abría la sección correcta y se quedaba arriba, sin señalar
      nada — y eso se lee como que el buscador no encontró lo que dijo que había
      encontrado. */
-  const nameEls = sec.querySelectorAll('.cs-nom,.fmt-name,.paq-name,.pdc-nom,.pres-name,.plt-name,.bt-title');
+  const nameEls = sec.querySelectorAll('.cs-nom,.fmt-nom,.fmt-rnom,.paq-name,.pdc-nom,.pres-name,.plt-name,.bt-title');
   let target = null;
   nameEls.forEach(el => { if (!target && norm(el.textContent) === want) target = el; });
   if (!target) nameEls.forEach(el => { if (!target && norm(el.textContent).includes(want)) target = el; });
-  return (target ? target.closest('.cs-fila,.pq-ent,.fmt-card,.pdc-opc,.pres-card,.plt-card,.traz-card,tr') : null) || target;
+  return (target ? target.closest('.cs-fila,.pq-ent,.fmt-resp,.fmt-fila,.pdc-opc,.pres-card,.plt-card,.traz-card,tr') : null) || target;
 }
 
 /* Espera con reintentos (rAF) a que la sección termine de renderizar antes de saltar —
@@ -5939,6 +5910,9 @@ function revealTarget(scrollEl){
   // Formas de Pago va en pestañas: se abre la que contiene el destino. Si el destino es la
   // pestaña entera se resalta su primera hoja: el anillo sobre todo el ancho no dice nada.
   if (window.fpRevelar) scrollEl = fpRevelar(scrollEl) || scrollEl;
+  // Formatos también va en pestañas: se abre la del formato. Si el destino es la hoja de respuestas
+  // de un formulario, se resalta esa línea y el segundo Enter abre la hoja, no el formulario.
+  if (window.fmtRevelar) scrollEl = fmtRevelar(scrollEl) || scrollEl;
   // Un plan de Pago Web se elige en la consola y el cursor queda en el monto (si el plan calcula):
   // lo siguiente que hace el asesor es escribir cuánto es la compra.
   if (scrollEl.classList && scrollEl.classList.contains('pdc-opc') && window.pdpRevelar){
@@ -5956,11 +5930,12 @@ function revealTarget(scrollEl){
   setTimeout(doScroll, 280); // reajusta tras la expansión/animación para clavar la posición
   flashEl(scrollEl);
   // Preparar "segundo Enter abre el enlace" (también tras clic de ratón)
-  const link = scrollEl.querySelector ? scrollEl.querySelector('a.btn-go, a.btn-violet, a.link-sm, a.cs-ir, a.pq-link, button[data-pq-4pl]') : null;
+  const link = scrollEl.querySelector ? scrollEl.querySelector('a.btn-go, a.btn-violet, a.link-sm, a.cs-ir, a.pq-link, a.fmt-ir, button[data-pq-4pl]') : null;
   // Una paquetería de 4PL no tiene enlace: su botón lleva a la herramienta 4PL.
   pendingOpenEl = (link && (link.href || link.hasAttribute('data-pq-4pl'))) ? link : null;
   try { document.getElementById('globalSearch').focus({ preventScroll:true }); } catch(e){}
-  showKbHint(!!pendingOpenEl, (link && link.hasAttribute('data-pq-4pl')) ? 'ir a la herramienta 4PL' : '');
+  // El enlace puede decir qué hace (data-accion, en Formatos): «abrir «Sobregiro Drive Resultados»».
+  showKbHint(!!pendingOpenEl, link ? (link.getAttribute('data-accion') || (link.hasAttribute('data-pq-4pl') ? 'ir a la herramienta 4PL' : '')) : '');
 }
 function flashEl(el){ el.classList.remove('search-flash'); void el.offsetWidth; el.classList.add('search-flash'); setTimeout(() => el.classList.remove('search-flash'), 2200); }
 
@@ -7187,9 +7162,18 @@ function mockData(){
       { nombre:'LiverGreen', liga:'4PL', soms:'LIG' }
     ],
     formatos:[
-      { acceso:'Formato de Devolución', observaciones:'Debe estar firmado por el supervisor de área antes de procesarse', liga:'' },
-      { acceso:'Solicitud de Cambio de Producto', observaciones:'Aplica únicamente para productos con garantía vigente', liga:'' },
-      { acceso:'Formulario de Incidencia Operativa', observaciones:'Para reportar fallas en sistema, envíos o atención', liga:'' }
+      /* Filas REALES de la hoja «Formatos» (26/09/2026), a propósito: la vista de diseño tiene que
+         ejercer los casos del clasificador de app_formatos.html (un formulario con su hoja de
+         respuestas, la hoja que se queda sola, una copia, un tablero). No son datos de ejemplo. */
+      { acceso:'Cotizaciones', observaciones:'Enviar antes al personal a cargo para autorizar el envió', liga:'https://docs.google.com/spreadsheets/d/1vt8VzN4qp08zpOjagGGKSIpGbo2-sYxjV2YZfAOKqhE/edit?gid=2020430648#gid=2020430648' },
+      { acceso:'Ticket de compra Liverpool', observaciones:'Hacer una copia de este formato para editar, se hace copia de la info de FMS en la 2a pestaña del formato y se valida la info que este correcta en la 1a hoja, esta es la que se envia al cliente del correo postventaomnicanal', liga:'https://docs.google.com/spreadsheets/d/1K1PYubMIpyIS5Ua8kE5GvMdGXPmziCjkuFkcjfS5FCc/edit?gid=1994657492#gid=1994657492' },
+      { acceso:'Sobregiro Formulario', observaciones:'Formulario para solicitar el sobregiro a tarjetas Liverpool departamental', liga:'https://docs.google.com/forms/d/e/1FAIpQLScp3qV0jN1zlwKMndbR9IHaDrQ2qaBvAvmSf0bbzqZ59ad8xA/viewform' },
+      { acceso:'Directorio de Tiendas', observaciones:'Tienes la informacion mas relevantes de los contactos de las tiendas', liga:'https://docs.google.com/spreadsheets/d/1RdfIDzXICHPzNBoWMqcBdAtMXe9rWf8a9_zLZa5FQkA/edit?gid=24678195#gid=24678195' },
+      { acceso:'Justificacion de retardos', observaciones:'Subir la petición el mismo dia de la incidencia', liga:'https://docs.google.com/forms/d/e/1FAIpQLSfoY5QR9xK64FWPi4kTI2om6bL-b3QoQq6LgmZBSAqdbw-lWw/viewform' },
+      { acceso:'Formulario de Error de transferencias', observaciones:'Aqui puedes reportar el uso inadecuado de transferencias a nuestra area.', liga:'https://docs.google.com/forms/d/e/1FAIpQLSfyDrdKW450raX6rkfdK4XB-7U7R_MR5lfvlAb0HF88ZGH9kg/viewform?pli=1&pli=1' },
+      { acceso:'Sobregiro Drive Resultados', observaciones:'', liga:'https://docs.google.com/spreadsheets/d/1v1RHpN9rbHTldM2cdYAQ8qTXBR3OYw-R4-I_UJ6GZmE/edit?gid=1526269313#gid=1526269313' },
+      { acceso:'Respuestas de Pedidos sin regalo', observaciones:'', liga:'https://docs.google.com/spreadsheets/d/1-PXoK_sH4kN3pMdC3Wmhu-bKBgkabQibTqObGNWKWdg/edit?gid=0#gid=0' },
+      { acceso:'Directorios de Tienda y CR', observaciones:'', liga:'https://lookerstudio.google.com/u/0/reporting/5b36f7b7-b8d2-4ff4-9d96-fd12ebeaecf6/page/p_td1whyghpd' }
     ],
     pdePago:[
       { nombre:'Presupuesto Liverpool', detalles:'Pago en un sola exhibición, se solicita el pago en su siguiente fecha de corte', liga:'' },
