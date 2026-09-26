@@ -1039,6 +1039,103 @@ y qué se dejó fuera a propósito**. Mismo formato que el registro del document
 
 <!-- Las entradas nuevas van arriba, con la más reciente primero. -->
 
+### 2026-09-26 — Trazabilidad: seis secciones de tarjetas plegables pasan a una sola, «por situación» — en PRUEBAS
+
+**Por qué:** el creador pidió seguir con Trazabilidad después de Formatos. Eran seis secciones del menú (Big Ticket, Soft Line, SL Mensajerías, MarketPlace, Tienda y Generales), cada una con el mismo componente:
+- encabezado con rótulo;
+- barra de filtros y chips numerados;
+- una tarjeta plegable por proceso, con franja lateral de color y tres cajas de tiempo que casi siempre decían N/A.
+
+Para dar un plazo había que saber en qué sección estaba el proceso y abrir su tarjeta.
+
+Lo que se encontró en los datos:
+- **La hoja «Trazabilidad Homologación Procesos 2026» tiene hoy 73 procesos** (en julio eran 69): BT 15 · SL 10 · SLM 9 · MKP 17 · Tienda 10 · Generales 12. Se leyó el 26/09 con el Drive del creador y se pasó por el `Trazabilidad.gs` real (`construir-payload.cjs`), así que es exactamente lo que recibe el Portal.
+- **Unos 50 de los 73 son la misma situación en otra línea.** «Fecha vencida» está en BT, SL, SLM y MKP; los recogidos, en BT, SL, SLM, MKP y dos veces en Tienda.
+- **La celda de solución es casi siempre una cantidad** («10 días», «5-7 días», «72 hrs»). En seis procesos es la lista de reembolsos por método de pago.
+
+Sus respuestas:
+- con el cliente en la línea viene a buscar, en este orden: **el plazo para el cliente**, **qué hacer y a quién escalar**, **si procede** y **dónde revisar**;
+- llega **por lo que le pasó al cliente**: una sola Trazabilidad donde la línea filtra, y los seis accesos del menú abren ya filtrados;
+- el plazo se da **con fecha, en días hábiles**, y se descuentan también **los festivos oficiales**.
+
+Hubo tres prototipos navegables con los 73 procesos: Tablero de situaciones, Preguntas guiadas y Pestañas por situación (tirada `826c6bbb`). Eligió las **Pestañas por situación**: la sexta sección de trabajo en la que elige la opción eficiente.
+
+**Qué se cambió** (commit `68dcb53`):
+- **Parcial nuevo `app_trazabilidad.html`** (estilos y guion; el build lo minifica). Es la vista de las seis secciones, **una sola que se muda** a la sección que se abre. Expone `trzPintar(datos, aviso)`, `trzAviso(aviso)`, `trzAlEntrar(id)`, `trzRevelar(el)`, `trzAplicarBusqueda(sec, q)` y, para «Todas» en la dirección, `trzLineaUrl(id)` y `trzVerTodas()`.
+- **Doce pestañas por situación**, en el orden de la llamada:
+  - ¿Cuándo me llega? 7 · No me ha llegado 11 · Dice entregado y no lo tengo 6 · Me llegó mal 9;
+  - Ya no lo quiero 7 · Quiero cancelar 6 · ¿Y mi reembolso? 11 · Quiero cambiar la dirección 3;
+  - Pagué y no se ve 3 · Mesa de regalos 3 · Armado, instalación y servicios 4 · Otros casos 3.
+
+  Dentro, una fila por proceso agrupada por línea, con el plazo y la fecha a la derecha. Entrando por una línea del menú, la primera fila llega abierta. Si una pestaña queda en cero para esa línea, lo dice y ofrece las de las otras líneas («Big Ticket no tiene procesos para esta situación. Ver las 6 de las otras líneas»).
+- **La ficha**, en el orden que pidió:
+  1. **«Dile al cliente»:** la fecha en grande («a más tardar el viernes 9 de octubre», con «Copiar la fecha») y **la tira de días hábiles** que la explica. Va de hoy a la fecha límite; sábados, domingos y festivos salen angostos y punteados.
+     - Los reembolsos van en una tabla por método de pago, cada uno con su fecha.
+     - Lo que fija un sistema lo dice: «La fecha que marca PAO», «La fecha de Entrada única + 7 días». «Inmediata (fecha PAO)» es eso, la fecha de PAO, y no «hoy».
+     - Lo que es para el asesor no dice «Dile al cliente»: «Inmediata» sola es «En la llamada», un texto es «Plazo según la hoja» y sin dato es «Sin plazo en la hoja: no des una fecha.».
+     - BT lleva además el avance del caso.
+  2. **Qué hacer y a quién escalar**, con las dos frases para el CR listas para copiar.
+  3. **¿Procede?**: el plazo para reportarlo y cada «No aplica…», «Solo aplica…», «Aplica hasta…».
+  4. **Dónde revisar**: las plataformas.
+- **El modelo (la hoja no cambia; nada cuelga de la fila N):**
+  - la situación se reconoce por el nombre del proceso, con reglas en orden (lo que no se reconoce va a «Otros casos»);
+  - el plazo sale del texto: una sola cantidad da fecha, las horas cuentan como días hacia arriba, y lo que fija PAO, SOMS, MDA o Entrada única se dice sin inventar la base;
+  - días hábiles: lunes a viernes, sin los descansos obligatorios de la LFT (art. 74), con los lunes que se mueven calculados por año;
+  - las observaciones se reparten POR FRASE en «Qué hacer» y «¿Procede?», sin perder ni reordenar texto dentro de cada lado;
+  - una frase entre comillas pareadas y de siete palabras o más lleva «Copiar»; una comilla suelta de la hoja no.
+- **El filtro** busca en todo el proceso. Si lo buscado no está en el nombre, debajo sale el fragmento donde coincidió, con la palabra marcada. Un enlace con `?q=` que deja un solo proceso llega con él abierto.
+- **«Todas» las líneas** vive en la dirección (`linea=todas`): recargar, volver o compartir el enlace llega igual. El menú sigue marcando la sección por la que se entró, que es la que aloja la vista.
+- **`Index.html`:**
+  - seis secciones sin encabezado visible (h1 para lectores de pantalla);
+  - `switchSec` muda la vista ANTES de animar la entrada, y `sectionEnter` anima sus pestañas y su hoja;
+  - `revealTarget` abre el proceso con `trzRevelar` y no enseña la pista de Enter;
+  - `elementoDeSeccion` reconoce `.tz-f-nom` y `.tz-fila`;
+  - `filtroDeSeccion` lee el filtro nuevo;
+  - `restore` manda `?q=` a `trzAplicarBusqueda` y lee `linea` en sus tres caminos; `navUrl` escribe `linea=todas`.
+  - De Trazabilidad se quedan solo los **datos**: `onTrazData` y `onTrazError` (ahora entregan a la vista), `trazReintentar`, `trazSkeletons`, `trazMock` y `trazReconstruirIndices`.
+  - Se fueron la vista vieja (unas 800 líneas: render, plegado, chips, filtros y los seis revelados de scroll), el CSS `.traz-*` y las seis variantes de color por sección. Se quedan las insignias del menú y los `.bt-*` base que usa Devoluciones SAP.
+- **Pruebas:** `pruebas/trazabilidad_situaciones.test.js` (nueva, 108 comprobaciones) con `pruebas/trazabilidad_payload_20260926.json` (los 73 procesos) como caso fijo.
+
+**Qué se comprobó:**
+- `sintaxis.js` y las 16 baterías de `pruebas/` en verde (las 15 de siempre y la nueva), en la copia integrada y otra vez en el repo antes de subir.
+- **Build:** compila (99 comprobaciones de `build.test.js`) y ningún `<script>` sale con `//`. El `Index.html` compilado baja 35.1 KB (8.0 KB comprimido) y el parcial compilado pesa 41.2 KB (13.8 KB comprimido): la página sube ~6 KB (≈6 KB comprimidos). Estimado ~0.06 s de primer byte; no se midió.
+- **Detector de impeccable:** 0 hallazgos en el parcial. En la página servida, de 372 a 74, ninguno dentro de Trazabilidad: se fueron las franjas laterales, las paletas por sección y los rótulos sobre el título.
+- **Banco del Portal** (`Index`, antes contra después): 0 errores en las dos, los mismos 2 avisos, las mismas 5 llamadas y la portada dentro del ruido (542 contra 542 píxeles). Cambian solo las seis secciones y las globales (561 → 532). La sonda de revelado sin movimiento reducido no encuentra nada nuevo invisible.
+- **Chrome headless con los 73 procesos:**
+  - 1440, 1024 y 390; Aurora y Carbón (también con el cursor sobre «Copiar»); densidad compacta; texto XL; con y sin movimiento reducido;
+  - «Todas» y cada línea; el control de línea cambia la sección y el menú; filtro («caja vacía» salta a su pestaña), sin coincidencias y pestaña en cero;
+  - `?item=bt-8` (abre «¿Y mi reembolso?» con su ficha) y `?sec=mkp&q=OTP` (llega filtrado);
+  - hoja vacía y hoja que no contesta;
+  - 0 errores de consola.
+- **Revisión final aparte:** revisor sin el contexto de la construcción (el agente `impeccable-finish-reviewer`), con el contrato, el parcial, el diff y 20 capturas.
+  - **Primera vuelta, «fix», con 5 correcciones:**
+    1. «Inmediata (fecha PAO)» salía como «Hoy mismo»: bajo «Dile al cliente» era una promesa de entrega el mismo día, cuando es la fecha de PAO.
+    2. La primera vista no enseñaba la fecha grande ni la tira que prometía el contrato.
+    3. `?q=OTP` llegaba filtrado, con la fila cerrada y sin pista de por qué salió.
+    4. «Dile al cliente» aparecía encima de textos para el asesor.
+    5. «Todas» no quedaba en la dirección.
+  - **Se aplicaron en un lote.** Las cuatro de código van descritas arriba. La de la primera vista quedó como enmienda citada del contrato: el prototipo que eligió el creador ya abría «Fecha en tiempo», cuyo plazo marca PAO, y las pestañas siguen el orden de la llamada. La prueba subió a 108 comprobaciones y exige que ninguna ficha diga «Hoy mismo».
+  - **Segunda vuelta:** las cinco resueltas y sin regresiones; «ship». Cubre esas correcciones, no certifica toda la sección. Después se recapturaron Carbón, 1024, 390, texto XL y los estados con el código final; el banco, repetido tras el lote, da lo mismo (0 errores; la portada dentro del ruido).
+- **En la `/dev` de pruebas:** publicada con `./scripts/publicar.sh` (producción sin tocar). El HTML que arma el servidor, leído con `fetch` desde la página superior, trae:
+  - el parcial y sus enganches (`trzAlEntrar`, `trzLineaUrl` y el fragmento del filtro);
+  - el h1 de las seis secciones;
+  - los datos de Trazabilidad dentro de la página;
+  - nada de la vista vieja.
+
+  **No se vio pintada:** la pestaña de la herramienta quedó oculta y la captura colgó el renderizador. El único `<script>` con `//` es el `window.__APP__` que inyecta el servidor (su URL base), que ya estaba. Lo visual en la `/dev` lo confirma el creador.
+
+**Qué se dejó fuera a propósito:**
+- **El texto de la hoja no se toca desde el código.** Sugerencias para quien la edite:
+  - SL «Cambio de domicilio» trae «INCO» como tiempo de reporte y la solución vacía;
+  - «Sustituto APV / POS» va todo en N/A;
+  - «Artículos que no aplican para reembolso por higiene» no trae plataformas;
+  - erratas: «Salesfrce», «Incidecias», «Fomulario», «INSTALACCION», «Caja Vacia», «trazabildad», «El las tarjetas».
+- **Devoluciones SAP** (el glosario de leyendas y las matrices) sigue igual: no es parte de la hoja de Homologación. Los procesos que nombran una leyenda («Reconocida», «Servicio SL/dañada») todavía no enlazan a su glosario.
+- **«Digitales», «Sterling» y «Sustituto APV / POS»** van a «Otros casos»: su nombre no dice qué le pasó al cliente. Si el equipo aclara qué son, se mueven con una línea del modelo.
+- **La fecha se calcula en el navegador** con el día de hoy. Si el Portal se queda abierto de un día a otro, se recalcula al entrar a la sección o al abrir una ficha.
+- **DESIGN.md:** no se crea. Es una sección dentro del mundo ya aprobado, como las anteriores.
+- **Producción intacta** (@130).
+
 ### 2026-09-26 — Formatos: 28 tarjetas iguales pasan a «pestañas por uso» — en PRUEBAS
 
 **Por qué:** el creador pidió seguir con Formatos después de Pago Web. Eran 28 tarjetas iguales (un color al azar, el nombre, la observación en gris y un solo botón «Abrir formato») bajo un rótulo, un título y un filtro. Todo pesaba lo mismo: el ticket de compra del cliente, la hoja de break del asesor y una hoja de respuestas de 2024.
