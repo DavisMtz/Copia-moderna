@@ -1039,6 +1039,58 @@ y qué se dejó fuera a propósito**. Mismo formato que el registro del document
 
 <!-- Las entradas nuevas van arriba, con la más reciente primero. -->
 
+### 2026-09-26 — Formatos: 28 tarjetas iguales pasan a «pestañas por uso» — en PRUEBAS
+
+**Por qué:** el creador pidió seguir con Formatos después de Pago Web. Eran 28 tarjetas iguales (un color al azar, el nombre, la observación en gris y un solo botón «Abrir formato») bajo un rótulo, un título y un filtro. Todo pesaba lo mismo: el ticket de compra del cliente, la hoja de break del asesor y una hoja de respuestas de 2024.
+
+Lo que se encontró en los datos:
+- **La hoja «Formatos» tiene 28 filas** (ACCESO | OBSERVACIONES | LIGA | ID; el Portal lee las tres primeras): 7 formularios de Google, 20 hojas y 1 tablero de Looker Studio. 13 filas no traen observación. La leyó un script que saca solo esa pestaña del libro exportado; la de Herramientas (con contraseñas) no se leyó, y la copia del libro se borró en cuanto se tuvo la pestaña.
+- **Tres formularios tienen su hoja de respuestas en la misma lista:** Sobregiro Formulario → «Sobregiro Drive Resultados»; Vinculación de Mesa de regalos → «Respuestas de Vinculación a MDR»; Formulario Centros de servicio (CS) → «Respuestas/ Espejo centros de servicio (CS)».
+- **Los dos tickets de compra dicen «Hacer una copia de este formato para editar»**: hasta hoy se abría el original.
+
+Sus respuestas:
+- a Formatos se entra, en este orden, para **un trámite del cliente**, **buscar un contacto**, **algo suyo** y **dar seguimiento**;
+- cada formulario, **junto con su hoja de respuestas**;
+- los formatos que piden copia abren **directo el «Copiar documento» de Google** (comprobado en su Chrome con los dos tickets: sale «¿Quieres hacer una copia de…?»; no se creó nada).
+
+Hubo tres prototipos navegables con las 28 filas reales (Pestañas por uso, Directorio y Talonario; tirada `2cdadbb1`) y eligió las **Pestañas por uso**: la quinta sección de trabajo en la que elige la opción eficiente.
+
+**Qué se cambió** (commit `822b967`):
+- **Parcial nuevo `app_formatos.html`** (estilos y guion; el build lo minifica). Expone `renderF(items)`, `fmtContar(filas)`, `fmtAlEntrar()` y `fmtRevelar(el)`.
+- **Pestañas por uso** (las de Formas de Pago): Para el cliente 8 · Contactos 6 · Lo tuyo 4 · Seguimiento 5 · Otros formatos 2. Abre en «Para el cliente». Flechas ← → (y ↑ ↓), Inicio y Fin; cambiar de pestaña no repinta, solo enseña otra hoja.
+- **Cada formato es una fila:** icono de tipo, nombre, tipo · dominio, la observación (las que empiezan con infinitivo —«Enviar antes…», «Subir la petición…», «Hacer una copia…»— van en ámbar) y la acción a la derecha: «Llenar el formulario», «Hacer una copia» (a `/copy`, con «Ver el original» al lado) o «Abrir la hoja». Debajo, «Respuestas en *nombre real de la hoja*» con «Ver respuestas». Estrella de colecciones y reporte, como en las demás secciones; el reporte lleva la liga ORIGINAL.
+- **El modelo (la hoja no cambia; nada cuelga de la fila N):**
+  - tipo por el enlace;
+  - `/copy` solo si la observación dice «copia» y el enlace es de Sheets, Docs o Slides;
+  - una hoja «Respuestas…/Espejo…/…Resultados» se junta con un formulario solo si comparten una palabra distintiva y ese formulario es el único que la tiene («mesa de regalos» = MDR, «centros de servicio» = CS; sin raíces: «Respuestas de Pedidos sin regalo» se queda sola en Seguimiento);
+  - grupo por el nombre y, si no dice nada, por la observación; lo que no se reconoce va a «Otros formatos» (una fila nueva nunca desaparece).
+- **Filtro:** el de siempre (`filterSec`), pero en Formatos **no busca en la LIGA** («cs» coincidía con todo docs.google.com): `coincideEnSeccion` (Index) le pregunta a `fmtCoincide` (parcial), que mira nombre, observación y el tipo que se ve («Formulario», «Tablero de Looker Studio»…); `applySectionSearch` cuenta igual. La cuenta es de formatos, no de filas; cada pestaña dice cuántos coinciden (la cifra se queda aunque falte ancho) y, si la abierta se queda sin nada, pasa a la primera que tenga. Con un solo formato, Enter hace su acción; si la coincidencia vino de su hoja de respuestas («resultados»), Enter abre esa hoja.
+- **Buscador y `?item=`:** abren la pestaña del destino y lo dejan marcado con un tinte fijo (`.es-destino`) hasta el segundo Enter, Esc o una búsqueda nueva: el destello dura 2 s y con movimiento reducido no se ve. La píldora dice qué hará el segundo Enter (`data-accion` del enlace): «abrir «Sobregiro Drive Resultados»».
+- **`Index.html`:** marcado nuevo sin encabezado visible (h1 solo para lectores de pantalla), filtro con nombre accesible y pista de Enter; esqueleto con la forma de pestañas y hoja; `switchSec` → `fmtAlEntrar`; `revealTarget` → `fmtRevelar` (abre la pestaña del destino) y reconoce `a.fmt-ir` para el segundo Enter; `elementoDeSeccion` busca `.fmt-nom` y `.fmt-rnom` (el nombre de la hoja de respuestas) y sube a `.fmt-resp` o `.fmt-fila`; `sectionEnter` anima pestañas y hoja; el menú cuenta 25 con `fmtContar`; `clearPendingOpen` quita la marca del destino; `showKbHint` usa el `data-accion` del enlace; fuera `renderF` viejo y el CSS de `.fmt-card`; la vista de diseño trae nueve filas reales.
+- **`app_indices.html`:** Formatos se encuentra también por «formularios», «ticket», «copia», «directorio», «contactos», «respuestas», «sobregiro», «mesa de regalos», «permuta», «retardo», «break» y «CAU».
+- **Pruebas:** `pruebas/formatos_pestanas.test.js` (nueva, 84 comprobaciones, con las 28 filas del 26/09 como caso fijo). No confundir con `formatos_cache.test.js` (formatos de cotización).
+
+**Qué se comprobó:**
+- `sintaxis.js` y las 15 baterías de `pruebas/` en verde (las 14 de siempre + `formatos_pestanas.test.js`), en la copia integrada y otra vez en el repo antes de subir.
+- **Build:** compila (99 comprobaciones de `build.test.js`) y ningún `<script>` sale con `//` ni `/*`. Trampa de esta vuelta: `/\p{M}/gu` lo reescribe esbuild como `new RegExp(…)` y el build lo rechaza; los acentos se quitan con `/[^\s -~]/g` tras NFD.
+- **Detector de impeccable:** 0 hallazgos en el parcial; en la página servida, ninguno nuevo (71 → 69: se fueron la franja lateral de las tarjetas y el rótulo de 10.88 px).
+- **Banco del Portal** (`Index`, fuente de antes contra la copia): 0 errores en las dos, los mismos 2 avisos, las mismas 5 llamadas y 0 píxeles distintos en la portada. Solo cambian la sección y cinco globales (`fmtContar`, `fmtAlEntrar`, `fmtRevelar`, `fmtCoincide` y `coincideEnSeccion`). La sonda de revelado sin movimiento reducido no encuentra nada nuevo invisible.
+- **Chrome headless con las 28 filas reales:** 1440, 1024 y 390; Aurora y Carbón (también con el cursor sobre el botón); densidad compacta; texto XL; con y sin movimiento reducido; filtro («resultados», «cs», «tablero» desde otra pestaña: salta a la que tiene y la pista de Enter dice qué hace), sin coincidencias, hoja vacía y cargando; `?item=Directorio de CR` (abre Contactos) y `?item=Sobregiro Drive Resultados` (abre Para el cliente, deja la línea marcada y la píldora dice «abrir «Sobregiro Drive Resultados»»). 0 errores de consola.
+- **Revisión final aparte:** revisor sin el contexto de la construcción, con el contrato, el parcial, el diff y 15 capturas.
+  - Primera vuelta, «fix», con 7 correcciones: el filtro buscaba en la LIGA («cs» coincidía con todo docs.google.com; «tablero» no encontraba el de Looker); el segundo Enter hacia una hoja de respuestas solo decía «abrir el enlace» y su marca desaparecía con movimiento reducido; «Lo tuyo» y «Seguimiento» con el mismo dibujo de icono (clock e history son idénticos); las cifras de las pestañas se perdían con poco ancho o texto grande; en el teléfono, botones principales de dos anchos; en Carbón, el rosa del botón al pasar el cursor bajaba de 4.5:1; y las filas reales de la vista de diseño, sin rótulo.
+  - Se aplicaron en un lote y se volvió a capturar: las 7 resueltas y 1 regresión del lote (lo que coincidía por el tipo no llevaba la marca rosa), corregida con una línea. La última puntuación dio «ship». Cubre esas correcciones; no certifica toda la sección.
+- **En la `/dev` de pruebas:** publicada con `./scripts/publicar.sh` (producción sin tocar). El HTML que arma el servidor, leído con `fetch` desde la página superior, ya trae la sección nueva (una vez, con su marcado), el parcial y los enganches (`switchSec`, `revealTarget`, la cuenta del menú), y nada del `renderF` viejo. **No se vio pintada:** la pestaña de la herramienta estaba oculta (`visibilityState: hidden`; `resize_window` no la mostró esta vez) y se colgó una vez al capturar. La consola del iframe de Google no la alcanza la herramienta. Lo visual en la `/dev` lo confirma el creador.
+
+**Qué se dejó fuera a propósito:**
+- **El texto de la hoja no se toca desde el código.** Sugerencias para quien la edite: «Justificacion», «Vinculacion», «Categorias de Garantia de satisfaccion», «Guardias de Area», «envió» (es «envío»), «encontar», «informacion mas relevantes», «seccion», «casa mesa de regalo» (es «cada»), «dia», «ingreso»; y a 13 filas les falta observación (sobre todo las hojas de respuestas y espejos).
+- **Mis colecciones** abren la liga de la hoja: un ticket guardado en una colección abre el original, no el «Copiar documento».
+- **El buscador general (Ctrl K) sigue buscando también en la liga** de los formatos (lo comparte con las demás secciones); el filtro de la sección ya no.
+- **Visto de paso, sin tocar:** en Carbón, el «Abrir» de la Consola de Herramientas (`.cs-abrir:hover`) pasa al rosa brillante con texto blanco, ≈3.8:1, lo mismo que se corrigió aquí.
+- **El emparejado es conservador a propósito:** si mañana se añade un formulario que comparte palabra con otro, su hoja de respuestas se queda sola en Seguimiento en vez de arriesgar juntarla mal.
+- **Peso:** el parcial compilado pesa 19.5 KB (6.5 KB comprimido) y el `Index.html` compilado baja 0.9 KB (sube 0.5 KB comprimido, por las URLs reales de la vista de diseño): la página sube ~7 KB comprimidos. Estimado ~0.07 s de primer byte; no se midió.
+- **DESIGN.md:** no se crea. Es una sección dentro del mundo ya aprobado, como las anteriores.
+- **Producción intacta** (@130).
+
 ### 2026-09-25 — Pago Web: seis tarjetas iguales pasan a una «consola» con calculadora y promociones — en PRUEBAS
 
 **Por qué:** el creador pidió rediseñar la sección Pago Web. Eran seis tarjetas iguales (icono, título y el texto de la hoja «PdePago») bajo un rótulo, un título y un filtro, y para calcular una mensualidad de pagos fijos había que **hacer una copia** de la hoja de Drive «Pagos Fijos 3.0» con el cliente en la línea.
