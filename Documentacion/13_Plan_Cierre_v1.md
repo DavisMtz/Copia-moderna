@@ -1039,6 +1039,66 @@ y qué se dejó fuera a propósito**. Mismo formato que el registro del document
 
 <!-- Las entradas nuevas van arriba, con la más reciente primero. -->
 
+### 2026-09-25 — Pago Web: seis tarjetas iguales pasan a una «consola» con calculadora y promociones — en PRUEBAS
+
+**Por qué:** el creador pidió rediseñar la sección Pago Web. Eran seis tarjetas iguales (icono, título y el texto de la hoja «PdePago») bajo un rótulo, un título y un filtro, y para calcular una mensualidad de pagos fijos había que **hacer una copia** de la hoja de Drive «Pagos Fijos 3.0» con el cliente en la línea.
+
+Lo que se encontró en los datos:
+- **«PdePago» tiene 6 filas** (Nombre | Detalles | Liga): cinco planes y una regla (montos mínimos para diferir a MSI a mano: «Liverpool $500 / SBB $1,000»). La leyó un script que saca solo esa pestaña del libro exportado; la de Herramientas (con contraseñas) no se leyó, y la copia del libro se borró en cuanto se tuvo la pestaña.
+- **«Pagos Fijos 3.0»** (de lasilvao, cambiada por última vez el 30/06/2026) es una sola tabla de factores de 2 a 48 meses: mensualidad = precio × factor y total = precio × factor × meses. Se comprobó con sus tres filas de ejemplo.
+- **La pestaña Promociones** ya dice qué departamentos traen MSI («hasta 9 MSI», «9 MSI DILISA / 6 MSI externas») o «pague en diciembre». El 25/09 había 13 vigentes con MSI y 6 con «pague/paga en…».
+
+Sus respuestas:
+- en llamada mandan, en este orden: **explicar el plan**, **calcular la mensualidad** y **qué promoción lo trae**;
+- la calculadora, **leyendo «Pagos Fijos 3.0»**, con una copia de respaldo;
+- las promociones, **en cada plan**.
+
+Hubo tres prototipos navegables con los datos reales (Boletos de plan, Preguntas del cliente y Consola; tirada `d2c2cf85`) y eligió la **Consola**: la cuarta vez que elige la opción eficiente en una sección de trabajo.
+
+**Qué se cambió** (commit `5d7eab2`):
+- **Parcial nuevo `app_pdepago.html`** (estilos y guion; el build lo minifica). Expone `renderPP(items)`, `pdpAlEntrar()` y `pdpRevelar(el)`.
+- **Consola:** lista de los planes a la izquierda (fija al bajar, flechas ↑ ↓, Inicio, Fin; Enter lleva al monto) y ficha a la derecha con el nombre en el cartel de Herramientas. Abre en MSI.
+  - **Cada plan se reconoce por su nombre** (la hoja la editan personas): Presupuesto → un solo pago; MSI → sin intereses; «Empieza a pagar…» → todo en un mes; mensualidades/pagos fijos → con interés; «a pagar en x mes» → con interés, después; «montos mínimos» → regla. Lo que no se reconoce se pinta sin extras.
+  - **Tira de cargos:** cada plan dibujado como se cobra (una barra por corte, un punto por corte sin cargo, lo rosa es interés). A 12 meses el interés es una cuarta parte de cada pago; a 48, el 60 %.
+  - **Calculadora** en MSI (monto ÷ meses; chips con los plazos que traen hoy las promociones) y en pagos fijos (mensualidad, total, interés y tabla de 3 a 48 meses; sin monto, «por cada $1,000»). El aviso «aprox.» y «depende del historial crediticio» van junto a la cifra. El monto se escribe una vez y sirve para todos los planes.
+  - **Promociones:** los boletos de la portada, «Lo traen hoy» y, aparte, las que empiezan en los próximos 14 días. Tocar uno abre el Monitor.
+  - **Regla de montos mínimos:** si el texto es una lista de montos, cada uno va en grande.
+- **Servidor (`Portal.gs`):** `pdpDatos()` (pública, sin sesión, como `fetchPromoCounts`) devuelve `factores` (leídos de «Pagos Fijos 3.0», 6 h en caché; `null` si no se puede abrir) y `promos` (vigentes y próximas 14 días con MSI, «pague en…» o pagos fijos, solo con los campos que ya enseña la portada). El id del simulador es la constante `PDP_SIMULADOR_ID` o la propiedad de script del mismo nombre: nunca lo manda el cliente.
+- **Cliente:** `AppRun.swr('pdp-datos-v1', 'pdpDatos')`, 30 min, al abrir la sección. Mientras no llega, la calculadora usa la copia de los factores del 30/06/2026 y lo dice.
+- **`Index.html`:** marcado nuevo sin encabezado visible ni filtro (h1 solo para lectores de pantalla); esqueleto con la forma de la consola; `switchSec` → `pdpAlEntrar`; `revealTarget` → `pdpRevelar` (el buscador y `?item=` eligen el plan y dejan el cursor en el monto); `elementoDeSeccion` busca `.pdc-nom`; `sectionEnter` anima lista y ficha; `NAME_FIELD` ya no filtra Pago Web; fuera `renderPP` viejo y el CSS de `.pago-card` y `.sim-note`; la vista de diseño trae las 6 filas reales.
+- **`app_indices.html`:** Pago Web se encuentra también por «calculadora», «mensualidad», «MSI», «pagos fijos», «presupuesto» y «diferido».
+- **Pruebas:** `pruebas/pdepago.test.js` (nueva, 59 comprobaciones) y `formaspago.test.js` ya no depende del comentario de Pago Web para saber dónde acaba su sección.
+
+**Qué se comprobó:**
+- `sintaxis.js` y las 14 baterías de `pruebas/` en verde (las 13 de siempre + `pdepago.test.js`), en la copia integrada y otra vez en el repo antes de subir.
+- **Build:** compila y `quitacomentarios_google.js` no encuentra nada que cortar. El parcial compilado pesa 29 KB (9.6 KB comprimido) y el `Index.html` compilado baja 2 KB.
+- **Detector de impeccable:** sin hallazgos, en las dos pasadas.
+- **Banco del Portal** (`Index`, fuente de antes contra la copia): 0 errores en las dos, los mismos 2 avisos, las mismas 5 llamadas y los píxeles de la portada dentro del ruido (28 contra 28). Solo cambian la sección y dos globales (`pdpAlEntrar`, `pdpRevelar`). La sonda de revelado sin movimiento reducido no encuentra nada nuevo invisible.
+- **Chrome headless con los datos reales** (6 filas, factores y las promociones al 25/09):
+  - 1440, 1024 y 390; Aurora y Carbón; densidad compacta; con y sin movimiento reducido;
+  - sin respuesta del servidor, con las promociones caídas y cargando; plazo fuera de rango; `?item=`;
+  - 0 errores de consola.
+- **Cuentas:** las tres filas de ejemplo de «Pagos Fijos 3.0» salen al centavo ($689 a 3 meses → $251.48 y $754.44; $1,692 a 6 → $329.93 y $1,979.55; $4,799 a 48 → $252.63 y $12,126.40). $12,500 a 12 meses: $1,384.80 al mes, $16,617.57 en total y $4,117.57 de interés.
+- **Revisión final aparte** (revisor sin el contexto de la construcción):
+  - primera vuelta, «fix», con 6 correcciones: promociones caídas pintadas como «ninguna» (un vacío falso que el asesor podía repetir), plazo fuera de rango sin aviso, «aprox.» ilegible en Carbón, contraste del marcador del monto y de la cifra vacía, tira apretada con el pie lejos de las barras y la cifra fuera de pantalla a 390;
+  - se aplicaron en un lote: 5 resueltas, 1 parcial (la cifra a 390) y 1 retroceso del lote (el ancho de barra contaba los meses de espera). Corregidos, la última puntuación dio «ship». Cubre esas correcciones; no certifica toda la sección.
+- **En la `/dev` de pruebas**, con la cuenta del creador:
+  - la consola sale con «13 hoy» en MSI, «6 hoy» en «Empieza a pagar…» y los plazos 6 · 9 · 16;
+  - $12,500 a 12 meses da $1,384.80, y la nota dice «factores de «Pagos Fijos 3.0»»: el servidor de pruebas SÍ abre la hoja del simulador (no cae a la copia);
+  - `?item=Hasta 48 mensualidades (pagos fijos)` abre ese plan con el cursor en el monto;
+  - consola del navegador sin errores. Ojo: la herramienta no alcanza el iframe de Google; el banco local da 0 excepciones con el mismo código.
+
+**Qué se dejó fuera a propósito:**
+- **El texto de la hoja no se toca desde el código.** Sugerencias para quien la edite: «Pago en un sola exhibición» → «una sola»; «numero», «promocion», «ademas», «sera», «credito» sin acento; y en los dos planes de pagos fijos, «haz una copia del sig drive» ya sobra: la calculadora está en la ficha.
+- **Una promoción de la hoja Promociones dice «no aplica PROMO válida solo del 21 al 23 de agosto…»** con vigencia del 18 al 30 de septiembre: sale tal cual, como en la portada y el Monitor.
+- **«48 mensualidades a pagar en x mes»** usa los mismos factores que pagos fijos (la hoja enlaza el mismo simulador); el mes de inicio lo elige el cliente, así que la tira no inventa uno.
+- **Peso:** el parcial compilado pesa 29 KB (9.6 KB comprimido) y el `Index.html` compilado baja 2 KB: la página sube ~9.5 KB comprimidos, como la Consola de Herramientas. Estimado ~0.09 s de primer byte; no se midió.
+- **Sin captura propia, revisado en el código:** el aviso de MSI fuera de rango y los boletos de «empiezan en los próximos 14 días».
+- **Ctrl K escrito a mano en la `/dev`** no se probó: la pestaña de la herramienta se colgó al capturar. Comparte el camino (`esperarYRevelar` → `pdpRevelar`) con `?item=`, que sí se probó ahí.
+- **«Pagos Fijos 3.0» no tiene permiso propio para la cuenta del creador:** la lista muestra usuarios de @liverpool.com.mx y un grupo de Chat. Hoy la abre (comprobado en la `/dev`), probablemente por ese grupo. Si un día deja de poder, la calculadora usa la copia del 30/06/2026 y lo dice. Si cambia de hoja: propiedad de script `PDP_SIMULADOR_ID`.
+- **DESIGN.md:** no se crea. Es una sección dentro del mundo ya aprobado, como las anteriores.
+- **Producción intacta** (@130).
+
 ### 2026-09-25 — Formas de Pago: seis capítulos en una sola página pasan a «pestañas por método» — en PRUEBAS
 
 **Por qué:** el creador pidió rediseñar la sección «analizando qué datos tiene». Era una página de 5443 px (a 1440) con seis capítulos numerados. Los pasos se partían en columnas: `strong` dentro de un `li` flex, así que «Indica al cajero que es un pago de | **Servicio Paynet**» salía en dos bloques. Diez de las 16 tiendas estaban ocultas tras «Ver las 16», y sus logos venían de ~10 dominios ajenos: Farmacias del Ahorro no cargaba y Tiendas K usaba el logo de Circle K.
