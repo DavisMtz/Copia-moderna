@@ -149,6 +149,9 @@
 .tz-cita{font-style:italic;color:var(--ink)}
 .tz-copiable{display:flex;flex-wrap:wrap;align-items:center;gap:.4rem .7rem;margin:.35rem 0 .15rem;padding:.6rem .8rem;border-radius:12px;background:var(--brand-tint);font-style:normal}
 .tz-copiable > span{font-style:italic}
+/* Devoluciones SAP (26/09/2026): la leyenda que nombra la hoja y «la tabla actualizada» llevan a su caso en la consola */
+.tz-dv{display:inline;margin:0;padding:0;border:0;background:none;font:inherit;font-weight:650;color:var(--tz-ink-brand);text-align:left;text-decoration:underline;text-decoration-thickness:1px;text-underline-offset:3px;cursor:pointer}
+.tz-dv:hover{text-decoration-thickness:2px}
 .tz-procede{list-style:none;margin:0;padding:0;display:grid;gap:.45rem;font-size:.92rem;line-height:1.5;max-width:74ch}
 .tz-procede li{display:flex;gap:.5rem;align-items:flex-start}
 #tz-app .tz-procede .ic{width:16px;height:16px;margin-top:.2rem;color:var(--ink-soft)}
@@ -160,7 +163,7 @@
 .tz-f-vacia{margin:0;font-size:.9rem;color:var(--ink-soft)}
 
 /* — Foco — */
-.tz-lineas button:focus-visible,.tz-tab:focus-visible,.tz-f-bt:focus-visible,.tz-copiar:focus-visible,.tz-estado button:focus-visible,.tz-nada button:focus-visible{outline:2.5px solid var(--brand);outline-offset:2px}
+.tz-lineas button:focus-visible,.tz-tab:focus-visible,.tz-f-bt:focus-visible,.tz-copiar:focus-visible,.tz-estado button:focus-visible,.tz-nada button:focus-visible,.tz-dv:focus-visible{outline:2.5px solid var(--brand);outline-offset:2px}
 
 /* — Densidad compacta y alto contraste (Ajustes de vista) — */
 html[data-density="compact"] .tz-tab{min-height:46px}
@@ -484,7 +487,11 @@ html[data-contrast="high"] .tz-tabs,html[data-contrast="high"] .tz-hoja,html[dat
     'NENT', 'CANC', 'CONF', 'ZVADVIS', '3DS', '4PL', 'APV', 'CSC', 'CTE', 'DOE', 'ENR', 'FMS', 'LPC', 'MDA', 'MDR', 'MED',
     'OTP', 'PAO', 'PoS', 'POS', 'SKU', 'MKP', 'SAP', 'CR', 'C&amp;C'];
   var LETRA = '[\\wÀ-ÿ]';
-  var RE_CLAVE = new RegExp('(?:(?<!' + LETRA + ')(?:' + TERMINOS.map(function (t) { return t.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'); }).join('|') + ')(?!' + LETRA + ')' +
+  /* Devoluciones SAP (26/09/2026): la leyenda que nombra la hoja («Servicio SL/dañada», «Reconocida») y «consulta la
+     tabla actualizada…» llevan a su caso en la consola. Van primero en la alternancia, para ganarle a «SAP»; sin la
+     bandera «i»: «Entrega no reconocida» (minúscula) no es la leyenda. */
+  var DV_FRASES = '(?:Servicio|SERVICIO) SL ?/? ?(?:dañada|incompleta|equivocada)(?: ?/ ?(?:incompleta|equivocada))*|Reconocida|consulta la tabla actualizada(?: para validar si procede por servicio SL o Satisfacción SL)?';
+  var RE_CLAVE = new RegExp('(?:(?<!' + LETRA + ')(?:' + DV_FRASES + ')(?!' + LETRA + ')|(?<!' + LETRA + ')(?:' + TERMINOS.map(function (t) { return t.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'); }).join('|') + ')(?!' + LETRA + ')' +
     '|\\$\\s?\\d[\\d,.]*' +
     '|(?<!' + LETRA + ')(?:[Cc]ategor[ií]a|[Cc]at\\.?|[Oo][Pp][Cc]\\.?)\\s*\\d+' +
     '|(?<![\\w.])\\d+(?:[.,]\\d+)?\\s*(?:a\\s*\\d+\\s*)?(?:[Hh][Rr][Ss]?(?!' + LETRA + ')|h(?!' + LETRA + ')|[Hh]oras?(?!' + LETRA + ')|[Dd][ií]as?(?:\\s+(?:h[áa]biles|naturales))?(?!' + LETRA + ')|a[ñn]os?(?!' + LETRA + ')|meses(?!' + LETRA + ')))', 'g');
@@ -496,7 +503,20 @@ html[data-contrast="high"] .tz-tabs,html[data-contrast="high"] .tz-hoja,html[dat
     return s;
   }
   function mayuscula(t) { return t ? t.charAt(0).toUpperCase() + t.slice(1) : t; }
-  function resaltar(s) { return s.replace(RE_CLAVE, function (m) { return '<strong>' + m + '</strong>'; }); }
+  function resaltar(s) { return s.replace(RE_CLAVE, function (m) { return dvEnlace(m) || '<strong>' + m + '</strong>'; }); }
+  /* El proceso cuya ficha se está armando: «la tabla actualizada» lleva al caso que dice su nombre (dañada → Servicio SL,
+     satisfacción → Satisfacción SL); si dice los dos, a la consola sin elegir. */
+  var dvProc = null;
+  function dvTabla() {
+    var n = norm(dvProc && dvProc.nombre);
+    var mal = /danad|incomplet|equivocad|maltratad/.test(n), gusto = /satisfac/.test(n);
+    return mal && !gusto ? 'ds-esc-servicio' : gusto && !mal ? 'ds-esc-satisfaccion' : '';
+  }
+  function dvEnlace(m) {
+    var a = /^(?:Servicio|SERVICIO) SL/.test(m) ? 'ds-esc-servicio' : m === 'Reconocida' ? 'ds-enr' : /^consulta la tabla/.test(m) ? dvTabla() : null;
+    if (a === null) return '';
+    return '<button type="button" class="tz-dv" data-tz-dv="' + a + '">' + m + '<span class="tz-sr"> (abre Devoluciones SAP)</span></button>';
+  }
   /* El resaltado va solo sobre el TEXTO: nunca dentro del atributo de «Copiar» (copiaría etiquetas). */
   function enLinea(txt, frases) {
     var s = esc(sinComillaSuelta(txt));
@@ -607,17 +627,20 @@ html[data-contrast="high"] .tz-tabs,html[data-contrast="high"] .tz-hoja,html[dat
     return h ? '<ul class="tz-procede">' + h + '</ul>' : '';
   }
   function fichaHTML(p) {
+    dvProc = p;
     var hacer = p.hacer.length ? bloquesHTML(p.hacer, p.frases) : '';
     var proc = procedeHTML(p);
     var donde = p.donde.length ? '<ul class="tz-donde">' + p.donde.map(function (d) {
       return '<li>' + esc(d.base) + (d.nota ? ' <small>' + esc(d.nota) + '</small>' : '') + '</li>';
     }).join('') + '</ul>' : '';
-    return '<div class="tz-ficha">' + plazoHTML(p) +
+    var html = '<div class="tz-ficha">' + plazoHTML(p) +
       (hacer ? '<section class="tz-bloque"><h4>' + ic('sigue') + 'Qué hacer y a quién escalar</h4>' + hacer + '</section>' : '') +
       (proc ? '<section class="tz-bloque"><h4>' + ic('alto') + '¿Procede?</h4>' + proc + '</section>' : '') +
       (!hacer && !proc ? '<p class="tz-f-vacia">La hoja no trae observaciones para este proceso.</p>' : '') +
       (donde ? '<section class="tz-bloque"><h4>' + ic('monitor') + 'Dónde revisar</h4>' + donde + '</section>' : '') +
     '</div>';
+    dvProc = null;
+    return html;
   }
   /* Resumen de la fila: el plazo corto y, si hay cantidad, la fecha. */
   function resumen(p) {
@@ -869,9 +892,16 @@ html[data-contrast="high"] .tz-tabs,html[data-contrast="high"] .tz-hoja,html[dat
   }
 
   /* ── Eventos ──────────────────────────────────────────────────────────────────── */
+  /* A Devoluciones SAP, al caso que nombra la hoja (26/09/2026); sin caso, la consola tal cual. */
+  function irADevsap(ancla) {
+    var tab = document.querySelector('.side-link[data-sec="devsap"]');
+    if (typeof switchSec === 'function') switchSec('devsap', tab);
+    if (ancla && typeof esperarYRevelar === 'function') esperarYRevelar('devsap', ancla, null);
+  }
   function alClic(e) {
-    var b = e.target.closest('[data-tz], [data-tz-copiar]');
+    var b = e.target.closest('[data-tz], [data-tz-copiar], [data-tz-dv]');
     if (!b || !app.contains(b)) return;
+    if (b.hasAttribute('data-tz-dv')) { irADevsap(b.getAttribute('data-tz-dv')); return; }
     if (b.hasAttribute('data-tz-copiar')) {
       if (typeof copyText === 'function') copyText(b.getAttribute('data-tz-copiar'), b);
       return;

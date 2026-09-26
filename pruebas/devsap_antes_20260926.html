@@ -1,0 +1,159 @@
+<!-- Devoluciones SAP tal como estaba en Index.html hasta el 26/09/2026 (etiqueta respaldo-devsap-antes-consola).
+     Es el caso fijo de pruebas/devsap.test.js: el modelo de app_devsap.html tiene que decir lo mismo. -->
+  <!-- ══ DEVOLUCIONES SAP · Glosario de leyendas + matrices SL ══ -->
+  <section id="sec-devsap" class="view-section">
+    <div class="sec-head">
+      <span class="sec-eyebrow"><span class="dot"></span>Glosario y matrices de devoluciones</span>
+      <h1 class="sec-title">Devoluciones en <em>SAP</em></h1>
+      <p class="sec-sub">Leyendas que se colocan en SAP según el escenario y las matrices que definen qué procede (recogido, devolución, canalizar a tienda o ambos) para Soft Line por encima y por debajo de $3,000. Usa el buscador o los chips para ir directo a lo que necesitas.</p>
+    </div>
+
+    <!-- Aviso: autorización escrita obligatoria -->
+    <div class="ds-auth" id="ds-autorizacion">
+      <div class="ds-auth-ic"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3 4 6v6c0 4.5 3.2 7.7 8 9 4.8-1.3 8-4.5 8-9V6Z"/><path d="m9 12 2 2 4-4"/></svg></div>
+      <div class="ds-auth-body">
+        <h3>Autorización escrita obligatoria</h3>
+        <p>Antes de aplicar cualquier devolución, recogido o cambio de estatus <strong>debe existir necesariamente una autorización por escrito de un supervisor o team leader</strong>. Sin esa autorización el proceso no se realiza. Cuando la autorización se solicita por correo, se envía a <strong>Ventas CCL</strong>.</p>
+        <div class="ds-mail-row">
+          <span class="ds-mail-lbl">Correo de autorización:</span>
+          <span class="ds-mail">Ventas CCL &lt;ventas-ccl@liverpool.com.mx&gt;</span>
+          <button class="ds-copy-mail" onclick="copyText('Ventas CCL <ventas-ccl@liverpool.com.mx>', this)" title="Copiar correo de Ventas CCL" aria-label="Copiar correo de Ventas CCL"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="11" height="11" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg> Copiar correo</button>
+        </div>
+      </div>
+    </div>
+
+    <nav class="fp-nav" aria-label="Devoluciones SAP">
+      <button class="fp-nav-chip" onclick="jumpToDevsap('ds-autorizacion')">Autorización</button>
+      <button class="fp-nav-chip" onclick="jumpToDevsap('ds-glosario')">Glosario de leyendas</button>
+      <button class="fp-nav-chip" onclick="jumpToDevsap('ds-mayor')">SL mayor a $3,000</button>
+      <button class="fp-nav-chip" onclick="jumpToDevsap('ds-menor')">SL menor a $3,000</button>
+      <button class="fp-nav-chip" onclick="jumpToDevsap('ds-criterios')">Criterios y excepciones</button>
+    </nav>
+
+    <!-- Glosario de leyendas -->
+    <div class="bt-head" id="ds-glosario" style="margin:.4rem 0 1rem">
+      <span class="fp-num" style="background:linear-gradient(135deg,var(--brand),var(--brand-bright))">📒</span>
+      <div>
+        <h2 class="bt-title">Glosario — Leyendas para devoluciones en SAP</h2>
+        <div class="bt-plats"><span class="bt-plat">SAP</span><span class="bt-plat info">Mercaderías</span><span class="bt-plat info">MKP Soft Line</span></div>
+      </div>
+    </div>
+    <div class="ds-gloss">
+      <div class="ds-gloss-row" id="ds-servicio-sl">
+        <div class="ds-gloss-esc">Servicio SL</div>
+        <div class="ds-gloss-body">
+          <div class="ds-gloss-leyendas">
+            <button class="ds-leyenda" onclick="copyText('ServicioSL/dañada', this)" title="Copiar leyenda">ServicioSL/dañada <svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="11" height="11" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg></button>
+            <button class="ds-leyenda" onclick="copyText('ServicioSL/incompleta', this)" title="Copiar leyenda">ServicioSL/incompleta <svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="11" height="11" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg></button>
+            <button class="ds-leyenda" onclick="copyText('ServicioSL/equivocada', this)" title="Copiar leyenda">ServicioSL/equivocada <svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="11" height="11" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg></button>
+          </div>
+          <p class="ds-gloss-desc">Aplica para mercancía que llegó <strong>dañada, incompleta o equivocada</strong>. Se coloca la leyenda de acuerdo al caso. <strong>No es necesario correo soporte.</strong></p>
+          <span class="ds-gloss-tag">Mercaderías y MKP Soft Line</span>
+        </div>
+      </div>
+      <div class="ds-gloss-row" id="ds-enr">
+        <div class="ds-gloss-esc">ENR</div>
+        <div class="ds-gloss-body">
+          <div class="ds-gloss-leyendas">
+            <button class="ds-leyenda" onclick="copyText('Reconocida', this)" title="Copiar leyenda">Reconocida <svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="11" height="11" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg></button>
+          </div>
+          <p class="ds-gloss-desc">Aplica cuando el cliente indica <strong>no reconocer la entrega</strong> y no se cuenta con evidencia en las diversas plataformas.</p>
+          <span class="ds-gloss-tag">Mercaderías y MKP Soft Line</span>
+        </div>
+      </div>
+      <div class="ds-gloss-row" id="ds-satisfaccion-sl">
+        <div class="ds-gloss-esc">Satisfacción SL</div>
+        <div class="ds-gloss-body">
+          <div class="ds-gloss-leyendas">
+            <button class="ds-leyenda" onclick="copyText('Satisfacción SL', this)" title="Copiar leyenda">Satisfacción SL <svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="11" height="11" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg></button>
+          </div>
+          <p class="ds-gloss-desc">Aplica cuando el cliente <strong>no cuenta con una tienda Liverpool cerca</strong>, el producto es <strong>menor a $3,000</strong> y solicita la devolución.</p>
+          <span class="ds-gloss-tag">Mercaderías y MKP Soft Line</span>
+        </div>
+      </div>
+      <div class="ds-gloss-row" id="ds-correo-soporte">
+        <div class="ds-gloss-esc">Correo soporte</div>
+        <div class="ds-gloss-body">
+          <div class="ds-gloss-leyendas">
+            <button class="ds-leyenda" onclick="copyText('Correo soporte', this)" title="Copiar leyenda">Correo soporte <svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="11" height="11" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg></button>
+          </div>
+          <p class="ds-gloss-desc">Aplica cuando se tiene autorización por <strong>recogido vencido, descargas digitales, bonificaciones</strong>, cuando el <strong>semáforo de PAO no permite cambio de estatus</strong> o cuando se tiene autorización en <strong>cadena de correos</strong>.</p>
+          <span class="ds-gloss-tag">Mercaderías SL &amp; MKP &amp; BT — sólo en órdenes de venta</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- Matriz SL mayor a $3,000 -->
+    <div class="ds-matrix-wrap" id="ds-mayor">
+      <div class="ds-matrix-head">
+        <h2 class="ds-matrix-title">SL <em>mayor</em> a $3,000</h2>
+        <span class="ds-matrix-tag">&gt; $3,000</span>
+      </div>
+      <p class="ds-matrix-sub">Para mercancía de más de $3,000 pesos se trabaja de la siguiente manera según el escenario.</p>
+      <div class="ds-matrix-scroll">
+        <table class="ds-matrix">
+          <thead>
+            <tr><th>Escenario</th><th>Recogido</th><th>Devolución</th><th>Canalizar a tienda</th><th>Recogido y devolución</th></tr>
+          </thead>
+          <tbody>
+            <tr><th>Servicio SL</th><td><span class="ds-cell ds-no">✕</span></td><td><span class="ds-cell ds-no">✕</span></td><td><span class="ds-cell ds-no">✕</span></td><td class="on"><span class="ds-cell ds-yes">✓</span></td></tr>
+            <tr><th>Satisfacción SL</th><td><span class="ds-cell ds-no">✕</span></td><td><span class="ds-cell ds-no">✕</span></td><td class="on"><span class="ds-cell ds-yes">✓</span></td><td><span class="ds-cell ds-no">✕</span></td></tr>
+            <tr><th>C&amp;C Servicio SL</th><td><span class="ds-cell ds-no">✕</span></td><td><span class="ds-cell ds-no">✕</span></td><td class="on"><span class="ds-cell ds-yes">✓</span></td><td><span class="ds-cell ds-no">✕</span></td></tr>
+            <tr><th>C&amp;C Satisfacción SL</th><td><span class="ds-cell ds-no">✕</span></td><td><span class="ds-cell ds-no">✕</span></td><td class="on"><span class="ds-cell ds-yes">✓</span></td><td><span class="ds-cell ds-no">✕</span></td></tr>
+            <tr><th>Sin tienda Liverpool cercana</th><td><span class="ds-cell ds-no">✕</span></td><td><span class="ds-cell ds-no">✕</span></td><td><span class="ds-cell ds-no">✕</span></td><td class="on"><span class="ds-cell ds-yes">✓</span></td></tr>
+            <tr><th>Mercancía de dimensiones grandes SL</th><td><span class="ds-cell ds-no">✕</span></td><td><span class="ds-cell ds-no">✕</span></td><td><span class="ds-cell ds-no">✕</span></td><td class="on"><span class="ds-cell ds-yes">✓</span></td></tr>
+            <tr><th>Mercancía frágil rota</th><td><span class="ds-cell ds-no">✕</span></td><td class="on"><span class="ds-cell ds-yes">✓</span></td><td><span class="ds-cell ds-no">✕</span></td><td><span class="ds-cell ds-no">✕</span></td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- Matriz SL menor a $3,000 -->
+    <div class="ds-matrix-wrap" id="ds-menor">
+      <div class="ds-matrix-head">
+        <h2 class="ds-matrix-title">SL <em>menor</em> a $3,000</h2>
+        <span class="ds-matrix-tag">&lt; $3,000</span>
+      </div>
+      <p class="ds-matrix-sub">Para mercancía de hasta $3,000 pesos se trabaja de la siguiente manera según el escenario.</p>
+      <div class="ds-matrix-scroll">
+        <table class="ds-matrix">
+          <thead>
+            <tr><th>Escenario</th><th>Recogido</th><th>Devolución</th><th>Canalizar a tienda</th><th>Recogido y devolución</th></tr>
+          </thead>
+          <tbody>
+            <tr><th>Servicio SL</th><td><span class="ds-cell ds-no">✕</span></td><td class="on"><span class="ds-cell ds-yes">✓</span></td><td><span class="ds-cell ds-no">✕</span></td><td><span class="ds-cell ds-no">✕</span></td></tr>
+            <tr><th>Satisfacción SL</th><td><span class="ds-cell ds-no">✕</span></td><td><span class="ds-cell ds-no">✕</span></td><td class="on"><span class="ds-cell ds-yes">✓</span></td><td><span class="ds-cell ds-no">✕</span></td></tr>
+            <tr><th>C&amp;C Servicio SL</th><td><span class="ds-cell ds-no">✕</span></td><td class="on"><span class="ds-cell ds-yes">✓</span></td><td><span class="ds-cell ds-no">✕</span></td><td><span class="ds-cell ds-no">✕</span></td></tr>
+            <tr><th>C&amp;C Satisfacción SL</th><td><span class="ds-cell ds-no">✕</span></td><td><span class="ds-cell ds-no">✕</span></td><td class="on"><span class="ds-cell ds-yes">✓</span></td><td><span class="ds-cell ds-no">✕</span></td></tr>
+            <tr><th>Sin tienda Liverpool cercana</th><td><span class="ds-cell ds-no">✕</span></td><td class="on"><span class="ds-cell ds-yes">✓</span></td><td><span class="ds-cell ds-no">✕</span></td><td><span class="ds-cell ds-no">✕</span></td></tr>
+            <tr><th>Mercancía de dimensiones grandes SL</th><td><span class="ds-cell ds-no">✕</span></td><td><span class="ds-cell ds-no">✕</span></td><td><span class="ds-cell ds-no">✕</span></td><td class="on"><span class="ds-cell ds-yes">✓</span></td></tr>
+            <tr><th>Mercancía frágil rota</th><td><span class="ds-cell ds-no">✕</span></td><td class="on"><span class="ds-cell ds-yes">✓</span></td><td><span class="ds-cell ds-no">✕</span></td><td><span class="ds-cell ds-no">✕</span></td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- Criterios y excepciones (detalle) -->
+    <div class="bt-block" id="ds-criterios" style="border-left-color:var(--brand)">
+      <div class="bt-head" style="margin-bottom:.6rem">
+        <span class="fp-num" style="background:linear-gradient(135deg,var(--brand),var(--brand-bright))">📝</span>
+        <div>
+          <h2 class="bt-title">Criterios y excepciones</h2>
+          <div class="bt-plats"><span class="bt-plat info">Mercaderías</span><span class="bt-plat info">MKP</span></div>
+        </div>
+      </div>
+      <div class="bt-obs">
+        <span class="bt-obs-lbl">Observaciones</span>
+        <ul class="bt-obs-list">
+          <li><strong>Servicio SL</strong> = mercancía <strong>dañada, equivocada o incompleta</strong>. <strong>Satisfacción SL</strong> = el cliente <strong>no cumple expectativas</strong>.</li>
+          <li><strong>No aplica recogido</strong> en mercancía frágil: <strong>cristalería, vinos, perfumería, vajillas</strong>, etc. — en estos casos se aplica <strong>devolución</strong>.</li>
+          <li><strong>Productos grandes</strong> (hornos, pantallas 40", escritorios, aparatos de ejercicio): se genera <strong>recogido y, posteriormente, la devolución</strong>.</li>
+          <li><strong>Satisfacción SL menor a $3,000</strong>: por regla se <strong>canaliza a tienda</strong>; como excepción, si el cliente <strong>no cuenta con un Liverpool cerca</strong>, se aplica devolución con la leyenda <span class="bt-quote">Satisfacción SL</span> en SAP.</li>
+          <li>En <strong>Servicio SL mayor a $3,000</strong> el recogido se genera y la devolución se aplica <strong>cuando éste se realice</strong>.</li>
+        </ul>
+      </div>
+    </div>
+
+    <div class="bt-note" style="max-width:none"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" style="width:15px;height:15px;flex-shrink:0;margin-top:2px"><path d="M12 3 22 20H2Z"/><path d="M12 10v4M12 17v.4"/></svg><span><strong>Recuerda:</strong> ningún recogido, devolución o cambio de estatus procede sin la autorización escrita del supervisor o team leader. Si es por correo, la solicitud va a <strong>Ventas CCL &lt;ventas-ccl@liverpool.com.mx&gt;</strong>.</span></div>
+
+  </section>

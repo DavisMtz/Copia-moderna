@@ -1,0 +1,581 @@
+<style>
+/* ════════════════════════════════════════════════════════════
+   DEVOLUCIONES SAP · CONSOLA (26/09/2026)
+   El asesor llega con lo que le pasó al cliente y el monto, y lo primero que busca es qué
+   procede (respuestas del creador). A la izquierda, los casos agrupados por lo que le pasó, cada
+   uno con su respuesta debajo del nombre; a la derecha, la ficha con el nombre en el cartel de
+   Herramientas (.cs-cartel) y, en orden: qué procede, la leyenda para SAP (se copia con un clic),
+   los criterios que le tocan y «revisa también». La autorización va UNA vez, arriba.
+   El contenido está escrito aquí (no hay hoja). Es el de la sección de antes, pasado a datos:
+   las dos matrices de ✓ y ✕ caben en caso × monto → acción, porque cada fila tenía un solo ✓ y la
+   columna «Recogido» sola no la usaba ninguna. Respaldo: etiqueta git «respaldo-devsap-antes-consola».
+════════════════════════════════════════════════════════════ */
+#dv-app{--dv-top:72px;--dv-linea:color-mix(in srgb,var(--ink) 18%,var(--line));--dv-ink-brand:var(--brand-deep);--dv-alert:var(--alert);container:dv/inline-size}
+[data-theme="carbon"] #dv-app{--dv-ink-brand:#F46BC6;--dv-alert:#FB7185}
+#dv-app ::selection{background:var(--brand-soft);color:var(--ink)}
+#dv-app .ic{width:18px;height:18px;flex-shrink:0}
+:where(#dv-app) :where(b,strong){font-weight:700;color:var(--ink)}
+.dv-sr{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);clip-path:inset(50%);white-space:nowrap}
+
+/* — Autorización: la compuerta de todo, una sola vez — */
+.dv-aut{display:flex;align-items:center;gap:.85rem;margin-bottom:1rem;padding:.7rem .8rem .7rem .75rem;border-radius:18px;background:var(--surface);border:1px solid var(--line)}
+.dv-aut-ic{display:grid;place-items:center;width:38px;height:38px;flex-shrink:0;border-radius:12px;background:var(--alert-bg);color:var(--dv-alert)}
+#dv-app .dv-aut-ic .ic{width:20px;height:20px}
+.dv-aut-tx{flex:1;min-width:0;margin:0;font-size:.9rem;line-height:1.45;color:var(--ink);text-wrap:pretty}
+.dv-aut-correo{display:flex;align-items:center;gap:.6rem;flex-shrink:0}
+.dv-aut-correo > span{display:grid;line-height:1.25}
+.dv-aut-correo small{font-size:.74rem;font-weight:700;color:var(--ink-soft)}
+.dv-aut-correo code{font-family:var(--f-mono);font-size:.82rem;font-weight:600;color:var(--ink)}
+
+/* — Copiar — */
+.dv-copiar{display:inline-flex;align-items:center;gap:.35rem;height:36px;padding:0 .8rem;border-radius:11px;border:1px solid var(--line);background:var(--surface);color:var(--ink);font:inherit;font-weight:650;font-size:.82rem;cursor:pointer;white-space:nowrap;transition:border-color .15s,color .15s}
+#dv-app .dv-copiar .ic{width:14px;height:14px}
+.dv-copiar:hover{border-color:var(--brand);color:var(--dv-ink-brand)}
+/* Una leyenda es lo que se escribe en SAP: va en mono, tal cual, y el chip entero la copia */
+.dv-chips{display:flex;flex-wrap:wrap;gap:.45rem}
+.dv-chip{display:inline-flex;align-items:center;gap:.6rem;min-height:42px;padding:.3rem .4rem .3rem .8rem;border-radius:12px;border:1px solid var(--dv-linea);background:var(--surface);color:var(--ink);font:inherit;text-align:left;cursor:pointer;transition:border-color .15s}
+.dv-chip code{font-family:var(--f-mono);font-size:.9rem;font-weight:700;letter-spacing:-.01em;overflow-wrap:anywhere}
+.dv-chip > span{display:inline-flex;align-items:center;gap:.3rem;flex-shrink:0;height:30px;padding:0 .6rem;border-radius:8px;background:var(--surface-2);font-size:.76rem;font-weight:700;color:var(--ink-soft);transition:color .15s,background-color .15s}
+#dv-app .dv-chip > span .ic{width:13px;height:13px}
+.dv-chip:hover{border-color:var(--brand)}
+.dv-chip:hover > span{background:var(--brand-tint);color:var(--dv-ink-brand)}
+.dv-chip.es-listo > span{background:var(--ok-bg);color:var(--ok)}
+
+/* — Consola: lista y ficha — */
+.dv-cuerpo{display:grid;grid-template-columns:minmax(300px,.8fr) minmax(0,1.25fr);gap:1.4rem;align-items:start}
+.dv-lista{min-width:0;background:var(--surface);border:1px solid var(--line);border-radius:22px;padding:.4rem}
+/* Si no cabe en una línea (lista angosta o texto grande), los botones bajan enteros: la etiqueta no se parte */
+.dv-monto{display:flex;flex-wrap:wrap;align-items:center;gap:.3rem .6rem;padding:.3rem .3rem .3rem .85rem;margin-bottom:.15rem;border-radius:16px;background:var(--surface-2)}
+.dv-monto > span{flex:1 0 auto;font-size:.82rem;font-weight:700;color:var(--ink-soft);white-space:nowrap}
+.dv-monto-g{display:flex;gap:.25rem;margin-left:auto}
+.dv-monto button{height:38px;padding:0 .8rem;border:0;border-radius:12px;background:none;color:var(--ink-soft);font:inherit;font-weight:700;font-size:.88rem;font-variant-numeric:tabular-nums;cursor:pointer;white-space:nowrap;transition:background-color .15s,color .15s}
+.dv-monto button:hover{background:var(--surface);color:var(--ink)}
+.dv-monto button[aria-pressed="true"]{background:var(--ink);color:var(--surface)}
+.dv-opcs{display:grid;gap:.1rem}
+.dv-grupo{display:grid;gap:.1rem}
+.dv-g{display:flex;align-items:center;gap:.45rem;margin:0;padding:.8rem .65rem .3rem;font-size:.8rem;font-weight:750;color:var(--ink-soft)}
+#dv-app .dv-g .ic{width:15px;height:15px}
+.dv-opc{display:grid;gap:.18rem;padding:.55rem .7rem .6rem .75rem;border-radius:14px;cursor:pointer;outline:none;transition:background-color .15s}
+.dv-opc:hover{background:var(--surface-2)}
+.dv-opc[aria-selected="true"]{background:var(--brand-tint)}
+.dv-opc:focus-visible{box-shadow:inset 0 0 0 2px var(--brand)}
+.dv-nom{font-weight:700;font-size:.96rem;line-height:1.25;color:var(--ink)}
+.dv-opc[aria-selected="true"] .dv-nom{color:var(--dv-ink-brand)}
+.dv-res{display:flex;flex-wrap:wrap;align-items:center;gap:.2rem .4rem;font-size:.82rem;font-weight:650;line-height:1.3;color:var(--ink-soft)}
+.dv-res i{font-style:normal;color:var(--ink)}
+.dv-res code{font-family:var(--f-mono);font-size:.8rem;font-weight:700;color:var(--ink)}
+.dv-res.es-doble{display:grid;grid-template-columns:auto minmax(0,1fr);gap:.1rem .55rem;align-items:baseline}
+.dv-res.es-doble small{font-size:.76rem;font-weight:650;color:var(--ink-soft);font-variant-numeric:tabular-nums;white-space:nowrap}
+.dv-res em{font-style:normal;display:inline-flex;align-items:center;height:19px;padding:0 .4rem;border-radius:6px;background:var(--surface-2);font-size:.7rem;font-weight:750;color:var(--ink-soft)}
+.dv-opc[aria-selected="true"] .dv-res.es-doble{display:grid;grid-template-columns:auto minmax(0,1fr);gap:.1rem .55rem;align-items:baseline}
+.dv-res.es-doble small{font-size:.76rem;font-weight:650;color:var(--ink-soft);font-variant-numeric:tabular-nums;white-space:nowrap}
+.dv-res em{background:var(--surface)}
+.dv-sep{height:1px;margin:.45rem .65rem;background:var(--line)}
+.dv-ficha{position:sticky;top:calc(var(--dv-top) + 16px);min-width:0;max-height:calc(100vh - var(--dv-top) - 104px);display:flex;flex-direction:column;background:var(--surface);border:1px solid var(--line);border-radius:26px;overflow:hidden}
+.dv-ficha .cs-cartel{min-height:148px}
+.dv-ficha .cs-cartel-t{margin:0}
+.dv-ficha-cuerpo{padding:1.25rem 1.45rem 1.4rem;overflow:auto;display:grid;gap:1.15rem;align-content:start;overscroll-behavior:contain;scrollbar-width:thin;scrollbar-color:var(--dv-linea) transparent}
+
+/* — Ficha: qué procede, leyenda, criterios, revisa también — */
+.dv-bloque{display:grid;gap:.6rem}
+.dv-bloque + .dv-bloque{padding-top:1.05rem;border-top:1px solid var(--line-soft)}
+.dv-bloque h3{display:flex;align-items:center;gap:.45rem;margin:0;font-size:.96rem;font-weight:750;color:var(--ink)}
+#dv-app .dv-bloque h3 .ic{width:16px;height:16px;color:var(--dv-ink-brand)}
+.dv-bloque h4{margin:.2rem 0 0;font-size:.8rem;font-weight:750;color:var(--ink-soft);font-variant-numeric:tabular-nums}
+.dv-resp{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:.6rem}
+.dv-resp.es-una{grid-template-columns:minmax(0,1fr)}
+.dv-r{display:grid;gap:.35rem;align-content:start;padding:.95rem 1.05rem 1.05rem;border-radius:18px;background:var(--surface-2);border:1px solid transparent;transition:background-color .2s,border-color .2s}
+.dv-r > small{font-size:.8rem;font-weight:700;color:var(--ink-soft);font-variant-numeric:tabular-nums}
+.dv-r-acc{display:flex;align-items:center;gap:.55rem;margin:0}
+#dv-app .dv-r-acc .ic{width:26px;height:26px;color:var(--ink-soft)}
+.dv-r-acc b{font-family:var(--f-display);font-weight:800;font-stretch:84%;font-size:clamp(1.45rem,1.1rem + 1vw,1.95rem);line-height:1.05;letter-spacing:-.01em;text-wrap:balance;color:var(--ink)}
+.dv-r-nota{margin:0;font-size:.84rem;line-height:1.45;color:var(--ink-soft);text-wrap:pretty}
+.dv-r.es-elegido{background:var(--brand-tint);border-color:var(--brand-soft)}
+#dv-app .dv-r.es-elegido .dv-r-acc .ic{color:var(--dv-ink-brand)}
+.dv-r.es-otro{background:transparent;border-color:var(--line)}
+.dv-r.es-otro .dv-r-acc b{font-size:1.15rem;color:var(--ink-soft)}
+#dv-app .dv-r.es-otro .dv-r-acc .ic{width:20px;height:20px}
+.dv-ley{display:grid;gap:.5rem}
+.dv-ley + .dv-ley{padding-top:.7rem}
+.dv-cuando{margin:0;font-size:.92rem;line-height:1.55;max-width:70ch;color:var(--ink);text-wrap:pretty}
+.dv-sin{margin:0;font-size:.92rem;line-height:1.55;color:var(--ink-soft)}
+.dv-meta{display:flex;flex-wrap:wrap;gap:.35rem}
+.dv-meta span{display:inline-flex;align-items:center;min-height:26px;padding:.1rem .6rem;border-radius:8px;background:var(--surface-2);font-size:.76rem;font-weight:700;color:var(--ink-soft)}
+.dv-crit{list-style:none;margin:0;padding:0;display:grid;gap:.45rem;font-size:.92rem;line-height:1.5;max-width:74ch}
+.dv-crit li{position:relative;padding-left:1.1rem;text-wrap:pretty}
+.dv-crit li::before{content:"";position:absolute;left:.15rem;top:.62em;width:6px;height:6px;border-radius:2px;background:var(--dv-linea)}
+.dv-ver{display:flex;flex-wrap:wrap;gap:.4rem}
+.dv-ir{display:inline-flex;align-items:center;gap:.45rem;min-height:38px;padding:.3rem .75rem;border-radius:11px;border:1px solid var(--line);background:var(--surface);color:var(--ink);font:inherit;font-size:.86rem;font-weight:650;text-align:left;cursor:pointer;transition:border-color .15s,background-color .15s}
+.dv-ir small{font-weight:600;font-size:.82rem;color:var(--ink-soft)}
+#dv-app .dv-ir .ic{width:14px;height:14px;color:var(--ink-soft)}
+.dv-ir:hover{border-color:var(--dv-linea);background:var(--surface-2)}
+.dv-gl{display:grid;gap:.6rem}
+.dv-gl + .dv-gl{padding-top:1.1rem;border-top:1px solid var(--line-soft)}
+.dv-gl h3{margin:0;font-family:var(--f-display);font-weight:800;font-stretch:84%;font-size:1.15rem;line-height:1.2}
+.dv-gl .dv-ver{margin-top:.1rem}
+.dv-gl-va{font-size:.8rem;font-weight:750;color:var(--ink-soft)}
+
+/* — Foco — */
+#dv-app button:focus-visible{outline:2.5px solid var(--brand);outline-offset:2px}
+#dv-app .dv-ficha-cuerpo:focus-visible{outline:2.5px solid var(--brand);outline-offset:-3px}
+
+/* — Densidad compacta y alto contraste (Ajustes de vista) — */
+html[data-density="compact"] .dv-opc{padding-top:.38rem;padding-bottom:.4rem}
+html[data-density="compact"] .dv-g{padding-top:.55rem}
+html[data-density="compact"] .dv-ficha .cs-cartel{min-height:116px}
+html[data-density="compact"] .dv-ficha-cuerpo{gap:.85rem;padding:1rem 1.2rem 1.1rem}
+html[data-density="compact"] .dv-r{padding:.75rem .9rem .85rem}
+html[data-contrast="high"] .dv-lista,html[data-contrast="high"] .dv-ficha,html[data-contrast="high"] .dv-aut{border-width:2px}
+html[data-contrast="high"] .dv-r.es-otro,html[data-contrast="high"] .dv-chip{border-color:var(--ink-soft)}
+
+/* Según el ancho de la sección, en em: escala con los cuatro tamaños de texto. Debajo, la lista va
+   arriba y la ficha abajo, sin quedarse fija; tocar un caso baja hasta su ficha. */
+@container dv (max-width:54em){
+  .dv-cuerpo{grid-template-columns:minmax(0,1fr)}
+  .dv-ficha{position:static;max-height:none;scroll-margin-top:96px}
+  .dv-ficha-cuerpo{overflow:visible}
+}
+@container dv (max-width:40em){
+  .dv-aut{flex-wrap:wrap;align-items:flex-start}
+  .dv-aut-correo{width:100%;justify-content:space-between;padding-left:calc(38px + .85rem)}
+  .dv-resp{grid-template-columns:minmax(0,1fr)}
+}
+@container dv (max-width:30em){
+  .dv-aut-correo{padding-left:0}
+  .dv-monto{flex-wrap:wrap;padding-left:.3rem}
+  .dv-monto > span{flex:1 1 100%;padding:.3rem .55rem 0}
+  .dv-monto-g{flex:1 1 100%}
+  .dv-monto button{flex:1}
+  .dv-ficha-cuerpo{padding:1rem 1.05rem 1.2rem}
+  .dv-ficha .cs-cartel{min-height:116px}
+  .dv-ficha .cs-cartel.tam-s .cs-cartel-t{font-size:2.7rem}
+  .dv-ficha .cs-cartel.tam-m .cs-cartel-t{font-size:2.1rem}
+  .dv-ficha .cs-cartel.tam-l .cs-cartel-t{font-size:1.75rem}
+  .dv-ficha .cs-cartel-s{font-size:1rem}
+}
+@media (prefers-reduced-motion:reduce){ #dv-app .dv-opc,#dv-app .dv-r,#dv-app .dv-chip,#dv-app .dv-chip > span,#dv-app .dv-ir,#dv-app .dv-copiar,#dv-app .dv-monto button{transition:none} }
+@media print{ .dv-monto{display:none} .dv-ficha{position:static;max-height:none} .dv-ficha-cuerpo{overflow:visible} }
+</style>
+<script>
+/* Devoluciones SAP · la consola de #sec-devsap (el hueco vive en Index.html: <div id="dv-app">).
+   Lo que el guion grande llama:
+     · dvAlEntrar()  — switchSec al abrir la sección: la pinta la primera vez.
+     · dvRevelar(el) — revealTarget, con el buscador o un ?item=: elige el caso, pone el monto o
+                       enseña la leyenda; devuelve true si lo atendió.
+   Los id ds-* (app_indices.html, DEVSAP) son un contrato: el buscador y los enlaces llegan por ellos.
+   Están en la lista, que siempre está pintada, y no en la ficha, que cambia. */
+(function(){
+  'use strict';
+
+  /* ── El contenido (el de la sección de antes, pasado a datos) ── */
+  var AUT = { nombre: 'Ventas CCL', dir: 'ventas-ccl@liverpool.com.mx', correo: 'Ventas CCL <ventas-ccl@liverpool.com.mx>' };
+  /* «Hasta $3,000» incluye los $3,000: la matriz menor decía «de hasta $3,000 pesos» y la mayor «de más de $3,000 pesos». */
+  var MONTOS = [
+    { id: 'hasta', nombre: 'Hasta $3,000', ancla: 'ds-menor' },
+    { id: 'mas', nombre: 'Más de $3,000', ancla: 'ds-mayor' }
+  ];
+  var ACC = {
+    devolucion: { nombre: 'Devolución', ic: 'regreso' },
+    recogido_dev: { nombre: 'Recogido y devolución', ic: 'camion' },
+    canalizar: { nombre: 'Canalizar a tienda', ic: 'tienda' }
+  };
+  /* La leyenda de Servicio SL se escribe con espacio, como en la hoja de Homologación (el creador,
+     26/09/2026). Antes el Portal la copiaba junta, sin el espacio. */
+  var LEYENDAS = [
+    { id: 'servicio-sl', ancla: 'ds-servicio-sl', escenario: 'Servicio SL',
+      textos: ['Servicio SL/dañada', 'Servicio SL/incompleta', 'Servicio SL/equivocada'],
+      cuando: 'Aplica para mercancía que llegó dañada, incompleta o equivocada. Se coloca la leyenda de acuerdo al caso.',
+      nota: 'No es necesario correo soporte.', ambito: 'Mercaderías y MKP Soft Line' },
+    { id: 'enr', ancla: 'ds-enr', escenario: 'ENR', textos: ['Reconocida'],
+      cuando: 'Aplica cuando el cliente indica no reconocer la entrega y no se cuenta con evidencia en las diversas plataformas.',
+      ambito: 'Mercaderías y MKP Soft Line' },
+    { id: 'satisfaccion-sl', ancla: 'ds-satisfaccion-sl', escenario: 'Satisfacción SL', textos: ['Satisfacción SL'],
+      cuando: 'Aplica cuando el cliente no cuenta con una tienda Liverpool cerca, el producto es menor a $3,000 y solicita la devolución.',
+      ambito: 'Mercaderías y MKP Soft Line' },
+    { id: 'correo-soporte', ancla: 'ds-correo-soporte', escenario: 'Correo soporte', textos: ['Correo soporte'],
+      cuando: 'Aplica cuando se tiene autorización por recogido vencido, descargas digitales, bonificaciones, cuando el semáforo de PAO no permite cambio de estatus o cuando se tiene autorización en cadena de correos.',
+      lista: ['Hay autorización por recogido vencido', 'Hay autorización por descargas digitales', 'Hay autorización por bonificaciones', 'El semáforo de PAO no permite el cambio de estatus', 'Hay autorización en cadena de correos'],
+      ambito: 'Mercaderías SL, MKP y BT, sólo en órdenes de venta' }
+  ];
+  var CRITERIOS = [
+    { id: 'definicion', html: '<b>Servicio SL</b> = mercancía <b>dañada, equivocada o incompleta</b>. <b>Satisfacción SL</b> = el cliente <b>no cumple expectativas</b>.' },
+    { id: 'fragil', html: '<b>No aplica recogido</b> en mercancía frágil: <b>cristalería, vinos, perfumería, vajillas</b>, etc. — en estos casos se aplica <b>devolución</b>.' },
+    { id: 'grandes', html: '<b>Productos grandes</b> (hornos, pantallas 40", escritorios, aparatos de ejercicio): se genera <b>recogido y, posteriormente, la devolución</b>.' },
+    { id: 'sin-tienda', monto: 'hasta', html: '<b>Satisfacción SL menor a $3,000</b>: por regla se <b>canaliza a tienda</b>; como excepción, si el cliente <b>no cuenta con un Liverpool cerca</b>, se aplica devolución con la leyenda «Satisfacción SL» en SAP.' },
+    { id: 'servicio-mas', monto: 'mas', html: 'En <b>Servicio SL mayor a $3,000</b> el recogido se genera y la devolución se aplica <b>cuando éste se realice</b>.' }
+  ];
+  /* Así llega el asesor: por lo que le pasó al cliente (el creador, 26/09/2026). */
+  var GRUPOS = [
+    { id: 'mal', nombre: 'Le llegó mal', ic: 'roto' },
+    { id: 'gusto', nombre: 'No le gustó', ic: 'cara' },
+    { id: 'grande', nombre: 'Es un producto grande', ic: 'caja' },
+    { id: 'enr', nombre: 'No reconoce la entrega', ic: 'alto' },
+    { id: 'otros', nombre: 'Otros casos', ic: 'correo' }
+  ];
+  /* Los siete escenarios de las matrices y los dos casos del glosario que no estaban en ellas.
+     `acc`: la acción por monto, de la matriz. `ley`: la leyenda para SAP; donde la tabla no la
+     nombraba, va «por lo que le pasó» (regla del creador, 26/09/2026): llegó dañada, incompleta o
+     equivocada → Servicio SL/…; no le gustó → Satisfacción SL. `por` la explica y `si` la condiciona.
+     Solo se enseña en los montos cuya acción no es canalizar a tienda. `ver`: navegación, no prioridad. */
+  var CASOS = [
+    { id: 'servicio', ancla: 'ds-esc-servicio', grupo: 'mal', nombre: 'Servicio SL', sub: 'Llegó dañada, incompleta o equivocada',
+      acc: { hasta: 'devolucion', mas: 'recogido_dev' }, ley: [{ id: 'servicio-sl' }], crit: ['definicion', 'servicio-mas'],
+      ver: [{ id: 'fragil', q: '¿Es frágil y llegó rota?' }, { id: 'grandes', q: '¿Es un producto grande?' }, { id: 'cc-servicio', q: '¿Es pedido C&C?' }] },
+    { id: 'fragil', ancla: 'ds-esc-fragil', grupo: 'mal', nombre: 'Mercancía frágil rota', sub: 'Cristalería, vinos, perfumería, vajillas…',
+      acc: { hasta: 'devolucion', mas: 'devolucion' }, ley: [{ id: 'servicio-sl', textos: ['Servicio SL/dañada'], por: 'Llegó rota: es mercancía dañada.' }],
+      crit: ['fragil'], ver: [{ id: 'servicio', q: 'El caso general' }] },
+    { id: 'cc-servicio', ancla: 'ds-esc-cc-servicio', grupo: 'mal', nombre: 'C&C Servicio SL', sub: 'Pedido C&C que llegó dañado, incompleto o equivocado',
+      acc: { hasta: 'devolucion', mas: 'canalizar' }, ley: [{ id: 'servicio-sl', por: 'Por lo que le pasó: llegó dañada, incompleta o equivocada.' }],
+      crit: ['definicion'], ver: [{ id: 'servicio', q: 'El caso general' }] },
+    { id: 'satisfaccion', ancla: 'ds-esc-satisfaccion', grupo: 'gusto', nombre: 'Satisfacción SL', sub: 'No cumple sus expectativas',
+      acc: { hasta: 'canalizar', mas: 'canalizar' }, ley: [], crit: ['definicion', 'sin-tienda'],
+      ver: [{ id: 'sin-tienda', q: '¿No tiene un Liverpool cerca?' }, { id: 'cc-satisfaccion', q: '¿Es pedido C&C?' }, { id: 'grandes', q: '¿Es un producto grande?' }] },
+    { id: 'sin-tienda', ancla: 'ds-esc-sin-tienda', grupo: 'gusto', nombre: 'Sin tienda Liverpool cercana', sub: 'No le gustó y no tiene un Liverpool cerca',
+      acc: { hasta: 'devolucion', mas: 'recogido_dev' }, ley: [{ id: 'satisfaccion-sl', por: 'Por lo que le pasó: no le gustó y no tiene un Liverpool cerca.' }],
+      crit: ['sin-tienda'], ver: [{ id: 'satisfaccion', q: 'El caso general' }] },
+    { id: 'cc-satisfaccion', ancla: 'ds-esc-cc-satisfaccion', grupo: 'gusto', nombre: 'C&C Satisfacción SL', sub: 'Pedido C&C que no cumple sus expectativas',
+      acc: { hasta: 'canalizar', mas: 'canalizar' }, ley: [], crit: ['definicion'], ver: [{ id: 'satisfaccion', q: 'El caso general' }] },
+    { id: 'grandes', ancla: 'ds-esc-grandes', grupo: 'grande', nombre: 'Mercancía de dimensiones grandes SL', sub: 'Hornos, pantallas 40", escritorios, aparatos de ejercicio',
+      acc: { hasta: 'recogido_dev', mas: 'recogido_dev' },
+      ley: [{ id: 'servicio-sl', si: 'Si llegó dañada, incompleta o equivocada' }, { id: 'satisfaccion-sl', si: 'Si no le gustó', sinTexto: true }],
+      crit: ['grandes'], ver: [{ id: 'servicio', q: 'Le llegó mal' }, { id: 'satisfaccion', q: 'No le gustó' }] },
+    { id: 'enr', ancla: 'ds-enr', grupo: 'enr', nombre: 'ENR', sub: 'No reconoce la entrega y no hay evidencia',
+      acc: null, leyenda: 'enr', crit: [], ver: [],
+      traz: [{ sec: 'softline', nombre: 'Soft Line' }, { sec: 'slmensajerias', nombre: 'SL Mensajerías' }, { sec: 'mkp', nombre: 'MarketPlace' }] },
+    { id: 'correo', ancla: 'ds-correo-soporte', grupo: 'otros', nombre: 'Correo soporte', sub: 'Autorización por correo o el semáforo de PAO',
+      acc: null, leyenda: 'correo-soporte', crit: [], ver: [] }
+  ];
+  var ESPECIALES = [
+    { id: 'glosario', ancla: 'ds-glosario', nombre: 'Las cuatro leyendas', sub: 'Cuándo va cada una', cartel: 'Leyendas', cartelSub: 'Para SAP ECC, y cuándo va cada una' },
+    { id: 'criterios', ancla: 'ds-criterios', nombre: 'Criterios y excepciones', sub: 'Las cinco reglas de la tabla', cartel: 'Criterios', cartelSub: 'Las excepciones que cambian la respuesta' }
+  ];
+
+  function porId(l){ var m = {}; l.forEach(function(x){ m[x.id] = x; }); return m; }
+  var LEY = porId(LEYENDAS), CRIT = porId(CRITERIOS), CASO = porId(CASOS), ESP = porId(ESPECIALES);
+  function casosDe(g){ return CASOS.filter(function(k){ return k.grupo === g; }); }
+  function accion(k, m){ return k.acc ? ACC[k.acc[m]] : null; }
+  function depende(k){ return !!(k.acc && k.acc.hasta !== k.acc.mas); }
+  function montoDe(id){ return MONTOS.filter(function(m){ return m.id === id; })[0]; }
+
+  /* ── Estado ── */
+  var st = { monto: '', sel: 'servicio' };
+  var app = null, lista = null, ficha = null;
+
+  /* GS(), flashEl(), clearPendingOpen()… son del guion grande (globales): se consultan al usarse. */
+  function gs(){ try { return typeof GS === 'function' ? !!GS() : false; } catch (e) { return false; } }
+  function esc(s){ return String(s == null ? '' : s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#39;'); }
+  var DIBUJOS = {
+    regreso: '<path d="M9 7 4.5 11.5 9 16"/><path d="M5 11.5h9.5a5 5 0 0 1 0 10H12"/>',
+    camion: '<path d="M2.5 6.5h11v9h-11z"/><path d="M13.5 9.5h4l3 3.2v2.8h-7"/><circle cx="6.5" cy="17.5" r="1.8"/><circle cx="16.5" cy="17.5" r="1.8"/>',
+    tienda: '<path d="M4 9.5 5.5 4.5h13L20 9.5"/><path d="M4 9.5c0 1.4 1.1 2.5 2.7 2.5s2.6-1.1 2.6-2.5c0 1.4 1.1 2.5 2.7 2.5s2.7-1.1 2.7-2.5c0 1.4 1 2.5 2.6 2.5S20 10.9 20 9.5"/><path d="M5.5 12v7.5h13V12"/><path d="M10 19.5v-4h4v4"/>',
+    escudo: '<path d="M12 3 4.5 6v5.6c0 4.3 3 7.5 7.5 8.9 4.5-1.4 7.5-4.6 7.5-8.9V6Z"/><path d="m9 12 2.2 2.2L15.3 10"/>',
+    copiar: '<rect x="8.5" y="8.5" width="11" height="11" rx="2"/><path d="M15.5 8.5V6a1.5 1.5 0 0 0-1.5-1.5H6A1.5 1.5 0 0 0 4.5 6v8A1.5 1.5 0 0 0 6 15.5h2.5"/>',
+    listo: '<path d="m5 12.5 4.5 4.5L19 7.5"/>',
+    correo: '<rect x="3" y="5.5" width="18" height="13" rx="2.2"/><path d="m3.8 7 8.2 6 8.2-6"/>',
+    roto: '<path d="M3.5 8 12 4l8.5 4v8L12 20l-8.5-4Z"/><path d="m9.5 10 2 2.5-1.5 2 2 2.5"/>',
+    cara: '<circle cx="12" cy="12" r="8.5"/><path d="M8.8 16c1.8-1.5 4.6-1.5 6.4 0"/><path d="M9.2 10h.01M14.8 10h.01"/>',
+    caja: '<path d="M3.5 8 12 4l8.5 4v8L12 20l-8.5-4Z"/><path d="M3.5 8 12 12l8.5-4M12 12v8"/>',
+    alto: '<circle cx="12" cy="12" r="8.5"/><path d="M12 7.5v5.5M12 16.2v.3"/>',
+    flecha: '<path d="M5 12h14M13 6l6 6-6 6"/>',
+    lista: '<path d="M9 6.5h11M9 12h11M9 17.5h11"/><circle cx="4.6" cy="6.5" r="1"/><circle cx="4.6" cy="12" r="1"/><circle cx="4.6" cy="17.5" r="1"/>',
+    etiqueta: '<path d="M3.5 12.2V4.5a1 1 0 0 1 1-1h7.7l8.3 8.3a1.4 1.4 0 0 1 0 2l-6.7 6.7a1.4 1.4 0 0 1-2 0Z"/><circle cx="8" cy="8" r="1.4"/>',
+    ruta: '<circle cx="6" cy="18" r="2"/><circle cx="18" cy="6" r="2"/><path d="M8 18h6.5a3.5 3.5 0 0 0 0-7h-5a3.5 3.5 0 0 1 0-7H16"/>'
+  };
+  function ic(n){
+    return '<svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">' + (DIBUJOS[n] || '') + '</svg>';
+  }
+
+  /* ── Piezas ── */
+  function autHTML(){
+    return '<div class="dv-aut" id="ds-autorizacion">' +
+      '<span class="dv-aut-ic">' + ic('escudo') + '</span>' +
+      '<p class="dv-aut-tx"><b>Antes de cualquier devolución, recogido o cambio de estatus:</b> autorización por escrito de un supervisor o team leader. Sin ella, el proceso no se realiza.</p>' +
+      '<div class="dv-aut-correo"><span><small>Por correo, a ' + esc(AUT.nombre) + '</small><code>' + esc(AUT.dir) + '</code></span>' +
+        '<button type="button" class="dv-copiar" data-dv-copiar="' + esc(AUT.correo) + '" aria-label="Copiar el correo de Ventas CCL">' + ic('copiar') + 'Copiar</button></div>' +
+    '</div>';
+  }
+  function montoHTML(){
+    return '<div class="dv-monto" role="group" aria-label="Monto de la mercancía"><span>¿Cuánto vale?</span><div class="dv-monto-g">' +
+      MONTOS.map(function(m){
+        return '<button type="button" id="' + m.ancla + '" data-dv-monto="' + m.id + '" aria-pressed="' + (st.monto === m.id) + '">' + esc(m.nombre) + '</button>';
+      }).join('') + '</div></div>';
+  }
+  function chipsHTML(textos){
+    return '<div class="dv-chips">' + textos.map(function(t){
+      return '<button type="button" class="dv-chip" data-dv-copiar="' + esc(t) + '" aria-label="Copiar la leyenda ' + esc(t) + '"><code>' + esc(t) + '</code><span>' + ic('copiar') + 'Copiar</span></button>';
+    }).join('') + '</div>';
+  }
+  /* La respuesta corta de la lista: la del monto elegido; sin monto, las dos si cambian, cada una con su monto delante
+     (una «o» entre las dos se leía como si el asesor pudiera escoger). */
+  function resHTML(k){
+    if (!k.acc) return '<span class="dv-res">Leyenda <code>' + esc(LEY[k.leyenda].textos[0]) + '</code></span>';
+    if (!depende(k)) return '<span class="dv-res"><i>' + esc(accion(k, 'hasta').nombre) + '</i>' + (st.monto ? '' : '<em>Cualquier monto</em>') + '</span>';
+    if (st.monto) return '<span class="dv-res"><i>' + esc(accion(k, st.monto).nombre) + '</i></span>';
+    return '<span class="dv-res es-doble">' + MONTOS.map(function(m){ return '<small>' + esc(m.nombre) + '</small><i>' + esc(accion(k, m.id).nombre) + '</i>'; }).join('') + '</span>';
+  }
+  function opcHTML(id, nombre, resTxt, ancla, extra){
+    var sel = st.sel === id;
+    return '<div class="dv-opc" role="option" id="' + ancla + '" data-dv="' + id + '" tabindex="' + (sel ? 0 : -1) + '" aria-selected="' + sel + '">' +
+      '<span class="dv-nom">' + esc(nombre) + '</span>' + resTxt + (extra || '') + '</div>';
+  }
+  function listaHTML(){
+    return '<div class="dv-opcs" role="listbox" aria-label="Lo que le pasó al cliente">' +
+      GRUPOS.map(function(g){
+        return '<div class="dv-grupo" role="group" aria-labelledby="dv-g-' + g.id + '"><p class="dv-g" id="dv-g-' + g.id + '">' + ic(g.ic) + esc(g.nombre) + '</p>' +
+          casosDe(g.id).map(function(k){ return opcHTML(k.id, k.nombre, resHTML(k), k.ancla); }).join('') + '</div>';
+      }).join('') +
+      '<div class="dv-sep" role="presentation"></div>' +
+      '<div class="dv-grupo" role="group" aria-label="Para consultar">' +
+      /* Las leyendas de Servicio SL y Satisfacción SL no son un caso: su ancla vive en el glosario. */
+      opcHTML('glosario', ESP.glosario.nombre, '<span class="dv-res">' + esc(ESP.glosario.sub) + '</span>', ESP.glosario.ancla,
+        '<span id="' + LEY['servicio-sl'].ancla + '" data-dv-ley="servicio-sl" hidden></span><span id="' + LEY['satisfaccion-sl'].ancla + '" data-dv-ley="satisfaccion-sl" hidden></span>') +
+      opcHTML('criterios', ESP.criterios.nombre, '<span class="dv-res">' + esc(ESP.criterios.sub) + '</span>', ESP.criterios.ancla) +
+      '</div></div>';
+  }
+
+  /* Qué procede. Sin monto, las dos respuestas iguales; con monto, la elegida en grande. */
+  function notaAccion(k, m){
+    if (k.id === 'servicio' && m === 'mas') return '<p class="dv-r-nota">La devolución se aplica cuando se realice el recogido.</p>';
+    if (k.id === 'fragil') return '<p class="dv-r-nota">En mercancía frágil no aplica recogido.</p>';
+    if (k.id === 'grandes') return '<p class="dv-r-nota">Primero el recogido; después, la devolución.</p>';
+    return '';
+  }
+  function respuestaHTML(k){
+    if (!depende(k)) {
+      var a = accion(k, 'hasta');
+      return '<div class="dv-resp es-una"><div class="dv-r"><small>Con cualquier monto</small><p class="dv-r-acc">' + ic(a.ic) + '<b>' + esc(a.nombre) + '</b></p>' + notaAccion(k, 'hasta') + '</div></div>';
+    }
+    return '<div class="dv-resp">' + MONTOS.map(function(m){
+      var a = accion(k, m.id), cls = st.monto ? (st.monto === m.id ? ' es-elegido' : ' es-otro') : '';
+      return '<div class="dv-r' + cls + '"><small>' + esc(m.nombre) + '</small><p class="dv-r-acc">' + ic(a.ic) + '<b>' + esc(a.nombre) + '</b></p>' +
+        (st.monto && st.monto !== m.id ? '' : notaAccion(k, m.id)) + '</div>';
+    }).join('') + '</div>';
+  }
+  function leyHTML(L, opt){
+    opt = opt || {};
+    /* sinTexto: la frase del glosario de Satisfacción SL dice «menor a $3,000» y un producto grande puede costar más. */
+    var cuando = opt.sinTexto ? '' : opt.por ? esc(opt.por) : esc(L.cuando) + (L.nota ? ' <b>' + esc(L.nota) + '</b>' : '');
+    return '<div class="dv-ley" data-dv-bloque="' + L.id + '">' + (opt.titulo ? '<h4>' + esc(opt.titulo) + '</h4>' : '') +
+      chipsHTML(opt.textos || L.textos) + (cuando ? '<p class="dv-cuando">' + cuando + '</p>' : '') + '</div>';
+  }
+  /* La leyenda solo en los montos cuya acción la necesita. Al canalizar a tienda no se registra leyenda en SAP
+     (el creador, 26/09/2026: «No, no se registra»), y la ficha lo dice cuando todo lo que se ve es canalizar. */
+  function leyendasHTML(k){
+    if (!k.acc) {
+      var L0 = LEY[k.leyenda];
+      /* Correo soporte: sus cinco supuestos en lista, que se barren mejor que la frase del glosario. */
+      var cuerpo = L0.lista ? chipsHTML(L0.textos) + '<p class="dv-cuando">Aplica cuando:</p><ul class="dv-crit">' +
+        L0.lista.map(function(x){ return '<li>' + esc(x) + '</li>'; }).join('') + '</ul>' : leyHTML(L0);
+      return '<section class="dv-bloque"><h3>' + ic('etiqueta') + 'La leyenda en SAP</h3>' + cuerpo +
+        '<div class="dv-meta"><span>' + esc(L0.ambito) + '</span></div></section>';
+    }
+    var montos = st.monto ? [st.monto] : ['hasta', 'mas'];
+    var aplica = montos.filter(function(m){ return k.acc[m] !== 'canalizar'; });
+    if (!aplica.length) return '<section class="dv-bloque"><h3>' + ic('etiqueta') + 'La leyenda en SAP</h3><p class="dv-sin">Al canalizar a tienda no se registra leyenda en SAP.</p></section>';
+    if (!k.ley.length) return '';
+    var solo = (aplica.length === 1 && depende(k)) ? montoDe(aplica[0]).nombre : '';
+    return '<section class="dv-bloque"><h3>' + ic('etiqueta') + 'La leyenda en SAP' + (solo ? ' <small class="dv-sr">para ' + esc(solo) + '</small>' : '') + '</h3>' +
+      (solo && !st.monto ? '<h4>' + esc(solo) + '</h4>' : '') +
+      k.ley.map(function(x){ return leyHTML(LEY[x.id], { textos: x.textos, por: x.por, titulo: x.si, sinTexto: x.sinTexto }); }).join('') + '</section>';
+  }
+  /* Con un monto elegido, el criterio del otro monto no sale: la ficha de un horno de $12,000 no dice «menor a $3,000». */
+  function criteriosHTML(k){
+    var ids = k.crit.filter(function(id){ return !(st.monto && CRIT[id].monto && CRIT[id].monto !== st.monto); });
+    if (!ids.length) return '';
+    return '<section class="dv-bloque"><h3>' + ic('lista') + 'Criterios</h3><ul class="dv-crit">' +
+      ids.map(function(id){ return '<li>' + CRIT[id].html + '</li>'; }).join('') + '</ul></section>';
+  }
+  function verHTML(k){
+    if (k.traz) {
+      return '<section class="dv-bloque"><h3>' + ic('ruta') + 'El proceso en Trazabilidad</h3><div class="dv-ver">' + k.traz.map(function(t){
+        return '<button type="button" class="dv-ir" data-dv-traz="' + t.sec + '">Entrega no reconocida <small>' + esc(t.nombre) + '</small>' + ic('flecha') + '</button>';
+      }).join('') + '</div></section>';
+    }
+    if (!k.ver.length) return '';
+    return '<section class="dv-bloque"><h3>' + ic('flecha') + 'Revisa también</h3><div class="dv-ver">' + k.ver.map(function(v){
+      return '<button type="button" class="dv-ir" data-dv-ir="' + v.id + '">' + esc(v.q) + ' <small>' + esc(CASO[v.id].nombre) + '</small>' + ic('flecha') + '</button>';
+    }).join('') + '</div></section>';
+  }
+  /* En qué casos va cada leyenda (para el glosario): se saca del modelo, no se escribe dos veces. Con la condición
+     cuando la hay («si no le gustó») o el monto cuando solo va en uno («hasta $3,000»). */
+  function vaEn(idLey){
+    return CASOS.filter(function(k){ return k.acc && k.ley.some(function(x){ return x.id === idLey; }); }).map(function(k){
+      var x = k.ley.filter(function(y){ return y.id === idLey; })[0];
+      var solo = ['hasta', 'mas'].filter(function(m){ return k.acc[m] !== 'canalizar'; });
+      var nota = x.si ? x.si.charAt(0).toLowerCase() + x.si.slice(1) : (solo.length === 1 ? montoDe(solo[0]).nombre.toLowerCase() : '');
+      return { k: k, nota: nota };
+    });
+  }
+  function glosarioHTML(){
+    return LEYENDAS.map(function(L){
+      var casos = vaEn(L.id);
+      return '<div class="dv-gl" data-dv-bloque="' + L.id + '"><h3>' + esc(L.escenario) + '</h3>' + chipsHTML(L.textos) +
+        '<p class="dv-cuando">' + esc(L.cuando) + (L.nota ? ' <b>' + esc(L.nota) + '</b>' : '') + '</p>' +
+        '<div class="dv-meta"><span>' + esc(L.ambito) + '</span></div>' +
+        (casos.length ? '<span class="dv-gl-va">Va en</span><div class="dv-ver">' + casos.map(function(c){
+          return '<button type="button" class="dv-ir" data-dv-ir="' + c.k.id + '">' + esc(c.k.nombre) + (c.nota ? ' <small>' + esc(c.nota) + '</small>' : '') + ic('flecha') + '</button>';
+        }).join('') + '</div>' : '') + '</div>';
+    }).join('');
+  }
+  function cartelHTML(t, s){
+    var n = t.length, tam = n <= 16 ? 's' : n <= 24 ? 'm' : 'l';
+    return '<div class="cs-cartel tam-' + tam + '"><h2 class="cs-cartel-t" id="dvTitulo">' + esc(t) + '</h2><span class="cs-cartel-s">' + esc(s) + '</span></div>';
+  }
+  function fichaHTML(id){
+    var k = CASO[id];
+    if (k) {
+      var qp = k.acc ? '<section class="dv-bloque"><h3>' + ic('flecha') + 'Qué procede</h3>' + respuestaHTML(k) + '</section>' : '';
+      return cartelHTML(k.nombre, k.sub) + '<div class="dv-ficha-cuerpo" tabindex="-1">' + qp + leyendasHTML(k) + criteriosHTML(k) + verHTML(k) + '</div>';
+    }
+    var e = ESP[id] || ESP.glosario;
+    var cuerpo = e.id === 'glosario' ? glosarioHTML()
+      : '<ul class="dv-crit">' + CRITERIOS.map(function(c){ return '<li>' + c.html + '</li>'; }).join('') + '</ul>';
+    return cartelHTML(e.cartel, e.cartelSub) + '<div class="dv-ficha-cuerpo" tabindex="-1">' + cuerpo + '</div>';
+  }
+
+  /* ── Pintar y elegir ── */
+  function elegir(id, opts){
+    opts = opts || {};
+    if (!CASO[id] && !ESP[id]) id = 'servicio';
+    st.sel = id;
+    lista.querySelectorAll('.dv-opc').forEach(function(o){
+      var on = o.getAttribute('data-dv') === id;
+      o.setAttribute('aria-selected', String(on)); o.tabIndex = on ? 0 : -1;
+      if (on && opts.foco) o.focus({ preventScroll: true });
+    });
+    ficha.innerHTML = fichaHTML(id);
+    if (!opts.quieto && gs() && !document.hidden) {
+      var t = ficha.querySelector('.cs-cartel-t');
+      var tw = t ? gsap.fromTo(t, { y: 14, opacity: 0 }, { y: 0, opacity: 1, duration: .3, ease: 'power3.out', clearProps: 'transform,opacity' }) : null;
+      /* Red de seguridad: con el reloj de la pestaña congelado, el título no se queda a medias. */
+      if (tw) setTimeout(function(){ tw.progress(1); }, 1100);
+    }
+  }
+  function repintarRespuestas(){
+    lista.querySelectorAll('.dv-opc').forEach(function(o){
+      var k = CASO[o.getAttribute('data-dv')];
+      if (!k) return;
+      var r = o.querySelector('.dv-res');
+      if (r) r.outerHTML = resHTML(k);
+    });
+    lista.querySelectorAll('[data-dv-monto]').forEach(function(b){ b.setAttribute('aria-pressed', String(b.getAttribute('data-dv-monto') === st.monto)); });
+    var cuerpo = ficha.querySelector('.dv-ficha-cuerpo'), y = cuerpo ? cuerpo.scrollTop : 0;
+    ficha.innerHTML = fichaHTML(st.sel);
+    cuerpo = ficha.querySelector('.dv-ficha-cuerpo'); if (cuerpo) cuerpo.scrollTop = y;
+  }
+  /* El monto se quita volviendo a pulsarlo: sin monto se ven las dos respuestas. */
+  function ponerMonto(m, fijo){
+    st.monto = (!fijo && st.monto === m) ? '' : m;
+    repintarRespuestas();
+  }
+  function apilada(){ return ficha.getBoundingClientRect().top > lista.getBoundingClientRect().bottom - 4; }
+  function subirA(el){
+    var y = el.getBoundingClientRect().top + window.scrollY - 96;
+    window.scrollTo({ top: Math.max(0, y), behavior: 'auto' });
+  }
+  function bajarAFicha(){
+    if (!apilada() || ficha.getBoundingClientRect().top < window.innerHeight * .55) return;
+    var suave = !(window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches);
+    window.scrollTo({ top: Math.max(0, ficha.getBoundingClientRect().top + window.scrollY - 96), behavior: suave ? 'smooth' : 'auto' });
+  }
+  function copiar(b){
+    var txt = b.getAttribute('data-dv-copiar');
+    if (!b.classList.contains('dv-chip')) { if (typeof window.copyText === 'function') window.copyText(txt, b); return; }
+    /* En el chip, el aviso va en su etiqueta: copyText(b) le cambiaría el contenido entero y se
+       perdería la leyenda que se está leyendo. */
+    if (typeof window.copyText === 'function') window.copyText(txt, null);
+    var s = b.querySelector('span'); if (!s) return;
+    b.classList.add('es-listo'); s.innerHTML = ic('listo') + 'Copiada';
+    setTimeout(function(){ b.classList.remove('es-listo'); s.innerHTML = ic('copiar') + 'Copiar'; }, 1600);
+  }
+  /* ENR en Trazabilidad: la línea con su proceso de «entrega no reconocida» a la vista. La hoja de
+     Homologación puede tardar en llegar la primera vez: se espera a que haya procesos. */
+  function irATraz(secId){
+    var tab = document.querySelector('.side-link[data-sec="' + secId + '"]');
+    if (typeof switchSec === 'function') switchSec(secId, tab);
+    var n = 0;
+    (function intento(){
+      if (window.trzLista && trzLista()) { if (window.trzAplicarBusqueda) trzAplicarBusqueda(secId, 'no reconocida'); return; }
+      if (++n < 24) setTimeout(intento, 250);
+    })();
+  }
+  function alClic(e){
+    var b = e.target.closest('[data-dv-copiar], [data-dv-monto], [data-dv-ir], [data-dv-traz], .dv-opc');
+    if (!b || !app.contains(b)) return;
+    if (b.hasAttribute('data-dv-copiar')) { copiar(b); return; }
+    if (b.hasAttribute('data-dv-monto')) { ponerMonto(b.getAttribute('data-dv-monto')); return; }
+    if (b.hasAttribute('data-dv-traz')) { irATraz(b.getAttribute('data-dv-traz')); return; }
+    if (b.hasAttribute('data-dv-ir')) {
+      elegir(b.getAttribute('data-dv-ir'), { foco: true });
+      if (apilada()) bajarAFicha(); else { var o = lista.querySelector('[aria-selected="true"]'); if (o && o.getBoundingClientRect().top < 80) subirA(o); }
+      return;
+    }
+    elegir(b.getAttribute('data-dv'));
+    bajarAFicha();
+  }
+  function alTecla(e){
+    var o = e.target.closest && e.target.closest('.dv-opc');
+    if (!o) return;
+    var l = [].slice.call(lista.querySelectorAll('.dv-opc')), i = l.indexOf(o), j = i;
+    if (e.key === 'ArrowDown') j = Math.min(l.length - 1, i + 1);
+    else if (e.key === 'ArrowUp') j = Math.max(0, i - 1);
+    else if (e.key === 'Home') j = 0;
+    else if (e.key === 'End') j = l.length - 1;
+    else if (e.key === 'Enter' || e.key === ' ') {
+      e.preventDefault();
+      if (o.getAttribute('data-dv') !== st.sel) elegir(o.getAttribute('data-dv'));
+      var ch = ficha.querySelector('.dv-chip, .dv-ir') || ficha.querySelector('.dv-ficha-cuerpo');
+      bajarAFicha();
+      if (ch) ch.focus({ preventScroll: !apilada() });
+      return;
+    } else return;
+    e.preventDefault();
+    if (j !== i) elegir(l[j].getAttribute('data-dv'), { foco: true });
+  }
+  function montar(){
+    if (app) return true;
+    var host = document.getElementById('dv-app');
+    if (!host) return false;
+    app = host;
+    app.innerHTML = autHTML() + '<div class="dv-cuerpo"><div class="dv-lista">' + montoHTML() + listaHTML() + '</div>' +
+      '<section class="dv-ficha" aria-labelledby="dvTitulo"></section></div>';
+    lista = app.querySelector('.dv-lista');
+    ficha = app.querySelector('.dv-ficha');
+    app.addEventListener('click', alClic);
+    lista.addEventListener('keydown', alTecla);
+    elegir(st.sel, { quieto: true });
+    return true;
+  }
+
+  window.dvAlEntrar = function(){ montar(); };
+  window.dvRevelar = function(el){
+    if (!montar() || !el || !el.closest || !app.contains(el)) return false;
+    var fin = function(foco, brillo){
+      if (typeof clearPendingOpen === 'function') clearPendingOpen();
+      if (typeof hideKbHint === 'function') hideKbHint();
+      if (brillo && typeof flashEl === 'function') flashEl(brillo);
+      if (foco) foco.focus({ preventScroll: true });
+    };
+    var mb = el.closest('[data-dv-monto]');
+    if (mb) { ponerMonto(mb.getAttribute('data-dv-monto'), true); subirA(lista); fin(lista.querySelector('[data-dv-monto="' + st.monto + '"]'), lista); return true; }
+    var aut = el.closest('.dv-aut');
+    if (aut) { subirA(aut); fin(aut.querySelector('button'), aut); return true; }
+    var o = el.closest('.dv-opc');
+    if (!o) return false;
+    elegir(o.getAttribute('data-dv'));
+    o = lista.querySelector('[aria-selected="true"]');
+    var ley = el.getAttribute('data-dv-ley'), destino = ley ? ficha.querySelector('[data-dv-bloque="' + ley + '"]') : null;
+    if (apilada()) subirA(destino || ficha);
+    else {
+      subirA(app);
+      var cuerpo = ficha.querySelector('.dv-ficha-cuerpo');
+      if (destino && cuerpo) cuerpo.scrollTop = Math.max(0, destino.offsetTop - cuerpo.offsetTop - 12);
+    }
+    /* Si la opción quedó fuera de la vista (las de abajo de la lista), el foco va a la ficha: quien devuelva el foco
+       después (el recorrido de bienvenida lo hace sin preventScroll) no baja la página y la autorización sigue arriba. */
+    var r = o.getBoundingClientRect(), aLaVista = r.top >= 0 && r.bottom <= window.innerHeight;
+    fin(aLaVista ? o : (ficha.querySelector('.dv-ficha-cuerpo') || o), destino || o);
+    return true;
+  };
+})();
+</script>

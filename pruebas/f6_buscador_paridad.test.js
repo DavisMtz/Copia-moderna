@@ -522,9 +522,13 @@ console.log('10) El buscador general alcanza el contenido del Portal (T6.2)');
   const conItem = delPortal.filter((p) => p.item);
   const idsEnPortal = new Set();
   (INDEX.match(/id="([a-z0-9-]+)"/g) || []).forEach((m) => idsEnPortal.add(m.slice(4, -1)));
+  // Devoluciones SAP (26/09/2026): la consola declara sus id en app_devsap.html (ancla: 'ds-…') y los pinta al abrir.
+  const consolaDevsap = leer('app_devsap.html');
+  (consolaDevsap.match(/ancla: '([a-z0-9-]+)'/g) || []).forEach((m) => idsEnPortal.add(m.slice(8, -1)));
+  (consolaDevsap.match(/id="([a-z0-9-]+)"/g) || []).forEach((m) => idsEnPortal.add(m.slice(4, -1)));
   const huerfanos = conItem.filter((p) => !idsEnPortal.has(p.item));
   if (huerfanos.length) mal(`estos destinos no existen en el HTML del Portal: ${huerfanos.map((p) => p.item).join(', ')}`);
-  else console.log(`   ✓ los ${conItem.length} destinos con elemento apuntan a un id que existe en Index.html`);
+  else console.log(`   ✓ los ${conItem.length} destinos con elemento apuntan a un id que existe en Index.html o en la consola de Devoluciones SAP`);
 }
 console.log();
 

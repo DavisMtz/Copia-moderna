@@ -553,13 +553,6 @@ main{flex:1}
 .guide-go .ic{width:15px;height:15px;transition:var(--tr)}
 .guide-card:hover .guide-go{color:var(--accent,var(--brand))}
 
-/* — Piezas que nacieron en Formas de Pago y siguen usando Devoluciones SAP (.fp-num) y
-     Trazabilidad (.fp-num, .step-list). La sección vive ahora en app_formaspago.html. — */
-.fp-num{width:32px;height:32px;border-radius:10px;flex-shrink:0;background:var(--grad-brand);color:#fff;font-family:var(--f-mono);font-size:.88rem;font-weight:700;display:flex;align-items:center;justify-content:center;box-shadow:0 8px 16px -8px rgba(225,0,152,.55)}
-.step-list{list-style:none;display:flex;flex-direction:column;gap:.65rem}
-.step-list li{display:flex;gap:.7rem;font-size:.85rem;line-height:1.45;align-items:flex-start}
-.step-n{flex-shrink:0;width:23px;height:23px;border-radius:50%;background:var(--grad-brand);color:#fff;font-size:.69rem;font-weight:800;display:flex;align-items:center;justify-content:center;margin-top:.06rem;box-shadow:0 4px 8px -3px rgba(225,0,152,.5)}
-
 /* ════════════════════════════════════════════════════════════
    ESTADOS · LOADER · TOAST
 ════════════════════════════════════════════════════════════ */
@@ -1141,20 +1134,6 @@ a:focus-visible,button:focus-visible,input:focus-visible,[tabindex]:focus-visibl
 .btn-report:hover{background:var(--warn-bg);color:var(--warn)}
 .btn-report.sent{color:var(--ok);pointer-events:none}
 
-/* ════════════════════════════════════════════════════════════
-   BARRA DE ANCLAS · Devoluciones SAP y Trazabilidad (nació en Formas de Pago)
-════════════════════════════════════════════════════════════ */
-.fp-nav{position:sticky;top:64px;z-index:30;display:flex;gap:.45rem;overflow-x:auto;padding:.55rem .2rem;margin:-.4rem 0 1.6rem;background:color-mix(in srgb,var(--content-bg) 88%,transparent);backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px);border-radius:14px;-webkit-overflow-scrolling:touch;scrollbar-width:none}
-.fp-nav::-webkit-scrollbar{display:none}
-.fp-nav-chip{flex-shrink:0;border:1.5px solid var(--line);background:var(--surface);color:var(--ink-soft);border-radius:999px;padding:.42rem .9rem;font-size:.8rem;font-weight:700;cursor:pointer;white-space:nowrap;transition:var(--tr)}
-.fp-nav-chip:hover{border-color:var(--brand-soft);color:var(--brand)}
-.fp-nav-chip.active{background:var(--grad-brand);border-color:transparent;color:#fff}
-
-/* ════════════════════════════════════════════════════════════
-   BIG TICKET · procesos operativos
-════════════════════════════════════════════════════════════ */
-.bt-block{background:var(--surface);border-radius:var(--rad);padding:1.4rem 1.6rem;box-shadow:var(--sh-sm);margin-bottom:1.25rem;border-left:4px solid var(--brand)}
-
 /* ── Insignias de las secciones de Trazabilidad en el menú ── */
 .sl-badge{display:inline-flex;align-items:center;padding:.08rem .46rem;border-radius:100px;background:rgba(255,255,255,.28);color:#fff;font-size:.64rem;font-weight:800;letter-spacing:.04em;margin-left:.25rem}
 .slm-badge{display:inline-flex;align-items:center;padding:.08rem .46rem;border-radius:100px;background:rgba(255,255,255,.28);color:#fff;font-size:.64rem;font-weight:800;letter-spacing:.04em;margin-left:.25rem}
@@ -1175,106 +1154,8 @@ a:focus-visible,button:focus-visible,input:focus-visible,[tabindex]:focus-visibl
   .traz-skel i{animation:none}
 }
 
-/* ── Tema carbón · contraste de los bloques de proceso ──────────────────────
-   Los colores de texto de estos componentes (--brand-deep y los tonos de los
-   bloques de Devoluciones SAP) se eligieron para fondo claro y el tema carbón no
-   los aclara: sobre el panel oscuro se quedan en ~2,5:1 y las citas y las notas
-   dejan de leerse, así que aquí se suben a tonos legibles sobre oscuro.
-   Trazabilidad ya no usa estos bloques (26/09/2026, app_trazabilidad.html): sus
-   seis variantes de color por sección se fueron con ella.
-──────────────────────────────────────────────────────────────────────────── */
-[data-theme="carbon"] .bt-quote{background:rgba(225,0,152,.15);color:#FBA5D9;border-left-color:var(--brand-bright)}
-[data-theme="carbon"] .bt-plat{background:rgba(225,0,152,.16);color:#FBA5D9}
-[data-theme="carbon"] .bt-plat.info{background:rgba(59,130,246,.18);color:#93C5FD}
-[data-theme="carbon"] .bt-note{color:#FCD34D;border-color:rgba(251,191,36,.24)}
-[data-theme="carbon"] .bt-note strong{color:#FDE68A}
-[data-theme="carbon"] .bt-time-val.ok{color:#4ADE80}
-[data-theme="carbon"] .bt-time-val.warn{color:#FBBF24}
-[data-theme="carbon"] .bt-time-val.alert{color:#FCA5A5}
-[data-theme="carbon"] .bt-time-val.info{color:#93C5FD}
-[data-theme="carbon"] .bt-dev-item-time{color:#4ADE80}
-[data-theme="carbon"] .bt-sku-name{color:var(--ink)}
-/* El texto de los pasos heredaba el color del documento; se ata al token para
-   que no dependa de la herencia. */
-[data-theme="carbon"] .step-list li{color:var(--ink)}
-
-/* ── Devoluciones SAP · glosario de leyendas + matrices SL ── */
+/* ── Insignias de Devoluciones SAP y Big Ticket en el menú (la consola vive en app_devsap.html) ── */
 .ds-badge{display:inline-flex;align-items:center;padding:.08rem .46rem;border-radius:100px;background:rgba(255,255,255,.28);color:#fff;font-size:.64rem;font-weight:800;letter-spacing:.04em;margin-left:.25rem}
-/* Aviso de autorización obligatoria */
-.ds-auth{display:flex;gap:1rem;align-items:flex-start;background:var(--alert-bg);border:1.5px solid var(--alert);border-left:5px solid var(--alert);border-radius:var(--rad);padding:1.15rem 1.35rem;margin-bottom:1.6rem;box-shadow:var(--sh-sm)}
-.ds-auth-ic{flex-shrink:0;width:42px;height:42px;border-radius:12px;background:var(--alert);color:#fff;display:flex;align-items:center;justify-content:center}
-.ds-auth-ic .ic{width:23px;height:23px}
-.ds-auth-body{min-width:0;flex:1}
-.ds-auth h3{margin:0 0 .35rem;font-family:var(--f-display);font-size:1.02rem;font-weight:800;color:var(--alert)}
-.ds-auth p{margin:0;font-size:.88rem;line-height:1.55;color:var(--ink)}
-.ds-auth p strong{color:var(--alert)}
-.ds-mail-row{display:flex;flex-wrap:wrap;align-items:center;gap:.55rem;margin-top:.75rem}
-.ds-mail-lbl{font-size:.78rem;font-weight:700;color:var(--ink-soft)}
-.ds-mail{font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:.8rem;font-weight:700;color:var(--ink);background:var(--surface);border:1px solid var(--line);border-radius:8px;padding:.42rem .7rem;word-break:break-all}
-.ds-copy-mail{display:inline-flex;align-items:center;gap:.4rem;border:1.5px solid var(--alert);background:var(--alert);color:#fff;border-radius:8px;padding:.46rem .82rem;font-size:.82rem;font-weight:800;cursor:pointer;transition:var(--tr)}
-.ds-copy-mail .ic{width:15px;height:15px}
-.ds-copy-mail:hover{filter:brightness(1.08)}
-/* Glosario (Escenario → Leyenda) */
-.ds-gloss{background:var(--surface);border-radius:var(--rad);box-shadow:var(--sh-sm);border-left:4px solid var(--brand);overflow:hidden;margin-bottom:1.25rem}
-.ds-gloss-row{display:grid;grid-template-columns:180px 1fr;border-bottom:1px solid var(--line)}
-.ds-gloss-row:last-child{border-bottom:none}
-.ds-gloss-esc{padding:1.05rem 1.2rem;font-weight:800;font-size:.92rem;color:var(--brand-deep);background:var(--brand-tint);display:flex;align-items:flex-start}
-.ds-gloss-body{padding:1.05rem 1.2rem;min-width:0}
-.ds-gloss-leyendas{display:flex;flex-wrap:wrap;gap:.35rem;margin-bottom:.55rem}
-.ds-leyenda{display:inline-flex;align-items:center;gap:.4rem;background:var(--ink);color:#fff;font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:.78rem;font-weight:700;border-radius:7px;padding:.32rem .62rem;cursor:pointer;transition:var(--tr)}
-.ds-leyenda:hover{background:var(--brand-deep)}
-.ds-leyenda .ic{width:13px;height:13px;opacity:.75}
-.ds-gloss-desc{font-size:.86rem;line-height:1.55;color:var(--ink-soft);margin:0}
-.ds-gloss-desc strong{color:var(--ink)}
-.ds-gloss-tag{display:inline-block;margin-top:.55rem;font-size:.72rem;font-weight:700;color:var(--brand-deep);background:var(--brand-tint);border:1px solid var(--brand-soft);border-radius:999px;padding:.15rem .55rem}
-@media(max-width:640px){.ds-gloss-row{grid-template-columns:1fr}}
-/* Matriz SL */
-.ds-matrix-wrap{background:var(--surface);border-radius:var(--rad);box-shadow:var(--sh-sm);border-left:4px solid var(--brand);padding:1.3rem 1.5rem;margin-bottom:1.25rem}
-.ds-matrix-head{display:flex;align-items:center;flex-wrap:wrap;gap:.6rem;margin-bottom:.25rem}
-.ds-matrix-title{font-family:var(--f-display);font-size:1.12rem;font-weight:800;color:var(--ink);margin:0}
-.ds-matrix-title em{font-style:normal;color:var(--brand)}
-.ds-matrix-tag{font-size:.7rem;font-weight:800;letter-spacing:.03em;padding:.2rem .58rem;border-radius:999px;background:var(--brand-tint);color:var(--brand-deep);border:1px solid var(--brand-soft)}
-.ds-matrix-sub{font-size:.83rem;color:var(--ink-soft);margin:.1rem 0 1rem;line-height:1.5}
-.ds-matrix-scroll{overflow-x:auto;-webkit-overflow-scrolling:touch}
-table.ds-matrix{width:100%;border-collapse:separate;border-spacing:0;min-width:580px}
-.ds-matrix th,.ds-matrix td{padding:.65rem .55rem;text-align:center;border-bottom:1px solid var(--line)}
-.ds-matrix thead th{background:var(--brand);color:#fff;font-size:.76rem;font-weight:800}
-.ds-matrix thead th:first-child{border-top-left-radius:10px}
-.ds-matrix thead th:last-child{border-top-right-radius:10px}
-.ds-matrix tbody th{text-align:left;font-size:.82rem;font-weight:700;color:var(--ink);background:var(--brand-tint)}
-.ds-matrix tbody tr:last-child th,.ds-matrix tbody tr:last-child td{border-bottom:none}
-.ds-matrix td.on{background:var(--ok-bg)}
-.ds-cell{display:inline-flex;align-items:center;justify-content:center;width:28px;height:28px;border-radius:8px;font-size:1rem;font-weight:900;line-height:1}
-.ds-yes{background:var(--ok);color:#fff}
-.ds-no{color:var(--ink-faint)}
-.bt-head{display:flex;align-items:flex-start;gap:1rem;flex-wrap:wrap;margin-bottom:.85rem}
-.bt-title{font-family:var(--f-display);font-size:1.08rem;font-weight:800;color:var(--ink);margin:0;padding-top:.25rem}
-.bt-times{display:flex;gap:.6rem;flex-wrap:wrap;margin-left:auto}
-.bt-time-chip{background:var(--surface-2);border:1px solid var(--line);border-radius:var(--rad-sm);padding:.42rem .8rem;min-width:115px}
-.bt-time-lbl{display:block;font-size:.61rem;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:var(--ink-faint);margin-bottom:.18rem}
-.bt-time-val{font-size:.8rem;font-weight:700;color:var(--ink);font-family:var(--f-mono)}
-.bt-time-val.ok{color:var(--ok)}.bt-time-val.warn{color:var(--warn)}.bt-time-val.alert{color:var(--alert)}.bt-time-val.info{color:var(--info)}
-.bt-plats{display:flex;flex-wrap:wrap;gap:.35rem;margin-top:.42rem}
-.bt-plat{background:var(--brand-tint);color:var(--brand-deep);border-radius:100px;padding:.15rem .6rem;font-size:.7rem;font-weight:700}
-.bt-plat.info{background:var(--info-bg);color:var(--info)}
-.bt-obs{background:var(--surface-2);border-radius:var(--rad-sm);padding:.85rem 1.05rem;border:1px solid var(--line-soft)}
-.bt-obs-lbl{font-size:.63rem;font-weight:800;text-transform:uppercase;letter-spacing:.07em;color:var(--ink-faint);margin-bottom:.5rem;display:block}
-.bt-obs-list{list-style:none;padding:0;margin:0;display:flex;flex-direction:column;gap:.45rem}
-.bt-obs-list li{font-size:.85rem;color:var(--ink-soft);padding-left:1rem;position:relative;line-height:1.55}
-.bt-obs-list li::before{content:'▸';position:absolute;left:0;color:var(--brand);font-size:.66rem;top:.3rem}
-.bt-obs-list li strong{color:var(--ink)}
-.bt-quote{display:inline-block;background:var(--brand-tint);border-left:3px solid var(--brand);padding:.18rem .55rem;border-radius:0 6px 6px 0;font-style:italic;color:var(--brand-deep);font-size:.82rem;margin:.2rem 0}
-.bt-note{display:flex;gap:.45rem;align-items:flex-start;background:var(--warn-bg);border-radius:var(--rad-sm);padding:.52rem .75rem;border:1px solid rgba(180,83,9,.15);font-size:.82rem;color:var(--warn);margin-top:.5rem;line-height:1.45}
-.bt-note strong{color:var(--warn)}
-.bt-dev-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:.7rem;margin-bottom:.7rem}
-.bt-dev-item{background:var(--surface);border:1px solid var(--line);border-radius:var(--rad-sm);padding:.7rem .95rem}
-.bt-dev-item-name{font-size:.76rem;font-weight:800;color:var(--ink);margin-bottom:.18rem}
-.bt-dev-item-time{font-size:.8rem;font-weight:700;color:var(--ok);font-family:var(--f-mono)}
-.bt-dev-item-note{font-size:.74rem;color:var(--ink-soft);margin-top:.18rem;line-height:1.4}
-.bt-sku-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(195px,1fr));gap:.55rem;margin:.5rem 0 .3rem}
-.bt-sku{background:var(--surface);border:1px solid var(--line);border-radius:var(--rad-sm);padding:.55rem .85rem}
-.bt-sku-name{font-size:.76rem;font-weight:700;color:var(--ink);margin-bottom:.22rem}
-.bt-sku-desc{font-size:.73rem;color:var(--ink-soft);line-height:1.4}
 .bt-badge{display:inline-flex;align-items:center;padding:.08rem .46rem;border-radius:100px;background:rgba(255,255,255,.28);color:#fff;font-size:.64rem;font-weight:800;letter-spacing:.04em;margin-left:.25rem}
 
 /* ════════════════════════════════════════════════════════════
@@ -1454,6 +1335,9 @@ table.ds-matrix{width:100%;border-collapse:separate;border-spacing:0;min-width:5
 <!-- Trazabilidad por situación (26/09/2026): trzPintar(), trzAviso(), trzAlEntrar(), trzRevelar() y trzAplicarBusqueda(),
      la vista de las seis secciones. Los datos (pedirlos, copia local, aviso e índices) siguen en el guion grande de abajo. -->
 <?!= include('app_trazabilidad') ?>
+<!-- Devoluciones SAP en consola (26/09/2026): dvAlEntrar(), dvRevelar() y todo lo de #sec-devsap, con su contenido
+     (autorización, casos, leyendas y criterios) pasado a datos. Parcial para que el build lo minifique. -->
+<?!= include('app_devsap') ?>
 <template id="__bundler_thumbnail" data-bg-color="#E10098">
   <svg viewBox="0 0 1200 800" xmlns="http://www.w3.org/2000/svg">
     <rect width="1200" height="800" fill="#E10098"/>
@@ -2041,162 +1925,12 @@ table.ds-matrix{width:100%;border-collapse:separate;border-spacing:0;min-width:5
     <div id="traz-generales" class="traz-sec"></div>
   </section>
 
-  <!-- ══ DEVOLUCIONES SAP · Glosario de leyendas + matrices SL ══ -->
+  <!-- ══ DEVOLUCIONES SAP · consola por lo que le pasó al cliente (app_devsap.html, 26/09/2026) ══
+       La autorización, el monto, los casos y la ficha los pinta el parcial desde su modelo (el contenido de
+       la sección de antes, pasado a datos). Los id ds-* del buscador viven en la lista de la consola. -->
   <section id="sec-devsap" class="view-section">
-    <div class="sec-head">
-      <span class="sec-eyebrow"><span class="dot"></span>Glosario y matrices de devoluciones</span>
-      <h1 class="sec-title">Devoluciones en <em>SAP</em></h1>
-      <p class="sec-sub">Leyendas que se colocan en SAP según el escenario y las matrices que definen qué procede (recogido, devolución, canalizar a tienda o ambos) para Soft Line por encima y por debajo de $3,000. Usa el buscador o los chips para ir directo a lo que necesitas.</p>
-    </div>
-
-    <!-- Aviso: autorización escrita obligatoria -->
-    <div class="ds-auth" id="ds-autorizacion">
-      <div class="ds-auth-ic"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3 4 6v6c0 4.5 3.2 7.7 8 9 4.8-1.3 8-4.5 8-9V6Z"/><path d="m9 12 2 2 4-4"/></svg></div>
-      <div class="ds-auth-body">
-        <h3>Autorización escrita obligatoria</h3>
-        <p>Antes de aplicar cualquier devolución, recogido o cambio de estatus <strong>debe existir necesariamente una autorización por escrito de un supervisor o team leader</strong>. Sin esa autorización el proceso no se realiza. Cuando la autorización se solicita por correo, se envía a <strong>Ventas CCL</strong>.</p>
-        <div class="ds-mail-row">
-          <span class="ds-mail-lbl">Correo de autorización:</span>
-          <span class="ds-mail">Ventas CCL &lt;ventas-ccl@liverpool.com.mx&gt;</span>
-          <button class="ds-copy-mail" onclick="copyText('Ventas CCL <ventas-ccl@liverpool.com.mx>', this)" title="Copiar correo de Ventas CCL" aria-label="Copiar correo de Ventas CCL"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="11" height="11" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg> Copiar correo</button>
-        </div>
-      </div>
-    </div>
-
-    <nav class="fp-nav" aria-label="Devoluciones SAP">
-      <button class="fp-nav-chip" onclick="jumpToDevsap('ds-autorizacion')">Autorización</button>
-      <button class="fp-nav-chip" onclick="jumpToDevsap('ds-glosario')">Glosario de leyendas</button>
-      <button class="fp-nav-chip" onclick="jumpToDevsap('ds-mayor')">SL mayor a $3,000</button>
-      <button class="fp-nav-chip" onclick="jumpToDevsap('ds-menor')">SL menor a $3,000</button>
-      <button class="fp-nav-chip" onclick="jumpToDevsap('ds-criterios')">Criterios y excepciones</button>
-    </nav>
-
-    <!-- Glosario de leyendas -->
-    <div class="bt-head" id="ds-glosario" style="margin:.4rem 0 1rem">
-      <span class="fp-num" style="background:linear-gradient(135deg,var(--brand),var(--brand-bright))">📒</span>
-      <div>
-        <h2 class="bt-title">Glosario — Leyendas para devoluciones en SAP</h2>
-        <div class="bt-plats"><span class="bt-plat">SAP</span><span class="bt-plat info">Mercaderías</span><span class="bt-plat info">MKP Soft Line</span></div>
-      </div>
-    </div>
-    <div class="ds-gloss">
-      <div class="ds-gloss-row" id="ds-servicio-sl">
-        <div class="ds-gloss-esc">Servicio SL</div>
-        <div class="ds-gloss-body">
-          <div class="ds-gloss-leyendas">
-            <button class="ds-leyenda" onclick="copyText('ServicioSL/dañada', this)" title="Copiar leyenda">ServicioSL/dañada <svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="11" height="11" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg></button>
-            <button class="ds-leyenda" onclick="copyText('ServicioSL/incompleta', this)" title="Copiar leyenda">ServicioSL/incompleta <svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="11" height="11" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg></button>
-            <button class="ds-leyenda" onclick="copyText('ServicioSL/equivocada', this)" title="Copiar leyenda">ServicioSL/equivocada <svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="11" height="11" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg></button>
-          </div>
-          <p class="ds-gloss-desc">Aplica para mercancía que llegó <strong>dañada, incompleta o equivocada</strong>. Se coloca la leyenda de acuerdo al caso. <strong>No es necesario correo soporte.</strong></p>
-          <span class="ds-gloss-tag">Mercaderías y MKP Soft Line</span>
-        </div>
-      </div>
-      <div class="ds-gloss-row" id="ds-enr">
-        <div class="ds-gloss-esc">ENR</div>
-        <div class="ds-gloss-body">
-          <div class="ds-gloss-leyendas">
-            <button class="ds-leyenda" onclick="copyText('Reconocida', this)" title="Copiar leyenda">Reconocida <svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="11" height="11" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg></button>
-          </div>
-          <p class="ds-gloss-desc">Aplica cuando el cliente indica <strong>no reconocer la entrega</strong> y no se cuenta con evidencia en las diversas plataformas.</p>
-          <span class="ds-gloss-tag">Mercaderías y MKP Soft Line</span>
-        </div>
-      </div>
-      <div class="ds-gloss-row" id="ds-satisfaccion-sl">
-        <div class="ds-gloss-esc">Satisfacción SL</div>
-        <div class="ds-gloss-body">
-          <div class="ds-gloss-leyendas">
-            <button class="ds-leyenda" onclick="copyText('Satisfacción SL', this)" title="Copiar leyenda">Satisfacción SL <svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="11" height="11" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg></button>
-          </div>
-          <p class="ds-gloss-desc">Aplica cuando el cliente <strong>no cuenta con una tienda Liverpool cerca</strong>, el producto es <strong>menor a $3,000</strong> y solicita la devolución.</p>
-          <span class="ds-gloss-tag">Mercaderías y MKP Soft Line</span>
-        </div>
-      </div>
-      <div class="ds-gloss-row" id="ds-correo-soporte">
-        <div class="ds-gloss-esc">Correo soporte</div>
-        <div class="ds-gloss-body">
-          <div class="ds-gloss-leyendas">
-            <button class="ds-leyenda" onclick="copyText('Correo soporte', this)" title="Copiar leyenda">Correo soporte <svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="11" height="11" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg></button>
-          </div>
-          <p class="ds-gloss-desc">Aplica cuando se tiene autorización por <strong>recogido vencido, descargas digitales, bonificaciones</strong>, cuando el <strong>semáforo de PAO no permite cambio de estatus</strong> o cuando se tiene autorización en <strong>cadena de correos</strong>.</p>
-          <span class="ds-gloss-tag">Mercaderías SL &amp; MKP &amp; BT — sólo en órdenes de venta</span>
-        </div>
-      </div>
-    </div>
-
-    <!-- Matriz SL mayor a $3,000 -->
-    <div class="ds-matrix-wrap" id="ds-mayor">
-      <div class="ds-matrix-head">
-        <h2 class="ds-matrix-title">SL <em>mayor</em> a $3,000</h2>
-        <span class="ds-matrix-tag">&gt; $3,000</span>
-      </div>
-      <p class="ds-matrix-sub">Para mercancía de más de $3,000 pesos se trabaja de la siguiente manera según el escenario.</p>
-      <div class="ds-matrix-scroll">
-        <table class="ds-matrix">
-          <thead>
-            <tr><th>Escenario</th><th>Recogido</th><th>Devolución</th><th>Canalizar a tienda</th><th>Recogido y devolución</th></tr>
-          </thead>
-          <tbody>
-            <tr><th>Servicio SL</th><td><span class="ds-cell ds-no">✕</span></td><td><span class="ds-cell ds-no">✕</span></td><td><span class="ds-cell ds-no">✕</span></td><td class="on"><span class="ds-cell ds-yes">✓</span></td></tr>
-            <tr><th>Satisfacción SL</th><td><span class="ds-cell ds-no">✕</span></td><td><span class="ds-cell ds-no">✕</span></td><td class="on"><span class="ds-cell ds-yes">✓</span></td><td><span class="ds-cell ds-no">✕</span></td></tr>
-            <tr><th>C&amp;C Servicio SL</th><td><span class="ds-cell ds-no">✕</span></td><td><span class="ds-cell ds-no">✕</span></td><td class="on"><span class="ds-cell ds-yes">✓</span></td><td><span class="ds-cell ds-no">✕</span></td></tr>
-            <tr><th>C&amp;C Satisfacción SL</th><td><span class="ds-cell ds-no">✕</span></td><td><span class="ds-cell ds-no">✕</span></td><td class="on"><span class="ds-cell ds-yes">✓</span></td><td><span class="ds-cell ds-no">✕</span></td></tr>
-            <tr><th>Sin tienda Liverpool cercana</th><td><span class="ds-cell ds-no">✕</span></td><td><span class="ds-cell ds-no">✕</span></td><td><span class="ds-cell ds-no">✕</span></td><td class="on"><span class="ds-cell ds-yes">✓</span></td></tr>
-            <tr><th>Mercancía de dimensiones grandes SL</th><td><span class="ds-cell ds-no">✕</span></td><td><span class="ds-cell ds-no">✕</span></td><td><span class="ds-cell ds-no">✕</span></td><td class="on"><span class="ds-cell ds-yes">✓</span></td></tr>
-            <tr><th>Mercancía frágil rota</th><td><span class="ds-cell ds-no">✕</span></td><td class="on"><span class="ds-cell ds-yes">✓</span></td><td><span class="ds-cell ds-no">✕</span></td><td><span class="ds-cell ds-no">✕</span></td></tr>
-          </tbody>
-        </table>
-      </div>
-    </div>
-
-    <!-- Matriz SL menor a $3,000 -->
-    <div class="ds-matrix-wrap" id="ds-menor">
-      <div class="ds-matrix-head">
-        <h2 class="ds-matrix-title">SL <em>menor</em> a $3,000</h2>
-        <span class="ds-matrix-tag">&lt; $3,000</span>
-      </div>
-      <p class="ds-matrix-sub">Para mercancía de hasta $3,000 pesos se trabaja de la siguiente manera según el escenario.</p>
-      <div class="ds-matrix-scroll">
-        <table class="ds-matrix">
-          <thead>
-            <tr><th>Escenario</th><th>Recogido</th><th>Devolución</th><th>Canalizar a tienda</th><th>Recogido y devolución</th></tr>
-          </thead>
-          <tbody>
-            <tr><th>Servicio SL</th><td><span class="ds-cell ds-no">✕</span></td><td class="on"><span class="ds-cell ds-yes">✓</span></td><td><span class="ds-cell ds-no">✕</span></td><td><span class="ds-cell ds-no">✕</span></td></tr>
-            <tr><th>Satisfacción SL</th><td><span class="ds-cell ds-no">✕</span></td><td><span class="ds-cell ds-no">✕</span></td><td class="on"><span class="ds-cell ds-yes">✓</span></td><td><span class="ds-cell ds-no">✕</span></td></tr>
-            <tr><th>C&amp;C Servicio SL</th><td><span class="ds-cell ds-no">✕</span></td><td class="on"><span class="ds-cell ds-yes">✓</span></td><td><span class="ds-cell ds-no">✕</span></td><td><span class="ds-cell ds-no">✕</span></td></tr>
-            <tr><th>C&amp;C Satisfacción SL</th><td><span class="ds-cell ds-no">✕</span></td><td><span class="ds-cell ds-no">✕</span></td><td class="on"><span class="ds-cell ds-yes">✓</span></td><td><span class="ds-cell ds-no">✕</span></td></tr>
-            <tr><th>Sin tienda Liverpool cercana</th><td><span class="ds-cell ds-no">✕</span></td><td class="on"><span class="ds-cell ds-yes">✓</span></td><td><span class="ds-cell ds-no">✕</span></td><td><span class="ds-cell ds-no">✕</span></td></tr>
-            <tr><th>Mercancía de dimensiones grandes SL</th><td><span class="ds-cell ds-no">✕</span></td><td><span class="ds-cell ds-no">✕</span></td><td><span class="ds-cell ds-no">✕</span></td><td class="on"><span class="ds-cell ds-yes">✓</span></td></tr>
-            <tr><th>Mercancía frágil rota</th><td><span class="ds-cell ds-no">✕</span></td><td class="on"><span class="ds-cell ds-yes">✓</span></td><td><span class="ds-cell ds-no">✕</span></td><td><span class="ds-cell ds-no">✕</span></td></tr>
-          </tbody>
-        </table>
-      </div>
-    </div>
-
-    <!-- Criterios y excepciones (detalle) -->
-    <div class="bt-block" id="ds-criterios" style="border-left-color:var(--brand)">
-      <div class="bt-head" style="margin-bottom:.6rem">
-        <span class="fp-num" style="background:linear-gradient(135deg,var(--brand),var(--brand-bright))">📝</span>
-        <div>
-          <h2 class="bt-title">Criterios y excepciones</h2>
-          <div class="bt-plats"><span class="bt-plat info">Mercaderías</span><span class="bt-plat info">MKP</span></div>
-        </div>
-      </div>
-      <div class="bt-obs">
-        <span class="bt-obs-lbl">Observaciones</span>
-        <ul class="bt-obs-list">
-          <li><strong>Servicio SL</strong> = mercancía <strong>dañada, equivocada o incompleta</strong>. <strong>Satisfacción SL</strong> = el cliente <strong>no cumple expectativas</strong>.</li>
-          <li><strong>No aplica recogido</strong> en mercancía frágil: <strong>cristalería, vinos, perfumería, vajillas</strong>, etc. — en estos casos se aplica <strong>devolución</strong>.</li>
-          <li><strong>Productos grandes</strong> (hornos, pantallas 40", escritorios, aparatos de ejercicio): se genera <strong>recogido y, posteriormente, la devolución</strong>.</li>
-          <li><strong>Satisfacción SL menor a $3,000</strong>: por regla se <strong>canaliza a tienda</strong>; como excepción, si el cliente <strong>no cuenta con un Liverpool cerca</strong>, se aplica devolución con la leyenda <span class="bt-quote">Satisfacción SL</span> en SAP.</li>
-          <li>En <strong>Servicio SL mayor a $3,000</strong> el recogido se genera y la devolución se aplica <strong>cuando éste se realice</strong>.</li>
-        </ul>
-      </div>
-    </div>
-
-    <div class="bt-note" style="max-width:none"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" style="width:15px;height:15px;flex-shrink:0;margin-top:2px"><path d="M12 3 22 20H2Z"/><path d="M12 10v4M12 17v.4"/></svg><span><strong>Recuerda:</strong> ningún recogido, devolución o cambio de estatus procede sin la autorización escrita del supervisor o team leader. Si es por correo, la solicitud va a <strong>Ventas CCL &lt;ventas-ccl@liverpool.com.mx&gt;</strong>.</span></div>
-
+    <h1 class="dv-sr">Devoluciones SAP</h1>
+    <div id="dv-app"></div>
   </section>
 
   </main>
@@ -2703,8 +2437,7 @@ let MKP_INDEX = [];   // MarketPlace
 let TDA_INDEX = [];   // Tienda Física
 let GEN_INDEX = [];   // Generales
 
-/* Índice estático de Devoluciones SAP (glosario de leyendas + matrices) para el buscador */
-/* Índice de Devoluciones SAP: glosario de leyendas y matrices → app_indices.html */
+/* Índice de Devoluciones SAP (casos, leyendas y criterios de la consola) → app_indices.html */
 const DEVSAP_INDEX = (window.AppIndices && AppIndices.devolucionesSap) || [];
 
 /* Catálogo de Tiendas y Centros de Reparto (CR). Modo de búsqueda dedicado: al escribir
@@ -2718,7 +2451,6 @@ let store = { herramientas:[], presentaciones:[], paqueterias:[], formatos:[], p
 let pltView = [];        // plantillas actualmente renderizadas (respeta filtros de texto/tipo)
 let pltType = 'all';     // filtro de tipo activo: 'all' | 'mail' | 'sf'
 let searchTimer;
-let devsapRevealsReady = false;
 
 /* ── PERSISTENCIA LOCAL (preferencias y caché del asesor) ── */
 function lsGet(key, fallback){ try { const v = localStorage.getItem(key); return v ? JSON.parse(v) : fallback; } catch(e){ return fallback; } }
@@ -3476,7 +3208,8 @@ function switchSec(id, btn){
   const target = document.getElementById(`sec-${id}`);
   // Las seis de Trazabilidad comparten una vista (app_trazabilidad.html): se muda aquí y toma la línea
   // de la sección ANTES de animar la entrada, para que sectionEnter encuentre sus pestañas y su hoja.
-  if (target){ target.classList.add('active'); if (window.trzAlEntrar && document.getElementById('traz-' + id)) trzAlEntrar(id); sectionEnter(target); }
+  // Devoluciones SAP (app_devsap.html) se pinta la primera vez que se abre, también antes de la entrada.
+  if (target){ target.classList.add('active'); if (window.trzAlEntrar && document.getElementById('traz-' + id)) trzAlEntrar(id); if (id === 'devsap' && window.dvAlEntrar) dvAlEntrar(); sectionEnter(target); }
   if (id === 'herramientas' && window.csAlEntrar) csAlEntrar();
   if (id === 'paqueterias' && window.pqAlEntrar) pqAlEntrar();
   const topClock = document.querySelector('.topbar .clock');
@@ -3484,7 +3217,6 @@ function switchSec(id, btn){
   if (id === 'formaspago' && window.fpAlEntrar) fpAlEntrar();
   if (id === 'pdepago' && window.pdpAlEntrar) pdpAlEntrar();
   if (id === 'formatos' && window.fmtAlEntrar) fmtAlEntrar();
-  if (id === 'devsap') initDevsapReveals();
   closeSidebar();
   document.querySelector('main').scrollTo?.(0,0);
   window.scrollTo({ top:0, behavior:'instant' in window ? 'instant' : 'auto' });
@@ -3493,7 +3225,7 @@ function switchSec(id, btn){
 function sectionEnter(section){
   if (!section || !GS()) return;
   const headItems = section.querySelectorAll('.sec-head > *, .hero, .dash-label');
-  const cards = section.querySelectorAll('.cards-grid > *, .fpg-tabs, .fpg-panel:not([hidden]) .fpg-hoja, #gr-paqueterias > *, .stat-card, .qa-card, .guide-card, .cs-lista, .cs-ficha, .pdc-lista, .pdc-ficha, .fmt-tabs, .fmt-hoja:not([hidden]), .tz-tabs, .tz-hoja:not([hidden])');
+  const cards = section.querySelectorAll('.cards-grid > *, .fpg-tabs, .fpg-panel:not([hidden]) .fpg-hoja, #gr-paqueterias > *, .stat-card, .qa-card, .guide-card, .cs-lista, .cs-ficha, .pdc-lista, .pdc-ficha, .fmt-tabs, .fmt-hoja:not([hidden]), .tz-tabs, .tz-hoja:not([hidden]), .dv-aut, .dv-lista, .dv-ficha');
   const tl = gsap.timeline({ defaults:{ ease:'power3.out' } });
   tl.fromTo(section, { opacity:0, y:8 }, { opacity:1, y:0, duration:.24 });
   if (headItems.length) tl.fromTo(headItems, { opacity:0, y:8 }, { opacity:1, y:0, duration:.24, stagger:.03, clearProps:'transform' }, '-=.16');
@@ -5717,15 +5449,15 @@ function elementoDeSeccion(secId, name, targetId){
 
   const want = norm(name);
   if (!want) return null;
-  /* `.tz-f-nom` es el nombre de un proceso de Trazabilidad y `.bt-title` el de un bloque de
+  /* `.tz-f-nom` es el nombre de un proceso de Trazabilidad y `.dv-nom` el de un caso de
      Devoluciones SAP. Sin ellos, un enlace profundo abría la sección correcta y se quedaba
      arriba, sin señalar nada — y eso se lee como que el buscador no encontró lo que dijo
      que había encontrado. */
-  const nameEls = sec.querySelectorAll('.cs-nom,.fmt-nom,.fmt-rnom,.paq-name,.pdc-nom,.pres-name,.plt-name,.bt-title,.tz-f-nom');
+  const nameEls = sec.querySelectorAll('.cs-nom,.fmt-nom,.fmt-rnom,.paq-name,.pdc-nom,.pres-name,.plt-name,.dv-nom,.tz-f-nom');
   let target = null;
   nameEls.forEach(el => { if (!target && norm(el.textContent) === want) target = el; });
   if (!target) nameEls.forEach(el => { if (!target && norm(el.textContent).includes(want)) target = el; });
-  return (target ? target.closest('.cs-fila,.pq-ent,.fmt-resp,.fmt-fila,.pdc-opc,.pres-card,.plt-card,.tz-fila,tr') : null) || target;
+  return (target ? target.closest('.cs-fila,.pq-ent,.fmt-resp,.fmt-fila,.pdc-opc,.pres-card,.plt-card,.tz-fila,.dv-opc,tr') : null) || target;
 }
 
 /* Espera con reintentos (rAF) a que la sección termine de renderizar antes de saltar —
@@ -5762,6 +5494,11 @@ function revealTarget(scrollEl){
   // lo siguiente que hace el asesor es escribir cuánto es la compra.
   if (scrollEl.classList && scrollEl.classList.contains('pdc-opc') && window.pdpRevelar){
     if (pdpRevelar(scrollEl)) return;
+  }
+  // Devoluciones SAP va en consola: se elige el caso (o el monto, o la leyenda en el glosario) y la ficha
+  // dice qué procede. No hay enlace que abrir: sin pista de segundo Enter.
+  if (scrollEl.closest && scrollEl.closest('#sec-devsap') && window.dvRevelar){
+    if (dvRevelar(scrollEl)) return;
   }
   // Un proceso de Trazabilidad se abre en su pestaña y con su ficha desplegada: llegar a él y ver
   // sólo el nombre obligaría a un clic más justo cuando el asesor ya tiene al cliente al teléfono.
@@ -6043,18 +5780,6 @@ function animateGrid(sel){
     { opacity:0, y:16, scale:.975, filter:'blur(3px)' },
     { opacity:1, y:0, scale:1, filter:'blur(0px)', duration:.4, stagger:{ each:.035, from:'start' },
       ease:'power3.out', clearProps:'transform,filter' });
-}
-function jumpToDevsap(blockId){ const el = document.getElementById(blockId); if (el) window.scrollTo({ top: el.getBoundingClientRect().top + window.scrollY - 90, behavior:'smooth' }); }
-function initDevsapReveals(){
-  if (devsapRevealsReady){ if (window.ScrollTrigger) ScrollTrigger.refresh(); return; }
-  devsapRevealsReady = true;
-  if (!GS() || !window.ScrollTrigger) return;
-  document.querySelectorAll('#sec-devsap .ds-auth, #sec-devsap .ds-gloss, #sec-devsap .ds-matrix-wrap').forEach(block => {
-    gsap.fromTo(block, { opacity:0, y:16 }, { opacity:1, y:0, duration:.34, ease:'power3.out', scrollTrigger:{ trigger:block, start:'top 88%' } });
-    const rows = block.querySelectorAll('.ds-gloss-row, .ds-matrix tbody tr');
-    if (rows.length) gsap.fromTo(rows, { opacity:0, x:-8 }, { opacity:1, x:0, duration:.24, stagger:.03, ease:'power2.out', scrollTrigger:{ trigger:block, start:'top 82%' }, clearProps:'transform' });
-  });
-  ScrollTrigger.refresh();
 }
 /* ══════════════════════════════════════════════════════════════════════════
    TRAZABILIDAD · seis secciones servidas desde la hoja de Homologación 2026

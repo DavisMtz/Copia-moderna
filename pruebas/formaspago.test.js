@@ -105,7 +105,7 @@ console.log('6 · Enganches con el guion grande');
   ok('no queda ninguna llamada a lo que se quitó', muertos.length === 0, muertos);
   const viejas = ['fp-block', 'fp-card', 'fp-grid', 'store-card', 'store-grid', 'fraud-map', 'data-table', 'table-card', 'badge-pill', 'copyable', 'info-note'].filter((c) => new RegExp('\\.' + c + '\\b|class="[^"]*\\b' + c + '\\b').test(index));
   ok('no queda CSS ni marcado de la sección vieja', viejas.length === 0, viejas);
-  ok('lo compartido sigue: .fp-nav, .fp-num y .step-list', ['.fp-nav{', '.fp-nav-chip{', '.fp-num{', '.step-list{', '.step-n{'].every((r) => index.includes(r)));
+  ok('Formas de Pago no depende de .fp-nav, .fp-num ni .step-list (se fueron con la sección vieja de Devoluciones SAP, 26/09/2026)', !/fp-nav|fp-num|step-list|step-n\b/.test(parcial));
   ok('el parcial publica fpAlEntrar y fpRevelar', /window\.fpAlEntrar = function/.test(parcial) && /window\.fpRevelar = function/.test(parcial));
 }
 

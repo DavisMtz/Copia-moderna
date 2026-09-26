@@ -72,11 +72,11 @@ function cargar(hoyISO) {
   const ctx = { console, Date: Fija };
   vm.runInNewContext(
     ['LINEAS', 'SECS', 'SITUACIONES', 'REGLAS', 'DIAS', 'DIAS_C', 'DIAS_T', 'MESES', 'MESES_C', 'festivosCache', 'RE_CANT',
-     'RE_COND_INICIO', 'RE_COND_DENTRO', 'PROPIOS', 'TERMINOS', 'LETRA', 'RE_CLAVE'].map((n) => 'var ' + n + ' = ' + var_(n) + ';').join('\n') + '\n' +
+     'RE_COND_INICIO', 'RE_COND_DENTRO', 'PROPIOS', 'TERMINOS', 'LETRA', 'DV_FRASES', 'RE_CLAVE', 'dvProc'].map((n) => 'var ' + n + ' = ' + var_(n) + ';').join('\n') + '\n' +
     'function icon(n, c){ return "<svg class=\\"ic\\">" + n + "</svg>"; }\n' +
     ['norm', 'situacionDe', 'vacio', 'festivos', 'esFestivo', 'esHabil', 'hoy', 'diaClave', 'sumarHabiles', 'fechaLarga', 'fechaCorta',
      'plazo', 'fechas', 'desglose', 'renglones', 'esCondicion', 'frasesDe', 'repartir', 'frasesCopiables', 'plataformas', 'modelo',
-     'esc', 'ic', 'sinComillaSuelta', 'mayuscula', 'resaltar', 'enLinea', 'diasTexto', 'tiraHTML', 'avanceHTML', 'plazoHTML', 'bloquesHTML',
+     'esc', 'ic', 'sinComillaSuelta', 'mayuscula', 'resaltar', 'dvTabla', 'dvEnlace', 'enLinea', 'diasTexto', 'tiraHTML', 'avanceHTML', 'plazoHTML', 'bloquesHTML',
      'procedeHTML', 'fichaHTML', 'resumen', 'marcar', 'fragmento', 'sistemaDe'].map((n) => { const f = fuente(n); if (!f) throw new Error('no encontré ' + n); return f; }).join('\n') +
     '\nthis.api = { modelo, situacionDe, plazo, fechas, desglose, sumarHabiles, esFestivo, esHabil, festivos, fechaLarga, fechaCorta, ' +
     'renglones, repartir, frasesCopiables, fichaHTML, tiraHTML, enLinea, resumen, marcar, fragmento, SITUACIONES, LINEAS };', ctx);
@@ -253,9 +253,25 @@ ok('se quedan los datos: trazReintentar, trazSkeletons, trazMock y trazReconstru
   ok('#sec-' + id + ': h1 para lectores de pantalla, su contenedor y sin encabezado visible', /<h1 class="tz-sr">Trazabilidad · /.test(s) && s.indexOf('id="traz-' + id + '"') > -1 && s.indexOf('sec-head') < 0 && s.indexOf('sec-eyebrow') < 0);
 });
 const devsap = index.slice(index.indexOf('<section id="sec-devsap"'), index.indexOf('</section>', index.indexOf('<section id="sec-devsap"')));
-ok('Devoluciones SAP sigue con sus bloques .bt-* y su CSS', /class="bt-block/.test(devsap) && /\n\.bt-block\{/.test(index) && /\[data-theme="carbon"\] \.bt-quote\{/.test(index));
+ok('Devoluciones SAP es la consola de app_devsap.html (y Trazabilidad no le dejó nada)', /id="dv-app"/.test(devsap) && !/class="bt-block/.test(devsap) && /\n\.ds-badge\{/.test(index));
 ok('las insignias del menú (SF, MKP, TDA, GEN) conservan su CSS', ['.sl-badge{', '.slm-badge{', '.mkp-badge{', '.tda-badge{', '.gen-badge{'].every((s) => index.indexOf('\n' + s) > -1));
 ok('las variantes de color por sección se fueron', ['.sl-block{', '.mkp-num{', '.tda-plat{', '.gen-note{', '[data-theme="carbon"] .sl-block'].every((s) => index.indexOf(s) < 0));
 
+
+console.log('8) Devoluciones SAP: la leyenda y «la tabla actualizada» llevan a su caso (26/09/2026)');
+{
+  const f = (id) => A.fichaHTML(porId[id]);
+  const dv = (h) => (h.match(/data-tz-dv="([^"]*)"/g) || []).map((x) => x.slice(12, -1));
+  ok('SL resurtido: las tres leyendas de Servicio SL y «la tabla» llevan a Servicio SL', dv(f('sl-4')).filter((a) => a === 'ds-esc-servicio').length === 4, dv(f('sl-4')));
+  ok('ENR de SL, SL Mensajerías y MKP: «Reconocida» lleva a ENR', ['sl-5', 'slm-6', 'mkp-8'].every((id) => dv(f(id)).indexOf('ds-enr') > -1));
+  ok('MKP por satisfacción: «la tabla» lleva a Satisfacción SL', dv(f('mkp-12')).indexOf('ds-esc-satisfaccion') > -1, dv(f('mkp-12')));
+  ok('recogidos por satisfacción/mercancía dañada: «la tabla» abre la consola sin elegir (el nombre dice los dos)', dv(f('sl-9')).indexOf('') > -1 && dv(f('tda-2')).indexOf('') > -1);
+  ok('MKP incompleto/maltratado/equivocado: «SERVICIO SL dañada/incompleta/equivocada» es UN enlace a Servicio SL', /data-tz-dv="ds-esc-servicio">SERVICIO SL dañada\/incompleta\/equivocada</.test(f('mkp-14')));
+  const todas = M.map((p) => A.fichaHTML(p)).join('');
+  ok('solo lleva a casos que existen en la consola', dv(todas).every((a) => ['', 'ds-esc-servicio', 'ds-esc-satisfaccion', 'ds-enr'].indexOf(a) > -1), dv(todas));
+  ok('ningún enlace se cuela en un atributo (el «Copiar» copia texto)', !/data-tz-copiar="[^"]*</.test(todas));
+  ok('«Entrega no reconocida» (minúscula) no es la leyenda: no se enlaza', !/data-tz-dv="ds-enr">reconocida/.test(todas));
+  ok('el clic va a Devoluciones SAP por switchSec y esperarYRevelar', /data-tz-dv/.test(fuente('alClic')) && /switchSec\('devsap', tab\)/.test(fuente('irADevsap')) && /esperarYRevelar\('devsap', ancla, null\)/.test(fuente('irADevsap')));
+}
 console.log('\n' + (total - fallos) + ' de ' + total + ' comprobaciones' + (fallos ? ' — ' + fallos + ' FALLAN' : ' — todo bien'));
 process.exit(fallos ? 1 : 0);
