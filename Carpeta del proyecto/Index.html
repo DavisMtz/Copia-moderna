@@ -1155,137 +1155,33 @@ a:focus-visible,button:focus-visible,input:focus-visible,[tabindex]:focus-visibl
 ════════════════════════════════════════════════════════════ */
 .bt-block{background:var(--surface);border-radius:var(--rad);padding:1.4rem 1.6rem;box-shadow:var(--sh-sm);margin-bottom:1.25rem;border-left:4px solid var(--brand)}
 
-/* ── SoftLine · variante ámbar ── */
-.sl-block{border-left-color:#E8822A}
-.sl-block .bt-obs-list li::before{color:#E8822A}
-.sl-block .bt-quote{background:#FEF3C7;border-left-color:#E8822A;color:#92400E}
-.sl-num{background:linear-gradient(135deg,#E8822A,#F59E0B) !important;box-shadow:0 8px 16px -8px rgba(232,130,42,.55) !important}
-.sl-plat{background:#FEF3C7 !important;color:#92400E !important}
-.sl-note{background:#FEF9EE;border-color:rgba(232,130,42,.2) !important;color:#92400E !important}
-.sl-note strong{color:#92400E !important}
+/* ── Insignias de las secciones de Trazabilidad en el menú ── */
 .sl-badge{display:inline-flex;align-items:center;padding:.08rem .46rem;border-radius:100px;background:rgba(255,255,255,.28);color:#fff;font-size:.64rem;font-weight:800;letter-spacing:.04em;margin-left:.25rem}
-
-/* ── SoftLine Mensajerías · variante azul ── */
-.slm-block{border-left-color:var(--info)}
-.slm-block .bt-obs-list li::before{color:var(--info)}
-.slm-block .bt-quote{background:var(--info-bg);border-left-color:var(--info);color:var(--info)}
-.slm-num{background:linear-gradient(135deg,var(--info),#3B82F6) !important;box-shadow:0 8px 16px -8px rgba(29,78,216,.5) !important}
-.slm-plat{background:var(--info-bg) !important;color:var(--info) !important}
-.slm-note{background:#EFF6FF;border-color:rgba(29,78,216,.18) !important;color:var(--info) !important}
-.slm-note strong{color:var(--info) !important}
 .slm-badge{display:inline-flex;align-items:center;padding:.08rem .46rem;border-radius:100px;background:rgba(255,255,255,.28);color:#fff;font-size:.64rem;font-weight:800;letter-spacing:.04em;margin-left:.25rem}
-/* MarketPlace – purple */
-.mkp-block{border-left-color:#7C3AED}
-.mkp-block .bt-obs-list li::before{color:#7C3AED}
-.mkp-block .bt-quote{background:#EDE9FE;border-left-color:#7C3AED;color:#4C1D95}
-.mkp-num{background:linear-gradient(135deg,#7C3AED,#A78BFA) !important;box-shadow:0 8px 16px -8px rgba(124,58,237,.55) !important}
-.mkp-plat{background:#EDE9FE !important;color:#5B21B6 !important}
-.mkp-note{background:#F5F3FF;border-color:rgba(124,58,237,.18) !important;color:#5B21B6 !important}
-.mkp-note strong{color:#5B21B6 !important}
 .mkp-badge{display:inline-flex;align-items:center;padding:.08rem .46rem;border-radius:100px;background:rgba(255,255,255,.28);color:#fff;font-size:.64rem;font-weight:800;letter-spacing:.04em;margin-left:.25rem}
-/* Tienda Física – emerald */
-.tda-block{border-left-color:#059669}
-.tda-block .bt-obs-list li::before{color:#059669}
-.tda-block .bt-quote{background:#D1FAE5;border-left-color:#059669;color:#064E3B}
-.tda-num{background:linear-gradient(135deg,#059669,#34D399) !important;box-shadow:0 8px 16px -8px rgba(5,150,105,.55) !important}
-.tda-plat{background:#D1FAE5 !important;color:#065F46 !important}
-.tda-note{background:#ECFDF5;border-color:rgba(5,150,105,.18) !important;color:#065F46 !important}
-.tda-note strong{color:#065F46 !important}
 .tda-badge{display:inline-flex;align-items:center;padding:.08rem .46rem;border-radius:100px;background:rgba(255,255,255,.28);color:#fff;font-size:.64rem;font-weight:800;letter-spacing:.04em;margin-left:.25rem}
-/* Generales – rose */
-.gen-block{border-left-color:#E11D48}
-.gen-block .bt-obs-list li::before{color:#E11D48}
-.gen-block .bt-quote{background:#FFE4E6;border-left-color:#E11D48;color:#881337}
-.gen-num{background:linear-gradient(135deg,#E11D48,#FB7185) !important;box-shadow:0 8px 16px -8px rgba(225,29,72,.55) !important}
-.gen-plat{background:#FFE4E6 !important;color:#9F1239 !important}
-.gen-note{background:#FFF1F2;border-color:rgba(225,29,72,.18) !important;color:#9F1239 !important}
-.gen-note strong{color:#9F1239 !important}
 .gen-badge{display:inline-flex;align-items:center;padding:.08rem .46rem;border-radius:100px;background:rgba(255,255,255,.28);color:#fff;font-size:.64rem;font-weight:800;letter-spacing:.04em;margin-left:.25rem}
 
 /* ════════════════════════════════════════════════════════════
-   TRAZABILIDAD · procesos servidos desde la hoja de Homologación
-   Las tarjetas siguen siendo .bt-block con sus seis variantes de color
-   (.sl-block, .slm-block, .mkp-block, .tda-block, .gen-block): aquí sólo
-   se añade el plegado, la barra de filtros y los estados de carga/error.
+   TRAZABILIDAD · la vista vive en app_trazabilidad.html (26/09/2026)
+   Aquí solo queda el hueso de espera que pinta trazSkeletons() cuando no
+   cargó el motor de escenas (VentelFX).
 ════════════════════════════════════════════════════════════ */
-
-/* ── Barra de control: buscar dentro de la sección, filtrar por plataforma y plegar ── */
-.traz-bar{position:sticky;top:64px;z-index:31;display:flex;flex-direction:column;gap:.55rem;padding:.7rem .8rem;margin:-.4rem 0 1rem;border:1px solid var(--line);border-radius:14px;background:color-mix(in srgb,var(--content-bg) 93%,transparent);backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px)}
-.traz-bar-row{display:flex;align-items:center;gap:.55rem;flex-wrap:wrap}
-.traz-find{position:relative;flex:1 1 230px;min-width:0}
-.traz-find input{width:100%;border:1.5px solid var(--line);background:var(--surface);color:var(--ink);border-radius:10px;padding:.52rem .8rem .52rem 2.15rem;font-size:.86rem;font-family:inherit}
-.traz-find input::placeholder{color:var(--ink-faint)}
-.traz-find input:focus-visible{outline:2px solid var(--brand);outline-offset:1px;border-color:var(--brand-soft)}
-.traz-find .ic{position:absolute;left:.7rem;top:50%;transform:translateY(-50%);width:15px;height:15px;color:var(--ink-faint);pointer-events:none}
-.traz-count{font-size:.76rem;font-weight:700;color:var(--ink-soft);font-variant-numeric:tabular-nums;white-space:nowrap}
-.traz-btn{display:inline-flex;align-items:center;gap:.38rem;border:1.5px solid var(--line);background:var(--surface);color:var(--ink-soft);border-radius:10px;padding:.48rem .8rem;font-size:.79rem;font-weight:700;font-family:inherit;cursor:pointer;transition:var(--tr);white-space:nowrap}
-.traz-btn:hover{border-color:var(--brand-soft);color:var(--brand)}
-.traz-btn:focus-visible{outline:2px solid var(--brand);outline-offset:2px}
-.traz-btn .ic{width:14px;height:14px}
-.traz-filters{display:flex;flex-wrap:wrap;gap:.32rem;align-items:center}
-.traz-flabel{font-size:.64rem;font-weight:800;text-transform:uppercase;letter-spacing:.07em;color:var(--ink-faint);margin-right:.1rem}
-.traz-fchip{border:1.5px solid var(--line);background:var(--surface);color:var(--ink-soft);border-radius:999px;padding:.2rem .66rem;font-size:.73rem;font-weight:700;font-family:inherit;cursor:pointer;transition:var(--tr)}
-.traz-fchip:hover{border-color:var(--brand-soft);color:var(--brand)}
-.traz-fchip:focus-visible{outline:2px solid var(--brand);outline-offset:2px}
-.traz-fchip[aria-pressed="true"]{background:var(--grad-brand);border-color:transparent;color:#fff}
-
-/* El nav numerado deja de ser pegajoso: quien manda arriba es .traz-bar */
-.traz-nav{position:static;top:auto;z-index:auto;background:none;backdrop-filter:none;-webkit-backdrop-filter:none;margin:0 0 1.15rem}
-/* [hidden] no basta por sí solo: .fp-nav declara display:flex y gana a la hoja del navegador. */
-.traz-nav[hidden]{display:none}
-.traz-nav .fp-nav-chip[hidden]{display:none}
-
-/* ── Tarjeta plegable ── */
-.traz-card{padding:0;margin-bottom:.85rem}
-.traz-card[hidden]{display:none}
-.traz-toggle{display:block;width:100%;text-align:left;background:none;border:0;color:inherit;font:inherit;cursor:pointer;padding:1.15rem 3.1rem 1.15rem 1.4rem;border-radius:var(--rad);position:relative}
-.traz-toggle:focus-visible{outline:2px solid var(--brand);outline-offset:-3px}
-.traz-toggle:disabled{cursor:default;padding-right:1.4rem}
-.traz-toggle .bt-head{margin-bottom:0}
-.traz-titlewrap{min-width:0;flex:1 1 12rem}
-.traz-chev{position:absolute;right:1.2rem;top:1.4rem;width:18px;height:18px;color:var(--ink-faint);transition:transform .26s cubic-bezier(.2,.8,.2,1),color .2s}
-.traz-toggle:hover .traz-chev{color:var(--brand)}
-.traz-card.is-open .traz-chev{transform:rotate(180deg);color:var(--brand)}
-.traz-panel{overflow:hidden}
-.traz-panel-in{padding:0 1.4rem 1.3rem}
-.traz-panel-in > .bt-obs + .bt-obs{margin-top:.7rem}
-.traz-steps{margin:.5rem 0 .2rem 1rem}
-
-/* ── Estados: cargando, sin resultados, datos guardados y error ── */
 .traz-skel{background:var(--surface);border-radius:var(--rad);box-shadow:var(--sh-sm);border-left:4px solid var(--line);padding:1.25rem 1.5rem;margin-bottom:.85rem}
 .traz-skel i{display:block;height:11px;border-radius:6px;background:linear-gradient(90deg,var(--surface-2) 25%,var(--line-soft) 37%,var(--surface-2) 63%);background-size:400% 100%;animation:trazShimmer 1.4s ease-in-out infinite}
 .traz-skel i + i{margin-top:.62rem}
 @keyframes trazShimmer{0%{background-position:100% 0}100%{background-position:0 0}}
-.traz-state{display:flex;gap:.65rem;align-items:flex-start;border-radius:var(--rad-sm);padding:.75rem .95rem;font-size:.83rem;line-height:1.5;margin-bottom:1rem}
-.traz-state .ic{width:17px;height:17px;flex-shrink:0;margin-top:1px}
-.traz-state span{min-width:0;flex:1}
-.traz-state strong{font-weight:800}
-.traz-state.warn{background:var(--warn-bg);color:var(--warn);border:1px solid rgba(180,83,9,.2)}
-.traz-state.alert{background:var(--alert-bg);color:var(--alert);border:1px solid rgba(185,28,28,.22)}
-.traz-state .traz-btn{background:transparent;border-color:currentColor;color:inherit;padding:.34rem .68rem;font-size:.75rem}
-.traz-state .traz-btn:hover{background:var(--surface);color:inherit}
-.traz-empty{display:none;background:var(--surface);border:1.5px dashed var(--line);border-radius:var(--rad);padding:1.6rem;text-align:center;color:var(--ink-soft);font-size:.87rem}
-.traz-empty.show{display:block}
-.traz-empty strong{display:block;color:var(--ink);font-size:.95rem;font-weight:800;margin-bottom:.25rem}
-
-@media(max-width:640px){
-  .traz-bar{top:56px}
-  .traz-toggle{padding:1rem 2.6rem 1rem 1.1rem}
-  .traz-panel-in{padding:0 1.1rem 1.1rem}
-  .bt-times{margin-left:0;width:100%}
-}
 @media (prefers-reduced-motion: reduce){
   .traz-skel i{animation:none}
-  .traz-chev{transition:none}
 }
 
 /* ── Tema carbón · contraste de los bloques de proceso ──────────────────────
-   Los colores de texto de estos componentes (--brand-deep y los tonos de las
-   seis variantes de sección) se eligieron para fondo claro y el tema carbón no
-   los aclara: sobre el panel oscuro se quedan en ~2,5:1 y las citas y los notas
-   dejan de leerse. Antes eran cuatro bloques escritos a mano; ahora aparecen en
-   los 69 procesos, así que aquí se suben a tonos legibles sobre oscuro.
-   Las variantes de sección usan !important, por eso estas reglas también.
+   Los colores de texto de estos componentes (--brand-deep y los tonos de los
+   bloques de Devoluciones SAP) se eligieron para fondo claro y el tema carbón no
+   los aclara: sobre el panel oscuro se quedan en ~2,5:1 y las citas y las notas
+   dejan de leerse, así que aquí se suben a tonos legibles sobre oscuro.
+   Trazabilidad ya no usa estos bloques (26/09/2026, app_trazabilidad.html): sus
+   seis variantes de color por sección se fueron con ella.
 ──────────────────────────────────────────────────────────────────────────── */
 [data-theme="carbon"] .bt-quote{background:rgba(225,0,152,.15);color:#FBA5D9;border-left-color:var(--brand-bright)}
 [data-theme="carbon"] .bt-plat{background:rgba(225,0,152,.16);color:#FBA5D9}
@@ -1301,31 +1197,6 @@ a:focus-visible,button:focus-visible,input:focus-visible,[tabindex]:focus-visibl
 /* El texto de los pasos heredaba el color del documento; se ata al token para
    que no dependa de la herencia. */
 [data-theme="carbon"] .step-list li{color:var(--ink)}
-
-[data-theme="carbon"] .sl-block .bt-quote{background:rgba(232,130,42,.18);color:#FCD34D}
-[data-theme="carbon"] .sl-plat{background:rgba(232,130,42,.18) !important;color:#FCD34D !important}
-[data-theme="carbon"] .sl-note,[data-theme="carbon"] .sl-note strong{color:#FCD34D !important}
-[data-theme="carbon"] .sl-note{background:rgba(232,130,42,.12);border-color:rgba(232,130,42,.24) !important}
-
-[data-theme="carbon"] .slm-block .bt-quote{background:rgba(59,130,246,.18);color:#93C5FD}
-[data-theme="carbon"] .slm-plat{background:rgba(59,130,246,.18) !important;color:#93C5FD !important}
-[data-theme="carbon"] .slm-note,[data-theme="carbon"] .slm-note strong{color:#93C5FD !important}
-[data-theme="carbon"] .slm-note{background:rgba(59,130,246,.12);border-color:rgba(59,130,246,.24) !important}
-
-[data-theme="carbon"] .mkp-block .bt-quote{background:rgba(124,58,237,.22);color:#C4B5FD}
-[data-theme="carbon"] .mkp-plat{background:rgba(124,58,237,.22) !important;color:#C4B5FD !important}
-[data-theme="carbon"] .mkp-note,[data-theme="carbon"] .mkp-note strong{color:#C4B5FD !important}
-[data-theme="carbon"] .mkp-note{background:rgba(124,58,237,.14);border-color:rgba(124,58,237,.26) !important}
-
-[data-theme="carbon"] .tda-block .bt-quote{background:rgba(5,150,105,.22);color:#6EE7B7}
-[data-theme="carbon"] .tda-plat{background:rgba(5,150,105,.22) !important;color:#6EE7B7 !important}
-[data-theme="carbon"] .tda-note,[data-theme="carbon"] .tda-note strong{color:#6EE7B7 !important}
-[data-theme="carbon"] .tda-note{background:rgba(5,150,105,.14);border-color:rgba(5,150,105,.26) !important}
-
-[data-theme="carbon"] .gen-block .bt-quote{background:rgba(225,29,72,.22);color:#FDA4AF}
-[data-theme="carbon"] .gen-plat{background:rgba(225,29,72,.22) !important;color:#FDA4AF !important}
-[data-theme="carbon"] .gen-note,[data-theme="carbon"] .gen-note strong{color:#FDA4AF !important}
-[data-theme="carbon"] .gen-note{background:rgba(225,29,72,.14);border-color:rgba(225,29,72,.26) !important}
 
 /* ── Devoluciones SAP · glosario de leyendas + matrices SL ── */
 .ds-badge{display:inline-flex;align-items:center;padding:.08rem .46rem;border-radius:100px;background:rgba(255,255,255,.28);color:#fff;font-size:.64rem;font-weight:800;letter-spacing:.04em;margin-left:.25rem}
@@ -1580,6 +1451,9 @@ table.ds-matrix{width:100%;border-collapse:separate;border-spacing:0;min-width:5
 <!-- Formatos en pestañas por uso (26/09/2026): renderF(), fmtContar(), fmtAlEntrar(), fmtRevelar() y todo lo de
      #sec-formatos. Parcial para que el build lo minifique; el guion grande de abajo lo usa desde DOMContentLoaded. -->
 <?!= include('app_formatos') ?>
+<!-- Trazabilidad por situación (26/09/2026): trzPintar(), trzAviso(), trzAlEntrar(), trzRevelar() y trzAplicarBusqueda(),
+     la vista de las seis secciones. Los datos (pedirlos, copia local, aviso e índices) siguen en el guion grande de abajo. -->
+<?!= include('app_trazabilidad') ?>
 <template id="__bundler_thumbnail" data-bg-color="#E10098">
   <svg viewBox="0 0 1200 800" xmlns="http://www.w3.org/2000/svg">
     <rect width="1200" height="800" fill="#E10098"/>
@@ -2123,72 +1997,47 @@ table.ds-matrix{width:100%;border-collapse:separate;border-spacing:0;min-width:5
   <!-- ══════════════════════════════════════════════════════════════════════
        TRAZABILIDAD · Homologación de Procesos 2026
 
-       Estas seis secciones ya NO llevan el detalle escrito a mano. Su contenido
-       lo sirve Trazabilidad.gs desde la hoja de Homologación y lo pinta
-       renderTrazSeccion() dentro de cada #traz-<id>: barra de filtros, chips de
-       salto y una tarjeta plegable por proceso.
-
-       Aquí sólo queda el encabezado editorial (título y descripción de la
-       sección), que no vive en la hoja.
+       Las seis secciones pintan UNA sola vista (app_trazabilidad.html): una pestaña
+       por situación del cliente y, dentro, los procesos de cada línea. trzAlEntrar()
+       la muda al <div id="traz-…"> de la sección que se abre y le pone su línea, así
+       que los seis accesos del menú, ?sec= e ?item=bt-2 siguen llevando al mismo sitio.
+       Sin encabezado visible, como Herramientas y Formatos: el h1 es para lectores de
+       pantalla.
   ══════════════════════════════════════════════════════════════════════ -->
 
   <!-- ══ BIG TICKET ══ -->
   <section id="sec-bigticket" class="view-section">
-    <div class="sec-head">
-      <span class="sec-eyebrow"><span class="dot"></span>Guía de procesos</span>
-      <h1 class="sec-title">Procesos <em>Big Ticket</em></h1>
-      <p class="sec-sub">Tiempos de reporte, avance y solución, plataformas y observaciones de cada proceso BT. Filtra por plataforma o busca dentro de la sección; abre una tarjeta para ver el detalle completo.</p>
-    </div>
+    <h1 class="tz-sr">Trazabilidad · Big Ticket</h1>
     <div id="traz-bigticket" class="traz-sec"></div>
   </section>
 
   <!-- ══ SOFT LINE · logística y mensajería interna ══ -->
   <section id="sec-softline" class="view-section">
-    <div class="sec-head">
-      <span class="sec-eyebrow"><span class="dot"></span>Logística y mensajería interna</span>
-      <h1 class="sec-title">Procesos <em>Soft Line (SF)</em></h1>
-      <p class="sec-sub">Procesos de logística y mensajería interna SoftLine — tiempos, plataformas y observaciones. Filtra por plataforma o busca dentro de la sección; abre una tarjeta para ver el detalle completo.</p>
-    </div>
+    <h1 class="tz-sr">Trazabilidad · Soft Line</h1>
     <div id="traz-softline" class="traz-sec"></div>
   </section>
 
   <!-- ══ SL MENSAJERÍAS · paqueterías externas ══ -->
   <section id="sec-slmensajerias" class="view-section">
-    <div class="sec-head">
-      <span class="sec-eyebrow"><span class="dot"></span>Mensajerías externas SoftLine</span>
-      <h1 class="sec-title">Procesos <em>SL Mensajerías (SF)</em></h1>
-      <p class="sec-sub">Procesos de mensajería externa SoftLine — tiempos, plataformas y observaciones. Filtra por plataforma o busca dentro de la sección; abre una tarjeta para ver el detalle completo.</p>
-    </div>
+    <h1 class="tz-sr">Trazabilidad · SL Mensajerías</h1>
     <div id="traz-slmensajerias" class="traz-sec"></div>
   </section>
 
   <!-- ══ MARKETPLACE ══ -->
   <section id="sec-mkp" class="view-section">
-    <div class="sec-head">
-      <span class="sec-eyebrow"><span class="dot"></span>Trazabilidad e incidencias MKP</span>
-      <h1 class="sec-title">Procesos <em>MarketPlace (MKP)</em></h1>
-      <p class="sec-sub">Procesos de MarketPlace — tiempos, plataformas y observaciones. Filtra por plataforma o busca dentro de la sección; abre una tarjeta para ver el detalle completo.</p>
-    </div>
+    <h1 class="tz-sr">Trazabilidad · MarketPlace</h1>
     <div id="traz-mkp" class="traz-sec"></div>
   </section>
 
   <!-- ══ TIENDA FÍSICA ══ -->
   <section id="sec-tienda" class="view-section">
-    <div class="sec-head">
-      <span class="sec-eyebrow"><span class="dot"></span>Homologación de procesos 2026</span>
-      <h1 class="sec-title">Procesos <em>Tienda Física</em></h1>
-      <p class="sec-sub">Procesos de Tienda Física — tiempos, plataformas y observaciones. Filtra por plataforma o busca dentro de la sección; abre una tarjeta para ver el detalle completo.</p>
-    </div>
+    <h1 class="tz-sr">Trazabilidad · Tienda</h1>
     <div id="traz-tienda" class="traz-sec"></div>
   </section>
 
   <!-- ══ GENERALES ══ -->
   <section id="sec-generales" class="view-section">
-    <div class="sec-head">
-      <span class="sec-eyebrow"><span class="dot"></span>Homologación de procesos 2026</span>
-      <h1 class="sec-title">Procesos <em>Generales</em></h1>
-      <p class="sec-sub">Mesa de Regalos, Métodos de Pago, Devoluciones no reflejadas, Digitales y Sterling — tiempos, plataformas y observaciones. Filtra por plataforma o busca dentro de la sección; abre una tarjeta para ver el detalle completo.</p>
-    </div>
+    <h1 class="tz-sr">Trazabilidad · Generales</h1>
     <div id="traz-generales" class="traz-sec"></div>
   </section>
 
@@ -2869,12 +2718,6 @@ let store = { herramientas:[], presentaciones:[], paqueterias:[], formatos:[], p
 let pltView = [];        // plantillas actualmente renderizadas (respeta filtros de texto/tipo)
 let pltType = 'all';     // filtro de tipo activo: 'all' | 'mail' | 'sf'
 let searchTimer;
-let btRevealsReady = false;
-let slRevealsReady = false;
-let slmRevealsReady = false;
-let mkpRevealsReady = false;
-let tdaRevealsReady = false;
-let genRevealsReady = false;
 let devsapRevealsReady = false;
 
 /* ── PERSISTENCIA LOCAL (preferencias y caché del asesor) ── */
@@ -3219,15 +3062,17 @@ function initNavigation(){
      sección— y tiene que abrir algo igualmente. Por eso no está dentro del `if (!sec)`
      de abajo, que es donde estuvo primero y donde no funcionaba para el enlace que de
      verdad se comparte. */
-  const restore = (sec, q, item, pub) => {
+  const restore = (sec, q, item, pub, linea) => {
     sincronizarPub(pub || '');
     if (!sec || !document.getElementById('sec-' + sec)) return;
     suppressHistory = true; switchSec(sec); suppressHistory = false;
+    // Trazabilidad guardada con «Todas» las líneas (linea=todas): switchSec la dejó en la de la sección.
+    if (linea === 'todas' && window.trzVerTodas && document.getElementById('traz-' + sec)) trzVerTodas();
     if (!q && !item) return;
     const clave = sec === 'pdepago' ? 'pdePago' : sec;
 
     /* Las secciones de Trazabilidad no viven en `store` ni las filtra `filterSec`: tienen
-       su propio buscador (`trazFiltrar`) y sus datos llegan por otra llamada. Sin esta
+       su propio filtro (app_trazabilidad.html) y sus datos llegan por otra llamada. Sin esta
        distinción, un enlace a un proceso esperaba tres segundos a que se llenara una
        lista que nunca se iba a llenar, y de paso intentaba escribir en un campo que no
        era el suyo. Se sabe por el contenedor `#traz-<id>`, que solo existe en ellas. */
@@ -3235,7 +3080,7 @@ function initNavigation(){
 
     const aplicar = (intentos) => {
       if (q) {
-        if (esTraz) trazAplicarBusqueda(sec, q);
+        if (esTraz) { if (window.trzAplicarBusqueda) trzAplicarBusqueda(sec, q); }
         else applySectionSearch(sec, q);
       }
       // Se reintenta solo mientras la sección esté VACÍA: el filtro llega antes que la
@@ -3251,7 +3096,7 @@ function initNavigation(){
       // `store`, no hay nada que esperar.
       const deHoja = Object.prototype.hasOwnProperty.call(store, clave);
       const llena = esTraz
-        ? !!document.querySelector('#traz-' + sec + ' .traz-card')
+        ? !!document.querySelector('#traz-' + sec + ' .tz-fila')
         : (!deHoja || (store[clave] || []).length > 0);
       if (!llena && intentos < 12) { setTimeout(() => aplicar(intentos + 1), 250); return; }
       // `item` es el elemento concreto que se eligió allá afuera: se le lleva el foco
@@ -3263,15 +3108,15 @@ function initNavigation(){
   if (typeof google !== 'undefined' && google.script && google.script.history) {
     google.script.url.getLocation(loc => {
       const p = (loc && loc.parameter) || {};
-      restore(p.sec || loc.hash || '', p.q || '', p.item || '', p.pub || '');
+      restore(p.sec || loc.hash || '', p.q || '', p.item || '', p.pub || '', p.linea || '');
     });
     google.script.history.setChangeHandler(e => {
       const p = (e.location && e.location.parameter) || {};
-      restore(p.sec || e.location.hash || 'inicio', p.q || '', p.item || '', p.pub || '');
+      restore(p.sec || e.location.hash || 'inicio', p.q || '', p.item || '', p.pub || '', p.linea || '');
     });
   } else {
     const qs = new URLSearchParams(location.search);
-    restore((location.hash || '').replace('#','') || qs.get('sec') || '', qs.get('q') || '', qs.get('item') || '', qs.get('pub') || '');
+    restore((location.hash || '').replace('#','') || qs.get('sec') || '', qs.get('q') || '', qs.get('item') || '', qs.get('pub') || '', qs.get('linea') || '');
     window.addEventListener('hashchange', () => restore((location.hash || '').replace('#','') || 'inicio', '', '', ''));
   }
   /* El servidor ya inyectó los parámetros al renderizar (PARAMS_VISTA), y eso llega
@@ -3316,12 +3161,12 @@ function sincronizarPub(id){
    enlace con ?q= y el buscador global— y el input es el único que se entera de los tres. */
 function filtroDeSeccion(id){
   const wrap = document.getElementById('sec-' + id);
-  /* `.traz-find` es el buscador de las secciones de Trazabilidad, que no llevan barra de
+  /* `.tz-buscar` es el filtro de las secciones de Trazabilidad, que no llevan barra de
      filtro como las de hoja. Sin él aquí, salir de Big Ticket y volver a entrar apilaba
      una dirección sin `q` mientras el campo seguía escrito y la lista recortada: la
      dirección decía "todos los procesos" y la pantalla enseñaba uno. Son excluyentes —
      ninguna sección tiene los dos—, así que el orden del selector da igual. */
-  const input = wrap ? wrap.querySelector('.filter-input input, .filter-bar input, .traz-find input') : null;
+  const input = wrap ? wrap.querySelector('.filter-input input, .filter-bar input, .tz-buscar input') : null;
   return input ? String(input.value || '').trim() : '';
 }
 
@@ -3351,13 +3196,17 @@ function pushNav(id){
 function navUrl(id, q, apilar){
   const params = q ? { sec:id, q:q } : { sec:id };
   if (pubAbierta) params.pub = pubAbierta;
+  // Trazabilidad con «Todas» las líneas: se guarda para que recargar, volver o compartir llegue igual.
+  const linea = window.trzLineaUrl ? trzLineaUrl(id) : '';
+  if (linea) params.linea = linea;
   if (typeof google !== 'undefined' && google.script && google.script.history) {
     const metodo = apilar ? google.script.history.push : google.script.history.replace;
     try { metodo.call(google.script.history, null, params, id); } catch(e){}
     return;
   }
   const busca = '?sec=' + encodeURIComponent(id) + (q ? '&q=' + encodeURIComponent(q) : '')
-              + (pubAbierta ? '&pub=' + encodeURIComponent(pubAbierta) : '');
+              + (pubAbierta ? '&pub=' + encodeURIComponent(pubAbierta) : '')
+              + (linea ? '&linea=' + encodeURIComponent(linea) : '');
   try {
     if (apilar) history.pushState(null, '', busca + '#' + id);
     else history.replaceState(null, '', busca + '#' + id);
@@ -3625,7 +3474,9 @@ function switchSec(id, btn){
 
   document.querySelectorAll('.view-section').forEach(s => s.classList.remove('active'));
   const target = document.getElementById(`sec-${id}`);
-  if (target){ target.classList.add('active'); sectionEnter(target); }
+  // Las seis de Trazabilidad comparten una vista (app_trazabilidad.html): se muda aquí y toma la línea
+  // de la sección ANTES de animar la entrada, para que sectionEnter encuentre sus pestañas y su hoja.
+  if (target){ target.classList.add('active'); if (window.trzAlEntrar && document.getElementById('traz-' + id)) trzAlEntrar(id); sectionEnter(target); }
   if (id === 'herramientas' && window.csAlEntrar) csAlEntrar();
   if (id === 'paqueterias' && window.pqAlEntrar) pqAlEntrar();
   const topClock = document.querySelector('.topbar .clock');
@@ -3633,12 +3484,6 @@ function switchSec(id, btn){
   if (id === 'formaspago' && window.fpAlEntrar) fpAlEntrar();
   if (id === 'pdepago' && window.pdpAlEntrar) pdpAlEntrar();
   if (id === 'formatos' && window.fmtAlEntrar) fmtAlEntrar();
-  if (id === 'bigticket') initBtReveals();
-  if (id === 'softline') initSlReveals();
-  if (id === 'slmensajerias') initSlmReveals();
-  if (id === 'mkp') initMkpReveals();
-  if (id === 'tienda') initTdaReveals();
-  if (id === 'generales') initGenReveals();
   if (id === 'devsap') initDevsapReveals();
   closeSidebar();
   document.querySelector('main').scrollTo?.(0,0);
@@ -3648,7 +3493,7 @@ function switchSec(id, btn){
 function sectionEnter(section){
   if (!section || !GS()) return;
   const headItems = section.querySelectorAll('.sec-head > *, .hero, .dash-label');
-  const cards = section.querySelectorAll('.cards-grid > *, .fpg-tabs, .fpg-panel:not([hidden]) .fpg-hoja, #gr-paqueterias > *, .stat-card, .qa-card, .guide-card, .cs-lista, .cs-ficha, .pdc-lista, .pdc-ficha, .fmt-tabs, .fmt-hoja:not([hidden])');
+  const cards = section.querySelectorAll('.cards-grid > *, .fpg-tabs, .fpg-panel:not([hidden]) .fpg-hoja, #gr-paqueterias > *, .stat-card, .qa-card, .guide-card, .cs-lista, .cs-ficha, .pdc-lista, .pdc-ficha, .fmt-tabs, .fmt-hoja:not([hidden]), .tz-tabs, .tz-hoja:not([hidden])');
   const tl = gsap.timeline({ defaults:{ ease:'power3.out' } });
   tl.fromTo(section, { opacity:0, y:8 }, { opacity:1, y:0, duration:.24 });
   if (headItems.length) tl.fromTo(headItems, { opacity:0, y:8 }, { opacity:1, y:0, duration:.24, stagger:.03, clearProps:'transform' }, '-=.16');
@@ -3696,9 +3541,9 @@ function jumpToFp(blockId){
   setTimeout(() => window.scrollTo({ top: el.getBoundingClientRect().top + window.scrollY - 90, behavior:'smooth' }), 120);
 }
 
-/* Los saltos a un proceso de Trazabilidad (antes jumpToBt/Sl/Slm/Mkp/Tda/Gen,
-   uno por sección y todos idénticos) los hace ahora trazJump(), que además
-   despliega la tarjeta a la que salta. */
+/* Los saltos a un proceso de Trazabilidad (antes seis jumpToBt/Sl/Slm/Mkp/Tda/Gen y luego
+   uno solo de la vista vieja) los hace revealTarget → trzRevelar (app_trazabilidad.html):
+   abre la pestaña de su situación y despliega su ficha. */
 
 /* ──────── COPIA LOCAL DEL PORTAL ────────────────────────────────────────────
    Es lo que se pinta en el primer fotograma, antes de que conteste Apps Script: sin
@@ -5860,7 +5705,7 @@ function elementoDeSeccion(secId, name, targetId){
   if (!sec) return null;
   if (targetId){ const t = document.getElementById(targetId); if (t) return t; }
 
-  /* Un proceso de Trazabilidad se identifica por el ID de su tarjeta ('bt-3'), no por su
+  /* Un proceso de Trazabilidad se identifica por el ID de su fila ('bt-3'), no por su
      nombre. El nombre sale de una hoja de cálculo y basta un espacio de más, un acento
      distinto o un renglón partido para que la comparación falle; el id lo pone el propio
      Portal al pintarla, así que siempre coincide. Se prueba antes que el nombre y acotado
@@ -5872,15 +5717,15 @@ function elementoDeSeccion(secId, name, targetId){
 
   const want = norm(name);
   if (!want) return null;
-  /* `.bt-title` es el título de una tarjeta de proceso. Faltaba, así que un enlace
-     profundo a Trazabilidad abría la sección correcta y se quedaba arriba, sin señalar
-     nada — y eso se lee como que el buscador no encontró lo que dijo que había
-     encontrado. */
-  const nameEls = sec.querySelectorAll('.cs-nom,.fmt-nom,.fmt-rnom,.paq-name,.pdc-nom,.pres-name,.plt-name,.bt-title');
+  /* `.tz-f-nom` es el nombre de un proceso de Trazabilidad y `.bt-title` el de un bloque de
+     Devoluciones SAP. Sin ellos, un enlace profundo abría la sección correcta y se quedaba
+     arriba, sin señalar nada — y eso se lee como que el buscador no encontró lo que dijo
+     que había encontrado. */
+  const nameEls = sec.querySelectorAll('.cs-nom,.fmt-nom,.fmt-rnom,.paq-name,.pdc-nom,.pres-name,.plt-name,.bt-title,.tz-f-nom');
   let target = null;
   nameEls.forEach(el => { if (!target && norm(el.textContent) === want) target = el; });
   if (!target) nameEls.forEach(el => { if (!target && norm(el.textContent).includes(want)) target = el; });
-  return (target ? target.closest('.cs-fila,.pq-ent,.fmt-resp,.fmt-fila,.pdc-opc,.pres-card,.plt-card,.traz-card,tr') : null) || target;
+  return (target ? target.closest('.cs-fila,.pq-ent,.fmt-resp,.fmt-fila,.pdc-opc,.pres-card,.plt-card,.tz-fila,tr') : null) || target;
 }
 
 /* Espera con reintentos (rAF) a que la sección termine de renderizar antes de saltar —
@@ -5918,9 +5763,10 @@ function revealTarget(scrollEl){
   if (scrollEl.classList && scrollEl.classList.contains('pdc-opc') && window.pdpRevelar){
     if (pdpRevelar(scrollEl)) return;
   }
-  // Un proceso de Trazabilidad llega plegado: llegar a él y ver sólo el título
-  // obligaría a un clic más justo cuando el asesor ya tiene al cliente al teléfono.
-  if (scrollEl.classList && scrollEl.classList.contains('traz-card')) trazToggle(scrollEl.id, true);
+  // Un proceso de Trazabilidad se abre en su pestaña y con su ficha desplegada: llegar a él y ver
+  // sólo el nombre obligaría a un clic más justo cuando el asesor ya tiene al cliente al teléfono.
+  const esTraz = !!(scrollEl.classList && scrollEl.classList.contains('tz-fila'));
+  if (esTraz && window.trzRevelar) scrollEl = trzRevelar(scrollEl) || scrollEl;
   const OFFSET = 140; // deja espacio para topbar + nav de procesos fijos
   const doScroll = () => {
     const y = scrollEl.getBoundingClientRect().top + window.scrollY - OFFSET;
@@ -5935,7 +5781,9 @@ function revealTarget(scrollEl){
   pendingOpenEl = (link && (link.href || link.hasAttribute('data-pq-4pl'))) ? link : null;
   try { document.getElementById('globalSearch').focus({ preventScroll:true }); } catch(e){}
   // El enlace puede decir qué hace (data-accion, en Formatos): «abrir «Sobregiro Drive Resultados»».
-  showKbHint(!!pendingOpenEl, link ? (link.getAttribute('data-accion') || (link.hasAttribute('data-pq-4pl') ? 'ir a la herramienta 4PL' : '')) : '');
+  // Un proceso de Trazabilidad no tiene enlace que abrir: la pista del segundo Enter sobra.
+  if (esTraz) hideKbHint();
+  else showKbHint(!!pendingOpenEl, link ? (link.getAttribute('data-accion') || (link.hasAttribute('data-pq-4pl') ? 'ir a la herramienta 4PL' : '')) : '');
 }
 function flashEl(el){ el.classList.remove('search-flash'); void el.offsetWidth; el.classList.add('search-flash'); setTimeout(() => el.classList.remove('search-flash'), 2200); }
 
@@ -6196,29 +6044,7 @@ function animateGrid(sel){
     { opacity:1, y:0, scale:1, filter:'blur(0px)', duration:.4, stagger:{ each:.035, from:'start' },
       ease:'power3.out', clearProps:'transform,filter' });
 }
-function initSlReveals(){
-  if (slRevealsReady){ if (window.ScrollTrigger) ScrollTrigger.refresh(); return; }
-  slRevealsReady = true;
-  if (!GS() || !window.ScrollTrigger) return;
-  document.querySelectorAll('#sec-softline .bt-block').forEach(block => {
-    gsap.fromTo(block, { opacity:0, y:16 }, { opacity:1, y:0, duration:.34, ease:'power3.out', scrollTrigger:{ trigger:block, start:'top 88%' } });
-    const chips = block.querySelectorAll('.bt-time-chip, .bt-dev-item, .bt-sku');
-    if (chips.length) gsap.fromTo(chips, { opacity:0, scale:.94 }, { opacity:1, scale:1, duration:.26, stagger:.03, ease:'back.out(1.2)', scrollTrigger:{ trigger:block, start:'top 82%' }, clearProps:'transform' });
-  });
-  ScrollTrigger.refresh();
-}
 function jumpToDevsap(blockId){ const el = document.getElementById(blockId); if (el) window.scrollTo({ top: el.getBoundingClientRect().top + window.scrollY - 90, behavior:'smooth' }); }
-function initGenReveals(){
-  if (genRevealsReady){ if (window.ScrollTrigger) ScrollTrigger.refresh(); return; }
-  genRevealsReady = true;
-  if (!GS() || !window.ScrollTrigger) return;
-  document.querySelectorAll('#sec-generales .bt-block').forEach(block => {
-    gsap.fromTo(block, { opacity:0, y:16 }, { opacity:1, y:0, duration:.34, ease:'power3.out', scrollTrigger:{ trigger:block, start:'top 88%' } });
-    const chips = block.querySelectorAll('.bt-time-chip, .bt-dev-item, .bt-sku');
-    if (chips.length) gsap.fromTo(chips, { opacity:0, scale:.94 }, { opacity:1, scale:1, duration:.26, stagger:.03, ease:'back.out(1.2)', scrollTrigger:{ trigger:block, start:'top 82%' }, clearProps:'transform' });
-  });
-  ScrollTrigger.refresh();
-}
 function initDevsapReveals(){
   if (devsapRevealsReady){ if (window.ScrollTrigger) ScrollTrigger.refresh(); return; }
   devsapRevealsReady = true;
@@ -6230,71 +6056,18 @@ function initDevsapReveals(){
   });
   ScrollTrigger.refresh();
 }
-function initTdaReveals(){
-  if (tdaRevealsReady){ if (window.ScrollTrigger) ScrollTrigger.refresh(); return; }
-  tdaRevealsReady = true;
-  if (!GS() || !window.ScrollTrigger) return;
-  document.querySelectorAll('#sec-tienda .bt-block').forEach(block => {
-    gsap.fromTo(block, { opacity:0, y:16 }, { opacity:1, y:0, duration:.34, ease:'power3.out', scrollTrigger:{ trigger:block, start:'top 88%' } });
-    const chips = block.querySelectorAll('.bt-time-chip, .bt-dev-item, .bt-sku');
-    if (chips.length) gsap.fromTo(chips, { opacity:0, scale:.94 }, { opacity:1, scale:1, duration:.26, stagger:.03, ease:'back.out(1.2)', scrollTrigger:{ trigger:block, start:'top 82%' }, clearProps:'transform' });
-  });
-  ScrollTrigger.refresh();
-}
-function initMkpReveals(){
-  if (mkpRevealsReady){ if (window.ScrollTrigger) ScrollTrigger.refresh(); return; }
-  mkpRevealsReady = true;
-  if (!GS() || !window.ScrollTrigger) return;
-  document.querySelectorAll('#sec-mkp .bt-block').forEach(block => {
-    gsap.fromTo(block, { opacity:0, y:16 }, { opacity:1, y:0, duration:.34, ease:'power3.out', scrollTrigger:{ trigger:block, start:'top 88%' } });
-    const chips = block.querySelectorAll('.bt-time-chip, .bt-dev-item, .bt-sku');
-    if (chips.length) gsap.fromTo(chips, { opacity:0, scale:.94 }, { opacity:1, scale:1, duration:.26, stagger:.03, ease:'back.out(1.2)', scrollTrigger:{ trigger:block, start:'top 82%' }, clearProps:'transform' });
-  });
-  ScrollTrigger.refresh();
-}
-function initSlmReveals(){
-  if (slmRevealsReady){ if (window.ScrollTrigger) ScrollTrigger.refresh(); return; }
-  slmRevealsReady = true;
-  if (!GS() || !window.ScrollTrigger) return;
-  document.querySelectorAll('#sec-slmensajerias .bt-block').forEach(block => {
-    gsap.fromTo(block, { opacity:0, y:16 }, { opacity:1, y:0, duration:.34, ease:'power3.out', scrollTrigger:{ trigger:block, start:'top 88%' } });
-    const chips = block.querySelectorAll('.bt-time-chip, .bt-dev-item, .bt-sku');
-    if (chips.length) gsap.fromTo(chips, { opacity:0, scale:.94 }, { opacity:1, scale:1, duration:.26, stagger:.03, ease:'back.out(1.2)', scrollTrigger:{ trigger:block, start:'top 82%' }, clearProps:'transform' });
-  });
-  ScrollTrigger.refresh();
-}
-function initBtReveals(){
-  if (btRevealsReady){ if (window.ScrollTrigger) ScrollTrigger.refresh(); return; }
-  btRevealsReady = true;
-  if (!GS() || !window.ScrollTrigger) return;
-  document.querySelectorAll('#sec-bigticket .bt-block').forEach(block => {
-    gsap.fromTo(block, { opacity:0, y:16 }, { opacity:1, y:0, duration:.34, ease:'power3.out', scrollTrigger:{ trigger:block, start:'top 88%' } });
-    const chips = block.querySelectorAll('.bt-time-chip, .bt-dev-item, .bt-sku');
-    if (chips.length) gsap.fromTo(chips, { opacity:0, scale:.94 }, { opacity:1, scale:1, duration:.26, stagger:.03, ease:'back.out(1.2)', scrollTrigger:{ trigger:block, start:'top 82%' }, clearProps:'transform' });
-  });
-  ScrollTrigger.refresh();
-}
-
 /* ══════════════════════════════════════════════════════════════════════════
    TRAZABILIDAD · seis secciones servidas desde la hoja de Homologación 2026
 
-   Antes este contenido eran ~1.800 líneas de HTML escritas a mano. Ahora
-   Trazabilidad.gs lee la hoja y devuelve el texto EN CRUDO; todo el trabajo de
-   presentarlo bien ocurre aquí:
+   Trazabilidad.gs lee la hoja y devuelve el texto EN CRUDO. Aquí vive solo lo que
+   es DATOS: pedirlos, la copia local, el aviso de copia guardada o de error, el
+   reintento y los índices del buscador general. La VISTA —una sola para las seis
+   secciones, con una pestaña por situación del cliente y la fecha en días hábiles—
+   vive en app_trazabilidad.html desde el 26/09/2026:
 
-     · trazParseObs()      parte las observaciones en viñetas, pasos numerados,
-                           notas y consejos, reconociendo los marcadores que ya
-                           usa la hoja ("⦁", "1.", "Nota:", "Tip:").
-     · trazInline()        escapa, destaca las frases entrecomilladas y pone en
-                           negrita plataformas, estatus y plazos, que es lo que
-                           el asesor busca con la vista mientras habla.
-     · trazDesglosePagos() detecta las listas de "método de pago → plazo" que
-                           vienen dentro de la celda de tiempo de solución y las
-                           saca a una rejilla, en vez de dejar un párrafo enorme.
-
-   Las tarjetas siguen siendo .bt-block con las variantes de color de cada
-   sección, así que el lenguaje visual no cambia: lo que cambia es que vienen
-   plegadas, se pueden filtrar y su contenido es el de la hoja.
+     · trzPintar(datos, aviso)  pinta (o repinta) la vista con los datos nuevos;
+     · trzAviso(aviso)          cambia solo el aviso, con los mismos datos;
+     · trzAlEntrar(id)          la muda a la sección que se abre (lo llama switchSec).
 
    Estrategia de datos (stale-while-revalidate, tres capas):
      1. CacheService en el servidor (15 min)  → Trazabilidad.gs
@@ -6303,42 +6076,17 @@ function initBtReveals(){
    Si la hoja falla se conserva lo pintado y se avisa con la antigüedad del dato.
 ══════════════════════════════════════════════════════════════════════════ */
 
-/* Clases de color por sección (definidas en el CSS). Big Ticket usa las clases
-   base, por eso lleva cadenas vacías. */
-const TRAZ_CFG = [
-  { id:'bigticket',     prefijo:'bt',  block:'',          num:'',        plat:'',         note:'' },
-  { id:'softline',      prefijo:'sl',  block:'sl-block',  num:'sl-num',  plat:'sl-plat',  note:'sl-note' },
-  { id:'slmensajerias', prefijo:'slm', block:'slm-block', num:'slm-num', plat:'slm-plat', note:'slm-note' },
-  { id:'mkp',           prefijo:'mkp', block:'mkp-block', num:'mkp-num', plat:'mkp-plat', note:'mkp-note' },
-  { id:'tienda',        prefijo:'tda', block:'tda-block', num:'tda-num', plat:'tda-plat', note:'tda-note' },
-  { id:'generales',     prefijo:'gen', block:'gen-block', num:'gen-num', plat:'gen-plat', note:'gen-note' }
-];
-
-/* Los sinónimos de cada sección de trazabilidad ("bt", "sf", "marketplace") viven con
-   el armador del índice, en app_indices.html: los dos buscadores tienen que sumar las
-   mismas palabras o el mismo proceso se encuentra en uno y no en el otro. */
-
-/* Iconos en línea: así este bloque no depende del catálogo ICONS. */
-const TRAZ_IC = {
-  buscar:   '<svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="m21 21-4.3-4.3"/></svg>',
-  chevron:  '<svg class="ic traz-chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m6 9 6 6 6-6"/></svg>',
-  expandir: '<svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 5h16"/><path d="m7 10 5 5 5-5"/></svg>',
-  nota:     '<svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" style="width:15px;height:15px;flex-shrink:0;margin-top:2px"><path d="M12 3 22 20H2Z"/><path d="M12 10v4M12 17v.4"/></svg>',
-  tip:      '<svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" style="width:15px;height:15px;flex-shrink:0;margin-top:2px"><path d="M9.5 18h5M10.5 21h3"/><path d="M12 3a6 6 0 0 0-3.4 10.9c.4.3.6.7.6 1.1h5.6c0-.4.2-.8.6-1.1A6 6 0 0 0 12 3Z"/></svg>',
-  reloj:    '<svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 7v5.2l3.2 2"/></svg>',
-  alerta:   '<svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3 22 20H2Z"/><path d="M12 10v4M12 17v.4"/></svg>',
-  recargar: '<svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 11a8 8 0 1 0-2.3 6.3"/><path d="M20 5v6h-6"/></svg>'
-};
+/* Las seis secciones: sus <div id="traz-…"> reciben la escena de espera. */
+const TRAZ_CFG = ['bigticket', 'softline', 'slmensajerias', 'mkp', 'tienda', 'generales'].map(function(id){ return { id:id }; });
 
 /* ── Estado ── */
 let trazData       = null;   // último payload pintado
 let trazFresco     = false;  // true en cuanto responde Apps Script (no el caché)
-let trazFirma      = '';     // evita repintar (y cerrar tarjetas abiertas) si nada cambió
+let trazFirma      = '';     // evita repintar (y cerrar la ficha abierta) si nada cambió
 let trazGuardadoEn = null;   // timestamp de la copia local, para el aviso "datos de hace X"
 let trazAviso      = null;   // {tipo:'warn'|'alert', texto}
 let trazPidiendo   = false;  // hay una llamada a la hoja en vuelo (ver trazReintentar)
 let trazFx         = [];     // escenas de espera abiertas, una por sección
-const trazTimers   = {};     // debounce del buscador, por sección
 
 /* Cierra las escenas de espera de las seis secciones. Lo llaman TODAS las salidas
    de la llamada (dato bueno, dato de caché y error): una escena sin cerrar deja la
@@ -6376,13 +6124,12 @@ function onTrazData(data, fromCache, at){
   trazData = data;
   trazFirma = firma;
 
-  // Si el contenido es idéntico no se repinta: cerraría las tarjetas que el
-  // asesor acaba de abrir y perdería su búsqueda dentro de la sección.
-  if (igual){ trazPintarAvisos(); return; }
+  // Si el contenido es idéntico no se repinta: cerraría la ficha que el asesor
+  // acaba de abrir y perdería su filtro.
+  if (igual){ if (window.trzAviso) trzAviso(trazAviso); return; }
 
-  TRAZ_CFG.forEach(trazRenderSeccion);
+  if (window.trzPintar) trzPintar(data, trazAviso);
   trazReconstruirIndices();
-  trazResetReveals();
 }
 
 function onTrazError(err){
@@ -6391,20 +6138,17 @@ function onTrazError(err){
   if (trazData){
     trazAviso = { tipo:'warn', texto:'No pudimos buscar los procesos más recientes. Estás viendo la copia guardada' +
                   (trazGuardadoEn ? ' (' + relTime(trazGuardadoEn) + ')' : '') + '.' };
-    trazPintarAvisos();
+    if (window.trzAviso) trzAviso(trazAviso);
     return;
   }
   trazAviso = { tipo:'alert', texto:'No pudimos cargar los procesos de trazabilidad. Revisa tu conexión e inténtalo de nuevo.' };
-  TRAZ_CFG.forEach(function(cfg){
-    const host = document.getElementById('traz-' + cfg.id);
-    if (host) host.innerHTML = trazAvisoHTML();
-  });
+  if (window.trzPintar) trzPintar(null, trazAviso);
 }
 
 /* Reintento manual desde el aviso.
    Dos cosas que faltaban aquí:
-   · El aviso —y con él su botón— se repite arriba de las SEIS secciones. Sin
-     bandera, seis pulsaciones eran seis lecturas simultáneas de la misma hoja.
+   · El aviso —y con él su botón— puede pulsarse varias veces seguidas. Sin bandera,
+     cada pulsación era otra lectura simultánea de la misma hoja.
    · El aviso ya no se borra al pulsar. Borrarlo dejaba la sección literalmente en
      blanco durante toda la espera; ahora se queda el mensaje con el botón ocupado
      y, si no había nada que enseñar, la escena del camión debajo. El aviso lo
@@ -6454,550 +6198,6 @@ function trazSkeletons(){
     if (window.VentelFX) trazFx.push(VentelFX.section(host, 'camion', { mode:'fill', minHeight:'240px' }));
     else host.innerHTML = hueso + hueso + hueso;
   });
-}
-
-/* Tras repintar, las animaciones de scroll apuntan a nodos que ya no existen. */
-function trazResetReveals(){
-  btRevealsReady = slRevealsReady = slmRevealsReady = mkpRevealsReady = tdaRevealsReady = genRevealsReady = false;
-  const activa = document.querySelector('.view-section.active');
-  const id = activa ? activa.id.replace('sec-', '') : '';
-  if (id === 'bigticket') initBtReveals();
-  else if (id === 'softline') initSlReveals();
-  else if (id === 'slmensajerias') initSlmReveals();
-  else if (id === 'mkp') initMkpReveals();
-  else if (id === 'tienda') initTdaReveals();
-  else if (id === 'generales') initGenReveals();
-  else if (window.ScrollTrigger) ScrollTrigger.refresh();
-}
-
-/* ── Render de una sección ── */
-function trazRenderSeccion(cfg){
-  const host = document.getElementById('traz-' + cfg.id);
-  if (!host) return;
-  const sec = (trazData && trazData.secciones || []).find(function(s){ return s.id === cfg.id; });
-  const procesos = (sec && sec.procesos) || [];
-
-  if (!procesos.length){
-    host.innerHTML = trazAvisoHTML() +
-      '<div class="traz-empty show"><strong>Sin procesos publicados</strong>' +
-      'Todavía no hay procesos cargados en esta sección. ' +
-      'Avisa al equipo de Ventel para que los publiquen.</div>';
-    return;
-  }
-
-  host.dataset.trazPlat = '';
-  host.innerHTML = trazSeccionHTML(cfg, sec);
-}
-
-function trazSeccionHTML(cfg, sec){
-  const procesos = sec.procesos;
-  const plats = trazPlataformasDe(procesos);
-
-  const chips = procesos.map(function(p){
-    return '<button type="button" class="fp-nav-chip" data-traz-jump="' + esc(p.id) + '"' +
-           ' onclick="trazJump(\'' + esc(p.id) + '\')">' +
-           esc(p.num) + ' · ' + esc(trazCorto(p.nombre, 24)) + '</button>';
-  }).join('');
-
-  const filtros = plats.length > 1 ? (
-    '<div class="traz-filters" role="group" aria-label="Filtrar por plataforma">' +
-      '<span class="traz-flabel">Plataforma</span>' +
-      '<button type="button" class="traz-fchip" aria-pressed="true" data-traz-plat=""' +
-        ' onclick="trazPlat(\'' + cfg.id + '\',\'\')">Todas</button>' +
-      plats.map(function(pl){
-        return '<button type="button" class="traz-fchip" aria-pressed="false" data-traz-plat="' + esc(pl.key) + '"' +
-               ' onclick="trazPlat(\'' + cfg.id + '\',\'' + esc(pl.key) + '\')">' + esc(pl.txt) + '</button>';
-      }).join('') +
-    '</div>'
-  ) : '';
-
-  return trazAvisoHTML() +
-    '<div class="traz-bar">' +
-      '<div class="traz-bar-row">' +
-        '<div class="traz-find">' + TRAZ_IC.buscar +
-          '<input type="search" aria-label="Buscar dentro de ' + esc(sec.label) + '"' +
-          ' placeholder="Buscar proceso, plataforma, estatus…" autocomplete="off" spellcheck="false"' +
-          ' oninput="trazBuscar(\'' + cfg.id + '\')">' +
-        '</div>' +
-        '<span class="traz-count" id="traz-count-' + cfg.id + '" role="status">' +
-          procesos.length + (procesos.length === 1 ? ' proceso' : ' procesos') + '</span>' +
-        '<button type="button" class="traz-btn" data-traz-all="closed" onclick="trazTodo(\'' + cfg.id + '\')">' +
-          TRAZ_IC.expandir + '<span>Expandir todo</span></button>' +
-      '</div>' + filtros +
-    '</div>' +
-    '<nav class="fp-nav traz-nav" aria-label="Ir a un proceso de ' + esc(sec.label) + '">' + chips + '</nav>' +
-    '<div id="traz-lista-' + cfg.id + '">' +
-      procesos.map(function(p){ return trazCardHTML(cfg, sec, p); }).join('') +
-    '</div>' +
-    '<div class="traz-empty" id="traz-empty-' + cfg.id + '">' +
-      '<strong>Sin coincidencias</strong>Ningún proceso de ' + esc(sec.label) +
-      ' coincide con la búsqueda. Prueba con otra palabra o quita el filtro de plataforma.</div>';
-}
-
-/* Aviso de "copia guardada" / error. Se repite arriba de cada sección para que
-   se vea esté donde esté el asesor. */
-function trazAvisoHTML(){
-  if (!trazAviso) return '';
-  return '<div class="traz-state ' + trazAviso.tipo + '" role="status">' +
-    (trazAviso.tipo === 'warn' ? TRAZ_IC.reloj : TRAZ_IC.alerta) +
-    '<span>' + esc(trazAviso.texto) + '</span>' +
-    '<button type="button" class="traz-btn" onclick="trazReintentar(this)">' +
-      TRAZ_IC.recargar + '<span>Reintentar</span></button>' +
-    '</div>';
-}
-function trazPintarAvisos(){
-  TRAZ_CFG.forEach(function(cfg){
-    const host = document.getElementById('traz-' + cfg.id);
-    if (!host) return;
-    const viejo = host.firstElementChild;
-    if (viejo && viejo.classList.contains('traz-state')) viejo.remove();
-    if (trazAviso) host.insertAdjacentHTML('afterbegin', trazAvisoHTML());
-  });
-}
-
-/* ── Tarjeta de un proceso ── */
-function trazCardHTML(cfg, sec, p){
-  const plats  = trazPartesPlat(p.plataformas);
-  const cuerpo = trazCuerpoHTML(cfg, p);
-
-  const platHTML = plats.length ? '<div class="bt-plats">' + plats.map(function(t){
-      return '<span class="bt-plat' + (cfg.plat ? ' ' + cfg.plat : '') + '">' + esc(t.base) + '</span>' +
-             (t.nota ? '<span class="bt-plat info">' + esc(t.nota) + '</span>' : '');
-    }).join('') + '</div>' : '';
-
-  // Texto plano del proceso completo: es lo que filtra el buscador de la sección.
-  // norm() deja sólo [a-z0-9 ], así que es seguro dentro de un atributo.
-  const busq   = norm([p.num, p.nombre, p.plataformas, p.reporte, p.avance, p.solucion, p.observaciones].join(' '));
-  const claves = plats.map(function(t){ return norm(t.base).trim(); }).filter(Boolean).join('|');
-
-  return '<article class="bt-block traz-card' + (cfg.block ? ' ' + cfg.block : '') + '" id="' + esc(p.id) + '"' +
-      ' data-traz-plats="' + esc(claves) + '" data-traz-text="' + esc(busq) + '">' +
-    '<button type="button" class="traz-toggle" aria-expanded="false"' +
-      (cuerpo ? ' aria-controls="' + esc(p.id) + '-panel" onclick="trazToggle(\'' + esc(p.id) + '\')"' : ' disabled') + '>' +
-      '<div class="bt-head">' +
-        '<span class="fp-num' + (cfg.num ? ' ' + cfg.num : '') + '">' + esc(p.num) + '</span>' +
-        '<div class="traz-titlewrap">' +
-          '<h2 class="bt-title">' + esc(p.nombre) + '</h2>' + platHTML +
-        '</div>' +
-        trazTiemposHTML(p, sec.tieneAvance) +
-      '</div>' +
-      (cuerpo ? TRAZ_IC.chevron : '') +
-    '</button>' +
-    (cuerpo ? '<div class="traz-panel" id="' + esc(p.id) + '-panel" hidden>' +
-              '<div class="traz-panel-in">' + cuerpo + '</div></div>' : '') +
-  '</article>';
-}
-
-function trazTiemposHTML(p, conAvance){
-  let html = trazChipHTML('Reporte', p.reporte);
-  if (conAvance) html += trazChipHTML('Avance (L-V)', p.avance);
-  html += trazChipHTML('Solución', p.solucion);
-  return '<div class="bt-times">' + html + '</div>';
-}
-
-/* Un plazo largo (la lista de reembolsos por método de pago ocupa media pantalla)
-   no cabe en un chip: aquí se anuncia y el detalle se despliega en el cuerpo. */
-function trazChipHTML(lbl, val){
-  const v = trazLimpio(val);
-  const texto = !v ? 'N/A' : (trazEsLargo(v) ? 'Ver detalle' : v);
-  return '<div class="bt-time-chip"><span class="bt-time-lbl">' + esc(lbl) + '</span>' +
-         '<span class="bt-time-val ' + trazTono(v) + '">' + esc(texto) + '</span></div>';
-}
-
-/** "", "-", "N/A" y variantes cuentan como celda sin dato. */
-function trazLimpio(v){
-  const s = String(v == null ? '' : v).trim();
-  if (!s || s === '-' || s === '—' || /^n\s*\/?\s*a$/i.test(s)) return '';
-  return s;
-}
-function trazEsLargo(v){
-  const s = trazLimpio(v);
-  return !!s && (s.indexOf('\n') > -1 || s.length > 44);
-}
-
-/* Color del plazo. El color no es el único portador de información: el texto
-   sigue diciendo el plazo exacto; esto sólo ayuda a barrer con la vista. */
-function trazTono(v){
-  const t = norm(v);
-  if (!t) return '';
-  if (t.indexOf('inmediat') > -1) return 'ok';
-  if (/\bano\b|\banos\b|\bmeses\b/.test(t)) return 'info';
-  const dias = t.match(/(\d+)\s*(?:a\s*(\d+)\s*)?dias?/);
-  if (dias) return (parseInt(dias[2] || dias[1], 10) >= 10) ? 'alert' : 'warn';
-  if (t.indexOf('hrs') > -1 || t.indexOf('horas') > -1) return 'warn';
-  if (t.indexOf('fecha') > -1 || t.indexOf('calendario') > -1) return 'info';
-  return '';
-}
-
-/* ── Cuerpo desplegable ─────────────────────────────────────────────────────
-   Primero los plazos que no cupieron en su chip (con desglose de reembolsos si
-   lo es) y después las observaciones. */
-function trazCuerpoHTML(cfg, p){
-  const partes = [];
-
-  [['Tiempo p/reporte', p.reporte], ['Tiempo de avance', p.avance], ['Tiempo de solución', p.solucion]]
-    .forEach(function(par){
-      if (!trazEsLargo(par[1])) return;
-      const pagos = trazDesglosePagos(par[1]);
-      partes.push('<div class="bt-obs"><span class="bt-obs-lbl">' + esc(par[0]) + '</span>' +
-        (pagos ? trazPagosHTML(cfg, pagos) : trazBloquesHTML(cfg, trazParseObs(par[1]))) + '</div>');
-    });
-
-  if (trazLimpio(p.observaciones)){
-    partes.push('<div class="bt-obs"><span class="bt-obs-lbl">Observaciones</span>' +
-      trazBloquesHTML(cfg, trazParseObs(p.observaciones)) + '</div>');
-  }
-  return partes.join('');
-}
-
-/* ── Interpretación de las observaciones ────────────────────────────────────
-   Devuelve bloques: listas de viñetas, pasos numerados, notas y consejos. Se
-   apoya en los marcadores que la hoja YA usa; no inventa estructura. */
-function trazParseObs(txt){
-  const lineas = String(txt == null ? '' : txt).split('\n')
-    .map(function(l){ return l.trim(); }).filter(Boolean);
-  const bloques = [];
-  let lista = null, pasos = null;
-  let ref = null;   // apunta al último texto escrito, para poder continuarlo
-
-  const refArr = function(arr, i){
-    return { leer: function(){ return arr[i]; },
-             escribir: function(t){ arr[i] += ' ' + t; } };
-  };
-  const refObj = function(o, k){
-    return { leer: function(){ return o[k]; },
-             escribir: function(t){ o[k] += ' ' + t; } };
-  };
-
-  lineas.forEach(function(l){
-    let m;
-
-    // "Nota:" / "Notas:" / "Importante:" → aviso destacado
-    if ((m = l.match(/^(notas?|importante)\s*[:.\-]\s*(.+)$/i))){
-      lista = pasos = null;
-      const b = { t:'nota', lbl:'Nota', txt:m[2] };
-      bloques.push(b); ref = refObj(b, 'txt');
-      return;
-    }
-    // "Tip:" / "Consejo:" → consejo
-    if ((m = l.match(/^(tip|consejo|recuerda)\s*[:.\-]\s*(.+)$/i))){
-      lista = pasos = null;
-      const b = { t:'tip', lbl:'Tip', txt:m[2] };
-      bloques.push(b); ref = refObj(b, 'txt');
-      return;
-    }
-    // "1." / "2)" → paso de un procedimiento
-    if ((m = l.match(/^(\d{1,2})\s*[.)]\s+(.+)$/))){
-      if (!pasos){ lista = null; pasos = { t:'pasos', items:[] }; bloques.push(pasos); }
-      pasos.items.push({ n:m[1], txt:m[2] });
-      ref = refObj(pasos.items[pasos.items.length - 1], 'txt');
-      return;
-    }
-    pasos = null;
-
-    // Viñetas de la hoja. El guion queda fuera a propósito: hay textos que
-    // empiezan con "-" queriendo decir un rango, no una viñeta.
-    const vin = l.match(/^[⦁•‣▪◦※*·]+\s*(.*)$/);
-    const texto = vin ? vin[1].trim() : l;
-    if (!texto) return;
-
-    // En la hoja hay frases partidas a la mitad por un salto de línea
-    // ("…que cuente con monedero y coincida" / "con el del cliente en FMS").
-    // Sin esto saldrían como dos viñetas y la segunda no se entendería sola.
-    if (!vin && ref && trazEsContinuacion(ref.leer(), texto)){ ref.escribir(texto); return; }
-
-    if (!lista){ lista = { t:'lista', items:[] }; bloques.push(lista); }
-    lista.items.push(texto);
-    ref = refArr(lista.items, lista.items.length - 1);
-  });
-
-  return bloques;
-}
-
-/** ¿Esta línea continúa la anterior en vez de empezar una idea nueva? */
-function trazEsContinuacion(prev, actual){
-  if (!prev || !actual) return false;
-  if (/[.:;!?]\s*$/.test(prev)) return false;              // la anterior ya cerró la frase
-  return /^[a-zñáéíóúü(,)]/.test(actual);                  // ésta arranca en minúscula
-}
-
-function trazBloquesHTML(cfg, bloques){
-  return bloques.map(function(b){
-    if (b.t === 'lista'){
-      return '<ul class="bt-obs-list">' + b.items.map(function(i){
-        return '<li>' + trazInline(i) + '</li>';
-      }).join('') + '</ul>';
-    }
-    if (b.t === 'pasos'){
-      return '<ol class="step-list traz-steps">' + b.items.map(function(i){
-        return '<li><span class="step-n">' + esc(i.n) + '</span>' + trazInline(i.txt) + '</li>';
-      }).join('') + '</ol>';
-    }
-    return '<div class="bt-note' + (cfg.note ? ' ' + cfg.note : '') + '">' +
-      (b.t === 'tip' ? TRAZ_IC.tip : TRAZ_IC.nota) +
-      '<span><strong>' + esc(b.lbl) + ':</strong> ' + trazInline(b.txt) + '</span></div>';
-  }).join('');
-}
-
-/* ── Resaltado dentro de una línea ──────────────────────────────────────────
-   Plataformas, estatus de SOMS/PAO y plazos. Se resaltan pocas cosas a
-   propósito: si todo va en negrita, nada destaca. */
-const TRAZ_TERMINOS = [
-  'SAP ECC', 'Entrada Única', 'Entrada Unica', 'Incidencias Trazabilidad', 'lista negra',
-  'PostVenta', 'Postventa', 'Salesforce', 'Sales force', 'SIMPLIROUTE', 'Simpliroute',
-  'PayPal', 'OpenPay', 'Openpay', 'DILISA', 'SEPRO', 'SOMS', 'PLAN', 'SPEI',
-  'NMEN', 'VMEN', 'VCTE', 'LIPR', 'NENT', 'CANC', 'CONF', 'ZVADVIS',
-  '3DS', '4PL', 'APV', 'CSC', 'CTE', 'DOE', 'ENR', 'FMS', 'LPC', 'MDA', 'MDR',
-  'MED', 'OTP', 'PAO', 'PoS', 'SKU', 'MKP', 'SAP'
-];
-/* Términos (frontera de palabra) + importes + cantidades de tiempo. Una sola
-   pasada, así que no puede anidarse un <strong> dentro de otro. */
-const TRAZ_RE_CLAVE = new RegExp(
-  '(?:\\b(?:' + TRAZ_TERMINOS.map(escRe).join('|') + ')\\b' +
-  '|\\$\\s?\\d[\\d,.]*' +
-  '|\\b\\d+(?:[.,]\\d+)?\\s*(?:a\\s*\\d+\\s*)?(?:hrs?\\b|h\\b|horas?\\b|d[ií]as?(?:\\s+(?:h[áa]biles|naturales))?\\b|a[ñn]os?\\b|meses\\b|min\\b))',
-  'gi');
-
-function trazInline(txt){
-  let s = esc(String(txt == null ? '' : txt));
-
-  // Frases entrecomilladas → cita destacada. Sólo si las comillas están
-  // pareadas: si no, se dejaría un <span> abierto a mitad del texto.
-  const comillas = (s.match(/&quot;/g) || []).length;
-  if (comillas >= 2 && comillas % 2 === 0){
-    s = s.replace(/&quot;([\s\S]{2,400}?)&quot;/g, '<span class="bt-quote">$1</span>');
-  }
-  // El resaltado va después: ninguno de los términos aparece dentro del
-  // marcado que se acaba de insertar, así que no puede romperlo.
-  return s.replace(TRAZ_RE_CLAVE, '<strong>$&</strong>');
-}
-
-/* ── Desglose de reembolsos ─────────────────────────────────────────────────
-   Varias celdas de "tiempo de solución" son en realidad una lista de
-   "método de pago → plazo". Se detecta y se pinta como rejilla; lo que no
-   encaja (aclaraciones, "*LAS FECHAS SON ESTIMADAS") baja como nota. */
-function trazDesglosePagos(v){
-  const lineas = String(v == null ? '' : v).split('\n')
-    .map(function(l){ return l.replace(/^[⦁•‣▪◦※*·]+\s*/, '').trim(); })
-    .filter(Boolean);
-
-  const items = [], notas = [];
-  lineas.forEach(function(l){
-    // Las líneas muy largas son aclaraciones, no entradas de la lista.
-    const m = (l.length <= 170) ? l.match(/^(.{3,90}?)\s+en\s+(\d[^.]{1,70}?)\s*[.*\s]*$/i) : null;
-    if (m) items.push({ nombre: m[1].replace(/[\s.,;:]+$/, ''), tiempo: m[2].trim() });
-    else notas.push(l);
-  });
-  return items.length >= 2 ? { items: items, notas: notas } : null;
-}
-
-function trazPagosHTML(cfg, d){
-  return '<div class="bt-dev-grid">' + d.items.map(function(i){
-      return '<div class="bt-dev-item">' +
-        '<div class="bt-dev-item-name">' + esc(i.nombre) + '</div>' +
-        '<div class="bt-dev-item-time">' + esc(i.tiempo) + '</div></div>';
-    }).join('') + '</div>' +
-    (d.notas.length ? '<ul class="bt-obs-list">' + d.notas.map(function(n){
-      return '<li>' + trazInline(n) + '</li>';
-    }).join('') + '</ul>' : '');
-}
-
-/* ── Plataformas ── */
-function trazPartesPlat(str){
-  return String(str == null ? '' : str).split(/[\/\n]+/)
-    .map(function(s){ return s.trim(); })
-    .filter(Boolean)
-    .map(function(s){
-      // "Salesforce (bodega destino)" → chip principal + chip de matiz
-      const m = s.match(/^(.*?)\s*\(([^)]*)\)\s*$/);
-      return (m && m[1].trim()) ? { base:m[1].trim(), nota:m[2].trim() } : { base:s, nota:'' };
-    })
-    .filter(function(t){ return t.base.length <= 46; });
-}
-
-/* Chips de filtro: las plataformas más repetidas de la sección. */
-function trazPlataformasDe(procesos){
-  const cuenta = {};
-  procesos.forEach(function(p){
-    const vistos = {};
-    trazPartesPlat(p.plataformas).forEach(function(t){
-      const k = norm(t.base).trim();
-      if (!k || k.length > 22 || vistos[k]) return;
-      vistos[k] = 1;
-      if (!cuenta[k]) cuenta[k] = { key:k, txt:t.base, n:0 };
-      cuenta[k].n++;
-    });
-  });
-  return Object.keys(cuenta).map(function(k){ return cuenta[k]; })
-    .sort(function(a, b){ return (b.n - a.n) || a.txt.localeCompare(b.txt); })
-    .slice(0, 8);
-}
-
-function trazCorto(s, n){
-  const t = String(s == null ? '' : s).trim();
-  return t.length > n ? t.slice(0, n - 1).trim() + '…' : t;
-}
-
-/* ── Interacción: plegar, saltar y filtrar ── */
-
-/** Abre o cierra una tarjeta. `forzar` (true/false) fija el estado en vez de alternar. */
-function trazToggle(id, forzar){
-  const card = document.getElementById(id);
-  if (!card || !card.classList.contains('traz-card')) return;
-  const btn = card.querySelector('.traz-toggle');
-  const panel = card.querySelector('.traz-panel');
-  if (!btn || !panel) return;
-
-  const abierto = card.classList.contains('is-open');
-  const abrir = (typeof forzar === 'boolean') ? forzar : !abierto;
-  if (abrir === abierto) return;
-
-  card.classList.toggle('is-open', abrir);
-  btn.setAttribute('aria-expanded', abrir ? 'true' : 'false');
-
-  const anima = GS() && !window.matchMedia('(prefers-reduced-motion: reduce)').matches;
-  const refrescar = function(){ if (window.ScrollTrigger) ScrollTrigger.refresh(); };
-
-  if (abrir){
-    panel.hidden = false;
-    if (!anima){ refrescar(); return; }
-    gsap.fromTo(panel, { height:0, opacity:0 },
-      { height:'auto', opacity:1, duration:.3, ease:'power2.out',
-        onComplete: function(){ gsap.set(panel, { clearProps:'height,opacity' }); refrescar(); } });
-  } else {
-    if (!anima){ panel.hidden = true; refrescar(); return; }
-    gsap.to(panel, { height:0, opacity:0, duration:.22, ease:'power2.in',
-      onComplete: function(){ panel.hidden = true; gsap.set(panel, { clearProps:'height,opacity' }); refrescar(); } });
-  }
-}
-
-/** Pliega una tarjeta al instante, sin animación (para las que se filtran fuera). */
-function trazCerrarSeco(card){
-  if (!card || !card.classList.contains('is-open')) return;
-  const btn = card.querySelector('.traz-toggle');
-  const panel = card.querySelector('.traz-panel');
-  card.classList.remove('is-open');
-  if (btn) btn.setAttribute('aria-expanded', 'false');
-  if (panel){
-    if (window.gsap) gsap.killTweensOf(panel);
-    panel.hidden = true;
-    panel.style.height = '';
-    panel.style.opacity = '';
-  }
-}
-
-/** Botón "Expandir todo" / "Plegar todo" de una sección. */
-function trazTodo(secId){
-  const host = document.getElementById('traz-' + secId);
-  if (!host) return;
-  const btn = host.querySelector('[data-traz-all]');
-  const abrir = !btn || btn.dataset.trazAll !== 'open';
-  host.querySelectorAll('.traz-card').forEach(function(c){
-    if (!c.hidden) trazToggle(c.id, abrir);
-  });
-  if (btn){
-    btn.dataset.trazAll = abrir ? 'open' : 'closed';
-    const lbl = btn.querySelector('span');
-    if (lbl) lbl.textContent = abrir ? 'Plegar todo' : 'Expandir todo';
-  }
-}
-
-/** Chip numerado: abre la tarjeta y la deja centrada bajo las barras fijas. */
-function trazJump(id){
-  const el = document.getElementById(id);
-  if (!el) return;
-  trazToggle(id, true);
-  const ir = function(){
-    window.scrollTo({ top: Math.max(0, el.getBoundingClientRect().top + window.scrollY - 130), behavior:'smooth' });
-  };
-  ir();
-  setTimeout(ir, 320);   // reajusta cuando termina la animación de apertura
-}
-
-/**
- * Escribe un término en el buscador de una sección de Trazabilidad y filtra ya.
- *
- * Es el equivalente de applySectionSearch para estas seis secciones, y existe por lo
- * mismo: quien llega desde el buscador general —o desde un enlace compartido— tiene que
- * aterrizar sobre la lista recortada, no sobre las cuarenta tarjetas teniendo que repetir
- * la búsqueda que acaba de hacer.
- */
-function trazAplicarBusqueda(secId, q){
-  const host = document.getElementById('traz-' + secId);
-  if (!host) return;
-  const input = host.querySelector('.traz-find input');
-  if (input) input.value = q;
-  /* Sin URL: el término que se está escribiendo VIENE de la dirección —lo trae restore(),
-     al arrancar y en cada botón atrás—, así que devolvérselo al navegador sería contestar
-     a quien acaba de hablar. Y restore() reintenta hasta doce veces mientras la sección
-     está vacía esperando la hoja: cada reintento sería otra escritura de lo mismo. */
-  trazFiltrar(secId, true);
-}
-
-/** Buscador dentro de la sección (con antirrebote: se teclea rápido). */
-function trazBuscar(secId){
-  clearTimeout(trazTimers[secId]);
-  trazTimers[secId] = setTimeout(function(){ trazFiltrar(secId); }, 140);
-}
-
-/** Filtro por plataforma. Cadena vacía = todas. */
-function trazPlat(secId, key){
-  const host = document.getElementById('traz-' + secId);
-  if (!host) return;
-  const actual = host.dataset.trazPlat || '';
-  const nueva = (actual === key) ? '' : key;      // volver a pulsar el chip activo lo quita
-  host.dataset.trazPlat = nueva;
-  host.querySelectorAll('.traz-fchip').forEach(function(c){
-    c.setAttribute('aria-pressed', (c.dataset.trazPlat || '') === nueva ? 'true' : 'false');
-  });
-  trazFiltrar(secId);
-}
-
-/* `sinUrl` corta la escritura en la barra de direcciones; lo usa quien filtra PORQUE lo
-   pidió la dirección (ver trazAplicarBusqueda), no el asesor tecleando. */
-function trazFiltrar(secId, sinUrl){
-  const host = document.getElementById('traz-' + secId);
-  if (!host) return;
-  const input = host.querySelector('.traz-find input');
-  /* Estas seis secciones eran el hueco que le quedaba al Portal: `filterSec` refleja su
-     filtro desde siempre, y aquí se buscaba "reporte" dentro de Big Ticket, se copiaba el
-     enlace y el compañero aterrizaba en las cuarenta tarjetas. Se refleja el texto TAL
-     CUAL se escribió y no el de `norm`, que ya viene sin acentos ni mayúsculas: la
-     dirección la lee gente, y restore() la vuelve a meter en este mismo campo. */
-  if (!sinUrl) reflejarFiltro(secId, input ? String(input.value || '').trim() : '');
-  const q = norm(input ? input.value : '').trim();
-  const plat = host.dataset.trazPlat || '';
-  const palabras = q ? q.split(/\s+/).filter(Boolean) : [];
-
-  let visibles = 0, total = 0;
-  host.querySelectorAll('.traz-card').forEach(function(card){
-    total++;
-    const texto = card.dataset.trazText || '';
-    const plats = '|' + (card.dataset.trazPlats || '') + '|';
-    const okQ = palabras.every(function(w){ return texto.indexOf(w) > -1; });
-    const okP = !plat || plats.indexOf('|' + plat + '|') > -1;
-    const ok = okQ && okP;
-    card.hidden = !ok;
-    // Se pliega sin animar: animar la altura de algo que ya está en display:none
-    // no se ve y además obliga a GSAP a medir un elemento sin caja.
-    if (ok) visibles++; else trazCerrarSeco(card);
-  });
-
-  host.querySelectorAll('.fp-nav-chip[data-traz-jump]').forEach(function(chip){
-    const card = document.getElementById(chip.dataset.trazJump);
-    chip.hidden = !!(card && card.hidden);
-  });
-
-  const cuenta = document.getElementById('traz-count-' + secId);
-  if (cuenta) cuenta.textContent = (visibles === total)
-    ? total + (total === 1 ? ' proceso' : ' procesos')
-    : visibles + ' de ' + total + ' procesos';
-
-  const vacio = document.getElementById('traz-empty-' + secId);
-  if (vacio) vacio.classList.toggle('show', visibles === 0);
-  const nav = host.querySelector('.traz-nav');
-  if (nav) nav.hidden = (visibles === 0);
-  if (window.ScrollTrigger) ScrollTrigger.refresh();
 }
 
 /* ── Índices del buscador global ─────────────────────────────────────────────

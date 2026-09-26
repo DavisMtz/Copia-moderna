@@ -1,0 +1,1002 @@
+<style>
+/* ════════════════════════════════════════════════════════════
+   TRAZABILIDAD · UNA SOLA, POR SITUACIÓN (26/09/2026)
+   Las seis secciones (Big Ticket, Soft Line, SL Mensajerías, MarketPlace, Tienda y Generales)
+   pintan la MISMA vista, que se muda a la sección activa: el menú sigue teniendo sus seis accesos
+   y cada uno llega filtrado por su línea. Arriba, una pestaña por situación del cliente («No me ha
+   llegado», «Me llegó mal»…); dentro, una fila por proceso agrupada por línea, con el plazo y la
+   fecha. La fila se despliega en su ficha: la fecha para el cliente en días hábiles, qué hacer y a
+   quién escalar, si procede y dónde revisar.
+   La hoja de Homologación no cambia: cada proceso se reconoce por su nombre (modelo, abajo).
+   Respaldo: etiqueta git «respaldo-trazabilidad-antes-situaciones».
+════════════════════════════════════════════════════════════ */
+#tz-app{--tz-linea:color-mix(in srgb,var(--ink) 18%,var(--line));--tz-ink-brand:var(--brand-deep);--tz-ok:var(--ok);--tz-warn:var(--warn);--tz-alert:var(--alert);--tz-info:var(--info);container:tz/inline-size}
+/* En Carbón los tonos de estado del Portal son los de fondo claro: aquí se aclaran para leerse */
+[data-theme="carbon"] #tz-app{--tz-ink-brand:#F46BC6;--tz-ok:#6EE7B7;--tz-warn:#FDBA74;--tz-alert:#FB7185;--tz-info:#93C5FD}
+#tz-app ::selection{background:var(--brand-soft);color:var(--ink)}
+#tz-app mark{background:var(--brand-soft);color:inherit;border-radius:3px}
+.tz-sr{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);clip-path:inset(50%);white-space:nowrap}
+#tz-app .ic{width:18px;height:18px;flex-shrink:0}
+#tz-app strong{font-weight:700;color:var(--ink)}
+
+/* — Barra: filtro y línea del pedido (la sección no lleva título visible) — */
+.tz-barra{display:flex;flex-wrap:wrap;align-items:center;gap:.7rem 1rem;margin-bottom:1rem}
+.tz-buscar{position:relative;flex:1 1 18rem;max-width:30rem}
+.tz-buscar .ic{position:absolute;left:.95rem;top:50%;transform:translateY(-50%);color:var(--ink-soft);pointer-events:none}
+.tz-buscar input{width:100%;height:46px;padding:0 1rem 0 2.7rem;border-radius:14px;border:1px solid var(--line);background:var(--surface);color:var(--ink);font:inherit;font-size:.93rem}
+.tz-buscar input::placeholder{color:var(--ink-soft)}
+.tz-buscar input:focus{outline:0;border-color:var(--brand);box-shadow:var(--ring)}
+.tz-lineas{display:flex;flex-wrap:wrap;gap:.3rem;padding:.3rem;border-radius:16px;background:var(--surface);border:1px solid var(--line)}
+.tz-lineas button{height:36px;padding:0 .8rem;border:0;border-radius:11px;background:none;color:var(--ink-soft);font:inherit;font-weight:650;font-size:.84rem;cursor:pointer;white-space:nowrap;transition:background-color .15s,color .15s}
+.tz-lineas button:hover{background:var(--surface-2);color:var(--ink)}
+.tz-lineas button[aria-pressed="true"]{background:var(--ink);color:var(--surface)}
+
+/* — Aviso de copia guardada o de error — */
+.tz-estado{display:flex;flex-wrap:wrap;align-items:center;gap:.5rem .9rem;margin-bottom:1rem;padding:.7rem .9rem;border-radius:14px;font-size:.88rem;line-height:1.45;color:var(--ink)}
+.tz-estado.es-warn{background:var(--warn-bg)}
+.tz-estado.es-alert{background:var(--alert-bg)}
+.tz-estado > .ic{width:17px;height:17px}
+.tz-estado.es-warn > .ic{color:var(--tz-warn)}
+.tz-estado.es-alert > .ic{color:var(--tz-alert)}
+.tz-estado span{flex:1 1 16rem;min-width:0}
+.tz-estado button{display:inline-flex;align-items:center;gap:.35rem;height:34px;padding:0 .75rem;border-radius:10px;border:1px solid var(--tz-linea);background:var(--surface);color:var(--ink);font:inherit;font-weight:650;font-size:.82rem;cursor:pointer}
+.tz-estado button .ic{width:14px;height:14px}
+
+/* — Pestañas: las de Formas de Pago y Formatos, una por situación del cliente — */
+.tz-tabs{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:.3rem;padding:.35rem;margin-bottom:1rem;border-radius:20px;background:var(--surface);border:1px solid var(--line)}
+.tz-tab{display:flex;align-items:center;gap:.6rem;min-width:0;min-height:56px;padding:.45rem .8rem .45rem .7rem;border:0;border-radius:15px;background:none;color:var(--ink-soft);font:inherit;text-align:left;cursor:pointer;transition:background-color .15s,color .15s}
+#tz-app .tz-tab .ic{width:19px;height:19px}
+.tz-tab > span{min-width:0}
+.tz-tab b{display:block;font-weight:750;font-size:.92rem;line-height:1.2;color:var(--ink);text-wrap:balance}
+.tz-tab small{display:block;font-size:.76rem;font-weight:600;font-variant-numeric:tabular-nums}
+.tz-tab:hover{background:var(--surface-2)}
+.tz-tab[aria-selected="true"]{background:var(--ink);color:color-mix(in srgb,var(--surface) 72%,transparent)}
+.tz-tab[aria-selected="true"] b{color:var(--surface)}
+.tz-tab[aria-selected="true"] .ic{color:var(--brand-bright)}
+/* Con el filtro o la línea, la pestaña sin procesos baja de tono sin perder contraste */
+.tz-tab.es-cero:not([aria-selected="true"]) b{color:var(--ink-soft);font-weight:650}
+
+/* — Hoja de la pestaña — */
+.tz-hoja{background:var(--surface);border:1px solid var(--line);border-radius:24px;padding:1.3rem 1.6rem .8rem}
+.tz-hoja[hidden]{display:none}
+.tz-hoja:focus{outline:0}
+.tz-hoja:focus-visible{outline:2.5px solid var(--brand);outline-offset:4px}
+.tz-hd{display:flex;flex-wrap:wrap;align-items:baseline;gap:.3rem .8rem;padding-bottom:.9rem;border-bottom:1px solid var(--line)}
+.tz-hd h2{margin:0;font-family:var(--f-display);font-weight:800;font-stretch:84%;font-size:1.5rem;line-height:1.1;letter-spacing:-.008em}
+.tz-hd span{font-size:.88rem;color:var(--ink-soft)}
+.tz-hd b{margin-left:auto;font-family:var(--f-mono);font-size:.76rem;font-weight:700;color:var(--ink-soft);font-variant-numeric:tabular-nums}
+.tz-grupos,.tz-filas{list-style:none;margin:0;padding:0}
+.tz-grupo{display:grid;grid-template-columns:8.5rem minmax(0,1fr);gap:0 1rem;padding:.2rem 0;border-bottom:1px solid var(--line)}
+.tz-grupo:last-child{border-bottom:0}
+.tz-grupo[hidden]{display:none}
+.tz-gl{margin:0;padding:1.1rem 0 0;font-size:.8rem;font-weight:750;color:var(--ink-soft)}
+.tz-fila + .tz-fila{border-top:1px solid var(--line-soft)}
+.tz-fila[hidden]{display:none}
+.tz-f-bt{width:100%;display:flex;align-items:center;gap:1rem;min-height:58px;padding:.6rem .5rem .6rem .75rem;border:0;border-radius:12px;background:none;color:var(--ink);font:inherit;text-align:left;cursor:pointer;transition:background-color .15s}
+.tz-f-bt:hover{background:var(--surface-2)}
+.tz-f-tx{flex:1;min-width:0;display:grid;gap:.2rem}
+.tz-f-nom{min-width:0;font-weight:750;font-size:1rem;line-height:1.3;overflow-wrap:anywhere}
+/* Con el filtro: dónde coincidió, si no fue en el nombre */
+.tz-f-frag{font-size:.82rem;font-weight:500;line-height:1.45;color:var(--ink-soft);max-width:80ch;text-wrap:pretty}
+.tz-f-frag[hidden]{display:none}
+.tz-f-plazo{display:flex;align-items:baseline;gap:.5rem;white-space:nowrap}
+.tz-f-plazo b{font-family:var(--f-display);font-weight:800;font-stretch:84%;font-size:1.12rem;font-variant-numeric:tabular-nums}
+.tz-f-plazo small{font-size:.8rem;font-weight:650;color:var(--ink-soft)}
+#tz-app .tz-chev{width:18px;height:18px;color:var(--ink-soft);transition:transform .2s}
+.tz-fila.es-abierta .tz-chev{transform:rotate(180deg);color:var(--tz-ink-brand)}
+.tz-fila.es-abierta > .tz-f-bt{background:var(--brand-tint)}
+.tz-panel{padding:.9rem .75rem 1.3rem}
+.tz-panel[hidden]{display:none}
+.tz-nada{padding:1.2rem 0 .9rem;color:var(--ink-soft);font-size:.95rem;line-height:1.5;text-wrap:pretty}
+.tz-nada b{color:var(--ink)}
+.tz-nada button{margin-left:.35rem;border:0;background:none;padding:0;font:inherit;font-weight:650;color:var(--tz-ink-brand);text-decoration:underline;text-underline-offset:3px;cursor:pointer}
+
+/* — Ficha: plazo, qué hacer, si procede y dónde revisar — */
+.tz-ficha{display:grid;gap:1.1rem}
+.tz-plazo{border-radius:18px;background:var(--surface-2);padding:1rem 1.15rem 1.1rem;display:grid;gap:.3rem}
+.tz-p-lbl{font-size:.8rem;font-weight:700;color:var(--ink-soft);margin:0}
+.tz-p-cuando{font-size:.95rem;font-weight:600;color:var(--ink);margin:.1rem 0 0}
+.tz-p-fecha{display:flex;flex-wrap:wrap;align-items:center;gap:.4rem .8rem;margin:0}
+.tz-p-fecha > span{font-family:var(--f-display);font-weight:800;font-stretch:84%;font-size:clamp(1.7rem,1.25rem + 1.4vw,2.3rem);line-height:1.04;letter-spacing:-.012em;color:var(--ink)}
+.tz-p-fecha > span::first-letter{text-transform:uppercase}
+.tz-p-cant{font-size:.84rem;color:var(--ink-soft);margin:0}
+.tz-p-nada{font-size:.95rem;color:var(--ink-soft);margin:0}
+.tz-p-texto{font-size:.9rem;line-height:1.5;margin-top:.35rem}
+.tz-copiar{display:inline-flex;align-items:center;gap:.35rem;height:32px;padding:0 .7rem;border-radius:10px;border:1px solid var(--line);background:var(--surface);color:var(--ink);font:inherit;font-weight:650;font-size:.8rem;cursor:pointer;white-space:nowrap;transition:border-color .15s,color .15s}
+#tz-app .tz-copiar .ic{width:14px;height:14px}
+.tz-copiar:hover{border-color:var(--brand);color:var(--tz-ink-brand)}
+.tz-avance{display:flex;gap:.45rem;align-items:flex-start;font-size:.84rem;color:var(--ink);margin:.35rem 0 0}
+#tz-app .tz-avance .ic{width:15px;height:15px;color:var(--ink-soft);margin-top:.15rem}
+/* La tira: de hoy a la fecha límite; los inhábiles, angostos y punteados */
+.tz-tira-w{margin-top:.55rem;padding-top:1rem}
+.tz-tira{display:flex;flex-wrap:wrap;gap:1.25rem 3px;list-style:none;margin:0;padding:0 0 .2rem}
+.tz-dia{position:relative;flex:0 0 auto;width:34px;display:grid;justify-items:center;gap:1px;padding:.3rem 0 .35rem;border-radius:9px;background:var(--surface);border:1px solid var(--line)}
+.tz-dia span{font-size:.62rem;font-weight:700;color:var(--ink-soft)}
+.tz-dia b{font-family:var(--f-mono);font-size:.8rem;font-weight:700;font-variant-numeric:tabular-nums;color:var(--ink)}
+.tz-dia i{position:absolute;top:-1.05rem;left:0;font-style:normal;font-size:.62rem;font-weight:700;color:var(--ink-soft);white-space:nowrap}
+.tz-dia.es-inhabil{width:22px;background:transparent;border-style:dashed}
+.tz-dia.es-inhabil b{color:var(--ink-soft);font-size:.7rem;font-weight:500}
+.tz-dia.es-inhabil span{font-weight:500}
+.tz-dia.es-festivo{border-color:var(--tz-warn)}
+.tz-dia.es-hoy{border-color:var(--ink);border-style:solid}
+.tz-dia.es-rango{background:var(--brand-tint);border-color:var(--brand-soft)}
+.tz-dia.es-limite{background:var(--brand);border-color:var(--brand)}
+.tz-dia.es-limite b,.tz-dia.es-limite span{color:#fff}
+.tz-p-leyenda{font-size:.76rem;color:var(--ink-soft);margin:.35rem 0 0}
+/* Reembolso por método de pago */
+.tz-metodos{width:100%;border-collapse:collapse;margin-top:.35rem;font-size:.88rem}
+.tz-metodos th{text-align:left;font-weight:650;padding:.55rem .8rem .55rem 0;border-top:1px solid var(--line);vertical-align:top;line-height:1.35}
+.tz-metodos td{padding:.55rem 0 .55rem .8rem;border-top:1px solid var(--line);white-space:nowrap;vertical-align:top}
+.tz-metodos tr:first-child th,.tz-metodos tr:first-child td{border-top:0}
+.tz-m-t{font-family:var(--f-mono);font-size:.78rem;color:var(--ink-soft)}
+.tz-m-f b{font-family:var(--f-display);font-weight:800;font-stretch:84%;font-size:1.08rem}
+.tz-p-notas{list-style:none;margin:.4rem 0 0;padding:0;display:grid;gap:.3rem;font-size:.84rem;line-height:1.45;color:var(--ink-soft)}
+/* Bloques */
+.tz-bloque{display:grid;gap:.5rem}
+.tz-bloque h4{display:flex;align-items:center;gap:.45rem;margin:0;font-size:.95rem;font-weight:750;color:var(--ink)}
+#tz-app .tz-bloque h4 .ic{width:16px;height:16px;color:var(--tz-ink-brand)}
+.tz-lista,.tz-pasos{margin:0;padding:0;list-style:none;display:grid;gap:.45rem;font-size:.92rem;line-height:1.5;max-width:74ch}
+.tz-lista li{position:relative;padding-left:1.1rem;text-wrap:pretty}
+.tz-lista li::before{content:"";position:absolute;left:.15rem;top:.62em;width:6px;height:6px;border-radius:2px;background:var(--tz-linea)}
+.tz-lista li.es-frase{padding-left:0}
+.tz-lista li.es-frase::before{display:none}
+.tz-pasos li{display:grid;grid-template-columns:1.6rem 1fr;gap:.4rem;align-items:start}
+.tz-n{display:grid;place-items:center;width:1.45rem;height:1.45rem;border-radius:7px;background:var(--ink);color:var(--surface);font-family:var(--f-mono);font-size:.72rem;font-weight:700;margin-top:.05rem}
+.tz-aviso{display:flex;gap:.5rem;align-items:flex-start;margin:0;padding:.55rem .8rem;border-radius:12px;background:var(--warn-bg);font-size:.88rem;line-height:1.45;max-width:74ch;width:fit-content}
+#tz-app .tz-aviso .ic{width:15px;height:15px;color:var(--tz-warn);margin-top:.2rem}
+.tz-aviso.es-tip{background:var(--info-bg)}
+#tz-app .tz-aviso.es-tip .ic{color:var(--tz-info)}
+.tz-cita{font-style:italic;color:var(--ink)}
+.tz-copiable{display:flex;flex-wrap:wrap;align-items:center;gap:.4rem .7rem;margin:.35rem 0 .15rem;padding:.6rem .8rem;border-radius:12px;background:var(--brand-tint);font-style:normal}
+.tz-copiable > span{font-style:italic}
+.tz-procede{list-style:none;margin:0;padding:0;display:grid;gap:.45rem;font-size:.92rem;line-height:1.5;max-width:74ch}
+.tz-procede li{display:flex;gap:.5rem;align-items:flex-start}
+#tz-app .tz-procede .ic{width:16px;height:16px;margin-top:.2rem;color:var(--ink-soft)}
+#tz-app .tz-procede .es-no .ic{color:var(--tz-alert)}
+#tz-app .tz-procede .es-si .ic{color:var(--tz-ok)}
+.tz-donde{list-style:none;margin:0;padding:0;display:flex;flex-wrap:wrap;gap:.35rem}
+.tz-donde li{display:inline-flex;align-items:baseline;gap:.3rem;padding:.3rem .6rem;border-radius:9px;border:1px solid var(--line);background:var(--surface);font-size:.82rem;font-weight:650}
+.tz-donde small{font-weight:500;color:var(--ink-soft);font-size:.76rem}
+.tz-f-vacia{margin:0;font-size:.9rem;color:var(--ink-soft)}
+
+/* — Foco — */
+.tz-lineas button:focus-visible,.tz-tab:focus-visible,.tz-f-bt:focus-visible,.tz-copiar:focus-visible,.tz-estado button:focus-visible,.tz-nada button:focus-visible{outline:2.5px solid var(--brand);outline-offset:2px}
+
+/* — Densidad compacta y alto contraste (Ajustes de vista) — */
+html[data-density="compact"] .tz-tab{min-height:46px}
+html[data-density="compact"] .tz-f-bt{min-height:46px;padding-top:.4rem;padding-bottom:.4rem}
+html[data-density="compact"] .tz-hoja{padding-top:1rem}
+html[data-contrast="high"] .tz-tabs,html[data-contrast="high"] .tz-hoja,html[data-contrast="high"] .tz-lineas{border-width:2px}
+
+/* — Anchos: en em, para que escalen con los cuatro tamaños de texto del Portal — */
+@container tz (max-width:62em){ .tz-tabs{grid-template-columns:repeat(3,minmax(0,1fr))} }
+@container tz (max-width:46em){
+  .tz-grupo{grid-template-columns:1fr}
+  .tz-gl{padding:.8rem 0 .1rem .75rem}
+  .tz-hoja{padding:1.1rem 1rem .6rem}
+  .tz-panel{padding:.8rem .35rem 1.1rem}
+}
+/* Teléfono: las doce pestañas y las siete líneas en una tira cada una, que se desliza de lado; en
+   rejilla eran 700 px de botones antes del primer proceso. La pestaña de al lado asoma y lo dice. */
+@container tz (max-width:34em){
+  .tz-tabs,.tz-lineas{display:flex;flex-wrap:nowrap;overflow-x:auto;scroll-snap-type:x proximity;scrollbar-width:none;position:relative}
+  .tz-tabs::-webkit-scrollbar,.tz-lineas::-webkit-scrollbar{display:none}
+  .tz-tab{flex:0 0 auto;max-width:12.5rem;min-height:50px;padding:.4rem .7rem .4rem .6rem;gap:.45rem;scroll-snap-align:start}
+  .tz-tab b{font-size:.86rem;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .tz-lineas button{flex:0 0 auto;scroll-snap-align:start}
+  .tz-f-bt{flex-wrap:wrap;gap:.2rem .8rem}
+  .tz-f-tx{flex:1 1 100%}
+  .tz-chev{margin-left:auto}
+  .tz-buscar{max-width:none}
+  /* Reembolsos: el método arriba, a lo ancho; el plazo y la fecha debajo */
+  .tz-metodos,.tz-metodos tbody{display:block}
+  .tz-metodos tr{display:grid;grid-template-columns:1fr auto;column-gap:.8rem;align-items:baseline;padding:.55rem 0;border-top:1px solid var(--line)}
+  .tz-metodos tr:first-child{border-top:0}
+  .tz-metodos th{grid-column:1/-1;padding:0 0 .2rem;border:0}
+  .tz-metodos td{padding:0;border:0}
+  .tz-m-f{text-align:right}
+}
+@media (prefers-reduced-motion: reduce){ #tz-app *{transition:none!important} }
+@media print{ .tz-barra,.tz-tabs{display:none} }
+</style>
+<script>
+(function(){
+  'use strict';
+
+  /* ── Líneas (las seis pestañas de la hoja) y situaciones del cliente ─────────
+     Las situaciones van en el orden en que llegan en una llamada; `cliente` es como lo dice el
+     cliente y `que` lo que cubre, en palabras del equipo. */
+  var LINEAS = [
+    { id: 'bigticket',     nombre: 'Big Ticket' },
+    { id: 'softline',      nombre: 'Soft Line' },
+    { id: 'slmensajerias', nombre: 'SL Mensajerías' },
+    { id: 'mkp',           nombre: 'MarketPlace' },
+    { id: 'tienda',        nombre: 'Tienda' },
+    { id: 'generales',     nombre: 'Generales' }
+  ];
+  var SECS = LINEAS.map(function (l) { return l.id; });
+  var SITUACIONES = [
+    { id: 'cuando',    cliente: '¿Cuándo me llega?',               que: 'Pedido en tiempo, sin fecha o sin disponibilidad',     ic: 'calendar' },
+    { id: 'vencido',   cliente: 'No me ha llegado',                que: 'Fecha vencida, guía sin movimiento o retornada',       ic: 'clock' },
+    { id: 'norecibio', cliente: 'Dice entregado y no lo tengo',    que: 'Entrega no reconocida o caja vacía',                   ic: 'package' },
+    { id: 'llegomal',  cliente: 'Me llegó mal',                    que: 'Dañado, incompleto, equivocado o con falla',           ic: 'roto' },
+    { id: 'devolver',  cliente: 'Ya no lo quiero',                 que: 'Recolección o devolución por satisfacción',            ic: 'regreso' },
+    { id: 'cancelar',  cliente: 'Quiero cancelar',                 que: 'Cancelación antes de la entrega',                      ic: 'cancelar' },
+    { id: 'reembolso', cliente: '¿Y mi reembolso?',                que: 'Devoluciones de dinero, rechazadas o no reflejadas',   ic: 'money' },
+    { id: 'domicilio', cliente: 'Quiero cambiar la dirección',     que: 'Cambio de domicilio de entrega',                       ic: 'home' },
+    { id: 'pagos',     cliente: 'Pagué y no se ve',                que: 'Métodos de pago y reprocesos',                         ic: 'card' },
+    { id: 'mesa',      cliente: 'Mesa de regalos',                 que: 'Dedicatoria, cancelar o asociar una compra',           ic: 'regalo' },
+    { id: 'servicios', cliente: 'Armado, instalación y servicios', que: 'Armado, puertas, instalación y joyería',               ic: 'tools' },
+    { id: 'otros',     cliente: 'Otros casos',                     que: 'Lo que no entra en las anteriores',                    ic: 'mas' }
+  ];
+
+  /* ── Modelo ──────────────────────────────────────────────────────────────────
+     La hoja de Homologación la editan personas: nada cuelga de la posición de una fila. Cada
+     proceso se reconoce por su NOMBRE. El orden de las reglas importa: «Recogidos por
+     satisfacción/ mercancía dañada» es una recolección aunque diga «dañada», y «Mesa de Regalos
+     (Canc…)» es mesa de regalos aunque sea una cancelación. Lo que no se reconoce va a «Otros
+     casos»: una fila nueva nunca desaparece. */
+  var REGLAS = [
+    ['mesa',      /mesa de regalos/],
+    ['pagos',     /metodos? de pago|reproceso/],
+    ['reembolso', /devoluciones? no reflejad/],
+    ['devolver',  /higiene|no aplican? para reembolso/],
+    ['domicilio', /cambios? de domicilio/],
+    ['cancelar',  /cancel/],
+    ['norecibio', /entrega no reconocida|caja vacia/],
+    ['devolver',  /recogid|por satisfaccion/],
+    ['llegomal',  /resurtido|incomplet|maltratad|equivocad|danad|defecto|funcionalidad|catalogacion/],
+    ['reembolso', /devolucion|reembolso|rechazad/],
+    ['cuando',    /c\/ ?movimiento|con movimiento|fecha en tiempo|asignar fecha|sin disponibilidad/],
+    ['vencido',   /fecha vencida|mas datos|s\/ ?movimiento|sin movimiento|retornad|inexistente/],
+    ['servicios', /armado|puertas|instalac|conexion|joyeria/]
+  ];
+
+  /* Sin acentos: tras NFD se quita lo que no es ASCII imprimible. Sin clases de propiedad Unicode:
+     esbuild las reescribe como new RegExp y el build lo rechaza. */
+  function norm(s) { return String(s == null ? '' : s).toLowerCase().normalize('NFD').replace(/[^\s -~]/g, '').replace(/\s+/g, ' ').trim(); }
+  function situacionDe(p) {
+    var n = norm(p.nombre);
+    for (var i = 0; i < REGLAS.length; i++) if (REGLAS[i][1].test(n)) return REGLAS[i][0];
+    return 'otros';
+  }
+  function vacio(v) {
+    var t = norm(v).replace(/[^a-z0-9]/g, '');
+    return !t || t === 'na' || t === 'noaplica';
+  }
+
+  /* ── Días hábiles: lunes a viernes, sin los descansos obligatorios de la LFT (art. 74) ── */
+  var DIAS = ['domingo', 'lunes', 'martes', 'miércoles', 'jueves', 'viernes', 'sábado'];
+  var DIAS_C = ['dom', 'lun', 'mar', 'mié', 'jue', 'vie', 'sáb'];
+  var DIAS_T = ['Do', 'Lu', 'Ma', 'Mi', 'Ju', 'Vi', 'Sá'];   /* los de la tira, a dos letras */
+  var MESES = ['enero', 'febrero', 'marzo', 'abril', 'mayo', 'junio', 'julio', 'agosto', 'septiembre', 'octubre', 'noviembre', 'diciembre'];
+  var MESES_C = ['ene', 'feb', 'mar', 'abr', 'may', 'jun', 'jul', 'ago', 'sep', 'oct', 'nov', 'dic'];
+  var festivosCache = {};
+  function festivos(anio) {
+    if (festivosCache[anio]) return festivosCache[anio];
+    var f = {};
+    var lunes = function (m, n) { return 1 + ((8 - new Date(anio, m - 1, 1).getDay()) % 7) + (n - 1) * 7; };
+    [[1, 1], [2, lunes(2, 1)], [3, lunes(3, 3)], [5, 1], [9, 16], [11, lunes(11, 3)], [12, 25]].forEach(function (d) { f[d[0] + '-' + d[1]] = true; });
+    if ((anio - 2024) % 6 === 0) f['10-1'] = true;   /* transmisión del Poder Ejecutivo */
+    festivosCache[anio] = f;
+    return f;
+  }
+  function esFestivo(d) { return !!festivos(d.getFullYear())[(d.getMonth() + 1) + '-' + d.getDate()]; }
+  function esHabil(d) { var w = d.getDay(); return w !== 0 && w !== 6 && !esFestivo(d); }
+  function hoy() { var d = new Date(); d.setHours(12, 0, 0, 0); return d; }
+  function diaClave() { var d = new Date(); return d.getFullYear() + '-' + d.getMonth() + '-' + d.getDate(); }
+  function sumarHabiles(desde, n) {
+    var d = new Date(desde.getTime()), k = 0;
+    while (k < n) { d.setDate(d.getDate() + 1); if (esHabil(d)) k++; }
+    return d;
+  }
+  function fechaLarga(d) { return DIAS[d.getDay()] + ' ' + d.getDate() + ' de ' + MESES[d.getMonth()]; }
+  function fechaCorta(d) { return DIAS_C[d.getDay()] + ' ' + d.getDate() + ' ' + MESES_C[d.getMonth()]; }
+
+  /* ── Plazo ─────────────────────────────────────────────────────────────────────
+     «Inmediata» → hoy. Una sola cantidad («10 días», «5-7 días», «72 hrs», «5 dias a partir del
+     contacto») → fecha en días hábiles; las horas cuentan como días redondeando hacia arriba.
+     «Fecha asignada en el calendario de PAO», «que asigna PAO», «Entrada única + 7 días» → la fecha
+     la da el sistema. Lo demás es texto, tal cual lo trae la hoja. */
+  var RE_CANT = /(\d+)\s*(?:(?:a|-|–)\s*(\d+)\s*)?(hrs?\b|h\b|horas?\b|d[ií]as?\b)/gi;
+  function sistemaDe(n) {
+    return /soms/.test(n) && /pao/.test(n) ? 'SOMS o PAO' : /pao/.test(n) ? 'PAO' : /soms/.test(n) ? 'SOMS'
+         : /mda/.test(n) ? 'MDA' : /entrada unica/.test(n) ? 'Entrada única' : 'el sistema';
+  }
+  function plazo(texto) {
+    var t = String(texto == null ? '' : texto).trim();
+    if (vacio(t) || t === '-' || t === '—') return { tipo: 'na', texto: t };
+    var n = norm(t);
+    /* «Inmediata (fecha PAO)» NO es «hoy»: es que la fecha ya está en PAO y se da en la llamada.
+       Solo «Inmediata» o «Inmediato», sin más, es lo que se resuelve al momento. */
+    if (/^inmediat/.test(n)) {
+      return /fecha/.test(n) ? { tipo: 'sistema', texto: t, sistema: sistemaDe(n), mas: 0 } : { tipo: 'hoy', texto: t };
+    }
+    if (/calendario|asigna pao|fecha limite|fecha de surtido|fecha asignada/.test(n) && !/a partir del contacto/.test(n)) {
+      /* «Fecha límite de envío de entrada única + 7 días»: la base la da el sistema y se le suman días */
+      var mas = /\+\s*(\d+)\s*d/.exec(n);
+      return { tipo: 'sistema', texto: t, sistema: sistemaDe(n), mas: mas ? parseInt(mas[1], 10) : 0 };
+    }
+    var cants = [], m;
+    RE_CANT.lastIndex = 0;
+    while ((m = RE_CANT.exec(t))) cants.push(m);
+    if (cants.length !== 1) return { tipo: 'texto', texto: t };
+    var c = cants[0], enHoras = /^h/i.test(c[3]);
+    var a = parseInt(c[1], 10), b = c[2] ? parseInt(c[2], 10) : a;
+    return {
+      tipo: 'dias', texto: t, horas: enHoras ? b : 0,
+      n: enHoras ? Math.max(1, Math.ceil(a / 24)) : a,
+      hasta: enHoras ? Math.max(1, Math.ceil(b / 24)) : b,
+      largo: t.length > 44 || t.indexOf('\n') > -1
+    };
+  }
+  /* La fecha se calcula al pintar, no al leer la hoja: el Portal puede quedarse abierto de un día a otro. */
+  function fechas(pl) {
+    var base = hoy();
+    return { fecha: sumarHabiles(base, pl.hasta), min: pl.n !== pl.hasta ? sumarHabiles(base, pl.n) : null };
+  }
+
+  /* La celda de solución de las devoluciones es una lista «método de pago en N hrs». */
+  function desglose(texto) {
+    var lineas = String(texto == null ? '' : texto).split('\n')
+      .map(function (l) { return l.replace(/^[⦁•‣▪◦※*·]+\s*/, '').trim(); }).filter(Boolean);
+    var items = [], notas = [];
+    lineas.forEach(function (l) {
+      var mm = (l.length <= 170) ? l.match(/^(.{3,90}?)\s+en\s+(\d[^.]{1,70}?)\s*[.*\s]*$/i) : null;
+      if (mm) items.push({ metodo: mm[1].replace(/[\s.,;:]+$/, ''), tiempo: mm[2].replace(/[\s*]+$/, '').trim(), plazo: plazo(mm[2]) });
+      else notas.push(l.replace(/^\*+|\*+$/g, '').trim());
+    });
+    return items.length >= 2 ? { items: items, notas: notas.filter(Boolean) } : null;
+  }
+
+  /* ── Observaciones ─────────────────────────────────────────────────────────────
+     Los marcadores que ya usa la hoja («⦁», «1.», «Nota:», «Tip:») y sus renglones partidos a la
+     mitad. Cada FRASE va a «¿Procede?» (No aplica…, Solo aplica…, Aplica hasta…, fuera de los
+     tiempos…, los 45 días de las tarjetas de débito) o a «Qué hacer»; las seguidas del mismo lado se
+     vuelven a juntar y el orden dentro de cada lado no cambia. Nada se pierde. */
+  function renglones(txt) {
+    var lineas = String(txt == null ? '' : txt).replace(/^"+|"+$/g, '').split('\n')
+      .map(function (l) { return l.trim(); }).filter(Boolean);
+    var out = [], ultimo = null;
+    lineas.forEach(function (l) {
+      var mm, r;
+      if ((mm = l.match(/^(notas?\s*\d*|importante)\s*[:.\-]\s*(.+)$/i))) r = { t: 'nota', txt: mm[2] };
+      else if ((mm = l.match(/^(tip|consejo|recuerda)\s*[:.\-]\s*(.+)$/i))) r = { t: 'tip', txt: mm[2] };
+      else if ((mm = l.match(/^(\d{1,2})\s*[.)]\s+(.+)$/))) r = { t: 'paso', n: mm[1], txt: mm[2] };
+      else {
+        var vin = l.match(/^[⦁•‣▪◦※*·]+\s*(.*)$/);
+        var texto = vin ? vin[1].trim() : l;
+        if (!texto) return;
+        if (!vin && ultimo && !/[.:;!?]\s*$/.test(ultimo.txt) && /^[a-zñáéíóúü(,)]/.test(texto)) { ultimo.txt += ' ' + texto; return; }
+        r = { t: vin ? 'vineta' : 'linea', txt: texto };
+      }
+      out.push(r); ultimo = r;
+    });
+    return out;
+  }
+  var RE_COND_INICIO = /^(?:no aplica|solo aplica|aplica (?:hasta|para|en|solo|cuando|unicamente)|no procede|si no procede|si esta fuera|si (?:la moto|es c&c|excede)|(?:en|el) las tarjetas de debito si excede|si es mercancia de importacion|en cunas|no es posible)/;
+  var RE_COND_DENTRO = /\b(?:no aplica|no procede|solo aplica)\b/;
+  function esCondicion(t) {
+    var n = norm(t);
+    return RE_COND_INICIO.test(n) || RE_COND_DENTRO.test(n.replace(/\([^)]*\)/g, ''));
+  }
+  function frasesDe(txt) {
+    var out = [], cur = '', prof = 0;
+    for (var i = 0; i < txt.length; i++) {
+      var ch = txt[i];
+      cur += ch;
+      if (ch === '(') prof++;
+      else if (ch === ')') prof = Math.max(0, prof - 1);
+      else if (ch === '.' && prof === 0 && /^\s+[A-ZÁÉÍÓÚÑ¿¡"“]/.test(txt.slice(i + 1))) { out.push(cur.trim()); cur = ''; }
+    }
+    if (cur.trim()) out.push(cur.trim());
+    return out;
+  }
+  function repartir(rs) {
+    var hacer = [], procede = [];
+    rs.forEach(function (r) {
+      var grupo = null, buf = [];
+      var soltar = function () { if (buf.length) { (grupo ? procede : hacer).push({ t: r.t, n: r.n, txt: buf.join(' ') }); buf = []; } };
+      frasesDe(r.txt).forEach(function (f) {
+        var c = esCondicion(f);
+        if (grupo !== null && c !== grupo) soltar();
+        grupo = c; buf.push(f);
+      });
+      soltar();
+    });
+    return { hacer: hacer, procede: procede };
+  }
+  /* Frases para pegar en el caso: entre comillas pareadas en el mismo renglón y de siete palabras o
+     más (así «Validar ZVADVIS de 5-7 días», que es una respuesta de MDA, no cuenta). */
+  function frasesCopiables(txt) {
+    var out = [];
+    String(txt || '').split('\n').forEach(function (l) {
+      var q = (l.match(/["“”]/g) || []).length;
+      if (q < 2 || q % 2) return;
+      var m, re = /["“]([^"”]{12,400}?)["”]/g;
+      while ((m = re.exec(l))) { var f = m[1].trim(); if (f.split(/\s+/).length >= 7) out.push(f); }
+    });
+    return out;
+  }
+  function plataformas(str) {
+    return String(str == null ? '' : str).split(/[\/\n]+|\s+o\s+/)
+      .map(function (s) { return s.trim(); }).filter(function (s) { return s && !vacio(s); })
+      .map(function (s) {
+        var mm = s.match(/^(.*?)\s*\(([^)]*)\)\s*$/);
+        return (mm && mm[1].trim()) ? { base: mm[1].trim(), nota: mm[2].trim() } : { base: s, nota: '' };
+      });
+  }
+
+  function modelo(payload) {
+    var procesos = [];
+    ((payload && payload.secciones) || []).forEach(function (sec) {
+      var linea = LINEAS.filter(function (l) { return l.id === sec.id; })[0];
+      if (!linea) return;   /* una pestaña que el Portal no conoce no tiene sección donde vivir */
+      (sec.procesos || []).forEach(function (p) {
+        if (!p || !p.nombre) return;
+        var obs = repartir(renglones(p.observaciones));
+        var des = desglose(p.solucion);
+        procesos.push({
+          id: p.id, nombre: p.nombre, linea: linea, situacion: situacionDe(p),
+          plazo: des ? { tipo: 'desglose', texto: p.solucion } : plazo(p.solucion),
+          desglose: des,
+          avance: sec.tieneAvance && !vacio(p.avance) ? plazo(p.avance) : null,
+          avanceTexto: p.avance || '',
+          reporte: vacio(p.reporte) ? '' : p.reporte,
+          hacer: obs.hacer, procede: obs.procede,
+          frases: frasesCopiables(p.observaciones),
+          donde: plataformas(p.plataformas),
+          texto: norm([p.nombre, p.plataformas, p.reporte, p.avance, p.solucion, p.observaciones, linea.nombre].join(' ')),
+          /* Lo que no es el nombre, tal cual: de aquí sale el fragmento que explica por qué coincidió */
+          fuente: [p.solucion, p.observaciones, p.plataformas, p.reporte, p.avance].filter(function (x) { return x && !vacio(x); }).join(' · ')
+        });
+      });
+    });
+    return procesos;
+  }
+
+  /* ── Pintado ─────────────────────────────────────────────────────────────────── */
+  function esc(s) { return String(s == null ? '' : s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#39;'); }
+  /* Los dibujos que no están en ICONS, con el mismo trazo; los demás los pinta icon() del Portal. */
+  var PROPIOS = {
+    roto: '<path d="M3.5 8 12 4l8.5 4v8L12 20l-8.5-4Z"/><path d="m9.5 10 2 2.5-1.5 2 2 2.5"/>',
+    regreso: '<path d="M9 7 4.5 11.5 9 16"/><path d="M5 11.5h9.5a5 5 0 0 1 0 10H12"/>',
+    cancelar: '<circle cx="12" cy="12" r="8.5"/><path d="m9 9 6 6M15 9l-6 6"/>',
+    regalo: '<rect x="4" y="9" width="16" height="11" rx="1.5"/><path d="M3 9h18M12 9v11M12 9c-1.5-3.5-5-4-5.5-2S9 9 12 9Zm0 0c1.5-3.5 5-4 5.5-2S15 9 12 9Z"/>',
+    mas: '<circle cx="6" cy="12" r="1.3"/><circle cx="12" cy="12" r="1.3"/><circle cx="18" cy="12" r="1.3"/>',
+    alto: '<circle cx="12" cy="12" r="8.5"/><path d="M12 7.5v5.5M12 16.2v.3"/>',
+    nota: '<path d="M12 3.5 21.5 20h-19Z"/><path d="M12 10v4.2M12 17v.3"/>',
+    tip: '<path d="M9.5 18h5M10.5 21h3"/><path d="M12 3a6 6 0 0 0-3.4 10.9c.4.3.6.7.6 1.1h5.6c0-.4.2-.8.6-1.1A6 6 0 0 0 12 3Z"/>',
+    sigue: '<path d="M5 12h14M13 6l6 6-6 6"/>'
+  };
+  function ic(n, cls) {
+    if (PROPIOS[n]) return '<svg class="ic' + (cls ? ' ' + cls : '') + '" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">' + PROPIOS[n] + '</svg>';
+    return typeof icon === 'function' ? icon(n, cls).replace('<svg ', '<svg aria-hidden="true" ') : '';
+  }
+
+  /* Resaltado dentro de un renglón: plataformas, estatus, montos y plazos, que es lo que se barre con
+     la vista mientras se habla. Una sola pasada: no anida <strong>. Sin la bandera «i»: las siglas se
+     buscan tal como se escriben y la frontera cuenta las letras con acento («CR» no se enciende dentro
+     de «crédito»). */
+  var TERMINOS = ['SAP ECC', 'Entrada Única', 'Entrada única', 'Entrada Unica', 'Incidencias Trazabilidad', 'Incidencias trazabilidad',
+    'lista negra', 'PostVenta', 'Postventa', 'POSTVENTA', 'Salesforce', 'Sales force', 'sales force', 'SIMPLIROUTE', 'Simpliroute',
+    'PayPal', 'PAYPAL', 'OpenPay', 'Openpay', 'OPENPAY', 'DILISA', 'SEPRO', 'SOMS', 'PLAN', 'SPEI', 'NMEN', 'VMEN', 'VCTE', 'LIPR',
+    'NENT', 'CANC', 'CONF', 'ZVADVIS', '3DS', '4PL', 'APV', 'CSC', 'CTE', 'DOE', 'ENR', 'FMS', 'LPC', 'MDA', 'MDR', 'MED',
+    'OTP', 'PAO', 'PoS', 'POS', 'SKU', 'MKP', 'SAP', 'CR', 'C&amp;C'];
+  var LETRA = '[\\wÀ-ÿ]';
+  var RE_CLAVE = new RegExp('(?:(?<!' + LETRA + ')(?:' + TERMINOS.map(function (t) { return t.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'); }).join('|') + ')(?!' + LETRA + ')' +
+    '|\\$\\s?\\d[\\d,.]*' +
+    '|(?<!' + LETRA + ')(?:[Cc]ategor[ií]a|[Cc]at\\.?|[Oo][Pp][Cc]\\.?)\\s*\\d+' +
+    '|(?<![\\w.])\\d+(?:[.,]\\d+)?\\s*(?:a\\s*\\d+\\s*)?(?:[Hh][Rr][Ss]?(?!' + LETRA + ')|h(?!' + LETRA + ')|[Hh]oras?(?!' + LETRA + ')|[Dd][ií]as?(?:\\s+(?:h[áa]biles|naturales))?(?!' + LETRA + ')|a[ñn]os?(?!' + LETRA + ')|meses(?!' + LETRA + ')))', 'g');
+
+  /* La hoja trae comillas sueltas al principio o al final de algunos renglones: se quitan si quedan impares. */
+  function sinComillaSuelta(t) {
+    var s = String(t == null ? '' : t);
+    if ((s.match(/["“”]/g) || []).length % 2 === 1) s = s.replace(/\s*["“”]\s*$/, '').replace(/^\s*["“”]\s*/, '');
+    return s;
+  }
+  function mayuscula(t) { return t ? t.charAt(0).toUpperCase() + t.slice(1) : t; }
+  function resaltar(s) { return s.replace(RE_CLAVE, function (m) { return '<strong>' + m + '</strong>'; }); }
+  /* El resaltado va solo sobre el TEXTO: nunca dentro del atributo de «Copiar» (copiaría etiquetas). */
+  function enLinea(txt, frases) {
+    var s = esc(sinComillaSuelta(txt));
+    var q = (s.match(/&quot;|“|”/g) || []).length;
+    if (q < 2 || q % 2) return resaltar(s);
+    var out = '', pos = 0, m, re = /(?:&quot;|“)([\s\S]{2,400}?)(?:&quot;|”)/g;
+    while ((m = re.exec(s))) {
+      var f = m[1];
+      var copiable = (frases || []).some(function (x) { return esc(x) === f.trim(); });
+      out += resaltar(s.slice(pos, m.index)) + (copiable
+        ? '<span class="tz-cita tz-copiable"><span>«' + resaltar(f) + '»</span><button type="button" class="tz-copiar" data-tz-copiar="' + f + '">' + ic('copy') + '<span>Copiar la frase</span></button></span>'
+        : '<span class="tz-cita">«' + resaltar(f) + '»</span>');
+      pos = re.lastIndex;
+    }
+    return out + resaltar(s.slice(pos));
+  }
+
+  function diasTexto(pl) {
+    var d = (pl.n !== pl.hasta ? pl.n + ' a ' + pl.hasta : pl.hasta) + (pl.hasta === 1 && pl.n === 1 ? ' día hábil' : ' días hábiles');
+    return pl.horas ? pl.horas + ' h, ' + d : d;
+  }
+  function tiraHTML(fecha, fechaMin) {
+    var d = hoy(), celdas = [], habiles = 0, guard = 0, festivo = false;
+    var celda = function (f, esHoy) {
+      var cls = ['tz-dia'], hab = esHabil(f), fest = esFestivo(f);
+      if (!hab) cls.push('es-inhabil');
+      if (fest) { cls.push('es-festivo'); festivo = true; }
+      if (esHoy) cls.push('es-hoy');
+      var lim = f.getTime() === fecha.getTime();
+      if (lim) cls.push('es-limite');
+      else if (fechaMin && f.getTime() >= fechaMin.getTime()) cls.push('es-rango');
+      var mes = (f.getDate() === 1 || esHoy) ? '<i>' + MESES_C[f.getMonth()] + '</i>' : '';
+      celdas.push('<li class="' + cls.join(' ') + '"><span>' + DIAS_T[f.getDay()] + '</span><b>' + f.getDate() + '</b>' + mes + '</li>');
+    };
+    celda(d, true);
+    while (d < fecha && guard < 80) { d.setDate(d.getDate() + 1); guard++; if (esHabil(d)) habiles++; celda(new Date(d.getTime()), false); }
+    var desc = 'De hoy, ' + fechaLarga(hoy()) + ', al ' + fechaLarga(fecha) + ': ' + habiles + (habiles === 1 ? ' día hábil' : ' días hábiles') + '.';
+    return '<div class="tz-tira-w"><ol class="tz-tira" aria-hidden="true">' + celdas.join('') + '</ol><p class="tz-sr">' + esc(desc) + '</p>' +
+      (festivo ? '<p class="tz-p-leyenda">El día con borde de color es festivo oficial: no cuenta.</p>' : '') + '</div>';
+  }
+  function avanceHTML(p) {
+    if (!p.avance) return '';
+    var nota = /\((.*)\)/.exec(p.avanceTexto);
+    if (p.avance.tipo === 'hoy') return '<p class="tz-avance">' + ic('clock') + '<span>Avance del caso: <b>inmediato</b></span></p>';
+    if (p.avance.tipo !== 'dias') return '<p class="tz-avance">' + ic('clock') + '<span>Avance del caso: ' + esc(p.avanceTexto) + '</span></p>';
+    return '<p class="tz-avance">' + ic('clock') + '<span>Avance del caso: <b>' + esc(diasTexto(p.avance)) + '</b>, a más tardar el ' +
+      esc(fechaCorta(fechas(p.avance).fecha)) + (nota ? ' (' + esc(nota[1]) + ')' : '') + '</span></p>';
+  }
+  function plazoHTML(p) {
+    var pl = p.plazo, h;
+    if (pl.tipo === 'dias') {
+      var f = fechas(pl), larga = fechaLarga(f.fecha);
+      h = '<p class="tz-p-lbl">Dile al cliente</p>' +
+        '<p class="tz-p-cuando">' + (f.min ? 'entre el ' + esc(fechaCorta(f.min)) + ' y el' : 'a más tardar el') + '</p>' +
+        '<p class="tz-p-fecha"><span>' + esc(larga) + '</span><button type="button" class="tz-copiar" data-tz-copiar="' + esc(larga) + '">' + ic('copy') + '<span>Copiar la fecha</span></button></p>' +
+        '<p class="tz-p-cant">' + esc(diasTexto(pl)) + ' desde hoy' + (pl.largo ? '' : '. La hoja dice «' + esc(pl.texto) + '».') + '</p>' +
+        tiraHTML(f.fecha, f.min) +
+        (pl.largo ? '<div class="tz-p-texto">' + bloquesHTML(renglones(pl.texto), p.frases) + '</div>' : '');
+    } else if (pl.tipo === 'hoy') {
+      /* No es una promesa para el cliente: es que el asesor lo resuelve al momento */
+      h = '<p class="tz-p-lbl">Plazo</p><p class="tz-p-fecha"><span>En la llamada</span></p><p class="tz-p-cant">La hoja dice «' + esc(pl.texto) + '»: se resuelve al momento.</p>';
+    } else if (pl.tipo === 'desglose') {
+      h = '<p class="tz-p-lbl">Dile al cliente, según cómo pagó</p><table class="tz-metodos"><tbody>' + p.desglose.items.map(function (i) {
+          var fe = i.plazo.tipo === 'dias' ? fechaCorta(fechas(i.plazo).fecha) : (i.plazo.tipo === 'hoy' ? 'hoy' : '');
+          return '<tr><th scope="row">' + esc(i.metodo) + '</th><td class="tz-m-t">' + esc(i.tiempo) + '</td><td class="tz-m-f">' + (fe ? '<b>' + esc(fe) + '</b>' : '') + '</td></tr>';
+        }).join('') + '</tbody></table>' +
+        (p.desglose.notas.length ? '<ul class="tz-p-notas">' + p.desglose.notas.map(function (n) { return '<li>' + enLinea(n) + '</li>'; }).join('') + '</ul>' : '');
+    } else if (pl.tipo === 'sistema') {
+      h = '<p class="tz-p-lbl">Dile al cliente</p><p class="tz-p-fecha"><span>' +
+        (pl.mas ? 'La fecha de ' + esc(pl.sistema) + ' + ' + pl.mas + (pl.mas === 1 ? ' día' : ' días') : 'La fecha que marca ' + esc(pl.sistema)) +
+        '</span></p><p class="tz-p-cant">La hoja dice «' + esc(pl.texto) + '».</p>';
+    } else if (pl.tipo === 'texto') {
+      h = '<p class="tz-p-lbl">Plazo según la hoja</p><div class="tz-p-texto">' + bloquesHTML(renglones(pl.texto), p.frases) + '</div>';
+    } else {
+      h = '<p class="tz-p-lbl">Plazo</p><p class="tz-p-nada">Sin plazo en la hoja: no des una fecha.</p>';
+    }
+    return '<div class="tz-plazo">' + h + avanceHTML(p) + '</div>';
+  }
+  function bloquesHTML(rs, frases) {
+    var out = '', lista = null;
+    var cerrar = function () { if (lista) { out += '</' + lista + '>'; lista = null; } };
+    rs.forEach(function (r) {
+      if (r.t === 'nota' || r.t === 'tip') {
+        cerrar();
+        out += '<p class="tz-aviso es-' + r.t + '">' + ic(r.t) + '<span>' + enLinea(mayuscula(r.txt), frases) + '</span></p>';
+        return;
+      }
+      var tag = r.t === 'paso' ? 'ol' : 'ul';
+      if (lista !== tag) { cerrar(); lista = tag; out += tag === 'ol' ? '<ol class="tz-pasos">' : '<ul class="tz-lista">'; }
+      var cuerpo = enLinea(r.txt, frases);
+      if (r.t === 'paso') out += '<li><span class="tz-n">' + esc(r.n) + '</span><span>' + cuerpo + '</span></li>';
+      else out += '<li' + (/^<span class="tz-cita tz-copiable">[\s\S]*<\/span>$/.test(cuerpo) ? ' class="es-frase"' : '') + '>' + cuerpo + '</li>';
+    });
+    cerrar();
+    return out;
+  }
+  function procedeHTML(p) {
+    var h = '';
+    if (p.reporte) h += '<li>' + ic('calendar') + '<span>Plazo para reportarlo: <b>' + esc(p.reporte) + '</b></span></li>';
+    p.procede.forEach(function (r) {
+      /* Tres tonos: no aplica / no procede / fuera de los tiempos (alto), aplica / solo aplica
+         (palomita) y las reglas que no dicen ni sí ni no, como la de los 45 días (reloj). */
+      var n = norm(r.txt).replace(/\([^)]*\)/g, '');
+      var tono = /\bno (?:aplica|procede)\b|^si no procede|fuera de los tiempos|^si la moto/.test(n) ? 'no'
+               : /^(?:solo |sólo )?aplica\b|^.{0,40}\bsolo aplica\b/.test(n) ? 'si' : 'regla';
+      h += '<li class="es-' + tono + '">' + ic(tono === 'no' ? 'alto' : tono === 'si' ? 'check' : 'clock') + '<span>' + enLinea(mayuscula(r.txt), p.frases) + '</span></li>';
+    });
+    return h ? '<ul class="tz-procede">' + h + '</ul>' : '';
+  }
+  function fichaHTML(p) {
+    var hacer = p.hacer.length ? bloquesHTML(p.hacer, p.frases) : '';
+    var proc = procedeHTML(p);
+    var donde = p.donde.length ? '<ul class="tz-donde">' + p.donde.map(function (d) {
+      return '<li>' + esc(d.base) + (d.nota ? ' <small>' + esc(d.nota) + '</small>' : '') + '</li>';
+    }).join('') + '</ul>' : '';
+    return '<div class="tz-ficha">' + plazoHTML(p) +
+      (hacer ? '<section class="tz-bloque"><h4>' + ic('sigue') + 'Qué hacer y a quién escalar</h4>' + hacer + '</section>' : '') +
+      (proc ? '<section class="tz-bloque"><h4>' + ic('alto') + '¿Procede?</h4>' + proc + '</section>' : '') +
+      (!hacer && !proc ? '<p class="tz-f-vacia">La hoja no trae observaciones para este proceso.</p>' : '') +
+      (donde ? '<section class="tz-bloque"><h4>' + ic('monitor') + 'Dónde revisar</h4>' + donde + '</section>' : '') +
+    '</div>';
+  }
+  /* Resumen de la fila: el plazo corto y, si hay cantidad, la fecha. */
+  function resumen(p) {
+    var pl = p.plazo;
+    if (pl.tipo === 'dias') {
+      var f = fechas(pl);
+      return { cant: pl.horas ? pl.horas + ' h' : (pl.n !== pl.hasta ? pl.n + ' a ' + pl.hasta : pl.hasta) + (pl.hasta === 1 ? ' día' : ' días'), fecha: fechaCorta(f.fecha) };
+    }
+    if (pl.tipo === 'hoy') return { cant: 'En la llamada' };
+    if (pl.tipo === 'desglose') return { cant: 'Según el pago' };
+    if (pl.tipo === 'sistema') return { cant: 'Fecha ' + pl.sistema + (pl.mas ? ' + ' + pl.mas + ' d' : '') };
+    if (pl.tipo === 'texto') return { cant: 'Depende' };
+    return { cant: 'Sin plazo' };
+  }
+
+  /* ── Estado ───────────────────────────────────────────────────────────────────── */
+  var app = null;
+  var procesos = [], porId = {};
+  var st = { linea: SECS[0], sit: null, abierta: null, q: '', aviso: null, dia: '', sinDatos: true };
+  var tq = null;
+
+  /* Busca DENTRO de la vista: pintar() la arma antes de montarla, y en un árbol suelto
+     document.getElementById no encuentra nada. */
+  function enApp(id) { return app ? app.querySelector('[id="' + id + '"]') : null; }
+  function secActiva() {
+    var a = document.querySelector('.view-section.active');
+    return a ? a.id.replace(/^sec-/, '') : '';
+  }
+  function crearApp() {
+    if (app) return app;
+    app = document.createElement('div');
+    app.id = 'tz-app';
+    app.addEventListener('click', alClic);
+    app.addEventListener('keydown', alTecla);
+    app.addEventListener('input', alEscribir);
+    return app;
+  }
+  function montar(secId) {
+    var host = document.getElementById('traz-' + secId);
+    if (!host || !app) return;
+    if (app.parentNode === host) return;
+    var foco = app.contains(document.activeElement) ? document.activeElement : null;
+    host.innerHTML = '';
+    host.appendChild(app);
+    if (foco && document.contains(foco)) foco.focus({ preventScroll: true });
+  }
+
+  function estadoHTML() {
+    if (!st.aviso) return '';
+    return '<div class="tz-estado es-' + (st.aviso.tipo === 'warn' ? 'warn' : 'alert') + '" role="status">' +
+      ic(st.aviso.tipo === 'warn' ? 'clock' : 'alto') + '<span>' + esc(st.aviso.texto) + '</span>' +
+      '<button type="button" data-tz="reintentar">' + ic('refresh') + 'Reintentar</button></div>';
+  }
+  function filaHTML(p) {
+    var r = resumen(p);
+    return '<li class="tz-fila" id="' + esc(p.id) + '" data-linea="' + p.linea.id + '">' +
+      '<button type="button" class="tz-f-bt" data-tz="fila" aria-expanded="false" aria-controls="' + esc(p.id) + '-ficha">' +
+        '<span class="tz-f-tx"><span class="tz-f-nom">' + esc(p.nombre) + '</span><span class="tz-f-frag" hidden></span></span>' +
+        '<span class="tz-f-plazo"><b>' + esc(r.cant) + '</b>' + (r.fecha ? '<small>→ ' + esc(r.fecha) + '</small>' : '') + '</span>' +
+        ic('chevdown', 'tz-chev') +
+      '</button>' +
+      '<div class="tz-panel" id="' + esc(p.id) + '-ficha" role="region" aria-label="' + esc(p.nombre) + ' · ' + esc(p.linea.nombre) + '" hidden></div>' +
+    '</li>';
+  }
+  function pintar() {
+    crearApp();
+    st.dia = diaClave();
+    var html = estadoHTML();
+    if (!procesos.length) {
+      app.innerHTML = html + (st.sinDatos ? '' : '<p class="tz-nada"><b>Todavía no hay procesos publicados.</b> Avisa al equipo de Ventel para que los publiquen en la hoja de Homologación.</p>');
+      return;
+    }
+    html += '<div class="tz-barra">' +
+        '<label class="tz-buscar">' + ic('search') + '<span class="tz-sr">Filtrar procesos de Trazabilidad</span>' +
+          '<input type="search" data-tz="q" value="' + esc(st.q) + '" placeholder="Busca: «caja vacía», «MDA 49», «OTP»…" autocomplete="off" spellcheck="false"></label>' +
+        '<div class="tz-lineas" role="group" aria-label="Línea del pedido">' +
+          '<button type="button" data-tz="linea" data-v="todas" aria-pressed="false">Todas</button>' +
+          LINEAS.map(function (l) { return '<button type="button" data-tz="linea" data-v="' + l.id + '" aria-pressed="false">' + esc(l.nombre) + '</button>'; }).join('') +
+        '</div></div>' +
+      '<div class="tz-tabs" role="tablist" aria-label="Qué le pasó al cliente">' + SITUACIONES.map(function (s) {
+        return '<button type="button" role="tab" class="tz-tab" id="tz-tab-' + s.id + '" data-tz="sit" data-v="' + s.id + '" aria-selected="false" aria-controls="tz-hoja-' + s.id + '" tabindex="-1">' +
+          ic(s.ic) + '<span><b>' + esc(s.cliente) + '</b><small data-tz-n></small></span></button>';
+      }).join('') + '</div>' +
+      SITUACIONES.map(function (s) {
+        var de = procesos.filter(function (p) { return p.situacion === s.id; });
+        var grupos = LINEAS.map(function (l) {
+          var dl = de.filter(function (p) { return p.linea.id === l.id; });
+          if (!dl.length) return '';
+          return '<li class="tz-grupo" data-linea="' + l.id + '"><h3 class="tz-gl">' + esc(l.nombre) + '</h3><ul class="tz-filas">' + dl.map(filaHTML).join('') + '</ul></li>';
+        }).join('');
+        return '<section class="tz-hoja" id="tz-hoja-' + s.id + '" role="tabpanel" aria-labelledby="tz-tab-' + s.id + '" tabindex="-1" hidden>' +
+          '<header class="tz-hd"><h2>' + esc(s.cliente) + '</h2><span>' + esc(s.que) + '</span><b data-tz-cuenta></b></header>' +
+          '<ul class="tz-grupos">' + grupos + '</ul><div class="tz-vacio" data-tz-vacio hidden></div></section>';
+      }).join('');
+    app.innerHTML = html;
+    var abierta = st.abierta;
+    st.abierta = null;
+    aplicar();
+    if (abierta && porId[abierta] && !enApp(abierta).hidden) abrir(abierta, { seco: true });
+  }
+
+  /* Filtro (texto y línea): muestra filas, cuenta por pestaña y elige la hoja que se ve. `respetar`:
+     la pestaña la eligió el asesor y se queda aunque esté en cero (su hoja explica por qué). */
+  function aplicar(respetar) {
+    if (!app || !procesos.length) return;
+    var ws = norm(st.q).split(' ').filter(Boolean);
+    var cuenta = {}, total = {};
+    SITUACIONES.forEach(function (s) { cuenta[s.id] = 0; total[s.id] = 0; });
+    procesos.forEach(function (p) {
+      var fila = enApp(p.id);
+      if (!fila || !app.contains(fila)) return;
+      var okQ = ws.every(function (w) { return p.texto.indexOf(w) > -1; });
+      var ok = okQ && (st.linea === 'todas' || p.linea.id === st.linea);
+      if (okQ) total[p.situacion]++;
+      fila.hidden = !ok;
+      if (ok) cuenta[p.situacion]++;
+      var nom = fila.querySelector('.tz-f-nom'), frag = fila.querySelector('.tz-f-frag');
+      if (nom) nom.innerHTML = marcar(p.nombre, ws);
+      if (frag) { var fr = ok ? fragmento(p, ws) : ''; frag.innerHTML = fr; frag.hidden = !fr; }
+      if (!ok && st.abierta === p.id) cerrar(p.id, true);
+    });
+    app.querySelectorAll('.tz-grupo').forEach(function (g) {
+      g.hidden = !g.querySelector('.tz-fila:not([hidden])');
+    });
+    /* La hoja abierta sin nada que enseñar pasa a la primera que tenga (con filtro o con línea). */
+    if (!st.sit || (!respetar && !cuenta[st.sit] && SITUACIONES.some(function (s) { return cuenta[s.id]; }))) {
+      var prim = SITUACIONES.filter(function (s) { return cuenta[s.id]; })[0];
+      st.sit = prim ? prim.id : SITUACIONES[0].id;
+    }
+    SITUACIONES.forEach(function (s) {
+      var tab = enApp('tz-tab-' + s.id), hoja = enApp('tz-hoja-' + s.id);
+      var sel = s.id === st.sit, n = cuenta[s.id];
+      tab.setAttribute('aria-selected', sel ? 'true' : 'false');
+      tab.tabIndex = sel ? 0 : -1;
+      tab.classList.toggle('es-cero', !n);
+      tab.querySelector('[data-tz-n]').textContent = n + (n === 1 ? ' proceso' : ' procesos');
+      hoja.hidden = !sel;
+      hoja.querySelector('[data-tz-cuenta]').textContent = n + (n === 1 ? ' proceso' : ' procesos');
+      var vacio = hoja.querySelector('[data-tz-vacio]');
+      if (n) { vacio.hidden = true; vacio.innerHTML = ''; return; }
+      vacio.hidden = false;
+      var otros = total[s.id];
+      var linea = LINEAS.filter(function (l) { return l.id === st.linea; })[0];
+      vacio.innerHTML = '<p class="tz-nada">' + (ws.length
+        ? '<b>Nada coincide con «' + esc(st.q) + '» aquí.</b>' + (st.linea !== 'todas' && otros ? ' Hay ' + otros + ' en otras líneas.<button type="button" data-tz="linea" data-v="todas">Ver todas las líneas</button>' : ' Prueba con otra palabra.')
+        : '<b>' + esc(linea ? linea.nombre : 'Esta línea') + ' no tiene procesos para esta situación.</b>' + (otros ? '<button type="button" data-tz="linea" data-v="todas">Ver las ' + otros + ' de las otras líneas</button>' : '')) + '</p>';
+    });
+    app.querySelectorAll('.tz-lineas button').forEach(function (b) {
+      b.setAttribute('aria-pressed', b.getAttribute('data-v') === st.linea ? 'true' : 'false');
+    });
+    centrarPestana();
+  }
+  /* Si lo buscado no está en el nombre, el trozo del proceso donde sí está, con la palabra marcada:
+     sin él, «OTP» deja una fila cerrada que no dice por qué salió. Se busca sobre el texto sin acentos
+     letra por letra, para volver a la posición del original. */
+  function fragmento(p, ws) {
+    if (!ws.length || !p.fuente) return '';
+    var nomN = norm(p.nombre);
+    var faltan = ws.filter(function (w) { return nomN.indexOf(w) < 0; });
+    if (!faltan.length) return '';
+    var src = p.fuente, plano = '', mapa = [];
+    for (var i = 0; i < src.length; i++) {
+      var c = src[i].toLowerCase().normalize('NFD').replace(/[^\s -~]/g, '');
+      if (/\s/.test(c)) c = ' ';
+      for (var k = 0; k < c.length; k++) { plano += c[k]; mapa.push(i); }
+    }
+    var j = plano.indexOf(faltan[0]);
+    if (j < 0) return '';
+    var ini = mapa[j], fin = mapa[j + faltan[0].length - 1] + 1;
+    var a = Math.max(0, ini - 45), b = Math.min(src.length, fin + 65);
+    if (a > 0) { var sp = src.indexOf(' ', a); if (sp > -1 && sp < ini) a = sp + 1; }
+    if (b < src.length) { var sp2 = src.lastIndexOf(' ', b); if (sp2 > fin) b = sp2; }
+    var limpio = function (s) { return esc(s.replace(/\s+/g, ' ')); };
+    return (a > 0 ? '…' : '') + limpio(src.slice(a, ini)) + '<mark>' + limpio(src.slice(ini, fin)) + '</mark>' + limpio(src.slice(fin, b)) + (b < src.length ? '…' : '');
+  }
+  function marcar(nombre, ws) {
+    var s = esc(nombre);
+    if (!ws.length) return s;
+    /* Marca sobre el texto sin acentos, conservando el original */
+    var plano = norm(nombre).length === nombre.length ? norm(nombre) : null;
+    if (!plano) return s;
+    var marcas = [];
+    ws.forEach(function (w) { var i = plano.indexOf(w); if (i > -1) marcas.push([i, i + w.length]); });
+    if (!marcas.length) return s;
+    marcas.sort(function (a, b) { return a[0] - b[0]; });
+    var out = '', pos = 0;
+    marcas.forEach(function (m) { if (m[0] < pos) return; out += esc(nombre.slice(pos, m[0])) + '<mark>' + esc(nombre.slice(m[0], m[1])) + '</mark>'; pos = m[1]; });
+    return out + esc(nombre.slice(pos));
+  }
+
+  function anima() { return typeof gsap !== 'undefined' && !(window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches) && !document.hidden; }
+  function abrir(id, op) {
+    op = op || {};
+    var fila = enApp(id), p = porId[id];
+    if (!fila || !p) return null;
+    if (st.dia !== diaClave()) { st.abierta = id; pintar(); fila = enApp(id); }
+    if (st.abierta && st.abierta !== id) cerrar(st.abierta, true);
+    var bt = fila.querySelector('.tz-f-bt'), panel = fila.querySelector('.tz-panel');
+    panel.innerHTML = fichaHTML(p);
+    panel.hidden = false;
+    fila.classList.add('es-abierta');
+    bt.setAttribute('aria-expanded', 'true');
+    st.abierta = id;
+    if (!op.seco && anima()) {
+      gsap.fromTo(panel, { height: 0, opacity: 0 }, { height: 'auto', opacity: 1, duration: .28, ease: 'power2.out', clearProps: 'height,opacity' });
+    }
+    return fila;
+  }
+  function cerrar(id, seco) {
+    var fila = enApp(id);
+    if (st.abierta === id) st.abierta = null;
+    if (!fila) return;
+    var bt = fila.querySelector('.tz-f-bt'), panel = fila.querySelector('.tz-panel');
+    fila.classList.remove('es-abierta');
+    bt.setAttribute('aria-expanded', 'false');
+    if (seco || !anima()) { if (typeof gsap !== 'undefined') gsap.killTweensOf(panel); panel.hidden = true; panel.style.height = ''; panel.style.opacity = ''; return; }
+    gsap.to(panel, { height: 0, opacity: 0, duration: .2, ease: 'power2.in', onComplete: function () { panel.hidden = true; gsap.set(panel, { clearProps: 'height,opacity' }); } });
+  }
+  /* La primera fila de la hoja abierta, abierta: la respuesta a la pregunta con la que se entró. */
+  function abrirPrimera() {
+    var hoja = enApp('tz-hoja-' + st.sit);
+    var f = hoja && hoja.querySelector('.tz-fila:not([hidden])');
+    if (f && st.abierta !== f.id) abrir(f.id, { seco: true });
+  }
+  function elegirSit(id, foco) {
+    if (st.sit === id) return;
+    st.sit = id;
+    if (st.abierta) cerrar(st.abierta, true);
+    aplicar(true);
+    if (foco) { var t = enApp('tz-tab-' + id); if (t) t.focus({ preventScroll: true }); }
+  }
+  /* En el teléfono las pestañas van en una tira que se desliza: la elegida, a la vista. */
+  function centrarPestana() {
+    var t = enApp('tz-tab-' + st.sit), c = t && t.parentNode;
+    if (!c || c.scrollWidth <= c.clientWidth) return;
+    c.scrollLeft = Math.max(0, t.offsetLeft - (c.clientWidth - t.offsetWidth) / 2);
+  }
+  function cambiarLinea(v) {
+    if (v === 'todas' || v === secActiva()) {
+      st.linea = v;
+      aplicar();
+      /* «Todas» vive en la dirección (linea=todas): recargar, volver atrás o compartir el enlace
+         llega igual. navUrlEstado lo lee de trzLineaUrl. */
+      if (typeof navUrlEstado === 'function') navUrlEstado(false);
+      return;
+    }
+    /* Elegir una línea es lo mismo que su acceso del menú: la dirección y el menú la siguen. */
+    if (typeof switchSec === 'function') switchSec(v);
+  }
+
+  /* ── Eventos ──────────────────────────────────────────────────────────────────── */
+  function alClic(e) {
+    var b = e.target.closest('[data-tz], [data-tz-copiar]');
+    if (!b || !app.contains(b)) return;
+    if (b.hasAttribute('data-tz-copiar')) {
+      if (typeof copyText === 'function') copyText(b.getAttribute('data-tz-copiar'), b);
+      return;
+    }
+    var a = b.getAttribute('data-tz');
+    if (a === 'sit') elegirSit(b.getAttribute('data-v'), e.detail === 0);
+    else if (a === 'linea') cambiarLinea(b.getAttribute('data-v'));
+    else if (a === 'fila') {
+      var fila = b.closest('.tz-fila');
+      if (st.abierta === fila.id) cerrar(fila.id);
+      else {
+        abrir(fila.id);
+        var r = fila.getBoundingClientRect();
+        if (r.top < 80) window.scrollTo({ top: Math.max(0, r.top + window.scrollY - 96), behavior: anima() ? 'smooth' : 'auto' });
+      }
+    }
+    else if (a === 'reintentar' && typeof trazReintentar === 'function') trazReintentar(b);
+  }
+  function alTecla(e) {
+    var tab = e.target.closest && e.target.closest('.tz-tab');
+    if (tab) {
+      var tabs = [].slice.call(app.querySelectorAll('.tz-tab'));
+      var i = tabs.indexOf(tab), j = -1;
+      if (e.key === 'ArrowRight' || e.key === 'ArrowDown') j = (i + 1) % tabs.length;
+      else if (e.key === 'ArrowLeft' || e.key === 'ArrowUp') j = (i - 1 + tabs.length) % tabs.length;
+      else if (e.key === 'Home') j = 0;
+      else if (e.key === 'End') j = tabs.length - 1;
+      if (j < 0) return;
+      e.preventDefault();
+      elegirSit(tabs[j].getAttribute('data-v'), true);
+      return;
+    }
+    if (e.target.getAttribute && e.target.getAttribute('data-tz') === 'q') {
+      if (e.key === 'Escape' && e.target.value) { e.preventDefault(); e.stopPropagation(); e.target.value = ''; filtrar(''); }
+      else if (e.key === 'Enter') {
+        /* Enter abre el primer proceso que se ve y le pasa el foco: se sigue con el teclado. */
+        e.preventDefault();
+        clearTimeout(tq); filtrar(e.target.value);
+        var hoja = enApp('tz-hoja-' + st.sit);
+        var f = hoja && hoja.querySelector('.tz-fila:not([hidden])');
+        if (f) { abrir(f.id); f.querySelector('.tz-f-bt').focus(); }
+      }
+    }
+  }
+  function alEscribir(e) {
+    if (!e.target.getAttribute || e.target.getAttribute('data-tz') !== 'q') return;
+    var v = e.target.value;
+    clearTimeout(tq);
+    tq = setTimeout(function () { filtrar(v); }, 120);
+  }
+  function filtrar(v, sinUrl) {
+    st.q = String(v || '');
+    aplicar();
+    if (!sinUrl && typeof reflejarFiltro === 'function') reflejarFiltro(secActiva(), st.q.trim());
+  }
+
+  /* ── Lo que usa Index.html ───────────────────────────────────────────────────── */
+  /* Datos nuevos (o el error sin datos). `aviso` = {tipo:'warn'|'alert', texto} o null. */
+  window.trzPintar = function (datos, aviso) {
+    st.aviso = aviso || null;
+    if (datos && Array.isArray(datos.secciones)) {
+      st.sinDatos = false;
+      procesos = modelo(datos);
+      porId = {};
+      procesos.forEach(function (p) { porId[p.id] = p; });
+      if (st.abierta && !porId[st.abierta]) st.abierta = null;
+    }
+    pintar();
+    var s = secActiva();
+    if (SECS.indexOf(s) > -1) {
+      montar(s);
+      if (!st.abierta) abrirPrimera();
+    }
+  };
+  /* Solo el aviso (misma copia de datos). */
+  window.trzAviso = function (aviso) {
+    st.aviso = aviso || null;
+    if (!app) return;
+    var viejo = app.querySelector('.tz-estado');
+    if (viejo) viejo.remove();
+    if (st.aviso) app.insertAdjacentHTML('afterbegin', estadoHTML());
+  };
+  /* Entrar a una de las seis secciones (switchSec, antes de animar la entrada): la vista se muda a
+     esa sección y toma su línea. */
+  window.trzAlEntrar = function (secId) {
+    if (SECS.indexOf(secId) < 0) return;
+    var otraLinea = st.linea !== secId;
+    st.linea = secId;
+    if (!app) return;
+    if (st.dia && st.dia !== diaClave()) pintar();
+    montar(secId);
+    aplicar();
+    var fila = st.abierta && enApp(st.abierta);
+    if (otraLinea || !fila || fila.hidden) abrirPrimera();
+  };
+  /* Destino del buscador o de ?item=: abre su pestaña y su ficha. Devuelve la fila. */
+  window.trzRevelar = function (el) {
+    var fila = el && el.closest ? el.closest('.tz-fila') : null;
+    if (!fila || !app || !app.contains(fila) || !porId[fila.id]) return null;
+    var p = porId[fila.id];
+    if (st.linea !== 'todas' && st.linea !== p.linea.id) st.linea = p.linea.id;
+    if (fila.hidden && st.q) {
+      var input = app.querySelector('[data-tz="q"]');
+      if (input) input.value = '';
+      st.q = '';
+    }
+    st.sit = p.situacion;
+    aplicar();
+    abrir(p.id, { seco: true });
+    return fila;
+  };
+  /* ?q= de un enlace (restore): escribe y filtra sin volver a escribir la dirección. */
+  window.trzAplicarBusqueda = function (secId, q) {
+    if (!app) return;
+    var input = app.querySelector('[data-tz="q"]');
+    if (input) input.value = q;
+    filtrar(q, true);
+    /* Un enlace con ?q= que deja un solo proceso llega con él abierto: es lo que se compartió. */
+    var visibles = [].slice.call(app.querySelectorAll('.tz-hoja:not([hidden]) .tz-fila:not([hidden])'));
+    var enTodas = procesos.filter(function (p) { var f = enApp(p.id); return f && !f.hidden; });
+    if (enTodas.length === 1 && visibles.length === 1) abrir(visibles[0].id, { seco: true });
+  };
+  window.trzLista = function () { return !!(app && app.querySelector('.tz-fila')); };
+  /* «Todas» en la dirección: la escribe navUrl (Index) y la lee restore. */
+  window.trzLineaUrl = function (secId) { return (SECS.indexOf(secId) > -1 && st.linea === 'todas') ? 'todas' : ''; };
+  window.trzVerTodas = function () { st.linea = 'todas'; aplicar(); };
+})();
+</script>

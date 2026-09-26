@@ -1,0 +1,872 @@
+{
+ "status": "ok",
+ "error": null,
+ "generado": "2026-09-26T00:00:00.000Z",
+ "hojaId": "1EGCG2OaBAPOYPhUdAjIFj3OrDUYoQmIL7S81qEc8tzo",
+ "secciones": [
+  {
+   "id": "bigticket",
+   "prefijo": "bt",
+   "label": "Big Ticket",
+   "etiqueta": "BT",
+   "hoja": "BT",
+   "tieneAvance": true,
+   "procesos": [
+    {
+     "id": "bt-1",
+     "num": "1",
+     "numHoja": "1",
+     "nombre": "Fecha en tiempo",
+     "reporte": "N/A",
+     "avance": "N/A",
+     "solucion": "Inmediata (fecha PAO)",
+     "plataformas": "PAO/Salesforce",
+     "observaciones": ""
+    },
+    {
+     "id": "bt-2",
+     "num": "2",
+     "numHoja": "2",
+     "nombre": "Fecha vencida",
+     "reporte": "N/A",
+     "avance": "3 días (escalación por Salesforce)",
+     "solucion": "5 días",
+     "plataformas": "PAO/Salesforce (bodega destino)",
+     "observaciones": "Se asigna caso a CR, es importante agregar referencias y teléfonos adicionales.\n\nRecuerda que si tiene mas de 48 horas en \"Pedido en camino\" sin cambio de estatus solicita a través del formulario de Cambios de estatus PAO (notifica al supervisor).\n\nSi la mercancía se encuentra en locación de entrega y semáforo rojo se asigna caso a CR con el comentario:\n\n\"Buen día CR solicitamos de su apoyo para programar una nueva fecha de entrega\"\n\nEn estatus Entregado no es posible revertir el mismo, es necesario asignar caso a la bodega para confirmar nueva fecha de entrega.\"\n\nSi la mercancía esta en PLAN escalar MDA categoría 49."
+    },
+    {
+     "id": "bt-3",
+     "num": "3",
+     "numHoja": "3",
+     "nombre": "Asignar fecha PAO",
+     "reporte": "N/A",
+     "avance": "Inmediata (fecha PAO)",
+     "solucion": "Inmediata (fecha PAO)",
+     "plataformas": "PAO/Salesforce",
+     "observaciones": "Validar que no se encuentre pausada por un tema de cancelación, revisar SAP ECC y comentarios (PAO). Asignar fecha desde el calendario de PAO, se habilitarán solo las disponibles, guardar cambios."
+    },
+    {
+     "id": "bt-4",
+     "num": "4",
+     "numHoja": "4",
+     "nombre": "Armado",
+     "reporte": "N/A",
+     "avance": "N/A",
+     "solucion": "Fecha disponible en el calendario MDA OMS",
+     "plataformas": "PAO/Salesforce (bodega destino)",
+     "observaciones": "Indicar al cliente las fechas disponibles en MDA para que seleccione DD/MM/AA y asignar el caso al CR´destino con el folio de MDA."
+    },
+    {
+     "id": "bt-5",
+     "num": "5",
+     "numHoja": "5",
+     "nombre": "OV Sin disponibilidad",
+     "reporte": "N/A",
+     "avance": "N/A",
+     "solucion": "Fecha de surtido que asigna PAO",
+     "plataformas": "PAO/Salesforce",
+     "observaciones": "Revisar la fecha de surtido para notificar al cliente:\n\n1. Considera la periodicidad de entrega de cada zona\n2. Revisa con el código postal del cliente\n3. Revisa el estatus del SKU:\n\n⦁ Activo - Normal (validar si hay pedido y una vez que tengas fechas tentativa de surtido brinda la fecha de entrega mínima del pedido mas lejano).\n⦁ Activo- Normal sin fecha de proveedor (Ofrecer sustituto desde la primer llamada).\n⦁ Activo - Escaso (revisar en PAO que el pedido cuente con una línea de transferencia activa y notificar la fecha de \"cancelacion\" de surtido).\n⦁ Inactivo Escaso (Ofrecer sustituto desde la primer llamada).\n\nNota: En caso de que el cliente no desee esperar la fechas puedes ofrecer un sustituto o la cancelación."
+    },
+    {
+     "id": "bt-6",
+     "num": "6",
+     "numHoja": "6",
+     "nombre": "Recogidos por satisfacción/ mercancía dañada",
+     "reporte": "1 año",
+     "avance": "3 días",
+     "solucion": "Fecha asignada en el calendario de PAO",
+     "plataformas": "PAO/Salesforce (bodega destino)",
+     "observaciones": "El recogido lo genera el asesor de 1er nivel en PAO se asigna la fecha más cercana y al cliente se le brinda la fecha que arroja el sistema (PAO) a partir del primer contacto del recogido. El caso se escala con el equipo resolutor de PostVenta.\nEn el segundo contacto se suman 72 h. a la fecha de llamada y se sigue escalando en el caso anterior.\nEn el tercer contacto o si el recogido cuenta con 15 días de vencimiento y la periodicidad de la zona es: quincenal o mensual solicita la devolución en formulario Incidencias Trazabilidad.\nSi está fuera de los tiempos de 7 días para SEPRO o en los 30 días para satisfacción se solicita la autorización a través del formulario Incidencias Trazabilidad."
+    },
+    {
+     "id": "bt-7",
+     "num": "7",
+     "numHoja": "7",
+     "nombre": "Entrega no reconocida",
+     "reporte": "N/A",
+     "avance": "15 días",
+     "solucion": "15 días",
+     "plataformas": "PAO/Salesforce/SIMPLIROUTE",
+     "observaciones": "Validar en Simpliroute la evidencia de entrega, verificar que no se una entrega fallida y/o cruzada( no olvides escalar el caso con el CR)"
+    },
+    {
+     "id": "bt-8",
+     "num": "8",
+     "numHoja": "8",
+     "nombre": "Devolución sí procede",
+     "reporte": "N/A",
+     "avance": "N/A",
+     "solucion": "⦁ Tarjeta Liverpool DILISA y LPC en 24 hrs. *\n⦁ Tarjetas de crédito y débito externas 3DS (nacionales y extranjeras) en 72 hrs hábiles. *\n(3DS Pago con Tarjeta débito devolución se intenta aplicar al mismo método de pago, si no pasa se aplica al MED, pago con tarjeta de crédito mismo método de pago).*\n⦁ PayPal en 48 hrs.*\n⦁ Pagos referenciados (tiendas de conveniencia/transferencias) se aplica al MED y debe verse reflejado en 24 hrs. en caso de no tener MED asociado debes acudir al área de crédito y/o C&C de la tienda de tu preferencia en un periodo de 5 a 7 días hábiles (partida).*\n\n*LAS FECHAS SON ESTIMADAS",
+     "plataformas": "PAO/SAP ECC/Salesforce/CTE",
+     "observaciones": "De acuerdo al método de pago toma las siguientes consideraciones:\n\n⦁ Openpay: Revisar partida en SAP ECC.\n⦁ Tarjetas internas/externas: Revisar SAP ECC y CTE.\n⦁ PAYPAL: Revisa espejo de aplicadas PAYPAL (En validación).\n⦁ MED: Revisar en SAP ECC que cuente con monedero y coincida\ncon el del cliente en FMS.\n\nNotas: recuerda hacer validación OTP (se puede enviar hasta 3 veces). Si el OTP no funciona realiza las preguntas de validación. Recuerda que puedes solicitar la devolución siempre que la OV esté en semáforo verde, en caso de estar próxima la entrega asigna un caso al CR correspondiente para evitar la entrega de la mercancía.\n\nEl las tarjetas de débito si excede los 45 días naturales a partir del día de compra se aplica al MED.\nEn 3DS Si pago con tarjeta de débito la devolución se intenta aplicar al la tarjeta si no pasa se aplica al MED si el pago es con tarjeta de crédito se va al mismo método de pago).\nEn tarjetas de crédito y débito extranjeras se intenta aplicar a la misma tarjeta si no pasa se aplica al MED."
+    },
+    {
+     "id": "bt-9",
+     "num": "9",
+     "numHoja": "9",
+     "nombre": "Devolución no procede por estatus (Solicitud cambio de estatus)",
+     "reporte": "N/A",
+     "avance": "3 días",
+     "solucion": "N/A",
+     "plataformas": "PAO/Salesforce/Formulario Cambio de Estatus",
+     "observaciones": "Llenar el formulario Incidecias trazabilidad, esperar la notificación de que tu petición ha sido atendida. De acuerdo a tu solicitud realizar el proceso correspondiente. Deberas de notificar cada vez que subas un cambio de estatus.\n\nValidar estatus permisibles en Glosario.\n\nRecuerda solicitarlo con supervisión una vez registrado en el formulario.\n\nNota: recuerda hacer validación OTP (se puede enviar hasta 3 veces). Si el OTP no funciona realiza las preguntas de validación. En caso de que no se pueda ejecutar el cambio recuerda asignar caso al CR para solicitarlo."
+    },
+    {
+     "id": "bt-10",
+     "num": "10",
+     "numHoja": "10",
+     "nombre": "Devolución no procede por estatus",
+     "reporte": "N/A",
+     "avance": "3 días",
+     "solucion": "3 días",
+     "plataformas": "PAO/Salesforce (bodega destino)",
+     "observaciones": "Realiza la escalación con el CR correspondiente.\nRecuerda solicitar el cambio de la siguiente manera:\n\n\"Buen día CR solicitamos de su apoyo para que un vez arribe la mercancía se realice el cambio de estatus correspondiente para (Incidencia)\""
+    },
+    {
+     "id": "bt-11",
+     "num": "11",
+     "numHoja": "11",
+     "nombre": "Devolución Motos sí procede",
+     "reporte": "N/A",
+     "avance": "N/A",
+     "solucion": "⦁Tarjeta Liverpool DILISA y LPC en 24 hrs.\n⦁ Tarjetas de crédito y débito externas 3DS (nacionales y extranjeras) en 72 hrs hábiles.\n(3DS Pago con Tarjeta débito devolución se intenta aplicar al mismo método de pago, si no pasa se aplica al MED, pago con tarjeta de crédito mismo método de pago).\n⦁ PayPal en 7 días hábiles.\n⦁ Pagos OpenPay (referenciados en tiendas de conveniencia o transferencias SPEI) el reembolso se aplicará al MED asociado a la cuenta en 3 días hábiles, solo en caso de no contar con un MED deberá acudir al área de crédito y/o C&C de la tienda de tu preferencia en un periodo de 5 a 10 días hábiles (partida).\n\nLAS FECHAS SON ESTIMADAS",
+     "plataformas": "PAO/SAP ECC/Salesforce",
+     "observaciones": "Si la OV está en semáforo verde, se deja comentario en PAO y se sube a SAP ECC.\nA excepción de que se haya facturado y/o activada (confirmando con el CR´Destino).\n\nNota: En las tarjetas de débito si excede los 45 días naturales a partir del día de compra se aplica al MED.\nEn 3DS Si pago con tarjeta de débito la devolución se intenta aplicar al la tarjeta si no pasa se aplica al MED si el pago es con tarjeta de crédito se va al mismo método de pago).\nEn tarjetas de crédito y débito extranjeras se intenta aplicar a la misma tarjeta si no pasa se aplica al MED."
+    },
+    {
+     "id": "bt-12",
+     "num": "12",
+     "numHoja": "12",
+     "nombre": "Devolución Motos no procede",
+     "reporte": "N/A",
+     "avance": "",
+     "solucion": "N/A",
+     "plataformas": "PAO/Salesforce",
+     "observaciones": "Si la moto ya esta activada y facturada no procede."
+    },
+    {
+     "id": "bt-13",
+     "num": "13",
+     "numHoja": "13",
+     "nombre": "Resurtido BT",
+     "reporte": "1 año",
+     "avance": "5 días",
+     "solucion": "Depende del Inventario, considerar:\n1. Si se cuenta con el inventario de 10 a 12 días hábiles (PAO).\n2. Considera la periodicidad de entrega de cada zona.\n3. Revisa con el código postal del cliente.\n4. Revisa el estatus del SKU.\nDependiendo de la condición del SKU, si no se cuenta con disponibilidad ofrecer la recolección.",
+     "plataformas": "PAO/Salesforce",
+     "observaciones": "Si es mercancía de importación el cliente tiene 6 meses para reportar un DEFECTO; En cunas el cliente tiene 24h posteriores al armado para solicitar un resurtido BT. Validar el inventario en PAO.\n\nSi esta fuera de los tiempos de 7(SEPRO) de POSTVENTA solicita la autorización a Supervisión."
+    },
+    {
+     "id": "bt-14",
+     "num": "14",
+     "numHoja": "14",
+     "nombre": "Cambio de domicilio sí procede",
+     "reporte": "N/A",
+     "avance": "Inmediata",
+     "solucion": "N/A",
+     "plataformas": "PAO/Salesforce (OTP)",
+     "observaciones": "Hacer validación OTP (se puede enviar hasta 3 veces) en caso de no ser exitoso o no deje enviar hacer validación manual.\n\nNota: No aplica cambio de domicilio si cambia el CR de entrega."
+    },
+    {
+     "id": "bt-15",
+     "num": "15",
+     "numHoja": "15",
+     "nombre": "Error de catalogación",
+     "reporte": "N/A",
+     "avance": "30 días",
+     "solucion": "10 días",
+     "plataformas": "PAO/liverpool.com.mx/Salesforce",
+     "observaciones": "Escalar en Salesforce: Trazabilidad/Fecha de entrega/Sin fecha/Comercial CCL. En comentarios especificar la incidencia del artículo (diferente color, tamaño, modelo, etc.)."
+    }
+   ]
+  },
+  {
+   "id": "softline",
+   "prefijo": "sl",
+   "label": "Soft Line",
+   "etiqueta": "SF",
+   "hoja": " SL logistica interna",
+   "tieneAvance": false,
+   "procesos": [
+    {
+     "id": "sl-1",
+     "num": "1",
+     "numHoja": "1",
+     "nombre": "Fecha en tiempo",
+     "reporte": "N/A",
+     "avance": "",
+     "solucion": "Inmediata (fecha SOMS/PAO)",
+     "plataformas": "PAO/SOMS/Salesforce/4PL/SIMPLIROUTE",
+     "observaciones": "Revisar la pantalla de SOMS 6.7.15."
+    },
+    {
+     "id": "sl-2",
+     "num": "2",
+     "numHoja": "2",
+     "nombre": "Fecha vencida",
+     "reporte": "N/A",
+     "avance": "",
+     "solucion": "10 días",
+     "plataformas": "PAO/SOMS/Salesforce/4PL/SIMPLIROUTE",
+     "observaciones": "Revisar la pantalla de SOMS 6.7.15.\n\nEl tiempo incluye la escalación y el tiempo de entrega. Si el estatus NMEN, VMEN, etc., no cuenta con movimiento mayor a 10 días, se escala con Supervisión para solicitar el forzado del estatus para devolución."
+    },
+    {
+     "id": "sl-3",
+     "num": "3",
+     "numHoja": "3",
+     "nombre": "Más datos",
+     "reporte": "N/A",
+     "avance": "",
+     "solucion": "10 días",
+     "plataformas": "PAO/SOMS/Salesfrce/4PL/Correo",
+     "observaciones": "Dependiendo donde se encuentre el producto:\n\nEn paqueterías internas se envia correo a la tienda que surte.\n\nPaqueterías externas por Salesforce con equipo resolutor de MENSAJERIAS / Folio a CR que entrega.\n\nNota: también aplica para pedidos con estatus NENT causa DOE."
+    },
+    {
+     "id": "sl-4",
+     "num": "4",
+     "numHoja": "4",
+     "nombre": "Resurtido equivocada/incompleto/dañada",
+     "reporte": "1 año",
+     "avance": "",
+     "solucion": "5 a 7 días para resurtido.\nPara devolución brindar los tiempo de proceso No. 8 (devolución)",
+     "plataformas": "PAO/SOMS/Salesforce ENR/SIMPLIROUTE/4PL",
+     "observaciones": "Si se cuenta con inventario se solicita resurtido con el grupo resolutor RESURTIDOS.\n\nEn caso de que no se cuente con inventario se Deberá registrar la devolución en SAP ECC con la leyenda:\n\nServicio SL/dañada\nServicio SL/incompleta\nServicio SL/equivocada\n\nSegún sea el caso (ya no se pone el número celular)\n*consulta la tabla actualizada para validar si procede por servicio SL o Satisfacción SL\n\nTambién aplica para Garantía de Satisfacción, como aparece en Términos y condiciones.\n\nNota: Si el cliente no quiere el reembolso o desea conservar la mercancía también es valido.\n\nNota 2: Recuerda que debes revisar la lista negra, si cuenta con 2 registros o más, debes seguir el proceso de lista negra.\n\nNota 3: Aplica el recogido y resurtido (si hay inventario), para productos coleccionables, ediciones especiales o aleatorios."
+    },
+    {
+     "id": "sl-5",
+     "num": "5",
+     "numHoja": "5",
+     "nombre": "Entrega no reconocida / Caja Vacia",
+     "reporte": "30 días",
+     "avance": "",
+     "solucion": "10 días",
+     "plataformas": "PAO/SOMS/Salesforce ENR/SIMPLIROUTE/4PL",
+     "observaciones": "Si se cuenta con inventario se solicita resurtido al equipo resolutor MENSAJERÍAS (si viaja con paqueterías locales)/ RESURTIDOS (si viaja con CR).\n\nNo aplica en mercancía de + de $3,000.\n\nSi no se cuenta con inventario, todas las incidencias de menos de $3,000 se registra en SAP ECC, con la leyenda: “Reconocida” y escalar caso con equipo resolutor MENSAJERÍAS (si viaja con paqueterías locales)/ RESURTIDOS (si viaja con CR).\n\nTip: Recuerda que debes revisar lista negra\nNota: Aplica hasta un año con previa autorización."
+    },
+    {
+     "id": "sl-6",
+     "num": "6",
+     "numHoja": "5",
+     "nombre": "Cancelación mensajería interna",
+     "reporte": "N/A",
+     "avance": "",
+     "solucion": "10 días",
+     "plataformas": "PAO/SOMS/Correo/4PL/Salesforce",
+     "observaciones": "No aplica en estatus CONF - Con guía de mensajería\n\nNota: debes hacer validación OTP (se puede enviar hasta 3 veces) en caso de no ser exitoso o no deje enviar hacer validación manual"
+    },
+    {
+     "id": "sl-7",
+     "num": "7",
+     "numHoja": "6",
+     "nombre": "Cancelación logística interna",
+     "reporte": "Depende del estatus",
+     "avance": "",
+     "solucion": "Inmediato",
+     "plataformas": "PAO/SOMS/CSC/Salesforce",
+     "observaciones": "No aplica en estatus CONF que surte la locación 125 / VCTE\n\nNota: debes hacer validación OTP (se puede enviar hasta 3 veces) en caso de no ser exitoso o no deje enviar hacer validación manual."
+    },
+    {
+     "id": "sl-8",
+     "num": "8",
+     "numHoja": "7",
+     "nombre": "Devolución sí procede",
+     "reporte": "N/A",
+     "avance": "",
+     "solucion": "⦁ Tarjeta Liverpool DILISA y LPC en 24 hrs. *\n⦁ Tarjetas de crédito y débito externas 3DS (nacionales y extranjeras) en 72 hrs hábiles. *\n(3DS Pago con Tarjeta débito devolución se intenta aplicar al mismo método de pago, si no pasa se aplica al MED, pago con tarjeta de crédito mismo método de pago).*\n⦁ PayPal en 48 hrs.*\n⦁ Pagos referenciados (tiendas de conveniencia/transferencias) se aplica al MED y debe verse reflejado en 24 hrs. en caso de no tener MED asociado debes acudir al área de crédito y/o C&C de la tienda de tu preferencia en un periodo de 5 a 7 días hábiles (partida).*\n\n*LAS FECHAS SON ESTIMADAS",
+     "plataformas": "PAO/SOMS/SAP ECC/Salesforce/CTE",
+     "observaciones": "De acuerdo al método de pago toma las siguientes consideraciones:\n\n⦁ Openpay: Revisar partida en SAP ECC.\n⦁ Tarjetas internas/externas: Revisar SAP ECC y CTE.\n⦁ PAYPAL: ---\n⦁ MED: Revisar en SAP ECC que cuente con monedero y coincida\ncon el del cliente en FMS.\n\nNotas: debes hacer validación OTP (se puede enviar hasta 3 veces) en caso de no ser exitoso o no deje enviar hacer validación manual.\nRecuerda que tienes la opción de subir al formulario de cancelaciones compras del día. Caso contrario debes solicitar la devolución al día siguiente.\nEl las tarjetas de débito si excede los 45 días naturales a partir del día de compra se aplica al MED.\nEn 3DS Si pago con tarjeta de débito la devolución se intenta aplicar al la tarjeta si no pasa se aplica al MED si el pago es con tarjeta de crédito se va al mismo método de pago).\nEn tarjetas de crédito y débito extranjeras se intenta aplicar a la misma tarjeta si no pasa se aplica al MED."
+    },
+    {
+     "id": "sl-9",
+     "num": "9",
+     "numHoja": "8",
+     "nombre": "Recogidos por satisfacción/mercancia dañada",
+     "reporte": "1 año",
+     "avance": "",
+     "solucion": "10 dias",
+     "plataformas": "PAO/SOMS/Salesforce",
+     "observaciones": "La solicitud de recogido se escala por Salesforce a PostVenta el cual llevará el seguimiento.*consulta la tabla actualizada para validar si procede por servicio SL o Satisfacción SL\nEl recogido lo genera el asesor de 1er nivel/ cabeceras en SOMS y al cliente se le brinda la fecha que arroja el sistema (SOMS) a partir del primer contacto del recogido.\nEn el segundo contacto se suman 72 h. a la fecha de la llamada y se sigue escalando en el caso anterior.\nEn el tercer contacto o si el recogido cuenta con 15 días de vencimiento y la periodicidad de la zona es: quincenal o mensual solicita la devolución en formulario Incidencias Trazabilidad."
+    },
+    {
+     "id": "sl-10",
+     "num": "10",
+     "numHoja": "9",
+     "nombre": "Cambio de domicilio",
+     "reporte": "INCO",
+     "avance": "",
+     "solucion": "",
+     "plataformas": "PAO/SOMS/ Salesforce (OTP)",
+     "observaciones": "Debes hacer validación OTP (se puede enviar hasta 3 veces) en caso de no ser exitoso o no deje enviar hacer validación manual."
+    }
+   ]
+  },
+  {
+   "id": "slmensajerias",
+   "prefijo": "slm",
+   "label": "SL Mensajerías",
+   "etiqueta": "SF",
+   "hoja": "SL Mensajerias",
+   "tieneAvance": false,
+   "procesos": [
+    {
+     "id": "slm-1",
+     "num": "1",
+     "numHoja": "1",
+     "nombre": "Fecha en tiempo",
+     "reporte": "N/A",
+     "avance": "",
+     "solucion": "Inmediata (fecha SOMS/PAO)",
+     "plataformas": "PAO/SOMS/4PL o Página de la mensajería/Salesforce",
+     "observaciones": "Revisar la pantalla de SOMS 6.7.15."
+    },
+    {
+     "id": "slm-2",
+     "num": "2",
+     "numHoja": "2",
+     "nombre": "Fecha vencida",
+     "reporte": "N/A",
+     "avance": "",
+     "solucion": "10 días",
+     "plataformas": "PAO/SOMS/4PL o Tracking de la mensajería/Salesforce",
+     "observaciones": "Revisar la pantalla de SOMS 6.7.15.\n\nEl tiempo incluye la escalación y el tiempo de entrega.\nSi el estatus NMEN, VMEN, etc., no cuenta con movimiento mayor a 10 días, se escala con Supervisión para solicitar el forzado del estatus para devolución."
+    },
+    {
+     "id": "slm-3",
+     "num": "3",
+     "numHoja": "3",
+     "nombre": "Más datos",
+     "reporte": "N/A",
+     "avance": "",
+     "solucion": "10 días",
+     "plataformas": "PAO/SOMS/4PL o Tracking de la mensajería/Salesforce",
+     "observaciones": "Validar que la guía no esté retornada.\n\nEscalar en Salesforce como fecha vencida con datos adicionales al grupo resolutor mensajerías."
+    },
+    {
+     "id": "slm-4",
+     "num": "4",
+     "numHoja": "4",
+     "nombre": "Guía retornada",
+     "reporte": "N/A",
+     "avance": "",
+     "solucion": "10 días",
+     "plataformas": "PAO/SOMS/4PL o Tracking de la mensajería/Salesforce",
+     "observaciones": "Revisar a donde retorno la mercancía para determinar si:\n\nSe envía correo a locación (tienda que recibió la mercancía).\n\nSi llego al CR asignar caso en Salesforce."
+    },
+    {
+     "id": "slm-5",
+     "num": "5",
+     "numHoja": "5",
+     "nombre": "Resurtido equivocada/incompleto/dañada",
+     "reporte": "1 año",
+     "avance": "",
+     "solucion": "5 a 7 días para resurtido.\nPara devolución brindar los tiempo de proceso No. 8 (devolución)",
+     "plataformas": "PAO/SOMS/Salesforce ENR/SIMPLIROUTE/4PL",
+     "observaciones": "Si se cuenta con inventario se solicita resurtido con el grupo resolutor RESURTIDOS.\n\nEn caso de que no se cuente con inventario se Deberá registrar la devolución en SAP ECC con la leyenda:\n\nServicio SL/dañada\nServicio SL/incompleta\nServicio SL/equivocada\n\nSegún sea el caso (ya no se pone el número celular)\n*consulta la tabla actualizada para validar si procede por servicio SL o Satisfacción SL\n\nTambién aplica para Garantía de Satisfacción, como aparece en Términos y condiciones.\n\nNota: Si el cliente no quiere el reembolso o desea conservar la mercancía también es valido.\n\nNota 2: Recuerda que debes revisar la lista negra, si cuenta con 2 registros o más, debes seguir el proceso de lista negra.\n\nNota 3: Aplica el recogido y resurtido (si hay inventario), para productos coleccionables, ediciones especiales o aleatorios."
+    },
+    {
+     "id": "slm-6",
+     "num": "6",
+     "numHoja": "6",
+     "nombre": "Entrega no reconocida / Caja Vacia",
+     "reporte": "30 días",
+     "avance": "",
+     "solucion": "10 días",
+     "plataformas": "PAO/SOMS/Salesforce ENR/SIMPLIROUTE/4PL",
+     "observaciones": "Si se cuenta con inventario se solicita resurtido al equipo resolutor MENSAJERIAS (si viaja con paqueterías locales)/ RESURTIDOS (si viaja con CR).\n\nNo aplica en mercancía de + de $3,000 en este caso sera necesario escalar por medio de la plantilla a postventa (salesforce). Si no se cuenta con inventario, todas las incidencias de menos de $3,000 se suben a SAP ECC, con la leyenda: “Reconocida” y escalar caso con equipo resolutor MENSAJERÍAS (si viaja con paqueterías locales)/ RESURTIDOS (si viaja con CR).\n\nTip: Recuerda que debes revisar lista negra.\n\nNota: Aplica hasta un año con previa autorización."
+    },
+    {
+     "id": "slm-7",
+     "num": "7",
+     "numHoja": "7",
+     "nombre": "Retorno para cancelación",
+     "reporte": "N/A",
+     "avance": "",
+     "solucion": "10 días",
+     "plataformas": "PAO/SOMS/Salesforce/Tracking de la mensajería",
+     "observaciones": "Validar que la mensajería aún cuente con la mercancía.\n\nValidar que no esté en última milla.\n\nSi el estatus NMEN, VMEN, etc., no cuenta con movimiento mayor a 10 días, se escala con Supervisión para solicitar el forzado del estatus para devolución."
+    },
+    {
+     "id": "slm-8",
+     "num": "8",
+     "numHoja": "8",
+     "nombre": "Devolución",
+     "reporte": "N/A",
+     "avance": "",
+     "solucion": "⦁ Tarjeta Liverpool DILISA y LPC en 24 hrs. *\n⦁ Tarjetas de crédito y débito externas 3DS (nacionales y extranjeras) en 72 hrs hábiles. *\n(3DS Pago con Tarjeta débito devolución se intenta aplicar al mismo método de pago, si no pasa se aplica al MED, pago con tarjeta de crédito mismo método de pago).*\n⦁ PayPal en 48 hrs.*\n⦁ Pagos referenciados (tiendas de conveniencia/transferencias) se aplica al MED y debe verse reflejado en 24 hrs. en caso de no tener MED asociado debes acudir al área de crédito y/o C&C de la tienda de tu preferencia en un periodo de 5 a 7 días hábiles (partida).*\n\n*LAS FECHAS SON ESTIMADAS",
+     "plataformas": "PAO/SOMS/SAP ECC/Salesforce/CTE",
+     "observaciones": "De acuerdo al método de pago toma las siguientes consideraciones:\n\n⦁ Openpay: Revisar partida en SAP ECC.\n⦁ Tarjetas internas/externas: Revisar SAP ECC y CTE.\n⦁ PAYPAL: ---\n⦁ MED: Revisar en SAP ECC que cuente con monedero y coincida\ncon el del cliente en FMS.\n\nNotas: debes hacer validación OTP (se puede enviar hasta 3 veces) en caso de no ser exitoso o no deje enviar hacer validación manual.\nRecuerda que tienes la opción de subir al formulario Incidencias Trazabilidad. Caso contrario debes solicitar la devolución al día siguiente.\nEl las tarjetas de débito si excede los 45 días naturales a partir del día de compra se aplica al MED.\nEn 3DS Si pago con tarjeta de débito la devolución se intenta aplicar al la tarjeta si no pasa se aplica al MED si el pago es con tarjeta de crédito se va al mismo método de pago).\nEn tarjetas de crédito y débito extranjeras se intenta aplicar a la misma tarjeta si no pasa se aplica al MED."
+    },
+    {
+     "id": "slm-9",
+     "num": "9",
+     "numHoja": "9",
+     "nombre": "Recogidos por satisfacción/mercancia dañada",
+     "reporte": "1 año",
+     "avance": "",
+     "solucion": "10 días",
+     "plataformas": "SOMS/Salesforce/PAO",
+     "observaciones": "La solicitud de recogido se escala por Salesforce a PostVenta el cual llevará el seguimiento.*consulta la tabla actualizada para validar si procede por servicio SL o Satisfacción SL\nEl recogido lo genera el asesor de 1er nivel/ cabeceras en SOMS y al cliente se le brinda la fecha que arroja el sistema (SOMS) a partir del primer contacto del recogido.\nEn el segundo contacto se suman 72 h. a la fecha de la llamada y se sigue escalando en el caso anterior.\nEn el tercer contacto o si el recogido cuenta con 15 días de vencimiento y la periodicidad de la zona es: quincenal o mensual solicita la devolución en formulario Incidencias Trazabilidad."
+    }
+   ]
+  },
+  {
+   "id": "mkp",
+   "prefijo": "mkp",
+   "label": "MarketPlace",
+   "etiqueta": "MKP",
+   "hoja": "MKP",
+   "tieneAvance": false,
+   "procesos": [
+    {
+     "id": "mkp-1",
+     "num": "1",
+     "numHoja": "1",
+     "nombre": "Fecha en tiempo",
+     "reporte": "N/A",
+     "avance": "",
+     "solucion": "Fecha límite de envío de entrada única + 7 días",
+     "plataformas": "SOMS/Salesforce/Entrada única/Tracking mensajería",
+     "observaciones": "Fecha límite de envío de entrada única + 7 días en Mensajería/SOMS // BT fecha SOMS.\n\nRevisar en entrada única para validar la fecha límite de envio."
+    },
+    {
+     "id": "mkp-2",
+     "num": "2",
+     "numHoja": "2",
+     "nombre": "Fecha vencida BT",
+     "reporte": "N/A",
+     "avance": "",
+     "solucion": "10 días",
+     "plataformas": "SOMS/Salesforce/Entrada única/Tracking mensajería",
+     "observaciones": "Revisar en las pantallas 6.7.11 y 6.7.15 para validar la ubicación y trazo lógistico de la mercancía.\nSi la mercancía esta en PLAN se escala en MDA categoría 40.\nSi esta en CR´ se escala por medio de sales force."
+    },
+    {
+     "id": "mkp-3",
+     "num": "3",
+     "numHoja": "3",
+     "nombre": "Guía creada s/movimiento",
+     "reporte": "N/A",
+     "avance": "",
+     "solucion": "Revisar fecha de Entrada Única si esta vencida\nGenera reporte en MDA y sumar 7 días a partir del contacto.",
+     "plataformas": "SOMS/Entrada única/Tracking de la mensajería/MDA Opc 6 Soporte MKP",
+     "observaciones": "Aplica para SL cuando la mercancía aún no se ha depositado.\n\nEn BT cuando aún no se ha enviado a Plan, consultar citas disponibles en el manual de MKP.\n\nAplica en los escenarios donde la mercancía aún no se ha depositado a la mensajería y ya tiene fecha vencida en entrada única. Escalar como guía creada sin movimiento en MDA.\n\nSi la mercancía esta en PLAN se escala en MDA categoría 49."
+    },
+    {
+     "id": "mkp-4",
+     "num": "4",
+     "numHoja": "4",
+     "nombre": "Guía tránsito c/movimiento",
+     "reporte": "Mercancia con movimiento dentro de los ultimos 5 días",
+     "avance": "",
+     "solucion": "5 dias a partir del contacto",
+     "plataformas": "SOMS/Entrada única/Tracking de la mensajería",
+     "observaciones": "Si el cliente requiere saber como rastrear se le puede dar la guía.\nConsultar las observaciones ó incidencias para realizar la escalación, si es necesario."
+    },
+    {
+     "id": "mkp-5",
+     "num": "5",
+     "numHoja": "5",
+     "nombre": "Guía tránsito s/movimiento",
+     "reporte": "5 días s/movimiento",
+     "avance": "",
+     "solucion": "5 días",
+     "plataformas": "SOMS/Entrada única/Tracking de la mensajería/MDA Opc 6 Soporte MKP",
+     "observaciones": "Se escala por MDA si la guía tiene 5 días sin movimiento; si cuenta con una incidencia con la mensajería (Domicilio incompleto o se requieren datos adicionales) se escala al momento en la opción de Guía en tránsito sin movimiento como más datos.\n\nRecuerda validar si no se cuenta con alguna incidencia en MKP en la Guía de Incidencias MKP."
+    },
+    {
+     "id": "mkp-6",
+     "num": "6",
+     "numHoja": "6",
+     "nombre": "Guía retornada",
+     "reporte": "N/A",
+     "avance": "",
+     "solucion": "10 días",
+     "plataformas": "SOMS/Entrada única/Tracking de la mensajería/MDA Opc 6 Soporte MKP",
+     "observaciones": "El plazo de los 10 dias sera para dar la solucion al cliente si este se comunica antes de la respuesta de MDA se le pide esperar el tiempo.\nSi se comunica dentro del plazo donde ya contamos con la respuesta de MDA subir la devoluciona Sap"
+    },
+    {
+     "id": "mkp-7",
+     "num": "7",
+     "numHoja": "7",
+     "nombre": "Pedido inexistente Entrada Única",
+     "reporte": "N/A",
+     "avance": "",
+     "solucion": "7 días",
+     "plataformas": "SOMS/Entrada única/Tracking de la mensajería/MDA Opc 6 Soporte MKP",
+     "observaciones": "La remisión tiene que tener los datos cargados para subir la incidencia en MDA.\n\nEn ésta se debe registrar si el cliente desea la entrega o la devolución para que el equipo de MKP accione en un sentido o en otro."
+    },
+    {
+     "id": "mkp-8",
+     "num": "8",
+     "numHoja": "8",
+     "nombre": "Entrega no reconocida",
+     "reporte": "30 días",
+     "avance": "",
+     "solucion": "⦁ Tarjeta Liverpool DILISA y LPC en 24 hrs. *\n⦁ Tarjetas de crédito y débito externas 3DS (nacionales y extranjeras) en 72 hrs hábiles. *\n(3DS Pago con Tarjeta débito devolución se intenta aplicar al mismo método de pago, si no pasa se aplica al MED, pago con tarjeta de crédito mismo método de pago).*\n⦁ PayPal en 48 hrs.*\n⦁ Pagos referenciados (tiendas de conveniencia/transferencias) se aplica al MED y debe verse reflejado en 24 hrs. en caso de no tener MED asociado debes acudir al área de crédito y/o C&C de la tienda de tu preferencia en un periodo de 5 a 7 días hábiles (partida).*\n\n*LAS FECHAS SON ESTIMADAS",
+     "plataformas": "SOMS/Entrada única/Tracking de la mensajería/MDA Opc 6 Soporte MKP",
+     "observaciones": "\"ENR dentro de las 24h se sube al formulario Incidencias Trazabilidad y al cliente se le informa que nos pondremos en contacto con él para dar seguimiento dentro de las siguientes 72 hrs.\n\nPosterior a las 24hrs se registra en SAP ECC con la leyenda \"Reconocida\" y en paralelo se escala en mesa de ayuda MDA categoría 6.\n\nNo aplica en mercancía de alto valor, electrónica, cómputo, joyería fina, audio y video. Brindar al cliente un lapso de 15 días, subir MDA categoría 6 (entrega no reconocida).\n\nAplica hasta un año con previa autorización.\n\nTIP: Recuerda revisar la lista negra.\n\nNota: En las tarjetas de débito si excede los 45 días naturales a partir del día de compra se aplica al MED.\nEn 3DS Si pago con tarjeta de débito la devolución se intenta aplicar al la tarjeta si no pasa se aplica al MED si el pago es con tarjeta de crédito se va al mismo método de pago).\nEn tarjetas de crédito y débito extranjeras se intenta aplicar a la misma tarjeta si no pasa se aplica al MED.\""
+    },
+    {
+     "id": "mkp-9",
+     "num": "9",
+     "numHoja": "9",
+     "nombre": "Cancelación",
+     "reporte": "Depende de estatus",
+     "avance": "",
+     "solucion": "10 días - Depende de estatus",
+     "plataformas": "SOMS/CSC/Entrada Unica/MDA Opc 6 Soporte MKP (guia creada-guia en transito)",
+     "observaciones": "Si la respuesta en MDA es \"Validar ZVADVIS de 5-7 días\", es importante en caso de si el cliente se comunica dentro del plazo de esta respuesta subir la devolucion a SAP ECC\n\nSi existe rellamado por falta de respuesta del equipo de MKP, acercarte con equipo administrativo.\n\nNota: debes hacer validación OTP (se puede enviar hasta 3 veces) en caso de no ser exitoso o no deje enviar hacer validación manual."
+    },
+    {
+     "id": "mkp-10",
+     "num": "10",
+     "numHoja": "10",
+     "nombre": "Devolución",
+     "reporte": "N/A",
+     "avance": "",
+     "solucion": "7 días",
+     "plataformas": "SOMS/CSC/SAP ECC/Entrada única",
+     "observaciones": "Si está marcado el reembolso en Entrada única y el estatus en SOMS es LIPR, NMEN, VMEN, etc., se sube MDA opc 6 solicitando el cambio de estatus a CANC, para poder subirlo a SAP ECC.\n\nSi en SOMS está CANC y en Entrada única no está marcado el reembolso se sube a MDA opc 6 solicitando que el seller marque el reembolso."
+    },
+    {
+     "id": "mkp-11",
+     "num": "11",
+     "numHoja": "11",
+     "nombre": "Devoluciones Rechazadas",
+     "reporte": "N/A",
+     "avance": "",
+     "solucion": "5 días",
+     "plataformas": "SOMS/SAP ECC/MDA Opc 6 - Devoluciones rechazadas",
+     "observaciones": "Esta incidencia aplica para los casos en los que la PoS no permita la devolución, es necesario que se registre el error textual."
+    },
+    {
+     "id": "mkp-12",
+     "num": "12",
+     "numHoja": "12",
+     "nombre": "Recogidos / Devoluciones /por satisfacción",
+     "reporte": "1 año",
+     "avance": "",
+     "solucion": "Fecha asignada en el calendario de SOMS",
+     "plataformas": "SOMS/Salesforce",
+     "observaciones": "Para devoluciones por satisfacción en SL la primera opción sería ofrecer al cliente acudir a tienda. En caso de no contar con una tienda cercana o que el cliente no quiera/pueda llevarlo ofrecer la recolección. *consulta la tabla actualizada para validar si procede por servicio SL o Satisfacción SL\nEn BT si es necesario generar el recogido.\nEl recogido lo genera el asesor de 1er nivel/ cabeceras en SOMS y al cliente se le brinda la fecha que arroja el sistema (SOMS) a partir del primer contacto del recogido.\nEn el segundo contacto se suman 72 h. a la fecha de la llamada y se sigue escalando en el caso anterior.\nEn el tercer contacto o si el recogido cuenta con 15 días de vencimiento y la periodicidad de la zona es: quincenal o mensual solicita la devolución en formulario Incidencias Trazabilidad."
+    },
+    {
+     "id": "mkp-13",
+     "num": "13",
+     "numHoja": "13",
+     "nombre": "Caja vacia",
+     "reporte": "N/A",
+     "avance": "",
+     "solucion": "15 días",
+     "plataformas": "SOMS/Entrada única/Tracking de la mensajería/MDA Opc 6 Soporte MKP",
+     "observaciones": "Solicitar evidencias fotográficas de acuerdo con la presentación que esta en la incidencia de MDA de la guía (datos legibles) y las cajas (interior y exterior).\n\nSondear al cliente si las cintas o etiquetas se encontraban despegadas con forme a la plantilla de evidencia."
+    },
+    {
+     "id": "mkp-14",
+     "num": "14",
+     "numHoja": "14",
+     "nombre": "Pedido incompleto/maltratado/equivocado SL",
+     "reporte": "1 año",
+     "avance": "",
+     "solucion": "⦁ Tarjeta Liverpool DILISA y LPC en 24 hrs. *\n⦁ Tarjetas de crédito y débito externas 3DS (nacionales y extranjeras) en 72 hrs hábiles. *\n(3DS Pago con Tarjeta débito devolución se intenta aplicar al mismo método de pago, si no pasa se aplica al MED, pago con tarjeta de crédito mismo método de pago).*\n⦁ PayPal en 7 días hábiles.*\n⦁ Pagos referenciados (tiendas de conveniencia), transferencias SPEI y OpenPay debes acudir al área de crédito y/o C&C de la tienda de tu preferencia en un periodo de 5 a 10 días hábiles (partida).*\n\n*LAS FECHAS SON ESTIMADAS",
+     "plataformas": "SOMS/Salesforce ENR/Entrada única",
+     "observaciones": "Se deberá registrar la devolución en SAP ECC con la leyenda SERVICIO SL dañada/incompleta/equivocada. No aplica en mercancía de alto valor, electrónica, cómputo, joyería fina, audio y video.\n\nAplica hasta un año con previa autorización.\n\nSi es mayor a 3000 es necesario realizar la recolección y posterior el reembolso.\n\nEn pedido incompleto revisa que no se cuente con guías múltiples. Realiza la MDA categoria 6 (Pedido incompleto hacen falta articulos o piezas) para validar con el SELLER si se puede reenviar la mercancia faltante en caso de que el cliente lo solicite, brinda un plazo de solucion de 10 dias.\nTIP: Recuerda revisar la lista negra.\n\nNota: En las tarjetas de débito si excede los 45 días naturales a partir del día de compra se aplica al MED.\nEn 3DS Si pago con tarjeta de débito la devolución se intenta aplicar al la tarjeta si no pasa se aplica al MED si el pago es con tarjeta de crédito se va al mismo método de pago).\nEn tarjetas de crédito y débito extranjeras se intenta aplicar a la misma tarjeta si no pasa se aplica al MED."
+    },
+    {
+     "id": "mkp-15",
+     "num": "15",
+     "numHoja": "15",
+     "nombre": "Pedidos con DEFECTO / FUNCIONALIDAD",
+     "reporte": "1 año",
+     "avance": "",
+     "solucion": "Fecha asignada en el calendario de SOMS / PAO",
+     "plataformas": "SOMS / PAO /Salesforce",
+     "observaciones": "Aplica cuando el cliente se comunica indicando que el artículo se entregó de forma correcta sin embargo meses posteriores deja de funcionar. NO aplica como servicio SL ya que la entrega fue correcta sin embargo al estar en uso presentó falla por lo tanto se tiene que generar un recogido y/o asignar a Postventa para el seguimiento correspondiente, la devolución se aplicará una vez que esté se haya concluido. No aplica por Montos.\n\nNo aplica en ROPA Y CALZADO que haya sido usado."
+    },
+    {
+     "id": "mkp-16",
+     "num": "16",
+     "numHoja": "16",
+     "nombre": "Pedido incompleto BT",
+     "reporte": "N/A",
+     "avance": "",
+     "solucion": "10 días",
+     "plataformas": "SOMS/Entrada única/Tracking de la mensajería/Simpli/MDA Opc 6 Soporte MKP",
+     "observaciones": "Solicitar a cliente no usar la mercancía que sí le llegó.\nMencionar en el folio de MDA si el cliente desea la mercancía o el reembolso.\nEn mercancía de alto valor se tiene que llevar a cabo la investigación.\n\nEn caso de BT y viajar por logística interna debe de validarse con CR (Por medio de Salesforce) y PLAN (Por medio de MDA) ambos debes de reportarse a la par.\n\nNota:En pedido incompleto revisa que no se cuente con guías múltiples. Realiza la MDA categoria 6 (Pedido incompleto hacen falta articulos o piezas) para validar con el SELLER si se puede reenviar la mercancia faltante, en caso de que el cliente lo solicite, brinda un plazo de solucion de 10 dias."
+    },
+    {
+     "id": "mkp-17",
+     "num": "17",
+     "numHoja": "17",
+     "nombre": "Joyería fina (Amore Mío)",
+     "reporte": "12 días",
+     "avance": "",
+     "solucion": "-",
+     "plataformas": "Entrada única",
+     "observaciones": "Modificación y personalización de joyería sólo aplica para la marca Amore Mío.\nEl cliente acude a tienda a solicitar el servicio, sólo se puede solicitar en tienda física."
+    }
+   ]
+  },
+  {
+   "id": "tienda",
+   "prefijo": "tda",
+   "label": "Tienda Física",
+   "etiqueta": "TDA",
+   "hoja": "Tienda",
+   "tieneAvance": false,
+   "procesos": [
+    {
+     "id": "tda-1",
+     "num": "1",
+     "numHoja": "1",
+     "nombre": "Recogidos por satisfacción/ mercancía dañada BT",
+     "reporte": "1 año",
+     "avance": "",
+     "solucion": "Fecha asignada en el calendario de PAO",
+     "plataformas": "PAO/Salesforce bodega destino",
+     "observaciones": "El recogido lo genera el asesor de 1er nivel en PAO se asigna la fecha más cercana y al cliente se le brinda la fecha que arroja el sistema (PAO) a partir del primer contacto del recogido. El caso se escala con el equipo resolutor de PostVenta.\nEn el segundo contacto se suman 72 h. a la fecha de llamada y se sigue escalando en el caso anterior.\nEn el tercer contacto o si el recogido cuenta con 15 días de vencimiento y la periodicidad de la zona es: quincenal o mensual solicita la devolución en formulario Incidencias Trazabilidad.\nSi está fuera de los tiempos de 7 días para SEPRO o en los 30 días para satisfacción se solicita la autorización a través del formulario Incidencias Trazabilidad."
+    },
+    {
+     "id": "tda-2",
+     "num": "2",
+     "numHoja": "2",
+     "nombre": "Recogidos por satisfacción/ mercancía dañada SL",
+     "reporte": "1 año",
+     "avance": "",
+     "solucion": "Fecha asignada en el calendario de PAO",
+     "plataformas": "PAO/SOMS/Salesforce bodega destino",
+     "observaciones": "La solicitud de recogido se escala por Salesforce a PostVenta el cual llevará el seguimiento.*consulta la tabla actualizada para validar si procede por servicio SL o Satisfacción SL\nEl recogido lo genera el asesor de 1er nivel/ cabeceras en SOMS y al cliente se le brinda la fecha que arroja el sistema (SOMS) a partir del primer contacto del recogido.\nEn el segundo contacto se suman 72 h. a la fecha de la llamada y se sigue escalando en el caso anterior.\nEn el tercer contacto o si el recogido cuenta con 15 días de vencimiento y la periodicidad de la zona es: quincenal o mensual solicita la devolución en formulario Incidencias Trazabilidad.\nSolo aplica en pedidos APV y POS caso contrario canalizar a tienda."
+    },
+    {
+     "id": "tda-3",
+     "num": "3",
+     "numHoja": "3",
+     "nombre": "Resurtido BT",
+     "reporte": "1 año",
+     "avance": "",
+     "solucion": "Depende del Inventario.\nRevisar condición de inventario, si no se cuenta con disponibilidad ofrecer la recolección.",
+     "plataformas": "Salesforce/PAO",
+     "observaciones": "Si es mercancía de importación el cliente tiene 6 meses para reportar un DEFECTO.\n\nEn cunas el cliente tiene 24h posteriores al armado para solicitar un resurtido BT. Validar el inventario en PAO. Se asigna al equipo resolutor de POSTVENTA.\n\nSi está fuera de los tiempos de 7(SEPRO) a 30(Satisfacción) días de POSTVENTA favor de solicitar la autorización a Supervisión."
+    },
+    {
+     "id": "tda-4",
+     "num": "4",
+     "numHoja": "4",
+     "nombre": "Resurtido SL equivocada/incompleto/ dañada",
+     "reporte": "1 año",
+     "avance": "",
+     "solucion": "10 días",
+     "plataformas": "SOMS/Salesforce ENR/SIMPLIROUTE/4PL/MDA/PAO",
+     "observaciones": "\"Si se cuenta con inventario se solicita resurtido al equipo resolutor por medio de sales force. Solo aplica para pedidos APV o POS con domicilio particular.\n\nEn caso de que no se cuente con inventario mercancia menos de $3,000 se sube a MDA Cat. 8. Si es mayor a $3,000 se deberá registrar a la par los formularios de Incidencias Trazabilidad (Autorización) y subir a MDA Cat. 8.\""
+    },
+    {
+     "id": "tda-5",
+     "num": "5",
+     "numHoja": "5",
+     "nombre": "Entrega no reconocida / Caja Vacia",
+     "reporte": "1 año",
+     "avance": "",
+     "solucion": "10 días",
+     "plataformas": "SOMS/Salesforce ENR/SIMPLIROUTE/4PL/PAO",
+     "observaciones": "Si se cuenta con inventario se solicita resurtido através del formulario Incidencias trazabildad.\nSolo aplica para pedidos APV o POS con domicilio particular.\n\nEn caso de que no se cuente con inventario se debería de solicitar la devolución en MDA OPC 8 con previa autorización de Supervisión (No aplica en mercancía de alto valor, electrónica, computo, joyería fina, audio y video. Se asigna caso al equipo resolutor para la investigación).\n\nSi es C&C no aplica y se canaliza a TDA."
+    },
+    {
+     "id": "tda-6",
+     "num": "6",
+     "numHoja": "6",
+     "nombre": "Cancelaciones BT",
+     "reporte": "N/A",
+     "avance": "",
+     "solucion": "7 días",
+     "plataformas": "Salesforce/MDA/PAO/Formulario cambio de estatus.",
+     "observaciones": "Depende si el estatus es permisible para pausar la línea y solicitar el reembolso en el mesa de ayuda categoría 8\"\n\nSi el estatus no es permisible, pero aplica para cambiar el estatus debes subir al formulario Incidencias trazabilidad (Cambio de estatus PAO).\n\nSi no procede debe de solicitarse el cambio al equipo correspondiente CR.\n\nInbound:\nValidar con OTP, si no se vincula en sales forcé realizar validación tradicional (SKU y motivo).\nWhatsApp:\nUtilizar la plantilla \"Datos para cancelación."
+    },
+    {
+     "id": "tda-7",
+     "num": "7",
+     "numHoja": "7",
+     "nombre": "Cancelaciones SL",
+     "reporte": "N/A",
+     "avance": "",
+     "solucion": "7 días",
+     "plataformas": "Salesforce/SOMS",
+     "observaciones": "Si procede debes subir la solicitud en el formulario formulario de Incidencias Trazabilidad.\nNOTA: La cancelación se debe de pedir en los grupos.\n\nNo aplica en estatus CONF que surte la locación 125 / VCTE / Viaja con mensajería.\n\nNo procede viaja con mensajería: asignar el caso al equipo resolutor con la leyenda \"VENCIDA SL\" y subirlo al formulario Incidencias Trazabilidad\n\nInbound:\nValidar con OTP, si no se vincula en sales forcé realizar validación tradicional (SKU y motivo).\nWhatsApp:\nUtilizar plantilla \"Datos para cancelación\"."
+    },
+    {
+     "id": "tda-8",
+     "num": "8",
+     "numHoja": "8",
+     "nombre": "Cambios de domicilio",
+     "reporte": "N/A",
+     "avance": "",
+     "solucion": "Depende del estatus.",
+     "plataformas": "Sales force/ PAO",
+     "observaciones": "Inbound:\nValidar con OTP, si no se vincula en sales forcé realizar validación tradicional (domicilio actual, domicilio nuevo y SKU).\nCP:\nColonia:\nCalle:\nNúmero int ó ext:\n\nWhatsApp:\nUtilizar plantilla \"Datos\"."
+    },
+    {
+     "id": "tda-9",
+     "num": "9",
+     "numHoja": "9",
+     "nombre": "Sustituto APV / POS",
+     "reporte": "N/A",
+     "avance": "",
+     "solucion": "N/A",
+     "plataformas": "N/A",
+     "observaciones": "No procede, se canaliza a la sucursal."
+    },
+    {
+     "id": "tda-10",
+     "num": "10",
+     "numHoja": "10",
+     "nombre": "Devoluciones APV/POS",
+     "reporte": "N/A",
+     "avance": "",
+     "solucion": "7 dias",
+     "plataformas": "SOMS/PAO",
+     "observaciones": "*Si la mercancía esta en estatus CANC debes registrar la solicitud para la aplicación de la devolución en MDA, categoría 8.\n*Si el pedido SL no esta cancelado, pero tiene un estatus permisible para la cancelación, solicita apoyo para realizar el proceso y sube la devolución en MDA, categoría 8.\n*Cuando la OV se encuentre en semáforo verde solicita pausar el trazo logístico y sube la devolución en MDA, categoría 8."
+    }
+   ]
+  },
+  {
+   "id": "generales",
+   "prefijo": "gen",
+   "label": "Generales",
+   "etiqueta": "GEN",
+   "hoja": "Generales",
+   "tieneAvance": false,
+   "procesos": [
+    {
+     "id": "gen-1",
+     "num": "1",
+     "numHoja": "1",
+     "nombre": "Mesa de Regalos Dedicatoria",
+     "reporte": "N/A (evento abierto)",
+     "avance": "",
+     "solucion": "Inmediata",
+     "plataformas": "SOMS/MDR",
+     "observaciones": "Cuida la redacción y ortografía del mensaje."
+    },
+    {
+     "id": "gen-2",
+     "num": "2",
+     "numHoja": "2",
+     "nombre": "Mesa de Regalos (Canc de compra de festejado)",
+     "reporte": "N/A (evento abierto)",
+     "avance": "",
+     "solucion": "5-7 días",
+     "plataformas": "SOMS/MDR/SAP ECC/Salesforce",
+     "observaciones": "Los datos de FMS, SOMS y MDR deben de coincidir para poder enviar el OTP y poder cancelar."
+    },
+    {
+     "id": "gen-3",
+     "num": "3",
+     "numHoja": "3",
+     "nombre": "Mesa de Regalos (asociar compra)",
+     "reporte": "N/A (evento abierto)",
+     "avance": "",
+     "solucion": "5-7 días",
+     "plataformas": "SOMS/MDR/Fomulario de vinculación para evento",
+     "observaciones": "Recuerda que:\n\nSólo compras de la 0009 (VenTel) y 0039 (Internet).\nEl domiclio de entrega debe ser el mismo de la mesa de regalos.\nNo aplica para mercancía MKP."
+    },
+    {
+     "id": "gen-4",
+     "num": "4",
+     "numHoja": "4",
+     "nombre": "Métodos de pago (registrado en Reprocesos)",
+     "reporte": "N/A",
+     "avance": "",
+     "solucion": "10-12 días",
+     "plataformas": "FMS/Drive de Reprocesos/SAP ECC",
+     "observaciones": "OPENPAY si la partida esta liberada, se puede ofrecer: primero el producto, sino hay inventario sustituto y como última instancia ofrecer la devolución a través de la partida.\n\nSi es a través de una partida el tiempo es de 3 a 5 días."
+    },
+    {
+     "id": "gen-5",
+     "num": "5",
+     "numHoja": "5",
+     "nombre": "Métodos de pago (s/registro en Reprocesos)",
+     "reporte": "N/A",
+     "avance": "",
+     "solucion": "10-12 días",
+     "plataformas": "FMS/Correo Postventa/MDA Opc 28 Métodos de pago/Drive de Reprocesos",
+     "observaciones": "Posterior a 72h (naturales) es necesario solicitar al cliente el comprobante con la referencia de pago."
+    },
+    {
+     "id": "gen-6",
+     "num": "6",
+     "numHoja": "6",
+     "nombre": "Métodos de pago (Caso atípico)",
+     "reporte": "N/A",
+     "avance": "",
+     "solucion": "10-12 días",
+     "plataformas": "FMS/Correo Postventaomnicanal/Correo a Depósito aclaraciones",
+     "observaciones": ""
+    },
+    {
+     "id": "gen-7",
+     "num": "7",
+     "numHoja": "7",
+     "nombre": "Devoluciones no reflejadas",
+     "reporte": "N/A",
+     "avance": "",
+     "solucion": "5 días",
+     "plataformas": "FMS/Correo Postventa evidencia/Correo a Depósito aclaraciones",
+     "observaciones": ""
+    },
+    {
+     "id": "gen-8",
+     "num": "8",
+     "numHoja": "8",
+     "nombre": "Digitales",
+     "reporte": "N/A",
+     "avance": "",
+     "solucion": "5-7 días",
+     "plataformas": "FMS/Salesforce",
+     "observaciones": ""
+    },
+    {
+     "id": "gen-9",
+     "num": "9",
+     "numHoja": "9",
+     "nombre": "Sterling",
+     "reporte": "N/A",
+     "avance": "",
+     "solucion": "10 días",
+     "plataformas": "SOMS/Salesforce",
+     "observaciones": "Después del 5 día sin cambio a CONF; Validar que no se trate de una preventa."
+    },
+    {
+     "id": "gen-10",
+     "num": "10",
+     "numHoja": "10",
+     "nombre": "Desmonte/montado de puertas",
+     "reporte": "N/A",
+     "avance": "",
+     "solucion": "72 hrs",
+     "plataformas": "Formulario CS/Salesforce",
+     "observaciones": "El desmonte de puertas con el CR aplica solo para las bodegas Tacubaya y Zona norte (previo a la entrega).\n\nDespués de la entrega y/o la solicitud sea de cualquier otra bodega, se debe llenar el formulario de CS.\n\nEl servicio tiene costo aunque el desmonte se genere por el CR, cuando se realice el montaje genera el costo.\n\nEl costo del servicio lo gestiona la marca al momento de la visita."
+    },
+    {
+     "id": "gen-11",
+     "num": "11",
+     "numHoja": "11",
+     "nombre": "Artículos que no aplican para reembolso por higiene",
+     "reporte": "N/A",
+     "avance": "",
+     "solucion": "N/A",
+     "plataformas": "",
+     "observaciones": "Trajes de baño\nMasajeador corporal\nRopa interior\nPijamas\nBlancos\nCepillos, Cepillos de dientes, artículos de belleza (maquillajes, perfumería)\nRasuradoras\nRopa de bebé"
+    },
+    {
+     "id": "gen-12",
+     "num": "12",
+     "numHoja": "12",
+     "nombre": "INSTALACCION/CONEXION",
+     "reporte": "N/A",
+     "avance": "",
+     "solucion": "N/A",
+     "plataformas": "PAO/Salesforce / Archivo Matriz de Promociones",
+     "observaciones": "Validar Matriz de promociones en caso de que el SKU no este dentro de este listado notificar al cliente que el costo se le indicaria en el momento de la visita técnica o caso contrario comunicarse con CS a traves de Whatsapp"
+    }
+   ]
+  }
+ ],
+ "avisos": []
+}
