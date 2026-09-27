@@ -1,0 +1,107 @@
+[
+ {
+  "titulo": "Diferir pago",
+  "tipo": "Correo",
+  "asunto": "PEDIDO [Numero de pedido] DIFERIR A MES",
+  "cuerpo": "Buena tarde equipo.\n\nDeseando se encuentren muy bien, paso a pedir de su apoyo con lo siguiente:\nEl día de hoy se realizó a través de nuestro canal telefónico la venta del pedido [Pedido], sin embargo, nuestro sistema no arrojó la promoción que el cliente observa en la página oficial de la marca, por lo que se realizó el cobro a presupuesto Liverpool.\n\nDicho lo anterior, solicitamos a través del presente se pueda ajustar la promoción correcta en la que está interesado.\n\nPedido: [Numero del pedido]\nFecha: [Fecha]\nTarjeta completa: [Numero de tarjeta]\nPromoción Solicitada: [Promocion]                \n\n(ANEXA EVIDENCIA CSC Y PÁGINA)",
+  "consideraciones": "SE ENVÍA A SUPERVISORAS Y TEAM LEADER"
+ },
+ {
+  "titulo": "Solicitud de pedido especial",
+  "tipo": "Correo",
+  "asunto": "Solicitud compra especial SKU",
+  "cuerpo": "Buenas tardes/días.\n\nDeseando se encuentren muy bien, paso a pedir de su apoyo con lo siguiente:\n\nEl día de hoy se comunicó nuestro cliente [Nombre del cliente], quién se encuentra interesado en adquirir [cantidad] piezas del SKU [codigo del prodructo].\n\nEl producto en este momento tiene un precio de lista de [Monto]\nAdicional a esto menciona que  si se le puede considerar por el volumen de las piezas un precio especial.\n\nFecha de entrega requerida: [Fecha]\nMétodo de pago:[Forma del pago]\nEspero que se pueda encontrar alguna solución, quedo atenta  a sus comentarios.\n\nSaludos Cordiales.",
+  "consideraciones": "SE ENVÍA A SUPERVISORES Y TEAM LEADER."
+ },
+ {
+  "titulo": "Ajuste promociones por error en CSC",
+  "tipo": "Correo",
+  "asunto": "Ajuste promoción no aplicada (2x1 / 3x2 / o descuento) pedido [Numero]",
+  "cuerpo": "Buenas tardes/días.\n\nDeseando se encuentren muy bien, paso a pedir de su apoyo con lo siguiente:\n\nEl día de hoy se realizó a través de nuestro canal telefónico la venta del pedido [Numero del pedido], sin embargo, nuestro sistema no arrojó la promoción que el cliente observa en la página oficial de la marca, por lo que se realizó el cobro de manera normal.\n\nPedido: [Numero de pedido]\nFecha: [Fecha]\nPromoción solicitada: [Promocion]\nTotal de compra: [Monto total]\nMonto a bonificar: [Monto bonificacion]\nTarjeta completa: [Numero de tarjeta]\n\n\nSin más por el momento, quedo a sus órdenes.\n\nSaludos.",
+  "consideraciones": "SE ENVÍA  A SUPERVISORES Y TEAM LEADER.  \nseguimientos-cat@liverpool.com.mx\n\nUNA VEZ QUE CTE TENGA LA MERCANCÍA SE SUBE A SAP Y SE MANDA EVIDENCIA SOBRE EL MISMO CORREO"
+ },
+ {
+  "titulo": "Articulo de regalo faltante",
+  "tipo": "Correo",
+  "asunto": "Articulo de Regalo Faltante pedido [Numero del pedido]",
+  "cuerpo": "Buenas tardes/días.\n\nDeseando se encuentren muy bien, paso a pedir de su apoyo con lo siguiente:\n\nEl día de hoy se realizó a través de nuestro canal telefónico la venta del pedido [Numero del pedido], sin embargo, nuestro sistema no asignó el artículo que viene de obsequio;  por lo que se solicita incluirlo en la orden.\n\nPedido: [Numero del pedido]\nSKU: [Codigo del producto]\nFecha: [Fecha]\nPromoción solicitada: [Promocion]\nDescripción artículo de regalo: [Descripcion]\nTitular: [Titular]\n\n\n\nSin más por el momento, quedo a sus órdenes.\n\nSaludos.",
+  "consideraciones": "SE ENVÍA  A SUPERVISORES Y TEAM LEADER.  \n\nseguimientos-cat@liverpool.com.mx"
+ },
+ {
+  "titulo": "Bonificacion | Devolucion",
+  "tipo": "Correo",
+  "asunto": "Bonificación / devolución  pedido [Numero del pedido]",
+  "cuerpo": "Buenas tardes/días.\n\nDeseando se encuentren muy bien, paso a pedir de su apoyo con lo siguiente:\n\nSolicitando su apoyo para que se realice la bonificación/ devolución del pedido [Numero de pedido], Debido a: [EXPLICAR MOTIVOS POR LOS QUE SE SOLICITA LA DEV/BONI]\n\n\nPedido: [Numero de pedido]\nFecha: [Fecha]\nTotal de compra: [Monto total]\nMonto a bonificar: [Monto de bonificacion]\nSKU´s a bonificar: [Codigo del producto]\n\nENVIAR EVIDENCIA DE SAP y SOMS\n\n\nSin más por el momento, quedo a sus órdenes.\n\nSaludos.",
+  "consideraciones": "SE ENVÍA  A SUPERVISORES Y TEAM LEADER.  \n\nseguimientos-cat@liverpool.com.mx\n\nUNA VEZ QUE CTE TENGA LA MERCANCÍA O EL PEDIDO SE ENCUENTRE CANCELADO                          SE SUBE A SAP Y SE MANDA EVIDENCIA SOBRE EL MISMO CORREO"
+ },
+ {
+  "titulo": "Entregas especiales",
+  "tipo": "Correo",
+  "asunto": "Programar fecha pedido: [Numero de pedido]",
+  "cuerpo": "Buenas tardes/días.\n\nDeseando se encuentren muy bien, paso a pedir de su apoyo con lo siguiente:\n\nPor medio del presente me dirijo a ustedes para verificar la fecha de entrega de su pedido.\n\nEl titular de la compra nos pide la entrega lo antes posible, para valorar el espacio de entrega.\n\nPedido: [Numero de pedido]\nFecha deseada: [Fecha esperada]\n\nSin más por el momento. Espero que se pueda encontrar alguna solución, quedamos atentos a sus comentarios.\n\nSaludos Cordiales.",
+  "consideraciones": "SE ENVÍA A ASESORES CR Y COPIA A SUPERVISORES Y TEAM LEADER.  \n\nseguimientos-cat@liverpool.com.mx\t\t\t\t\n\nUsa el directorio de CR´s"
+ },
+ {
+  "titulo": "Cotizaciones",
+  "tipo": "Correo",
+  "asunto": "Cotizacion - Liverpool",
+  "cuerpo": "Su cotización está lista\n\nEstimado(a) [Nombre del cliente],\n\n¡Buenas noticias! Hemos finalizado la cotización que solicitó.\n\nHemos adjuntado el documento PDF con el desglose completo y detallado de todos los productos y sus precios para su revisión.\n\nImportante: La disponibilidad, precios y promociones están sujetos a cambios sin previo aviso. Le recomendamos confirmar su pedido pronto.\n\nSu asesor está disponible para ayudarle a completar su compra o resolver cualquier duda.\n\nCentro de Contacto Liverpool (CCL) | Ventel\n\nW. liverpool.com.mx\nTel: 55 5262 9999 - Solicitar enlace con su asesor",
+  "consideraciones": ""
+ },
+ {
+  "titulo": "Correo de Ticket",
+  "tipo": "Correo",
+  "asunto": "Regeneracion de ticket - Liverpool",
+  "cuerpo": "Estimado(a) [Nombre del cliente],\n\nEsperamos que este correo te encuentre bien. Atendiendo a su solicitud via telefonica, hemos regenerado el ticket de su compra.\n\nTicket Adjunto: Hemos adjuntado el comprobante de su compra con el No. de Pedido [Colocar número de pedido] en formato PDF.\nA continuación, encontrarás un resumen de tu pedido para su fácil referencia:\n\nPedido: [Colocar número de pedido]\n\nRealizado el [Colocar fecha del pedido, ej. 23-01-2026]\n\nQuedamos a tu completa disposición para cualquier otra consulta.\n\nCentro de Contacto Liverpool (CCL) | Ventel\n\nD. Blvd. Alfredo Zalce, Morelia, Mich.\n\nW. liverpool.com.mx\nTel: (55) 5262 9999",
+  "consideraciones": ""
+ },
+ {
+  "titulo": "Solicitud de estado de cuenta PF",
+  "tipo": "Correo",
+  "asunto": "Solicitud de documentacion - Liverpool",
+  "cuerpo": "Estimado/a [Nombre del Cliente],\n\nEspero que este correo le encuentre bien.\n\nLe escribimos de parte de Liverpool en relación a su pedido número [Número de Pedido]. Con el fin de proceder con la entrega de su compra, necesitamos validar la información de su tarjeta de crédito terminada en [Últimos 4 dígitos].\n\nDocumentación Requerida\nLe solicitamos amablemente que nos proporcione un estado de cuenta reciente de dicha tarjeta, donde se muestre claramente la siguiente información:\n\nEl nombre completo del titular de la tarjeta.\nLa dirección de facturación asociada a la tarjeta.\nLos últimos cuatro dígitos de la tarjeta.\n* Puede omitir, tachar o censurar cualquier otra información sensible o de saldos que aparezca en el estado de cuenta.\n\nAviso Importante: Le recordamos que esta validación es un paso necesario para garantizar la seguridad de su compra y poder completar el proceso de entrega. En caso de no recibir la documentación solicitada, nos veremos en la necesidad de cancelar el pedido y proceder con el reembolso total a su tarjeta.\n\nAgradecemos su pronta atención a esta solicitud y su colaboración para agilizar la entrega de su compra.\n\nSi tiene alguna pregunta o necesita asistencia adicional con este proceso, no dude en contactarnos.\n\nCentro de Contacto Liverpool\n\nW. liverpool.com.mx\nTel: 55 52 62 99 99",
+  "consideraciones": ""
+ },
+ {
+  "titulo": "Solicitud de estado de cuenta tarjeta externa PF",
+  "tipo": "Correo",
+  "asunto": "Validacion de compra - Liverpool",
+  "cuerpo": "Estimado(a) [Nombre del cliente],\n\nEsperamos que este correo le encuentre bien.\n\nLe escribimos en relación al proceso de validación de su compra con tarjeta extranjera.\n\nPara poder completar su validación con éxito, le solicitamos amablemente que nos comparta el Estado de Cuenta de la tarjeta. Es indispensable que sea un PDF generado directamente del sistema bancario o emisor.\n\nRequisitos del Documento\nEs importante que el documento sea el archivo PDF original descargado. Solo necesitamos que sean claramente visibles los siguientes datos:\n\nNombre del Titular de la cuenta.\nDirección Fiscal (o domicilio) asociada a la tarjeta/servicio.\nLe agradecemos de antemano su pronta colaboración para proporcionarnos el documento solicitado. Una vez que lo recibamos y sea validado, podremos continuar con el proceso de su compra.\n\nSi tiene alguna duda o necesita asistencia, no dude en contactarnos.\n\nCentro de Contacto Liverpool (CCL) | Ventel\n\nD. Blvd. Alfredo Zalce, Morelia, Mich.\n\nW. liverpool.com.mx\nTel: (55) 52629999",
+  "consideraciones": ""
+ },
+ {
+  "titulo": "Validacion Prevencion de Fraudes",
+  "tipo": "Correo",
+  "asunto": "Validacion exitosa - Liverpool",
+  "cuerpo": "Estimado/a [Nombre del Cliente],\n\nNos complace ponernos en contacto con usted para compartirle excelentes noticias.\n\nHemos recibido la documentación correspondiente a su pedido número [Número de Pedido] y queremos confirmarle que la información ha sido revisada y validada correctamente.\n\nValidación Exitosa ✓\n\nSu información cumple con todos nuestros estándares de seguridad. Su pedido ha retomado su proceso normal y continuará con la ruta de entrega programada.\nAgradecemos profundamente su paciencia, colaboración y comprensión durante este proceso. Estas medidas nos ayudan a garantizar que cada una de sus compras sea completamente segura.\n\nSi tiene alguna duda adicional o requiere asistencia, seguimos a su entera disposición.\n\nCentro de Contacto Liverpool\n\nW. liverpool.com.mx\nTel: 55 52629999",
+  "consideraciones": ""
+ },
+ {
+  "titulo": "Resurtidos y mensajerias",
+  "tipo": "Sales Force",
+  "asunto": "",
+  "cuerpo": "Resurtidos y mensajerias: [Tipo]\nPedido: [Numero de pedido]\nRem Hija (si fuera el caso): [Colocar si aplica]\nSku: [Codigo del producto]\nPza: [Numero de piezas]\nResurtido o Devolución: [Solicitud del cliente]\nMotivo de la solicitud: [(Mercancía Equivocada, Incompleta, Dañada)]\nMercancía maltratada; Especificar daño en el producto: [Especicaciones]\nDescribe el motivo del inconveniente: [(¿Qué daño es?, si es equivocado ¿Qué recibió?, si es incompleto ¿Qué parte o num. de piezas le faltaron)]\nDomicilio completo con referencias: [Domicilio]",
+  "consideraciones": ""
+ },
+ {
+  "titulo": "Resurtidos BT y Recogidos",
+  "tipo": "Sales Force",
+  "asunto": "",
+  "cuerpo": "Resurtidos BT y Recogidos: [tipo]\npedido: [Numero de pedido]\nSku: [Codigo del producto]\nPzas: [Piezas]\nMotivo de solicitud: [Motivo]\nTeléfono de contacto: [Numero de telefono]\nMercancía en buen estado: [Si/No]\nMercancía usada: [Si/No]\nMercancía instalada: [Si/No]\nMismo domicilio (en caso que sea diferente ingresarlo): [Domicilio]\nNúmero de serie solo para motos: [Serial]",
+  "consideraciones": ""
+ },
+ {
+  "titulo": "ENR mensajerias externas (Entregas no reconocidas)",
+  "tipo": "Sales Force",
+  "asunto": "",
+  "cuerpo": "Pedido: [Numero de pedido]\nSku: [Codigo del producto]\nLP: [LP]\nPza: [Piezas]\nguia: [Guia]\nMensajeria: [Mensajeria]\nDomicilio (Completo) con referencias: [Domicilio]\nComentarios: [Comentarios]",
+  "consideraciones": ""
+ },
+ {
+  "titulo": "Digitales",
+  "tipo": "Sales Force",
+  "asunto": "",
+  "cuerpo": "Pedido: [Numero de pedido]\nSku: [Codigo del producto]\nPza: [Piezas]\nCorreo cliente: [Correo del cliente]\nguia: [Guia]\nCorreo alterno: [Correo alterno]\nTipo de error en códigos: [Tipo de error]\nComentarios: [Comentarios]",
+  "consideraciones": ""
+ }
+]

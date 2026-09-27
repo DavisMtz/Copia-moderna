@@ -62,7 +62,7 @@
     { id:'generales',      label:'Generales',      key:'g', icon:'tools',        kw:'gen general otros' },
     { id:'devsap',         label:'Devoluciones SAP', key:'d', icon:'card',       kw:'devoluciones sap leyendas glosario servicio sl enr reconocida satisfaccion correo soporte matriz recogido devolucion canalizar tienda mayor menor 3000 trazabilidad autorizacion ventas ccl supervisor team leader que procede c&c fragil rota grandes sin tienda cercana' },
     { id:'formatos',       label:'Formatos',       key:'o', icon:'document',     kw:'documentos archivos formato formularios ticket copia directorio contactos respuestas sobregiro mesa de regalos permuta retardo break cau' },
-    { id:'plantillas',     label:'Plantillas',     key:'l', icon:'mail',         kw:'plantillas correo email mail salesforce sales force mensaje asunto cuerpo escalamiento copia respuesta machote' },
+    { id:'plantillas',     label:'Plantillas',     key:'l', icon:'mail',         kw:'plantillas correo email mail salesforce sales force mensaje asunto cuerpo escalamiento copia respuesta machote promocion diferir meses regalo bonificacion devolucion resurtido recogido enr entrega no reconocida digitales codigos cotizacion volumen pedido especial fecha de entrega supervisores team leader gmail caso' },
     { id:'presentaciones', label:'Presentaciones', key:'r', icon:'presentation', kw:'recursos diapositivas slides capacitacion' }
   ];
 
@@ -617,6 +617,35 @@
     });
   }
 
+  /* ── Plantillas que se envían desde «Correos a clientes» (26/09/2026) ─────────────────────────
+     El creador las quitó de la sección Plantillas: allá salen con el diseño de Liverpool y el alias
+     oficial. Se reconocen por el NOMBRE de la fila en la hoja «Plantillas» (la editan personas), y solo
+     si son de correo. `app` es la entrada tpl-* de FUNCIONES que abre su plantilla allá. Lo usan el
+     Portal (app_plantillas.html: fuera de la sección, del buscador y de la cuenta del menú) y el
+     buscador de las demás pantallas (app_comando.html). En orden: la de tarjeta extranjera, antes que
+     la de estado de cuenta. */
+  var CORREOS_CLIENTE = [
+    { tpl:'edodecuentaextranjera', app:'tpl-edoext', nombre:'Estado de cuenta · tarjeta extranjera' },
+    { tpl:'edodecuenta',           app:'tpl-edo',    nombre:'Estado de cuenta PF' },
+    { tpl:'ticket',                app:'tpl-ticket', nombre:'Ticket de compra' },
+    { tpl:'validacionexitosa',     app:'tpl-ok',     nombre:'Validación exitosa' }
+  ];
+  var RE_CORREOS_CLIENTE = {
+    edodecuentaextranjera: /estado de cuenta.*(extern|extranj)|(extern|extranj).*estado de cuenta/,
+    edodecuenta: /estado de cuenta/,
+    ticket: /\bticket\b/,
+    validacionexitosa: /validacion.*(fraude|exitosa)|(fraude|exitosa).*validacion/
+  };
+  function correoDeCliente(fila) {
+    if (!fila) return null;
+    if (/\bsales\b|\bforce\b|\bsf\b/.test(norm(fila.tipo || ''))) return null;   // un caso de Salesforce no es un correo
+    var t = norm(fila.titulo || '');
+    for (var i = 0; i < CORREOS_CLIENTE.length; i++) {
+      if (RE_CORREOS_CLIENTE[CORREOS_CLIENTE[i].tpl].test(t)) return CORREOS_CLIENTE[i];
+    }
+    return null;
+  }
+
   window.AppIndices = {
     secciones: SECCIONES,
     formasPago: FORMAS_PAGO,
@@ -628,6 +657,8 @@
     indexaTraz: indexaTraz,
     catalogo: FUNCIONES,
     funciones: funciones,
+    correoDeCliente: correoDeCliente,
+    correosCliente: CORREOS_CLIENTE,
     normaliza: norm
   };
 })();

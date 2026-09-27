@@ -189,7 +189,7 @@ const sec = index.slice(index.indexOf('<section id="sec-devsap"'), index.indexOf
 ok('#sec-devsap: h1 para lectores de pantalla y el hueco de la consola, sin encabezado visible',
   /<h1 class="dv-sr">Devoluciones SAP<\/h1>/.test(sec) && /<div id="dv-app"><\/div>/.test(sec) && sec.indexOf('sec-head') < 0 && sec.indexOf('ds-gloss') < 0);
 ok('switchSec pinta la consola ANTES de la entrada animada', /if \(id === 'devsap' && window\.dvAlEntrar\) dvAlEntrar\(\); sectionEnter\(target\);/.test(fuente('switchSec', index)));
-ok('sectionEnter anima la autorización, la lista y la ficha', /\.dv-aut, \.dv-lista, \.dv-ficha'/.test(fuente('sectionEnter', index)));
+ok('sectionEnter anima la autorización, la lista y la ficha', /\.dv-aut, \.dv-lista, \.dv-ficha[',]/.test(fuente('sectionEnter', index)));
 ok('revealTarget pasa por dvRevelar (buscador y ?item=)', /scrollEl\.closest\('#sec-devsap'\) && window\.dvRevelar[\s\S]*?if \(dvRevelar\(scrollEl\)\) return;/.test(fuente('revealTarget', index)));
 ok('elementoDeSeccion reconoce el nombre de un caso (.dv-nom → .dv-opc)', /\.dv-nom,/.test(fuente('elementoDeSeccion', index)) && /\.dv-opc,tr'/.test(fuente('elementoDeSeccion', index)));
 const muertos = ['initDevsapReveals', 'jumpToDevsap', 'devsapRevealsReady', '.ds-gloss', '.ds-matrix', '.ds-auth', '.ds-leyenda', '.fp-nav', '.fp-num', '.step-list', '.bt-block', '.bt-obs', '.bt-title'];

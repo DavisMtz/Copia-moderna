@@ -422,46 +422,6 @@ main{flex:1}
 .link-sm .ic{width:14px;height:14px}
 .link-sm:hover{background:var(--grad-brand);color:#fff;border-color:transparent;box-shadow:0 6px 14px -7px rgba(225,0,152,.5)}
 
-/* — Plantillas (correo / Salesforce) — */
-.plt-tag-inline{font-family:var(--f-mono);font-size:.8em;font-weight:700;color:var(--brand);background:var(--brand-tint);border-radius:5px;padding:.05em .35em}
-.plt-chips{display:flex;gap:.4rem;flex-wrap:wrap}
-.plt-chip{padding:.5rem .9rem;background:var(--surface);border:1.5px solid var(--line);border-radius:999px;font-weight:700;font-size:.8rem;color:var(--ink-soft);cursor:pointer;transition:var(--tr)}
-.plt-chip:hover{border-color:var(--brand-soft);color:var(--brand)}
-.plt-chip.active{background:var(--grad-brand);border-color:transparent;color:#fff;box-shadow:0 6px 14px -8px rgba(225,0,152,.55)}
-.plt-card{background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:1.25rem 1.35rem;box-shadow:var(--sh-sm);display:flex;flex-direction:column;gap:.85rem;position:relative;overflow:hidden;will-change:transform;transition:transform .22s cubic-bezier(.22,1,.36,1),box-shadow .22s cubic-bezier(.22,1,.36,1),border-color .22s ease}
-.plt-card::before{content:'';position:absolute;left:0;top:0;width:4px;height:100%;z-index:2;background:linear-gradient(180deg,var(--accent,var(--brand)),color-mix(in srgb,var(--accent,var(--brand)) 40%,transparent));transform:scaleY(.4);transform-origin:top;transition:transform .3s cubic-bezier(.22,1,.36,1)}
-.plt-card:hover::before{transform:scaleY(1)}
-.plt-card:hover{box-shadow:0 10px 24px -14px rgba(27,35,48,.20),var(--sh-sm);border-color:color-mix(in srgb,var(--accent,var(--brand)) 38%,var(--line))}
-.plt-card>*{position:relative;z-index:1}
-.plt-head{display:flex;align-items:flex-start;gap:.7rem}
-.plt-icon{width:42px;height:42px;border-radius:10px;flex-shrink:0;color:#fff;background:var(--accent,var(--brand));display:flex;align-items:center;justify-content:center;box-shadow:0 4px 10px -6px color-mix(in srgb,var(--accent,var(--brand)) 55%,transparent)}
-.plt-icon .ic{width:20px;height:20px}
-.plt-titleblock{min-width:0;flex:1;display:flex;flex-direction:column;gap:.3rem}
-.plt-name{font-weight:800;font-size:.98rem;line-height:1.25}
-.plt-type{align-self:flex-start;display:inline-flex;align-items:center;gap:.35rem;font-size:.62rem;font-weight:800;letter-spacing:.1em;text-transform:uppercase;border-radius:6px;padding:.22rem .5rem}
-.plt-type-mail{background:var(--info-bg);color:var(--info)}
-.plt-type-sf{background:color-mix(in srgb,#1798c1 16%,transparent);color:#0e7490}
-.plt-lbl{font-size:.6rem;font-weight:800;letter-spacing:.13em;text-transform:uppercase;color:var(--ink-soft);margin-bottom:.32rem;display:flex;align-items:center;gap:.4rem}
-.plt-hint{font-weight:600;letter-spacing:0;text-transform:none;color:var(--brand);font-size:.66rem}
-.plt-subject-row{display:flex;align-items:center;gap:.5rem;background:var(--surface-2);border-radius:8px;padding:.55rem .7rem}
-.plt-subject{flex:1;min-width:0;font-size:.86rem;font-weight:600;color:var(--ink);word-break:break-word}
-.plt-bodywrap{background:var(--surface-2);border-radius:8px;padding:.7rem .8rem;border-left:3px solid var(--accent,var(--brand))}
-.plt-body{font-size:.86rem;line-height:1.6;color:var(--ink);white-space:pre-wrap;word-break:break-word}
-.plt-field{font-family:inherit;font-size:.82rem;font-weight:700;color:var(--brand);background:var(--brand-tint);border:1px dashed color-mix(in srgb,var(--brand) 45%,transparent);border-radius:6px;padding:.06rem .35rem;margin:.05rem .04rem;min-width:5ch;max-width:100%;line-height:1.4;transition:border-color .2s ease,background .2s ease}
-.plt-field::placeholder{color:color-mix(in srgb,var(--brand) 55%,transparent);font-weight:600}
-.plt-field:focus{outline:none;border-style:solid;border-color:var(--brand);background:var(--surface)}
-.plt-field.filled{background:color-mix(in srgb,var(--ok) 12%,transparent);border-color:color-mix(in srgb,var(--ok) 45%,transparent);color:var(--ok)}
-.plt-consid{background:var(--warn-bg,color-mix(in srgb,var(--warn) 12%,transparent));border-radius:8px;padding:.6rem .75rem;display:flex;flex-direction:column;gap:.5rem}
-.plt-consid-lbl{font-size:.6rem;font-weight:800;letter-spacing:.13em;text-transform:uppercase;color:var(--warn);display:flex;align-items:center;gap:.4rem}
-.plt-consid-lbl .ic{width:13px;height:13px}
-.plt-consid-txt{font-size:.81rem;color:var(--ink);line-height:1.5;white-space:pre-wrap;word-break:break-word}
-.plt-mails{display:flex;flex-wrap:wrap;gap:.4rem;align-items:center}
-.plt-mail-chip{display:inline-flex;align-items:center;gap:.35rem;background:var(--surface);border:1px solid var(--line);border-radius:7px;padding:.28rem .5rem;font-family:var(--f-mono);font-size:.74rem;font-weight:600;color:var(--ink-soft);cursor:pointer;transition:var(--tr)}
-.plt-mail-chip:hover{border-color:var(--brand-soft);color:var(--brand);background:var(--brand-tint)}
-.plt-mail-chip .ic{width:12px;height:12px;flex-shrink:0}
-.plt-actions{display:flex;gap:.5rem;flex-wrap:wrap;margin-top:auto}
-.plt-actions .btn-go{flex:1 1 auto}
-
 
 /* ════════════════════════════════════════════════════════════
    DASHBOARD · INICIO
@@ -1338,6 +1298,9 @@ a:focus-visible,button:focus-visible,input:focus-visible,[tabindex]:focus-visibl
 <!-- Devoluciones SAP en consola (26/09/2026): dvAlEntrar(), dvRevelar() y todo lo de #sec-devsap, con su contenido
      (autorización, casos, leyendas y criterios) pasado a datos. Parcial para que el build lo minifique. -->
 <?!= include('app_devsap') ?>
+<!-- Plantillas en puertas por lo que le pasó al cliente (26/09/2026): renderPlt(), applyPltFilters(), pltDeLaHoja(),
+     pltAlEntrar(), pltRevelar() y el redactor. Parcial para que el build lo minifique. -->
+<?!= include('app_plantillas') ?>
 <template id="__bundler_thumbnail" data-bg-color="#E10098">
   <svg viewBox="0 0 1200 800" xmlns="http://www.w3.org/2000/svg">
     <rect width="1200" height="800" fill="#E10098"/>
@@ -1851,31 +1814,24 @@ a:focus-visible,button:focus-visible,input:focus-visible,[tabindex]:focus-visibl
     <div id="gr-presentaciones" class="cards-grid"></div>
   </section>
 
-  <!-- ══ PLANTILLAS ══ -->
+  <!-- ══ PLANTILLAS · puertas por lo que le pasó al cliente (26/09/2026) ══
+       Sin encabezado visible, como Herramientas y Formatos: la sección empieza con el filtro. Las puertas y el
+       redactor los pinta renderPlt() (app_plantillas.html) con la hoja «Plantillas»; ld-plantillas es el
+       esqueleto y el estado sin conexión. -->
   <section id="sec-plantillas" class="view-section">
-    <div class="sec-head">
-      <span class="sec-eyebrow"><span class="dot"></span>Mensajes listos para usar</span>
-      <h1 class="sec-title">Plantillas de <em>correo y Salesforce</em></h1>
-      <p class="sec-sub">Copia el texto exacto en un toque. Los campos entre corchetes <span class="plt-tag-inline">[ así ]</span> se rellenan aquí mismo antes de copiar. Las consideraciones incluyen las notas y los correos de copia obligatoria o escalamiento.</p>
-    </div>
+    <h1 class="plt-sr">Plantillas</h1>
     <div class="filter-bar">
       <div class="filter-input">
         <svg class="fi-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><path d="m21 21-4.3-4.3"/></svg>
-        <input type="text" id="flt-plantillas" placeholder="Buscar plantilla…" oninput="filterSec('plantillas',this.value)">
+        <input type="text" id="flt-plantillas" placeholder="Busca lo que pasó: «regalo», «resurtido»…" aria-label="Filtrar plantillas" oninput="filterSec('plantillas',this.value)">
       </div>
-      <div class="plt-chips" role="tablist" aria-label="Filtrar por tipo">
-        <button class="plt-chip active" data-plt-type="all"  onclick="setPltType('all',this)">Todas</button>
-        <button class="plt-chip" data-plt-type="mail" onclick="setPltType('mail',this)">Correo</button>
-        <button class="plt-chip" data-plt-type="sf"   onclick="setPltType('sf',this)">Salesforce</button>
-      </div>
-      <span class="result-count-badge" id="rc-plantillas"></span>
     </div>
     <div id="ld-plantillas" class="sk-grid" data-vx-loader="cajas" data-vx-msg="Cargando las plantillas…">
       <div class="sk-card"><div class="sk-line sk-ic"></div><div class="sk-line sk-t"></div><div class="sk-line sk-s"></div><div class="sk-line sk-btn"></div></div>
       <div class="sk-card"><div class="sk-line sk-ic"></div><div class="sk-line sk-t"></div><div class="sk-line sk-s"></div><div class="sk-line sk-btn"></div></div>
       <div class="sk-card"><div class="sk-line sk-ic"></div><div class="sk-line sk-t"></div><div class="sk-line sk-s"></div><div class="sk-line sk-btn"></div></div>
     </div>
-    <div id="gr-plantillas" class="cards-grid"></div>
+    <div id="plt-app"></div>
   </section>
 
   <!-- ══════════════════════════════════════════════════════════════════════
@@ -2052,8 +2008,7 @@ html[data-density="compact"] .cards-grid,
 html[data-density="compact"] .qa-grid,
 html[data-density="compact"] .col-grid,
 html[data-density="compact"] .guide-grid{ gap:.6rem; }
-html[data-density="compact"] .pres-card,
-html[data-density="compact"] .plt-card{ padding:.85rem .9rem; }
+html[data-density="compact"] .pres-card{ padding:.85rem .9rem; }
 html[data-density="compact"] .sec-head{ margin-bottom:.7rem; }
 html[data-density="compact"] .dash-label{ margin:1.1rem 0 .6rem; }
 html[data-density="compact"] .app-main main{ padding-top:.6rem; }
@@ -2074,7 +2029,6 @@ html[data-contrast="high"][data-theme="carbon"]{
 }
 html[data-contrast="high"] .cs-lista,
 html[data-contrast="high"] .cs-ficha,
-html[data-contrast="high"] .plt-card,
 html[data-contrast="high"] .pres-card,
 html[data-contrast="high"] .qa-card,
 html[data-contrast="high"] .col-card-tile{ border-width:2px; }
@@ -2448,8 +2402,6 @@ const TIENDA_CR = (window.AppIndices && AppIndices.tiendaCR) || [];
 
 
 let store = { herramientas:[], presentaciones:[], paqueterias:[], formatos:[], pdePago:[], plantillas:[], avisos:[], anuncios:[] };
-let pltView = [];        // plantillas actualmente renderizadas (respeta filtros de texto/tipo)
-let pltType = 'all';     // filtro de tipo activo: 'all' | 'mail' | 'sf'
 let searchTimer;
 
 /* ── PERSISTENCIA LOCAL (preferencias y caché del asesor) ── */
@@ -3217,6 +3169,7 @@ function switchSec(id, btn){
   if (id === 'formaspago' && window.fpAlEntrar) fpAlEntrar();
   if (id === 'pdepago' && window.pdpAlEntrar) pdpAlEntrar();
   if (id === 'formatos' && window.fmtAlEntrar) fmtAlEntrar();
+  if (id === 'plantillas' && window.pltAlEntrar) pltAlEntrar();
   closeSidebar();
   document.querySelector('main').scrollTo?.(0,0);
   window.scrollTo({ top:0, behavior:'instant' in window ? 'instant' : 'auto' });
@@ -3225,7 +3178,7 @@ function switchSec(id, btn){
 function sectionEnter(section){
   if (!section || !GS()) return;
   const headItems = section.querySelectorAll('.sec-head > *, .hero, .dash-label');
-  const cards = section.querySelectorAll('.cards-grid > *, .fpg-tabs, .fpg-panel:not([hidden]) .fpg-hoja, #gr-paqueterias > *, .stat-card, .qa-card, .guide-card, .cs-lista, .cs-ficha, .pdc-lista, .pdc-ficha, .fmt-tabs, .fmt-hoja:not([hidden]), .tz-tabs, .tz-hoja:not([hidden]), .dv-aut, .dv-lista, .dv-ficha');
+  const cards = section.querySelectorAll('.cards-grid > *, .fpg-tabs, .fpg-panel:not([hidden]) .fpg-hoja, #gr-paqueterias > *, .stat-card, .qa-card, .guide-card, .cs-lista, .cs-ficha, .pdc-lista, .pdc-ficha, .fmt-tabs, .fmt-hoja:not([hidden]), .tz-tabs, .tz-hoja:not([hidden]), .dv-aut, .dv-lista, .dv-ficha, .pla-pregunta, .pla-puerta, .plt-cc, .pla-tira, .pla-ab-hd, .pla-elige, .plr');
   const tl = gsap.timeline({ defaults:{ ease:'power3.out' } });
   tl.fromTo(section, { opacity:0, y:8 }, { opacity:1, y:0, duration:.24 });
   if (headItems.length) tl.fromTo(headItems, { opacity:0, y:8 }, { opacity:1, y:0, duration:.24, stagger:.03, clearProps:'transform' }, '-=.16');
@@ -3322,7 +3275,7 @@ function onToolsData(data, fromCache, at){
     paqueterias:    data.paqueterias    || [],
     formatos:       data.formatos       || [],
     pdePago:        data.pdePago        || [],
-    plantillas:     data.plantillas     || [],
+    plantillas:     window.pltDeLaHoja ? pltDeLaHoja(data.plantillas) : (data.plantillas || []),
     avisos:         data.avisos         || [],
     anuncios:       anuncios
   };
@@ -4621,8 +4574,13 @@ function sectionRank(item, nameField, t){
 }
 function objMatch(item, t){ return Object.values(item).some(v => v && norm(String(v)).includes(t)); }
 /* Formatos no busca en la LIGA («cs» coincidía con todo docs.google.com): le pregunta a
-   app_formatos.html, que mira nombre, observación y el tipo que se ve. Las demás, como siempre. */
-function coincideEnSeccion(sec, item, t){ return (sec === 'formatos' && window.fmtCoincide) ? fmtCoincide(item, t) : objMatch(item, t); }
+   app_formatos.html, que mira nombre, observación y el tipo que se ve. Plantillas, a app_plantillas.html, que mira
+   también lo que le pasó al cliente. Las demás, como siempre. */
+function coincideEnSeccion(sec, item, t){
+  if (sec === 'formatos' && window.fmtCoincide) return fmtCoincide(item, t);
+  if (sec === 'plantillas' && window.pltCoincide) return pltCoincide(item, t);
+  return objMatch(item, t);
+}
 /* Aplica el término del buscador global como filtro de la sección destino: limita la
    vista a lo que coincide y deja primero las coincidencias por nombre. Devuelve cuántos
    resultados quedaron, para decidir si conviene resaltar uno o mostrar el listado. */
@@ -4677,177 +4635,8 @@ function renderP(items){
 /* renderPP() y la consola de Pago Web viven en app_pdepago.html (parcial: el build lo minifica).
    Se carga antes que este guion y se usa desde DOMContentLoaded. */
 
-/* ──────── PLANTILLAS (correo / Salesforce) ──────── */
-/* Clasifica una plantilla por su columna "Tipo": 'mail' (correo) o 'sf' (Salesforce). */
-function pltTipo(tipo){
-  const t = norm(tipo);
-  if (/sales|force|^sf$|\bsf\b/.test(t)) return 'sf';
-  return 'mail'; // por defecto se trata como correo
-}
-/* Convierte el cuerpo en HTML: el texto se escapa y cada fragmento [entre corchetes]
-   se vuelve un <input> editable. El hint dentro de los corchetes es el placeholder. */
-function pltBodyHtml(cuerpo){
-  const text = String(cuerpo || '');
-  let html = '', last = 0, i = 0;
-  const re = /\[([^\]]*)\]/g, EM = '____';
-  let m;
-  while ((m = re.exec(text))){
-    html += esc(text.slice(last, m.index));
-    const hint = m[1].trim();
-    // size aproximado al hint para que el campo no quede diminuto
-    const size = Math.max(6, Math.min(40, hint.length + 2));
-    html += `<input class="plt-field" type="text" data-i="${i}" size="${size}" ` +
-            `placeholder="${esc(hint || EM)}" oninput="pltFieldInput(this)" ` +
-            `aria-label="Campo a completar${hint ? ': ' + esc(hint) : ''}">`;
-    last = m.index + m[0].length; i++;
-  }
-  html += esc(text.slice(last));
-  return { html: html, fields: i };
-}
-/* Reconstruye un texto con campos sustituyendo cada [campo] por lo que escribió el
-   asesor. Si un campo queda vacío, se conserva el placeholder original [hint].
-   `scopeSel` acota a qué inputs leer (cuerpo o asunto) para que no se mezclen. */
-function pltResolveText(tpl, card, scopeSel){
-  const scope = scopeSel ? card.querySelector(scopeSel) : card;
-  const inputs = scope ? scope.querySelectorAll('.plt-field') : [];
-  let i = 0;
-  return String(tpl || '').replace(/\[([^\]]*)\]/g, function(_, hint){
-    const inp = inputs[i++];
-    const v = inp ? inp.value.trim() : '';
-    return v || ('[' + hint + ']');
-  });
-}
-function pltResolveBody(idx, card){
-  return pltResolveText((pltView[idx] || {}).cuerpo, card, '.plt-body');
-}
-function pltResolveSubject(idx, card){
-  return pltResolveText((pltView[idx] || {}).asunto, card, '.plt-subject');
-}
-function pltFieldInput(inp){
-  inp.classList.toggle('filled', !!inp.value.trim());
-  // Ajusta el ancho del campo al contenido para que crezca con el texto.
-  const len = (inp.value || inp.placeholder || '').length;
-  inp.size = Math.max(6, Math.min(46, len + 2));
-}
-/* Copia el cuerpo ya resuelto (con los campos rellenados) al portapapeles. */
-function pltCopyCuerpo(btn){
-  const card = btn.closest('.plt-card');
-  if (!card) return;
-  copyText(pltResolveBody(+card.dataset.idx, card), btn);
-}
-/* Copia solo el asunto del correo (con sus campos […] ya resueltos). */
-function pltCopyAsunto(btn){
-  const card = btn.closest('.plt-card');
-  if (!card) return;
-  copyText(pltResolveSubject(+card.dataset.idx, card).trim(), btn);
-}
-/* Copia el correo (asunto + cuerpo resueltos), listo para pegar en un mail. */
-function pltCopyTodo(btn){
-  const card = btn.closest('.plt-card');
-  if (!card) return;
-  const cuerpo = pltResolveBody(+card.dataset.idx, card);
-  const asunto = pltResolveSubject(+card.dataset.idx, card).trim();
-  copyText((asunto ? 'Asunto: ' + asunto + '\n\n' : '') + cuerpo, btn);
-}
-/* Abre Gmail con el asunto y el cuerpo ya resueltos prellenados (solo correo). */
-function pltOpenGmail(btn){
-  const card = btn.closest('.plt-card');
-  if (!card) return;
-  const idx = +card.dataset.idx;
-  const asunto = pltResolveSubject(idx, card).trim();
-  const cuerpo = pltResolveBody(idx, card);
-  const url = 'https://mail.google.com/mail/?view=cm&fs=1'
-    + '&su=' + encodeURIComponent(asunto)
-    + '&body=' + encodeURIComponent(cuerpo);
-  window.open(url, '_blank', 'noopener');
-  showToast(btn, 'Abriendo Gmail…');
-}
-/* Extrae los correos de "Consideraciones" y arma chips copiables + nota en texto. */
-function pltConsidHtml(texto){
-  const t = String(texto || '').trim();
-  if (!t) return '';
-  const mails = t.match(/[A-Za-z0-9._%+\-]+@[A-Za-z0-9.\-]+\.[A-Za-z]{2,}/g) || [];
-  const uniq = mails.filter((m, i) => mails.indexOf(m) === i);
-  const chips = uniq.length
-    ? `<div class="plt-mails">${uniq.map(m =>
-        `<button class="plt-mail-chip" onclick="copyText('${m.replace(/'/g,"\\'")}',this)" title="Copiar ${esc(m)}">${icon('copy')} ${esc(m)}</button>`
-      ).join('')}${uniq.length > 1
-        ? `<button class="plt-mail-chip" onclick="copyText('${uniq.join('; ').replace(/'/g,"\\'")}',this)" title="Copiar todos los correos">${icon('copy')} Todos</button>`
-        : ''}</div>`
-    : '';
-  return `<div class="plt-consid">
-    <div class="plt-consid-lbl">${icon('flag')} Consideraciones</div>
-    <div class="plt-consid-txt">${esc(t)}</div>
-    ${chips}
-  </div>`;
-}
-function renderPlt(items){
-  hideLoader('plantillas');
-  pltView = items || [];
-  const g = document.getElementById('gr-plantillas');
-  if (!g) return;
-  if (!pltView.length) { g.innerHTML = empty('plantillas'); return; }
-  g.innerHTML = pltView.map((p, i) => {
-    const color = ACCENT_PALETTE[i % ACCENT_PALETTE.length];
-    const tipo  = pltTipo(p.tipo);
-    const isMail = tipo === 'mail';
-    const asunto = String(p.asunto || '').trim();
-    const subj = pltBodyHtml(p.asunto);
-    const body = pltBodyHtml(p.cuerpo);
-    return `
-    <div class="plt-card" data-idx="${i}" style="--accent:${color}">
-      <div class="plt-head">
-        <div class="plt-icon">${icon(isMail ? 'mail' : 'cloud')}</div>
-        <div class="plt-titleblock">
-          <div class="plt-name">${esc(p.titulo || '—')}</div>
-          <span class="plt-type plt-type-${isMail ? 'mail' : 'sf'}">${icon(isMail ? 'mail' : 'cloud')} ${isMail ? 'Correo' : 'Salesforce'}</span>
-        </div>
-        ${collectBtn('plantillas', p.titulo || '—')}
-      </div>
-      ${isMail && asunto ? `
-      <div>
-        <div class="plt-lbl">${icon('mail')} Asunto${subj.fields ? ` <span class="plt-hint">· rellena el campo […]</span>` : ''}</div>
-        <div class="plt-subject-row">
-          <span class="plt-subject">${subj.html}</span>
-          <button class="btn-copy" onclick="pltCopyAsunto(this)" title="Copiar asunto" aria-label="Copiar asunto">${icon('copy')}</button>
-        </div>
-      </div>` : ''}
-      <div>
-        <div class="plt-lbl">${icon('document')} Cuerpo${body.fields ? ` <span class="plt-hint">· rellena los ${body.fields} campo${body.fields !== 1 ? 's' : ''} […]</span>` : ''}</div>
-        <div class="plt-bodywrap"><div class="plt-body">${body.html}</div></div>
-      </div>
-      ${pltConsidHtml(p.consideraciones)}
-      <div class="plt-actions">
-        <button class="btn-go" onclick="pltCopyCuerpo(this)">${icon('copy')} Copiar cuerpo</button>
-        ${isMail && asunto ? `<button class="btn-copy" onclick="pltCopyTodo(this)" title="Copiar asunto y cuerpo">${icon('copy')} Copiar todo</button>` : ''}
-        ${isMail ? `<button class="btn-copy plt-gmail" onclick="pltOpenGmail(this)" title="Abrir en Gmail con asunto y cuerpo">${icon('send')} Abrir en Gmail</button>` : ''}
-        ${reportBtn('Plantillas', p.titulo || '—', '')}
-      </div>
-    </div>`;
-  }).join('');
-  animateGrid('#gr-plantillas > *');
-}
-/* Filtro combinado: chips de tipo + texto del buscador de la sección. */
-function setPltType(type, btn){
-  pltType = type;
-  document.querySelectorAll('#sec-plantillas .plt-chip').forEach(c => c.classList.toggle('active', c === btn));
-  applyPltFilters();
-}
-function applyPltFilters(){
-  const inp = document.getElementById('flt-plantillas');
-  const term = inp ? inp.value : '';
-  const t = norm(term);
-  let list = store.plantillas || [];
-  if (pltType !== 'all') list = list.filter(p => pltTipo(p.tipo) === pltType);
-  if (t){
-    list = list.filter(item => objMatch(item, t));
-    // Coincidencias por título primero (más intuitivo al buscar).
-    if (list.length > 1) list = list.slice().sort((a, b) => sectionRank(b, 'titulo', t) - sectionRank(a, 'titulo', t));
-  }
-  const rc = document.getElementById('rc-plantillas');
-  if (rc) rc.innerHTML = (t || pltType !== 'all') ? `<strong>${list.length}</strong> resultado${list.length !== 1 ? 's' : ''}` : '';
-  renderPlt(list);
-}
+/* renderPlt(), applyPltFilters() y las puertas de Plantillas viven en app_plantillas.html (parcial: el build lo
+   minifica). Se carga antes que este guion; una declaración aquí pisaría a la del parcial. */
 
 /* ──────── BÚSQUEDA GLOBAL ──────── */
 /* Búsqueda por ámbito ("scoped search"): si la consulta empieza con el nombre de una
@@ -5457,7 +5246,7 @@ function elementoDeSeccion(secId, name, targetId){
   let target = null;
   nameEls.forEach(el => { if (!target && norm(el.textContent) === want) target = el; });
   if (!target) nameEls.forEach(el => { if (!target && norm(el.textContent).includes(want)) target = el; });
-  return (target ? target.closest('.cs-fila,.pq-ent,.fmt-resp,.fmt-fila,.pdc-opc,.pres-card,.plt-card,.tz-fila,.dv-opc,tr') : null) || target;
+  return (target ? target.closest('.cs-fila,.pq-ent,.fmt-resp,.fmt-fila,.pdc-opc,.pres-card,.pla-plt,.plr,.tz-fila,.dv-opc,tr') : null) || target;
 }
 
 /* Espera con reintentos (rAF) a que la sección termine de renderizar antes de saltar —
@@ -5499,6 +5288,11 @@ function revealTarget(scrollEl){
   // dice qué procede. No hay enlace que abrir: sin pista de segundo Enter.
   if (scrollEl.closest && scrollEl.closest('#sec-devsap') && window.dvRevelar){
     if (dvRevelar(scrollEl)) return;
+  }
+  // Una plantilla se abre en su puerta con el cursor en el primer dato vacío: lo siguiente es escribir el
+  // pedido. No hay enlace que abrir: sin pista de segundo Enter.
+  if (scrollEl.closest && scrollEl.closest('#sec-plantillas') && window.pltRevelar){
+    if (pltRevelar(scrollEl)) return;
   }
   // Un proceso de Trazabilidad se abre en su pestaña y con su ficha desplegada: llegar a él y ver
   // sólo el nombre obligaría a un clic más justo cuando el asesor ya tiene al cliente al teléfono.
@@ -6109,22 +5903,26 @@ function mockData(){
       { nombre:'Montos mínimos para diferir compra a MSI de forma manual por credito', detalles:'Liverpool $500 / SBB $1,000', liga:'' }
     ],
     plantillas:[
-      { titulo:'Confirmación de cambio de domicilio', tipo:'Correo',
-        asunto:'Actualización de domicilio · Pedido [número de pedido]',
-        cuerpo:'Estimado/a [nombre del cliente]:\n\nConfirmamos que el domicilio de entrega de su pedido [número de pedido] se actualizó correctamente a:\n[nueva dirección completa]\n\nLa nueva fecha estimada de entrega es [fecha].\n\nQuedamos atentos a cualquier duda.\nSaludos cordiales.',
-        consideraciones:'Validar OTP antes de enviar. Copia obligatoria a postventa@liverpool.com.mx y, si es Big Ticket, escalar a trazabilidad.bt@liverpool.com.mx' },
-      { titulo:'Solicitud de evidencia — Entrega no reconocida', tipo:'Correo',
-        asunto:'Solicitud de evidencia de entrega · Guía [número de guía]',
-        cuerpo:'Hola, buen día:\n\nSolicito de su apoyo con la evidencia de entrega (foto y firma) de la guía [número de guía], correspondiente al pedido [número de pedido], reportada por el cliente como no reconocida.\n\nGracias por el apoyo.',
-        consideraciones:'Adjuntar reporte del cliente. Escalamiento a mensajeria.externa@liverpool.com.mx' },
-      { titulo:'Solicitud cambio de estatus (Trazabilidad)', tipo:'Sales Force',
-        asunto:'',
-        cuerpo:'Cliente solicita cancelación del pedido [número de pedido]. Mercancía aún en bodega destino [CR]. Se valida OTP correctamente. Favor de autorizar cambio de estatus a cancelado. Asesor: [nombre del asesor].',
-        consideraciones:'Solo aplica con semáforo verde. Adjuntar número de caso. Notificar a supervisión: supervision.ventel@liverpool.com.mx' },
-      { titulo:'Seguimiento devolución no reflejada', tipo:'Sales Force',
-        asunto:'',
-        cuerpo:'Cliente reporta que su devolución del pedido [número de pedido] por $[monto] no se ve reflejada. Fecha de devolución: [fecha]. Método de pago: [método]. Se solicita revisión del área de reprocesos.',
-        consideraciones:'Plazo de 5 días naturales. Copia obligatoria a reprocesos@liverpool.com.mx' }
+      { titulo:"Diferir pago", tipo:"Correo",
+        asunto:"PEDIDO [Numero de pedido] DIFERIR A MES",
+        cuerpo:"Buena tarde equipo.\n\nDeseando se encuentren muy bien, paso a pedir de su apoyo con lo siguiente:\nEl día de hoy se realizó a través de nuestro canal telefónico la venta del pedido [Pedido], sin embargo, nuestro sistema no arrojó la promoción que el cliente observa en la página oficial de la marca, por lo que se realizó el cobro a presupuesto Liverpool.\n\nDicho lo anterior, solicitamos a través del presente se pueda ajustar la promoción correcta en la que está interesado.\n\nPedido: [Numero del pedido]\nFecha: [Fecha]\nTarjeta completa: [Numero de tarjeta]\nPromoción Solicitada: [Promocion]                \n\n(ANEXA EVIDENCIA CSC Y PÁGINA)",
+        consideraciones:"SE ENVÍA A SUPERVISORAS Y TEAM LEADER" },
+      { titulo:"Ajuste promociones por error en CSC", tipo:"Correo",
+        asunto:"Ajuste promoción no aplicada (2x1 / 3x2 / o descuento) pedido [Numero]",
+        cuerpo:"Buenas tardes/días.\n\nDeseando se encuentren muy bien, paso a pedir de su apoyo con lo siguiente:\n\nEl día de hoy se realizó a través de nuestro canal telefónico la venta del pedido [Numero del pedido], sin embargo, nuestro sistema no arrojó la promoción que el cliente observa en la página oficial de la marca, por lo que se realizó el cobro de manera normal.\n\nPedido: [Numero de pedido]\nFecha: [Fecha]\nPromoción solicitada: [Promocion]\nTotal de compra: [Monto total]\nMonto a bonificar: [Monto bonificacion]\nTarjeta completa: [Numero de tarjeta]\n\n\nSin más por el momento, quedo a sus órdenes.\n\nSaludos.",
+        consideraciones:"SE ENVÍA  A SUPERVISORES Y TEAM LEADER.  \nseguimientos-cat@liverpool.com.mx\n\nUNA VEZ QUE CTE TENGA LA MERCANCÍA SE SUBE A SAP Y SE MANDA EVIDENCIA SOBRE EL MISMO CORREO" },
+      { titulo:"Entregas especiales", tipo:"Correo",
+        asunto:"Programar fecha pedido: [Numero de pedido]",
+        cuerpo:"Buenas tardes/días.\n\nDeseando se encuentren muy bien, paso a pedir de su apoyo con lo siguiente:\n\nPor medio del presente me dirijo a ustedes para verificar la fecha de entrega de su pedido.\n\nEl titular de la compra nos pide la entrega lo antes posible, para valorar el espacio de entrega.\n\nPedido: [Numero de pedido]\nFecha deseada: [Fecha esperada]\n\nSin más por el momento. Espero que se pueda encontrar alguna solución, quedamos atentos a sus comentarios.\n\nSaludos Cordiales.",
+        consideraciones:"SE ENVÍA A ASESORES CR Y COPIA A SUPERVISORES Y TEAM LEADER.  \n\nseguimientos-cat@liverpool.com.mx\t\t\t\t\n\nUsa el directorio de CR´s" },
+      { titulo:"Resurtidos BT y Recogidos", tipo:"Sales Force",
+        asunto:"",
+        cuerpo:"Resurtidos BT y Recogidos: [tipo]\npedido: [Numero de pedido]\nSku: [Codigo del producto]\nPzas: [Piezas]\nMotivo de solicitud: [Motivo]\nTeléfono de contacto: [Numero de telefono]\nMercancía en buen estado: [Si/No]\nMercancía usada: [Si/No]\nMercancía instalada: [Si/No]\nMismo domicilio (en caso que sea diferente ingresarlo): [Domicilio]\nNúmero de serie solo para motos: [Serial]",
+        consideraciones:"" },
+      { titulo:"Correo de Ticket", tipo:"Correo",
+        asunto:"Regeneracion de ticket - Liverpool",
+        cuerpo:"Estimado(a) [Nombre del cliente],\n\nEsperamos que este correo te encuentre bien. Atendiendo a su solicitud via telefonica, hemos regenerado el ticket de su compra.\n\nTicket Adjunto: Hemos adjuntado el comprobante de su compra con el No. de Pedido [Colocar número de pedido] en formato PDF.\nA continuación, encontrarás un resumen de tu pedido para su fácil referencia:\n\nPedido: [Colocar número de pedido]\n\nRealizado el [Colocar fecha del pedido, ej. 23-01-2026]\n\nQuedamos a tu completa disposición para cualquier otra consulta.\n\nCentro de Contacto Liverpool (CCL) | Ventel\n\nD. Blvd. Alfredo Zalce, Morelia, Mich.\n\nW. liverpool.com.mx\nTel: (55) 5262 9999",
+        consideraciones:"" }
     ]
   };
 }

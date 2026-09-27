@@ -1081,7 +1081,12 @@
     mete(d.formatos,       'Formatos',       IC.doc,     'acceso', 'observaciones', 'liga',   []);
     mete(d.pdePago,        'Pago web',       IC.tarjeta, 'nombre', 'detalles',      'liga',   []);
     mete(d.presentaciones, 'Presentaciones', IC.capas,   'nombre', 'descripcion',   'liga',   []);
-    mete(d.plantillas,     'Plantillas',     IC.correo,  'titulo', 'asunto',        null,     ['cuerpo', 'tipo']);
+    /* Ticket, estado de cuenta y validación ya no son de Plantillas (26/09/2026): el catálogo los ofrece como
+       «Plantilla · …», que abre su plantilla en «Correos a clientes». */
+    var plantillas = (d.plantillas || []).filter(function (r) {
+      return !(window.AppIndices && AppIndices.correoDeCliente && AppIndices.correoDeCliente(r));
+    });
+    mete(plantillas,       'Plantillas',     IC.correo,  'titulo', 'asunto',        null,     ['cuerpo', 'tipo']);
     return out;
   }
 

@@ -1,0 +1,838 @@
+<style>
+/* ════════════════════════════════════════════════════════════
+   PLANTILLAS · PUERTAS DE SITUACIÓN (26/09/2026)
+   El asesor llega por lo que le pasó al cliente (respuesta del creador). La sección es un mostrador:
+   una puerta por situación, con sus plantillas. Al abrir una, las puertas se recogen en una tira y
+   el redactor ocupa el ancho: a la izquierda los datos (cada uno UNA vez: el pedido ya no se escribe
+   tres), a la derecha cómo sale, con Abrir en Gmail o Copiar arriba y lo de antes y después.
+   Lo que escribe el asesor vive en la memoria de la página (hay un campo «Tarjeta completa»):
+   nunca en localStorage ni en la dirección. Respaldo: etiqueta git «respaldo-plantillas-antes-puertas».
+════════════════════════════════════════════════════════════ */
+#plt-app{--pl-linea:color-mix(in srgb,var(--ink) 18%,var(--line));--pl-ink-brand:var(--brand-deep);container:pl/inline-size}
+[data-theme="carbon"] #plt-app{--pl-ink-brand:#F46BC6}
+#plt-app ::selection{background:var(--brand-soft);color:var(--ink)}
+#plt-app .ic{width:18px;height:18px;flex-shrink:0}
+.plt-sr{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);clip-path:inset(50%);white-space:nowrap}
+.pla-anclas{display:none!important}
+
+/* — Las puertas — */
+.pla-pregunta{margin:0 0 .75rem;font-size:.86rem;font-weight:700;color:var(--ink-soft)}
+.pla-puertas{display:grid;grid-template-columns:repeat(auto-fill,minmax(min(100%,19rem),1fr));gap:.8rem;margin-bottom:1rem}
+.pla-puerta{display:flex;flex-direction:column;border-radius:22px;background:var(--surface);border:1px solid var(--line);transition:border-color .15s,box-shadow .15s}
+.pla-puerta:hover{border-color:var(--pl-linea);box-shadow:var(--sh-sm)}
+.pla-p-main{display:grid;grid-template-columns:auto 1fr;grid-template-areas:"i n" "i q";column-gap:.85rem;row-gap:.3rem;align-items:start;padding:1.15rem 1.2rem 1rem;border:0;background:none;color:inherit;font:inherit;text-align:left;cursor:pointer;border-radius:22px 22px 0 0}
+.pla-ico{grid-area:i;display:grid;place-items:center;width:42px;height:42px;border-radius:13px;background:var(--surface-2);color:var(--ink)}
+#plt-app .pla-ico .ic{width:21px;height:21px}
+.pla-nom{grid-area:n;font-family:var(--f-display);font-weight:800;font-stretch:84%;font-size:1.42rem;line-height:1.05;letter-spacing:-.01em;text-wrap:balance}
+.pla-que{grid-area:q;font-size:.86rem;line-height:1.4;color:var(--ink-soft);text-wrap:pretty}
+.pla-p-main:hover .pla-nom{color:var(--pl-ink-brand)}
+.pla-plts{list-style:none;margin:auto 0 0;padding:.3rem .45rem .45rem;border-top:1px dashed var(--pl-linea);display:grid;gap:.1rem}
+.pla-plt{width:100%;display:grid;grid-template-columns:auto minmax(0,1fr) auto;align-items:center;gap:.6rem;padding:.55rem .6rem;border:0;border-radius:13px;background:none;color:var(--ink);font:inherit;text-align:left;cursor:pointer}
+.pla-plt > .ic{color:var(--ink-soft)}
+#plt-app .pla-plt > .ic:last-child{width:15px;height:15px;color:var(--ink-faint);transition:transform .15s,color .15s}
+.pla-plt > span{display:grid;gap:.1rem;min-width:0}
+.pla-plt b{font-size:.92rem;font-weight:700;line-height:1.25}
+.pla-plt small{font-size:.76rem;color:var(--ink-soft);line-height:1.3}
+.pla-plt:hover{background:var(--brand-tint)}
+#plt-app .pla-plt:hover > .ic:last-child{transform:translateX(2px);color:var(--pl-ink-brand)}
+.pla-p-main:focus-visible,.pla-plt:focus-visible,.pla-chip:focus-visible,.pla-volver:focus-visible,.pla-e:focus-visible{outline:2.5px solid var(--brand);outline-offset:-2px}
+#plt-app mark:not(.plr-v){background:var(--brand-soft);color:inherit;border-radius:3px}
+
+/* — Una puerta abierta: la tira de situaciones, el nombre y, si hay varias, cuál — */
+.pla-tira{position:relative;display:flex;gap:.3rem;overflow-x:auto;scrollbar-width:thin;padding:.3rem;margin-bottom:1rem;border-radius:16px;background:var(--surface);border:1px solid var(--line)}
+.pla-volver,.pla-chip{flex:none;display:inline-flex;align-items:center;gap:.35rem;height:38px;padding:0 .8rem;border:0;border-radius:11px;background:none;color:var(--ink-soft);font:inherit;font-weight:650;font-size:.85rem;cursor:pointer;white-space:nowrap}
+/* «Todas» es la salida de una puerta abierta: se queda fija a la izquierda aunque la tira se deslice. */
+.pla-volver{position:sticky;left:0;z-index:1;background:var(--surface);box-shadow:-.3rem 0 0 var(--surface);color:var(--ink);border-right:1px solid var(--line-soft);border-radius:11px 0 0 11px;margin-right:.2rem}
+#plt-app .pla-volver .ic{width:15px;height:15px}
+.pla-chip small{font-family:var(--f-mono);font-size:.7rem;font-weight:700;padding:0 .3rem;border-radius:6px;background:var(--surface-2);color:var(--ink-soft)}
+.pla-volver:hover,.pla-chip:hover{background:var(--surface-2);color:var(--ink)}
+.pla-chip[aria-current="true"]{background:var(--ink);color:var(--surface)}
+.pla-chip[aria-current="true"] small{background:color-mix(in srgb,var(--surface) 22%,transparent);color:var(--surface)}
+.pla-ab-hd{display:flex;align-items:center;gap:.9rem;margin:0 0 .9rem .2rem}
+.pla-ab-hd .pla-ico{flex:none}
+.pla-ab-hd h2{margin:0;font-family:var(--f-display);font-weight:800;font-stretch:84%;font-size:clamp(1.6rem,1.2rem + 1.2vw,2.2rem);line-height:1.02;letter-spacing:-.012em;text-wrap:balance}
+.pla-ab-hd p{margin:.2rem 0 0;font-size:.9rem;color:var(--ink-soft)}
+.pla-elige{display:flex;flex-wrap:wrap;gap:.4rem;margin-bottom:.8rem}
+.pla-e{display:inline-flex;align-items:center;gap:.45rem;min-height:42px;padding:.3rem .9rem;border-radius:12px;border:1px solid var(--line);background:var(--surface);color:var(--ink);font:inherit;font-weight:650;font-size:.88rem;text-align:left;cursor:pointer}
+.pla-e .ic{color:var(--ink-soft)}
+.pla-e:hover{border-color:var(--pl-linea)}
+.pla-e[aria-pressed="true"]{border-color:var(--brand);background:var(--brand-tint);color:var(--pl-ink-brand)}
+.pla-e[aria-pressed="true"] .ic{color:var(--pl-ink-brand)}
+
+/* — El redactor — */
+.plr{background:var(--surface);border:1px solid var(--line);border-radius:22px;min-width:0}
+.plr-hd{display:flex;align-items:flex-start;gap:1rem;padding:1.1rem 1.2rem .9rem 1.3rem;border-bottom:1px solid var(--line-soft)}
+.plr-tit{flex:1;min-width:0;display:grid;gap:.35rem}
+.plr-canal{display:inline-flex;align-items:center;gap:.4rem;width:fit-content;height:24px;padding:0 .55rem;border-radius:8px;background:var(--surface-2);font-size:.74rem;font-weight:700;color:var(--ink-soft)}
+#plt-app .plr-canal .ic{width:14px;height:14px}
+.plr-nom{margin:0;font-family:var(--f-display);font-weight:800;font-stretch:84%;font-size:1.55rem;line-height:1.08;letter-spacing:-.01em;text-wrap:balance}
+.plr-mas{display:flex;gap:.4rem;align-items:center}
+.plr-cuerpo{display:grid;grid-template-columns:minmax(270px,.78fr) minmax(0,1.22fr)}
+.plr-datos{padding:1rem 1.2rem 1.3rem 1.3rem;border-right:1px solid var(--line-soft);min-width:0}
+.plr-sale{padding:1rem 1.3rem 1.3rem 1.2rem;min-width:0;display:grid;gap:.8rem;align-content:start}
+.plr-hd2{display:flex;align-items:baseline;gap:.6rem;margin-bottom:.7rem}
+.plr-sale .plr-hd2{margin-bottom:-.1rem}
+.plr-hd2 h4{margin:0;font-size:.95rem;font-weight:750;color:var(--ink)}
+.plr-hd2 > span{font-size:.8rem;color:var(--ink-soft)}
+.plr-limpiar{margin-left:auto;display:inline-flex;align-items:center;gap:.3rem;height:30px;padding:0 .6rem;border:0;border-radius:9px;background:none;color:var(--ink-soft);font:inherit;font-size:.8rem;font-weight:650;cursor:pointer}
+#plt-app .plr-limpiar .ic{width:14px;height:14px}
+.plr-limpiar:hover{background:var(--surface-2);color:var(--ink)}
+.plr-campos{display:grid;gap:.75rem}
+.plr-campo{display:grid;gap:.3rem;min-width:0}
+.plr-lbl{display:flex;flex-wrap:wrap;align-items:baseline;gap:.15rem .45rem;font-size:.82rem;font-weight:700;color:var(--ink);line-height:1.3}
+.plr-lbl em{font-style:normal;font-size:.72rem;font-weight:650;color:var(--ink-soft);padding:0 .35rem;border-radius:6px;background:var(--surface-2)}
+.plr-in{display:flex;gap:.35rem}
+.plr-campo input,.plr-campo textarea{width:100%;min-width:0;height:42px;padding:0 .8rem;border-radius:11px;border:1px solid var(--line);background:var(--surface);color:var(--ink);font:inherit;font-size:.92rem;transition:border-color .15s,box-shadow .15s}
+.plr-campo textarea{height:auto;min-height:5.2rem;padding:.6rem .8rem;line-height:1.45;resize:vertical}
+.plr-campo input::placeholder,.plr-campo textarea::placeholder{color:var(--ink-faint)}
+.plr-campo input:focus,.plr-campo textarea:focus{outline:0;border-color:var(--brand);box-shadow:var(--ring)}
+.plr-hoy{flex:none;height:42px;padding:0 .75rem;border-radius:11px;border:1px solid var(--line);background:var(--surface-2);color:var(--ink);font:inherit;font-size:.82rem;font-weight:700;cursor:pointer}
+.plr-hoy:hover{border-color:var(--brand);color:var(--pl-ink-brand)}
+.plr-ops{display:flex;flex-wrap:wrap;gap:.35rem}
+.plr-op{min-height:38px;padding:.3rem .85rem;border-radius:11px;border:1px solid var(--line);background:var(--surface);color:var(--ink);font:inherit;font-size:.86rem;font-weight:650;cursor:pointer;transition:background-color .15s,border-color .15s,color .15s}
+.plr-op:hover{border-color:var(--pl-linea)}
+.plr-op[aria-pressed="true"]{background:var(--ink);border-color:var(--ink);color:var(--surface)}
+.plr-nada{margin:0;font-size:.88rem;color:var(--ink-soft)}
+.plr-acciones{display:flex;flex-wrap:wrap;align-items:center;gap:.5rem .6rem}
+.plr-prin{display:inline-flex;align-items:center;gap:.45rem;height:44px;padding:0 1.1rem;border-radius:12px;border:0;background:var(--brand);color:#fff;font:inherit;font-weight:700;font-size:.92rem;text-decoration:none;cursor:pointer;transition:background-color .15s}
+.plr-prin:hover{background:var(--brand-deep);color:#fff}
+.plr-sec{display:inline-flex;align-items:center;gap:.4rem;height:44px;padding:0 .95rem;border-radius:12px;border:1px solid var(--line);background:var(--surface);color:var(--ink);font:inherit;font-weight:650;font-size:.88rem;cursor:pointer}
+.plr-sec:hover{border-color:var(--brand);color:var(--pl-ink-brand)}
+.plr-prin:focus-visible,.plr-sec:focus-visible,.plr-mini:focus-visible,.plr-op:focus-visible,.plr-hoy:focus-visible,.plr-limpiar:focus-visible,.plt-cc-a:focus-visible,.plr-link:focus-visible{outline:2.5px solid var(--brand);outline-offset:2px}
+.plr-estado{font-size:.8rem;font-weight:650;margin-left:auto;text-align:right;min-width:0}
+.plr-faltan{color:var(--warn)}
+[data-theme="carbon"] .plr-faltan{color:#FDBA74}
+.plr-listo{display:inline-flex;align-items:center;gap:.3rem;color:var(--ok)}
+#plt-app .plr-listo .ic{width:15px;height:15px}
+.plr-avisos{list-style:none;margin:0;padding:0;display:grid;gap:.4rem}
+.plr-avisos li{display:flex;gap:.5rem;align-items:flex-start;padding:.55rem .75rem;border-radius:12px;font-size:.86rem;line-height:1.45}
+#plt-app .plr-avisos .ic{width:16px;height:16px;margin-top:.12rem}
+.plr-avisos .es-antes{background:var(--warn-bg)}
+#plt-app .plr-avisos .es-antes .ic{color:var(--warn)}
+.plr-avisos .es-despues{background:var(--info-bg)}
+#plt-app .plr-avisos .es-despues .ic{color:var(--info)}
+.plr-avisos .es-nota{background:var(--surface-2)}
+#plt-app .plr-avisos .es-nota .ic{color:var(--ink-soft)}
+[data-theme="carbon"] #plt-app .plr-avisos .es-antes .ic{color:#FDBA74}
+[data-theme="carbon"] #plt-app .plr-avisos .es-despues .ic{color:#93C5FD}
+.plr-link{display:inline-flex;align-items:center;gap:.25rem;font-weight:700;color:var(--pl-ink-brand);text-decoration:none}
+#plt-app .plr-link .ic{width:13px;height:13px}
+.plr-link:hover{text-decoration:underline}
+#plt-app kbd{font-family:var(--f-mono);font-size:.74rem;font-weight:700;padding:0 .3rem;border:1px solid var(--line);border-radius:5px;background:var(--surface);color:var(--ink)}
+.plr-dest{margin:0;display:grid;border:1px solid var(--line);border-radius:14px;overflow:hidden}
+.plr-dest > div{display:grid;grid-template-columns:4.6rem minmax(0,1fr);align-items:baseline;gap:.6rem;padding:.5rem .8rem;border-top:1px solid var(--line-soft)}
+.plr-dest > div:first-child{border-top:0}
+.plr-dest dt{font-size:.76rem;font-weight:700;color:var(--ink-soft)}
+.plr-dest dd{margin:0;font-size:.9rem;line-height:1.45;color:var(--ink);min-width:0}
+.plr-dest small{font-size:.74rem;color:var(--ink-soft);margin-left:.2rem}
+.plr-dest code{font-family:var(--f-mono);font-size:.8rem;font-weight:600;overflow-wrap:anywhere}
+.plr-dest .es-asunto dd{display:flex;align-items:flex-start;gap:.6rem}
+.plr-asunto{flex:1;font-weight:650;min-width:0;overflow-wrap:anywhere}
+.plr-mini{flex:none;display:inline-flex;align-items:center;gap:.3rem;height:30px;padding:0 .6rem;border-radius:9px;border:1px solid var(--line);background:var(--surface);color:var(--ink);font:inherit;font-size:.78rem;font-weight:650;cursor:pointer}
+#plt-app .plr-mini .ic{width:13px;height:13px}
+.plr-mini:hover{border-color:var(--brand);color:var(--pl-ink-brand)}
+.plr-hoja{white-space:pre-wrap;overflow-wrap:anywhere;font-size:.9rem;line-height:1.6;color:var(--ink);padding:.9rem 1rem;border-radius:14px;background:var(--surface-2);max-height:26rem;overflow:auto}
+.plr-hoja.es-sf{font-family:var(--f-mono);font-size:.82rem;line-height:1.7}
+.plr-sf-lbl{display:flex;align-items:center;gap:.4rem;margin:0;font-size:.8rem;font-weight:700;color:var(--ink-soft)}
+.plr-v{border-radius:5px;padding:.05em .25em;cursor:pointer;color:inherit}
+.plr-v.es-lleno{background:var(--brand-tint);box-shadow:inset 0 -2px 0 var(--brand-soft);font-weight:650}
+.plr-v.es-falta{background:var(--warn-bg);color:var(--ink);box-shadow:inset 0 0 0 1px color-mix(in srgb,var(--warn) 45%,transparent)}
+.plr-v.es-vacio{padding:0;background:none}
+[data-theme="carbon"] .plr-v.es-lleno{background:color-mix(in srgb,var(--brand) 22%,var(--surface-2))}
+
+/* — Correos al cliente: se envían desde «Correos a clientes» — */
+.plt-cc{display:flex;flex-wrap:wrap;align-items:center;gap:.7rem 1rem;padding:.8rem 1rem;border-radius:18px;border:1px dashed var(--pl-linea)}
+.plt-cc-ic{display:grid;place-items:center;width:36px;height:36px;border-radius:11px;background:var(--surface-2);color:var(--ink-soft)}
+.plt-cc-tx{flex:1 1 18rem;font-size:.88rem;line-height:1.45;color:var(--ink-soft)}
+.plt-cc-tx b{color:var(--ink)}
+.plt-cc-ls{display:flex;flex-wrap:wrap;gap:.35rem}
+.plt-cc-a{display:inline-flex;align-items:center;gap:.35rem;height:34px;padding:0 .7rem;border-radius:10px;border:1px solid var(--line);background:var(--surface);color:var(--ink);font:inherit;font-size:.8rem;font-weight:650;cursor:pointer}
+#plt-app .plt-cc-a .ic{width:13px;height:13px;color:var(--ink-soft)}
+.plt-cc-a:hover{border-color:var(--brand);color:var(--pl-ink-brand)}
+.plt-nada{margin:0 0 1rem;padding:1rem 0;font-size:.92rem;color:var(--ink-soft)}
+.plt-nada b{color:var(--ink)}
+
+html[data-density="compact"] .pla-puertas{gap:.6rem}
+html[data-density="compact"] .pla-p-main{padding:.9rem 1rem .8rem}
+html[data-density="compact"] .plr-campos{gap:.55rem}
+html[data-contrast="high"] .pla-puerta,html[data-contrast="high"] .plr,html[data-contrast="high"] .pla-tira{border-width:2px}
+
+@container pl (max-width:50em){
+  .plr-cuerpo{grid-template-columns:1fr}
+  .plr-datos{border-right:0;border-bottom:1px solid var(--line-soft)}
+  .plr-hd{padding:1rem 1rem .8rem}
+  .plr-datos,.plr-sale{padding:1rem}
+  .plr-nom{font-size:1.3rem}
+  .plr-hoja{max-height:none}
+}
+@container pl (max-width:30em){
+  .pla-ab-hd .pla-ico{display:none}
+  .plr-estado{margin-left:0;flex-basis:100%}
+}
+@media (prefers-reduced-motion: reduce){#plt-app *{transition:none!important;animation:none!important}}
+</style>
+<script>
+(function(){
+  'use strict';
+
+  /* ══ Modelo ═══════════════════════════════════════════════════════════════════
+     La hoja «Plantillas» (Titulo | Tipo | Asunto | Cuerpo | Consideraciones) la editan personas:
+     nada cuelga de la posición de una fila.
+     · La SITUACIÓN de cada plantilla sale de su NOMBRE, con reglas en orden; lo que no se
+       reconoce va a «Otros casos»: una plantilla nueva nunca desaparece.
+     · Las que ya se envían desde «Correos a clientes» (AppIndices.correoDeCliente) no son de aquí.
+     · Los CAMPOS, uno por dato: el mismo corchete en el asunto y en el cuerpo es un solo campo, y
+       los sinónimos de pedido, cliente, SKU y piezas son uno. «Fecha» no se une entre sí: en
+       «Entregas especiales» y en «Pedido especial» significa otra cosa.
+     · Un renglón del cuerpo en mayúsculas con un verbo de instrucción («(ANEXA EVIDENCIA CSC Y
+       PÁGINA)») es un recordatorio para el asesor y no sale en el texto (decisión del creador).
+     · Las consideraciones se reparten por frase, sin perder texto: a quién va, copia, CC (los
+       correos: Gmail abre con ellos en CC), después de enviar y notas. */
+
+  /* Sin clases de propiedades Unicode (el build las rechaza): tras NFD se quita lo que no es ASCII
+     imprimible ni espacio, y con eso se van los acentos y la tilde de la ñ. */
+  function norm(s){ return String(s == null ? '' : s).normalize('NFD').replace(/[^\s -~]/g, '').toLowerCase().replace(/\s+/g, ' ').trim(); }
+
+  var SITUACIONES = [
+    { id:'cotizacion',  corto:'Cotización',       nombre:'Pidió una cotización',             que:'Mándale la cotización en PDF',                          icono:'doc' },
+    { id:'volumen',     corto:'Por volumen',      nombre:'Quiere comprar por volumen',       que:'Pide precio especial por varias piezas',                icono:'caja' },
+    { id:'promocion',   corto:'Promoción',        nombre:'No se aplicó la promoción',        que:'Meses, 2x1, descuento o regalo que no salió en la venta', icono:'etiqueta' },
+    { id:'fecha',       corto:'Fecha de entrega', nombre:'Pide una fecha de entrega',        que:'La quiere lo antes posible o en un día',                icono:'calendar' },
+    { id:'llego-mal',   corto:'Llegó mal',        nombre:'Le llegó mal',                     que:'Equivocado, incompleto o dañado',                       icono:'roto' },
+    { id:'no-reconoce', corto:'No reconoce',      nombre:'No reconoce la entrega',           que:'La mensajería dice que lo entregó',                     icono:'casa' },
+    { id:'digitales',   corto:'Digitales',        nombre:'Sus códigos digitales fallan',     que:'Error en los códigos de un producto digital',           icono:'key' },
+    { id:'devolucion',  corto:'Devolución',       nombre:'Quiere devolución o bonificación', que:'Se pide al equipo con el motivo',                       icono:'regreso' },
+    { id:'otros',       corto:'Otros',            nombre:'Otros casos',                      que:'Plantillas cuyo nombre no dice el caso',                icono:'mas' }
+  ];
+  /* En orden: gana la primera. «ENR… (Entregas no reconocidas)» va antes que la fecha de entrega. */
+  var REGLAS = [
+    ['cotizacion', /cotizaci/],
+    ['volumen', /pedido especial|compra especial|volumen|precio especial/],
+    ['no-reconoce', /\benr\b|no reconoc/],
+    ['promocion', /promoci|diferir|regalo|obsequio|\bmsi\b/],
+    ['fecha', /entregas? especial|programar|fecha de entrega/],
+    ['llego-mal', /resurt|recog|danad|incomplet|equivocad/],
+    ['digitales', /digital/],
+    ['devolucion', /devoluci|bonific|reembols/]
+  ];
+  function canalDe(tipo){ return /sales|force|^sf$|\bsf\b/.test(norm(tipo)) ? 'sf' : 'correo'; }
+  function situacionDe(titulo){
+    var n = norm(titulo);
+    for (var i = 0; i < REGLAS.length; i++) if (REGLAS[i][1].test(n)) return REGLAS[i][0];
+    return 'otros';
+  }
+  function deCorreos(fila){ return !!(window.AppIndices && AppIndices.correoDeCliente && AppIndices.correoDeCliente(fila)); }
+
+  /* Las consideraciones y los recordatorios vienen en MAYÚSCULAS: se leen en oración, pero las
+     siglas se quedan como se escriben. Solo se toca un texto que es casi todo mayúsculas. */
+  var SIGLAS = ['CSC', 'SAP', 'SOMS', 'CR', 'TL', 'PF', 'BT', 'SL', 'SKU', 'ENR', 'CTE', 'LP', 'OTP', 'MSI', 'PDF', 'CCL', 'MKP', 'FMS', 'PAO', 'CAT'];
+  function casiMayusculas(s){
+    var may = (String(s).match(/[A-ZÁÉÍÓÚÜÑ]/g) || []).length, min = (String(s).match(/[a-záéíóúüñ]/g) || []).length;
+    return may >= 6 && may / (may + min) >= 0.8;
+  }
+  function enOracion(s){
+    var t = String(s == null ? '' : s).replace(/\s+/g, ' ').trim();
+    if (!casiMayusculas(t)) return t;
+    var out = t.split(' ').map(function(w){
+      var letras = w.replace(/[^A-Za-zÁÉÍÓÚÜÑáéíóúüñ]/g, '');
+      return (letras && SIGLAS.indexOf(letras.toUpperCase()) > -1 && letras === letras.toUpperCase()) ? w : w.toLowerCase();
+    }).join(' ');
+    return out.charAt(0).toUpperCase() + out.slice(1);
+  }
+  var VERBO_INSTR = /\b(anexa|anexar|adjunta|adjuntar|envia|enviar|manda|mandar|sube|subir|incluye|incluir)\b/;
+  function esInstruccion(linea){
+    var l = String(linea).trim();
+    return l.length >= 8 && l.indexOf('[') < 0 && casiMayusculas(l) && VERBO_INSTR.test(norm(l));
+  }
+
+  /* ── Campos ── La etiqueta sale de lo que va antes de «:» en el renglón del corchete; si no hay,
+     del propio corchete. En el asunto no hay etiquetas de formulario. */
+  function limpiarPista(h){ return String(h).replace(/^\s*colocar\s+/i, '').replace(/,?\s*ej\.?\s.*$/i, '').trim(); }
+  function ejemploDe(h){ var m = /ej\.?\s*(.+)$/i.exec(String(h)); return m ? m[1].trim() : ''; }
+  function claveDe(pista, etiqueta, antes){
+    var h = norm(limpiarPista(pista));
+    if (/^(numero (de|del) )?pedido$/.test(h) || (h === 'numero' && /pedido\s*$/.test(norm(antes)))) return 'pedido';
+    if (/^nombre del cliente$/.test(h)) return 'cliente';
+    if (/^codigo del? pro\w*$/.test(h)) return 'sku';
+    if (/^(numero de )?piezas$|^cantidad$/.test(h)) return 'piezas';
+    return etiqueta ? 'e:' + norm(etiqueta) : 'h:' + h;
+  }
+  var ETIQ_CLAVE = { pedido:'Número de pedido', cliente:'Nombre del cliente', sku:'SKU', piezas:'Piezas' };
+  function tipoDe(pista, etiqueta){
+    var h = String(pista).trim();
+    if (/^s[ií]\s*\/\s*no$/i.test(h)) return { tipo:'opciones', opciones:['Sí', 'No'] };
+    var par = /^\((.+)\)$/.exec(h);
+    if (par){
+      var partes = par[1].split(/\s*,\s*/).map(function(x){ return x.trim(); }).filter(Boolean);
+      if (partes.length >= 2 && partes.every(function(x){ return x.split(/\s+/).length <= 3 && !/[¿?]/.test(x); })) return { tipo:'opciones', opciones:partes };
+      return { tipo:'largo', guia:par[1].trim() };
+    }
+    var dos = /^\s*([A-Za-zÁÉÍÓÚÜÑáéíóúüñ]+) o ([A-Za-zÁÉÍÓÚÜÑáéíóúüñ]+)\s*$/.exec(String(etiqueta || ''));
+    if (dos) return { tipo:'opciones', opciones:[dos[1], dos[2]] };
+    if (h.length > 28 && casiMayusculas(h)) return { tipo:'largo', guia:enOracion(h) };
+    return { tipo:'texto' };
+  }
+  function formatoDe(clave, etiqueta, pista){
+    if (clave === 'pedido' || clave === 'piezas') return 'numero';
+    if (clave === 'cliente' || clave === 'sku') return '';
+    var n = norm(etiqueta + ' ' + pista);
+    if (/tarjeta/.test(n)) return 'tarjeta';
+    if (/correo/.test(n)) return 'correo';
+    if (/telefono/.test(n)) return 'tel';
+    if (/fecha/.test(n)) return 'fecha';
+    if (/monto|precio|total/.test(n)) return 'monto';
+    return '';
+  }
+  function esOpcional(etiqueta, pista){ return /si aplica|si fuera el caso|en caso|solo para/.test(norm(etiqueta + ' ' + pista)); }
+
+  /* Parte un texto en trozos { t:'txt', v } | { t:'campo', clave, pista } y anota los campos. */
+  function trocear(texto, campos, porClave, donde, titulo){
+    var s = String(texto == null ? '' : texto), out = [], ult = 0, m, re = /\[([^\]\n]*)\]/g;
+    while ((m = re.exec(s))){
+      if (m.index > ult) out.push({ t:'txt', v:s.slice(ult, m.index) });
+      var antes = s.slice(s.lastIndexOf('\n', m.index - 1) + 1, m.index);
+      var fin = s.indexOf('\n', m.index); if (fin < 0) fin = s.length;
+      var despues = s.slice(m.index + m[0].length, fin).trim();
+      var em = /^\s*([^:\[\]]{1,70}?)\s*:\s*$/.exec(antes);
+      var etiqueta = (em && !despues && donde !== 'asunto') ? em[1].trim() : '';
+      /* «Resurtidos y mensajerias: [Tipo]»: el primer renglón de un caso repite el nombre de la
+         plantilla; el dato que pide es el del corchete. */
+      var propia = etiqueta && norm(etiqueta) !== norm(titulo) ? etiqueta : '';
+      var pista = m[1].trim(), clave = claveDe(pista, etiqueta, antes);
+      if (!porClave[clave]){
+        var tp = tipoDe(pista, etiqueta);
+        /* La etiqueta del renglón manda si dice más que el sinónimo («SKU´s a bonificar»);
+           «Pedido», «Sku» o «Pza» a secas se leen mejor con el nombre completo. */
+        var lbl = ETIQ_CLAVE[clave] ? ((clave !== 'pedido' && /\s/.test(propia)) ? propia : ETIQ_CLAVE[clave])
+                                    : (propia || enOracion(limpiarPista(pista)) || 'Dato');
+        var c = { clave:clave, etiqueta:lbl.charAt(0).toUpperCase() + lbl.slice(1), pista:limpiarPista(pista) || pista,
+                  ejemplo:ejemploDe(pista), tipo:tp.tipo, opciones:tp.opciones || null, guia:tp.guia || '',
+                  formato:formatoDe(clave, etiqueta, pista), opcional:esOpcional(etiqueta, pista), usos:0 };
+        porClave[clave] = c; campos.push(c);
+      }
+      porClave[clave].usos++;
+      out.push({ t:'campo', clave:clave, pista:pista });
+      ult = m.index + m[0].length;
+    }
+    if (ult < s.length) out.push({ t:'txt', v:s.slice(ult) });
+    return out;
+  }
+  /* Sin los renglones de instrucción; los saltos que quedan dobles se cierran. */
+  function separarInstrucciones(cuerpo){
+    var rec = [];
+    var quedan = String(cuerpo == null ? '' : cuerpo).replace(/\r\n?/g, '\n').split('\n').filter(function(l){
+      if (esInstruccion(l)){ rec.push(enOracion(String(l).trim().replace(/^\((.*)\)$/, '$1'))); return false; }
+      return true;
+    });
+    return { texto:quedan.map(function(l){ return l.replace(/[ \t]+$/, ''); }).join('\n').replace(/\n{3,}/g, '\n\n').replace(/\s+$/, ''), recordatorios:rec };
+  }
+  var RE_CORREO = /[A-Za-z0-9._%+\-]+@[A-Za-z0-9.\-]+\.[A-Za-z]{2,}/g;
+  function consideraciones(texto){
+    var r = { para:'', copia:'', cc:[], despues:[], notas:[] };
+    var t = String(texto == null ? '' : texto).replace(/\r\n?/g, '\n');
+    (t.match(RE_CORREO) || []).forEach(function(m){ if (r.cc.indexOf(m) < 0) r.cc.push(m); });
+    t = t.replace(RE_CORREO, ' ');
+    var minus = function(x){ return x.replace(/^./, function(c){ return c.toLowerCase(); }); };
+    t.split('\n').forEach(function(l){
+      l.split(/\.(?:\s+|$)/).forEach(function(f){
+        f = f.replace(/\s+/g, ' ').trim();
+        if (!f) return;
+        var env = /^se env[ií]a\s+a\s+(.+?)(?:\s+y\s+copia\s+a\s+(.+))?$/i.exec(f);
+        if (env){ r.para = minus(enOracion(env[1])); if (env[2]) r.copia = minus(enOracion(env[2])); return; }
+        if (/^(una vez que|despu[eé]s|al terminar)/i.test(f)) { r.despues.push(enOracion(f)); return; }
+        r.notas.push(enOracion(f));
+      });
+    });
+    return r;
+  }
+  function slug(s){ return norm(s).replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '') || 'plantilla'; }
+  function plantilla(fila, usados){
+    var titulo = String(fila.titulo || '').trim() || 'Plantilla sin nombre';
+    var canal = canalDe(fila.tipo), campos = [], porClave = {};
+    var asunto = String(fila.asunto || '').trim(), sep = separarInstrucciones(fila.cuerpo);
+    var id = 'plt-' + slug(titulo);
+    if (usados[id]){ usados[id]++; id += '-' + usados[id]; } else usados[id] = 1;
+    return {
+      id:id, fila:fila, titulo:titulo, canal:canal, situacion:situacionDe(titulo),
+      asunto:canal === 'correo' && asunto ? trocear(asunto, campos, porClave, 'asunto', titulo) : [],
+      cuerpo:trocear(sep.texto, campos, porClave, 'cuerpo', titulo),
+      recordatorios:sep.recordatorios, campos:campos, destino:consideraciones(fila.consideraciones),
+      texto:norm([titulo, fila.tipo, asunto, fila.cuerpo, fila.consideraciones].join(' '))
+    };
+  }
+  function modelo(filas){
+    var usados = {};
+    return (filas || []).filter(function(f){ return f && !deCorreos(f); }).map(function(f){ return plantilla(f, usados); });
+  }
+  /* Lo que sale: un campo vacío se queda como [corchete] para que se note, salvo si es opcional
+     (en Salesforce, «Rem Hija (si fuera el caso):» queda vacío). */
+  function resolver(trozos, v, campos){
+    var porClave = {};
+    (campos || []).forEach(function(c){ porClave[c.clave] = c; });
+    return (trozos || []).map(function(t){
+      if (t.t === 'txt') return t.v;
+      var x = v && v[t.clave] != null ? String(v[t.clave]).trim() : '';
+      if (x) return x;
+      return (porClave[t.clave] && porClave[t.clave].opcional) ? '' : '[' + t.pista + ']';
+    }).join('');
+  }
+  function faltan(p, v){ return p.campos.filter(function(c){ return !c.opcional && !(v && v[c.clave] != null && String(v[c.clave]).trim()); }); }
+  /* Una plantilla que pide la tarjeta completa («Diferir pago», «Ajuste promociones») no pone el cuerpo en la
+     dirección de Gmail: la dirección se queda en el historial del navegador. Su botón copia el cuerpo y abre
+     Gmail con el asunto y el CC; el asesor lo pega (decisión del creador, 26/09/2026). */
+  function conTarjeta(p){ return p.campos.some(function(c){ return c.formato === 'tarjeta'; }); }
+  function gmailUrl(p, v, sinCuerpo){
+    var u = 'https://mail.google.com/mail/?view=cm&fs=1&su=' + encodeURIComponent(resolver(p.asunto, v, p.campos).replace(/\s+/g, ' ').trim()) +
+            (sinCuerpo ? '' : '&body=' + encodeURIComponent(resolver(p.cuerpo, v, p.campos)));
+    return p.destino.cc.length ? u + '&cc=' + encodeURIComponent(p.destino.cc.join(',')) : u;
+  }
+  function situacion(id){ return SITUACIONES.filter(function(s){ return s.id === id; })[0] || SITUACIONES[SITUACIONES.length - 1]; }
+  /* El filtro mira la plantilla y el NOMBRE de su situación («promoción» trae la puerta entera), no la
+     descripción de la puerta: con ella, «regalo» traía las tres de promoción. */
+  function coincide(p, q){
+    var ws = norm(q).split(' ').filter(Boolean);
+    if (!ws.length) return true;
+    var s = situacion(p.situacion), hay = p.texto + ' ' + norm(s.nombre + ' ' + s.corto);
+    return ws.every(function(w){ return hay.indexOf(w) > -1; });
+  }
+  function hoy(){
+    var d = new Date();
+    return ('0' + d.getDate()).slice(-2) + '/' + ('0' + (d.getMonth() + 1)).slice(-2) + '/' + d.getFullYear();
+  }
+
+  /* ══ El redactor ══════════════════════════════════════════════════════════════ */
+  /* Iconos del Portal cuando existen; los que faltan, del mismo trazo (24×24, 1.9). */
+  var EXTRA = {
+    etiqueta:'<path d="M3.5 12.2V4.5a1 1 0 0 1 1-1h7.7l8.3 8.3a1 1 0 0 1 0 1.4l-7.2 7.2a1 1 0 0 1-1.4 0Z"/><circle cx="8" cy="8" r="1.4"/>',
+    roto:'<path d="M3.5 8 12 4l8.5 4v8L12 20l-8.5-4Z"/><path d="m9.5 10 2 2.5-1.5 2 2 2.5"/>',
+    regreso:'<path d="M9 7 4.5 11.5 9 16"/><path d="M5 11.5h9.5a5 5 0 0 1 0 10H12"/>',
+    casa:'<path d="M4 10.5 12 4l8 6.5V20H4Z"/><path d="M10 20v-5.5h4V20"/>',
+    caja:'<path d="M21 7.5 12 12 3 7.5 12 3l9 4.5Z"/><path d="M3 7.5v9L12 21l9-4.5v-9M12 12v9"/>',
+    doc:'<rect x="5" y="3" width="14" height="18" rx="2"/><path d="M9 7h6M9 11h6M9 15h4"/>',
+    mas:'<circle cx="6" cy="12" r="1.3"/><circle cx="12" cy="12" r="1.3"/><circle cx="18" cy="12" r="1.3"/>',
+    clip:'<path d="m20 11.5-7.8 7.8a5 5 0 0 1-7.1-7.1l8.2-8.2a3.3 3.3 0 0 1 4.7 4.7l-8.2 8.2a1.7 1.7 0 0 1-2.4-2.4l7.4-7.4"/>',
+    tip:'<path d="M9.5 18h5M10.5 21h3"/><path d="M12 3a6 6 0 0 0-3.4 10.9c.4.3.6.7.6 1.1h5.6c0-.4.2-.8.6-1.1A6 6 0 0 0 12 3Z"/>',
+    borrar:'<path d="M4 7h16M9 7V4.5h6V7M6.5 7l1 13h9l1-13"/>',
+    atras:'<path d="M19 12H5M11 6l-6 6 6 6"/>',
+    salesforce:'<path d="M7 18.5a4.5 4.5 0 0 1-.6-9A5.5 5.5 0 0 1 16.8 8a4.5 4.5 0 1 1 .7 10.5Z"/>'
+  };
+  function ic(n){
+    if (EXTRA[n]) return '<svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">' + EXTRA[n] + '</svg>';
+    return icon(n);
+  }
+  function hl(t, q){ return q ? hilite(t, q) : esc(t); }
+  function datosTxt(n){ return n + (n === 1 ? ' dato' : ' datos'); }
+
+  var VAL = {};                                            // { idPlantilla: { clave: valor } }, solo en memoria
+  function valores(p){ return VAL[p.id] || (VAL[p.id] = {}); }
+  var MODO = { numero:'numeric', tel:'tel', correo:'email', tarjeta:'numeric', monto:'decimal' };
+
+  /* Cada dato es un .plr-campo con su etiqueta: <label for> en los de texto (el botón «Hoy» va fuera de la
+     etiqueta: dentro, le cambiaba el nombre al campo) y un grupo con nombre en los de opciones. */
+  function campoHTML(p, c, v){
+    var val = v[c.clave] != null ? v[c.clave] : '';
+    var idc = p.id + '--' + c.clave.replace(/[^a-z0-9]+/gi, '-');
+    var marcas2 = (c.usos > 1 ? '<em>va ' + c.usos + ' veces</em>' : '') + (c.opcional ? '<em>si aplica</em>' : '');
+    if (c.tipo === 'opciones'){
+      return '<div class="plr-campo" role="group" aria-labelledby="' + idc + '-l" data-clave="' + esc(c.clave) + '">' +
+        '<span class="plr-lbl" id="' + idc + '-l">' + esc(c.etiqueta) + marcas2 + '</span>' +
+        '<div class="plr-ops">' + c.opciones.map(function(o){
+          return '<button type="button" class="plr-op" data-pl="op" data-clave="' + esc(c.clave) + '" data-v="' + esc(o) + '" aria-pressed="' + (val === o) + '">' + esc(o) + '</button>';
+        }).join('') + '</div></div>';
+    }
+    var lbl = '<label class="plr-lbl" for="' + idc + '">' + esc(c.etiqueta) + marcas2 + '</label>';
+    if (c.tipo === 'largo'){
+      return '<div class="plr-campo" data-clave="' + esc(c.clave) + '">' + lbl +
+        '<textarea rows="3" data-clave="' + esc(c.clave) + '" id="' + idc + '" placeholder="' + esc(c.guia || c.pista) + '">' + esc(val) + '</textarea></div>';
+    }
+    var modo = MODO[c.formato] ? ' inputmode="' + MODO[c.formato] + '"' : '';
+    var hoyB = c.formato === 'fecha' ? '<button type="button" class="plr-hoy" data-pl="hoy" data-clave="' + esc(c.clave) + '" aria-label="Poner la fecha de hoy en ' + esc(c.etiqueta) + '">Hoy</button>' : '';
+    return '<div class="plr-campo" data-clave="' + esc(c.clave) + '">' + lbl +
+      '<span class="plr-in"><input type="text" id="' + idc + '" data-clave="' + esc(c.clave) + '" value="' + esc(val) + '" placeholder="' + esc(c.ejemplo ? 'ej. ' + c.ejemplo : c.pista) + '" autocomplete="off" spellcheck="false"' + modo + '>' + hoyB + '</span></div>';
+  }
+  function marcas(trozos, p, v){
+    var porClave = {};
+    p.campos.forEach(function(c){ porClave[c.clave] = c; });
+    return trozos.map(function(t){
+      if (t.t === 'txt') return esc(t.v);
+      var x = v[t.clave] != null ? String(v[t.clave]).trim() : '';
+      if (x) return '<mark class="plr-v es-lleno" data-clave="' + esc(t.clave) + '">' + esc(x) + '</mark>';
+      if (porClave[t.clave] && porClave[t.clave].opcional) return '<mark class="plr-v es-vacio" data-clave="' + esc(t.clave) + '"></mark>';
+      return '<mark class="plr-v es-falta" data-clave="' + esc(t.clave) + '">[' + esc(t.pista) + ']</mark>';
+    }).join('');
+  }
+  function faltanHTML(p, v){
+    var f = faltan(p, v);
+    if (!p.campos.length) return '';
+    if (!f.length) return '<span class="plr-listo">' + ic('check') + 'Todo lleno</span>';
+    var corta = function(t){ return t.length > 26 ? t.slice(0, 24).replace(/\s+\S*$/, '') + '…' : t; };
+    return '<span class="plr-faltan" title="' + esc(f.map(function(c){ return c.etiqueta; }).join(', ')) + '">Faltan ' + f.length + ': ' +
+      esc(f.slice(0, 3).map(function(c){ return corta(c.etiqueta); }).join(', ')) + (f.length > 3 ? '…' : '') + '</span>';
+  }
+  /* «Usa el directorio de CR´s» enlaza a un directorio de Formatos que nombre CR: el más corto, que en la hoja
+     del 26/09 es «Directorio de CR» (los correos de las bodegas); si no hay, «Directorios de Tienda y CR». El
+     «Directorio de Tiendas» a secas no: los correos que pide son los de los CR. */
+  function notaHTML(n){
+    if (!/directorio/i.test(n) || !/\bcr/i.test(n)) return esc(n);
+    var f = (store.formatos || []).filter(function(x){ return /directorio/i.test(x.acceso || '') && /\bcr\b/i.test(x.acceso || ''); })
+      .sort(function(a, b){ return String(a.acceso).length - String(b.acceso).length; })[0];
+    var h = f ? linkHref(f.liga) : null;
+    return esc(n) + (h ? ' <a class="plr-link" href="' + esc(h) + '" target="_blank" rel="noopener">' + esc(f.acceso) + ic('external') + '</a>' : '');
+  }
+  function avisosHTML(p){
+    var d = p.destino, h = '';
+    if (p.canal === 'correo' && conTarjeta(p)) h += '<li class="es-nota">' + icon('lock') + '<span>Lleva la tarjeta: Gmail abre sin el cuerpo. Pégalo con <kbd>Ctrl</kbd> <kbd>V</kbd>.</span></li>';
+    p.recordatorios.forEach(function(r){ h += '<li class="es-antes">' + ic('clip') + '<span><b>Antes de enviar:</b> ' + esc(r) + '</span></li>'; });
+    d.despues.forEach(function(r){ h += '<li class="es-despues">' + ic('history') + '<span><b>Después:</b> ' + esc(r) + '</span></li>'; });
+    d.notas.forEach(function(r){ h += '<li class="es-nota">' + ic('tip') + '<span>' + notaHTML(r) + '</span></li>'; });
+    return h ? '<ul class="plr-avisos">' + h + '</ul>' : '';
+  }
+  function destinoHTML(p, v){
+    var d = p.destino, h = '';
+    if (d.para) h += '<div><dt>Para</dt><dd>' + esc(d.para) + ' <small>los escribes tú</small></dd></div>';
+    if (d.copia) h += '<div><dt>Copia</dt><dd>' + esc(d.copia) + ' <small>los escribes tú</small></dd></div>';
+    if (d.cc.length) h += '<div><dt>CC</dt><dd>' + d.cc.map(function(m){ return '<code>' + esc(m) + '</code>'; }).join(' ') + ' <small>ya va en Gmail</small></dd></div>';
+    if (p.asunto.length) h += '<div class="es-asunto"><dt>Asunto</dt><dd><span class="plr-asunto" data-parte="asunto">' + marcas(p.asunto, p, v) + '</span>' +
+      '<button type="button" class="plr-mini" data-pl="copiar-asunto">' + ic('copy') + '<span>Copiar</span></button></dd></div>';
+    return h ? '<dl class="plr-dest">' + h + '</dl>' : '';
+  }
+  function redactorHTML(p){
+    var v = valores(p), correo = p.canal === 'correo', n = p.campos.length;
+    /* Lo que se pulsa va arriba, junto a lo de antes y después: el asesor llena a la izquierda y
+       manda sin bajar hasta el final del texto. */
+    var acciones = correo
+      ? (conTarjeta(p)
+          ? '<button type="button" class="plr-prin" data-pl="gmail-copia">' + icon('send') + '<span>Copiar y abrir Gmail</span></button>'
+          : '<a class="plr-prin" data-pl="gmail" href="' + esc(gmailUrl(p, v)) + '" target="_blank" rel="noopener">' + icon('send') + '<span>Abrir en Gmail</span></a>') +
+        '<button type="button" class="plr-sec" data-pl="copiar-cuerpo">' + icon('copy') + '<span>Copiar cuerpo</span></button>'
+      : '<button type="button" class="plr-prin" data-pl="copiar-sf">' + icon('copy') + '<span>Copiar para Salesforce</span></button>';
+    return '<article class="plr" data-plt="' + esc(p.id) + '">' +
+      '<header class="plr-hd">' +
+        '<div class="plr-tit"><span class="plr-canal">' + ic(correo ? 'mail' : 'salesforce') + (correo ? 'Correo · Gmail' : 'Caso · Salesforce') + '</span>' +
+          '<h3 class="plr-nom plt-name">' + esc(p.titulo) + '</h3></div>' +
+        '<div class="plr-mas">' + collectBtn('plantillas', p.titulo) + reportBtn('Plantillas', p.titulo, '') + '</div>' +
+      '</header>' +
+      '<div class="plr-cuerpo">' +
+        '<section class="plr-datos" aria-label="Datos para ' + esc(p.titulo) + '">' +
+          '<div class="plr-hd2"><h4>Llena</h4><span>' + (n ? datosTxt(n) + (n > 1 ? ', cada uno una vez' : '') : 'No pide datos') + '</span>' +
+            (n ? '<button type="button" class="plr-limpiar" data-pl="limpiar">' + ic('borrar') + '<span>Limpiar</span></button>' : '') + '</div>' +
+          (n ? '<div class="plr-campos">' + p.campos.map(function(c){ return campoHTML(p, c, v); }).join('') + '</div>' : '<p class="plr-nada">Esta plantilla se copia tal cual.</p>') +
+        '</section>' +
+        '<section class="plr-sale" aria-label="Así sale">' +
+          '<div class="plr-hd2"><h4>Así sale</h4><span class="plr-estado" data-parte="faltan" aria-live="polite">' + faltanHTML(p, v) + '</span></div>' +
+          '<div class="plr-acciones">' + acciones + '</div>' +
+          avisosHTML(p) +
+          (correo ? destinoHTML(p, v) + '<div class="plr-hoja" data-parte="cuerpo">' + marcas(p.cuerpo, p, v) + '</div>'
+                  : '<p class="plr-sf-lbl">' + ic('salesforce') + 'Comentario del caso en Salesforce</p><div class="plr-hoja es-sf" data-parte="cuerpo">' + marcas(p.cuerpo, p, v) + '</div>') +
+        '</section>' +
+      '</div>' +
+    '</article>';
+  }
+  /* Repinta solo lo que sale: el formulario conserva el foco y lo escrito. */
+  function actualizar(el, p){
+    var v = valores(p);
+    var a = el.querySelector('[data-parte="asunto"]'); if (a) a.innerHTML = marcas(p.asunto, p, v);
+    var c = el.querySelector('[data-parte="cuerpo"]'); if (c) c.innerHTML = marcas(p.cuerpo, p, v);
+    /* «Faltan N» se anuncia a los lectores de pantalla: solo se reescribe cuando cambia. */
+    var f = el.querySelector('[data-parte="faltan"]'), fh = faltanHTML(p, v); if (f && f.innerHTML !== fh) f.innerHTML = fh;
+    var g = el.querySelector('a[data-pl="gmail"]'); if (g) g.setAttribute('href', gmailUrl(p, v));
+  }
+
+  /* ══ Correos al cliente ══ Los que el creador quitó de aquí (26/09/2026) se envían desde «Correos a
+     clientes», con el diseño de Liverpool y el alias oficial. Solo los que esta sesión puede abrir. */
+  function correosClienteHTML(){
+    var ls = (window.AppIndices && AppIndices.correosCliente) || [];
+    var ok = typeof appActionsPermitidas === 'function' ? appActionsPermitidas().map(function(a){ return a.id; }) : [];
+    ls = ls.filter(function(x){ return ok.indexOf(x.app) > -1; });
+    if (!ls.length) return '';
+    return '<aside class="plt-cc" aria-label="Correos al cliente">' +
+      '<span class="plt-cc-ic">' + icon('mail') + '</span>' +
+      '<p class="plt-cc-tx" style="margin:0"><b>¿Un correo al cliente?</b> Estos se envían desde <b>Correos a clientes</b>, con el diseño de Liverpool y el alias oficial.</p>' +
+      '<div class="plt-cc-ls">' + ls.map(function(x){
+        return '<button type="button" class="plt-cc-a" data-pl="cc" data-app="' + esc(x.app) + '">' + esc(x.nombre) + icon('arrow') + '</button>';
+      }).join('') + '</div></aside>';
+  }
+
+  /* ══ Las puertas ══════════════════════════════════════════════════════════════ */
+  var app = null, M = [], memoDe = null;
+  var abierto = { sit:null, plt:{} };                      // la puerta abierta y la plantilla elegida en cada una
+
+  function todas(){
+    var filas = (typeof store !== 'undefined' && store && store.plantillas) || [];
+    if (memoDe !== filas){ M = modelo(filas); memoDe = filas; }
+    return M;
+  }
+  function porId(id){ return todas().filter(function(p){ return p.id === id; })[0] || null; }
+  function grupos(q){
+    var vs = todas().filter(function(p){ return coincide(p, q); });
+    return SITUACIONES.map(function(s){ return { s:s, ps:vs.filter(function(p){ return p.situacion === s.id; }) }; })
+      .filter(function(g){ return g.ps.length; });
+  }
+  function canalIc(p){ return ic(p.canal === 'correo' ? 'mail' : 'salesforce'); }
+  function destinoCorto(p){ return p.canal === 'sf' ? 'Caso en Salesforce' : (p.destino.para ? 'A ' + p.destino.para : 'Correo'); }
+  function filaPlt(g, p, q){
+    return '<button type="button" class="pla-plt" data-a="abrir" data-sit="' + g.s.id + '" data-plt="' + p.id + '">' +
+      canalIc(p) + '<span><b class="plt-name">' + hl(p.titulo, q) + '</b><small>' + esc(destinoCorto(p)) + ' · ' + datosTxt(p.campos.length) + '</small></span>' +
+      icon('arrow') + '</button>';
+  }
+  function puerta(g, q){
+    return '<article class="pla-puerta" data-sit="' + g.s.id + '">' +
+      '<button type="button" class="pla-p-main" data-a="abrir" data-sit="' + g.s.id + '">' +
+        '<span class="pla-ico">' + ic(g.s.icono) + '</span>' +
+        '<span class="pla-nom">' + hl(g.s.nombre, q) + '</span>' +
+        '<span class="pla-que">' + esc(g.s.que) + '</span>' +
+      '</button>' +
+      '<ul class="pla-plts">' + g.ps.map(function(p){ return '<li>' + filaPlt(g, p, q) + '</li>'; }).join('') + '</ul>' +
+    '</article>';
+  }
+  function elegida(g){
+    return g.ps.filter(function(p){ return p.id === abierto.plt[g.s.id]; })[0] || g.ps[0];
+  }
+  function abiertaHTML(gs, g, q){
+    var sel = elegida(g);
+    abierto.plt[g.s.id] = sel.id;
+    /* Con la puerta abierta, las demás plantillas no se ven, pero el buscador (y ?item=) las busca
+       por su nombre en la sección: van en una lista oculta que pltRevelar sabe abrir. */
+    var anclas = '<ul class="pla-anclas" hidden>' + gs.map(function(x){
+      return x.ps.map(function(p){ return p.id === sel.id ? '' : '<li>' + filaPlt(x, p, '') + '</li>'; }).join('');
+    }).join('') + '</ul>';
+    return '<nav class="pla-tira" aria-label="Situaciones">' +
+        '<button type="button" class="pla-volver" data-a="cerrar">' + ic('atras') + '<span>Todas</span></button>' +
+        gs.map(function(x){
+          return '<button type="button" class="pla-chip" data-a="abrir" data-sit="' + x.s.id + '" aria-current="' + (x.s.id === g.s.id) + '">' +
+            esc(x.s.corto) + (x.ps.length > 1 ? '<small>' + x.ps.length + '</small>' : '') + '</button>';
+        }).join('') +
+      '</nav>' +
+      '<header class="pla-ab-hd"><span class="pla-ico">' + ic(g.s.icono) + '</span>' +
+        '<div><h2>' + esc(g.s.nombre) + '</h2><p>' + esc(g.s.que) + '</p></div></header>' +
+      (g.ps.length > 1 ? '<div class="pla-elige" role="group" aria-label="Plantillas de «' + esc(g.s.nombre) + '»">' + g.ps.map(function(p){
+        return '<button type="button" class="pla-e" data-a="plt" data-plt="' + p.id + '" aria-pressed="' + (p.id === sel.id) + '">' + canalIc(p) + '<span>' + esc(p.titulo) + '</span></button>';
+      }).join('') + '</div>' : '') +
+      redactorHTML(sel) + anclas;
+  }
+
+  /* Con movimiento reducido los saltos de la página no se animan. */
+  function reducido(){ return !!(window.matchMedia && matchMedia('(prefers-reduced-motion: reduce)').matches); }
+  /* Las paradas del teclado en el redactor, en orden: cada campo de texto y, en un grupo de opciones, la
+     marcada o la primera. Enter las recorre; en la última, el botón principal. */
+  function paradas(r){
+    return Array.prototype.map.call(r.querySelectorAll('.plr-campos .plr-campo'), function(c){
+      return c.querySelector('input, textarea') || c.querySelector('.plr-op[aria-pressed="true"]') || c.querySelector('.plr-op');
+    }).filter(Boolean);
+  }
+  function vacia(el, v){
+    var cl = el.getAttribute('data-clave');
+    return !String(v[cl] || '').trim();
+  }
+
+  function pintar(){
+    var sec = document.getElementById('sec-plantillas');
+    app = document.getElementById('plt-app');
+    if (!sec || !app) return;
+    hideLoader('plantillas');
+    enlazar();
+    var q = filtroDeSeccion('plantillas'), lista = todas();
+    /* Si llegan datos nuevos mientras el asesor escribe, el campo (o la opción) recupera el foco y el cursor. */
+    var ae = document.activeElement, clave = ae && app.contains(ae) && ae.getAttribute('data-clave');
+    var opV = clave && ae.classList.contains('plr-op') ? ae.getAttribute('data-v') : null;
+    var s0 = clave && ae.selectionStart, s1 = clave && ae.selectionEnd;
+    if (!lista.length){
+      app.innerHTML = '<div class="empty-card"><span class="big">' + icon('mail') + '</span><h3>Sin plantillas</h3><p>La hoja «Plantillas» todavía no tiene filas.</p></div>' + correosClienteHTML();
+      return;
+    }
+    var gs = grupos(q);
+    var g = abierto.sit ? gs.filter(function(x){ return x.s.id === abierto.sit; })[0] : null;
+    if (!g) abierto.sit = null;
+    if (!gs.length){
+      app.innerHTML = '<p class="plt-nada"><b>Nada coincide con «' + esc(q) + '».</b> Prueba con lo que le pasó al cliente o con otra palabra: «regalo», «resurtido», «pedido».</p>' + correosClienteHTML();
+      return;
+    }
+    app.innerHTML = g ? abiertaHTML(gs, g, q)
+      : '<p class="pla-pregunta">¿Qué le pasó al cliente?</p><div class="pla-puertas">' + gs.map(function(x){ return puerta(x, q); }).join('') + '</div>' + correosClienteHTML();
+    /* En pantalla angosta la tira se desliza: la situación abierta queda al centro de lo que se ve, sin
+       taparse con «Todas», que se queda fija a la izquierda (es la salida de una puerta abierta). */
+    var cur = app.querySelector('.pla-chip[aria-current="true"]'), tira = cur && cur.parentNode;
+    if (cur && tira.scrollWidth > tira.clientWidth){
+      var vol = tira.querySelector('.pla-volver'), w = vol ? vol.offsetWidth : 0;
+      tira.scrollLeft = Math.max(0, cur.offsetLeft + cur.offsetWidth / 2 - w - (tira.clientWidth - w) / 2);
+    }
+    if (clave){
+      var n = opV !== null
+        ? app.querySelector('.plr-campos .plr-op[data-clave="' + clave + '"][data-v="' + opV + '"]')
+        : app.querySelector('.plr-campos input[data-clave="' + clave + '"], .plr-campos textarea[data-clave="' + clave + '"]');
+      if (n){ n.focus({ preventScroll:true }); if (opV === null) { try { n.setSelectionRange(s0, s1); } catch (e) {} } }
+    }
+  }
+
+  /* Abrir una puerta (y una plantilla). La página sube hasta la tira si quedó abajo (con «arriba», siempre:
+     el buscador y ?item= llegan desde cualquier sitio). El foco va al primer dato vacío: con el cliente en la
+     línea, lo siguiente es escribir el pedido. En pantallas táctiles no, para no sacar el teclado. */
+  function abrir(sit, plt, enfocar, arriba){
+    abierto.sit = sit;
+    if (plt) abierto.plt[sit] = plt;
+    pintar();
+    var top = Math.max(0, app.getBoundingClientRect().top + window.scrollY - 90);
+    if (arriba || window.scrollY > top) window.scrollTo({ top:top, behavior:reducido() ? 'auto' : 'smooth' });
+    if (enfocar){
+      var r = app.querySelector('.plr');
+      var p = r && porId(r.getAttribute('data-plt'));
+      var v = p ? valores(p) : {};
+      var f = (r ? paradas(r) : []).filter(function(x){ return vacia(x, v); })[0] || app.querySelector('.plr-prin');
+      if (f) f.focus({ preventScroll:true });
+    }
+  }
+  function cerrar(foco){
+    var era = abierto.sit;
+    abierto.sit = null;
+    pintar();
+    var m = app.querySelector('.pla-puerta[data-sit="' + era + '"] .pla-p-main') || app.querySelector('.pla-p-main');
+    if (m && foco) m.focus();
+  }
+  function puedeEnfocar(e){ return !e || e.detail === 0 || !(window.matchMedia && matchMedia('(pointer: coarse)').matches); }
+  /* Copiar pasa por copyText, que además lo apunta en «Copiados recientes» (se guarda en el navegador). Lo que
+     lleva la tarjeta NO se apunta: se copia aparte, con el mismo aviso. */
+  function llevaTarjeta(p, v){ return p.campos.some(function(c){ return c.formato === 'tarjeta' && String(v[c.clave] || '').trim(); }); }
+  /* Síncrona, dentro del mismo clic: «Copiar y abrir Gmail» abre otra pestaña enseguida, y una copia que
+     esperara a la promesa del portapapeles podría llegar con la página ya sin foco. */
+  function copiarSinHistorial(txt, btn, aviso){
+    var ta = document.createElement('textarea'), ok = false;
+    ta.value = txt; ta.setAttribute('readonly', ''); ta.style.cssText = 'position:fixed;top:0;left:0;opacity:0';
+    document.body.appendChild(ta); ta.select();
+    try { ok = document.execCommand('copy'); } catch (e) {}
+    document.body.removeChild(ta);
+    if (btn) btn.focus({ preventScroll:true });
+    if (ok || !(navigator.clipboard && navigator.clipboard.writeText)) { showToast(btn, aviso); return; }
+    navigator.clipboard.writeText(txt).then(function(){ showToast(btn, aviso); }, function(){ showToast(null, 'No se pudo copiar: prueba otra vez'); });
+  }
+  function copiar(p, v, txt, btn){
+    if (llevaTarjeta(p, v)) copiarSinHistorial(txt, btn, 'Copiado al portapapeles');
+    else copyText(txt, btn);
+  }
+
+  var enlazado = false;
+  function enlazar(){
+    if (enlazado || !app) return;
+    enlazado = true;
+    app.addEventListener('input', function(e){
+      var t = e.target, clave = t.getAttribute && t.getAttribute('data-clave'), r = t.closest && t.closest('.plr');
+      if (!clave || !r) return;
+      var p = porId(r.getAttribute('data-plt')); if (!p) return;
+      valores(p)[clave] = t.value;
+      actualizar(r, p);
+    });
+    app.addEventListener('keydown', function(e){
+      var t = e.target;
+      if (e.key === 'Escape' && abierto.sit && !/INPUT|TEXTAREA/.test(t.tagName)){ e.preventDefault(); cerrar(true); return; }
+      var r = t.closest && t.closest('.plr');
+      if (!r) return;
+      var esOp = t.classList && t.classList.contains('plr-op');
+      /* En un grupo de opciones, las flechas se mueven dentro del grupo. */
+      if (esOp && /^Arrow(Left|Right|Up|Down)$/.test(e.key)){
+        var ops = Array.prototype.slice.call(t.parentNode.querySelectorAll('.plr-op'));
+        var j = ops.indexOf(t) + (/Right|Down/.test(e.key) ? 1 : -1);
+        e.preventDefault();
+        ops[(j + ops.length) % ops.length].focus();
+        return;
+      }
+      if (e.key !== 'Enter') return;
+      if (!(esOp || (t.tagName === 'INPUT' && t.getAttribute('data-clave')))) return;
+      e.preventDefault();
+      /* Enter sobre una opción la marca (si no lo estaba) y pasa al siguiente dato; en un campo, solo pasa. */
+      if (esOp && t.getAttribute('aria-pressed') !== 'true') t.click();
+      var ps = paradas(r), cl = t.getAttribute('data-clave');
+      var i = -1;
+      ps.forEach(function(x, k){ if (x.getAttribute('data-clave') === cl) i = k; });
+      var sig = ps[i + 1] || r.querySelector('.plr-prin');
+      if (sig) sig.focus();
+    });
+    app.addEventListener('click', function(e){
+      var b = e.target.closest && e.target.closest('[data-a], [data-pl], mark.plr-v');
+      if (!b || !app.contains(b)) return;
+      var a = b.getAttribute('data-a');
+      if (a === 'abrir'){ abrir(b.getAttribute('data-sit'), b.getAttribute('data-plt'), puedeEnfocar(e)); return; }
+      if (a === 'plt'){ abrir(abierto.sit, b.getAttribute('data-plt'), puedeEnfocar(e)); return; }
+      if (a === 'cerrar'){ cerrar(e.detail === 0); return; }
+      var r = b.closest('.plr'), p = r ? porId(r.getAttribute('data-plt')) : null;
+      if (b.tagName === 'MARK'){                            // tocar un dato en el texto lleva a su campo
+        var f = r && r.querySelector('.plr-campos .plr-campo[data-clave="' + b.getAttribute('data-clave') + '"]');
+        var foco = f && (f.querySelector('input,textarea') || f.querySelector('.plr-op[aria-pressed="true"]') || f.querySelector('.plr-op'));
+        if (foco) foco.focus();
+        return;
+      }
+      var pl = b.getAttribute('data-pl');
+      if (pl === 'cc'){
+        var ent = APP_ACTIONS.filter(function(x){ return x.id === b.getAttribute('data-app'); })[0];
+        if (ent) goAppAction(ent);
+        return;
+      }
+      if (!p) return;
+      var v = valores(p);
+      if (pl === 'op'){
+        var cl = b.getAttribute('data-clave');
+        v[cl] = v[cl] === b.getAttribute('data-v') ? '' : b.getAttribute('data-v');
+        b.parentNode.querySelectorAll('.plr-op').forEach(function(o){ o.setAttribute('aria-pressed', String(o.getAttribute('data-v') === v[cl])); });
+        actualizar(r, p);
+      } else if (pl === 'hoy'){
+        var i = r.querySelector('input[data-clave="' + b.getAttribute('data-clave') + '"]');
+        if (i){ i.value = hoy(); v[b.getAttribute('data-clave')] = i.value; actualizar(r, p); i.focus(); }
+      } else if (pl === 'limpiar'){
+        VAL[p.id] = {};
+        r.querySelectorAll('.plr-campos input, .plr-campos textarea').forEach(function(x){ x.value = ''; });
+        r.querySelectorAll('.plr-op').forEach(function(o){ o.setAttribute('aria-pressed', 'false'); });
+        actualizar(r, p);
+        var pri = paradas(r)[0]; if (pri) pri.focus();
+      } else if (pl === 'copiar-asunto'){
+        copiar(p, v, resolver(p.asunto, v, p.campos).replace(/\s+/g, ' ').trim(), b);
+      } else if (pl === 'copiar-cuerpo' || pl === 'copiar-sf'){
+        copiar(p, v, resolver(p.cuerpo, v, p.campos), b);
+      } else if (pl === 'gmail-copia'){
+        /* Con la tarjeta: se copia el cuerpo y Gmail abre con el asunto y el CC; el asesor lo pega. */
+        copiarSinHistorial(resolver(p.cuerpo, v, p.campos), b, 'Cuerpo copiado: pégalo en Gmail con Ctrl V');
+        window.open(gmailUrl(p, v, true), '_blank', 'noopener');
+      }
+    });
+  }
+
+  /* Enter en el filtro: si solo queda una plantilla, se abre con el cursor en su primer dato. */
+  document.addEventListener('keydown', function(e){
+    if (e.key !== 'Enter' || !e.target || !e.target.matches || !e.target.matches('#sec-plantillas .filter-input input')) return;
+    var gs = grupos(filtroDeSeccion('plantillas'));
+    var ps = [].concat.apply([], gs.map(function(g){ return g.ps; }));
+    if (ps.length !== 1) return;
+    e.preventDefault();
+    abrir(ps[0].situacion, ps[0].id, true);
+  });
+
+  /* ══ Enganches con el Portal ══════════════════════════════════════════════════
+     renderPlt(): la carga de datos (onToolsData).  applyPltFilters(): el filtro de la sección
+     (filterSec).  pltDeLaHoja(): onToolsData deja fuera las de «Correos a clientes», y con eso
+     tampoco salen en el buscador ni en la cuenta del menú.  pltCoincide(): lo que cuenta
+     applySectionSearch.  pltAlEntrar(): switchSec.  pltRevelar(): revealTarget (buscador y ?item=). */
+  window.renderPlt = function(){ pintar(); };
+  window.applyPltFilters = function(){ pintar(); };
+  window.pltDeLaHoja = function(filas){ return (filas || []).filter(function(f){ return f && !deCorreos(f); }); };
+  window.pltCoincide = function(item, t){ var p = plantilla(item || {}, {}); return coincide(p, t); };
+  /* sectionEnter() revela la sección desde opacidad 0 (la pregunta, cada puerta, la tira, el redactor…): si el
+     reloj de GSAP se para, la red de seguridad deja visible todo eso, también las puertas, que van dentro de
+     su rejilla. */
+  window.pltAlEntrar = function(){
+    setTimeout(function(){
+      document.querySelectorAll('#plt-app > *, #plt-app .pla-puerta').forEach(function(el){
+        if (parseFloat(getComputedStyle(el).opacity) < 1){ if (window.gsap) gsap.set(el, { clearProps:'opacity,transform' }); else el.style.opacity = ''; }
+      });
+    }, 1500);
+  };
+  /* El buscador y ?item= llegan a la fila de una puerta (o al redactor abierto): se abre esa plantilla con la
+     tira, la situación y el cursor en el primer dato vacío a la vista. */
+  window.pltRevelar = function(el){
+    var b = el && el.closest ? el.closest('#plt-app [data-plt]') : null;
+    var p = b && porId(b.getAttribute('data-plt'));
+    if (!p) return false;
+    abrir(p.situacion, p.id, true, true);
+    var r = app.querySelector('.plr');
+    if (r) flashEl(r);
+    hideKbHint();
+    return true;
+  };
+})();
+</script>
