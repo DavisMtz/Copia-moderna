@@ -1039,6 +1039,80 @@ y qué se dejó fuera a propósito**. Mismo formato que el registro del document
 
 <!-- Las entradas nuevas van arriba, con la más reciente primero. -->
 
+### 2026-09-26 — Plantillas: las 15 tarjetas pasan a «puertas por lo que le pasó al cliente» con un redactor que pide cada dato una vez — en PRUEBAS
+
+**Por qué:** el creador pidió seguir con Plantillas después de Devoluciones SAP. La sección eran 15 tarjetas iguales en rejilla de tres (unos 6,000 px a 1440), cada una con el asunto, el cuerpo entero con los corchetes como campos sueltos, las consideraciones en mayúsculas y cuatro botones. Lo que se vio al leer la hoja «Plantillas» (15 filas al 26/09: 11 correos y 4 casos de Salesforce):
+- **el mismo dato se pedía hasta tres veces**: en «Diferir pago», `[Numero de pedido]` en el asunto y `[Pedido]` y `[Numero del pedido]` en el cuerpo; igual en Ajuste de promociones, Regalo faltante y Bonificación;
+- **a quién va** («SE ENVÍA A SUPERVISORES Y TEAM LEADER», seguimientos-cat@…) estaba al final de la tarjeta, en mayúsculas;
+- dos cuerpos traían **instrucciones para el asesor** que se copiaban dentro del correo: «(ANEXA EVIDENCIA CSC Y PÁGINA)» y «ENVIAR EVIDENCIA DE SAP y SOMS»;
+- **cuatro correos al cliente** (Ticket, Estado de cuenta PF, Tarjeta externa PF y Validación exitosa) ya se envían desde «Correos a clientes», con el diseño de Liverpool y el alias oficial;
+- filtrar volvía a pintar las tarjetas y **borraba lo escrito**.
+
+Sus respuestas (ronda única):
+- con el cliente en la línea, llega a la plantilla **por lo que le pasó al cliente**;
+- las cuatro de «Correos a clientes» **se quitan de Plantillas** (Cotizaciones se queda);
+- las instrucciones del cuerpo **son recordatorio**: no se copian;
+- al abrir Gmail, **seguimientos-cat va en CC**; supervisores y team leader los escribe el asesor. Tras la primera revisión precisó: **solo donde la hoja lo nombra** («Diferir pago» y «Solicitud de pedido especial» no lo nombran);
+- en las dos que piden la tarjeta completa, **copiar el cuerpo y abrir Gmail sin él** (lo preguntó la revisión final: el cuerpo en la dirección de Gmail deja la tarjeta en el historial del navegador).
+
+Hubo tres prototipos navegables con las 15 reales, sobre el mismo modelo y el mismo redactor: Puertas de situación, Pestañas por situación y Tablero de boletos (tirada `20719574`, que puso las Puertas al frente). Eligió las **Puertas**.
+
+**Qué se cambió** (commit `89f6b6f`):
+- **Parcial nuevo `app_plantillas.html`** (estilos, modelo, redactor y puertas; el build lo minifica). Expone `renderPlt()`, `applyPltFilters()`, `pltDeLaHoja()`, `pltCoincide()`, `pltAlEntrar()` y `pltRevelar(el)`.
+- **Las puertas** («¿Qué le pasó al cliente?»): Pidió una cotización · Quiere comprar por volumen · No se aplicó la promoción · Pide una fecha de entrega · Le llegó mal · No reconoce la entrega · Sus códigos digitales fallan · Quiere devolución o bonificación (y «Otros casos», hoy vacía). Cada puerta lleva sus plantillas debajo, con a quién va y cuántos datos pide. Al abrir una, las puertas se recogen en una tira arriba («Todas» vuelve; en teléfono la tira se desliza hasta la situación abierta) y, si hay varias, se elige cuál.
+- **El redactor**:
+  - a la izquierda, «Llena»: **cada dato una vez** («va 3 veces» cuando se repite); «Hoy» en las fechas; Sí | No y las opciones como botones; el cursor ya está en el primer dato vacío (con teclado o ratón; en pantallas táctiles no, para no sacar el teclado). Enter pasa al siguiente y, en el último, al botón;
+  - a la derecha, «Así sale» (con «Faltan N» en su mismo renglón): **Abrir en Gmail** (con seguimientos-cat en CC donde la hoja lo nombra) o **Copiar para Salesforce** y, junto al botón, **Antes de enviar** (las instrucciones) y **Después** («Una vez que CTE tenga la mercancía se sube a SAP…»); luego Para · Copia · CC · Asunto y el texto con lo escrito resaltado (lo que falta, en ámbar; tocarlo lleva al campo). A 1440 el principio del texto se ve sin bajar;
+  - con la tarjeta completa (Diferir pago, Ajuste promociones) el botón es **Copiar y abrir Gmail**: copia el cuerpo y abre Gmail con el asunto y el CC, sin el cuerpo, con una nota de candado. Esa copia (y cualquier otra que lleve la tarjeta escrita) **no pasa por «Copiados recientes»**, que se guarda en el navegador;
+  - con el teclado: Enter recorre los datos en orden, también los Sí/No y las opciones (Enter marca la enfocada y avanza; las flechas se mueven dentro del grupo); Esc cierra la puerta y devuelve el foco a ella;
+  - «Usa el directorio de CR´s» enlaza al «Directorio de CR» de Formatos; si no existe, a «Directorios de Tienda y CR»; al de tiendas a secas, nunca (si ninguno nombra CR, va sin enlace).
+- **El modelo (la hoja no cambia):**
+  - situación por el NOMBRE, reglas en orden; lo que no se reconoce va a «Otros casos»;
+  - un campo por dato: el mismo corchete es uno, y los sinónimos de pedido, cliente, SKU y piezas también; «Fecha» no se une entre significados;
+  - `[Si/No]` → Sí | No; `[(A, B, C)]` cortas → opciones; con preguntas → texto largo; «si aplica», «si fuera el caso», «en caso…», «solo para…» → opcional (en Salesforce sale vacío, no como corchete);
+  - un renglón del cuerpo en mayúsculas con verbo de instrucción → «Antes de enviar», fuera del texto;
+  - consideraciones por frase, sin perder palabra: Para, Copia, CC, Después y notas; lo que va en mayúsculas se lee en oración con las siglas intactas.
+- **Lo que teclea el asesor vive solo en la memoria de la página** (hay un campo «Tarjeta completa»): nunca en localStorage ni en la dirección. Filtrar, cambiar de plantilla o recibir datos nuevos no lo borra (y si llegan mientras escribe, el campo conserva el foco y el cursor); «Limpiar» sí.
+- **«Correos a clientes»:** las cuatro se reconocen por el nombre con `AppIndices.correoDeCliente` (nuevo en `app_indices.html`, junto a sus entradas `tpl-*`). `onToolsData` las deja fuera con `pltDeLaHoja`, y con eso no salen en la sección, ni en el buscador del Portal, ni en la cuenta del menú (15 → 11). El buscador de las demás pantallas (`app_comando.html`) tampoco las ofrece. Al final de las puertas, una franja punteada lleva a cada una allá (solo las que la sesión puede abrir).
+- **`Index.html`:** la sección queda con h1 para lectores de pantalla, el filtro, el esqueleto y `<div id="plt-app">`; se fueron `renderPlt`, `applyPltFilters`, `setPltType`, `pltView`, `pltType`, las funciones de las tarjetas y el CSS `.plt-*`. `switchSec` llama a `pltAlEntrar`, `revealTarget` a `pltRevelar`, `elementoDeSeccion` reconoce `.pla-plt` y `.plr`, `sectionEnter` anima las puertas y `coincideEnSeccion` le pregunta al parcial. La vista de diseño trae cinco plantillas reales en vez de cuatro inventadas.
+- **Pruebas:** `pruebas/plantillas.test.js` (nueva, 113 comprobaciones) con la hoja del 26/09 como caso fijo (`plantillas_hoja_20260926.json`); `devsap.test.js` acepta que la lista de `sectionEnter` siga después de `.dv-ficha`.
+
+**Qué se comprobó:**
+- `sintaxis.js` y las 18 baterías de `pruebas/` en verde (las 17 de siempre y la nueva), en la copia integrada y otra vez en el repo antes de subir.
+- **Build:** compila (99 comprobaciones de `build.test.js`) y `quitacomentarios_google.js` no encuentra nada que cortar. Medido en el `build/` final: el `Index.html` compilado baja 9.8 KB; el parcial compilado pesa 39.7 KB (12.5 KB comprimido); la página servida sube 30.8 KB (~10 KB comprimidos). Estimado ~0.1 s de primer byte; no se midió.
+- **Banco del Portal** (`Index`, antes contra después): 0 errores en las dos, los mismos 2 avisos, las mismas 5 llamadas y píxeles dentro del ruido (28 contra 28). Cambia solo la estructura de `#sec-plantillas` y hay 8 globales menos.
+- **Revelado del Portal sin movimiento reducido** (datos en la página y por red): 0 errores; los únicos textos ocultos son el aviso de copiado y la pista del teclado, como siempre.
+- **Detector de impeccable:** 0 hallazgos en el parcial; en la página servida, de 135 a 50, ninguno en la sección nueva.
+- **Chrome headless con las 15 reales** (21 escenarios, más las comprobaciones de las correcciones: el recorrido de Enter, la tarjeta fuera de `ventel-clips`, el texto exacto copiado y la URL de Gmail sin cuerpo): 1440, 1024 y 390; Aurora y Carbón; compacta, texto XL y alto contraste; con y sin movimiento reducido; una puerta abierta y llena (el pedido en sus tres lugares y en el enlace de Gmail); un caso de Salesforce con Sí/No; Entregas especiales (Para, Copia, CC y el directorio); Bonificación (antes y después); filtro «regalo» (una puerta) y sin coincidencias; hoja vacía; `?item=Articulo de regalo faltante` (abre esa plantilla con el cursor en el pedido); el menú cuenta 11; 0 errores de consola.
+- **Revisión final aparte:** un revisor sin el contexto de la construcción (el agente `impeccable-finish-reviewer`), con el contrato, el parcial, los diffs y 24 capturas.
+  - **Primera vuelta: «fix», con 7 correcciones.**
+    1. Gmail abría sin CC en «Diferir pago» y «Solicitud de pedido especial» (su fila no nombra seguimientos-cat) frente a un brief que lo decía sin condición.
+    2. Enter se saltaba los Sí/No y las opciones: se llegaba al botón con «Faltan 3» y se pegaba `[Si/No]` en Salesforce.
+    3. El enlace directo y el buscador dejaban la tira y la situación fuera de la pantalla (`scrollIntoView` con un redactor más alto que la ventana).
+    4. La red de seguridad de GSAP no cubría las puertas (van dentro de su rejilla).
+    5. En el teléfono, «Todas» se salía de la tira al centrar la situación abierta.
+    6. El texto de ayuda del filtro salía cortado y pedía «un dato», que el filtro manda a la dirección como `?q=`.
+    7. El enlace de Gmail llevaba el cuerpo con la tarjeta completa al historial del navegador.
+  - **Se aplicaron en un lote.**
+    - La 1 se le preguntó al creador: «Solo donde la hoja lo nombra». No cambia el código; el brief se corrigió.
+    - La 7 también: eligió «Copiar el cuerpo y abrir Gmail sin él». En las dos plantillas con tarjeta el botón es «Copiar y abrir Gmail», con una nota de candado. Y al revisarla salió algo que la revisión no vio: `copyText` apunta cada copia en «Copiados recientes», que se guarda en el navegador (`ventel-clips`, 12 entradas). Lo que lleva la tarjeta con valor ya no pasa por ahí; se comprobó en Chrome headless que la tarjeta no queda en `ventel-clips` y que lo copiado es el cuerpo exacto, sin la instrucción.
+    - Enter recorre los datos en orden, también los Sí/No y las opciones (Enter marca y avanza; las flechas, dentro del grupo); el foco al abrir y al repintar también los cuenta.
+    - El buscador y `?item=` suben siempre a la tira; la red de seguridad incluye `.pla-puerta`; «Todas» queda fija en la tira; el filtro dice «Busca lo que pasó: «regalo», «resurtido»…».
+    - De paso, las notas no materiales: «Hoy» fuera de la etiqueta del campo, `aria-live` en «Faltan N», Esc y «Todas» devuelven el foco a la puerta que estaba abierta, el salto de la página respeta el movimiento reducido.
+  - **Segunda vuelta: las 7 resueltas, con una regresión material del lote:** en «Ajuste promociones» a 1440 el principio del texto se fue bajo el pliegue (la nota del candado ocupaba dos renglones y «Faltan N» bajó a su propio renglón). Y una cosmética: en el teléfono se asomaba una letra a la izquierda de «Todas».
+    - «Faltan N» subió al renglón de «Así sale» (con las etiquetas largas recortadas y la lista completa en `title`) y la nota quedó en un renglón: el cuerpo empieza en y=835 de 900 en Ajuste promociones, 766 en Diferir pago y 769 en Bonificación. «Todas» tapa el hueco con una sombra del color de la tira.
+  - **Tercera vuelta: «ship».** Cubre las 7 correcciones y las dos regresiones, no certifica toda la sección. Dejó una nota no material, resuelta antes de subir: a la expresión que recorta las etiquetas de «Faltan» se le habían caído las barras invertidas (la trampa conocida de los escapes al editar); la prueba lo fija ahora.
+- **En la `/dev` de pruebas:** publicada con `./scripts/publicar.sh` (producción sin tocar). El HTML que arma el servidor, leído con `fetch` desde la página superior y decodificado de `goog.script.init`, trae el hueco `#plt-app`, `pltDeLaHoja`, `pltAlEntrar`, `pltRevelar`, `correoDeCliente`, «Copiar y abrir Gmail», el aviso «Cuerpo copiado: pégalo en Gmail con Ctrl V», el texto nuevo del filtro y las cinco plantillas reales de la vista de diseño, y nada de lo de antes (`plt-card`, `plt-chip`, `setPltType`, `pltOpenGmail`, las plantillas inventadas). **No se vio pintada** (la pestaña de la herramienta no alcanza el iframe de Google): lo visual en la `/dev` lo confirma el creador.
+
+**Qué se dejó fuera a propósito:**
+- **Las cuatro filas de «Correos a clientes» siguen en la hoja.** El Portal ya no las enseña; editarlas no cambia nada, porque allá las plantillas están en el código de `correo_cliente.html`. El equipo puede borrarlas o dejarlas. Si alguien las tenía en «Mis colecciones», la estrella ya no las encuentra.
+- **Pendiente del equipo:** si «Diferir pago» y «Solicitud de pedido especial» deben llevar a seguimientos-cat, se añade el correo a sus Consideraciones en la hoja y el Portal lo pone en CC solo.
+- **Visto de paso, sin tocar:** «Copiados recientes» (`copyText` → `pushClip`) guarda en el navegador lo que se copia en TODO el Portal, también las claves de Herramientas («Copiar» de la ficha). Plantillas ya no le manda nada con tarjeta; lo demás es una decisión aparte.
+- **La columna «Tipo» manda el canal** (Correo o Sales Force), como antes. Una plantilla nueva cuyo nombre no diga su caso cae en «Otros casos» hasta que se añada una regla.
+- **El editor de contenido (`portal_contenido.html`) no cambió:** sigue editando las 15 filas.
+- **DESIGN.md:** no se crea. Es una sección dentro del mundo ya aprobado, como las anteriores.
+- **Producción intacta** (@130).
+
 ### 2026-09-26 — Devoluciones SAP: el glosario y las dos matrices de ✓ y ✕ pasan a una «consola por lo que le pasó al cliente» — en PRUEBAS
 
 **Por qué:** el creador pidió seguir con Devoluciones SAP después de Trazabilidad. Era la única sección escrita a mano en `Index.html` (no sale de ninguna hoja), y a 1440 medía 2,700 px:
