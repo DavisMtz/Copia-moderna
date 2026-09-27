@@ -1,0 +1,948 @@
+<style>
+/* ════════════════════════════════════════════════════════════
+   PRESENTACIONES · CONSOLA (26/09/2026): la de Herramientas —las mismas clases .cs-*— con la
+   presentación a la vista. Lista agrupada por tema y ficha fija con el nombre en el cartel, el
+   visor de Google (solo lectura, con la cuenta del que mira) y «Copiar enlace», porque la mandan a
+   otros. Un archivo que está dos veces en la hoja es UNA fila con sus entradas. Bajo 1100 px la
+   ficha sale en una hoja abajo; «Ampliar» abre el lector. Lo que va aquí es solo lo propio de esta
+   sección. Respaldo: etiqueta git «respaldo-presentaciones-antes-consola».
+════════════════════════════════════════════════════════════ */
+#sec-presentaciones,.pv-lector{--cs-top:72px;--g-ink-brand:var(--brand-deep);--g-linea:color-mix(in srgb,var(--ink) 20%,var(--line))}
+[data-theme="carbon"] #sec-presentaciones,[data-theme="carbon"] .pv-lector{--g-ink-brand:#F46BC6}
+/* Temas: el color solo tiñe iconos y etiquetas; el rosa es para la acción y la selección */
+#sec-presentaciones [data-fam="venta"],.pv-hoja [data-fam="venta"]{--fc:#A8006F}
+#sec-presentaciones [data-fam="pagos"],.pv-hoja [data-fam="pagos"]{--fc:#0E7A4F}
+#sec-presentaciones [data-fam="postventa"],.pv-hoja [data-fam="postventa"]{--fc:#1D4ED8}
+#sec-presentaciones [data-fam="mesa"],.pv-hoja [data-fam="mesa"]{--fc:#0E7490}
+#sec-presentaciones [data-fam="consulta"],.pv-hoja [data-fam="consulta"]{--fc:#6D28D9}
+#sec-presentaciones [data-fam="otras"],.pv-hoja [data-fam="otras"]{--fc:var(--ink-soft)}
+[data-theme="carbon"] #sec-presentaciones [data-fam="venta"],[data-theme="carbon"] .pv-hoja [data-fam="venta"]{--fc:#F46BC6}
+[data-theme="carbon"] #sec-presentaciones [data-fam="pagos"],[data-theme="carbon"] .pv-hoja [data-fam="pagos"]{--fc:#5CD69A}
+[data-theme="carbon"] #sec-presentaciones [data-fam="postventa"],[data-theme="carbon"] .pv-hoja [data-fam="postventa"]{--fc:#8FB0FF}
+[data-theme="carbon"] #sec-presentaciones [data-fam="mesa"],[data-theme="carbon"] .pv-hoja [data-fam="mesa"]{--fc:#5FD0E6}
+[data-theme="carbon"] #sec-presentaciones [data-fam="consulta"],[data-theme="carbon"] .pv-hoja [data-fam="consulta"]{--fc:#B99BFF}
+
+/* — Consola: la ficha gana ancho, porque lleva la presentación — */
+#sec-presentaciones .filter-bar{gap:.8rem 1rem;margin-bottom:1.3rem}
+.pv-cuerpo,#ld-presentaciones.cs-sk{grid-template-columns:minmax(300px,.74fr) minmax(0,1.26fr)}
+.pv-cuerpo:has(#gr-presentaciones:empty){display:none}
+/* Los nombres de la hoja son largos y lo que distingue suele ir al final («Proceso de venta CONNECT»):
+   hasta dos renglones en vez de cortarlos con «…», como en Herramientas. */
+#gr-presentaciones .cs-nom{white-space:normal;text-overflow:clip;display:-webkit-box;-webkit-box-orient:vertical;-webkit-line-clamp:2;line-clamp:2;overflow-wrap:anywhere;line-height:1.3}
+.pv-ficha{container:pvficha/inline-size}
+.pv-ficha .cs-cartel{min-height:140px}
+.pv-ficha .cs-ficha-cuerpo{gap:.85rem}
+/* Ficha angosta: «Ampliar» se queda con su icono (el nombre sigue para lectores y en el título), para que
+   los botones no pasen a dos líneas y le quiten alto al visor. */
+@container pvficha (max-width:560px){
+  .pv-ficha [data-pv-ampliar]{padding:0 .8rem}
+  .pv-ficha [data-pv-ampliar] .pv-btn-txt{position:absolute;width:1px;height:1px;overflow:hidden;clip-path:inset(50%);white-space:nowrap}
+}
+.pv-fecha,.pv-archivo{font-size:.8rem;line-height:1.35;color:var(--ink-soft)}
+.pv-fecha{font-variant-numeric:tabular-nums}
+.pv-archivo{overflow-wrap:anywhere}
+.pv-archivo b{font-weight:650;color:var(--ink)}
+
+/* — Entradas: un archivo que la hoja trae dos veces, cada vez en otra diapositiva — */
+/* Si no caben en un renglón, la otra baja al siguiente (las dos se leen enteras). Con poco alto van en uno solo:
+   ver el bloque de pantallas bajas. Lo que no quepa ni así se recorta con «…» (el nombre completo va en el título). */
+.pv-entradas{display:flex;flex-wrap:wrap;align-items:center;gap:.4rem;min-width:0}
+.pv-entradas-lbl{flex-shrink:0;font-size:.7rem;font-weight:800;letter-spacing:.06em;text-transform:uppercase;color:var(--ink-soft);margin-right:.2rem}
+.pv-entradas .g-chip{display:inline-flex;align-items:center;gap:.45rem;max-width:100%;min-width:0}
+.pv-vuelta{position:absolute;width:1px;height:1px;overflow:hidden;clip-path:inset(50%)}
+.pv-entradas .g-chip span{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.pv-entradas .g-chip small{flex-shrink:0;font-family:var(--f-mono);font-size:.7rem;font-weight:700;color:var(--ink-soft);font-variant-numeric:tabular-nums}
+.pv-entradas .g-chip[aria-pressed="true"] small{color:color-mix(in srgb,var(--surface) 72%,transparent)}
+.pv-entradas .g-chip:focus-visible{outline:2px solid var(--brand);outline-offset:2px}
+
+/* — Visor: la vista de solo lectura de Google. La espera va ENCIMA hasta que el marco carga (la página
+     de Google puede ser transparente y se leería a través). El alto sigue al ancho (16:9 más la barra de
+     Google) sin pasar de lo que cabe en la ficha: ajustarVisor() pone --pv-tope con lo que sobra. — */
+.pv-ficha{--pv-tope:max(240px,calc(100vh - var(--cs-top) - 104px - 300px))}
+.pv-hoja{--pv-tope:64vh}
+.pv-visor{display:grid;gap:.5rem;min-width:0}
+.pv-marco{position:relative;container-type:inline-size;border-radius:16px;overflow:hidden;border:1px solid var(--line);background:var(--surface-2)}
+.pv-marco > iframe,.pv-marco-hueco{display:block;width:100%;border:0;height:min(calc(100cqw * .5625 + 38px),var(--pv-tope))}
+.pv-marco > iframe{background:#fff}
+.pv-marco.es-doc > iframe,.pv-marco.es-doc .pv-marco-hueco{height:var(--pv-tope)}
+.pv-marco-espera{position:absolute;inset:0;z-index:2;display:grid;place-content:center;justify-items:center;gap:.5rem;padding:1rem;text-align:center;background:color-mix(in srgb,var(--fc,var(--brand)) 7%,var(--surface-2));color:var(--ink-soft);font-size:.84rem;line-height:1.45}
+.pv-marco-espera .ic{width:28px;height:28px;color:var(--fc,var(--g-ink-brand))}
+.pv-marco.listo .pv-marco-espera{display:none}
+.pv-visor-pie{display:flex;flex-wrap:wrap;align-items:baseline;gap:.2rem .7rem;font-size:.8rem;line-height:1.45;color:var(--ink-soft)}
+.pv-visor-pie p{max-width:64ch;text-wrap:pretty}
+.pv-inicio{appearance:none;border:0;background:none;padding:0;font:inherit;font-weight:700;color:var(--g-ink-brand);text-decoration:underline;text-decoration-thickness:1px;text-underline-offset:3px;cursor:pointer;white-space:nowrap}
+.pv-inicio:hover{text-decoration-thickness:2px}
+.pv-inicio:focus-visible{outline:2px solid var(--brand);outline-offset:3px;border-radius:4px}
+
+/* — Lector: la presentación a lo grande, sobre fondo oscuro. Esc o la ✕ lo cierran — */
+.pv-lector{position:fixed;inset:0;z-index:1460;display:grid;place-items:center;padding:clamp(12px,3vw,32px)}
+.pv-lector[hidden]{display:none}
+.pv-lector-fondo{position:absolute;inset:0;background:rgba(22,15,20,.84)}
+.pv-lector-panel{position:relative;display:grid;gap:.8rem;min-width:0;width:min(1500px,calc(100vw - 48px),calc((100vh - 178px) * 16 / 9))}
+.pv-lector.es-doc .pv-lector-panel{width:min(1040px,calc(100vw - 32px))}
+.pv-lector-hd{display:flex;align-items:center;gap:.6rem;min-width:0;color:#fff}
+.pv-lector-t{flex:1;min-width:0;font-family:var(--f-display);font-weight:800;font-stretch:84%;font-size:1.25rem;line-height:1.2;letter-spacing:-.005em;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.pv-lector-acc{display:flex;align-items:center;gap:.45rem;flex-shrink:0}
+.pv-lector .cs-btn{background:rgba(255,255,255,.1);border-color:rgba(255,255,255,.24);color:#fff}
+.pv-lector .cs-btn:hover{background:rgba(255,255,255,.18);border-color:rgba(255,255,255,.4)}
+.pv-lector .cs-abrir:focus-visible,.pv-lector .cs-btn:focus-visible,.pv-lector-cerrar:focus-visible{outline:2px solid #fff;outline-offset:2px}
+.pv-lector-cerrar{width:42px;height:42px;flex-shrink:0;border:0;border-radius:12px;background:rgba(255,255,255,.14);color:#fff;display:grid;place-items:center;cursor:pointer;transition:background-color .15s}
+.pv-lector-cerrar:hover{background:rgba(255,255,255,.26)}
+.pv-lector-cerrar .ic{width:18px;height:18px}
+.pv-lector-marco{position:relative;container-type:inline-size;border-radius:14px;overflow:hidden;background:#1d1a1c;box-shadow:0 30px 70px -30px rgba(0,0,0,.7)}
+.pv-lector-marco iframe{display:block;width:100%;border:0;background:#fff;height:calc(100cqw * .5625 + 38px)}
+.pv-lector-espera{position:absolute;inset:0;z-index:2;display:grid;place-content:center;background:#1d1a1c;color:rgba(255,255,255,.72);font-size:.9rem}
+.pv-lector-marco.listo .pv-lector-espera{display:none}
+.pv-lector.es-doc .pv-lector-marco iframe{height:calc(100vh - 150px)}
+
+/* — Densidad compacta y alto contraste (Ajustes de vista) — */
+html[data-density="compact"] .pv-ficha .cs-cartel{min-height:112px}
+html[data-contrast="high"] .pv-marco{border-color:var(--ink)}
+html[data-contrast="high"] .pv-fecha,html[data-contrast="high"] .pv-archivo,html[data-contrast="high"] .pv-visor-pie{color:var(--ink)}
+
+@media (max-width:1100px){
+  .pv-cuerpo,#ld-presentaciones.cs-sk{grid-template-columns:minmax(0,1fr)}
+}
+/* Pantallas bajas (una de 1366×768 deja unos 650 px de alto): el cartel se encoge para que el visor quepa
+   en la ficha fija. El nombre sigue en grande; lo que se va es aire. */
+@media (max-height:820px) and (min-width:1101px){
+  .pv-ficha .cs-cartel,html[data-density="compact"] .pv-ficha .cs-cartel{min-height:92px;padding:.8rem 1.2rem}
+  .pv-ficha .cs-cartel.tam-s .cs-cartel-t{font-size:2.7rem}
+  .pv-ficha .cs-cartel.tam-m .cs-cartel-t{font-size:2.15rem}
+  .pv-ficha .cs-cartel.tam-l .cs-cartel-t{font-size:1.7rem}
+  .pv-ficha .cs-cartel-s{font-size:1rem;margin-top:.25rem}
+  .pv-ficha .cs-ficha-cuerpo{gap:.6rem;padding:.85rem 1.2rem 1rem}
+  /* Las entradas, en un renglón: la elegida se lee entera y la otra cede (con «…»). */
+  .pv-ficha .pv-entradas{flex-wrap:nowrap}
+  .pv-ficha .pv-entradas .g-chip{flex:0 1 auto;min-width:3rem}
+  .pv-ficha .pv-entradas .g-chip[aria-pressed="true"]{flex:none;max-width:62%}
+}
+/* Más bajas aún (una ventana de 1137×641): el cartel queda en un renglón y el subtítulo se va. */
+@media (max-height:700px) and (min-width:1101px){
+  .pv-ficha .cs-cartel,html[data-density="compact"] .pv-ficha .cs-cartel{min-height:72px;padding:.6rem 1.1rem}
+  .pv-ficha .cs-cartel-s{display:none}
+  .pv-ficha .cs-ficha-cuerpo{gap:.45rem;padding:.7rem 1.1rem .8rem}
+}
+@media (max-width:600px){
+  .pv-lector-acc .cs-btn{display:none}
+  .pv-lector-t{font-size:1.05rem}
+}
+@media (prefers-reduced-motion:reduce){ .pv-lector-cerrar{transition:none} }
+</style>
+<script>
+/* ──────── PRESENTACIONES · CONSOLA (26/09/2026) ────────
+   renderP(filas)       — lo llaman onToolsData y filterSec con las filas de la hoja «Presentaciones».
+   pvContar(filas)      — cuántas cuenta el menú: un archivo repetido cuenta una vez.
+   pvCoincide(fila, t)  — el filtro de la sección: nombres, tipo y título en Drive; NO el enlace
+                          (con él, «docs» o «google» coincidían con todas).
+   pvAlEntrar()         — switchSec al abrir la sección: mide, pone el visor y pide pvArchivos.
+   pvElemento(nombre)   — elementoDeSeccion: la fila de un nombre de la hoja, con SU entrada elegida.
+   pvRevelar(fila)      — revealTarget (buscador y ?item=): elige la fila; en pantalla angosta, la hoja.
+   El visor es la vista /preview de Google en un iframe: se ve con la sesión de Google del que mira, y
+   solo se crea con la sección a la vista. Cada cambio (otra presentación, otra entrada, «desde el
+   principio») crea un iframe NUEVO: con solo cambiar el fragmento #slide= el visor no recarga. */
+(function(){
+  'use strict';
+  var FAM = {
+    venta:     { label: 'Venta',            icono: 'bolsa' },
+    pagos:     { label: 'Monedero y pagos', icono: 'money' },
+    postventa: { label: 'Postventa',        icono: 'truck' },
+    mesa:      { label: 'Mesa de Ayuda',    icono: 'ayuda' },
+    consulta:  { label: 'Sistemas',         icono: 'monitor' },
+    otras:     { label: 'Otras',            icono: 'layers' }
+  };
+  var ORDEN = ['venta', 'pagos', 'postventa', 'mesa', 'consulta', 'otras'];
+  /* El tema sale del NOMBRE, con reglas en orden: la hoja la editan personas y nada cuelga de la fila.
+     «Mesa de Regalos» es venta y «Mesa de ayuda» tiene su grupo; lo que no se reconoce va a Otras. */
+  var REGLAS = [
+    ['postventa', /sepro|recogid|recolec|mensajer|paqueter|postventa|resurtid|devoluc|garantia/],
+    ['mesa',      /mesa de ayuda|\bmda\b|incidenc|\bmkp\b|marketplace/],
+    ['pagos',     /monedero|\bmed\b|reproceso|\bpagos?\b|reembols|cobro/],
+    ['venta',     /venta|vender|\bcsc\b|connect|ccaip|mesa de regalo|cotizac/],
+    ['consulta',  /\bcte\b|\blpc\b|\bsoms\b|\bsap\b|\bfms\b|sistema/]
+  ];
+
+  /* Un nombre casi todo en MAYÚSCULAS se lee en oración y las siglas se quedan. En mayúsculas la hoja
+     omite los acentos: solo estas palabras los recuperan («MENSAJERIAS» → «Mensajerías»). */
+  var SIGLAS = ['CTE', 'MDA', 'LPC', 'CSC', 'CCL', 'MKP', 'SAP', 'SOMS', 'CR', 'BT', 'SL', 'PF', 'MED', 'MSI', 'CAT', 'CCAIP', 'TDA', 'SKU', 'FMS', 'VAD', 'IVR', 'MDR', 'OMS', '4PL'];
+  var ACENTOS = { mensajerias: 'mensajerías', mensajeria: 'mensajería', capacitacion: 'capacitación', guia: 'guía',
+    informacion: 'información', devolucion: 'devolución', recoleccion: 'recolección', telefono: 'teléfono',
+    credito: 'crédito', metodos: 'métodos', metodo: 'método', paqueteria: 'paquetería', paqueterias: 'paqueterías',
+    operacion: 'operación', atencion: 'atención', facturacion: 'facturación', catalogo: 'catálogo' };
+  function casiMayusculas(s){
+    var may = (String(s).match(/[A-ZÁÉÍÓÚÜÑ]/g) || []).length, min = (String(s).match(/[a-záéíóúüñ]/g) || []).length;
+    return may >= 6 && may / (may + min) >= 0.8;
+  }
+  function enOracion(s){
+    var t = String(s == null ? '' : s).replace(/\s+/g, ' ').trim();
+    if (!casiMayusculas(t)) return t;
+    var out = t.split(' ').map(function(w){
+      var letras = w.replace(/[^A-Za-z0-9ÁÉÍÓÚÜÑáéíóúüñ]/g, '');
+      if (letras && SIGLAS.indexOf(letras.toUpperCase()) > -1 && letras === letras.toUpperCase()) return w;
+      return w.toLowerCase().replace(/[a-záéíóúüñ]+/g, function(p){ return ACENTOS[p] || p; });
+    }).join(' ');
+    return out.charAt(0).toUpperCase() + out.slice(1);
+  }
+  function normal(s){ return (typeof norm === 'function' ? norm(s) : String(s).toLowerCase()).replace(/\s+/g, ' ').trim(); }
+
+  /* ── El archivo detrás del enlace. Se guarda el id y el ancla (#slide= o #heading=); el visor se
+     arma con el id, así que lo que traiga la URL de la sesión de quien la copió no pasa. ── */
+  function docDe(liga){
+    var u;
+    try { u = new URL(String(liga || '').trim()); } catch (e) { return null; }
+    if (u.protocol !== 'https:' || !/^(docs|drive)\.google\.com$/.test(u.hostname)) return null;
+    var m = /\/(document|presentation|spreadsheets|file)\/(?:u\/\d+\/)?d\/([\w-]{10,})/.exec(u.pathname);
+    if (!m) return null;
+    var h = u.hash.replace(/^#/, ''), q = u.searchParams.get('slide') || '';
+    var ms = /(?:^|&)slide=(id\.[\w.-]+)/.exec(h), mh = /(?:^|&)heading=(h\.[\w-]+)/.exec(h);
+    var slide = ms ? ms[1] : (/^id\.[\w.-]+$/.test(q) ? q : '');
+    // «id.p» e «id.p1» son la primera diapositiva: eso no es abrir a media presentación.
+    if (/^id\.p1?$/.test(slide)) slide = '';
+    return { clase: m[1], id: m[2], slide: slide, heading: mh ? mh[1] : '' };
+  }
+  /* Solo las diapositivas «id.pN» dicen su número; las «id.g…» no dicen dónde están. */
+  function numDiap(d){ var m = d && /^id\.p(\d+)$/.exec(d.slide); return m ? Number(m[1]) : 0; }
+  var DOCS = 'https://docs.google.com/', DRIVE = 'https://drive.google.com/file/d/';
+  function urlVisor(d, desdeInicio){
+    if (!d) return '';
+    var id = encodeURIComponent(d.id);
+    if (d.clase === 'presentation') return DOCS + 'presentation/d/' + id + '/preview' + (d.slide && !desdeInicio ? '#slide=' + d.slide : '');
+    if (d.clase === 'document') return DOCS + 'document/d/' + id + '/preview' + (d.heading && !desdeInicio ? '#heading=' + d.heading : '');
+    if (d.clase === 'spreadsheets') return DOCS + 'spreadsheets/d/' + id + '/preview';
+    return DRIVE + id + '/preview';
+  }
+  var TIPO_URL = { presentation: 'Presentación', document: 'Documento', spreadsheets: 'Hoja de cálculo', file: 'Archivo en Drive' };
+  function tipoPorMime(m){
+    m = String(m || '');
+    if (m === 'application/vnd.google-apps.presentation') return 'Presentación';
+    if (/presentationml|ms-powerpoint/.test(m)) return 'PowerPoint';
+    if (m === 'application/vnd.google-apps.document') return 'Documento';
+    if (/wordprocessingml|msword/.test(m)) return 'Word';
+    if (m === 'application/pdf') return 'PDF';
+    if (m === 'application/vnd.google-apps.spreadsheet') return 'Hoja de cálculo';
+    return '';
+  }
+  function iconoDe(tipo){
+    if (/Presentaci|PowerPoint/.test(tipo)) return 'presentation';
+    if (/Hoja/.test(tipo)) return 'sheet';
+    if (/Archivo/.test(tipo)) return 'folder';
+    if (tipo === 'Enlace') return 'site';
+    if (tipo === 'Sin enlace') return 'nolink';
+    return 'document';
+  }
+
+  /* ── El modelo: una presentación por ARCHIVO, con sus entradas (los renglones de la hoja que lo
+     abren). Se arma una vez por lista recibida: la referencia de store.presentaciones es la llave.
+     El id es el del archivo en Drive, no la posición: los datos llegan dos veces (la copia local y luego
+     la red) y el orden de la hoja puede cambiar; lo elegido (entrada, «desde el principio») vive en
+     `estado` y sobrevive a la recarga. ── */
+  var cache = null, estado = {};
+  function fuente(){ return (typeof store !== 'undefined' && store && store.presentaciones) || []; }
+  function modelo(){
+    var filas = fuente();
+    if (cache && cache.fuente === filas) return cache;
+    var items = [], porId = {}, porDoc = {}, porFila = new Map();
+    filas.forEach(function(p){
+      var nombre = String((p && p.nombre) || '').trim();
+      if (!nombre) return;
+      var crudo = String(p.liga || '').trim(), d = docDe(crudo);
+      var e = { nombre: nombre, ver: enOracion(nombre), liga: (typeof linkHref === 'function' ? linkHref(crudo) : crudo) || '', d: d, n: numDiap(d) };
+      var it = d ? porDoc[d.id] : null;
+      if (!it){
+        it = { id: d ? 'd' + d.id : 'n' + items.length, entradas: [], sel: 0, inicio: false, desc: '' };
+        items.push(it);
+        if (d) porDoc[d.id] = it;
+      }
+      it.entradas.push(e);
+      if (!it.desc && p.descripcion) it.desc = String(p.descripcion).trim();
+      porFila.set(p, it);
+    });
+    items.forEach(function(it){
+      var e0 = it.entradas[0], barra = e0.ver.indexOf('|');
+      it.nombre = e0.nombre; it.ver = e0.ver; it.doc = e0.d;
+      it.a = (barra < 0 ? e0.ver : e0.ver.slice(0, barra)).trim();
+      it.b = barra < 0 ? '' : e0.ver.slice(barra + 1).trim();
+      it.fam = famDe(it.entradas);
+      it.tipoUrl = e0.d ? TIPO_URL[e0.d.clase] : (e0.liga ? 'Enlace' : 'Sin enlace');
+      it.entradas.forEach(function(e, k){ e.etiqueta = k ? sinPrefijo(e.ver, it.ver) : e.ver; });
+      var st = estado[it.id];
+      if (st){ it.sel = Math.min(st.sel, it.entradas.length - 1); it.inicio = !!st.inicio; }
+      porId[it.id] = it;
+    });
+    cache = { fuente: filas, items: items, porId: porId, porFila: porFila };
+    return cache;
+  }
+  function guardar(it){ estado[it.id] = { sel: it.sel, inicio: it.inicio }; }
+  /* Lo que enseña la ficha. Si no cambia (los mismos datos por segunda vez, otra tecla del filtro), la ficha
+     no se repinta y el visor sigue en la diapositiva donde iba quien lee. */
+  function firma(it){ var e = entrada(it); return [it.id, it.sel, it.inicio, e.liga, it.ver, it.desc].join('|'); }
+  function famDe(entradas){
+    for (var k = 0; k < entradas.length; k++){
+      var n = normal(entradas[k].nombre);
+      for (var i = 0; i < REGLAS.length; i++) if (REGLAS[i][1].test(n)) return REGLAS[i][0];
+    }
+    return 'otras';
+  }
+  /* «Monedero Digital- Capacitacion Express…» junto a «Monedero digital»: la entrada se nombra por lo que la distingue. */
+  function sinPrefijo(t, base){
+    var nt = normal(t), nb = normal(base);
+    if (!nb || nt.indexOf(nb) !== 0 || nt === nb) return t;
+    var resto = t.slice(base.length).replace(/^[\s:|·.,–—-]+/, '');
+    return resto || t;
+  }
+
+  /* ── Lo que dice Drive (pvArchivos): título real, tipo y última edición. Sin respuesta, la ficha
+     se pinta igual, sin esas líneas. ── */
+  var archivos = null, pidiendo = false, pedido = false;
+  var ARCH_CLAVE = 'pv-archivos-v1', ARCH_TTL = 30 * 60000;
+  var MESES = ['enero', 'febrero', 'marzo', 'abril', 'mayo', 'junio', 'julio', 'agosto', 'septiembre', 'octubre', 'noviembre', 'diciembre'];
+  function fechaLarga(ms){ var f = new Date(Number(ms)); return isNaN(f.getTime()) ? '' : MESES[f.getMonth()] + ' de ' + f.getFullYear(); }
+  function fechaCorta(ms){ var f = new Date(Number(ms)); return isNaN(f.getTime()) ? '' : MESES[f.getMonth()].slice(0, 3) + ' ' + f.getFullYear(); }
+  function arch(it){ return (archivos && it && it.doc && archivos[it.doc.id]) || null; }
+  function tipoDe(it){ var a = arch(it); return (a && tipoPorMime(a.tipo)) || it.tipoUrl; }
+  function metaLista(it){
+    var a = arch(it), t = tipoDe(it);
+    if (a && a.acceso === false) return t + ' · sin acceso';
+    return a && a.editado ? t + ' · ' + fechaCorta(a.editado) : t;
+  }
+  function tituloArchivo(it){
+    var a = arch(it);
+    if (!a || !a.titulo) return '';
+    var t = String(a.titulo).replace(/\.(pptx?|docx?|pdf|xlsx?)\s*$/i, '').trim(), nt = normal(t);
+    return it.entradas.some(function(e){ return normal(e.nombre) === nt; }) ? '' : t;
+  }
+  function metaFicha(it){
+    var a = arch(it), t = tipoDe(it);
+    var h = '<span class="cs-tag">' + icon(iconoDe(t)) + esc(t) + '</span>';
+    if (a && a.editado) h += '<span class="pv-fecha">Última edición: ' + esc(fechaLarga(a.editado)) + '</span>';
+    var ta = tituloArchivo(it);
+    if (ta) h += '<span class="pv-archivo">En Drive se llama <b>«' + esc(ta) + '»</b></span>';
+    return h;
+  }
+  function avisoFicha(it){
+    var a = arch(it);
+    return a && a.acceso === false
+      ? 'El Portal tampoco puede abrir este archivo: puede que lo hayan borrado o que ya no esté compartido. Avísalo con la bandera de esta ficha para que lo revisen.'
+      : '';
+  }
+  function cargarArchivos(){
+    if (pidiendo || pedido) return;
+    if (window.PV_ARCHIVOS){ pedido = true; aplicarArchivos(window.PV_ARCHIVOS); return; }
+    if (!(typeof google !== 'undefined' && google.script && google.script.run) || !(window.AppRun && AppRun.swr)) return;
+    pidiendo = true;
+    AppRun.swr(ARCH_CLAVE, 'pvArchivos', [], {
+      ttl: ARCH_TTL,
+      // Con un fallo pasajero de Drive (pasajero:true) la respuesta se usa, pero no se guarda.
+      accept: function(d){ return !!(d && d.status === 'ok' && d.archivos && !d.pasajero); },
+      onData: function(d){ aplicarArchivos(d); },
+      onError: function(){ pidiendo = false; }
+    }).then(function(){ pidiendo = false; pedido = true; }, function(){ pidiendo = false; });
+  }
+  function aplicarArchivos(d){
+    if (!d || d.status !== 'ok' || !d.archivos) return;
+    archivos = d.archivos;
+    var m = modelo();
+    document.querySelectorAll('#gr-presentaciones .cs-fila').forEach(function(f){
+      var it = m.porId[f.getAttribute('data-pv-id')];
+      if (!it) return;
+      var mm = f.querySelector('[data-pv-lmeta]'), ic = f.querySelector('.cs-ico');
+      if (mm) mm.textContent = metaLista(it);
+      if (ic) ic.innerHTML = icon(iconoDe(tipoDe(it)));
+    });
+    var it = actual();
+    if (!it) return;
+    // Un archivo que resulta no abrir cambia la ficha entera (sin visor ni «Copiar enlace»): se repinta.
+    if (muerto(it) && document.querySelector('#pvFicha [data-pv-marco], #pvHoja:not([hidden]) [data-pv-marco]')){ refrescar(it, '', null); return; }
+    [document.getElementById('pvFicha'), document.querySelector('#pvHoja:not([hidden]) .cs-hoja-cont')].forEach(function(c){
+      var mt = c && c.querySelector('[data-pv-meta]');
+      if (!mt) return;
+      mt.innerHTML = metaFicha(it);
+      var av = c.querySelector('[data-pv-aviso]'), txt = avisoFicha(it);
+      if (av){ av.textContent = txt; av.hidden = !txt; }
+    });
+    ajustarVisor(document.getElementById('pvFicha'));   // la meta o el aviso pueden ocupar otra línea
+  }
+  function muerto(it){ var a = arch(it); return !!(a && a.acceso === false); }
+
+  /* ── Lista ── */
+  var grupo = 'todas', selFila = '', selId = '', vis = [], split = null, visorT = null, topT = null;
+  var hojaAntes = null, lectorAntes = null, pintada = '';
+  function estrecho(){ return window.matchMedia('(max-width: 1100px)').matches; }
+  function altoBarra(){ var t = document.querySelector('.topbar'); return t ? Math.round(t.getBoundingClientRect().height) : 64; }
+  /* Rótulos y ficha se pegan bajo la barra de arriba, que crece con el tamaño de texto. */
+  function medirTop(){ var s = document.getElementById('sec-presentaciones'); if (s) s.style.setProperty('--cs-top', altoBarra() + 'px'); }
+  function actual(){ return selId ? (modelo().porId[selId] || null) : null; }
+  function entrada(it){ return it.entradas[it.sel] || it.entradas[0]; }
+
+  window.renderP = function(filas){
+    if (typeof hideLoader === 'function') hideLoader('presentaciones');
+    var g = document.getElementById('gr-presentaciones');
+    if (!g) return;
+    if (!fuente().length){
+      g.innerHTML = empty('presentaciones');
+      vis = []; chips([]); pintada = '';
+      var f = document.getElementById('pvFicha'); if (f) f.innerHTML = '';
+      return;
+    }
+    var m = modelo(), vistos = {};
+    vis = [];
+    (filas || []).forEach(function(f){ var it = m.porFila.get(f); if (it && !vistos[it.id]){ vistos[it.id] = 1; vis.push(it); } });
+    pintar();
+  };
+
+  function pintar(){
+    var g = document.getElementById('gr-presentaciones');
+    if (!g) return;
+    medirTop();
+    chips(vis);
+    var ver = vis.filter(function(it){ return grupo === 'todas' || it.fam === grupo; });
+    if (!ver.length){
+      var q = typeof filtroDeSeccion === 'function' ? filtroDeSeccion('presentaciones') : '';
+      g.innerHTML = '<p class="cs-nada">' + (q
+        ? 'Nada coincide con <b>«' + esc(q) + '»</b>' + (grupo !== 'todas' ? ' en ' + esc(FAM[grupo].label.toLowerCase()) : '') + '. Prueba con otra palabra del nombre, como «monedero», «sepro» o «venta».'
+        : 'No hay presentaciones en este grupo.') +
+        (grupo !== 'todas' ? '<button type="button" class="cs-btn" data-pv-grupo="todas">Buscar en todas</button>' : '') +
+        (q ? '<button type="button" class="cs-btn" data-pv-limpiar>Quitar el filtro</button>' : '') + '</p>';
+      selFila = ''; pintada = '';
+      var fv = document.getElementById('pvFicha'); if (fv) fv.innerHTML = '';
+      return;
+    }
+    // Dentro de cada tema, en orden alfabético: el de la hoja es el de captura, no el de uso.
+    var alfa = function(a, b){ return a.ver.localeCompare(b.ver, 'es', { sensitivity: 'base' }); };
+    var h = '<div class="cs-sel" id="pvSel" aria-hidden="true"></div>';
+    ORDEN.forEach(function(f){
+      var del = ver.filter(function(it){ return it.fam === f; }).sort(alfa);
+      if (del.length) h += grupoHTML(f, del);
+    });
+    g.innerHTML = h;
+    // La selección sobrevive al filtro: la misma presentación si sigue en la lista, si no la primera.
+    var fila = selId ? g.querySelector('.cs-fila[data-pv-id="' + selId + '"]') : null;
+    if (!fila) fila = g.querySelector('.cs-fila');
+    marcar(fila, true);
+  }
+  function chips(items){
+    var c = document.getElementById('pvChips');
+    if (!c) return;
+    if (!fuente().length){ c.innerHTML = ''; return; }
+    var h = '<button type="button" class="g-chip" data-pv-grupo="todas" aria-pressed="' + (grupo === 'todas') + '">Todas <b>' + items.length + '</b></button>';
+    ORDEN.forEach(function(f){
+      var n = items.filter(function(it){ return it.fam === f; }).length;
+      if (!n && grupo !== f) return;
+      h += '<button type="button" class="g-chip" data-pv-grupo="' + f + '" aria-pressed="' + (grupo === f) + '">' + esc(FAM[f].label) + ' <b>' + n + '</b></button>';
+    });
+    c.innerHTML = h;
+  }
+  function grupoHTML(f, items){
+    return '<div class="cs-grupo" role="group" aria-labelledby="pv-g-' + f + '" data-fam="' + f + '">' +
+      '<div class="cs-grupo-hd">' + icon(FAM[f].icono) + '<h2 id="pv-g-' + f + '">' + esc(FAM[f].label) + '</h2><b>' + items.length + '</b></div>' +
+      items.map(filaHTML).join('') + '</div>';
+  }
+  // El enlace va FUERA de la opción (un option no lleva controles): es para el ratón; con teclado, Enter.
+  function filaHTML(it){
+    var e = entrada(it), t = tipoDe(it);
+    var ir = e.liga
+      ? '<a class="cs-ir" href="' + esc(e.liga) + '" target="_blank" rel="noopener" data-track="' + esc(it.nombre) + '" tabindex="-1" aria-hidden="true" title="Abrir en pestaña nueva">' + icon('external') + '</a>'
+      : '';
+    return '<div class="cs-fila" id="pv-' + it.id + '" data-pv-id="' + it.id + '" data-fam="' + it.fam + '">' +
+      '<div class="cs-opc" role="option" aria-selected="false" tabindex="-1">' +
+        '<span class="cs-ico" aria-hidden="true">' + icon(iconoDe(t)) + '</span>' +
+        '<span class="cs-txt"><span class="cs-nom">' + esc(it.ver) + '</span><span class="cs-meta" data-pv-lmeta>' + esc(metaLista(it)) + '</span></span>' +
+        '<span></span>' +
+      '</div>' + ir + '</div>';
+  }
+  function marcar(fila, inmediato){
+    var g = document.getElementById('gr-presentaciones');
+    if (!g || !fila) return;
+    var antes = selFila ? document.getElementById(selFila) : null;
+    g.querySelectorAll('.cs-fila.is-sel').forEach(function(f){
+      f.classList.remove('is-sel');
+      var o = f.querySelector('.cs-opc'); o.setAttribute('aria-selected', 'false'); o.tabIndex = -1;
+    });
+    fila.classList.add('is-sel');
+    var o = fila.querySelector('.cs-opc'); o.setAttribute('aria-selected', 'true'); o.tabIndex = 0;
+    selFila = fila.id; selId = fila.getAttribute('data-pv-id');
+    if (!inmediato && antes && antes !== fila) deslizar(antes, fila);
+    var ficha = document.getElementById('pvFicha'), it = actual();
+    if (it && (firma(it) !== pintada || (ficha && !ficha.querySelector('.cs-cartel')))) pintarFicha(it, inmediato);
+  }
+  /* La selección se desliza de la fila de antes a la nueva. El fondo de reposo es CSS (.is-sel): el
+     bloque solo existe durante el viaje, y sin GSAP nada queda mal pintado. */
+  function deslizar(de, a){
+    var s = document.getElementById('pvSel');
+    if (!s || !GS() || !a.offsetParent || !de.offsetParent) return;
+    a.classList.add('cs-llega');
+    gsap.killTweensOf(s);
+    gsap.set(s, { y: de.offsetTop, height: de.offsetHeight, opacity: 1 });
+    gsap.to(s, { y: a.offsetTop, duration: .3, ease: 'expo.out', overwrite: 'auto',
+      onComplete: function(){ a.classList.remove('cs-llega'); gsap.set(s, { opacity: 0 }); } });
+    setTimeout(function(){ a.classList.remove('cs-llega'); }, 700);
+  }
+
+  /* ── Ficha ── */
+  function parrafos(t){
+    return String(t).replace(/\r\n?/g, '\n').split(/\n{2,}/).map(function(p){
+      p = p.trim();
+      return p ? '<p>' + esc(p).replace(/\n/g, '<br>') + '</p>' : '';
+    }).join('');
+  }
+  function entradasHTML(it){
+    if (it.entradas.length < 2) return '';
+    return '<div class="pv-entradas" role="group" aria-label="Dónde abre">' +
+      '<span class="pv-entradas-lbl" aria-hidden="true">Abre en</span>' +
+      it.entradas.map(function(e, k){
+        return '<button type="button" class="g-chip" data-pv-ent="' + k + '" aria-pressed="' + (k === it.sel) + '" title="' + esc(e.nombre) + '">' +
+          '<span>' + esc(e.etiqueta) + '</span>' + (e.n ? '<small>diap. ' + e.n + '</small>' : '') + '</button>';
+      }).join('') + '</div>';
+  }
+  /* El pie solo dice dónde abre cuando el enlace apunta a una diapositiva (o a un apartado), y ofrece verla
+     desde el principio: el de «Mesa de Regalos» abre en la 36. Una «id.g…» no dice su número: solo que abre
+     donde apunta el enlace. Con varias entradas, las fichas ya lo dicen. Un archivo que no abre, sin visor. */
+  function visorHTML(it){
+    var e = entrada(it);
+    if (!e.d || muerto(it)) return '';
+    var doc = e.d.clase !== 'presentation', ancla = !!(doc ? e.d.heading : e.d.slide);
+    var pie = '';
+    if (ancla){
+      var donde = it.inicio ? 'Desde el principio.'
+        : it.entradas.length > 1 ? ''
+        : e.n > 1 ? 'Abre en la diapositiva ' + e.n + '.'
+        : doc ? 'Abre en el apartado del enlace.' : 'Abre donde apunta el enlace.';
+      pie = '<div class="pv-visor-pie">' + (donde ? '<p>' + donde + '</p>' : '') +
+        '<button type="button" class="pv-inicio" data-pv-inicio aria-pressed="' + it.inicio + '">' + (it.inicio ? 'Volver a donde abre el enlace' : 'Ver desde el principio') + '</button></div>';
+    }
+    return '<div class="pv-visor">' +
+      '<div class="pv-marco' + (doc ? ' es-doc' : '') + '" data-pv-marco>' +
+        '<div class="pv-marco-hueco"></div>' +
+        '<div class="pv-marco-espera" aria-hidden="true">' + icon(iconoDe(tipoDe(it))) + '<span>Cargando la vista…</span></div>' +
+      '</div>' + pie +
+    '</div>';
+  }
+  function fichaHTML(it, suf){
+    var e = entrada(it);
+    var tam = it.a.length <= 12 ? 's' : it.a.length <= 24 ? 'm' : 'l';
+    var abrir = e.liga
+      ? '<a class="cs-abrir" href="' + esc(e.liga) + '" target="_blank" rel="noopener" data-track="' + esc(it.nombre) + '">Abrir ' + icon('external') + '</a>'
+      : '<span class="cs-abrir is-off">Sin enlace</span>';
+    // Un archivo que ni el Portal abre: queda «Abrir» (la cuenta de quien mira quizá sí puede) y la bandera;
+    // copiar un enlace que nadie abre contradiría el aviso.
+    var vivo = !muerto(it);
+    var copiar = e.liga && vivo ? '<button type="button" class="cs-btn" data-pv-copiar>' + icon('copy') + 'Copiar enlace</button>' : '';
+    var ampliar = e.d && vivo ? '<button type="button" class="cs-btn" data-pv-ampliar title="Ver la presentación a lo grande">' + icon('maximize') + '<span class="pv-btn-txt">Ampliar</span></button>' : '';
+    var aviso = avisoFicha(it);
+    return '<div class="cs-cartel tam-' + tam + '"><span class="cs-cartel-t"' + (suf ? ' id="pvHojaT"' : '') + '>' + esc(it.a) + '</span>' +
+        (it.b ? '<span class="cs-cartel-s">' + esc(it.b) + '</span>' : '') + '</div>' +
+      '<div class="cs-ficha-cuerpo">' +
+        '<div class="cs-ficha-meta" data-fam="' + it.fam + '" data-pv-meta>' + metaFicha(it) + '</div>' +
+        // La estrella y la bandera van con la entrada elegida: así las colecciones la encuentran por su renglón.
+        '<div class="cs-ficha-acc">' + abrir + copiar + ampliar +
+          '<span class="cs-ficha-mas">' + collectBtn('presentaciones', e.nombre) + reportBtn('Presentaciones', e.nombre, e.liga) + '</span></div>' +
+        entradasHTML(it) +
+        '<p class="cs-nota" data-pv-aviso' + (aviso ? '' : ' hidden') + '>' + esc(aviso) + '</p>' +
+        (it.desc ? '<div class="cs-desc">' + parrafos(it.desc) + '</div>' : '') +
+        visorHTML(it) +
+      '</div>';
+  }
+  function pintarFicha(it, inmediato){
+    var el = document.getElementById('pvFicha');
+    if (!el) return;
+    if (split){ try { split.revert(); } catch (e) {} split = null; }
+    clearTimeout(visorT);
+    if (!it){
+      pintada = '';
+      el.innerHTML = fuente().length ? '<div class="cs-ficha-vacia">Elige una presentación de la lista para verla aquí.</div>' : '';
+      return;
+    }
+    pintada = firma(it);
+    el.setAttribute('data-fam', it.fam);
+    el.innerHTML = fichaHTML(it, '');
+    ajustarVisor(el);
+    cargarVisor(el, it);
+    if (inmediato || !GS()) return;
+    // El nombre sube letra a letra y las rayas se corren, como el cartel de Herramientas. Todo nace
+    // visible (fromTo explícito) y la red de seguridad lo termina si el reloj se para.
+    var cartel = el.querySelector('.cs-cartel');
+    if (cartel) cartel.style.setProperty('--cs-rayas', (Math.round(Math.random() * 40) - 20) + 'px');
+    var t = el.querySelector('.cs-cartel-t');
+    if (!t || !window.SplitText) return;
+    var deshacer = function(){ if (split){ try { split.revert(); } catch (e) {} split = null; } };
+    split = SplitText.create(t, { type: 'words,chars', mask: 'chars' });
+    var tl = gsap.timeline({ onComplete: deshacer });
+    tl.fromTo(split.chars, { yPercent: 105 }, { yPercent: 0, duration: .55, ease: 'power4.out', stagger: { amount: .22 } });
+    setTimeout(function(){ if (tl.progress() < 1) tl.progress(1); }, 1200);
+  }
+  /* El iframe solo se crea con el visor a la vista (la sección abierta, la ficha o la hoja visibles)
+     y un momento después de elegir: recorrer la lista con las flechas no carga trece presentaciones. */
+  function cargarVisor(cont, it){
+    clearTimeout(visorT);
+    var marco = cont && cont.querySelector('[data-pv-marco]');
+    if (!marco || !it || marco.querySelector('iframe') || !marco.getClientRects().length) return;
+    visorT = setTimeout(function(){
+      if (!document.contains(marco) || marco.querySelector('iframe') || !marco.getClientRects().length) return;
+      var f = document.createElement('iframe');
+      f.addEventListener('load', function(){ marco.classList.add('listo'); });
+      f.src = urlVisor(entrada(it).d, it.inicio);
+      f.title = 'Vista de «' + it.ver + '»';
+      f.setAttribute('allow', 'fullscreen');
+      f.setAttribute('allowfullscreen', '');
+      var h = marco.querySelector('.pv-marco-hueco');
+      if (h) marco.replaceChild(f, h); else marco.insertBefore(f, marco.firstChild);
+      // Sin red hacia Google la espera no se va sola: al menos que diga qué hacer.
+      setTimeout(function(){
+        var s = !marco.classList.contains('listo') && marco.querySelector('.pv-marco-espera span');
+        if (s) s.textContent = 'La vista tarda en cargar. Puedes abrirla con «Abrir».';
+      }, 15000);
+    }, 260);
+  }
+  /* El visor crece con el ancho (16:9 y la barra de Google) hasta donde la ficha deja, con un mínimo de 220 px:
+     así la ficha fija se ve entera sin bajar. Se mide TODO lo demás (la ficha sin el marco) en una sola lectura:
+     cambiar --pv-tope y volver a medir en el mismo instante devolvía la altura de antes. En la hoja de abajo
+     manda el CSS (64vh). */
+  function ajustarVisor(fi){
+    var marco = fi && fi.querySelector('[data-pv-marco]'), cuerpo = fi && fi.querySelector('.cs-ficha-cuerpo');
+    if (!marco || !cuerpo || !fi.getClientRects().length) return;
+    var max = parseFloat(getComputedStyle(fi).maxHeight);
+    if (!(max > 0)) return;
+    var cartel = fi.querySelector('.cs-cartel');
+    var resto = (cartel ? cartel.offsetHeight : 0) + cuerpo.scrollHeight - marco.offsetHeight;   // todo menos el visor
+    var cabe = Math.floor(max - 2 - resto - 2);                                                   // bordes de la ficha y del marco
+    var natural = marco.classList.contains('es-doc') ? cabe : Math.ceil(marco.clientWidth * .5625 + 38);
+    fi.style.setProperty('--pv-tope', Math.max(220, Math.min(cabe, natural)) + 'px');
+  }
+  /* Otra entrada o «desde el principio»: se repinta la ficha (y la hoja, si está abierta) sin mover el foco. */
+  function refrescar(it, selector, origen){
+    var enHoja = !!(origen && origen.closest && origen.closest('#pvHoja'));
+    var fi = document.getElementById('pvFicha'), h = document.getElementById('pvHoja');
+    guardar(it);
+    if (fi && selId === it.id){ pintada = firma(it); fi.innerHTML = fichaHTML(it, ''); ajustarVisor(fi); cargarVisor(fi, it); }
+    if (h && !h.hidden){ var c = h.querySelector('.cs-hoja-cont'); c.innerHTML = fichaHTML(it, '-h'); cargarVisor(c, it); }
+    actualizarIr(it);
+    var donde = enHoja ? h : fi, b = selector && donde ? donde.querySelector(selector) : null;
+    if (b) b.focus({ preventScroll: true });
+  }
+  function actualizarIr(it){
+    var e = entrada(it);
+    document.querySelectorAll('#gr-presentaciones .cs-fila[data-pv-id="' + it.id + '"] .cs-ir').forEach(function(a){ if (e.liga) a.href = e.liga; });
+  }
+  function abrirEnlace(it){
+    if (!it) return;
+    var e = entrada(it);
+    if (!e.liga){ if (typeof showToast === 'function') showToast(null, 'Esta presentación no tiene enlace en la hoja'); return; }
+    window.open(e.liga, '_blank', 'noopener');
+    if (typeof trackUse === 'function') trackUse(it.nombre);
+  }
+
+  /* ── Lector: «Ampliar». La vista de Google a lo grande, para estudiarla sin salir del Portal. ── */
+  function abrirLector(it){
+    if (!it) return;
+    var e = entrada(it);
+    if (!e.d) return;
+    var L = document.getElementById('pvLector');
+    if (!L){
+      L = document.createElement('div');
+      L.className = 'pv-lector'; L.id = 'pvLector'; L.hidden = true;
+      L.innerHTML = '<div class="pv-lector-fondo" data-pv-cerrar-lector></div>' +
+        '<div class="pv-lector-panel" role="dialog" aria-modal="true" aria-labelledby="pvLectorT">' +
+          '<div class="pv-lector-hd"><h2 class="pv-lector-t" id="pvLectorT"></h2><span class="pv-lector-acc"></span>' +
+            '<button type="button" class="pv-lector-cerrar" data-pv-cerrar-lector aria-label="Cerrar el lector">' + icon('close') + '</button></div>' +
+          '<div class="pv-lector-marco"></div>' +
+          '<span class="pv-vuelta" tabindex="0" data-pv-vuelta></span>' +
+        '</div>';
+      document.body.appendChild(L);
+      L.addEventListener('keydown', function(ev){ trampa(L, ev, cerrarLector); });
+      L.addEventListener('focusin', vuelta);
+    }
+    L.classList.toggle('es-doc', e.d.clase !== 'presentation');
+    L.querySelector('.pv-lector-t').textContent = it.ver;
+    L.querySelector('.pv-lector-acc').innerHTML = e.liga
+      ? '<a class="cs-abrir" href="' + esc(e.liga) + '" target="_blank" rel="noopener" data-track="' + esc(it.nombre) + '">Abrir ' + icon('external') + '</a>' +
+        '<button type="button" class="cs-btn" data-pv-copiar>' + icon('copy') + 'Copiar enlace</button>'
+      : '';
+    var marco = L.querySelector('.pv-lector-marco'), f = document.createElement('iframe');
+    marco.classList.remove('listo');
+    marco.innerHTML = '<div class="pv-lector-espera" aria-hidden="true">Cargando la vista…</div>';
+    f.addEventListener('load', function(){ marco.classList.add('listo'); });
+    f.src = urlVisor(e.d, it.inicio);
+    f.title = 'Vista ampliada de «' + it.ver + '»';
+    f.setAttribute('allow', 'fullscreen');
+    f.setAttribute('allowfullscreen', '');
+    marco.appendChild(f);
+    if (L.hidden) lectorAntes = document.activeElement;
+    L.hidden = false;
+    document.body.classList.add('cs-hoja-abierta');
+    apagarFondo(L);
+    if (GS()){
+      gsap.fromTo(L.querySelector('.pv-lector-fondo'), { opacity: 0 }, { opacity: 1, duration: .22, clearProps: 'opacity' });
+      gsap.fromTo(L.querySelector('.pv-lector-panel'), { y: 14, scale: .985 }, { y: 0, scale: 1, duration: .4, ease: 'expo.out', overwrite: 'auto', clearProps: 'transform' });
+    }
+    L.querySelector('.pv-lector-cerrar').focus({ preventScroll: true });
+  }
+  function cerrarLector(){
+    var L = document.getElementById('pvLector');
+    if (!L || L.hidden) return;
+    L.hidden = true;
+    L.querySelector('.pv-lector-marco').innerHTML = '';   // el iframe se va: deja de gastar memoria y red
+    encenderFondo();
+    var h = document.getElementById('pvHoja');
+    if (!h || h.hidden) document.body.classList.remove('cs-hoja-abierta');
+    if (lectorAntes && lectorAntes.focus && document.contains(lectorAntes)) lectorAntes.focus({ preventScroll: true });
+  }
+  /* Con el foco DENTRO del marco de Google, ni Tab ni Esc llegan al diálogo: al salir del marco el foco caía en
+     el Portal de detrás. Por eso el lector apaga el resto de la página (inert) y, después del marco, un
+     «retorno» manda el foco al primer control. La hoja de abajo solo lleva el retorno: apagar el fondo dejaría
+     sin tocar el selector de colecciones de su estrella. */
+  var apagados = [];
+  function apagarFondo(dialogo){
+    encenderFondo();
+    Array.prototype.forEach.call(document.body.children, function(el){
+      if (el === dialogo || el.inert || /^(SCRIPT|STYLE|TEMPLATE|LINK)$/.test(el.tagName)) return;
+      el.inert = true;
+      apagados.push(el);
+    });
+  }
+  function encenderFondo(){ apagados.forEach(function(el){ el.inert = false; }); apagados = []; }
+  function vuelta(ev){
+    if (!ev.target.hasAttribute || !ev.target.hasAttribute('data-pv-vuelta')) return;
+    var caja = ev.currentTarget, primero = caja.querySelector('a[href], button:not([disabled])');
+    if (primero) primero.focus({ preventScroll: true });
+  }
+
+  /* ── Hoja de abajo: en pantallas angostas no cabe la ficha al lado de la lista ── */
+  function abrirHoja(it){
+    if (!it) return;
+    var h = document.getElementById('pvHoja');
+    if (!h){
+      h = document.createElement('div');
+      h.className = 'cs-hoja pv-hoja'; h.id = 'pvHoja'; h.hidden = true;
+      h.innerHTML = '<div class="cs-hoja-fondo" data-pv-cerrar></div>' +
+        '<div class="cs-hoja-panel" role="dialog" aria-modal="true" aria-labelledby="pvHojaT">' +
+          '<span class="cs-hoja-agarre" aria-hidden="true"></span>' +
+          '<button type="button" class="cs-hoja-cerrar" data-pv-cerrar aria-label="Cerrar la ficha">' + icon('close') + '</button>' +
+          '<div class="cs-hoja-cont"></div>' +
+          '<span class="pv-vuelta" tabindex="0" data-pv-vuelta></span></div>';
+      document.body.appendChild(h);
+      h.addEventListener('keydown', function(ev){ trampa(h, ev, cerrarHoja); });
+      h.addEventListener('focusin', vuelta);
+      arrastre(h);
+    }
+    var cont = h.querySelector('.cs-hoja-cont');
+    cont.setAttribute('data-fam', it.fam);
+    cont.innerHTML = fichaHTML(it, '-h');
+    if (h.hidden) hojaAntes = document.activeElement;
+    h.hidden = false;
+    document.body.classList.add('cs-hoja-abierta');
+    var panel = h.querySelector('.cs-hoja-panel');
+    panel.scrollTop = 0;
+    panel.style.transform = '';
+    if (GS()){
+      gsap.fromTo(panel, { yPercent: 100 }, { yPercent: 0, duration: .42, ease: 'expo.out', overwrite: 'auto', clearProps: 'transform' });
+      gsap.fromTo(h.querySelector('.cs-hoja-fondo'), { opacity: 0 }, { opacity: 1, duration: .25, clearProps: 'opacity' });
+    }
+    h.querySelector('.cs-hoja-cerrar').focus({ preventScroll: true });
+    cargarVisor(cont, it);
+  }
+  function arrastre(h){
+    var panel = h.querySelector('.cs-hoja-panel'), y0 = null, dy = 0, t0 = 0;
+    panel.addEventListener('pointerdown', function(e){
+      if (!e.target.closest('.cs-cartel, .cs-hoja-agarre') || e.target.closest('button, a') || panel.scrollTop > 0) return;
+      y0 = e.clientY; dy = 0; t0 = performance.now();
+      try { panel.setPointerCapture(e.pointerId); } catch (err) {}
+    });
+    panel.addEventListener('pointermove', function(e){
+      if (y0 === null) return;
+      dy = Math.max(0, e.clientY - y0);
+      panel.style.transform = 'translateY(' + dy + 'px)';
+    });
+    var soltar = function(){
+      if (y0 === null) return;
+      var rapido = dy / Math.max(1, performance.now() - t0) > .6;
+      y0 = null;
+      if (dy > panel.offsetHeight * .25 || (rapido && dy > 24)){ cerrarHoja(); return; }
+      if (window.gsap && GS()) gsap.to(panel, { y: 0, duration: .25, ease: 'power3.out', overwrite: 'auto', clearProps: 'transform' });
+      else panel.style.transform = '';
+    };
+    panel.addEventListener('pointerup', soltar);
+    panel.addEventListener('pointercancel', soltar);
+  }
+  function cerrarHoja(){
+    var h = document.getElementById('pvHoja');
+    if (!h || h.hidden) return;
+    var panel = h.querySelector('.cs-hoja-panel'), hecho = false;
+    var fin = function(){
+      if (hecho) return;
+      hecho = true;
+      h.hidden = true;
+      h.querySelector('.cs-hoja-cont').innerHTML = '';   // con el visor dentro: que no siga cargando
+      document.body.classList.remove('cs-hoja-abierta');
+      panel.style.transform = '';
+      if (window.gsap) gsap.set(panel, { clearProps: 'transform' });
+      if (hojaAntes && hojaAntes.focus && document.contains(hojaAntes)) hojaAntes.focus({ preventScroll: true });
+    };
+    if (GS()){
+      gsap.to(panel, { yPercent: 100, duration: .26, ease: 'power2.in', overwrite: 'auto', onComplete: fin });
+      setTimeout(fin, 500);   // con la pestaña oculta el tween no termina: la hoja no se queda a medias
+    } else fin();
+  }
+  function trampa(caja, e, cerrar){
+    if (e.key === 'Escape'){ e.stopPropagation(); cerrar(); return; }
+    if (e.key !== 'Tab') return;
+    var f = Array.prototype.filter.call(caja.querySelectorAll('a[href], button:not([disabled]), iframe, [tabindex]:not([tabindex="-1"]):not([data-pv-vuelta])'), function(x){ return x.getClientRects().length > 0; });
+    if (!f.length) return;
+    var a = f[0], z = f[f.length - 1];
+    if (e.shiftKey && document.activeElement === a){ e.preventDefault(); z.focus(); }
+    else if (!e.shiftKey && document.activeElement === z){ e.preventDefault(); a.focus(); }
+  }
+
+  /* ── Teclado en la lista: ↑ ↓ Inicio Fin mueven, Enter abre, Espacio o → amplían (en angosto, la hoja) ── */
+  function irA(fila){
+    marcar(fila, false);
+    fila.querySelector('.cs-opc').focus({ preventScroll: true });
+    var r = fila.getBoundingClientRect(), tope = altoBarra() + 48, suelo = window.innerHeight - 16;
+    if (r.top < tope) window.scrollBy({ top: r.top - tope, behavior: 'instant' });
+    else if (r.bottom > suelo) window.scrollBy({ top: r.bottom - suelo, behavior: 'instant' });
+  }
+  function teclado(e){
+    var opc = e.target.closest && e.target.closest('.cs-opc');
+    if (!opc) return;
+    var filas = Array.prototype.slice.call(document.querySelectorAll('#gr-presentaciones .cs-fila'));
+    var i = filas.indexOf(opc.parentElement), j = -1;
+    if (e.key === 'ArrowDown') j = Math.min(filas.length - 1, i + 1);
+    else if (e.key === 'ArrowUp') j = Math.max(0, i - 1);
+    else if (e.key === 'Home') j = 0;
+    else if (e.key === 'End') j = filas.length - 1;
+    if (j > -1){ e.preventDefault(); if (j !== i) irA(filas[j]); return; }
+    var it = modelo().porId[opc.parentElement.getAttribute('data-pv-id')];
+    if (e.key === 'Enter'){ e.preventDefault(); abrirEnlace(it); return; }
+    if (e.key === ' ' || e.key === 'ArrowRight'){ e.preventDefault(); if (estrecho()) abrirHoja(it); else abrirLector(it); }
+  }
+
+  /* ── Enganches del guion grande ── */
+  window.pvContar = function(filas){
+    var ids = {}, n = 0;
+    (filas || []).forEach(function(p){
+      if (!String((p && p.nombre) || '').trim()) return;
+      var d = docDe(p.liga);
+      if (d){ if (ids[d.id]) return; ids[d.id] = 1; }
+      n++;
+    });
+    return n;
+  };
+  window.pvCoincide = function(fila, t){
+    var it = modelo().porFila.get(fila);
+    if (!it) return normal([fila && fila.nombre, fila && fila.descripcion].join(' ')).indexOf(t) > -1;
+    var a = arch(it);
+    // El nombre del tema no entra: «monedero» traería Reprocesos por estar en «Monedero y pagos». Para eso están los chips.
+    var txt = it.entradas.map(function(e){ return e.nombre + ' ' + e.ver; }).join(' ') + ' ' + it.desc + ' ' + tipoDe(it) + ' ' + ((a && a.titulo) || '');
+    return normal(txt).indexOf(t) > -1;
+  };
+  window.pvElemento = function(nombre){
+    var want = normal(nombre);
+    if (!want) return null;
+    var m = modelo(), hit = null, k = -1;
+    [function(x){ return x === want; }, function(x){ return x.indexOf(want) > -1; }].some(function(prueba){
+      return m.items.some(function(it){
+        return it.entradas.some(function(e, i){ if (prueba(normal(e.nombre))){ hit = it; k = i; return true; } return false; });
+      });
+    });
+    if (!hit) return null;
+    var g = document.getElementById('gr-presentaciones');
+    var fila = g && g.querySelector('.cs-fila[data-pv-id="' + hit.id + '"]');
+    // Un chip de tema puede tenerla escondida: se vuelve a «Todas».
+    if (!fila && g && grupo !== 'todas' && vis.indexOf(hit) > -1){ grupo = 'todas'; pintar(); fila = g.querySelector('.cs-fila[data-pv-id="' + hit.id + '"]'); }
+    if (!fila) return null;
+    if (hit.sel !== k){
+      hit.sel = k; hit.inicio = false;
+      if (selId === hit.id) refrescar(hit, '', null); else { guardar(hit); actualizarIr(hit); }
+    }
+    return fila;
+  };
+  window.pvRevelar = function(fila){
+    if (!fila || !fila.closest || !fila.closest('#gr-presentaciones')) return false;
+    marcar(fila, true);
+    if (estrecho()){ abrirHoja(actual()); return true; }
+    return false;
+  };
+  /* sectionEnter revela la lista y la ficha desde opacidad 0, y son contenedores que no se repintan:
+     si el reloj de GSAP se para (pestaña oculta), la red de seguridad los deja visibles. */
+  window.pvAlEntrar = function(){
+    medirTop();
+    cargarArchivos();
+    var fi = document.getElementById('pvFicha'), it = actual();
+    if (fi && it){ ajustarVisor(fi); cargarVisor(fi, it); }
+    setTimeout(function(){
+      document.querySelectorAll('#sec-presentaciones .cs-lista, #sec-presentaciones .cs-ficha').forEach(function(el){
+        if (parseFloat(getComputedStyle(el).opacity) < 1){ if (window.gsap) gsap.set(el, { opacity: 1, clearProps: 'opacity,transform' }); else el.style.opacity = ''; }
+      });
+    }, 1500);
+  };
+
+  document.addEventListener('click', function(ev){
+    var t = ev.target;
+    if (!t || !t.closest) return;
+    var ch = t.closest('[data-pv-grupo]');
+    if (ch){
+      grupo = ch.getAttribute('data-pv-grupo');
+      pintar();
+      var nuevo = document.querySelector('#pvChips [data-pv-grupo="' + grupo + '"]');
+      if (nuevo) nuevo.focus({ preventScroll: true });
+      return;
+    }
+    if (t.closest('[data-pv-limpiar]')){
+      var inp = document.querySelector('#sec-presentaciones .filter-input input');
+      if (inp){ inp.value = ''; if (typeof filterSec === 'function') filterSec('presentaciones', ''); inp.focus({ preventScroll: true }); }
+      return;
+    }
+    var cop = t.closest('[data-pv-copiar]');
+    if (cop){
+      var ic = actual(), ec = ic && entrada(ic);
+      if (ec && ec.liga && typeof copyText === 'function') copyText(ec.liga, cop);
+      return;
+    }
+    if (t.closest('[data-pv-ampliar]')){ abrirLector(actual()); return; }
+    var en = t.closest('[data-pv-ent]');
+    if (en){
+      var ie = actual(), k = Number(en.getAttribute('data-pv-ent'));
+      if (!ie || k === ie.sel) return;
+      ie.sel = k; ie.inicio = false;
+      refrescar(ie, '[data-pv-ent="' + k + '"]', en);
+      return;
+    }
+    var ini = t.closest('[data-pv-inicio]');
+    if (ini){
+      var ii = actual();
+      if (!ii) return;
+      ii.inicio = !ii.inicio;
+      refrescar(ii, '[data-pv-inicio]', ini);
+      return;
+    }
+    if (t.closest('[data-pv-cerrar-lector]')){ cerrarLector(); return; }
+    if (t.closest('[data-pv-cerrar]')){ cerrarHoja(); return; }
+    var opc = t.closest('#gr-presentaciones .cs-opc');
+    if (opc){
+      marcar(opc.parentElement, false);
+      opc.focus({ preventScroll: true });
+      if (estrecho()) abrirHoja(actual());
+    }
+  });
+  // Este parcial se carga antes que la sección: la lista se engancha cuando existe.
+  (function(){
+    var enganchar = function(){
+      var g = document.getElementById('gr-presentaciones');
+      if (g && !g.getAttribute('data-pv-listo')){ g.setAttribute('data-pv-listo', '1'); g.addEventListener('keydown', teclado); }
+    };
+    if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', enganchar); else enganchar();
+    // La tipografía llega después: con ella la fila de botones puede pasar a dos líneas. Se vuelve a medir.
+    if (document.fonts && document.fonts.addEventListener) document.fonts.addEventListener('loadingdone', function(){
+      var fi = document.getElementById('pvFicha');
+      if (fi && actual()) ajustarVisor(fi);
+    });
+    window.addEventListener('resize', function(){
+      clearTimeout(topT);
+      topT = setTimeout(function(){
+        medirTop();
+        var fi = document.getElementById('pvFicha'), it = actual();
+        if (!estrecho() && fi && it){ ajustarVisor(fi); cargarVisor(fi, it); }
+      }, 150);
+    });
+  })();
+})();
+</script>

@@ -1019,6 +1019,48 @@ function pdpPromos_() {
   return out.slice(0, 200);
 }
 
+// ── PRESENTACIONES · lo que dice Drive de cada archivo de la hoja (26/09/2026) ─────────────────────────
+/**
+ * La hoja «Presentaciones» trae el nombre que le puso el equipo y un enlace. Drive sabe el título real del
+ * archivo, qué es (presentación de Google, PowerPoint, documento) y cuándo se editó por última vez: con eso la
+ * ficha dice «En Drive se llama "Cat 28: Consulta Métodos de Pago"» y «Última edición: enero de 2024».
+ * Los id salen de la hoja, NUNCA del cliente (sería leer cualquier archivo con la cuenta del script). Un
+ * archivo que la cuenta del script no abre («no existe» o «sin permiso») vuelve como { acceso: false }; cualquier
+ * otro error (cuota, tiempo) es pasajero: { error: true }, la respuesta lleva pasajero:true y se guarda solo cinco
+ * minutos. Si no, seis horas en CacheService: si el equipo arregla un acceso, el aviso tarda hasta eso en irse.
+ */
+function pvArchivos() {
+  const cache = CacheService.getScriptCache();
+  const hit = cache.get('pvArchivos_v1');
+  if (hit) { try { return JSON.parse(hit); } catch (e) {} }
+  const out = { status: 'ok', archivos: {} };
+  let pasajero = false;
+  try {
+    const ids = [];
+    (fetchToolsData().presentaciones || []).forEach(function (p) {
+      const s = String((p && p.liga) || '').trim();
+      if (!/^https:\/\/(docs|drive)\.google\.com\//i.test(s)) return;
+      const m = s.match(/\/(?:document|presentation|spreadsheets|file)\/(?:u\/\d+\/)?d\/([a-zA-Z0-9_-]{10,})/);
+      if (m && ids.indexOf(m[1]) < 0) ids.push(m[1]);
+    });
+    ids.slice(0, 60).forEach(function (id) {
+      try {
+        const f = DriveApp.getFileById(id);
+        out.archivos[id] = { titulo: String(f.getName() || '').slice(0, 200), tipo: String(f.getMimeType() || ''), editado: f.getLastUpdated().getTime() };
+      } catch (e) {
+        const msg = String((e && e.message) || e);
+        if (/not found|no item|could not be found|permission|access|denied|encontr|permiso|acceso/i.test(msg)) out.archivos[id] = { acceso: false };
+        else { out.archivos[id] = { error: true }; pasajero = true; }
+      }
+    });
+  } catch (e) {
+    return { status: 'error', error: String((e && e.message) || e).slice(0, 200) };
+  }
+  if (pasajero) out.pasajero = true;
+  try { cache.put('pvArchivos_v1', JSON.stringify(out), pasajero ? 300 : 21600); } catch (e) {}
+  return out;
+}
+
 function reportBrokenLink(report) {
   try {
     // El Portal es público dentro del dominio y esta es su única escritura abierta:

@@ -1,0 +1,149 @@
+{
+ "leida": "2026-09-26",
+ "nota": "Hoja «Presentaciones» del Portal (Nombre | LIGA | DESCRPCION) y lo que dice Drive de cada archivo (pvArchivos), leídos con el Drive del creador.",
+ "hoja": [
+  {
+   "nombre": "USO DE CTE",
+   "liga": "https://docs.google.com/presentation/d/1mPfSkSCm4sSXlbcMgzAkz-0su7nCMP5dGYQdxxf1OFw/edit#slide=id.g215f3720fe2_0_8",
+   "descripcion": ""
+  },
+  {
+   "nombre": "MONEDERO DIGITAL",
+   "liga": "https://docs.google.com/presentation/d/1YBFEIrqqzi1jhI390ydQazJ01XWy5L1VxUSpp0s7yf0/edit#slide=id.p4",
+   "descripcion": ""
+  },
+  {
+   "nombre": "SEPROS Y RECOGIDOS",
+   "liga": "https://docs.google.com/presentation/d/1fwiK1Qm0P4iAOXX52-bdRO5-kx59CJfSfgT3E70CJLE/edit#slide=id.ge71d5856b8_0_14",
+   "descripcion": ""
+  },
+  {
+   "nombre": "USO DE MDA",
+   "liga": "https://docs.google.com/presentation/d/1Qbb8VRyUK9Oaqmfpd6WxT1Y-QKxoKzf_/edit#slide=id.g1c179bc04fd_0_5",
+   "descripcion": ""
+  },
+  {
+   "nombre": "MENSAJERIAS",
+   "liga": "https://docs.google.com/presentation/d/1tUFffSlA77JeXLkpyR1AOFHWHhG2QkMf/edit#slide=id.g2f59b7a6880_1_22",
+   "descripcion": ""
+  },
+  {
+   "nombre": "REPROCESOS",
+   "liga": "https://docs.google.com/presentation/d/1aHHeBWcXhh72cmdD-VHzf60kKWiGA15qEKS-bXmX1kQ/edit#slide=id.g9546dd25a1_0_495",
+   "descripcion": ""
+  },
+  {
+   "nombre": "LPC",
+   "liga": "https://docs.google.com/document/d/1LdbvKAvWXuJ2J0g0p6KdJ9ml7QbMSC8uU2_L9B2Y30E/edit?hl=es&forcehl=1&tab=t.0#heading=h.93ycjxoua1i9",
+   "descripcion": ""
+  },
+  {
+   "nombre": "Mesa de Regalos",
+   "liga": "https://docs.google.com/presentation/d/1QkJ8K2asYE1R8p07NQskgUFLBQXk57-L/edit#slide=id.p36",
+   "descripcion": ""
+  },
+  {
+   "nombre": "PASO A PASO: Sepros y Recogidos Liverpool",
+   "liga": "https://docs.google.com/presentation/d/1xy4wd1bahSOx9hVZpT69egMZw4GsLAAA_F4Pw0TAoc8/edit?slide=id.g27948f5941b_7_281#slide=id.g27948f5941b_7_281",
+   "descripcion": ""
+  },
+  {
+   "nombre": "Cat20: Mensajerías Externas (CCL)",
+   "liga": "https://docs.google.com/presentation/d/1tUFffSlA77JeXLkpyR1AOFHWHhG2QkMf/edit?slide=id.g2f59b7a6880_1_44#slide=id.g2f59b7a6880_1_44",
+   "descripcion": ""
+  },
+  {
+   "nombre": "Plantillas Postventa para uso en Sales Force",
+   "liga": "https://docs.google.com/presentation/d/1ZjSuUaWD31T8FriEPbztyB9mIiUl4I13V2TbVEh7fnA/edit?slide=id.g335eb9fdb22_0_0#slide=id.g335eb9fdb22_0_0",
+   "descripcion": ""
+  },
+  {
+   "nombre": "Monedero Digital- Capacitacion Express ONLINE-CAT-OPERACIONES",
+   "liga": "https://docs.google.com/presentation/d/1YBFEIrqqzi1jhI390ydQazJ01XWy5L1VxUSpp0s7yf0/edit?slide=id.p12#slide=id.p12",
+   "descripcion": ""
+  },
+  {
+   "nombre": "Manual incidencias MKP | Mesa de ayuda",
+   "liga": "https://docs.google.com/document/d/1Mm5RpuqogR-oSbNzByJ40k-iOqTZdTr5tilcuMOCFo8/edit?tab=t.0",
+   "descripcion": ""
+  },
+  {
+   "nombre": "CCAIP Venta y errores CSC",
+   "liga": "https://docs.google.com/presentation/d/1Q4zn6Ji1Ro323lyPJILrJ1CKMZdKtgVw/edit?slide=id.g398af426b84_0_173#slide=id.g398af426b84_0_173",
+   "descripcion": ""
+  },
+  {
+   "nombre": "Proceso de venta CONNECT",
+   "liga": "https://docs.google.com/presentation/d/1KcMJ8OHqST30yCLG3pFe7ch19VP0BEZoJDDkfN2HmfA/edit?slide=id.p#slide=id.p",
+   "descripcion": ""
+  }
+ ],
+ "drive": {
+  "status": "ok",
+  "archivos": {
+   "1mPfSkSCm4sSXlbcMgzAkz-0su7nCMP5dGYQdxxf1OFw": {
+    "titulo": "GUIA DE USO CTE",
+    "tipo": "application/vnd.google-apps.presentation",
+    "editado": 1774548000000
+   },
+   "1YBFEIrqqzi1jhI390ydQazJ01XWy5L1VxUSpp0s7yf0": {
+    "titulo": "Monedero Digital- Capacitacion Express ONLINE-CAT-OPERACIONES",
+    "tipo": "application/vnd.google-apps.presentation",
+    "editado": 1617213600000
+   },
+   "1fwiK1Qm0P4iAOXX52-bdRO5-kx59CJfSfgT3E70CJLE": {
+    "acceso": false
+   },
+   "1Qbb8VRyUK9Oaqmfpd6WxT1Y-QKxoKzf_": {
+    "titulo": "Mesa de Ayuda (Capacitación) Abril.pptx",
+    "tipo": "application/vnd.openxmlformats-officedocument.presentationml.presentation",
+    "editado": 1710525600000
+   },
+   "1tUFffSlA77JeXLkpyR1AOFHWHhG2QkMf": {
+    "titulo": "Cat20: Mensajerías Externas (CCL).pptx",
+    "tipo": "application/vnd.openxmlformats-officedocument.presentationml.presentation",
+    "editado": 1782496800000
+   },
+   "1aHHeBWcXhh72cmdD-VHzf60kKWiGA15qEKS-bXmX1kQ": {
+    "titulo": "Cat 28: Consulta Métodos de Pago",
+    "tipo": "application/vnd.google-apps.presentation",
+    "editado": 1705428000000
+   },
+   "1LdbvKAvWXuJ2J0g0p6KdJ9ml7QbMSC8uU2_L9B2Y30E": {
+    "titulo": "LPC MANUAL ",
+    "tipo": "application/vnd.google-apps.document",
+    "editado": 1754071200000
+   },
+   "1QkJ8K2asYE1R8p07NQskgUFLBQXk57-L": {
+    "titulo": "Pres. Junta CAT 2022 Julio.ppt",
+    "tipo": "application/vnd.ms-powerpoint",
+    "editado": 1695232800000
+   },
+   "1xy4wd1bahSOx9hVZpT69egMZw4GsLAAA_F4Pw0TAoc8": {
+    "titulo": "PASO A PASO: Sepros y Recogidos Liverpool",
+    "tipo": "application/vnd.google-apps.presentation",
+    "editado": 1707242400000
+   },
+   "1ZjSuUaWD31T8FriEPbztyB9mIiUl4I13V2TbVEh7fnA": {
+    "titulo": "Plantillas Postventa para uso en Sales Force",
+    "tipo": "application/vnd.google-apps.presentation",
+    "editado": 1783015200000
+   },
+   "1Mm5RpuqogR-oSbNzByJ40k-iOqTZdTr5tilcuMOCFo8": {
+    "titulo": "Manual incidencias MKP | Mesa de ayuda",
+    "tipo": "application/vnd.google-apps.document",
+    "editado": 1779472800000
+   },
+   "1Q4zn6Ji1Ro323lyPJILrJ1CKMZdKtgVw": {
+    "titulo": "CCAIP Venta y errores CSC.pptx",
+    "tipo": "application/vnd.openxmlformats-officedocument.presentationml.presentation",
+    "editado": 1779472800000
+   },
+   "1KcMJ8OHqST30yCLG3pFe7ch19VP0BEZoJDDkfN2HmfA": {
+    "titulo": "Proceso de venta CONNECT",
+    "tipo": "application/vnd.google-apps.presentation",
+    "editado": 1781892000000
+   }
+  }
+ }
+}

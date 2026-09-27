@@ -389,12 +389,6 @@ main{flex:1}
 ════════════════════════════════════════════════════════════ */
 .cards-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:1.25rem}
 
-/* ════════════════════════════════════════════════════════════
-   Hover de tarjetas de contenido: solo elevación + borde acentuado
-   (un efecto por tarjeta para no saturar y rendir mejor).
-════════════════════════════════════════════════════════════ */
-.pres-card>*{position:relative;z-index:1}
-
 /* — Herramientas: la consola (estilos y guion) vive en app_herramientas.html — */
 .btn-go{flex:1;text-align:center;padding:.7rem .9rem;background:var(--grad-brand);color:#fff;border:none;border-radius:8px;font-weight:800;font-size:.86rem;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:.4rem;transition:var(--tr);box-shadow:0 6px 14px -8px rgba(225,0,152,.55)}
 .btn-go .ic{width:16px;height:16px}
@@ -404,19 +398,6 @@ main{flex:1}
 .btn-copy{padding:.7rem .85rem;background:transparent;color:var(--ink-soft);border:1.5px solid var(--line);border-radius:8px;font-weight:700;font-size:.82rem;cursor:pointer;display:flex;align-items:center;gap:.4rem;transition:var(--tr);white-space:nowrap}
 .btn-copy .ic{width:15px;height:15px}
 .btn-copy:hover{border-color:var(--brand-soft);color:var(--brand);background:var(--brand-tint)}
-
-/* — Presentación — */
-.pres-card{background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:1.4rem;box-shadow:var(--sh-sm);display:flex;flex-direction:column;gap:.8rem;position:relative;overflow:hidden;will-change:transform;transition:transform .22s cubic-bezier(.22,1,.36,1),box-shadow .22s cubic-bezier(.22,1,.36,1),border-color .22s ease}
-.pres-card:hover{box-shadow:0 10px 24px -14px rgba(27,35,48,.20),var(--sh-sm);border-color:color-mix(in srgb,var(--violet) 38%,var(--line))}
-.pres-top{display:flex;align-items:center;gap:.8rem}
-.pres-icon{width:48px;height:48px;border-radius:10px;flex-shrink:0;color:#fff;background:#6D28D9;display:flex;align-items:center;justify-content:center;box-shadow:0 4px 10px -6px rgba(91,33,182,.5)}
-.pres-icon .ic{width:22px;height:22px}
-.pres-name{font-family:var(--f-display);font-weight:800;font-stretch:108%;font-size:1.02rem;line-height:1.28}
-.pres-desc{font-size:.86rem;color:var(--ink-soft);line-height:1.55;flex:1}
-.btn-violet{text-align:center;padding:.7rem .9rem;border-radius:8px;border:none;cursor:pointer;background:#6D28D9;color:#fff;font-weight:800;font-size:.86rem;display:flex;align-items:center;justify-content:center;gap:.4rem;transition:var(--tr);box-shadow:0 6px 14px -8px rgba(91,33,182,.55)}
-.btn-violet .ic{width:16px;height:16px}
-.btn-violet:hover{box-shadow:0 12px 22px -8px rgba(91,33,182,.55);filter:brightness(1.07)}
-.btn-violet.disabled{background:var(--surface-2);color:var(--ink-faint);box-shadow:none;cursor:default;transform:none;border:1px solid var(--line)}
 
 .link-sm{display:inline-flex;align-items:center;gap:.35rem;color:var(--brand);font-weight:800;font-size:.81rem;padding:.32rem .7rem;border-radius:9px;border:1.5px solid var(--brand-soft);transition:var(--tr)}
 .link-sm .ic{width:14px;height:14px}
@@ -1301,6 +1282,9 @@ a:focus-visible,button:focus-visible,input:focus-visible,[tabindex]:focus-visibl
 <!-- Plantillas en puertas por lo que le pasó al cliente (26/09/2026): renderPlt(), applyPltFilters(), pltDeLaHoja(),
      pltAlEntrar(), pltRevelar() y el redactor. Parcial para que el build lo minifique. -->
 <?!= include('app_plantillas') ?>
+<!-- Presentaciones en consola (26/09/2026): renderP(), pvContar(), pvCoincide(), pvAlEntrar(), pvElemento(), pvRevelar(),
+     el visor y el lector. La consola de Herramientas con la presentación a la vista. Parcial para que el build lo minifique. -->
+<?!= include('app_presentaciones') ?>
 <template id="__bundler_thumbnail" data-bg-color="#E10098">
   <svg viewBox="0 0 1200 800" xmlns="http://www.w3.org/2000/svg">
     <rect width="1200" height="800" fill="#E10098"/>
@@ -1792,26 +1776,32 @@ a:focus-visible,button:focus-visible,input:focus-visible,[tabindex]:focus-visibl
     <div id="gr-formatos" class="fmt-cuerpo"></div>
   </section>
 
-  <!-- ══ PRESENTACIONES ══ -->
+  <!-- ══ PRESENTACIONES · consola (26/09/2026) ══
+       La de Herramientas, con la presentación a la vista: lista agrupada por tema en #gr-presentaciones y ficha
+       fija en #pvFicha, con el visor de Google. renderP() (app_presentaciones.html) pinta las dos con la hoja
+       «Presentaciones»; el filtro es el de siempre (.filter-input), porque applySectionSearch, reflejarFiltro y
+       filtroDeSeccion lo buscan por ese selector. Sin encabezado visible, como Herramientas: el h1 es para
+       lectores de pantalla. Respaldo del diseño anterior: etiqueta git «respaldo-presentaciones-antes-consola». -->
   <section id="sec-presentaciones" class="view-section">
-    <div class="sec-head">
-      <span class="sec-eyebrow"><span class="dot"></span>Material de apoyo</span>
-      <h1 class="sec-title">Procesos <em>explicados</em> paso a paso</h1>
-      <p class="sec-sub">Presentaciones de Google Slides con los procesos más relevantes de la operación.</p>
-    </div>
+    <h1 class="cs-sr">Presentaciones</h1>
     <div class="filter-bar">
       <div class="filter-input">
         <svg class="fi-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><path d="m21 21-4.3-4.3"/></svg>
-        <input type="text" placeholder="Filtrar presentaciones…" oninput="filterSec('presentaciones',this.value)">
+        <input type="text" placeholder="Filtrar presentaciones…" aria-label="Filtrar presentaciones" oninput="filterSec('presentaciones',this.value)">
       </div>
+      <div class="cs-chips" id="pvChips" role="group" aria-label="Filtrar por tema"></div>
       <span class="result-count-badge" id="rc-presentaciones"></span>
     </div>
-    <div id="ld-presentaciones" class="sk-grid" data-vx-loader="ruta" data-vx-msg="Cargando las presentaciones…">
-      <div class="sk-card"><div class="sk-line sk-ic"></div><div class="sk-line sk-t"></div><div class="sk-line sk-s"></div><div class="sk-line sk-btn"></div></div>
-      <div class="sk-card"><div class="sk-line sk-ic"></div><div class="sk-line sk-t"></div><div class="sk-line sk-s"></div><div class="sk-line sk-btn"></div></div>
-      <div class="sk-card"><div class="sk-line sk-ic"></div><div class="sk-line sk-t"></div><div class="sk-line sk-s"></div><div class="sk-line sk-btn"></div></div>
+    <div id="ld-presentaciones" class="sk-grid cs-sk" data-vx-loader="ruta" data-vx-msg="Cargando las presentaciones…">
+      <div class="sk-card cs-sk-lista"><div class="sk-line sk-t"></div><div class="sk-line sk-row"></div><div class="sk-line sk-row"></div><div class="sk-line sk-row"></div><div class="sk-line sk-row"></div><div class="sk-line sk-row"></div><div class="sk-line sk-row"></div></div>
+      <div class="sk-card cs-sk-ficha"><div class="sk-line cs-sk-cartel"></div><div class="sk-line sk-t"></div><div class="sk-line sk-s"></div><div class="sk-line sk-s"></div><div class="sk-line sk-s short"></div></div>
     </div>
-    <div id="gr-presentaciones" class="cards-grid"></div>
+    <div class="cs-cuerpo pv-cuerpo">
+      <div class="cs-col">
+        <div id="gr-presentaciones" class="cs-lista" role="listbox" aria-label="Presentaciones"></div>
+      </div>
+      <article class="cs-ficha pv-ficha" id="pvFicha" aria-label="Ficha de la presentación"></article>
+    </div>
   </section>
 
   <!-- ══ PLANTILLAS · puertas por lo que le pasó al cliente (26/09/2026) ══
@@ -2008,12 +1998,10 @@ html[data-density="compact"] .cards-grid,
 html[data-density="compact"] .qa-grid,
 html[data-density="compact"] .col-grid,
 html[data-density="compact"] .guide-grid{ gap:.6rem; }
-html[data-density="compact"] .pres-card{ padding:.85rem .9rem; }
 html[data-density="compact"] .sec-head{ margin-bottom:.7rem; }
 html[data-density="compact"] .dash-label{ margin:1.1rem 0 .6rem; }
 html[data-density="compact"] .app-main main{ padding-top:.6rem; }
 html[data-density="compact"] .filter-bar{ margin-bottom:.7rem; }
-html[data-density="compact"] .pres-card,
 html[data-density="compact"] .qa-card{ padding:.85rem .9rem; }
 html[data-density="compact"] .cs-opc{ padding-top:.32rem; padding-bottom:.32rem; }
 html[data-density="compact"] .cs-grupo-hd{ padding-top:.55rem; padding-bottom:.3rem; }
@@ -2029,7 +2017,6 @@ html[data-contrast="high"][data-theme="carbon"]{
 }
 html[data-contrast="high"] .cs-lista,
 html[data-contrast="high"] .cs-ficha,
-html[data-contrast="high"] .pres-card,
 html[data-contrast="high"] .qa-card,
 html[data-contrast="high"] .col-card-tile{ border-width:2px; }
 html[data-contrast="high"] :focus-visible{ outline:3px solid var(--brand); outline-offset:2px; }
@@ -3163,6 +3150,7 @@ function switchSec(id, btn){
   // Devoluciones SAP (app_devsap.html) se pinta la primera vez que se abre, también antes de la entrada.
   if (target){ target.classList.add('active'); if (window.trzAlEntrar && document.getElementById('traz-' + id)) trzAlEntrar(id); if (id === 'devsap' && window.dvAlEntrar) dvAlEntrar(); sectionEnter(target); }
   if (id === 'herramientas' && window.csAlEntrar) csAlEntrar();
+  if (id === 'presentaciones' && window.pvAlEntrar) pvAlEntrar();
   if (id === 'paqueterias' && window.pqAlEntrar) pqAlEntrar();
   const topClock = document.querySelector('.topbar .clock');
   if (topClock) topClock.style.display = (id === 'inicio') ? 'none' : 'flex';
@@ -3280,7 +3268,7 @@ function onToolsData(data, fromCache, at){
     anuncios:       anuncios
   };
   setCount('herramientas', store.herramientas.length);
-  setCount('presentaciones', store.presentaciones.length);
+  setCount('presentaciones', window.pvContar ? pvContar(store.presentaciones) : store.presentaciones.length);
   setCount('paqueterias', window.pqContar ? pqContar(store.paqueterias) : store.paqueterias.length);
   setCount('formatos', window.fmtContar ? fmtContar(store.formatos) : store.formatos.length);
   setCount('pdepago', store.pdePago.length);
@@ -4575,10 +4563,12 @@ function sectionRank(item, nameField, t){
 function objMatch(item, t){ return Object.values(item).some(v => v && norm(String(v)).includes(t)); }
 /* Formatos no busca en la LIGA («cs» coincidía con todo docs.google.com): le pregunta a
    app_formatos.html, que mira nombre, observación y el tipo que se ve. Plantillas, a app_plantillas.html, que mira
-   también lo que le pasó al cliente. Las demás, como siempre. */
+   también lo que le pasó al cliente. Presentaciones, a app_presentaciones.html, que mira nombres, tipo y el
+   título en Drive (tampoco la liga: «docs» coincidía con todas). Las demás, como siempre. */
 function coincideEnSeccion(sec, item, t){
   if (sec === 'formatos' && window.fmtCoincide) return fmtCoincide(item, t);
   if (sec === 'plantillas' && window.pltCoincide) return pltCoincide(item, t);
+  if (sec === 'presentaciones' && window.pvCoincide) return pvCoincide(item, t);
   return objMatch(item, t);
 }
 /* Aplica el término del buscador global como filtro de la sección destino: limita la
@@ -4600,30 +4590,8 @@ function applySectionSearch(sec, query){
 /* renderH() y la consola de Herramientas viven en app_herramientas.html: es un parcial,
    así que el build lo minifica. Se carga antes que este guion y se usa desde DOMContentLoaded. */
 
-function renderP(items){
-  hideLoader('presentaciones');
-  const g = document.getElementById('gr-presentaciones');
-  if (!items.length) { g.innerHTML = empty('presentaciones'); return; }
-  g.innerHTML = items.map(p => {
-    const href = linkHref(p.liga);
-    return `
-    <div class="pres-card">
-      <div class="pres-top">
-        <div class="pres-icon">${icon('presentation')}</div>
-        <div class="pres-name">${esc(p.nombre)}</div>
-      </div>
-      ${p.descripcion ? `<div class="pres-desc">${esc(p.descripcion)}</div>` : ''}
-      <div style="margin-top:auto;display:flex;gap:.5rem;">
-        ${href
-          ? `<a href="${href}" target="_blank" rel="noopener" class="btn-violet" style="flex:1;">Ver presentación ${icon('external')}</a>`
-          : `<span class="btn-violet disabled" style="flex:1;">Sin enlace</span>`}
-        ${collectBtn('presentaciones', p.nombre)}
-        ${reportBtn('Presentaciones', p.nombre, p.liga)}
-      </div>
-    </div>`;
-  }).join('');
-  animateGrid('#gr-presentaciones > *');
-}
+/* renderP() y la consola de Presentaciones viven en app_presentaciones.html (parcial: el build lo minifica).
+   Se carga antes que este guion; una declaración aquí pisaría a la del parcial. */
 
 /* renderPaq() y el directorio de Paqueterías viven en app_paqueterias.html (parcial: el build lo
    minifica). Se carga antes que este guion y se usa desde DOMContentLoaded. */
@@ -5226,6 +5194,10 @@ function elementoDeSeccion(secId, name, targetId){
   if (!sec) return null;
   if (targetId){ const t = document.getElementById(targetId); if (t) return t; }
 
+  /* Presentaciones: un archivo que la hoja trae dos veces es UNA fila. El parcial sabe qué fila y qué entrada
+     corresponden a un nombre de la hoja, y la deja elegida (app_presentaciones.html). */
+  if (secId === 'presentaciones' && window.pvElemento){ const pv = pvElemento(name); if (pv) return pv; }
+
   /* Un proceso de Trazabilidad se identifica por el ID de su fila ('bt-3'), no por su
      nombre. El nombre sale de una hoja de cálculo y basta un espacio de más, un acento
      distinto o un renglón partido para que la comparación falle; el id lo pone el propio
@@ -5242,11 +5214,11 @@ function elementoDeSeccion(secId, name, targetId){
      Devoluciones SAP. Sin ellos, un enlace profundo abría la sección correcta y se quedaba
      arriba, sin señalar nada — y eso se lee como que el buscador no encontró lo que dijo
      que había encontrado. */
-  const nameEls = sec.querySelectorAll('.cs-nom,.fmt-nom,.fmt-rnom,.paq-name,.pdc-nom,.pres-name,.plt-name,.dv-nom,.tz-f-nom');
+  const nameEls = sec.querySelectorAll('.cs-nom,.fmt-nom,.fmt-rnom,.paq-name,.pdc-nom,.plt-name,.dv-nom,.tz-f-nom');
   let target = null;
   nameEls.forEach(el => { if (!target && norm(el.textContent) === want) target = el; });
   if (!target) nameEls.forEach(el => { if (!target && norm(el.textContent).includes(want)) target = el; });
-  return (target ? target.closest('.cs-fila,.pq-ent,.fmt-resp,.fmt-fila,.pdc-opc,.pres-card,.pla-plt,.plr,.tz-fila,.dv-opc,tr') : null) || target;
+  return (target ? target.closest('.cs-fila,.pq-ent,.fmt-resp,.fmt-fila,.pdc-opc,.pla-plt,.plr,.tz-fila,.dv-opc,tr') : null) || target;
 }
 
 /* Espera con reintentos (rAF) a que la sección termine de renderizar antes de saltar —
@@ -5270,8 +5242,13 @@ function revealTarget(scrollEl){
   // es lo que hacía el panel plegable de la tarjeta de antes. En pantalla angosta la ficha
   // es una hoja modal y el salto termina ahí: enfocar el buscador de detrás de la hoja
   // dejaría el teclado en algo que no se ve.
-  if (scrollEl.classList && scrollEl.classList.contains('cs-fila') && window.csRevelar){
+  if (scrollEl.classList && scrollEl.classList.contains('cs-fila') && scrollEl.closest('#gr-herramientas') && window.csRevelar){
     if (csRevelar(scrollEl)) return;
+  }
+  // Presentaciones usa la misma consola (las mismas clases): la presentación se elige y la ficha la enseña. En
+  // pantalla angosta la ficha es una hoja y el salto termina ahí; si no, el segundo Enter abre su enlace (a.cs-ir).
+  if (scrollEl.closest && scrollEl.closest('#gr-presentaciones') && window.pvRevelar){
+    if (pvRevelar(scrollEl)) return;
   }
   // Formas de Pago va en pestañas: se abre la que contiene el destino. Si el destino es la
   // pestaña entera se resalta su primera hoja: el anillo sobre todo el ancho no dice nada.
@@ -5307,7 +5284,7 @@ function revealTarget(scrollEl){
   setTimeout(doScroll, 280); // reajusta tras la expansión/animación para clavar la posición
   flashEl(scrollEl);
   // Preparar "segundo Enter abre el enlace" (también tras clic de ratón)
-  const link = scrollEl.querySelector ? scrollEl.querySelector('a.btn-go, a.btn-violet, a.link-sm, a.cs-ir, a.pq-link, a.fmt-ir, button[data-pq-4pl]') : null;
+  const link = scrollEl.querySelector ? scrollEl.querySelector('a.btn-go, a.link-sm, a.cs-ir, a.pq-link, a.fmt-ir, button[data-pq-4pl]') : null;
   // Una paquetería de 4PL no tiene enlace: su botón lleva a la herramienta 4PL.
   pendingOpenEl = (link && (link.href || link.hasAttribute('data-pq-4pl'))) ? link : null;
   try { document.getElementById('globalSearch').focus({ preventScroll:true }); } catch(e){}
@@ -5866,10 +5843,16 @@ function mockData(){
       { nombre:'Portal de RH', enlace:'', comoAcceder:'Acceso interno desde la red corporativa', descripcion:'Consulta de nómina, vacaciones, constancias y trámites de Recursos Humanos.', claves:'RH2024!' },
       { nombre:'Google Drive Ventel', enlace:'https://drive.google.com', comoAcceder:'Cuenta Google corporativa', descripcion:'Almacenamiento compartido de documentos, presentaciones y archivos del equipo.', claves:'' }
     ],
+    /* Renglones REALES de la hoja «Presentaciones» (26/09/2026): ejercen los dos archivos que la hoja trae dos
+       veces (una fila con sus entradas), un PowerPoint, un documento con ancla y un enlace que abre a media presentación. */
     presentaciones:[
-      { nombre:'Proceso de Atención al Cliente', liga:'', descripcion:'Flujo completo de atención, escalación de casos y tiempos de respuesta.' },
-      { nombre:'Catálogo de Promociones Q2 2025', liga:'', descripcion:'Resumen visual de todas las promociones vigentes del segundo trimestre.' },
-      { nombre:'Guía de Paqueterías', liga:'', descripcion:'Cómo identificar paqueterías en SOMS y gestionar rastreos de envíos.' }
+      { nombre:'MONEDERO DIGITAL', liga:'https://docs.google.com/presentation/d/1YBFEIrqqzi1jhI390ydQazJ01XWy5L1VxUSpp0s7yf0/edit#slide=id.p4', descripcion:'' },
+      { nombre:'Monedero Digital- Capacitacion Express ONLINE-CAT-OPERACIONES', liga:'https://docs.google.com/presentation/d/1YBFEIrqqzi1jhI390ydQazJ01XWy5L1VxUSpp0s7yf0/edit?slide=id.p12#slide=id.p12', descripcion:'' },
+      { nombre:'MENSAJERIAS', liga:'https://docs.google.com/presentation/d/1tUFffSlA77JeXLkpyR1AOFHWHhG2QkMf/edit#slide=id.g2f59b7a6880_1_22', descripcion:'' },
+      { nombre:'Cat20: Mensajerías Externas (CCL)', liga:'https://docs.google.com/presentation/d/1tUFffSlA77JeXLkpyR1AOFHWHhG2QkMf/edit?slide=id.g2f59b7a6880_1_44#slide=id.g2f59b7a6880_1_44', descripcion:'' },
+      { nombre:'LPC', liga:'https://docs.google.com/document/d/1LdbvKAvWXuJ2J0g0p6KdJ9ml7QbMSC8uU2_L9B2Y30E/edit?hl=es&forcehl=1&tab=t.0#heading=h.93ycjxoua1i9', descripcion:'' },
+      { nombre:'Mesa de Regalos', liga:'https://docs.google.com/presentation/d/1QkJ8K2asYE1R8p07NQskgUFLBQXk57-L/edit#slide=id.p36', descripcion:'' },
+      { nombre:'Proceso de venta CONNECT', liga:'https://docs.google.com/presentation/d/1KcMJ8OHqST30yCLG3pFe7ch19VP0BEZoJDDkfN2HmfA/edit?slide=id.p#slide=id.p', descripcion:'' }
     ],
     paqueterias:[
       { nombre:'Estafeta', liga:'https://www.estafeta.com/Herramientas/Rastreo', soms:'ETF' },
