@@ -239,6 +239,8 @@ ok('Enter recorre los datos en orden, también los Sí/No y las opciones (la mar
 ok('al abrir, el foco va al primer dato vacío contando las opciones', guion.indexOf('var f = (r ? paradas(r) : []).filter(function(x){ return vacia(x, v); })[0]') > -1);
 ok('el buscador y ?item= abren con la tira a la vista (sin scrollIntoView, siempre arriba del redactor)', !/scrollIntoView/.test(guion) && guion.indexOf('abrir(p.situacion, p.id, true, true);') > -1);
 ok('la red de seguridad de GSAP cubre también las puertas', guion.indexOf("querySelectorAll('#plt-app > *, #plt-app .pla-puerta')") > -1);
+ok('el renglón de «Así sale» se parte y el título no se encoge (en el teléfono «Faltan N» baja debajo)',
+  /\.plr-hd2\{display:flex;flex-wrap:wrap;/.test(estilos) && /\.plr-hd2 h4\{flex:none;/.test(estilos) && /\.plr-estado\{margin-left:0;flex-basis:100%\}/.test(estilos));
 ok('«Todas» se queda fija en la tira y el salto de la página respeta el movimiento reducido', /\.pla-volver\{position:sticky;left:0;/.test(estilos) && guion.indexOf("behavior:reducido() ? 'auto' : 'smooth'") > -1);
 ok('sin \\p{…} (el build lo rechaza), ni plantillas `…`', !/\\p\{/.test(guion) && guion.indexOf('`') === -1);
 ok('toda caja con display propio que se esconde lleva [hidden] o display:none', /\.pla-anclas\{display:none!important\}/.test(estilos));
