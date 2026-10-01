@@ -1039,6 +1039,39 @@ y qué se dejó fuera a propósito**. Mismo formato que el registro del document
 
 <!-- Las entradas nuevas van arriba, con la más reciente primero. -->
 
+### 2026-10-01 — Fase 3a.2 del doc 16: los resultados de las encuestas del Portal llegan dentro de la página — en PRUEBAS, no en producción
+
+**Qué se cambió** (commit `f004cbc`):
+- **`Publicaciones.gs`:** `pubResultadosEnCache_(tools)`, privada (termina en `_`: el canal no la expone). La llama el `doGet` con las herramientas que ya van en la página y devuelve lo MISMO que contestaría `pubResultados(id, '')` en ese instante, sin abrir la hoja:
+  - saca de `tools.anuncios` las encuestas de verdad (dos opciones o más; como mucho `PUB_PAGINA_MAX` = 8) y lee sus recuentos con **un** `getAll` de la caché de medio minuto (`pubVotos_<id>`). Sin encuestas no hay viaje;
+  - `miVoto` es el de la cuenta de Google que abre la página (`Session.getActiveUser()`, minúsculas y sin espacios): la misma identidad con la que `pubQuienVota_` cuenta el voto de quien no declara correo. Por eso viaja también `correo`;
+  - una encuesta cacheada **sin** `porCorreo` (la muy votada) se omite si hay cuenta de Google: saber su voto exige la hoja. Sin cuenta sí viaja, con `miVoto` vacío, que es lo que contestaría la llamada;
+  - **nunca viaja `porCorreo`** (quién votó qué). Un recuento corrupto se salta solo; un `getAll` que falla omite la entrada entera.
+- **`Code.gs`:** entrada `pubResultados` **al final** de `DATOS_INICIALES.portal`: es la primera que cae si no cabe en el tope. `leer(lote, datos)` recibe ahora también lo ya aceptado; `pubResultados` solo viaja si viajan las herramientas. El comentario del bloque F3 documenta la excepción a «lo que depende de quién mira no cabe» y el segundo `getAll`.
+- **`Index.html`:** `sembrarResultadosDePagina()` corre al cargar, antes del primer pintado. Lleva lo de la página a `pubVotos` y marca cada encuesta como pedida: la tarjeta sale ya con barras o con botones, en vez de cambiar a los ~3 s, y `pedirResultados` no viaja por ella. **Regla de identidad:** solo se usa si no hay sesión o si el correo de la sesión es el de la página. Si no, se descarta entero y cada encuesta se pide como siempre (con sesión, en el lote de la F3b). Se consume una sola vez y no pisa una encuesta ya pedida.
+- **`app_core.html`:** `AppRun.dePagina(fn)` apunta en las medidas, como `o:'pagina'`, una llamada que no salió porque su respuesta vino en la página por otro camino que `tomarDePagina` (las de las encuestas llevan argumentos). Así `console.table(AppRun.medidas())` cuenta `pubResultados` en la columna `pagina`.
+- **`f3_datos_en_pagina.test.js`** (114 → 162):
+  - A9, servidor: el segundo `getAll` solo con las encuestas de verdad; la equivalencia con `pubResultados(id, '')` con la misma caché; la normalización del correo; la encuesta muy votada sin arrastrar a la otra; `getActiveUser` que lanza; caché caída, corrupta o vacía; herramientas que no viajan; el máximo de 8; que cae la primera por el tope. Y que en la página no aparezca `porCorreo` ni el correo de nadie más.
+  - B6, cliente, con el código REAL de `Index.html`: sin sesión, sesión de la misma cuenta, sesión de otra, sin cuenta de Google con y sin sesión, una sola vez, no pisa, y `pedirResultados` no viaja por las sembradas.
+  - C2, estático: la siembra está fuera de cualquier función y después de declarar `pubVotos`, `pubPedidos` y `pubVotando` (antes daría `ReferenceError`).
+  - **13 mutaciones, todas detectadas** (cada texto mutado, único en su archivo).
+
+**Qué se comprobó:**
+- Las 19 suites en verde, la sintaxis limpia (89 archivos, 120 bloques) y el build (99). El modelo del quitacomentarios: Google no cortaría nada.
+- **Sonda de encuestas en Chrome headless, sin movimiento reducido** (una copia de `revelado-portal.mjs` con dos encuestas, una votada y otra no; el `google.script.run` falso contesta lotes):
+  - **datos en la página:** a los 1.4 s la votada ya enseña sus barras con «Mañana ✓ 60 %» y la otra sus botones. **Ninguna llamada a `pubResultados`** en toda la carga;
+  - **por red (lo de hoy):** a los 4.2 s la votada aún enseña los botones, como si no se hubiera votado. `lote[pubResultados+pubResultados]` sale a los 2.7 s y las barras llegan después. Ese salto es lo que quita la fase.
+- La sonda quedó en el repo como **`scripts/laboratorio/revelado-encuestas.mjs`**. En esta PC hay que lanzarla desde PowerShell con la ruta larga: desde Git Bash, con la ruta corta del scratchpad, no llegó a conectar con Chrome, ni sin sandbox (no se aisló cuál de las dos cosas lo impide).
+- **`revelado-portal.mjs`** (el de siempre), copia contra repo: idénticos. Los dos textos «ocultos» son el aviso de «Copiado» y una pista de teclado que esperan escondidos; ya estaban.
+- **Banco, las 20 pantallas, código anterior contra F3a.2:** las 20 con 0 errores y los mismos avisos, llamadas y texto. `Index` tiene un global más (531 → 532: `sembrarResultadosDePagina`) y 28 píxeles distintos, los mismos que el ruido medido. `atenciones` difiere en su barra animada, como siempre.
+- **Lo que sirve Google (`/dev`):** las 20 pantallas traen `goog.script.init`, ninguna dice «formato incorrecto» y sus 407 bloques de JS compilan tal como los deja Google. En el Portal, los 32 bloques servidos coinciden byte a byte con el build local (32 de 32 huellas SHA-256), también el que siembra (`c46ace33…`) y el de `app_core` con `dePagina` (`08d16417…`). Su `__APP__.datos` trae herramientas, promociones, trazabilidad y módulos, y no `pubResultados`: no había encuestas.
+
+**Qué se dejó fuera a propósito:**
+- **Sin verificar en vivo:** el 01/10 el Portal no tenía ninguna publicación (`anuncios: 0` en lo que sirve `/dev`), así que ninguna encuesta. **No se creó una de prueba**: la hoja «Anuncios» es la misma de producción y saldría en el Portal real. Receta para el creador cuando publique una: abrir el Portal dos veces en menos de 30 s (la primera calienta la caché de votos), sin sesión o con la sesión de su misma cuenta de Google. Después, con el marco de la app elegido en la consola, `console.table(AppRun.medidas())`: `pubResultados` con `pagina ≥ 1`.
+- **`PUB_VOTOS_TTL` sigue en 30 s.** Con esa caché, la página solo lleva los votos si alguien abrió el Portal en el último medio minuto. Es de esperar que acierte sobre todo al arrancar el turno, cuando muchos lo abren a la vez; no se midió. Alargarla es seguro para los votos de este mismo proyecto, porque `pubVotar` ya la borra al votar. Pero un voto emitido en el otro proyecto (pruebas o producción: misma hoja, cachés separadas) o una edición a mano tardaría en verse lo que dure. **Decisión del creador** (doc 16 §2, decisión 7).
+- **Con sesión de otra cuenta** las encuestas se piden como antes. Siguen en `EN_LOTE` (F3b): las que se piden a la vez viajan juntas (la sonda lo vio: `lote[pubResultados+pubResultados]`). Si además caen en el lote del arranque con sesión no se midió.
+- **Producción:** espera la palabra del creador, como F0-F3b.
+
 ### 2026-09-26 — Presentaciones: las 15 tarjetas violeta pasan a la consola de Herramientas, con la presentación a la vista — en PRUEBAS
 
 **Por qué:** el creador pidió seguir con Presentaciones y, a media investigación, dijo **«Quiero que esa sección sea como la de herramientas»** (y «tal vez también la de formatos»). La sección eran 15 tarjetas violeta iguales en rejilla de tres, cada una con un nombre y «Ver presentación» a una pestaña nueva. Lo que se vio al leer la hoja «Presentaciones» (Nombre | LIGA | DESCRPCION, 15 renglones al 26/09) y los 13 archivos (un agente aparte, solo lectura):
