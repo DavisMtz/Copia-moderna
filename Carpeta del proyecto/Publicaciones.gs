@@ -20,6 +20,8 @@
  *   pubPorId(id, email)        → Index.html (modal de un enlace compartido)
  *   pubResultados(id, email)   → Index.html (gráfica de una encuesta)
  *   pubVotar(payload)          → Index.html (emitir o cambiar el voto)
+ * Y una para el doGet del Portal (F3a.2), que no se expone:
+ *   pubResultadosEnCache_(tools) → los mismos resultados, dentro de la página
  *
  * Nombres con prefijo `pub` porque los .gs comparten un solo ámbito global.
  */
@@ -418,6 +420,61 @@ function pubResultados(id, email) {
   } catch (error) {
     return { status: 'error', error: error.toString() };
   }
+}
+
+/**
+ * F3a.2 · LOS RESULTADOS DE LAS ENCUESTAS, DENTRO DE LA PÁGINA DEL PORTAL.
+ *
+ * Al abrir el Portal, cada encuesta visible pedía pubResultados: un viaje de ~3 s, el último
+ * que hacía el Portal sin sesión. Lo llama el doGet (datosInicialesDePagina_, Code.gs) con
+ * las herramientas que ya van en la página, y devuelve lo MISMO que contestaría
+ * pubResultados(id, '') en ese instante, sin leer la hoja:
+ *   · Solo de la caché de medio minuto (pubVotos_<id>), y solo si ya está. Igual de fresco que
+ *     la llamada que sustituye: esa llamada leería esta misma caché.
+ *   · `miVoto` es el de la cuenta de Google que abre la página, la misma identidad con la que
+ *     pubQuienVota_ cuenta el voto de quien no declara correo. Por eso viaja `correo`: el
+ *     cliente solo usa esto si no hay sesión o si la sesión es de esa misma cuenta (con una
+ *     sesión de otro correo, la llamada contaría el voto de ese otro, y la pide como siempre).
+ *   · Una entrada sin `porCorreo` (encuesta tan votada que no cupo con el detalle) no dice qué
+ *     votó nadie: saberlo exige la hoja, así que se omite y esa encuesta se pide como antes.
+ *   · Nunca viaja `porCorreo`: sería publicar quién votó qué.
+ * Sin encuestas no hay viaje a la caché. Un getAll que falla lanza: el doGet omite la entrada.
+ *
+ * @param {Object} tools  La respuesta de fetchToolsData que ya va en la página.
+ * @return {{status:string, correo:string, porId:Object}|null}
+ */
+var PUB_PAGINA_MAX = 8;   // encuestas a la vez en el Portal; las que pasen de ahí se piden como antes
+
+function pubResultadosEnCache_(tools) {
+  const ids = [];
+  ((tools && tools.anuncios) || []).forEach(function (a) {
+    const e = a && a.encuesta;
+    if (!e || !Array.isArray(e.opciones) || e.opciones.length < 2) return;
+    const id = String(a.id || '').trim();
+    if (id && ids.indexOf(id) === -1 && ids.length < PUB_PAGINA_MAX) ids.push(id);
+  });
+  if (!ids.length) return null;
+
+  let correo = '';
+  try { correo = String(Session.getActiveUser().getEmail() || '').trim().toLowerCase(); } catch (e) {}
+
+  const lote = CacheService.getScriptCache().getAll(ids.map(pubClaveCacheVotos_)) || {};
+  const porId = {};
+  let n = 0;
+  ids.forEach(function (id) {
+    const texto = lote[pubClaveCacheVotos_(id)];
+    if (!texto) return;
+    let c = null;
+    try { c = JSON.parse(texto); } catch (e) { return; }
+    if (!c || !c.conteo) return;
+    if (correo && !c.porCorreo) return;
+    porId[id] = {
+      total: c.total, conteo: c.conteo,
+      miVoto: correo ? (c.porCorreo[correo] || '') : ''
+    };
+    n++;
+  });
+  return n ? { status: 'ok', correo: correo, porId: porId } : null;
 }
 
 /**

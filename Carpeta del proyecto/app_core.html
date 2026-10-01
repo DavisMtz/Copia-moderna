@@ -2217,10 +2217,21 @@
       });
     }
 
+    /**
+     * F3a.2 · Apunta en las medidas una llamada que NO salió porque su respuesta vino dentro de
+     * la página por otro camino que tomarDePagina (las encuestas del Portal llevan argumentos y
+     * las toma la propia pantalla). Así `AppRun.medidas()` las cuenta en `pagina` igual que las
+     * demás, y el creador ve en su consola que dejaron de viajar.
+     */
+    function dePagina(fnName) {
+      anotar(String(fnName || ''), Date.now(), relojPantalla(), true, 'pagina', -1);
+    }
+
     return {
       call: call,
       swr: swr,
       medidas: medidas,
+      dePagina: dePagina,
       clearInflight: function () { Object.keys(enVuelo).forEach(function (k) { delete enVuelo[k]; }); }
     };
   })();

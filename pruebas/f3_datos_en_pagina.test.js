@@ -41,6 +41,10 @@ const cuentas = { hojas: 0, calendario: 0, drive: 0, escriturasProp: 0, escritur
 // Viajes a CacheService y a las propiedades (F3a.1): cada uno cuesta decenas de ms del primer byte.
 const lecturas = { get: 0, getAll: 0, getProperty: 0, getProperties: 0, pedidas: [] };
 let getAllRoto = false;
+// F3a.2: que falle solo el getAll cuyas claves cumplan esto (el de los votos, p. ej.).
+let getAllRotoSi = null;
+// F3a.2: la cuenta de Google que abre la página; `null` = Session.getActiveUser() lanza.
+let usuarioActivo = 'visita@liverpool.com.mx';
 let plantillas = [];
 
 function contextoServidor() {
@@ -52,7 +56,7 @@ function contextoServidor() {
     get: (k) => { lecturas.get++; return (k in cache ? cache[k] : null); },
     getAll: (ks) => {
       lecturas.getAll++; lecturas.pedidas.push(ks.slice());
-      if (getAllRoto) throw new Error('prueba: CacheService caído');
+      if (getAllRoto || (getAllRotoSi && getAllRotoSi(ks))) throw new Error('prueba: CacheService caído');
       const o = {}; ks.forEach((k) => { if (k in cache) o[k] = cache[k]; }); return o;
     },
     put: (k, v) => { cuentas.escriturasCache++; cache[k] = String(v); },
@@ -84,7 +88,7 @@ function contextoServidor() {
     DriveApp: { getFolderById: () => { cuentas.drive++; throw new Error('prueba: sin Drive'); } },
     Session: {
       getScriptTimeZone: () => 'America/Mexico_City',
-      getActiveUser: () => ({ getEmail: () => 'visita@liverpool.com.mx' }),
+      getActiveUser: () => ({ getEmail: () => { if (usuarioActivo === null) throw new Error('prueba: sin cuenta activa'); return usuarioActivo; } }),
       getEffectiveUser: () => ({ getEmail: () => 'dueno@liverpool.com.mx' })
     },
     ScriptApp: { getService: () => ({ getUrl: () => 'https://script.google.com/macros/s/PRUEBA/exec' }) },
@@ -107,7 +111,8 @@ const S = contextoServidor();
 /** Cada petición es una ejecución nueva de Apps Script: los memos de la anterior no existen. */
 function ejecucion(fn) { vm.runInContext('SEC_SESION_ = null; SEC_ENTRADA_ = null; OP_GEN_MEMO = null;', S); return fn(); }
 function reiniciar() {
-  cache = {}; props = {}; plantillas = []; getAllRoto = false;
+  cache = {}; props = {}; plantillas = []; getAllRoto = false; getAllRotoSi = null;
+  usuarioActivo = 'visita@liverpool.com.mx';
   Object.keys(cuentas).forEach((k) => { cuentas[k] = 0; });
   ponerLecturasACero();
 }
@@ -355,6 +360,118 @@ console.log('\nA8 · F3a.1: un solo viaje a la caché y un tope a lo que viaja')
   vm.runInContext('opCacheClave_ = __claveOriginal;', S);
   ok('si falla la clave del estado público, no lanza y las otras cuatro siguen',
     err === null && claves(r) === JSON.stringify(cinco.filter((f) => f !== 'opEstadoPublico')), err || (r && Object.keys(r.datos)));
+}
+
+console.log('\nA9 · F3a.2: los resultados de las encuestas, dentro de la página');
+{
+  // Herramientas con dos encuestas, una tarjeta normal y una «encuesta» de una sola opción (no lo es).
+  const conEncuestas = (n) => Object.assign({}, TOOLS, { anuncios: [
+    { id: 'anc-e1', formato: 'tarjeta', titulo: 'E1', encuesta: { pregunta: '¿?', opciones: ['a', 'b'] } },
+    { id: 'anc-n', formato: 'tarjeta', titulo: 'normal' },
+    { id: 'anc-e2', formato: 'tarjeta', titulo: 'E2', encuesta: { pregunta: '¿?', opciones: ['x', 'y', 'z'] } },
+    { id: 'anc-mala', formato: 'tarjeta', encuesta: { pregunta: '¿?', opciones: ['sola'] } }
+  ].concat([...Array(n || 0)].map((_, i) => ({ id: 'anc-x' + i, formato: 'tarjeta', encuesta: { pregunta: '¿?', opciones: ['a', 'b'] } }))) });
+  // Lo que deja pubResultados en su caché de medio minuto: el recuento con el voto de cada quien.
+  const VOTOS_E1 = { total: 3, conteo: { a: 2, b: 1 },
+    porCorreo: { 'visita@liverpool.com.mx': 'b', 'otra@liverpool.com.mx': 'a', 'tercera@liverpool.com.mx': 'a' } };
+  const servir = () => {
+    plantillas = [];
+    ponerLecturasACero();
+    ejecucion(() => S.doGet({ parameter: { page: 'portal' } }));
+    const t = plantillas[plantillas.length - 1];
+    return { estado: t && t.APP_JSON ? JSON.parse(t.APP_JSON) : {}, crudo: (t && t.APP_JSON) || '', lecturas: JSON.parse(JSON.stringify(lecturas)) };
+  };
+  const preparar = () => { reiniciar(); calentar(); cache.toolsData_v1 = JSON.stringify(conEncuestas()); cache['pubVotos_anc-e1'] = JSON.stringify(VOTOS_E1); };
+  const comoLlamada = (r) => ({ total: r.total, conteo: r.conteo, miVoto: r.miVoto });
+  const cinco = ['fetchPromoCounts', 'fetchToolsData', 'fetchTrazabilidadData', 'obtenerModulosPublicos', 'opEstadoPublico'];
+
+  preparar();
+  let r = servir();
+  const pr = r.estado.datos && r.estado.datos.pubResultados;
+  ok('va pubResultados, con el correo de la cuenta de Google que abre la página',
+    pr && pr.status === 'ok' && pr.correo === 'visita@liverpool.com.mx', pr);
+  ok('…con el recuento de la encuesta que estaba en la caché y SU voto',
+    pr && JSON.stringify(pr.porId['anc-e1']) === JSON.stringify({ total: 3, conteo: { a: 2, b: 1 }, miVoto: 'b' }), pr && pr.porId);
+  ok('…y sin la que no estaba (esa se pedirá como siempre)', pr && JSON.stringify(Object.keys(pr.porId)) === '["anc-e1"]', pr && Object.keys(pr.porId));
+  ok('las otras cinco siguen ahí', cinco.every((k) => k in r.estado.datos), Object.keys(r.estado.datos));
+  ok('dos getAll: el de siempre y uno con los votos de las DOS encuestas de verdad',
+    r.lecturas.getAll === 2 && JSON.stringify(r.lecturas.pedidas[1]) === '["pubVotos_anc-e1","pubVotos_anc-e2"]', r.lecturas.pedidas);
+  ok('ningún get suelto', r.lecturas.get === 0, r.lecturas);
+  ok('quién votó qué NO viaja: ni porCorreo ni los correos de los demás',
+    r.crudo.indexOf('porCorreo') === -1 && r.crudo.indexOf('otra@') === -1 && r.crudo.indexOf('tercera@') === -1, r.crudo.length);
+  ok('ni abrió hojas ni escribió nada', cuentas.hojas === 0 && cuentas.escriturasCache === 0 && cuentas.escriturasProp === 0, cuentas);
+  const llamada = ejecucion(() => S.pubResultados('anc-e1', ''));
+  ok('es lo MISMO que contestaría pubResultados(id, "") con esa caché',
+    llamada.status === 'ok' && JSON.stringify(pr.porId['anc-e1']) === JSON.stringify(comoLlamada(llamada)), llamada);
+
+  usuarioActivo = 'Visita@Liverpool.com.mx ';
+  r = servir();
+  ok('el correo se normaliza igual que en pubQuienVota_ (minúsculas, sin espacios)',
+    r.estado.datos.pubResultados && r.estado.datos.pubResultados.correo === 'visita@liverpool.com.mx' && r.estado.datos.pubResultados.porId['anc-e1'].miVoto === 'b', r.estado.datos.pubResultados);
+
+  usuarioActivo = 'nadie@liverpool.com.mx';
+  r = servir();
+  ok('quien no votó recibe el recuento con miVoto vacío', r.estado.datos.pubResultados && r.estado.datos.pubResultados.porId['anc-e1'].miVoto === '', r.estado.datos.pubResultados);
+
+  // Encuesta tan votada que se cacheó sin el detalle por persona.
+  preparar();
+  cache['pubVotos_anc-e1'] = JSON.stringify({ total: 3, conteo: { a: 2, b: 1 } });
+  cache['pubVotos_anc-e2'] = JSON.stringify({ total: 1, conteo: { x: 1 }, porCorreo: { 'otra@liverpool.com.mx': 'x' } });
+  r = servir();
+  ok('sin porCorreo y con cuenta de Google: esa encuesta no viaja (su voto no se sabe sin la hoja)…',
+    r.estado.datos.pubResultados && !('anc-e1' in r.estado.datos.pubResultados.porId), r.estado.datos.pubResultados);
+  ok('…y no arrastra a la otra, que sí viaja', r.estado.datos.pubResultados && JSON.stringify(r.estado.datos.pubResultados.porId['anc-e2']) === JSON.stringify({ total: 1, conteo: { x: 1 }, miVoto: '' }), r.estado.datos.pubResultados);
+  delete cache['pubVotos_anc-e2'];
+  usuarioActivo = '';
+  r = servir();
+  ok('…sin cuenta de Google sí (la llamada tampoco sabría de quién es el voto), con miVoto vacío',
+    r.estado.datos.pubResultados && r.estado.datos.pubResultados.correo === '' && r.estado.datos.pubResultados.porId['anc-e1'].miVoto === '', r.estado.datos.pubResultados);
+  ok('…y vuelve a ser lo mismo que la llamada', r.estado.datos.pubResultados &&
+    JSON.stringify(r.estado.datos.pubResultados.porId['anc-e1']) === JSON.stringify(comoLlamada(ejecucion(() => S.pubResultados('anc-e1', '')))));
+  usuarioActivo = null;
+  let err = null;
+  err = lanza(() => { r = servir(); });
+  ok('si Session.getActiveUser() lanza, se trata como sin cuenta (correo vacío) y no tumba la página',
+    err === null && r.estado.datos.pubResultados && r.estado.datos.pubResultados.correo === '', err || r.estado.datos.pubResultados);
+
+  // Sin encuestas no hay segundo viaje.
+  reiniciar(); calentar();
+  r = servir();
+  ok('sin encuestas: ni pubResultados ni segundo getAll', !('pubResultados' in r.estado.datos) && r.lecturas.getAll === 1, r.lecturas);
+  // Encuestas, pero ninguna en la caché.
+  preparar(); delete cache['pubVotos_anc-e1'];
+  r = servir();
+  ok('encuestas sin recuento en la caché: no viaja (se pedirán como siempre)', !('pubResultados' in r.estado.datos) && r.lecturas.getAll === 2, r.lecturas);
+  // Si las herramientas no viajan, las encuestas tampoco.
+  preparar(); cache.toolsData_v1 = JSON.stringify({ status: 'error', error: 'hoja movida' });
+  r = servir();
+  ok('herramientas que no viajan → ni pubResultados ni getAll de votos', !('pubResultados' in r.estado.datos) && r.lecturas.getAll === 1, r.lecturas);
+  // El getAll de los votos falla: la página sale igual, con lo demás.
+  preparar(); getAllRotoSi = (ks) => ks.some((k) => k.indexOf('pubVotos_') === 0);
+  err = lanza(() => { r = servir(); });
+  ok('getAll de votos caído: no lanza, sin pubResultados y con las otras cinco',
+    err === null && !('pubResultados' in r.estado.datos) && Object.keys(r.estado.datos).length === 5, err || Object.keys(r.estado.datos));
+  // Un recuento roto en la caché no arrastra a los demás.
+  preparar(); cache['pubVotos_anc-e2'] = '{roto';
+  r = servir();
+  ok('un recuento corrupto se salta y el bueno viaja', r.estado.datos.pubResultados && JSON.stringify(Object.keys(r.estado.datos.pubResultados.porId)) === '["anc-e1"]', r.estado.datos.pubResultados);
+  // Más encuestas que el máximo: se piden las primeras.
+  preparar(); cache.toolsData_v1 = JSON.stringify(conEncuestas(10));
+  r = servir();
+  const maxPag = vm.runInContext('PUB_PAGINA_MAX', S);
+  ok('con 12 encuestas solo se piden las primeras ' + maxPag + ' (las demás, como siempre)',
+    r.lecturas.pedidas[1] && r.lecturas.pedidas[1].length === maxPag && r.lecturas.pedidas[1][0] === 'pubVotos_anc-e1', r.lecturas.pedidas[1]);
+  // Es la última de la lista: si no cabe, cae ella y no las demás.
+  preparar();
+  const conElla = servir();
+  const resto = Object.keys(conElla.estado.datos).filter((k) => k !== 'pubResultados')
+    .reduce((t, k) => t + JSON.stringify(conElla.estado.datos[k]).length, 0);
+  const topeAntes = vm.runInContext('DATOS_TOPE_TOTAL', S);
+  vm.runInContext('DATOS_TOPE_TOTAL = ' + (resto + 5), S);
+  r = servir();
+  vm.runInContext('DATOS_TOPE_TOTAL = ' + topeAntes, S);
+  ok('con el tope justo para las demás, cae pubResultados y las cinco siguen',
+    'pubResultados' in conElla.estado.datos && !('pubResultados' in r.estado.datos) && Object.keys(r.estado.datos).length === 5, Object.keys(r.estado.datos));
 }
 
 /* ═════════════════════════════════════════════════════════════════════════════════════
@@ -624,6 +741,87 @@ async function cliente() {
     ok('nueve a la vez → un lote de 8 y la que sobra, sola', JSON.stringify(viajes) === '[8,1]', viajes);
     ok('…y cada una con la suya', muchas.every((r, i) => r.id === 'q' + i), muchas);
   }
+
+  console.log('\nB6 · F3a.2: las encuestas del Portal toman su resultado de la página');
+  {
+    const c = contextoCliente({ app: {} });
+    c.ctx.performance = { now: () => 50 };
+    c.R.dePagina('pubResultados');
+    const m = c.R.medidas(true).find((x) => x.f === 'pubResultados');
+    ok('AppRun.dePagina apunta la llamada que no salió como o:"pagina"', m && m.o === 'pagina' && m.ok === 1 && m.s === -1, m);
+    ok('…y el resumen la cuenta en «pagina»',c.R.medidas().find((x) => x.fn === 'pubResultados').pagina === 1);
+  }
+  {
+    // El código REAL de Index.html: la siembra y quien pide los resultados.
+    const index = fs.readFileSync(path.join(PROY, 'Index.html'), 'utf8');
+    const trozo = (nombre) => {
+      const m = index.match(new RegExp('function ' + nombre + '\\([^)]*\\)\\{[\\s\\S]*?\\r?\\n\\}\\r?\\n'));
+      if (!m) throw new Error('No se encontró ' + nombre + ' en Index.html');
+      return m[0];
+    };
+    const codigo = trozo('sembrarResultadosDePagina') + trozo('pedirResultados');
+    const PAGINA = () => ({ status: 'ok', correo: 'visita@liverpool.com.mx', porId: {
+      'anc-e1': { total: 3, conteo: { a: 2, b: 1 }, miVoto: 'b' },
+      'anc-e2': { total: 0, conteo: {}, miVoto: '' } } });
+    const montar = (opc) => {
+      const pedidas = [], apuntadas = [];
+      const ctx = {
+        console, JSON, Object, String, Number, Array, Promise,
+        AppSession: { userEmail: opc.userEmail || '' },
+        AppRun: {
+          dePagina: (fn) => apuntadas.push(fn),
+          call: (fn, args) => { pedidas.push([fn].concat(args)); return Promise.resolve({ status: 'ok', total: 9, conteo: {}, miVoto: '' }); }
+        },
+        google: { script: { run: {} } },
+        __APP__: opc.sinApp ? undefined : { datos: { pubResultados: opc.r === undefined ? PAGINA() : opc.r, fetchToolsData: { x: 1 } } },
+        pintarEncuesta: () => {}
+      };
+      ctx.window = ctx;
+      vm.createContext(ctx);
+      vm.runInContext('var pubVotos = {}, pubPedidos = {}, pubVotando = {};\n' + codigo, ctx, { filename: 'Index.html (encuestas)' });
+      return { ctx, pedidas, apuntadas, run: (js) => vm.runInContext(js, ctx) };
+    };
+
+    let p = montar({});
+    let n = p.run('sembrarResultadosDePagina()');
+    ok('sin sesión: siembra las dos encuestas', n === 2 && JSON.stringify(p.run('pubVotos')) ===
+      JSON.stringify({ 'anc-e1': { total: 3, conteo: { a: 2, b: 1 }, miVoto: 'b' }, 'anc-e2': { total: 0, conteo: {}, miVoto: '' } }), p.run('pubVotos'));
+    ok('…las marca como pedidas', p.run('pubPedidos["anc-e1"] === true && pubPedidos["anc-e2"] === true'));
+    ok('…y las apunta en las medidas, una por encuesta', JSON.stringify(p.apuntadas) === '["pubResultados","pubResultados"]', p.apuntadas);
+    ok('se usa UNA vez: sale de __APP__.datos (y lo demás se queda)', !('pubResultados' in p.ctx.__APP__.datos) && 'fetchToolsData' in p.ctx.__APP__.datos);
+    ok('una segunda siembra no hace nada', p.run('sembrarResultadosDePagina()') === 0 && p.apuntadas.length === 2);
+    p.run('pedirResultados("anc-e1"); pedirResultados("anc-e2"); pedirResultados("anc-otra");');
+    ok('pedirResultados ya no viaja por las sembradas, y sí por la que no vino', JSON.stringify(p.pedidas.map((x) => x[1])) === '["anc-otra"]', p.pedidas);
+    p.run('pedirResultados("anc-e1", true)');
+    ok('…salvo que se fuerce', p.pedidas.length === 2 && p.pedidas[1][1] === 'anc-e1', p.pedidas);
+
+    p = montar({ userEmail: '  Visita@Liverpool.com.mx ' });
+    ok('con sesión de la MISMA cuenta (mayúsculas y espacios aparte): siembra', p.run('sembrarResultadosDePagina()') === 2 && p.run('pubVotos["anc-e1"].miVoto') === 'b');
+
+    p = montar({ userEmail: 'otra@liverpool.com.mx' });
+    n = p.run('sembrarResultadosDePagina()');
+    ok('con sesión de OTRA cuenta: no siembra nada (su voto sería otro)', n === 0 && JSON.stringify(p.run('pubVotos')) === '{}' && p.apuntadas.length === 0, p.run('pubVotos'));
+    ok('…pero igual la consume, para que no se use después', !('pubResultados' in p.ctx.__APP__.datos));
+    p.run('pedirResultados("anc-e1")');
+    ok('…y la encuesta se pide como siempre, con el correo de la sesión', p.pedidas.length === 1 && p.pedidas[0][1] === 'anc-e1' && p.pedidas[0][2] === 'otra@liverpool.com.mx', p.pedidas);
+
+    p = montar({ r: Object.assign(PAGINA(), { correo: '' }) });
+    ok('sin cuenta de Google y sin sesión: siembra (es lo que contestaría la llamada)', p.run('sembrarResultadosDePagina()') === 2);
+    p = montar({ userEmail: 'ana@liverpool.com.mx', r: Object.assign(PAGINA(), { correo: '' }) });
+    ok('sin cuenta de Google y CON sesión: no siembra', p.run('sembrarResultadosDePagina()') === 0);
+
+    for (const [nombre, opc] of [['sin __APP__', { sinApp: true }], ['sin pubResultados', { r: null }], ['status de error', { r: { status: 'error' } }], ['sin porId', { r: { status: 'ok', correo: '' } }]]) {
+      p = montar(opc);
+      let e = null, v;
+      try { v = p.run('sembrarResultadosDePagina()'); } catch (x) { e = x; }
+      ok(nombre + ': no siembra ni lanza', e === null && v === 0 && JSON.stringify(p.run('pubVotos')) === '{}', e && e.message);
+    }
+
+    p = montar({});
+    p.run('pubPedidos["anc-e1"] = true; pubVotos["anc-e1"] = { total: 7, conteo: {}, miVoto: "a" };');
+    p.run('sembrarResultadosDePagina()');
+    ok('no pisa una encuesta que ya se había pedido', p.run('pubVotos["anc-e1"].total') === 7 && p.run('pubVotos["anc-e2"].total') === 0);
+  }
 }
 
 /* ═════════════════════════════════════════════════════════════════════════════════════
@@ -644,6 +842,16 @@ function estatico() {
   const code = fs.readFileSync(path.join(PROY, 'Code.gs'), 'utf8');
   const params = JSON.parse(code.match(/const PARAMS_VISTA = (\[[^\]]*\])/)[1].replace(/'/g, '"'));
   ok('ningún parámetro de vista se llama como los campos nuevos', !params.some((p) => ['datos', 'datosAt', 'datosMs'].includes(p)), params);
+  ok('…ni como la F3a.2 (pubResultados)', params.indexOf('pubResultados') === -1, params);
+
+  console.log('\nC2 · F3a.2: la siembra corre al cargar el Portal, antes de pintar');
+  const index = fs.readFileSync(path.join(PROY, 'Index.html'), 'utf8');
+  const llamada = index.search(/\nsembrarResultadosDePagina\(\);\r?\n/);
+  ok('Index.html llama a sembrarResultadosDePagina() al cargar (fuera de cualquier función)', llamada > -1);
+  ok('…después de declarar pubVotos, pubPedidos y pubVotando (const: antes daría ReferenceError)',
+    ['const pubVotos', 'const pubPedidos', 'const pubVotando'].every((d) => { const i = index.indexOf(d); return i > -1 && i < llamada; }));
+  ok('…y __APP__ se define antes que el script del Portal', index.indexOf('window.__APP__ = ') > -1 && index.indexOf('window.__APP__ = ') < llamada);
+  ok('pubResultados sigue en EN_LOTE: con sesión de otra cuenta viaja con el arranque', /pubResultados: 1/.test(CORE));
 }
 
 cliente().then(() => {

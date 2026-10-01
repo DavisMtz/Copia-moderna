@@ -3438,7 +3438,9 @@ function ctaHtml(a){
 
    Los resultados NO viajan con los anuncios: se piden aparte (pubResultados) porque el
    Portal se sirve con diez minutos de caché de script y siete días de copia local, y una
-   gráfica de votos con esa edad no está desactualizada, está mintiendo.
+   gráfica de votos con esa edad no está desactualizada, está mintiendo. Desde la F3a.2
+   pueden venir además dentro de la página, igual de frescos que esa llamada (ver
+   sembrarResultadosDePagina).
 ═══════════════════════════════════════════════════════════ */
 const pubVotos   = {};   // id → {total, conteo, miVoto} — lo último que dijo el servidor
 const pubSueltas = {};   // id → publicación que no está en store (llegó por pubPorId)
@@ -3540,6 +3542,35 @@ const pubPedidos = {};
    pantalla: los datos frescos del Portal, abrir el modal, fijar un acceso—, así que un
    candado que viva solo en los botones se abre solo un instante después de cerrarse. */
 const pubVotando = {};
+
+/* F3a.2 · LOS RESULTADOS QUE YA VINIERON DENTRO DE LA PÁGINA.
+   El doGet deja en __APP__.datos.pubResultados lo que contestaría pubResultados ahora mismo
+   para las encuestas cuyo recuento estaba en la caché de medio minuto del servidor
+   (pubResultadosEnCache_, Publicaciones.gs). Se siembra AQUÍ, antes del primer pintado: la
+   tarjeta sale ya con barras o con botones, en vez de cambiar a los ~3 s, y pedirResultados
+   no viaja por esas encuestas.
+   El voto propio es el de la cuenta de Google que abrió la página (`correo`). Con una sesión
+   de OTRO correo no vale: la llamada contaría el voto de la sesión. Entonces se descarta
+   entero y cada encuesta se pide como siempre. Se usa una sola vez. */
+function sembrarResultadosDePagina(){
+  const datos = window.__APP__ && window.__APP__.datos;
+  const r = datos && datos.pubResultados;
+  if (datos) delete datos.pubResultados;
+  if (!r || r.status !== 'ok' || !r.porId || typeof r.porId !== 'object') return 0;
+  const yo = String((window.AppSession && AppSession.userEmail) || '').trim().toLowerCase();
+  if (yo && yo !== String(r.correo || '')) return 0;
+  let n = 0;
+  Object.keys(r.porId).forEach(id => {
+    const v = r.porId[id];
+    if (!v || typeof v !== 'object' || pubPedidos[id]) return;
+    pubVotos[id] = { total: Number(v.total) || 0, conteo: v.conteo || {}, miVoto: v.miVoto || '' };
+    pubPedidos[id] = true;
+    if (window.AppRun && AppRun.dePagina) AppRun.dePagina('pubResultados');
+    n++;
+  });
+  return n;
+}
+sembrarResultadosDePagina();
 
 function pedirResultados(id, forzar){
   if (!id || (!forzar && pubPedidos[id])) return;

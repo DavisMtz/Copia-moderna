@@ -211,7 +211,10 @@ function appEstadoInicialJson_(baseUrl, e, respuestas) {
  *     no debe escribir.
  *   · Solo respuestas públicas, las que cualquiera del dominio ya puede pedir sin sesión. Lo
  *     que depende de quién mira no cabe: el doGet no sabe quién es (la llave de sesión vive
- *     en el navegador).
+ *     en el navegador). UNA excepción, la F3a.2: los resultados de las encuestas llevan el
+ *     voto de la cuenta de Google que abre la página, que es la identidad con la que el
+ *     servidor cuenta el voto de quien no tiene sesión. Viajan con ese correo, y el cliente
+ *     los descarta si la sesión es de otro (pubResultadosEnCache_, Publicaciones.gs).
  *   · Solo lo que el cliente aceptaría guardar (`vale` repite el `accept` de la pantalla):
  *     un status de error servido en la página se pintaría como si fuera un dato.
  *   · Nunca lanza. Si algo falla, la página sale sin datos y se comporta como antes.
@@ -219,7 +222,9 @@ function appEstadoInicialJson_(baseUrl, e, respuestas) {
  * F3a.1 · Lo que cuesta leerlas y lo que pueden pesar:
  *   · UN SOLO VIAJE A LA CACHÉ. Cada entrada dice qué claves necesita (`claves`), el doGet las
  *     pide todas con un único getAll y cada lector arma su respuesta con lo que volvió
- *     (`leer(lote)`). Antes era un viaje por respuesta. Las propiedades siguen siendo dos
+ *     (`leer(lote)`). Antes era un viaje por respuesta. La excepción es pubResultados (F3a.2):
+ *     sus claves salen de las herramientas leídas, así que pide las suyas en un segundo getAll,
+ *     y solo cuando hay encuestas. Las propiedades siguen siendo dos
  *     lecturas sueltas (la generación de Operación, que forma la clave del estado público, y
  *     los módulos apagados): getProperties() traería en cada visita el almacén entero, con las
  *     sesiones abiertas y hasta 500 fichas de revisión.
@@ -257,7 +262,15 @@ const DATOS_INICIALES = {
     // Su clave lleva la generación de Operación: saberla cuesta la otra lectura de propiedades.
     opEstadoPublico:        { claves: function () { return [opCacheClave_('publico')]; },
                               leer: function (lote) { return opEstadoPublicoEnCache_(lote); },
-                              vale: function (d) { return d.success !== false; } }
+                              vale: function (d) { return d.success !== false; } },
+    // F3a.2 · La última a propósito: saca las encuestas de las herramientas que YA van en la
+    // página (sin ellas no viaja) y es la primera que debe caer si no cabe. Sus claves dependen
+    // de esas herramientas, así que hace su propio getAll, y solo cuando hay encuestas.
+    pubResultados:          { claves: function () { return []; },
+                              leer: function (lote, datos) {
+                                return datos.fetchToolsData ? pubResultadosEnCache_(datos.fetchToolsData) : null;
+                              },
+                              vale: function (d) { return d.status === 'ok'; } }
   },
   promociones: {
     fetchApplicationData:   { claves: function () { return ['appData_v1']; },
@@ -297,13 +310,14 @@ function datosInicialesDePagina_(pagina) {
     }
   }
 
-  // 3 · Pasa lo que el cliente aceptaría y cabe en el tope, en el orden de la lista.
+  // 3 · Pasa lo que el cliente aceptaría y cabe en el tope, en el orden de la lista. Cada lector
+  //     ve también lo ya aceptado (F3a.2: las encuestas salen de las herramientas que viajan).
   const datos = {};
   const fuera = [];
   let total = 0;
   nombres.forEach(function (fn) {
     try {
-      const valor = lista[fn].leer(lote);
+      const valor = lista[fn].leer(lote, datos);
       if (!valor || typeof valor !== 'object' || !lista[fn].vale(valor)) return;
       const tam = JSON.stringify(valor).length;
       if (tam > DATOS_TOPE_RESPUESTA || total + tam > DATOS_TOPE_TOTAL) {
