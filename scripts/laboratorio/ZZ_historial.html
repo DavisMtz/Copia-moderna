@@ -1,0 +1,46 @@
+<!DOCTYPE html>
+<html>
+<head><base target="_top"><meta charset="utf-8"></head>
+<body style="font:14px system-ui;padding:16px">
+<h1 id="titulo">LAB historial</h1>
+<pre id="log" style="white-space:pre-wrap;font-size:12px"></pre>
+<script>
+(function () {
+  var log = document.getElementById('log');
+  var ultima = null;
+  var avisos = 0;
+  function enviar(tipo, datos) {
+    var m = { lab: 'f5-historial', tipo: tipo, datos: datos, t: Date.now() };
+    log.textContent += JSON.stringify(m) + '\n';
+    try { window.top.postMessage(m, '*'); } catch (e) {}
+  }
+  var modo = '';
+  google.script.history.setChangeHandler(function (e) {
+    avisos++;
+    var p = (e && e.location && e.location.parameter) || {};
+    if (modo === 'sync') { google.script.history.replace(e.state, p, (e.location && e.location.hash) || null); enviar('reparo', 'sync'); }
+    if (modo === 'micro') Promise.resolve().then(function () { google.script.history.replace(e.state, p, (e.location && e.location.hash) || null); enviar('reparo', 'micro'); });
+    if (modo === 'push') { google.script.history.push(e.state, p, (e.location && e.location.hash) || null); enviar('reparo', 'push'); }
+    enviar('aviso', { p: e && e.location && e.location.parameter, hash: e && e.location && e.location.hash, estado: e && e.state });
+  });
+  function preguntar(motivo) {
+    google.script.url.getLocation(function (loc) {
+      var s = JSON.stringify(loc.parameter) + ' #' + loc.hash;
+      if (motivo !== 'sondeo' || s !== ultima) enviar('lugar:' + motivo, { p: loc.parameter, hash: loc.hash });
+      ultima = s;
+    });
+  }
+  preguntar('carga');
+  setInterval(function () { preguntar('sondeo'); }, 400);
+  setInterval(function () { enviar('vivo', { lugar: ultima, avisos: avisos }); }, 1000);
+  google.script.url.getLocation(function (loc) {
+    modo = loc.parameter.reparar || '';
+    document.getElementById('titulo').textContent = 'LAB historial · paso ' + (loc.parameter.paso || '0') + ' · reparar=' + (modo || 'no');
+    if (loc.parameter.paso) return;
+    setTimeout(function () { (modo === 'reemplazar' ? google.script.history.replace : google.script.history.push).call(google.script.history, { paso: 1 }, { exp: 'historial', paso: '1', reparar: modo }, 'uno'); enviar('apilado', 1); }, 3000);
+    setTimeout(function () { (modo === 'reemplazar' ? google.script.history.replace : google.script.history.push).call(google.script.history, { paso: 2 }, { exp: 'historial', paso: '2', reparar: modo }, 'dos'); enviar('apilado', 2); }, 4000);
+  });
+})();
+</script>
+</body>
+</html>

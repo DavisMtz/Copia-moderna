@@ -1039,6 +1039,30 @@ y qué se dejó fuera a propósito**. Mismo formato que el registro del document
 
 <!-- Las entradas nuevas van arriba, con la más reciente primero. -->
 
+### 2026-10-01 — Decisión 8 del doc 16: «atrás» después de una recarga deja la pantalla en blanco (fallo conocido de Google) — medido en LAB-mini; corrige la entrada de la F5. SIN cambios en el Portal
+
+**Qué se hizo:**
+- Análisis pedido por el creador: ¿arreglar el fallo de atrás tras F5 o seguir con la F6? Él apuntó que era el fallo conocido de Apps Script que ya recogía la investigación (doc 15 §3.6, issue 207785211).
+- **Se midió en LAB-mini**, no en el Portal: una página de 30 líneas (`scripts/laboratorio/ZZ_historial.html`) que apila dos entradas sola y le cuenta a la ventana de arriba, por `postMessage`, cada aviso de `setChangeHandler`, lo que dice `getLocation` y un latido por segundo. Se subió a LAB-mini con una ruta nueva en su `doGet` y **al terminar se le devolvió su código** (respaldo bajado antes con `clasp pull`; los tres archivos, comprobados iguales).
+- La documentación oficial de `google.script.history` no dice nada de recargas. El Issue Tracker pide iniciar sesión: no se leyó el hilo.
+
+**Qué se midió** (ventana del navegador visible en cada paso, comprobado con `document.visibilityState`):
+- **Sin recargar:** atrás y adelante avisan con los parámetros y el hash correctos, y la página sigue viva.
+- **Después de F5:** atrás —a una entrada apilada por la app o a la de la carga inicial— **avisa con la dirección correcta, pero Google deja el marco en blanco y congelado**: cero latidos. Adelante no lo recupera. Reescribir la misma dirección con `replace` dentro del aviso tampoco. Solo F5.
+- **Sin F5 también:** salir a otra pantalla y volver con atrás es una carga completa (Apps Script no queda en la caché del navegador); el siguiente atrás, hacia las entradas anteriores de esa pantalla, la deja en blanco igual.
+- **En el Portal, con la ventana visible:** F5 en Herramientas y atrás → pantalla en blanco más de 18 s, la barra ya en `?page=portal&cb=5`.
+- **«Solo reemplazar»** (`replace`, nunca `push`): tras F5, atrás es una carga completa de la pantalla anterior y la app arranca normal (latidos). Nunca en blanco.
+- **Corrige la entrada de la F5:** su «cambia la dirección pero no la pantalla, no en blanco» se leyó con la ventana del navegador oculta, que no pinta el blanco. Corregidos también el doc 15 §3.6, el doc 16 (fila F5, F5 en el §3 y decisión 8), el README del laboratorio y la memoria.
+
+**Lo que sale para decidir** (doc 16 §2, decisión 8):
+- **Hoy apilan 13 pantallas en pruebas, y 12 de ellas también en producción** (comprobado en `23144aa`, la @130; apilan desde la F1 de este plan, en agosto): Portal, Promociones, consola, inicio avanzado, estado, operación, contenido del Portal, correo a clientes, cotización, anuncios, artículo y atenciones. La decimotercera es la revisión, solo en pruebas desde la F5. Todas lo hacen por dos puntos: `AppUrl.actualizar` (`app_core`) y `navUrl` (Portal).
+- **Recomendado: «solo reemplazar»**, con un interruptor en esos dos puntos. La URL sigue diciendo qué se mira (F5 y enlaces compartidos igual) y atrás lleva siempre a la pantalla anterior, sin blanco. Se pierde que atrás cierre un modal o vuelva a la pestaña anterior dentro de una pantalla (criterio 1 de la F1 de este plan, a propósito). Se revierte en una línea si Google lo arregla.
+- **La alternativa** es dejarlo: el primer atrás después de una recarga deja al asesor ante una pantalla blanca hasta que pulse F5.
+
+**Qué se dejó fuera a propósito:**
+- **Aplicar «solo reemplazar»:** cambia lo que hace el botón atrás en 13 pantallas. Espera la palabra del creador; después iría a pruebas como siempre, con la sonda `url-pestanas.mjs` ajustada a «reemplaza».
+- **Avisar en Google** (votar el issue): lo puede hacer el creador con su cuenta.
+
 ### 2026-10-01 — Fase 5 del doc 16: las pestañas de la revisión y el formato de la vista previa quedan en la URL — en PRUEBAS, no en producción. Cierra el pendiente vivo #1
 
 **Qué se cambió** (commit `147db71`; solo cliente, sin parámetros nuevos ni cambios en el servidor: `sec`, `item`, `action` y `format` ya estaban en `PARAMS_VISTA`):
@@ -1073,14 +1097,10 @@ y qué se dejó fuera a propósito**. Mismo formato que el registro del document
 - **`/dev` de pruebas:** las dos pantallas traen el código nuevo y sus 41 bloques de JS compilan tal como los deja Google.
 - **Atrás después de F5** (el fallo conocido de Google, issue 207785211), **medido en el `/dev` con el Portal**, que ya apilaba `sec`:
   - sin recargar, atrás funciona: de Herramientas vuelve a Inicio;
-  - **tras F5, atrás cambia la dirección pero NO la pantalla.** La barra volvió a `?page=portal&cb=2` y la pantalla siguió en Herramientas. No quedó en blanco. La app no se entera (o se entera sin la dirección nueva): su manejador habría vuelto a Inicio, como sin recargar. Otro F5 pone de acuerdo pantalla y dirección.
-  - Por deducción vale para TODAS las pantallas que apilan, no solo para estas dos: el aviso lo reparte Google.
+  - ~~tras F5, atrás cambia la dirección pero NO la pantalla; no quedó en blanco~~. **CORREGIDO el mismo día** (entrada de arriba): esa lectura se hizo con la ventana del navegador oculta. Con la ventana visible, la pantalla queda **en blanco**, como dice el fallo de Google, y pasa también sin F5, al volver a la pantalla con atrás desde otra.
 
 **Qué se dejó fuera a propósito:**
-- **Arreglar el desfase de atrás tras F5.** Es de Google y ya lo tenían las ~10 pantallas que apilaban. Si se arregla, es en un solo sitio (`AppUrl`), no pantalla por pantalla: volver a preguntar la dirección con `google.script.url.getLocation` al recuperar el foco, o cada poco, y avisar a los oyentes si cambió sin aviso. Sin probar, y faltan dos datos antes:
-  - si `getLocation` devuelve la dirección nueva en ese estado;
-  - si el desfase pasa también entre dos entradas que apiló la app, y no solo al volver a la primera. La ventana del navegador se ocultó a mitad de esa prueba.
-  - Es la decisión 8 del doc 16 §2.
+- **El fallo de atrás tras una recarga:** es la decisión 8 del doc 16 §2. Analizado y medido en la entrada de arriba (el arreglo por `getLocation` que se proponía aquí quedó descartado).
 - **El panel del documento oficial de la vista previa** (abierto u oculto, «Ampliar»): no es una pestaña. Se abre solo al generarse, y el documento ya se regenera en cada F5.
 - **La SPA** (cambiar de pantalla sin recargar): el doc 16 la condiciona a las cifras de F1-F3, que siguen sin estar en producción.
 - **Visto en vivo con datos reales:** la revisión necesita un folio en revisión y el bloque `revisar`. La sonda lo cubre con datos de mentira; lo visual lo confirma el creador. Receta: abrir una revisión CCL, «Comparar con el sitio», «Página de Liverpool», F5 → vuelve ahí; atrás → la comparación; atrás → cerrado. En la vista previa: cambiar el formato y F5.

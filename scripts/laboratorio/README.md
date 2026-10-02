@@ -30,7 +30,11 @@ Son los guiones con que se midió todo lo que cuenta `Documentacion/15_Entorno_A
   - Uso: `node scripts/laboratorio/revelado-monitor.mjs "Carpeta del proyecto" <scratchpad>/revelado [pagina|red]`. La salida va fuera del repo o se niegan.
 - `url-pestanas.mjs` (01/10/2026, F5 del doc 16): lo que `revision_cotizacion` y `cotizado_preview` escriben en la URL, en Chrome headless. Lleva un `google.script.history` con pila de verdad (en `sessionStorage`, para que sobreviva a la recarga) y simula F5 volviendo a pedir la página con los parámetros de la entrada actual, que su servidor inyecta como `doGet`. Comprueba apilar/reemplazar, F5, atrás y adelante, y direcciones raras; sale con código 1 si algo falla.
   - Uso: `node scripts/laboratorio/url-pestanas.mjs "Carpeta del proyecto" <scratchpad>/url`. Desde PowerShell con la ruta larga (desde Git Bash no conectó con Chrome).
-  - Ojo: su historial es un modelo. El de Google se mide en el `/dev`: ahí, tras F5, atrás cambia la dirección y la app no se entera (doc 15 §3.6).
+  - Ojo: su historial es un modelo y no reproduce el fallo de Google: después de que una pantalla se carga de nuevo (F5, o al volver a ella con atrás), el siguiente atrás la deja en blanco (doc 15 §3.6). Eso se mide en Apps Script de verdad: `ZZ_historial.html`.
+- `ZZ_historial.html` (01/10/2026): la página con que se midió ese fallo en LAB-mini. Apila dos entradas solas al abrir (`paso=1#uno`, `paso=2#dos`) y le cuenta a la ventana de arriba, por `postMessage`, cada aviso de `setChangeHandler`, lo que dice `getLocation` y un latido por segundo. Si deja de latir, el marco está congelado.
+  - Se sirve con una ruta en el `doGet` del laboratorio: `if (exp === 'historial') return HtmlService.createHtmlOutputFromFile('ZZ_historial');`. Con `?reparar=reemplazar` usa `replace` en vez de `push`; con `?reparar=sync|micro|push`, prueba a reescribir la dirección dentro del aviso.
+  - En la ventana de arriba (consola de Chrome): `window.__lab = []; addEventListener('message', (e) => { if (e.data && e.data.lab === 'f5-historial') __lab.push(e.data); });`. Volver a ponerlo después de cada recarga.
+  - **La ventana del navegador tiene que estar visible** (`document.visibilityState`): oculta, el blanco no se pinta y los latidos se frenan.
 
 ## Antes de usarlos
 

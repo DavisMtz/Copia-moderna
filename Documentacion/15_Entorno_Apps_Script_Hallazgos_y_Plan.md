@@ -190,9 +190,14 @@ Las filas `/dev` y `/exec` se midieron en momentos distintos. Comparar sobre tod
 ### 3.6 URL e historial
 
 - **`google.script.history.push(estado, params, hash)` cambia la URL real de la barra** (por ejemplo `…/exec?exp=panel&paso=2#ancla-lab`). **Recargar la conserva** y `google.script.url.getLocation` la lee. [MEDIDO] Con esto se puede cerrar el pendiente #1 (las pestañas no quedaban en la URL).
-- **Fallo abierto en Google:** tras F5, el botón Atrás puede dejar la pantalla en blanco (issue 207785211). [COMUNIDAD]
-  - **Medido aquí el 01/10/2026** (`/dev` de pruebas, Portal, que apila `?sec=`): sin recargar, Atrás funciona. **Después de F5, Atrás cambia la dirección pero NO la pantalla**: la barra volvió a la entrada anterior y la pantalla siguió en la sección de la recarga. No quedó en blanco. La app no se entera; otro F5 vuelve a poner de acuerdo pantalla y dirección. [MEDIDO]
-  - Sin medir todavía: si pasa también entre dos entradas que apiló la app (se midió volviendo a la primera, la de la carga) y si `google.script.url.getLocation` devuelve la dirección nueva en ese estado (de eso depende un arreglo central en `AppUrl`; doc 16 §2, decisión 8).
+- **Fallo abierto en Google:** tras F5, el botón Atrás puede dejar la pantalla en blanco (issue 207785211). [COMUNIDAD] **Confirmado aquí el 01/10/2026** [MEDIDO], en el Portal (`/dev` de pruebas) y en LAB-mini con una página de 30 líneas que no tiene nada del Portal:
+  - **Cuándo:** al volver con Atrás (o Adelante) a una entrada de la MISMA pantalla que se apiló **antes de que la página se cargara de nuevo**. La página se carga de nuevo con F5, **y también al salir a otra pantalla y volver con Atrás**: Apps Script no queda en la caché del navegador, así que la vuelta es una carga completa. Da igual que la entrada la haya apilado la app o que sea la de la carga inicial.
+  - **Qué pasa:** la app SÍ recibe el aviso de `setChangeHandler`, con los parámetros y el hash correctos, pero Google deja su marco en blanco y congelado (sus temporizadores dejan de correr). Adelante no lo recupera, ni que la app vuelva a escribir la misma dirección con `replace` dentro del aviso. **Solo F5.**
+  - **Sin recargar, Atrás y Adelante funcionan** (aviso correcto y la pantalla sigue viva).
+  - **Con «solo reemplazar»** (`replace`, nunca `push`) no hay entradas propias de la pantalla: Atrás es una carga completa de la pantalla anterior y la app arranca normal. Medido en LAB-mini, F5 incluido.
+  - La app no puede recargarse sola al recibir el aviso: navegar la ventana de arriba exige un clic del usuario (ver `AppUrl.go`).
+  - **Trampa al medirlo:** con la ventana del navegador oculta, el blanco no se ve (la pantalla se queda en lo último que pintó). Una primera medición del 01/10 lo leyó como «cambia la dirección pero no la pantalla»; era eso. Comprobar `document.visibilityState` antes de cada paso.
+  - Decisión 8 del doc 16.
 - Dentro del iframe, `window.location` es el del iframe interno (`/userCodeAppPanel`), no la URL del usuario. [PROYECTO + COMUNIDAD]
 
 ### 3.7 Recursos compartidos entre pantallas
