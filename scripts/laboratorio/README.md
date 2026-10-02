@@ -28,6 +28,9 @@ Son los guiones con que se midió todo lo que cuenta `Documentacion/15_Entorno_A
   - El Monitor mide la opacidad de las tarjetas a la vista y de las cifras del día, a 1.5, 3.5 y 7 s y al bajar. El Portal busca textos a la vista con opacidad efectiva < 0.2 mientras baja por la página.
   - Nacieron de la regresión del Monitor del 24/09 (tarjetas invisibles con los datos en la página; ver el §18 del plan 13). Pasarlos después de cualquier cambio que adelante o atrase la llegada de los datos, o que toque un revelado.
   - Uso: `node scripts/laboratorio/revelado-monitor.mjs "Carpeta del proyecto" <scratchpad>/revelado [pagina|red]`. La salida va fuera del repo o se niegan.
+- `url-pestanas.mjs` (01/10/2026, F5 del doc 16): lo que `revision_cotizacion` y `cotizado_preview` escriben en la URL, en Chrome headless. Lleva un `google.script.history` con pila de verdad (en `sessionStorage`, para que sobreviva a la recarga) y simula F5 volviendo a pedir la página con los parámetros de la entrada actual, que su servidor inyecta como `doGet`. Comprueba apilar/reemplazar, F5, atrás y adelante, y direcciones raras; sale con código 1 si algo falla.
+  - Uso: `node scripts/laboratorio/url-pestanas.mjs "Carpeta del proyecto" <scratchpad>/url`. Desde PowerShell con la ruta larga (desde Git Bash no conectó con Chrome).
+  - Ojo: su historial es un modelo. El de Google se mide en el `/dev`: ahí, tras F5, atrás cambia la dirección y la app no se entera (doc 15 §3.6).
 
 ## Antes de usarlos
 
