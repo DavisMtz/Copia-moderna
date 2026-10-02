@@ -1,0 +1,51 @@
+name: Pruebas
+
+# F6 del doc 16: la sintaxis y todas las suites de pruebas/ en cada push y en cada PR.
+# No necesitan credenciales: no tocan Google ni la hoja, solo leen el codigo del repo.
+#
+# Verde aqui significa "con este commit pasan las pruebas". NO dice si se publico en
+# Apps Script: eso es apps-script-sync.yml, que falla en rojo a proposito mientras no
+# exista el secreto CLASPRC_JSON. Son dos preguntas distintas y van en dos flujos.
+#
+# Lo mismo en la PC: npm test (scripts/pruebas.js).
+
+on:
+  push:
+    branches: [main]
+    # La documentacion no cambia ninguna prueba: no gastar minutos en ella.
+    paths-ignore:
+      - 'Documentacion/**'
+      - '**/*.md'
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+# Si llegan dos pushes seguidos, solo importa el ultimo.
+concurrency:
+  group: pruebas-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  pruebas:
+    name: Sintaxis y suites
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Descargar el repositorio
+        uses: actions/checkout@v4
+
+      # La misma version mayor que la de la PC (Node 24): las pruebas usan vm y fetch.
+      - name: Preparar Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+          cache: npm
+
+      # esbuild y acorn: los necesita build.test.js, que compila el proyecto entero.
+      - name: Instalar dependencias
+        run: npm ci
+
+      - name: Correr las pruebas
+        run: npm test

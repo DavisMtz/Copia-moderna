@@ -4,7 +4,7 @@
   "description": "Herramientas locales del Portal Ventel: build del Apps Script y pruebas. No se sube a Apps Script.",
   "scripts": {
     "build": "node scripts/build.js",
-    "test": "node pruebas/build.test.js"
+    "test": "node scripts/pruebas.js"
   },
   "devDependencies": {
     "acorn": "^8.18.0",
