@@ -657,6 +657,11 @@
             select.addEventListener('change', () => {
                 selectedFormatId = select.value;
                 applyPreviewFormat(selectedFormatId);
+                /* El formato elegido vivía solo en el <select>: un F5 lo devolvía al de la
+                   cotización. Va sin apilar —es una preferencia de la vista, no un paso del
+                   historial—, igual que en cotizacion y correoventel, y solo desde `change`:
+                   pintar el selector con innerHTML no dispara este oyente. */
+                if (window.AppUrl && AppUrl.reflejar) AppUrl.reflejar({ format: select.value });
             });
 
             /* Misma clave y mismo TTL que usan `cotizacion.html` y el calentador de
@@ -1107,11 +1112,15 @@
             // Cae al predeterminado del catálogo (DEFAULT_FORMAT_ID en Formatos.gs, hoy
             // 'ccl_liverpool') si por algo llegara sin formato — el servidor ya lo rellena
             // siempre, esto es solo la red de seguridad.
-            selectedFormatId = data.format || 'ccl_liverpool';
+            // Manda antes el que diga la dirección (?format=): es el que se eligió en esta
+            // pantalla antes del F5, o el del enlace. Si ya no está habilitado, el catálogo
+            // lo cambia por el predeterminado al llegar (loadPreviewFormats).
+            const formatoDeUrl = AppUrl.param('format');
+            selectedFormatId = formatoDeUrl || data.format || 'ccl_liverpool';
             applyPreviewFormat(selectedFormatId);
 
             // El selector se llena aparte: si tarda, ya no bloquea el dibujado.
-            loadPreviewFormats(data.format);
+            loadPreviewFormats(formatoDeUrl || data.format);
 
             /* El documento oficial se pide AQUÍ, que es por donde pasan las tres formas de
                llegar a esta pantalla (caché de la cotización recién guardada, folio en la
@@ -1336,6 +1345,14 @@
                         quoteDataForSave = JSON.parse(storedData);
                         currentFolioForPreview = quoteDataForSave.folio;
                         safeRenderPreview(quoteDataForSave);
+                        /* La URL no decía qué cotización es, y la caché genérica es una sola
+                           para toda la app: otra cotización guardada en otra pestaña la pisa y
+                           el F5 traería esa. Con el folio en la barra, la recarga va a la
+                           buena. Sin apilar: es ponerle nombre a lo que ya se ve (igual que
+                           consulta_cotizacion). */
+                        if (quoteDataForSave.folio && window.AppUrl && AppUrl.reflejar) {
+                            AppUrl.reflejar({ folio: quoteDataForSave.folio });
+                        }
                     } else {
                         showPreviewFailure('No sabemos qué cotización mostrar. Ábrela desde "Mis cotizaciones".');
                         document.getElementById('pdf-preview-content').classList.add('hidden');

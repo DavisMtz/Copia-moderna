@@ -1797,7 +1797,49 @@
         let visorArticulo = -1;   // índice del artículo que se está mirando
         let visorPeticion = 0;    // descarta respuestas de un artículo ya cerrado
 
-        function abrirVisor(p, indice) {
+        /*
+         * EL ARTÍCULO EN LA DIRECCIÓN (?item=).
+         * Es su SKU, y si el mismo SKU sale en varias líneas —el formulario de cotizar no
+         * las junta—, «~2», «~3»… por orden de aparición. Una línea sin SKU va siempre con
+         * su número («~1»). No es la posición a secas: un enlace compartido tiene que seguir
+         * señalando el mismo artículo aunque la cotización se edite y sus líneas cambien de
+         * sitio, y si ya no está, no se abre ninguno en su lugar.
+         */
+        function idArticulo(productos, i) {
+            const sku = String(productos[i].sku || '').trim();
+            let n = 0;
+            for (let k = 0; k <= i; k++) if (String(productos[k].sku || '').trim() === sku) n++;
+            return (n > 1 || !sku) ? sku + '~' + n : sku;
+        }
+
+        /** La línea que pide ?item=, o -1 si ya no existe o el comparador no puede abrirla. */
+        function indiceDeArticulo(productos, id) {
+            const texto = String(id || '');
+            if (!texto) return -1;   // la línea sin SKU se pide como «~1», nunca con el vacío
+            const m = /^(.*)~(\d+)$/.exec(texto);
+            const sku = m ? m[1] : texto;
+            const n = m ? parseInt(m[2], 10) : 1;
+            let vistos = 0;
+            for (let k = 0; k < productos.length; k++) {
+                if (String(productos[k].sku || '').trim() !== sku) continue;
+                if (++vistos < n) continue;
+                // Sin enlace de Liverpool el comparador no tiene nada que enseñar.
+                return urlSegura(productos[k].productUrl, HOSTS_LIVERPOOL) ? k : -1;
+            }
+            return -1;
+        }
+
+        function visorAbierto() {
+            return document.getElementById('rev-viewer').classList.contains('active');
+        }
+
+        /**
+         * @param {boolean=} sinUrl true cuando se abre PORQUE lo pide la dirección (F5, un
+         *   enlace compartido, atrás/adelante): volver a escribirla apilaría una entrada
+         *   gemela de la que el navegador acaba de poner, y atrás se quedaría dando vueltas
+         *   sobre el mismo artículo sin cerrar nunca el comparador.
+         */
+        function abrirVisor(p, indice, sinUrl) {
             const url = urlSegura(p.productUrl, HOSTS_LIVERPOOL);
             if (!url) return;
 
@@ -1805,6 +1847,13 @@
             visorArticulo = (typeof indice === 'number') ? indice : -1;
             const peticion = ++visorPeticion;
             const visor = document.getElementById('rev-viewer');
+
+            // Abrir un artículo APILA: el comparador es un sitio del que se vuelve con
+            // «atrás», como la hoja de una incidencia en el tablero de estado. Se abre en la
+            // comparación, que en la dirección es la ausencia de ?action.
+            if (!sinUrl && visorArticulo > -1 && window.AppUrl && AppUrl.reflejar) {
+                AppUrl.reflejar({ item: idArticulo(estado.datos.products, visorArticulo), action: '' }, { apilar: true });
+            }
 
             document.getElementById('rev-viewer-titulo').textContent = p.description || 'Artículo';
             document.getElementById('rev-viewer-url').textContent = url;
@@ -2070,7 +2119,8 @@
                 (cb && cb.checked) ? 'Quitar la marca de verificado' : 'Marcar como verificado';
         }
 
-        function cerrarVisor() {
+        /** @param {boolean=} sinUrl como en abrirVisor: true cuando lo cierra la dirección. */
+        function cerrarVisor(sinUrl) {
             const visor = document.getElementById('rev-viewer');
             if (!visor.classList.contains('active')) return;
             visorPeticion++;            // invalida cualquier respuesta en vuelo
@@ -2094,6 +2144,9 @@
             document.removeEventListener('keydown', teclasVisor, true);
             if (visorPrevio && visorPrevio.focus) visorPrevio.focus();
             visorPrevio = null;
+            // Cerrar QUITA el artículo de la dirección, y reemplaza: cerrar no es ir a ningún
+            // sitio nuevo. Sin esto, F5 resucitaría el comparador que se acaba de cerrar.
+            if (!sinUrl && window.AppUrl && AppUrl.reflejar) AppUrl.reflejar({ item: '', action: '' });
         }
 
         /** Esc cierra y Tab no se escapa del visor mientras está abierto. */
@@ -2129,6 +2182,30 @@
                 const p = document.getElementById(bt.getAttribute('aria-controls'));
                 if (p) p.hidden = !activo;
             });
+        }
+
+        /**
+         * Entra a una pestaña del comparador. La página se pide la PRIMERA vez que alguien
+         * entra a su pestaña: media docena de artículos abiertos serían media docena de
+         * descargas de medio mega que nadie llegó a mirar.
+         *
+         * Cambiar de pestaña APILA (?action=pagina; la comparación es la ausencia), así que
+         * atrás vuelve a la pestaña anterior antes de cerrar el comparador. Pulsar la que ya
+         * está abierta no escribe nada: una entrada repetida haría pulsar atrás dos veces.
+         */
+        function irPestanaVisor(cual, sinUrl) {
+            const bt = document.querySelector('#rev-viewer [data-vtab="' + cual + '"]');
+            if (!bt) return;
+            const yaEstaba = bt.getAttribute('aria-selected') === 'true';
+            seleccionarPestanaVisor(cual);
+            if (!sinUrl && !yaEstaba && window.AppUrl && AppUrl.reflejar) {
+                AppUrl.reflejar({ action: cual === 'pag' ? 'pagina' : '' }, { apilar: true });
+            }
+            if (cual !== 'pag') return;
+            const host = document.getElementById('rev-pag-host');
+            if (host.querySelector('iframe')) return;   // ya está traída
+            const p = (estado.datos && estado.datos.products) ? estado.datos.products[visorArticulo] : null;
+            if (p) cargarPaginaArticulo(p);
         }
 
         let fxPagina = null;   // escena mientras el navegador pinta el srcdoc
@@ -2217,6 +2294,13 @@
         // ─────────────────────────────────────────────────── Sheet incrustado
 
         /*
+         * La tarjeta del documento, para quien tenga que manejarla desde fuera de
+         * prepararSheet: la dirección (?sec=hoja|google, ver aplicarUrl). Se queda en null
+         * cuando la cotización no tiene documento CCL.
+         */
+        let documento = null;
+
+        /*
          * LA HOJA, DENTRO DEL PORTAL.
          *
          * Antes solo había un iframe a Google y salía en blanco más veces de las que cargaba:
@@ -2240,54 +2324,84 @@
             const toggle = document.getElementById('rev-sheet-toggle');
             const panel = document.getElementById('rev-sheet-panel');
             const host = document.getElementById('rev-sheet-host');
+            const pestanas = document.querySelectorAll('.rev-tabs [data-tab]');
             let hojaPedida = false;
 
-            toggle.addEventListener('click', function () {
-                const abierto = toggle.getAttribute('aria-expanded') === 'true';
-                toggle.setAttribute('aria-expanded', String(!abierto));
-                panel.classList.toggle('open', !abierto);
-                // Carga perezosa: la hoja solo se pide cuando alguien decide mirarla.
-                if (!abierto && !hojaPedida) { hojaPedida = true; cargarHoja(); }
-            });
+            const abierta = function () { return toggle.getAttribute('aria-expanded') === 'true'; };
+            const activa = function () {
+                const bt = document.querySelector('.rev-tabs [data-tab][aria-selected="true"]');
+                return bt ? bt.getAttribute('data-tab') : 'hoja';
+            };
+
+            // Carga perezosa: la hoja solo se pide cuando alguien decide mirarla, es decir,
+            // con la tarjeta abierta y en su pestaña. Quien vuelve por la dirección directo a
+            // «Hoja de Google» no paga además la lectura de la vista del portal.
+            function pedirHoja() {
+                if (hojaPedida || !abierta() || activa() !== 'hoja') return;
+                hojaPedida = true;
+                cargarHoja();
+            }
+
+            /* Abrir la tarjeta APILA (?sec=<pestaña>), igual que abrir una incidencia en el
+               tablero de estado; plegarla QUITA el parámetro y reemplaza. */
+            function abrir(si, sinUrl) {
+                if (abierta() === si) return;
+                toggle.setAttribute('aria-expanded', String(si));
+                panel.classList.toggle('open', si);
+                pedirHoja();
+                if (sinUrl || !window.AppUrl || !AppUrl.reflejar) return;
+                if (si) AppUrl.reflejar({ sec: activa() }, { apilar: true });
+                else AppUrl.reflejar({ sec: '' });
+            }
 
             // Pestañas. El iframe de Google se crea la primera vez que se pide su pestaña:
-            // crearlo antes cargaría un documento entero que quizá nadie mire.
-            document.querySelectorAll('.rev-tabs [data-tab]').forEach(function (bt) {
-                bt.addEventListener('click', function () {
-                    const cual = bt.getAttribute('data-tab');
-                    document.querySelectorAll('.rev-tabs [data-tab]').forEach(function (otro) {
-                        const activo = otro === bt;
-                        otro.setAttribute('aria-selected', String(activo));
-                        const p = document.getElementById(otro.getAttribute('aria-controls'));
-                        if (p) p.hidden = !activo;
-                    });
-                    if (cual === 'google' && embed && !host.firstChild) {
-                        const fr = document.createElement('iframe');
-                        fr.src = embed;
-                        fr.className = 'rev-frame';
-                        fr.title = 'Documento de la cotización en Google Sheets';
-                        fr.setAttribute('referrerpolicy', 'no-referrer');
-                        host.appendChild(fr);
-                        /*
-                         * Un marco de Google en blanco significa dos cosas distintas —«está
-                         * cargando» y «tu cuenta no tiene acceso»— y hasta ahora se veían
-                         * idénticas. La escena de DOCUMENTO (formatos, hojas, PDF) ocupa el
-                         * marco mientras carga, así que el blanco que quede después de que
-                         * se retire ya solo puede ser lo segundo, que es lo que explica la
-                         * barra de abajo.
-                         */
-                        const fxHoja = VentelFX.section(host, 'documento', {
-                            mode: 'cover',
-                            title: 'Abriendo la hoja en Google…',
-                            sub: 'La sirve Google, no el portal: puede tardar unos segundos.'
-                        });
-                        fr.addEventListener('load', function () { fxHoja.done(); });
-                        fr.addEventListener('error', function () {
-                            fxHoja.fail('Google no pudo mostrar el documento. Usa «Vista en el portal».');
-                        });
-                    }
+            // crearlo antes cargaría un documento entero que quizá nadie mire. Cambiar de
+            // pestaña APILA; pulsar la que ya está abierta no escribe nada.
+            function pestana(cual, sinUrl) {
+                if (cual !== 'hoja' && cual !== 'google') return;
+                const yaEstaba = activa() === cual;
+                pestanas.forEach(function (otro) {
+                    const activo = otro.getAttribute('data-tab') === cual;
+                    otro.setAttribute('aria-selected', String(activo));
+                    const p = document.getElementById(otro.getAttribute('aria-controls'));
+                    if (p) p.hidden = !activo;
                 });
+                if (cual === 'google' && embed && !host.firstChild) {
+                    const fr = document.createElement('iframe');
+                    fr.src = embed;
+                    fr.className = 'rev-frame';
+                    fr.title = 'Documento de la cotización en Google Sheets';
+                    fr.setAttribute('referrerpolicy', 'no-referrer');
+                    host.appendChild(fr);
+                    /*
+                     * Un marco de Google en blanco significa dos cosas distintas —«está
+                     * cargando» y «tu cuenta no tiene acceso»— y hasta ahora se veían
+                     * idénticas. La escena de DOCUMENTO (formatos, hojas, PDF) ocupa el
+                     * marco mientras carga, así que el blanco que quede después de que
+                     * se retire ya solo puede ser lo segundo, que es lo que explica la
+                     * barra de abajo.
+                     */
+                    const fxHoja = VentelFX.section(host, 'documento', {
+                        mode: 'cover',
+                        title: 'Abriendo la hoja en Google…',
+                        sub: 'La sirve Google, no el portal: puede tardar unos segundos.'
+                    });
+                    fr.addEventListener('load', function () { fxHoja.done(); });
+                    fr.addEventListener('error', function () {
+                        fxHoja.fail('Google no pudo mostrar el documento. Usa «Vista en el portal».');
+                    });
+                }
+                pedirHoja();
+                if (!sinUrl && !yaEstaba && abierta() && window.AppUrl && AppUrl.reflejar) {
+                    AppUrl.reflejar({ sec: cual }, { apilar: true });
+                }
+            }
+
+            toggle.addEventListener('click', function () { abrir(!abierta()); });
+            pestanas.forEach(function (bt) {
+                bt.addEventListener('click', function () { pestana(bt.getAttribute('data-tab')); });
             });
+            documento = { abrir: abrir, pestana: pestana };
 
             document.getElementById('rev-hoja-recargar').addEventListener('click', function () {
                 cargarHoja(true);
@@ -2726,6 +2840,47 @@
             if (window.VentelLoader) VentelLoader.hide();
         }
 
+        /**
+         * Pone en pantalla lo que pide la dirección: la tarjeta del documento abierta en su
+         * pestaña (?sec=hoja|google) y el artículo del comparador (?item=, con ?action=pagina
+         * para la página de Liverpool). La usan el final del pintado (F5, un enlace
+         * compartido) y atrás/adelante, siempre en callado: lo que llega ES la barra de
+         * direcciones, y contestarle escribiendo apilaría una entrada por cada «atrás».
+         *
+         * La AUSENCIA también manda: una dirección sin ?item= es el comparador cerrado, y una
+         * sin ?sec=, la tarjeta plegada. Lo que pide algo que ya no está —un artículo que
+         * salió de la cotización, el documento de una que no es CCL— se borra de la barra en
+         * vez de abrir otra cosa en su lugar.
+         */
+        function aplicarUrl(p) {
+            if (!estado.datos) return;   // aún no llega la revisión: pintarTodo la aplica al terminar
+            p = p || {};
+            const sobra = {};
+
+            const sec = String(p.sec || '');
+            const secValida = sec === 'hoja' || sec === 'google';
+            if (documento) {
+                if (secValida) { documento.pestana(sec, true); documento.abrir(true, true); }
+                else documento.abrir(false, true);
+            }
+            if (sec && !(documento && secValida)) sobra.sec = '';
+
+            const item = String(p.item || '');
+            const accion = String(p.action || '');
+            const i = item ? indiceDeArticulo(estado.datos.products || [], item) : -1;
+            if (i > -1) {
+                if (!visorAbierto() || visorArticulo !== i) abrirVisor(estado.datos.products[i], i, true);
+                irPestanaVisor(accion === 'pagina' ? 'pag' : 'cmp', true);
+                if (accion && accion !== 'pagina') sobra.action = '';
+            } else {
+                if (visorAbierto()) cerrarVisor(true);
+                if (item) sobra.item = '';
+                if (accion) sobra.action = '';
+            }
+
+            if (Object.keys(sobra).length && window.AppUrl && AppUrl.reflejar) AppUrl.reflejar(sobra);
+        }
+
         function pintarTodo(d) {
             estado.datos = d;
             estado.articulos = d.products.map(() => ({ ok: false }));
@@ -2773,6 +2928,10 @@
             AppMotion.enter(document.getElementById('rev-contenido'));
             if (window.VentelLoader) VentelLoader.hide();
 
+            // Lo que pide la dirección —la pestaña del documento, el artículo del comparador—
+            // se pone ahora que hay datos: F5 y un enlace compartido vuelven a lo que se miraba.
+            if (window.AppUrl) aplicarUrl(AppUrl.params());
+
             /*
              * La comparación con el sitio arranca DESPUÉS de que la pantalla ya es usable.
              * Son varias peticiones de red y tardan segundos; bloquear el primer pintado por
@@ -2790,8 +2949,11 @@
              * aún no se pintó es un paso que el motor descarta solo.
              * Se lanza igual con una revisión ya cerrada: quien la abre por primera
              * vez sigue sin saber qué es cada bloque, aprobada o no.
+             * Si se llega con el comparador abierto (F5 o un enlace con ?item=), solo se
+             * registra: lanzado, taparía el artículo que se vino a mirar. Queda a un clic
+             * en el botón de ayuda y sale solo la próxima vez que se abra la pantalla.
              */
-            if (window.AppOnboarding) AppOnboarding.auto({
+            if (window.AppOnboarding) AppOnboarding[visorAbierto() ? 'definir' : 'auto']({
                 pantalla: 'revision_cotizacion',
                 version: 1,
                 retraso: 800,
@@ -2906,25 +3068,23 @@
             document.getElementById('rev-btn-consulta').addEventListener('click', function () {
                 AppUrl.go('consulta_cotizacion', { folio: estado.folio });
             });
-            document.getElementById('rev-viewer-cerrar').addEventListener('click', cerrarVisor);
+            // Envuelto, no `cerrarVisor` a secas: el evento del clic llegaría como `sinUrl` y
+            // el aspa cerraría el comparador dejando el artículo en la dirección.
+            document.getElementById('rev-viewer-cerrar').addEventListener('click', function () { cerrarVisor(); });
             document.getElementById('rev-viewer').addEventListener('click', function (ev) {
                 if (ev.target === this) cerrarVisor();
             });
 
-            // Pestañas del visor. La página se pide la PRIMERA vez que alguien entra a su
-            // pestaña: media docena de artículos abiertos serían media docena de descargas
-            // de medio mega que nadie llegó a mirar.
+            // Pestañas del visor (ver irPestanaVisor: la página se pide la primera vez).
             document.querySelectorAll('#rev-viewer [data-vtab]').forEach(function (bt) {
-                bt.addEventListener('click', function () {
-                    const cual = bt.getAttribute('data-vtab');
-                    seleccionarPestanaVisor(cual);
-                    if (cual !== 'pag') return;
-                    const host = document.getElementById('rev-pag-host');
-                    if (host.querySelector('iframe')) return;   // ya está traída
-                    const p = (estado.datos && estado.datos.products) ? estado.datos.products[visorArticulo] : null;
-                    if (p) cargarPaginaArticulo(p);
-                });
+                bt.addEventListener('click', function () { irPestanaVisor(bt.getAttribute('data-vtab')); });
             });
+
+            /* Atrás/adelante del navegador: la pestaña del documento y el artículo del
+               comparador vuelven a lo que dice la dirección (ver aplicarUrl). */
+            if (window.AppUrl && AppUrl.alCambiarUrl) {
+                AppUrl.alCambiarUrl(function (loc) { aplicarUrl((loc && loc.parameter) || {}); });
+            }
 
             // Marcar el artículo sin salir del comparador: es el gesto natural justo
             // después de ver que el precio cuadra.
