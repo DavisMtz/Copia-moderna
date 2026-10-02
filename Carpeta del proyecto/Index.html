@@ -2858,7 +2858,9 @@ function pushNav(id){
 
    Se REEMPLAZA la entrada de historial, no se apila: una por tecla dejaría el botón
    atrás inservible —habría que pulsarlo doce veces para deshacer una palabra—. Cambiar
-   de sección sí apila, que es lo que la gente espera de algo que se ve como páginas. */
+   de sección pide apilar, pero desde el 01/10/2026 también reemplaza: apilar dejaba la
+   pantalla en blanco al volver atrás después de una recarga (fallo de Google; ver
+   APILAR_HISTORIAL en app_core, que es quien lo decide para todo el sistema). */
 /* `google.script.history` REEMPLAZA el juego de parámetros entero: lo que no se le pase
    aquí desaparece de la barra. Por eso la publicación abierta se añade en esta función y
    no en la que la abre —si no, teclear una letra en el filtro de una sección borraba el
@@ -2870,8 +2872,9 @@ function navUrl(id, q, apilar){
   // Trazabilidad con «Todas» las líneas: se guarda para que recargar, volver o compartir llegue igual.
   const linea = window.trzLineaUrl ? trzLineaUrl(id) : '';
   if (linea) params.linea = linea;
+  const apila = !!apilar && !!(window.AppUrl && AppUrl.APILA_HISTORIAL);
   if (typeof google !== 'undefined' && google.script && google.script.history) {
-    const metodo = apilar ? google.script.history.push : google.script.history.replace;
+    const metodo = apila ? google.script.history.push : google.script.history.replace;
     try { metodo.call(google.script.history, null, params, id); } catch(e){}
     return;
   }
@@ -2879,9 +2882,9 @@ function navUrl(id, q, apilar){
               + (pubAbierta ? '&pub=' + encodeURIComponent(pubAbierta) : '')
               + (linea ? '&linea=' + encodeURIComponent(linea) : '');
   try {
-    if (apilar) history.pushState(null, '', busca + '#' + id);
+    if (apila) history.pushState(null, '', busca + '#' + id);
     else history.replaceState(null, '', busca + '#' + id);
-  } catch(e){ if (apilar) location.hash = id; }
+  } catch(e){ if (apila) location.hash = id; }
 }
 
 /** La sección que se está viendo, para escribir la barra sin perderla. */

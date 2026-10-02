@@ -7,6 +7,10 @@
 // F5 = volver a pedir la página con los parámetros de la entrada actual: el servidor de aquí los inyecta en
 // __APP__ igual que doGet (solo los de PARAMS_VISTA). Cada paso dice qué pasó y la sonda sale con código 1 si
 // algo no cuadra.
+// Desde la decisión 8 del doc 16 (01/10/2026) el sistema NO apila (APILAR_HISTORIAL = false en app_core: con el
+// fallo de Google, atrás tras una recarga deja la pantalla en blanco). La sonda lee el interruptor y comprueba lo
+// que toca en cada modo: apagado, que todo reemplace y que F5 siga devolviendo el estado; encendido, además el
+// recorrido de atrás/adelante dentro de la pantalla.
 //   node scripts/laboratorio/url-pestanas.mjs <carpeta del proyecto> <salida FUERA del repo>
 // En esta PC, lanzarlo desde PowerShell con la ruta larga (desde Git Bash no llegó a conectar con Chrome).
 
@@ -24,6 +28,11 @@ if (!DIR || !OUT || !path.relative(REPO, path.resolve(OUT)).startsWith('..')) { 
 fs.mkdirSync(OUT, { recursive: true });
 const leer = (f) => fs.readFileSync(path.join(DIR, f), 'utf8').replace(/\r\n/g, '\n');
 const PARAMS = JSON.parse(leer('Code.gs').match(/const PARAMS_VISTA = (\[[^\]]*\])/)[1].replace(/'/g, '"'));
+// ¿Apila de verdad? (decisión 8). Se le pregunta a la página al cargar (AppUrl.APILA_HISTORIAL): en el build
+// esbuild renombra la constante, pero no la propiedad. Sin ella (código anterior a la decisión 8), apilaba.
+// `nE(si, no)`: cuántas entradas debe haber según el interruptor.
+let APILA = true;
+const nE = (si, no) => (APILA ? si : no);
 const BASE = 'https://repro.invalid/exec';
 const CORREO = 'banco@ventel.test';
 
@@ -248,6 +257,8 @@ try {
   let t = await pestana();
   await t.ir('revision_cotizacion', { folio: 'VT-PRUEBA' });
   ok('la revisión se pinta', await t.esperar(LISTA));
+  APILA = await t.ev('!(window.AppUrl && AppUrl.APILA_HISTORIAL === false)');
+  console.log('  Modo: ' + (APILA ? 'APILA historial' : 'solo REEMPLAZA (AppUrl.APILA_HISTORIAL = false, decisión 8)'));
   let v = await t.ev(VISTA_REV);
   ok('al abrir: comparador cerrado, tarjeta plegada, una entrada', !v.visor && v.tarjeta === 'plegada' && v.hist.n === 1, v);
 
@@ -255,17 +266,17 @@ try {
   await t.esperar('document.getElementById("rev-viewer").classList.contains("active")');
   await dormir(400);
   v = await t.ev(VISTA_REV);
-  ok('abrir la 2.ª línea del SKU 111 apila item=111~2 sin action', v.hist.n === 2 && v.hist.p.item === '111~2' && !('action' in v.hist.p) && v.hist.p.folio === 'VT-PRUEBA' && v.hist.p.page === 'revision_cotizacion', v.hist);
+  ok('abrir la 2.ª línea del SKU 111 escribe item=111~2 sin action' + (APILA ? ' (apila)' : ' (reemplaza)'), v.hist.n === nE(2, 1) && v.hist.p.item === '111~2' && !('action' in v.hist.p) && v.hist.p.folio === 'VT-PRUEBA' && v.hist.p.page === 'revision_cotizacion', v.hist);
   ok('…y el comparador enseña esa línea', v.visor === 'Licuadora A (segunda línea)' && v.vtab === 'cmp', v.visor);
 
   await t.ev('document.getElementById("rev-tab-pag").click()');
   await t.esperar('!!document.querySelector("#rev-pag-host iframe")');
   v = await t.ev(VISTA_REV);
-  ok('la pestaña «Página de Liverpool» apila action=pagina y trae la página una vez', v.hist.n === 3 && v.hist.p.action === 'pagina' && cuenta(v, 'revPaginaArticulo') === 1, { hist: v.hist, n: cuenta(v, 'revPaginaArticulo') });
+  ok('la pestaña «Página de Liverpool» escribe action=pagina y trae la página una vez', v.hist.n === nE(3, 1) && v.hist.p.action === 'pagina' && cuenta(v, 'revPaginaArticulo') === 1, { hist: v.hist, n: cuenta(v, 'revPaginaArticulo') });
   await t.ev('document.getElementById("rev-tab-pag").click()');
   await dormir(400);
   v = await t.ev(VISTA_REV);
-  ok('pulsar la pestaña que ya está abierta no apila', v.hist.n === 3, v.hist);
+  ok('pulsar la pestaña que ya está abierta no añade entradas', v.hist.n === nE(3, 1), v.hist);
 
   await t.f5();
   ok('F5: la revisión se pinta', await t.esperar(LISTA));
@@ -273,28 +284,33 @@ try {
   await dormir(1200);
   v = await t.ev(VISTA_REV);
   ok('F5: vuelve el comparador en la misma línea y en «Página de Liverpool»', v.visor === 'Licuadora A (segunda línea)' && v.vtab === 'pag' && v.marcoPagina, v);
-  ok('F5: la página se pide UNA vez y la URL no cambia', cuenta(v, 'revPaginaArticulo') === 1 && v.hist.n === 3 && v.hist.i === 2, { n: cuenta(v, 'revPaginaArticulo'), hist: v.hist });
+  ok('F5: la página se pide UNA vez y la URL no cambia', cuenta(v, 'revPaginaArticulo') === 1 && v.hist.n === nE(3, 1) && v.hist.i === nE(2, 0), { n: cuenta(v, 'revPaginaArticulo'), hist: v.hist });
   ok('F5: el comparador se ve (opacidad 1)', v.opacidad > 0.99, v.opacidad);
   await t.foto('rev-f5-pagina');
 
-  await t.ev('__hist.mover(-1)');
-  await dormir(500);
-  v = await t.ev(VISTA_REV);
-  ok('atrás: misma línea, en la comparación, sin pedir nada', v.visor === 'Licuadora A (segunda línea)' && v.vtab === 'cmp' && cuenta(v, 'revPaginaArticulo') === 1 && cuenta(v, 'revFichaArticulo') === 1, v);
-  await t.ev('__hist.mover(-1)');
-  await dormir(500);
-  v = await t.ev(VISTA_REV);
-  ok('atrás otra vez: comparador cerrado', !v.visor && v.hist.i === 0, v);
-  await t.ev('__hist.mover(1)');
-  await dormir(500);
-  v = await t.ev(VISTA_REV);
-  ok('adelante: vuelve a abrirse en la comparación (una ficha más)', v.visor === 'Licuadora A (segunda línea)' && v.vtab === 'cmp' && cuenta(v, 'revFichaArticulo') === 2, v);
+  if (APILA) {
+    await t.ev('__hist.mover(-1)');
+    await dormir(500);
+    v = await t.ev(VISTA_REV);
+    ok('atrás: misma línea, en la comparación, sin pedir nada', v.visor === 'Licuadora A (segunda línea)' && v.vtab === 'cmp' && cuenta(v, 'revPaginaArticulo') === 1 && cuenta(v, 'revFichaArticulo') === 1, v);
+    await t.ev('__hist.mover(-1)');
+    await dormir(500);
+    v = await t.ev(VISTA_REV);
+    ok('atrás otra vez: comparador cerrado', !v.visor && v.hist.i === 0, v);
+    await t.ev('__hist.mover(1)');
+    await dormir(500);
+    v = await t.ev(VISTA_REV);
+    ok('adelante: vuelve a abrirse en la comparación (una ficha más)', v.visor === 'Licuadora A (segunda línea)' && v.vtab === 'cmp' && cuenta(v, 'revFichaArticulo') === 2, v);
+  } else {
+    // Sin entradas propias, atrás no tiene a dónde volver dentro de la pantalla: saldría de ella.
+    ok('sin entradas propias de la pantalla: atrás no puede caer en una vieja', v.hist.n === 1 && !(await t.ev('__hist.mover(-1)')), v.hist);
+  }
 
   await t.ev('document.getElementById("rev-viewer-cerrar").click()');
   await dormir(500);
   v = await t.ev(VISTA_REV);
-  // Reemplaza la entrada 1 y deja la de delante (la de action=pagina), como replaceState en un navegador.
-  ok('el aspa cierra y QUITA item y action, reemplazando', !v.visor && !('item' in v.hist.p) && !('action' in v.hist.p) && v.hist.n === 3 && v.hist.i === 1, v.hist);
+  // Reemplaza la entrada actual (si se apilaba, deja la de delante, como replaceState en un navegador).
+  ok('el aspa cierra y QUITA item y action, reemplazando', !v.visor && !('item' in v.hist.p) && !('action' in v.hist.p) && v.hist.n === nE(3, 1) && v.hist.i === nE(1, 0), v.hist);
 
   await t.ev('document.querySelector(\'[data-ver="1"]\').click()');
   await dormir(500);
@@ -312,31 +328,39 @@ try {
   await t.ev('document.getElementById("rev-sheet-toggle").click()');
   await dormir(500);
   v = await t.ev(VISTA_REV);
-  ok('abrir la tarjeta apila sec=hoja y lee la hoja', v.tarjeta === 'abierta' && v.hist.n === 2 && v.hist.p.sec === 'hoja' && cuenta(v, 'revHojaCotizacion') === 1, { v: v.tarjeta, hist: v.hist });
+  ok('abrir la tarjeta escribe sec=hoja y lee la hoja', v.tarjeta === 'abierta' && v.hist.n === nE(2, 1) && v.hist.p.sec === 'hoja' && cuenta(v, 'revHojaCotizacion') === 1, { v: v.tarjeta, hist: v.hist });
   await t.ev('document.getElementById("rev-tab-google").click()');
   await dormir(500);
   v = await t.ev(VISTA_REV);
-  ok('«Hoja de Google» apila sec=google y crea el marco', v.tab === 'google' && v.marcoGoogle && v.hist.n === 3 && v.hist.p.sec === 'google', v);
+  ok('«Hoja de Google» escribe sec=google y crea el marco', v.tab === 'google' && v.marcoGoogle && v.hist.n === nE(3, 1) && v.hist.p.sec === 'google', v);
   await t.f5();
   await t.esperar(LISTA);
   await dormir(800);
   v = await t.ev(VISTA_REV);
   ok('F5: tarjeta abierta en «Hoja de Google», con su marco', v.tarjeta === 'abierta' && v.tab === 'google' && v.marcoGoogle, v);
   ok('F5: sin leer la vista del portal, que nadie está mirando', cuenta(v, 'revHojaCotizacion') === 0, v.llamadas);
-  await t.ev('__hist.mover(-1)');
-  await dormir(500);
-  v = await t.ev(VISTA_REV);
-  ok('atrás: «Vista en el portal», que ahora sí se lee', v.tarjeta === 'abierta' && v.tab === 'hoja' && cuenta(v, 'revHojaCotizacion') === 1, v);
-  await t.ev('__hist.mover(-1)');
-  await dormir(500);
-  v = await t.ev(VISTA_REV);
-  ok('atrás otra vez: tarjeta plegada', v.tarjeta === 'plegada', v);
-  await t.ev('__hist.mover(1)');
-  await dormir(300);
+  if (APILA) {
+    await t.ev('__hist.mover(-1)');
+    await dormir(500);
+    v = await t.ev(VISTA_REV);
+    ok('atrás: «Vista en el portal», que ahora sí se lee', v.tarjeta === 'abierta' && v.tab === 'hoja' && cuenta(v, 'revHojaCotizacion') === 1, v);
+    await t.ev('__hist.mover(-1)');
+    await dormir(500);
+    v = await t.ev(VISTA_REV);
+    ok('atrás otra vez: tarjeta plegada', v.tarjeta === 'plegada', v);
+    await t.ev('__hist.mover(1)');
+    await dormir(300);
+  } else {
+    // Volver a «Vista en el portal» con su pestaña: ahora sí se lee, una vez.
+    await t.ev('document.getElementById("rev-tab-hoja").click()');
+    await dormir(500);
+    v = await t.ev(VISTA_REV);
+    ok('pestaña «Vista en el portal»: se lee entonces, una vez, sin añadir entradas', v.tab === 'hoja' && cuenta(v, 'revHojaCotizacion') === 1 && v.hist.n === 1 && v.hist.p.sec === 'hoja', v);
+  }
   await t.ev('document.getElementById("rev-sheet-toggle").click()');
   await dormir(500);
   v = await t.ev(VISTA_REV);
-  ok('plegarla QUITA sec, reemplazando', v.tarjeta === 'plegada' && !('sec' in v.hist.p) && v.hist.n === 3 && v.hist.i === 1, v.hist);
+  ok('plegarla QUITA sec, reemplazando', v.tarjeta === 'plegada' && !('sec' in v.hist.p) && v.hist.n === nE(3, 1) && v.hist.i === nE(1, 0), v.hist);
   ok('sin errores de página', t.errores.length === 0, t.errores);
   await t.cerrar();
 

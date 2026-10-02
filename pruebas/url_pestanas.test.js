@@ -9,7 +9,10 @@
  *   · que ?item= deje de encontrar la línea que escribió (SKU repetido, línea sin SKU);
  *   · que un artículo que ya no está o sin enlace abra OTRO en su lugar;
  *   · que el aspa vuelva a recibir el clic como `sinUrl` y deje el artículo en la barra;
- *   · que nadie escuche atrás/adelante, o que los parámetros dejen de estar en PARAMS_VISTA.
+ *   · que nadie escuche atrás/adelante, o que los parámetros dejen de estar en PARAMS_VISTA;
+ *   · (decisión 8) que alguna pantalla vuelva a APILAR historial: con el fallo de Google, atrás
+ *     después de una recarga deja la pantalla en blanco. Se ejecutan el AppUrl real y el navUrl
+ *     real del Portal con un google.script.history falso.
  * Esta carpeta queda fuera de "Carpeta del proyecto": clasp nunca la sube.
  */
 const fs = require('fs');
@@ -27,6 +30,7 @@ function ok(nombre, cond, extra) {
 
 const rev = fs.readFileSync(path.join(PROY, 'revision_cotizacion.html'), 'utf8').replace(/\r\n/g, '\n');
 const prev = fs.readFileSync(path.join(PROY, 'cotizado_preview.html'), 'utf8').replace(/\r\n/g, '\n');
+const idx = fs.readFileSync(path.join(PROY, 'Index.html'), 'utf8').replace(/\r\n/g, '\n');
 const code = fs.readFileSync(path.join(PROY, 'Code.gs'), 'utf8');
 const core = fs.readFileSync(path.join(PROY, 'app_core.html'), 'utf8');
 
@@ -91,6 +95,69 @@ ok('…y al pintar manda el de la dirección', /const formatoDeUrl = AppUrl\.par
 const lista = (txt) => JSON.parse(txt.match(/const PARAMS_VISTA = (\[[^\]]*\])/)[1].replace(/'/g, '"'));
 ok('sec, item, action y format siguen en las dos PARAMS_VISTA (servidor y cliente)',
   ['sec', 'item', 'action', 'format'].every((k) => lista(code).includes(k) && lista(core).includes(k)));
+
+console.log('\nD · Decisión 8: ninguna pantalla apila historial (fallo de Google tras recargar)');
+/* google.script.history falso: apunta qué método se llamó y con qué parámetros. */
+function historialFalso() {
+  const llamadas = [];
+  const reg = (m) => function (estado, params, hash) { llamadas.push({ m, params: Object.assign({}, params), hash }); };
+  return { llamadas, api: { push: reg('push'), replace: reg('replace'), setChangeHandler() {} } };
+}
+/* El AppUrl REAL: de PARAMS_VISTA al cierre de su objeto, con el interruptor tal cual o forzado. */
+const ini = core.indexOf('  const PARAMS_VISTA = [');
+const fin = core.indexOf('  /** Pantallas que exigieron sesión');
+const trozoAppUrl = ini > -1 && fin > ini ? core.slice(ini, fin) : '';
+ok('se encuentra el AppUrl de app_core para ejecutarlo', /const AppUrl = \{/.test(trozoAppUrl) && /const APILAR_HISTORIAL = (true|false);/.test(trozoAppUrl));
+ok('el interruptor está APAGADO', /const APILAR_HISTORIAL = false;/.test(core));
+function appUrlCon(apilarHistorial) {
+  const h = historialFalso();
+  const ctx = { console, setTimeout, clearTimeout, URLSearchParams, cfg: { baseUrl: 'https://x/exec', folio: 'F1' } };
+  ctx.window = ctx; ctx.location = { search: '' }; ctx.google = { script: { history: h.api } };
+  const fuenteAppUrl = trozoAppUrl.replace(/const APILAR_HISTORIAL = (true|false);/, 'const APILAR_HISTORIAL = ' + apilarHistorial + ';');
+  vm.runInNewContext(fuenteAppUrl + '\nthis.AppUrl = AppUrl;', ctx);
+  return { AppUrl: ctx.AppUrl, llamadas: h.llamadas };
+}
+if (trozoAppUrl) {
+  const hoy = appUrlCon(false);
+  hoy.AppUrl.declararPagina('revision_cotizacion');
+  hoy.AppUrl.reflejar({ item: '111~2', action: '' }, { apilar: true });
+  hoy.AppUrl.actualizar({ page: 'consola', sec: 'grupos' }, 'grupos', true);
+  ok('con el interruptor apagado, «apilar» REEMPLAZA (y en el acto)', hoy.llamadas.length === 2 && hoy.llamadas.every((x) => x.m === 'replace'), hoy.llamadas);
+  ok('…sin perder la página ni lo demás de la dirección', hoy.llamadas[0] && hoy.llamadas[0].params.page === 'revision_cotizacion' &&
+    hoy.llamadas[0].params.folio === 'F1' && hoy.llamadas[0].params.item === '111~2' && !('action' in hoy.llamadas[0].params), hoy.llamadas[0]);
+  ok('AppUrl.APILA_HISTORIAL lo publica para el Portal', hoy.AppUrl.APILA_HISTORIAL === false);
+  const siGoogleLoArregla = appUrlCon(true);
+  siGoogleLoArregla.AppUrl.actualizar({ page: 'consola', sec: 'grupos' }, null, true);
+  siGoogleLoArregla.AppUrl.actualizar({ page: 'consola', q: 'x' }, null, false);
+  ok('encendido, vuelve a apilar (y los filtros siguen reemplazando): se revierte en una línea',
+    siGoogleLoArregla.llamadas.map((x) => x.m).join(',') === 'push,replace', siGoogleLoArregla.llamadas);
+}
+/* El navUrl REAL del Portal, que escribe la barra por su cuenta. */
+const navUrlFuente = fuente('navUrl', idx);
+ok('se encuentra navUrl en Index.html', !!navUrlFuente);
+function navUrlCon(apilaHistorial) {
+  const h = historialFalso();
+  const ctx = { pubAbierta: '', google: { script: { history: h.api } } };
+  ctx.window = ctx; ctx.AppUrl = { APILA_HISTORIAL: apilaHistorial };
+  vm.runInNewContext('var pubAbierta = "";\n' + navUrlFuente + '\nthis.navUrl = navUrl;', ctx);
+  return { navUrl: ctx.navUrl, llamadas: h.llamadas };
+}
+if (navUrlFuente) {
+  const portal = navUrlCon(false);
+  portal.navUrl('herramientas', '', true);
+  portal.navUrl('paqueterias', 'estafeta', false);
+  ok('el Portal tampoco apila al cambiar de sección', portal.llamadas.map((x) => x.m).join(',') === 'replace,replace' &&
+    portal.llamadas[0].params.sec === 'herramientas' && portal.llamadas[0].hash === 'herramientas', portal.llamadas);
+  const portalArreglado = navUrlCon(true);
+  portalArreglado.navUrl('herramientas', '', true);
+  ok('…y obedece al mismo interruptor', portalArreglado.llamadas.map((x) => x.m).join(',') === 'push');
+}
+ok('nadie más llama a google.script.history.push (solo AppUrl.actualizar y navUrl)',
+  fs.readdirSync(PROY).filter((f) => /\.html$/.test(f)).every((f) => {
+    const t = fs.readFileSync(path.join(PROY, f), 'utf8');
+    const n = (t.match(/google\.script\.history\.push/g) || []).length;
+    return n === 0 || (f === 'app_core.html' && n === 1) || (f === 'Index.html' && n === 1);
+  }));
 
 console.log('\n' + (fallos ? '✖ ' + fallos + ' de ' + total + ' fallaron' : '✔ ' + total + ' comprobaciones en verde'));
 process.exit(fallos ? 1 : 0);

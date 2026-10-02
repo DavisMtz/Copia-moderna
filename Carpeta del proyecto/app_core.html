@@ -794,6 +794,25 @@
   /** Quien quiere enterarse de que se está navegando (ver AppUrl.alNavegar). */
   const oyentesNav = [];
 
+  /* ── ¿Apilar historial dentro de una pantalla? NO (01/10/2026) ──────────────────
+     Es el fallo conocido de Google (issue 207785211), medido en el Portal y en un
+     proyecto de laboratorio vacío: cuando una pantalla se carga de nuevo —con F5, o
+     al volver a ella con atrás desde otra—, el siguiente atrás hacia las entradas
+     que apiló antes deja la pantalla EN BLANCO. La app recibe el aviso correcto, pero
+     Google oculta y congela su marco, y solo F5 lo recupera (doc 15 §3.6; decisión 8
+     del doc 16, aprobada por el creador).
+
+     Por eso `apilar` se pide igual que siempre pero aquí se REEMPLAZA: la dirección
+     sigue diciendo qué se mira —F5 y los enlaces compartidos llevan al mismo sitio—
+     y atrás lleva siempre a la pantalla anterior con una carga completa, que no se
+     queda en blanco. Lo que se pierde es que atrás cierre un modal o vuelva de
+     pestaña dentro de una pantalla; para eso están sus botones.
+
+     Si Google lo arregla, basta con ponerlo en true: los oyentes de atrás/adelante
+     de cada pantalla siguen en su sitio. El Portal (navUrl en Index) lee lo mismo
+     por AppUrl.APILA_HISTORIAL. */
+  const APILAR_HISTORIAL = false;
+
   /* ── Estado VIVO de la URL ──────────────────────────────────────────────────
      Lo que la barra de direcciones dice AHORA, no lo que decía al renderizar.
      `actualizar()` lo apunta al escribir y atrás/adelante lo repone. Sin esto,
@@ -835,6 +854,9 @@
 
   const AppUrl = {
     base: cfg.baseUrl || '',
+
+    /** Si `apilar` crea de verdad una entrada de historial (ver APILAR_HISTORIAL). */
+    APILA_HISTORIAL: APILAR_HISTORIAL,
 
     /** Todas las pantallas que el enrutador conoce (espejo de PAGES + PORTAL_PAGES). */
     PAGINAS: [
@@ -1104,7 +1126,7 @@
      * Es lo que convierte una pantalla con estado en algo que se puede compartir: abrir
      * una sección, filtrar una tabla o elegir una plantilla deja de ser algo que solo
      * existe en la cabeza del navegador y pasa a estar en el enlace. Quien lo pegue en
-     * un chat abre exactamente lo mismo, y el botón "atrás" hace lo que promete.
+     * un chat abre exactamente lo mismo, y F5 vuelve al mismo sitio.
      *
      * Dentro del iframe de Apps Script `history.replaceState` no sirve —cambiaría la
      * URL del iframe, que nadie ve—: hay que pasar por google.script.history, que habla
@@ -1113,7 +1135,8 @@
      *
      * @param {object} params  Los vacíos o nulos se QUITAN de la URL.
      * @param {string=} ancla
-     * @param {boolean=} apilar true = entrada nueva en el historial (atrás vuelve aquí).
+     * @param {boolean=} apilar true = entrada nueva en el historial (atrás vuelve aquí),
+     *   solo si APILAR_HISTORIAL lo permite; hoy no, y también reemplaza (ver arriba).
      *   Por omisión reemplaza: filtrar una tabla no merece una entrada por cada tecla.
      */
     actualizar: function (params, ancla, apilar) {
@@ -1125,7 +1148,7 @@
           if (v !== '' && v !== null && v !== undefined) limpio[k] = String(v);
         });
         const hash = ancla ? String(ancla).replace(/^#/, '') : null;
-        const metodo = apilar ? google.script.history.push : google.script.history.replace;
+        const metodo = (apilar && APILAR_HISTORIAL) ? google.script.history.push : google.script.history.replace;
         metodo.call(google.script.history, limpio, limpio, hash);
         // Lo recién escrito pasa a ser el estado vigente que param() contesta, y el
         // manejador queda puesto para que atrás/adelante también lo mantenga al día.
@@ -1146,10 +1169,10 @@
 
     /**
      * La puerta ÚNICA para reflejar el estado de la pantalla en la URL, con la
-     * convención del plan de cierre: cambiar de pestaña/sección APILA historial
-     * (atrás vuelve a la anterior); un filtro o búsqueda REEMPLAZA, con espera de
-     * 300 ms para que teclear no escriba la barra letra por letra (como ya hacía
-     * el buscador del Index con 350 ms).
+     * convención del plan de cierre: cambiar de pestaña/sección PIDE apilar y se
+     * escribe en el acto (apila solo si APILAR_HISTORIAL lo permite: hoy reemplaza);
+     * un filtro o búsqueda REEMPLAZA, con espera de 300 ms para que teclear no
+     * escriba la barra letra por letra (como ya hacía el buscador del Index con 350 ms).
      *
      * Recibe solo lo que CAMBIÓ: el resto de la URL vigente se conserva —es lo
      * que evita "cambié el periodo y se me cerró la incidencia abierta"—. Un
