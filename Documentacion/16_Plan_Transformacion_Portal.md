@@ -25,7 +25,7 @@
 3. **Verificar el estado REAL; el documento puede estar atrasado:**
    - `git -C "C:\Users\seguimientos\Desktop\Proyectos\Portal Ventel" log --oneline -8` y `git ls-remote origin refs/heads/main`.
    - Versión que sirve producción: `clasp deployments -P <config de producción>`. La configuración va en el scratchpad (§4).
-   - `node pruebas/<cada>.test.js` y `node scripts/sintaxis.js`: todo en verde antes de tocar nada.
+   - `npm test` (desde la F6: la sintaxis y todas las suites de `pruebas/` de una vez): todo en verde antes de tocar nada. Lo mismo corre en GitHub en cada push (flujo «Pruebas»); `gh run list --workflow pruebas.yml --limit 3` dice cómo salió lo último.
 4. **Preguntar al creador SOLO lo que bloquee** (§2, «Decisiones pendientes»). Si nada bloquea, seguir con la primera fase pendiente **en pruebas**.
 5. **Al cerrar cada tarea:**
    - entrada en el §18 del plan 13 (qué se cambió, qué se comprobó, qué se dejó fuera);
@@ -75,7 +75,7 @@
 | F3a.2 | Resultados de las encuestas del Portal dentro de la página | **En pruebas.** El `doGet` los lee de la caché de 30 s de los votos (solo si están), con el voto de la cuenta de Google que abre la página; el cliente los usa si no hay sesión o si la sesión es de esa cuenta. Sonda local: la encuesta votada sale con sus barras a los 1.4 s, sin llamar a `pubResultados` (por red, a los 4.2 s aún enseñaba botones). **Sin ver en vivo:** el 01/10 no había ninguna publicación. Falta su vistazo y su palabra | `f004cbc` |
 | F4 | Capacidad: cupo de 30 ejecuciones | **Medida el 01/10/2026** con el panel «Ejecuciones» (7 días): como mucho **9-10 a la vez de 30**, contando todo lo de la cuenta y lo de los asesores; ningún segundo con 10 o más. El único error de producción ocurrió con 5. **Con este uso no hace falta la prueba de saturación** (decisión 3). Volver a medir con `scripts/laboratorio/picos-panel.js` si el uso crece | — |
 | F5 | Navegación: pendiente #1 en la URL; SPA solo si las cifras lo justifican | **Pendiente #1 en pruebas.** `revision_cotizacion` escribe la tarjeta del documento (`?sec=hoja\|google`) y el comparador (`?item=<SKU>[~n]`, `?action=pagina`); `cotizado_preview`, el formato (`?format=`). F5, atrás y adelante vuelven a lo que se miraba. Solo cliente, sin parámetros nuevos. Sonda en Chrome: 40 de 40 (24 fallan con el código anterior). **Medido (Portal y LAB-mini): después de que la página se carga de nuevo (F5, o al volver a ella con atrás desde otra pantalla), el siguiente atrás deja la pantalla en blanco** (fallo conocido de Google, issue 207785211; afecta a las 13 pantallas que apilan en pruebas, 12 de ellas ya en producción; decisión 8). La SPA, sin empezar: depende de las cifras de F1-F3 en producción. Falta su vistazo y su palabra | `147db71` |
-| F6 | Calidad: checkJs y pruebas en CI | Pendiente (opcional) | — |
+| F6 | Calidad: checkJs y pruebas en CI | **Hecha el 01/10/2026** (no toca el Portal: no hay pruebas/producción). Flujo de GitHub «Pruebas» en cada push (23 suites, ~20 s, en verde) y `npm test` en la PC. `tsc --checkJs` sobre los `.gs` solo hace fallar lo que rompe en ejecución (nombre inexistente, redeclaración, errata en la API…); los ~436 avisos de JS sin tipos se cuentan. Candados nuevos: ningún nombre global repetido entre `.gs` ni entre los `<script>` de una pantalla. El `checkJs` completo del cliente, fuera a propósito (§3, F6) | `7f547ec` · `5a4aafc` · `8122645` |
 | F7 | Publicar sin PC (`CLASPRC_JSON`) | Pendiente (decisión del creador) | — |
 
 **Producción hoy:** @130 (PromosAuto, commit `23144aa`). No tiene F0, F1, F2, F3a, F3a.1, F3b, F3a.2, F5 ni la decisión 8.
@@ -220,7 +220,10 @@
 >
 > **Regresión de la F3a, corregida (`f02a0ad`):** con los datos dentro de la página, el Monitor de promociones se quedaba sin tarjetas ni cifras. Un segundo revelado con `gsap.from()` las llevaba «de 0 a 0». El banco no lo vio porque fuerza el movimiento reducido: ver `revelado-monitor.mjs` y `revelado-portal.mjs` en el laboratorio.
 >
-> **Siguiente:** el pendiente #1 de la F5 y la decisión 8 («solo reemplazar», `10933a0`) quedaron en pruebas el 01/10/2026 (§3, F5). Lo que queda: la **F6** (calidad, opcional: las suites de `pruebas/` en un job de GitHub, que no necesita credenciales, y `checkJs`). La SPA de la F5 espera a que F1-F3 estén en producción y den cifras. La F4 quedó medida (§3, F4).
+> **Siguiente:** el pendiente #1 de la F5 y la decisión 8 («solo reemplazar», `10933a0`) quedaron en pruebas, y la F6 hecha, el 01/10/2026 (§3). **Todo lo que queda depende del creador:**
+> - su vistazo en pruebas y su palabra para llevar a producción F0-F3a.2, la F5 y la decisión 8 (§2, «Ojo al promover»; decisiones 1, 2, 5, 6 y 7);
+> - la **F7** (decisión 4: `CLASPRC_JSON` en GitHub);
+> - la SPA de la F5, que espera a que F1-F3 estén en producción y den cifras; después de llevarlas, volver a medir la F4.
 
 - **Instrumentar `AppRun`:**
   - Duración por función, en un anillo en localStorage y en `AppRun.medidas()`.
@@ -262,6 +265,13 @@
   - Condición dura: `?page=`, `?next=`, los enlaces compartidos y el `/exec` fijo de la extensión siguen funcionando.
 
 ### F6 · Calidad (opcional)
+
+> **Hecha el 01/10/2026** (detalle en el §18 del plan 13):
+> - **`npm test`** = `scripts/pruebas.js`: la sintaxis y cada suite en su propio proceso; enseña solo la salida de lo que falla y sale con 1. Las suites nuevas entran solas (`*.test.js`).
+> - **Flujo «Pruebas»** (`.github/workflows/pruebas.yml`): `npm ci` + `npm test` con Node 24 en cada push a `main` (menos los que solo tocan documentación) y en cada PR. Sin credenciales. Va aparte de `apps-script-sync.yml`, que sigue en rojo a propósito sin `CLASPRC_JSON`.
+> - **`pruebas/tipos.test.js`:** ningún nombre global repetido entre `.gs` (Apps Script los mete todos en un espacio de nombres) y `tsc --checkJs` (TypeScript 7.0.2 + `@types/google-apps-script` 2.0.13, fijos) que solo hace fallar las clases de error que rompen en ejecución. Hoy no encontró ningún fallo real: los candidatos eran falsos positivos (uno aceptado con su porqué).
+> - **`pruebas/globales_pantallas.test.js`:** ningún nombre global declarado dos veces entre los `<script>` de una misma pantalla (407 bloques en las 20).
+> - **Fuera a propósito:** el `checkJs` completo del JS del cliente. Vive repartido en parciales que se pegan por pantalla, haría falta extraerlo y daría aún más ruido que el servidor; lo peligroso de verdad (los choques entre bloques) ya lo vigila la prueba de arriba.
 
 - Comprobación de tipos con `tsc --checkJs` sobre el JS actual, con JSDoc, sin reescribir.
 - Job de GitHub que corra `pruebas/*.test.js`: no necesita credenciales.

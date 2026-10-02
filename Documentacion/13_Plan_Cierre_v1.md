@@ -1042,6 +1042,28 @@ y qué se dejó fuera a propósito**. Mismo formato que el registro del document
 
 <!-- Las entradas nuevas van arriba, con la más reciente primero. -->
 
+### 2026-10-01 — Fase 6 del doc 16: las pruebas en GitHub, `npm test` y candados de nombres y tipos — SIN cambios en el Portal
+
+**Qué se cambió** (commits `7f547ec`, `5a4aafc`, `8122645` y el ajuste a v7 de las acciones):
+- **`scripts/pruebas.js`** y `npm test`: la sintaxis y cada suite de `pruebas/` en su propio proceso. Enseña solo la salida de lo que falla, sale con 1 si algo falla y en GitHub escribe la tabla en el resumen. Las suites nuevas entran solas (`*.test.js`). Antes de usarlo se comprobó que las 20 suites existentes salen con error cuando fallan (si alguna saliera con 0, el flujo mentiría en verde).
+- **`.github/workflows/pruebas.yml`** («Pruebas»): `npm ci` + `npm test` con Node 24 en cada push a `main` (menos los que solo tocan documentación) y en cada PR. Sin credenciales. `actions/checkout` y `actions/setup-node` en v7: las v4 corren sobre Node 20, que GitHub ya marca como obsoleto. **No se tocó `apps-script-sync.yml`**: sigue en rojo a propósito mientras no exista `CLASPRC_JSON`; verde en «Pruebas» significa «pasan las pruebas», no «está publicado».
+- **`pruebas/tipos.test.js`:**
+  - A · ningún nombre global repetido entre `.gs` (acorn). Apps Script los mete todos en un espacio de nombres: una función repetida pisa a la otra en silencio y una `const` repetida tumba el proyecto. Hoy, 1005 nombres y ninguno repetido.
+  - B · `tsc --checkJs` sobre una copia de los `.gs`, con TypeScript 7.0.2 y `@types/google-apps-script` 2.0.13 (versiones fijas, nuevas `devDependencies`). Solo hacen fallar los errores que rompen en ejecución: nombre que no existe, redeclaración, errata en la API con sugerencia, llamar a algo que no es función, asignar a una constante. Los otros ~436 avisos (JS sin tipos: propiedades de objetos que se arman sobre la marcha) solo se cuentan. Unos alias declaran los tipos que el JSDoc usa sin espacio de nombres (`{Sheet}`, `{Blob}`…), que si no salían como «nombre que no existe».
+- **`pruebas/globales_pantallas.test.js`:** arma las 20 pantallas como `include()` y falla si dos parciales de la misma pantalla declaran el mismo nombre global. Con `let/const/class`, el segundo bloque entero no se ejecuta; con `function/var`, el último pisa en silencio. El build revisa cada bloque por separado y el banco necesita Chrome: esto corre en GitHub.
+
+**Qué se comprobó:**
+- **GitHub:** «Pruebas» en verde, 23 suites en ~20 s (Linux, `npm ci` limpio).
+- **Los candados atrapan lo que dicen**, sembrando fallos en una copia de trabajo: función y `const` repetidas entre `.gs`, un nombre inexistente y `getSheetByNombre` (sale con «¿quisiste decir `getSheetByName`?»); en el cliente, `const`/`const`, `const`/`function` y `function`/`function` entre parciales. Todos detectados con archivo y línea; restaurado, verde.
+- **`tsc` no encontró ningún fallo real en el código de hoy.** Los candidatos se revisaron uno por uno: tipos en comentarios JSDoc, un parámetro opcional sin corchetes (`openQuoteInSheets(folio)`, que en sesión pasa el candado igual) y `liberarEn.toISOString()`, que el código ya protege (queda como único falso positivo aceptado, con su porqué).
+- El ejecutor falla de verdad con una suite rota (sale con 1 y la marca en el resumen).
+- El build sigue igual tras añadir las dependencias (npm ya no corre el `postinstall` de esbuild sin aprobarlo, y no hace falta).
+
+**Qué se dejó fuera a propósito:**
+- **El `checkJs` completo del cliente:** el JS de las pantallas vive en parciales que se pegan por pantalla; habría que extraerlo y daría más ruido que el servidor. Lo peligroso de verdad, los choques entre bloques, ya lo vigila `globales_pantallas`.
+- **Limpiar los ~436 avisos:** sería reescribir, y la F6 es «sin reescribir». Se cuentan en cada corrida por si alguien quiere atacarlos por archivo.
+- **La F7** (`CLASPRC_JSON`): sigue siendo decisión del creador.
+
 ### 2026-10-01 — Decisión 8 aplicada: ninguna pantalla apila historial («solo reemplazar») — en PRUEBAS, no en producción
 
 **Qué se cambió** (commit `10933a0`; el creador eligió la opción A: «lo de verdad más óptimo»):
