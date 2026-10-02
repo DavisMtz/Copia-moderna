@@ -74,13 +74,15 @@
 | F3b | Las llamadas de fondo del arranque viajan en un lote (`secEjecutarLote`); disponibilidad de la plantilla CCL en caché | **En pruebas.** Viajes al abrir las 20 pantallas: 105 → 64 (banco). Lote verificado de punta a punta en pruebas. Falta su vistazo con `AppRun.medidas()` (columna `enLote`) y su palabra | `7dd7e6f` · `7a05cd7` |
 | F3a.2 | Resultados de las encuestas del Portal dentro de la página | **En pruebas.** El `doGet` los lee de la caché de 30 s de los votos (solo si están), con el voto de la cuenta de Google que abre la página; el cliente los usa si no hay sesión o si la sesión es de esa cuenta. Sonda local: la encuesta votada sale con sus barras a los 1.4 s, sin llamar a `pubResultados` (por red, a los 4.2 s aún enseñaba botones). **Sin ver en vivo:** el 01/10 no había ninguna publicación. Falta su vistazo y su palabra | `f004cbc` |
 | F4 | Capacidad: cupo de 30 ejecuciones | **Medida el 01/10/2026** con el panel «Ejecuciones» (7 días): como mucho **9-10 a la vez de 30**, contando todo lo de la cuenta y lo de los asesores; ningún segundo con 10 o más. El único error de producción ocurrió con 5. **Con este uso no hace falta la prueba de saturación** (decisión 3). Volver a medir con `scripts/laboratorio/picos-panel.js` si el uso crece | — |
-| F5 | Navegación: pendiente #1 en la URL; SPA solo si las cifras lo justifican | Pendiente | — |
+| F5 | Navegación: pendiente #1 en la URL; SPA solo si las cifras lo justifican | **Pendiente #1 en pruebas.** `revision_cotizacion` escribe la tarjeta del documento (`?sec=hoja\|google`) y el comparador (`?item=<SKU>[~n]`, `?action=pagina`); `cotizado_preview`, el formato (`?format=`). F5, atrás y adelante vuelven a lo que se miraba. Solo cliente, sin parámetros nuevos. Sonda en Chrome: 40 de 40 (24 fallan con el código anterior). **Medido en `/dev`: tras F5, atrás cambia la dirección pero no la pantalla** (fallo de Google, todas las pantallas que apilan; decisión 8). La SPA, sin empezar: depende de las cifras de F1-F3 en producción. Falta su vistazo y su palabra | `147db71` |
 | F6 | Calidad: checkJs y pruebas en CI | Pendiente (opcional) | — |
 | F7 | Publicar sin PC (`CLASPRC_JSON`) | Pendiente (decisión del creador) | — |
 
-**Producción hoy:** @130 (PromosAuto, commit `23144aa`). No tiene F0, F1, F2, F3a, F3a.1, F3b ni F3a.2.
+**Producción hoy:** @130 (PromosAuto, commit `23144aa`). No tiene F0, F1, F2, F3a, F3a.1, F3b, F3a.2 ni F5.
 
-**Ojo al promover:** lo que se sube es `build/`, hecho con el código actual y el `build.js` actual: hoy lleva **F0 + F1 + F2 + F3a + F3a.1 + F3b + F3a.2** juntas, más el arreglo del Monitor. Para subir menos:
+**Ojo al promover:** lo que se sube es `build/`, hecho con el código actual y el `build.js` actual: hoy lleva **F0 + F1 + F2 + F3a + F3a.1 + F3b + F3a.2 + F5** juntas, más el arreglo del Monitor. Para subir menos:
+- **Sin la F5** (desde el 01/10/2026): `git worktree add <scratchpad>/sin-f5 7ce4630` (el último commit antes de ella: lleva todo lo anterior) y su build.
+- **La F5 sola, sobre lo que hay en producción:** `git worktree add <scratchpad>/solo-f5 23144aa` y, dentro, `revision_cotizacion.html` y `cotizado_preview.html` de `147db71`. Las dos no cambiaron entre `23144aa` y `7ce4630`, y lo que usan de `app_core` (`AppUrl.reflejar`, `alCambiarUrl`, `params`) y `AppOnboarding.definir` ya están en producción, así que no arrastran nada más. Se sube esa carpeta como hoy, sin build: el modelo del quitacomentarios ya dice que Google no cortaría nada en la fuente de las dos.
 - **La F3a NUNCA sin el arreglo del Monitor (`f02a0ad`)**: sin él, el Monitor de promociones sale en blanco. Cualquier copia que lleve la F3a y sea anterior a `f02a0ad` necesita `git cherry-pick f02a0ad`.
 - **Desde el 24/09/2026 `build/` lleva también la Consola de Herramientas** (`4b9f857`, rediseño de la sección, no es una fase de este plan). Para promover las fases SIN la Consola: `git worktree add <scratchpad>/sin-consola respaldo-herramientas-antes-consola` (= `bf22d81`) y su build. Para promover la Consola sola hacen falta `Index.html`, `app_herramientas.html` y `portal_contenido.html` de `4b9f857`.
 - **Desde el 24/09/2026 (tarde) `build/` lleva además el Directorio de Paqueterías** (`c49a3c7`, rediseño de la sección, no es una fase de este plan). Para promover las fases SIN él: `git worktree add <scratchpad>/sin-directorio respaldo-paqueterias-antes-directorio` (= `e2e6cd8`, que ya lleva la Consola) y su build. Para promoverlo solo hacen falta `Index.html` y `app_paqueterias.html` de `c49a3c7`; ese `Index.html` también trae la Consola.
@@ -110,6 +112,7 @@
 5. ¿F3a a producción con su coste? El Portal tarda ~0.5 s más en aparecer, a cambio de datos frescos al abrir y 3-4 ejecuciones menos por visita (§3, F3). La F3a.1 le quita ~0.06 s de lectura; el resto es el peso de la página, que ahora tiene tope.
 6. ¿`opEstadoSesion` dentro del lote de arranque (F3b)? Hoy sale sola, porque `app_operacion` la retrasa 900 ms a propósito para no competir con el primer pintado. Meterla quitaría 17 de los 64 viajes al abrir las 20 pantallas, pero o la pastilla de estado se pinta 0.9 s antes, o las otras llamadas de fondo esperan 0.9 s más.
 7. ¿Alargar la caché de los votos (`PUB_VOTOS_TTL`, hoy 30 s)? Con 30 s, la F3a.2 solo lleva los votos en la página si alguien abrió el Portal en el último medio minuto. Alargarla es seguro para los votos del mismo proyecto (`pubVotar` ya la borra al votar), pero un voto emitido en el otro proyecto (pruebas o producción: misma hoja, cachés separadas) o una edición a mano de la hoja tardaría en verse lo que dure la caché.
+8. ¿Arreglar el desfase de «atrás» después de F5 (F5)? **Medido el 01/10/2026 en el `/dev`:** tras recargar, atrás cambia la dirección pero la pantalla se queda donde estaba (no en blanco); otro F5 las pone de acuerdo. Es de Google y afecta a todas las pantallas que apilan. El arreglo candidato es uno solo en `AppUrl`: volver a preguntar la dirección (`google.script.url.getLocation`) al recuperar el foco o cada poco, y avisar a los oyentes si cambió sin aviso. Antes hay que comprobar que `getLocation` devuelve la dirección nueva en ese estado. Sin arreglo, una pantalla puede no decir lo mismo que su barra hasta el siguiente F5.
 
 ---
 
@@ -212,7 +215,7 @@
 >
 > **Regresión de la F3a, corregida (`f02a0ad`):** con los datos dentro de la página, el Monitor de promociones se quedaba sin tarjetas ni cifras. Un segundo revelado con `gsap.from()` las llevaba «de 0 a 0». El banco no lo vio porque fuerza el movimiento reducido: ver `revelado-monitor.mjs` y `revelado-portal.mjs` en el laboratorio.
 >
-> **Siguiente:** **F5** (navegación): el pendiente #1, que las pestañas de `revision_cotizacion` y `cotizado_preview` queden en la URL. La F4 quedó medida (§3, F4).
+> **Siguiente:** el pendiente #1 de la F5 quedó en pruebas el 01/10/2026 (§3, F5). Lo que queda: la **decisión 8** (el desfase de atrás tras F5), si el creador quiere arreglarlo; si no, la **F6** (calidad, opcional: las suites de `pruebas/` en un job de GitHub, que no necesita credenciales, y `checkJs`). La SPA de la F5 espera a que F1-F3 estén en producción y den cifras. La F4 quedó medida (§3, F4).
 
 - **Instrumentar `AppRun`:**
   - Duración por función, en un anillo en localStorage y en `AppRun.medidas()`.
@@ -240,6 +243,12 @@
 - **Mitigación:** la F3 (menos llamadas), llamadas más cortas y caché.
 
 ### F5 · Navegación
+
+> **Pendiente #1 hecho en pruebas el 01/10/2026** (`147db71`; detalle en el §18 del plan 13):
+> - `revision_cotizacion`: la tarjeta del documento en `?sec=hoja|google`; el comparador en `?item=` (el SKU, con `~2`, `~3`… si se repite y `~n` sin SKU: identidad, no posición) y `?action=pagina` para la página de Liverpool. Abrir y cambiar de pestaña apilan; cerrar y plegar reemplazan. `aplicarUrl` lo repone al pintar y con atrás/adelante, y borra de la barra lo que ya no existe.
+> - `cotizado_preview`: `?format=` sin apilar, como cotizacion y correoventel.
+> - Sin parámetros nuevos (ya estaban en `PARAMS_VISTA`) ni cambios en el servidor. Prueba `pruebas/url_pestanas.test.js` y sonda `scripts/laboratorio/url-pestanas.mjs` (Chrome headless con un historial de verdad y F5 simulado: 40 de 40; 24 fallan con el código anterior).
+> - **Atrás después de F5, medido en el `/dev` (Portal):** sin recargar funciona; **tras F5 cambia la dirección y no la pantalla** (no en blanco). Es de Google: decisión 8 del §2.
 
 - **Pendiente #1:** que las pestañas de `revision_cotizacion` y `cotizado_preview` queden en la URL.
   - Usar `google.script.history` (verificado: sobrevive a F5), conservando siempre `page`.
@@ -348,7 +357,7 @@ XMLHttpRequest.prototype.send = function (body) {
 - En local, el modelo del quitacomentarios: `node pruebas/quitacomentarios_google.js build/*.html`. El build ya lo garantiza; sirve para lo que se suba sin pasar por él.
 
 **Banco local** (`scripts/laboratorio/banco.mjs`): ensambla las 20 pantallas como `include()` con dos carpetas (p. ej. la fuente y `build/`) y las abre en Chrome headless con una sesión falsa y un `google.script.run` que responde siempre con fallo. Compara excepciones, avisos, llamadas al servidor, texto, estructura y píxeles, y mide el ruido cargando dos veces la primera carpeta. La salida (capturas, perfil) va a una carpeta del scratchpad, nunca al repo. Cubre la carga y los estados de error; los datos reales y los clics los ve el creador.
-- **Punto ciego: fuerza el movimiento reducido.** Un revelado de GSAP roto no se ve ahí (así pasó la regresión del Monitor en la F3a). Para eso, `revelado-monitor.mjs` y `revelado-portal.mjs`: datos en la página contra datos por red, sin movimiento reducido. Pasarlos siempre que un cambio adelante o atrase la llegada de los datos, o toque una animación de entrada. Para las encuestas del Portal (F3a.2), `revelado-encuestas.mjs`: dice qué enseña cada encuesta (barras, botones, voto propio) y qué funciones llamó la página. En esta PC, lanzarlos desde PowerShell con la ruta larga del scratchpad: desde Git Bash no llegó a conectar con Chrome (01/10/2026).
+- **Punto ciego: fuerza el movimiento reducido.** Un revelado de GSAP roto no se ve ahí (así pasó la regresión del Monitor en la F3a). Para eso, `revelado-monitor.mjs` y `revelado-portal.mjs`: datos en la página contra datos por red, sin movimiento reducido. Pasarlos siempre que un cambio adelante o atrase la llegada de los datos, o toque una animación de entrada. Para las encuestas del Portal (F3a.2), `revelado-encuestas.mjs`: dice qué enseña cada encuesta (barras, botones, voto propio) y qué funciones llamó la página. Para lo que una pantalla escribe en la URL (F5), `url-pestanas.mjs`: lleva un `google.script.history` con pila de verdad y simula F5 volviendo a pedir la página con los parámetros de la entrada actual; hoy cubre `revision_cotizacion` y `cotizado_preview`, y su `stub` sirve de plantilla para otra pantalla. En esta PC, lanzarlos desde PowerShell con la ruta larga del scratchpad: desde Git Bash no llegó a conectar con Chrome (01/10/2026).
 
 **Laboratorio:** `scripts/laboratorio/` y los proyectos LAB-mini y LAB-grande (ids en el doc 15 §7). Sus rutas apuntan a un scratchpad viejo y hay que ajustarlas.
 

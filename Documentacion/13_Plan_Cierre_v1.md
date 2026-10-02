@@ -982,7 +982,7 @@ huecos reales. Estos son los que sobrevivieron.
 
 | # | Qué | Dónde | Fase |
 | --- | --- | --- | --- |
-| 1 | **`revision_cotizacion.html` no escribe nada en la URL**, y tiene dos juegos de pestañas reales (`:845-850` hoja/google y `:1028-1033` comparación/página). Cambiar de pestaña no sobrevive a F5 ni al botón «atrás». `cotizado_preview.html` tampoco escribe estado. Es el criterio 1 de F1 sin cumplir en dos pantallas | `revision_cotizacion.html`, `cotizado_preview.html` | F1 |
+| ~~1~~ | ~~**`revision_cotizacion.html` no escribe nada en la URL**, y tiene dos juegos de pestañas reales (`:845-850` hoja/google y `:1028-1033` comparación/página). Cambiar de pestaña no sobrevive a F5 ni al botón «atrás». `cotizado_preview.html` tampoco escribe estado. Es el criterio 1 de F1 sin cumplir en dos pantallas~~ — **cerrado 2026-10-01** (F5 del doc 16, `147db71`, en pruebas), ver §18 | `revision_cotizacion.html`, `cotizado_preview.html` | F1 |
 | ~~2~~ | ~~T12.1 sin empezar: portal_contenido.html ni siquiera incluye app_onboarding~~ — **cerrado 2026-09-12**, ver §18 | `portal_contenido.html` | F12 |
 | ~~3~~ | ~~T11.2 a medias: el botón de un clic a la página de Liverpool existe (por triplicado), pero falta el precio de la última captura en caché con su antigüedad rotulada cuando responde 403~~ — **cerrado 2026-09-12**, ver §18 | `Revision.gs:961-974`, `revision_cotizacion.html:1978-1986` | F11 |
 | 4 | **T6.4 solo cerró la mitad**: el DOM del panel ya está diferido, pero los ~157 KB de `app_comando` + `app_indices` **siguen viajando** en cada pantalla que los lleva, porque `include()` pega el partial en el HTML servido. El §18 lo deja como decisión del creador. *(Recuento al 16/08/2026, tras F10: **17** `include('app_comando')` y **18** `include('app_indices')`. La cifra sube con cada pantalla nueva; si vuelve a quedar desfasada, se cuenta y ya.)* | los `include('app_comando')` | F6 |
@@ -1038,6 +1038,53 @@ Lo que se ha hecho de verdad, en orden. Cada entrada dice **qué se cambió, qu�
 y qué se dejó fuera a propósito**. Mismo formato que el registro del documento 12.
 
 <!-- Las entradas nuevas van arriba, con la más reciente primero. -->
+
+### 2026-10-01 — Fase 5 del doc 16: las pestañas de la revisión y el formato de la vista previa quedan en la URL — en PRUEBAS, no en producción. Cierra el pendiente vivo #1
+
+**Qué se cambió** (commit `147db71`; solo cliente, sin parámetros nuevos ni cambios en el servidor: `sec`, `item`, `action` y `format` ya estaban en `PARAMS_VISTA`):
+- **`revision_cotizacion.html`, tarjeta «Documento en Google Sheets»** (solo cotizaciones CCL): `?sec=hoja|google`.
+  - Abrir la tarjeta apila `sec=<pestaña activa>`; cambiar de pestaña apila; pulsar la que ya está abierta no escribe; plegarla quita `sec` y reemplaza. `prepararSheet` deja sus dos acciones en `documento = { abrir, pestana }` para que la dirección las pueda usar.
+  - La hoja (`revHojaCotizacion`) se lee ahora solo con la tarjeta abierta **y** en «Vista en el portal». Antes se leía al desplegar, fuera cual fuera la pestaña; como sin la dirección siempre se despliega en «Vista en el portal», solo cambia para quien vuelve directo a «Hoja de Google»: ya no paga además esa lectura.
+- **`revision_cotizacion.html`, comparador del artículo:** `?item=` y `?action=pagina`.
+  - `item` es el SKU, no la posición: `~2`, `~3`… si el SKU se repite y `~n` para las líneas sin SKU (el formulario de cotizar no junta líneas repetidas ni exige SKU). Así, un enlace compartido sigue señalando el mismo artículo aunque la cotización se edite.
+  - `action=pagina` es la pestaña «Página de Liverpool»; la comparación es la ausencia.
+  - Abrir apila; cambiar de pestaña apila; cerrar (aspa, Escape o clic fuera) quita los dos y reemplaza. El aspa se envolvió (`function () { cerrarVisor(); }`): el evento del clic habría llegado como `sinUrl`.
+- **`aplicarUrl(p)`** pone en pantalla lo que pide la dirección, siempre en callado: al terminar `pintarTodo` (F5, enlace compartido) y con atrás/adelante (`AppUrl.alCambiarUrl`).
+  - La ausencia manda: sin `item`, comparador cerrado; sin `sec`, tarjeta plegada.
+  - Lo que pide algo que ya no está se borra de la barra (reemplazando) en vez de abrir otra cosa: un artículo que salió de la cotización o sin enlace de Liverpool, una `sec` desconocida, el documento de una cotización que no es CCL, una `action` desconocida.
+  - Si se llega con el comparador abierto, el recorrido guiado solo se registra (`AppOnboarding.definir`): lanzado, taparía el artículo. Sale solo la próxima vez.
+- **`cotizado_preview.html`:** `?format=` desde el `change` del selector, sin apilar (como cotizacion y correoventel). Al pintar manda el de la dirección (`formatoDeUrl || data.format`); si ya no está habilitado, el catálogo lo cambia por el predeterminado. Si se llega sin folio (caché genérica), se escribe el folio reemplazando, como en consulta_cotizacion: la caché genérica es una para toda la app y otra pestaña la puede pisar.
+- **`pruebas/url_pestanas.test.js`** (15):
+  - la identidad de `?item=`: ida y vuelta de cada línea, SKU repetido, sin SKU, sin enlace, enlace de otro sitio, una línea nueva arriba;
+  - el cableado: aplicar al pintar y antes del recorrido, atrás/adelante, el aspa, todo en callado;
+  - que `sec`, `item`, `action` y `format` siguen en las dos `PARAMS_VISTA`.
+- **`scripts/laboratorio/url-pestanas.mjs`:** sonda en Chrome headless con un `google.script.history` de verdad. Lleva una pila en `sessionStorage` (`push` corta lo de delante, `replace` pisa la entrada actual), y atrás/adelante llaman al manejador como Apps Script. F5 = volver a pedir la página con los parámetros de la entrada actual, que el servidor de la sonda inyecta como `doGet`.
+
+**Qué se comprobó:**
+- **Sonda: 40 de 40** con el cambio, también sobre el `build/` compilado. **Con el código anterior fallan 24**, justo las de la URL: la sonda discrimina. Lo que mide:
+  - abrir, cambiar y cerrar escriben lo que deben, apilando o reemplazando;
+  - F5 vuelve al comparador en la misma línea y pestaña, con **una** sola petición de la página y la URL intacta; el comparador se ve (opacidad 1, sin movimiento reducido);
+  - atrás vuelve a la comparación sin pedir nada y después cierra; adelante reabre;
+  - la tarjeta vuelve tras F5 en «Hoja de Google» con su marco **sin leer la vista del portal**; atrás la lee al volver a ella;
+  - las siete direcciones raras, y que el recorrido no tapa el comparador;
+  - el formato de la vista previa sobrevive a F5, y uno que no existe cae al predeterminado.
+- Las 20 suites en verde (la nueva incluida), la sintaxis limpia (89 archivos, 120 bloques) y el build (99). El modelo del quitacomentarios: Google no cortaría nada, ni en el build ni en la fuente de las dos pantallas.
+- **Banco**, código anterior contra el nuevo, las dos pantallas: 0 errores, mismos avisos y llamadas, 0 píxeles distintos (ruido 0).
+- **`/dev` de pruebas:** las dos pantallas traen el código nuevo y sus 41 bloques de JS compilan tal como los deja Google.
+- **Atrás después de F5** (el fallo conocido de Google, issue 207785211), **medido en el `/dev` con el Portal**, que ya apilaba `sec`:
+  - sin recargar, atrás funciona: de Herramientas vuelve a Inicio;
+  - **tras F5, atrás cambia la dirección pero NO la pantalla.** La barra volvió a `?page=portal&cb=2` y la pantalla siguió en Herramientas. No quedó en blanco. La app no se entera (o se entera sin la dirección nueva): su manejador habría vuelto a Inicio, como sin recargar. Otro F5 pone de acuerdo pantalla y dirección.
+  - Por deducción vale para TODAS las pantallas que apilan, no solo para estas dos: el aviso lo reparte Google.
+
+**Qué se dejó fuera a propósito:**
+- **Arreglar el desfase de atrás tras F5.** Es de Google y ya lo tenían las ~10 pantallas que apilaban. Si se arregla, es en un solo sitio (`AppUrl`), no pantalla por pantalla: volver a preguntar la dirección con `google.script.url.getLocation` al recuperar el foco, o cada poco, y avisar a los oyentes si cambió sin aviso. Sin probar, y faltan dos datos antes:
+  - si `getLocation` devuelve la dirección nueva en ese estado;
+  - si el desfase pasa también entre dos entradas que apiló la app, y no solo al volver a la primera. La ventana del navegador se ocultó a mitad de esa prueba.
+  - Es la decisión 8 del doc 16 §2.
+- **El panel del documento oficial de la vista previa** (abierto u oculto, «Ampliar»): no es una pestaña. Se abre solo al generarse, y el documento ya se regenera en cada F5.
+- **La SPA** (cambiar de pantalla sin recargar): el doc 16 la condiciona a las cifras de F1-F3, que siguen sin estar en producción.
+- **Visto en vivo con datos reales:** la revisión necesita un folio en revisión y el bloque `revisar`. La sonda lo cubre con datos de mentira; lo visual lo confirma el creador. Receta: abrir una revisión CCL, «Comparar con el sitio», «Página de Liverpool», F5 → vuelve ahí; atrás → la comparación; atrás → cerrado. En la vista previa: cambiar el formato y F5.
+- **Producción:** espera su palabra, como F0-F3a.2. La F5 se puede promover sola (doc 16 §2, «Ojo al promover»).
 
 ### 2026-10-01 — Fase 4 del doc 16: el pico de ejecuciones simultáneas, medido. Como mucho 9-10 de las 30 — SIN cambios en el Portal
 
