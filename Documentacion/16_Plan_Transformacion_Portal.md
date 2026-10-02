@@ -73,7 +73,7 @@
 | (arreglo) | Portal de pruebas en «Cargando datos…»: el quitacomentarios de Google cortaba un `//` dentro de una cadena de Index.html | **En pruebas.** El build quita los comentarios del JS de las páginas y no deja `//` ni `/*` en ningún `<script>`. Las 20 pantallas de `/dev` se leen enteras y Google las sirve byte a byte (380 bloques). Producción no estaba afectada. Va con cualquier promoción hecha con el build actual | `2198c96` |
 | F3b | Las llamadas de fondo del arranque viajan en un lote (`secEjecutarLote`); disponibilidad de la plantilla CCL en caché | **En pruebas.** Viajes al abrir las 20 pantallas: 105 → 64 (banco). Lote verificado de punta a punta en pruebas. Falta su vistazo con `AppRun.medidas()` (columna `enLote`) y su palabra | `7dd7e6f` · `7a05cd7` |
 | F3a.2 | Resultados de las encuestas del Portal dentro de la página | **En pruebas.** El `doGet` los lee de la caché de 30 s de los votos (solo si están), con el voto de la cuenta de Google que abre la página; el cliente los usa si no hay sesión o si la sesión es de esa cuenta. Sonda local: la encuesta votada sale con sus barras a los 1.4 s, sin llamar a `pubResultados` (por red, a los 4.2 s aún enseñaba botones). **Sin ver en vivo:** el 01/10 no había ninguna publicación. Falta su vistazo y su palabra | `f004cbc` |
-| F4 | Capacidad: cupo de 30 ejecuciones | Pendiente, **la siguiente**. La medición de picos se puede construir ya; la prueba de saturación requiere ventana fuera de horario y su permiso | — |
+| F4 | Capacidad: cupo de 30 ejecuciones | **En marcha.** La medición de picos se hace con la API `processes` (`scripts/laboratorio/picos.mjs`, §3): falta su login con el alcance `script.processes`. La prueba de saturación requiere ventana fuera de horario y su permiso | — |
 | F5 | Navegación: pendiente #1 en la URL; SPA solo si las cifras lo justifican | Pendiente | — |
 | F6 | Calidad: checkJs y pruebas en CI | Pendiente (opcional) | — |
 | F7 | Publicar sin PC (`CLASPRC_JSON`) | Pendiente (decisión del creador) | — |
@@ -225,6 +225,11 @@
 - **Criterio:** datos completos del Portal en ≤ 7 s (hoy ≈13 s), medido desde la página superior.
 
 ### F4 · Capacidad (el cupo de 30)
+
+> **En marcha (01/10/2026): la medición se hace con la API `processes`, no con un contador.** Es el panel «Ejecuciones» leído por programa (`scripts/laboratorio/picos.mjs`): inicio y duración exactos de cada ejecución, sin código en el Portal ni costo en ninguna llamada, y hacia atrás todo lo que guarde Google. Un contador en CacheService perdería cuentas justo en el pico (no incrementa de forma atómica); con LockService, pondría en fila todas las llamadas.
+> - Dos listas: la del script (el desglose del Portal) y la de la cuenta dueña (`--usuario`). El cupo de 30 es por usuario: todo lo que corre como esa cuenta compite por él, también otros proyectos.
+> - La API dice QUE una ejecución falló, no por qué. «too many scripts running simultaneously» se busca después en el panel, abriendo las fallidas de los picos.
+> - **Falta el login del creador** con el alcance `script.processes`, en un archivo de credenciales aparte: la credencial del hook no se toca.
 
 - **Medir picos:**
   - contador aproximado de ejecuciones en curso en `secEjecutar` (CacheService, inicio/fin) con el máximo por ventana de 5 min;
