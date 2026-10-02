@@ -1039,6 +1039,28 @@ y qué se dejó fuera a propósito**. Mismo formato que el registro del document
 
 <!-- Las entradas nuevas van arriba, con la más reciente primero. -->
 
+### 2026-10-01 — Fase 4 del doc 16: el pico de ejecuciones simultáneas, medido. Como mucho 9-10 de las 30 — SIN cambios en el Portal
+
+**Qué se hizo:**
+- **Se descartó el contador dentro del Portal** que planeaban los docs 15 y 16. Costaría una escritura en CacheService en cada llamada de todos los asesores, y CacheService no incrementa de forma atómica: perdería cuentas justo en el pico. Con LockService, pondría en fila todas las llamadas.
+- **Se intentó la API `processes`** (el panel «Ejecuciones» por programa). El token de clasp da 403 «insufficient authentication scopes», y al pedir el alcance `script.processes` en un login aparte (`clasp -A … login --extra-scopes …`) **Google bloquea al cliente de clasp**: «Esta aplicación está bloqueada». Camino cerrado. No quedó ningún archivo de credenciales.
+- **Se leyó el panel en el navegador** (con la sesión del creador, solo lectura): «Mis ejecuciones» y las «Ejecuciones» de producción, 7 días cada una. Herramienta nueva: **`scripts/laboratorio/picos-panel.js`**, que se pega en la consola de esas páginas. Lee el panel página a página (25 s por llamada, sigue donde iba) y lo guarda en `sessionStorage`. `F4.analizar()` junta las dos listas y da el máximo con cotas, los picos por cada 5 min en hora de México, el tiempo con 5, 8, 10… o más, el desglose por proyecto y los errores con la concurrencia a la que empezaron. Autoprueba en Node (16). **Sustituye a `picos.mjs`** (`88edee9`), que leía la API y queda retirado.
+
+**Qué se midió** (24/09 19:00 → 01/10 18:54):
+- **Producción, su panel:** 607 ejecuciones (el resumen del proyecto decía 606 en 7 días, de 1 a 5 usuarios al día), **328 de otras personas**. Una sola en error. Activador de promociones: 7 veces, mediana 38 s, máximo 70 s.
+- **«Mis ejecuciones» no trae lo que ejecutan los asesores**, aunque corra como la cuenta dueña: en esa lista, producción salía con 279. Por eso hay que sumar las dos.
+- **Las dos juntas (el cupo compartido):** 11 324 ejecuciones en 9 proyectos. **Máximo simultáneo entre 9 y 10**: el panel da la hora al segundo, así que se dan la cota inferior, la central y la superior (9 / 9 / 10). Fue el 25/09 a las 17:23 (8 del entorno de desarrollo, en pruebas de ese día, y 1 del activador de cada minuto). **Ningún segundo con 10 o más; 20 s con 8 o más; 137 s con 5 o más**, en toda la semana.
+- **Producción sola: entre 8 y 9.** Una pantalla abre de 5 a 8 llamadas casi a la vez (en el panel se ven en grupos que arrancan en el mismo segundo): ese es el pico de UNA persona.
+- **El único error de producción** (29/09, 9:50:57, `fetchTrazabilidadData`, 0 s) empezó con 5 a la vez, todas del Portal: el cupo no fue la causa.
+- **Un «Proyecto sin título» de la cuenta ejecuta `actualizarFecha` cada minuto con un activador:** 10 247 veces en la semana, ~75 min/día de activadores, 9 errores. No es del Portal; en el cupo pesa poco (una de las 30, un par de segundos por minuto), pero conviene que el creador sepa que existe.
+- `picos-panel.js` repitió en el navegador, exactos, los números del análisis hecho a mano.
+
+**Qué se dejó fuera a propósito:**
+- **La prueba de saturación** (decisión 3): con un máximo de 9-10 de 30, no hace falta. Queda por si el uso crece.
+- **Por qué falló `fetchTrazabilidadData`:** su registro está en el panel, pero la extensión del navegador bloqueó el texto («Cookie/query string data») y no se rodeó. Una ejecución de 607.
+- **Webapps de otros proyectos que usen otras personas:** «Mis ejecuciones» solo trae lo que corre el dueño (ahí salen, además del Portal, «Cotizaciones David» y «Copy of Presentacion de Repo», con 63 y 32 ejecuciones web propias). El uso de terceros solo está en el panel de cada proyecto. Si alguna webapp de la cuenta la usan otras personas a menudo, hay que leer su panel también con `F4.leer('proyecto')`.
+- **Volver a medir** (`picos-panel.js`): al llevar F0-F3 a producción, o si se suman asesores. Hoy el uso es bajo (1-5 personas al día).
+
 ### 2026-10-01 — Fase 3a.2 del doc 16: los resultados de las encuestas del Portal llegan dentro de la página — en PRUEBAS, no en producción
 
 **Qué se cambió** (commit `f004cbc`):

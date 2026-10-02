@@ -73,7 +73,7 @@
 | (arreglo) | Portal de pruebas en «Cargando datos…»: el quitacomentarios de Google cortaba un `//` dentro de una cadena de Index.html | **En pruebas.** El build quita los comentarios del JS de las páginas y no deja `//` ni `/*` en ningún `<script>`. Las 20 pantallas de `/dev` se leen enteras y Google las sirve byte a byte (380 bloques). Producción no estaba afectada. Va con cualquier promoción hecha con el build actual | `2198c96` |
 | F3b | Las llamadas de fondo del arranque viajan en un lote (`secEjecutarLote`); disponibilidad de la plantilla CCL en caché | **En pruebas.** Viajes al abrir las 20 pantallas: 105 → 64 (banco). Lote verificado de punta a punta en pruebas. Falta su vistazo con `AppRun.medidas()` (columna `enLote`) y su palabra | `7dd7e6f` · `7a05cd7` |
 | F3a.2 | Resultados de las encuestas del Portal dentro de la página | **En pruebas.** El `doGet` los lee de la caché de 30 s de los votos (solo si están), con el voto de la cuenta de Google que abre la página; el cliente los usa si no hay sesión o si la sesión es de esa cuenta. Sonda local: la encuesta votada sale con sus barras a los 1.4 s, sin llamar a `pubResultados` (por red, a los 4.2 s aún enseñaba botones). **Sin ver en vivo:** el 01/10 no había ninguna publicación. Falta su vistazo y su palabra | `f004cbc` |
-| F4 | Capacidad: cupo de 30 ejecuciones | **En marcha.** La medición de picos se hace con la API `processes` (`scripts/laboratorio/picos.mjs`, §3): falta su login con el alcance `script.processes`. La prueba de saturación requiere ventana fuera de horario y su permiso | — |
+| F4 | Capacidad: cupo de 30 ejecuciones | **Medida el 01/10/2026** con el panel «Ejecuciones» (7 días): como mucho **9-10 a la vez de 30**, contando todo lo de la cuenta y lo de los asesores; ningún segundo con 10 o más. El único error de producción ocurrió con 5. **Con este uso no hace falta la prueba de saturación** (decisión 3). Volver a medir con `scripts/laboratorio/picos-panel.js` si el uso crece | — |
 | F5 | Navegación: pendiente #1 en la URL; SPA solo si las cifras lo justifican | Pendiente | — |
 | F6 | Calidad: checkJs y pruebas en CI | Pendiente (opcional) | — |
 | F7 | Publicar sin PC (`CLASPRC_JSON`) | Pendiente (decisión del creador) | — |
@@ -105,7 +105,7 @@
 **Decisiones pendientes del creador** (preguntar solo cuando toquen):
 1. ¿F0 a producción? Antes, avisar a los asesores: **todos inician sesión una vez**.
 2. ¿Tope absoluto de sesión (p. ej. 12 h) además de las 2 h de inactividad? Acota el daño de una llave robada.
-3. Ventana fuera de horario para la prueba de capacidad (F4).
+3. Ventana fuera de horario para la prueba de capacidad (F4). **Con el uso medido el 01/10 (máximo 9-10 de 30) no hace falta**; queda por si el uso crece.
 4. ¿`CLASPRC_JSON` en GitHub (F7)? Es la llave de la cuenta corporativa en un repo personal.
 5. ¿F3a a producción con su coste? El Portal tarda ~0.5 s más en aparecer, a cambio de datos frescos al abrir y 3-4 ejecuciones menos por visita (§3, F3). La F3a.1 le quita ~0.06 s de lectura; el resto es el peso de la página, que ahora tiene tope.
 6. ¿`opEstadoSesion` dentro del lote de arranque (F3b)? Hoy sale sola, porque `app_operacion` la retrasa 900 ms a propósito para no competir con el primer pintado. Meterla quitaría 17 de los 64 viajes al abrir las 20 pantallas, pero o la pastilla de estado se pinta 0.9 s antes, o las otras llamadas de fondo esperan 0.9 s más.
@@ -212,7 +212,7 @@
 >
 > **Regresión de la F3a, corregida (`f02a0ad`):** con los datos dentro de la página, el Monitor de promociones se quedaba sin tarjetas ni cifras. Un segundo revelado con `gsap.from()` las llevaba «de 0 a 0». El banco no lo vio porque fuerza el movimiento reducido: ver `revelado-monitor.mjs` y `revelado-portal.mjs` en el laboratorio.
 >
-> **Siguiente:** **F4** (capacidad). La medición de picos (el contador de ejecuciones en curso) se puede construir ya; la prueba de saturación espera ventana fuera de horario y su permiso (decisión 3).
+> **Siguiente:** **F5** (navegación): el pendiente #1, que las pestañas de `revision_cotizacion` y `cotizado_preview` queden en la URL. La F4 quedó medida (§3, F4).
 
 - **Instrumentar `AppRun`:**
   - Duración por función, en un anillo en localStorage y en `AppRun.medidas()`.
@@ -226,15 +226,16 @@
 
 ### F4 · Capacidad (el cupo de 30)
 
-> **En marcha (01/10/2026): la medición se hace con la API `processes`, no con un contador.** Es el panel «Ejecuciones» leído por programa (`scripts/laboratorio/picos.mjs`): inicio y duración exactos de cada ejecución, sin código en el Portal ni costo en ninguna llamada, y hacia atrás todo lo que guarde Google. Un contador en CacheService perdería cuentas justo en el pico (no incrementa de forma atómica); con LockService, pondría en fila todas las llamadas.
-> - Dos listas: la del script (el desglose del Portal) y la de la cuenta dueña (`--usuario`). El cupo de 30 es por usuario: todo lo que corre como esa cuenta compite por él, también otros proyectos.
-> - La API dice QUE una ejecución falló, no por qué. «too many scripts running simultaneously» se busca después en el panel, abriendo las fallidas de los picos.
-> - **Falta el login del creador** con el alcance `script.processes`, en un archivo de credenciales aparte: la credencial del hook no se toca.
+> **Medida el 01/10/2026, con el panel «Ejecuciones»** (ni con la API ni con un contador; detalle en el §18 del plan 13):
+> - **La API `processes`** (el mismo dato, por programa) **está cerrada**: Google bloquea al cliente de clasp cuando pide el alcance `script.processes` («Esta aplicación está bloqueada»). **Un contador en CacheService** costaría en cada llamada y perdería cuentas justo en el pico. El panel guarda 7 días y, con este volumen, se lee entero: `scripts/laboratorio/picos-panel.js` (se pega en la consola de la página; trae su autoprueba para Node).
+> - Dos listas: «Mis ejecuciones» (lo que corre la cuenta dueña en TODOS sus proyectos) **no trae lo que ejecutan los asesores**, aunque corra como ella; eso solo sale en el panel de cada proyecto. Se suman las dos, sin contar dos veces lo del dueño.
+> - **Resultado (24/09 19:00 → 01/10 18:54):** 11 324 ejecuciones; de producción, 607 (328 de otras personas). Máximo simultáneo **entre 9 y 10** (la hora de inicio viene al segundo, así que se dan cotas), el 25/09 a las 17:23, por pruebas en el entorno de desarrollo. **Ningún segundo con 10 o más**, 20 s con 8 o más y 137 s con 5 o más. Producción sola: entre 8 y 9, porque una sola pantalla abre de 5 a 8 llamadas casi a la vez.
+> - **El único error de producción** (29/09, 9:50:57, `fetchTrazabilidadData`, 0 s) ocurrió con 5 a la vez: el cupo no fue la causa. Su registro no se leyó (la extensión del navegador bloqueó el texto).
+> - **Un «Proyecto sin título» de la cuenta ejecuta `actualizarFecha` cada minuto:** 10 247 veces en la semana (~75 min/día de activadores, 9 errores). No es del Portal; ocupa una de las 30 un par de segundos por minuto.
+> - **Con este uso, la prueba de saturación no hace falta.** Volver a medir si el uso crece: al llevar F0-F3 a producción, o si se suman asesores.
 
-- **Medir picos:**
-  - contador aproximado de ejecuciones en curso en `secEjecutar` (CacheService, inicio/fin) con el máximo por ventana de 5 min;
-  - el panel «Ejecuciones».
-  - Buscar «too many scripts running simultaneously».
+- **Medir picos:** hecho con el panel (arriba). El contador en `secEjecutar` se descartó.
+  - «too many scripts running simultaneously»: no hizo falta buscarlo; el único error de la semana ocurrió con 5 a la vez.
 - **Prueba de saturación** (35-40 llamadas simultáneas): **solo fuera de horario y con su permiso**; afecta a producción (misma cuenta).
 - **Mitigación:** la F3 (menos llamadas), llamadas más cortas y caché.
 
