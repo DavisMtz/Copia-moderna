@@ -1049,9 +1049,9 @@ y qué se dejó fuera a propósito**. Mismo formato que el registro del document
 **Qué se midió** (24/09 19:00 → 01/10 18:54):
 - **Producción, su panel:** 607 ejecuciones (el resumen del proyecto decía 606 en 7 días, de 1 a 5 usuarios al día), **328 de otras personas**. Una sola en error. Activador de promociones: 7 veces, mediana 38 s, máximo 70 s.
 - **«Mis ejecuciones» no trae lo que ejecutan los asesores**, aunque corra como la cuenta dueña: en esa lista, producción salía con 279. Por eso hay que sumar las dos.
-- **Las dos juntas (el cupo compartido):** 11 324 ejecuciones en 9 proyectos. **Máximo simultáneo entre 9 y 10**: el panel da la hora al segundo, así que se dan la cota inferior, la central y la superior (9 / 9 / 10). Fue el 25/09 a las 17:23 (8 del entorno de desarrollo, en pruebas de ese día, y 1 del activador de cada minuto). **Ningún segundo con 10 o más; 20 s con 8 o más; 137 s con 5 o más**, en toda la semana.
+- **Las dos juntas (el cupo compartido):** 11 324 ejecuciones en 9 proyectos. **Máximo simultáneo entre 9 y 10**: el panel da la hora al segundo, así que se dan la cota inferior, la central y la superior (9 / 9 / 10). Fue el 25/09 a las 17:23 (8 del entorno de desarrollo, que son pruebas y no asesores, y 1 del activador de cada minuto). **Ningún segundo con 10 o más; 20 s con 8 o más; 137 s con 5 o más**, en toda la semana.
 - **Producción sola: entre 8 y 9.** Una pantalla abre de 5 a 8 llamadas casi a la vez (en el panel se ven en grupos que arrancan en el mismo segundo): ese es el pico de UNA persona.
-- **El único error de producción** (29/09, 9:50:57, `fetchTrazabilidadData`, 0 s) empezó con 5 a la vez, todas del Portal: el cupo no fue la causa.
+- **El único error de producción** (29/09, 9:50:57, `fetchTrazabilidadData`, 0 s) empezó con 5 a la vez, todas del Portal: con lo visible, el cupo no explica ese error (no entran las webapps de otros proyectos que use otra gente, si las hay).
 - **Un «Proyecto sin título» de la cuenta ejecuta `actualizarFecha` cada minuto con un activador:** 10 247 veces en la semana, ~75 min/día de activadores, 9 errores. No es del Portal; en el cupo pesa poco (una de las 30, un par de segundos por minuto), pero conviene que el creador sepa que existe.
 - `picos-panel.js` repitió en el navegador, exactos, los números del análisis hecho a mano.
 
