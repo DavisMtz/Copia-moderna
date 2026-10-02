@@ -1042,6 +1042,45 @@ y qué se dejó fuera a propósito**. Mismo formato que el registro del document
 
 <!-- Las entradas nuevas van arriba, con la más reciente primero. -->
 
+### 2026-10-02 — Producción @131: todo lo que estaba en pruebas (F0-F5, decisión 8 y los 10 rediseños), pedido por el creador
+
+**Qué se cambió:**
+- El creador pidió «Sube a producción». Entre «F0 + F1 + F2 sin rediseños» (la recomendada) y «todo lo de pruebas», eligió **todo**, y **ahora** (viernes, 15:08), sabiendo que todos inician sesión una vez. Producción pasó de la @130 (`23144aa`, PromosAuto) a la **@131** a las 15:24: deployment `AKfycbwGYZs3…`, descripción «Transformacion F0-F5 + decision 8 + 10 redisenos (build de 71c5d2b) 02/10/2026».
+- Lleva F0, F1, F2, F3a, F3a.1, F3b, F3a.2, F5 (pendiente #1), la decisión 8, el arreglo del Monitor (`f02a0ad`), el del quitacomentarios (`2198c96`) y los 10 rediseños: portada «Tu turno» (`fd41ba1`…`9fd6d08`), Consola de Herramientas, Directorio de Paqueterías, Formas de Pago, Pago Web, Formatos, Trazabilidad, Devoluciones SAP, Plantillas y Presentaciones. Las decisiones 5, 6 y 7 quedan como estaban en pruebas: la F3a con su coste, `opEstadoSesion` aparte y los votos con 30 s.
+- Se subió un build de `71c5d2b` hecho en el scratchpad (`--salida … --sin-clasp`), no la `build/` del repo, para que el hook no la rehiciera a mitad del push. La configuración de producción va fuera del repo, con `rootDir` hacia esa carpeta.
+- **Corrección de paso:** la portada «Tu turno» entró en pruebas ANTES que la F0, así que «F0 + F1 + F2 sin rediseños» no salía de `a50a234` (esa copia la lleva). Se armó y se probó otra: `23144aa` + `git diff 9fd6d08 11e77a8 -- "Carpeta del proyecto"`, que entra limpio (27 archivos iguales a `11e77a8`; en `Portal.gs`, solo la línea de la F0; las 9 suites de entonces en verde). No se usó, pero queda en el doc 16 §2.
+
+**Qué se comprobó:**
+- **Antes de subir:**
+  - el paquete es idéntico a lo que servía pruebas (`clasp pull` de pruebas: 90 de 90 archivos);
+  - el editor de producción era exactamente `23144aa` (79 archivos; `appsscript.json` solo cambiaba en el salto de línea final), así que nadie lo había tocado a mano;
+  - el manifiesto es el mismo en `23144aa` y en HEAD: no hubo que volver a autorizar nada;
+  - el push añade 11 archivos (`Sesiones.gs`, `fp_logos.html` y nueve parciales `app_*`) y no borra ninguno;
+  - `clasp status` con la configuración nueva: 90 a subir y 1 ignorado (`.claspignore`);
+  - `npm test`: las 23 suites en verde.
+- **Después:**
+  - `clasp pull` del editor de producción contra el paquete: 90 de 90;
+  - `clasp deployments`: `AKfycbwGYZs3…` en @131;
+  - el `/exec` de producción, al minuto y medio, ya sirve el código nuevo. En su `userHtml` están `secEjecutar`, `secEjecutarLote`, `APILA_HISTORIAL`, `gPubs` y `promoCal` (portada «Tu turno») y `__APP__.datos` con 5 respuestas (`fetchToolsData`, `fetchPromoCounts`, `opEstadoPublico` y dos más), leídas en 164 ms. Ningún `<script>` lleva `/*`. El `doGet` tardó 3.0 s para 998 KB, sin errores en la consola.
+- **Sin ver:** la captura salió en blanco (ventana oculta) y, tras `resize_window`, el renderer se colgó. Lo visual queda para el creador.
+
+**Qué queda por comprobar, en este orden:**
+1. Que los asesores recarguen e inicien sesión (el aviso lo da el creador).
+2. **«Cotizar» desde la bolsa, con la extensión.** Es la primera vez que corre contra el código nuevo (F0 + F2): la extensión no se pudo apuntar a pruebas.
+3. Pago Web: la calculadora lee «Pagos Fijos 3.0» con la cuenta que despliega (en la `/dev` la abrió).
+4. Mañana, en «Ejecuciones»: que `promosAutoDisparador` corrió sin error y que no hay un aluvión de `SESION_EXPIRADA`.
+5. Las encuestas dentro de la página (F3a.2), con la primera encuesta real.
+6. En una semana: volver a medir la F4 (`scripts/laboratorio/picos-panel.js`).
+
+**Cómo volver atrás:**
+- Toda la URL: `clasp deploy -P <config de producción> -i AKfycbwGYZs3… -V 130 -d "rollback"`.
+- Solo la llave de sesión, sin desplegar: la propiedad `AUTH_SESIONES = no` en producción.
+- **El `-V 130` no deshace el push:** el activador diario corre el código del editor (HEAD), no el de la versión desplegada. Para devolverle el código anterior hay que subir otra vez la fuente de `23144aa`.
+
+**Qué se dejó fuera a propósito:**
+- El ✖ falso de `verificarVersionDelCodigo` en `secIdentidad_` (`Admin.gs:501` busca `permBloquesEfectivos_`, que ahora se llama a través de `permUsuario_`): sigue igual, y ahora también sale en producción.
+- Las decisiones 2, 4 (F7), 6 y 7, y la SPA, sin cambios.
+
 ### 2026-10-01 — Fase 6 del doc 16: las pruebas en GitHub, `npm test` y candados de nombres y tipos — SIN cambios en el Portal
 
 **Qué se cambió** (commits `7f547ec`, `5a4aafc`, `8122645` y el ajuste a v7 de las acciones):
