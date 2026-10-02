@@ -193,7 +193,10 @@ portal_contenido); el resto solo lee al arrancar. El login pierde todos los par�
 
 1. En cada pantalla — incluidas las dos públicas del Portal (Index y Promociones):
    cambiar pestaña/filtro/elemento → la URL cambia; F5 → se restaura el mismo estado;
-   botón atrás → estado anterior (no solo la dirección).
+   ~~botón atrás → estado anterior (no solo la dirección)~~. **Retirado a propósito el
+   01/10/2026** (decisión 8 del doc 16): con el fallo de Google, apilar historial dejaba la
+   pantalla en blanco al volver atrás después de una recarga. Desde entonces la URL se
+   reemplaza y atrás lleva a la pantalla anterior. Ver §18.
 2. Copiar la URL en cualquier estado, abrirla en ventana privada → login → **aterrizas en
    ese estado exacto**.
 3. `?folio=` sin sesión ya no muestra datos de cliente; con sesión y bloque, sí.
@@ -1038,6 +1041,26 @@ Lo que se ha hecho de verdad, en orden. Cada entrada dice **qué se cambió, qu�
 y qué se dejó fuera a propósito**. Mismo formato que el registro del documento 12.
 
 <!-- Las entradas nuevas van arriba, con la más reciente primero. -->
+
+### 2026-10-01 — Decisión 8 aplicada: ninguna pantalla apila historial («solo reemplazar») — en PRUEBAS, no en producción
+
+**Qué se cambió** (commit `10933a0`; el creador eligió la opción A: «lo de verdad más óptimo»):
+- **`app_core.html`:** interruptor `APILAR_HISTORIAL = false`, con el porqué en su comentario, y publicado como `AppUrl.APILA_HISTORIAL`. `AppUrl.actualizar` solo hace `push` si la pantalla pide apilar **y** el interruptor lo permite; si no, `replace`. Las pantallas no se tocaron: siguen pidiendo `{ apilar: true }` y conservan sus oyentes de atrás/adelante, así que volver a apilar —si Google arregla el fallo— es cambiar una línea.
+- **`Index.html`** (`navUrl`, el único que escribía el historial por su cuenta): obedece a `AppUrl.APILA_HISTORIAL`, también en la ruta de respaldo fuera de Apps Script.
+- **`pruebas/url_pestanas.test.js`** (15 → 25): ejecuta el `AppUrl` real de `app_core` y el `navUrl` real del Portal con un `google.script.history` falso. Con el interruptor apagado, «apilar» reemplaza (y en el acto) sin perder la página ni el resto de la dirección; encendido, vuelve a apilar y los filtros siguen reemplazando. Vigila además que nadie más llame a `google.script.history.push`.
+- **`scripts/laboratorio/url-pestanas.mjs`:** le pregunta el modo a la página (`AppUrl.APILA_HISTORIAL`; en el build esbuild renombra la constante, no la propiedad) y comprueba lo que toca en cada uno. Apagado: todo reemplaza, F5 devuelve el estado y la pantalla no tiene entradas propias a las que volver.
+
+**Qué se comprobó:**
+- La prueba: 25 de 25; contra el código anterior fallan 5, justo las que ven que apilaba.
+- La sonda: **37 de 37** sobre la fuente nueva y sobre su build; **40 de 40** sobre el código anterior (modo apila). Antes de preguntarle a la página, la sonda leyó mal el modo en el build: lo detectó y se corrigió.
+- Las 20 suites en verde, la sintaxis limpia, el build (99) y el modelo del quitacomentarios: Google no cortaría nada.
+- **Banco**, código anterior contra el nuevo: Portal, Promociones, consola, estado, revisión e inicio avanzado idénticas (0 errores, 0 píxeles distintos).
+- **`/dev` de pruebas:** las 20 pantallas traen `goog.script.init`, el interruptor (`APILA_HISTORIAL:`) y sus 407 bloques de JS compilan tal como los deja Google.
+
+**Qué se dejó fuera a propósito:**
+- **Verlo en vivo:** con la ventana del navegador oculta el Portal no pinta ni responde a clics, y no se dejó mostrar. Receta para el creador (30 s), en el `/dev`: abrir el Portal, pulsar una sección (la dirección cambia), F5 y atrás → lleva a la página anterior, nunca en blanco. Mismo gesto en la revisión con el comparador abierto.
+- **El criterio 1 de la F1 de este plan** («atrás → estado anterior») queda retirado a propósito: anotado en el propio criterio.
+- **Producción:** espera su palabra, como el resto. Va con lo demás del build o sola; sola NO es copiar `app_core.html` e `Index.html` enteros (traen la F3 y los rediseños), sino aplicar su diff sobre `23144aa` con `git apply --3way`: `app_core` entra limpio e `Index` con un conflicto de contexto en `navUrl` que se resuelve a mano (probado; receta en el doc 16 §2, «Ojo al promover»).
 
 ### 2026-10-01 — Decisión 8 del doc 16: «atrás» después de una recarga deja la pantalla en blanco (fallo conocido de Google) — medido en LAB-mini; corrige la entrada de la F5. SIN cambios en el Portal
 

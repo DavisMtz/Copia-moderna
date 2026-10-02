@@ -198,7 +198,7 @@ Las filas `/dev` y `/exec` se midieron en momentos distintos. Comparar sobre tod
   - **Con «solo reemplazar»** (`replace`, nunca `push`) no hay entradas propias de la pantalla: Atrás es una carga completa de la pantalla anterior y la app arranca normal. Medido en LAB-mini, F5 incluido.
   - La app no puede recargarse sola al recibir el aviso: navegar la ventana de arriba exige un clic del usuario (ver `AppUrl.go`).
   - **Trampa al medirlo:** con la ventana del navegador oculta, el blanco no se ve (la pantalla se queda en lo último que pintó). Una primera medición del 01/10 lo leyó como «cambia la dirección pero no la pantalla»; era eso. Comprobar `document.visibilityState` antes de cada paso.
-  - Decisión 8 del doc 16.
+  - Decisión 8 del doc 16: **aplicado «solo reemplazar»** el 01/10/2026 (`10933a0`, en pruebas). Interruptor `APILAR_HISTORIAL` en `app_core`.
 - Dentro del iframe, `window.location` es el del iframe interno (`/userCodeAppPanel`), no la URL del usuario. [PROYECTO + COMUNIDAD]
 
 ### 3.7 Recursos compartidos entre pantallas
