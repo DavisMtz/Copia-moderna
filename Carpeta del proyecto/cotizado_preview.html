@@ -21,9 +21,13 @@
             flex-direction: column;
             align-items: center;
         }
+        /* 1100 px, el ancho del formato CCL (.ccl-sheet en app_ccl), que es el
+           predeterminado: la barra y el documento de abajo alinean sus bordes. Con
+           980 px, desde que llegó «Ver en Google Sheets» (03/10/2026) los cinco de la
+           fila de acciones ya no cabían en una línea en una pantalla de 1366. */
         .preview-controls {
             width: 100%;
-            max-width: 980px;
+            max-width: 1100px;
             margin-bottom: 20px;
             display: flex;
             justify-content: space-between;
@@ -40,7 +44,26 @@
             display: flex;
             gap: 0.6rem;
             flex-wrap: wrap;
+            /* Siempre en su propia fila, bajo el título, como se veía con 980 px. Con
+               1100, cuatro botones caben junto al título y cinco no: sin esto, la barra
+               cambiaba de alto al aparecer o irse «Generando documento…» y todo el
+               documento de abajo daba un salto. */
+            flex-basis: 100%;
         }
+
+        /* «Ver en Google Sheets» y su espera, en la barra de acciones (los enciende
+           DocumentoCcl). Aquí no se declara `display` a propósito: lo pone `.v-btn`, y el
+           atributo `hidden` solo le gana porque `[hidden]{display:none}` (app_tailwind)
+           llega después con el mismo peso. Una regla con `display` y un selector más
+           fuerte lo taparía, y la espera no se iría nunca. */
+        .doc-sheets-espera {
+            pointer-events: none;   /* es un aviso, no un botón: ni mano ni salto al pasar */
+            box-shadow: none;
+            color: var(--ink-soft, #64748b);
+        }
+        .doc-sheets-espera .v-spinner { color: var(--brand, #E10098); }
+        /* El verde del botón «Sheets» del panel de inicio (.v-act-green). */
+        .doc-sheets-abrir svg { color: var(--ok, #0E7A4F); }
 
         /* --- ESTILOS DE BOTÓN MODERNIZADOS --- */
         .btn { 
@@ -358,6 +381,22 @@
                 <span data-icon="mail"></span>
                 <span>Enviar por Correo</span>
             </button>
+            <!-- El documento oficial en Google Sheets, como el botón «Sheets» del panel de
+                 inicio. Mientras el servidor lo genera, en su sitio está «Generando
+                 documento…». Los dos nacen ocultos y los enciende DocumentoCcl (abajo), que
+                 es quien sabe cuándo hay documento. El enlace no lleva href hasta entonces.
+                 Van DESPUÉS de «Enviar por Correo» a propósito: aparecen, cambian de ancho
+                 y a veces se van, y así nada de eso mueve el botón principal; en una
+                 ventana angosta, el que baja de fila es este y no «Enviar por Correo». -->
+            <span id="doc-sheets-espera" class="v-btn v-btn-ghost doc-sheets-espera" role="status" hidden>
+                <span class="v-spinner" aria-hidden="true"></span>
+                <span>Generando documento…</span>
+            </span>
+            <a id="doc-sheets-abrir" class="v-btn v-btn-ghost doc-sheets-abrir" target="_blank" rel="noopener"
+               title="Abrir el formato CCL en Google Sheets, en una pestaña nueva" hidden>
+                <span data-icon="document"></span>
+                <span>Ver en Google Sheets</span>
+            </a>
         </div>
     </div>
 
@@ -763,8 +802,24 @@
 
            Sigue sin bloquear nada —se puede leer, editar y descargar mientras—, y si la
            generación falla el panel se retira sin decir nada, exactamente igual de
-           silencioso que antes. AppBusy conserva su puntito porque es el indicador de
-           "hay algo en vuelo" de toda la aplicación, no el de este panel.
+           silencioso que antes.
+
+           «VER EN GOOGLE SHEETS», ARRIBA (03/10/2026, a pedido del creador)
+           ------------------------------------------------------------------
+           La barra de acciones cuenta la misma espera y el mismo final: mientras el
+           servidor genera, «Generando documento…» junto a «Enviar por Correo»; cuando el
+           panel dice «Documento oficial listo», en ese sitio aparece «Ver en Google
+           Sheets», que abre la hoja en una pestaña nueva, como el botón «Sheets» del
+           panel de inicio. Allí el clic pide la hoja y espera; aquí ya está hecha, así
+           que el botón es un enlace con la dirección puesta y abre al instante. Si no
+           hay documento, o el servidor no mandó su dirección, arriba no queda nada:
+           nunca un botón que no lleva a ningún sitio.
+
+           Por eso esta llamada ya no enciende el aviso de la esquina (`busy: false`).
+           Se quedaba como el «hay algo en vuelo» de toda la aplicación, pero ese aviso
+           vive arriba a la derecha, a un palmo de la barra, y repetía «Generando el
+           documento» junto a «Generando documento…»: dos esperas anunciadas para un
+           solo trabajo. Gana la más específica, como en la descarga del PDF.
 
            POR QUÉ SE ABRE SOLO AL TERMINAR
            --------------------------------
@@ -784,6 +839,7 @@
         const DocumentoCcl = (function () {
             let pedido = false;
             let urlDoc = '';
+            let urlHoja = '';   // la hoja en Google Sheets (la de arriba), no la de incrustar
             let montado = false;
 
             const panel  = () => document.getElementById('doc-ccl');
@@ -793,10 +849,40 @@
             const sub    = () => document.getElementById('doc-ccl-sub');
             const titulo = () => document.getElementById('doc-ccl-tit-tx');
             const palomita = () => document.querySelector('#doc-ccl .doc-ccl-ok');
+            const espera = () => document.getElementById('doc-sheets-espera');
+            const enlace = () => document.getElementById('doc-sheets-abrir');
 
             function conGsap() {
                 return typeof gsap !== 'undefined' &&
                        !window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+            }
+
+            /**
+             * La barra de acciones, en uno de tres estados que siguen al panel:
+             *   'generando'  «Generando documento…» en el sitio donde irá el botón;
+             *   'listo'      «Ver en Google Sheets», solo si llegó la dirección de la hoja;
+             *   'oculto'     ninguno de los dos: no hubo documento.
+             */
+            function barra(estado) {
+                const e = espera(), a = enlace();
+                if (!e || !a) return;
+                e.hidden = estado !== 'generando';
+
+                if (estado !== 'listo' || !urlHoja) {
+                    // Sin dirección, el enlace se va sin ella: oculto Y sin destino.
+                    a.hidden = true;
+                    a.removeAttribute('href');
+                    return;
+                }
+                const entra = a.hidden;
+                a.setAttribute('href', urlHoja);
+                a.hidden = false;
+                // La entrada es un adorno: con la pestaña oculta no habría fotogramas para
+                // terminarla, así que entonces el botón simplemente está.
+                if (entra && conGsap() && !document.hidden) {
+                    gsap.fromTo(a, { opacity: 0 },
+                        { opacity: 1, duration: .32, ease: 'power2.out', clearProps: 'opacity' });
+                }
             }
 
             /**
@@ -809,19 +895,21 @@
                 if (typeof google === 'undefined' || !google.script || !google.script.run) return;
                 pedido = true;
 
+                barra('generando');
                 const fx = anunciarGeneracion();
                 // Tope propio del PANEL, aparte del de la escena: si el servidor no
                 // contesta nunca, el panel no puede quedarse con el título de "preparando"
                 // y nada debajo. Si la respuesta llega tarde, estadoListo() lo trae de vuelta.
                 setTimeout(function () { if (!urlDoc) retirarPanel(fx); }, 45000);
 
-                /* El indicador de la esquina lo lleva `AppRun`, y eso resuelve de paso el
-                   caso que aquí estaba parcheado a mano con un try/catch: si el servidor
-                   desplegado todavía no expone `previewSheetCcl`, `AppRun` rechaza la
-                   promesa —con lo que el manejador de fallo apaga el indicador y retira el
-                   panel— en vez de dejar el puntito encendido el resto de la sesión porque
-                   no llegó a correr ningún manejador. */
-                AppRun.call('previewSheetCcl', [folio], { busy: 'Generando el documento' })
+                /* Por `AppRun` y no a mano, y eso resuelve de paso el caso que aquí estaba
+                   parcheado con un try/catch: si el servidor desplegado todavía no expone
+                   `previewSheetCcl`, `AppRun` rechaza la promesa —con lo que el manejador
+                   de fallo retira el panel y la espera de la barra— en vez de dejarlos
+                   anunciando un documento el resto de la sesión porque no llegó a correr
+                   ningún manejador. Sin el aviso de la esquina (`busy: false`): la espera
+                   ya la cuenta la barra de arriba (ver «VER EN GOOGLE SHEETS» aquí arriba). */
+                AppRun.call('previewSheetCcl', [folio], { busy: false })
                     .then(function (r) {
                         if (!r || !r.success || !r.urlIncrustable) {
                             // Silencio deliberado. La vista previa de arriba funciona y la
@@ -834,6 +922,8 @@
                             return;
                         }
                         urlDoc = r.urlIncrustable;
+                        // Al enlace solo llega una dirección https (un `javascript:` sería código).
+                        urlHoja = /^https:/.test(String(r.url || '')) ? String(r.url) : '';
                         if (r.message && window.AppMotion) AppMotion.toast(r.message, 'warn');
                         /* estadoListo va DENTRO del done: primero se retira la escena de
                            la hoja escribiéndose y después entra el documento. Llamándolos
@@ -891,6 +981,8 @@
                 if (boton()) boton().hidden = false;
                 if (titulo()) titulo().textContent = 'Documento oficial listo';
                 if (sub()) sub().textContent = 'Este es el formato CCL tal como lo recibirá el cliente.';
+                // Arriba, en el mismo instante: la espera de la barra se vuelve el botón.
+                barra('listo');
                 mostrarPanel();
                 cablear();
                 // El documento se abre solo: la escena acaba de prometer un documento.
@@ -926,11 +1018,12 @@
                 }
             }
 
-            /** No hubo documento: el panel se va como vino, sin gritarle a nadie. */
+            /** No hubo documento: el panel y la espera de arriba se van como vinieron, sin gritarle a nadie. */
             function retirarPanel(fx) {
                 fx.done(function () {
                     const p = panel();
                     if (p) p.hidden = true;
+                    barra('oculto');
                 });
             }
 

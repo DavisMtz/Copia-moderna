@@ -786,23 +786,27 @@ function openQuoteInSheets(folio, emailCliente) {
 }
 
 /**
- * Genera (o reutiliza) el documento CCL de un folio y devuelve lo justo para MIRARLO.
+ * Genera (o reutiliza) el documento CCL de un folio y devuelve lo que la vista previa
+ * necesita para enseñarlo y para abrirlo.
  *
- * Es la puerta que usa la vista previa. Se separa de openQuoteInSheets porque hacen cosas
- * distintas aunque compartan el motor:
+ * Es la puerta que usa la vista previa. Se separa de openQuoteInSheets porque se llama en
+ * segundo plano, sin que nadie lo pida, y su respuesta sirve para dos cosas a la vez:
  *
- *   openQuoteInSheets   "dame el documento para abrirlo en Drive". Devuelve la URL de
- *                       edición, que es lo que hace falta para trabajar sobre él.
- *   previewSheetCcl     "enséñamelo aquí dentro". Devuelve la URL de incrustar y NO la de
- *                       edición, para que la pantalla no pueda ofrecer por accidente una
- *                       salida a Drive que no se pidió.
+ *   urlIncrustable   el documento DENTRO de la página: el panel «Documento oficial listo».
+ *   url              la misma hoja en Google Sheets: la abre «Ver en Google Sheets», en la
+ *                    barra de arriba, igual que el botón «Sheets» del panel de inicio
+ *                    (openQuoteInSheets devuelve esta misma dirección).
  *
- * Se llama en segundo plano al abrir la vista previa, así que su coste importa: la parte
- * cara es copiar la plantilla, y solo ocurre la primera vez por folio. A partir de ahí se
- * reutiliza el archivo y únicamente se vuelven a escribir los datos.
+ * Hasta el 03/10/2026 solo devolvía la de incrustar, a propósito: la pantalla no ofrecía
+ * ninguna salida a Drive porque nadie la había pedido. Ese día el creador la pidió. No
+ * enseña nada que no viajara ya: la de incrustar lleva el mismo id del archivo, y quien la
+ * abre ve la hoja con el permiso que le da cclCompartirPublico_ (solo lectura).
+ *
+ * Su coste importa: la parte cara es copiar la plantilla, y solo ocurre la primera vez por
+ * folio. A partir de ahí se reutiliza el archivo y únicamente se vuelven a escribir los datos.
  *
  * @param {string} folio
- * @return {{success:boolean, urlIncrustable:string, generadoEn:string, message:string}}
+ * @return {{success:boolean, urlIncrustable:string, url:string, generadoEn:string, message:string}}
  */
 function previewSheetCcl(folio) {
   try {
@@ -820,6 +824,7 @@ function previewSheetCcl(folio) {
     return {
       success: true,
       urlIncrustable: r.urlIncrustable,
+      url: r.url,
       compartido: r.compartido === true,
       generadoEn: new Date().toISOString(),
       // Se avisa cuando el documento quedó sin permiso público: el iframe va a pedir
