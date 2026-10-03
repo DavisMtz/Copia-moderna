@@ -1042,6 +1042,37 @@ y qué se dejó fuera a propósito**. Mismo formato que el registro del document
 
 <!-- Las entradas nuevas van arriba, con la más reciente primero. -->
 
+### 2026-10-03 — Producción @134: «Ir a Vista Previa» sin esperar (C) y login sin esperas (A), pedido por el creador
+
+**Qué se cambió:** el creador probó C en pruebas («funcionó correctamente»), pidió A y después «Sube a producción». Producción pasó de la @133 a la **@134** (03/10, ~13:38).
+- **Qué entra:** C (`a522f36`) y A (`5bb0cbe`). La fuente es `500c00e` (la de la @133) con los 8 archivos de `773778c` que tocan C y A: `Code.gs`, `app_core.html`, `cotizacion.html`, `cotizado_preview.html`, `inicioDeSesion.html`, `registro.html`, `recuperar.html` y `Sesiones.gs`.
+- **Qué NO entra:** los íconos del Monitor (`74b8adb`, `b90ba72`) y el favicon (`7c9c569`) se quedan en pruebas: su bitácora dice que esperan su palabra.
+- **Receta:**
+  - `git archive 500c00e` + `git show 773778c:` de los 8 archivos, armado en el scratchpad;
+  - `node scripts/build.js --fuente … --salida … --sin-clasp` (el `build.js` no cambió desde `500c00e`);
+  - `.clasp.json` de producción FUERA del repo, con `rootDir` al paquete;
+  - `clasp push --force -P` y `clasp deploy -P … -i AKfycbwGYZs3…`.
+
+**Qué se comprobó:**
+- **Antes de subir:**
+  - el editor de producción era idéntico al build de `500c00e` (91 de 91): nadie había subido nada encima;
+  - el paquete difiere de producción solo en los 8 archivos y de pruebas solo en `app_monitor.html` y `Promociones.html`;
+  - `appsscript.json` es igual, así que nadie tiene que volver a autorizar;
+  - el quitacomentarios está limpio;
+  - el commit del favicon (13:38) es posterior al armado (13:31) y no entró.
+- **Después:**
+  - `clasp pull` del editor de producción: idéntico al paquete (91 de 91);
+  - el deployment `AKfycbwGYZs3…` apunta a la @134;
+  - con `&cb=134`, `/exec?page=login` sirve el código de A y `/exec?page=cotizado_preview` el de C.
+
+**Qué se dejó fuera a propósito:**
+- Los íconos del Monitor y el favicon. Sus recetas del doc 16 ahora dicen «sobre la fuente de la @134», no sobre `500c00e`.
+- **Volver:** `clasp deploy -P <config de producción> -i AKfycbwGYZs3… -V 133 -d "rollback"`. El activador diario corre HEAD, que ahora lleva C y A; no tocan `PromosAuto.gs`.
+- **Lo que hay que mirar en producción:**
+  - que «Ir a Vista Previa» ya no saque el aviso;
+  - que no aparezcan folios duplicados;
+  - con `console.table(AppRun.medidas())`, la fila `loginUser`.
+
 ### 2026-10-03 — Favicon del Portal: la etiqueta de venta con el isotipo de Liverpool — en PRUEBAS
 
 **Qué se cambió** (commit `7c9c569`):
