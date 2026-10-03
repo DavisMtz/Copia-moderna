@@ -40,6 +40,10 @@ var SES_REFRESCO_MS = 5 * 60 * 1000;        // la última actividad se reescribe
 var SES_CACHE_SEG = 21600;                  // 6 h, el máximo de CacheService
 var SES_ERROR_VENCIDA = 'SESION_EXPIRADA: Tu sesión se cerró por inactividad. Vuelve a iniciar sesión.';
 var SES_FORMATO = /^vs1\.[0-9a-f]{64}$/;
+// Limpieza de sesiones vencidas (sesPurgar_): en el viaje de fondo, nunca en el login.
+var SES_PURGA_CADA_SEG = 1800;              // un barrido cada 30 min como mucho
+var SES_PURGA_TOPE = 25;                    // y nunca más de 25 borrados por barrido
+var SES_PURGA_MARCA = 'sesPurgaReciente';   // marca en CacheService (sin el prefijo ses_)
 
 /** Sesión validada en ESTA ejecución. La fija secEjecutar; cada google.script.run empieza en null. */
 var SEC_SESION_ = null;
@@ -115,21 +119,48 @@ function sesBorrar_(clave) {
   try { CacheService.getScriptCache().remove(clave); } catch (e) {}
 }
 
-/** Borra las sesiones vencidas. Se llama al crear una: así el almacén no crece sin límite. */
+/**
+ * Borra las sesiones vencidas, para que el almacén no crezca sin límite.
+ *
+ * DESDE EL 03/10/2026 NO CORRE EN EL LOGIN. Lee el almacén ENTERO (getProperties: sesiones y
+ * fichas de revisión) y borra las vencidas de una en una, y eso iba dentro de loginUser: la
+ * primera persona de la mañana pagaba la limpieza de las sesiones de ayer justo cuando la
+ * pantalla tiene ~5 s para llevarla a su panel (pasados esos segundos el navegador ya no deja
+ * cambiar de pantalla y sale el aviso de «toca aquí para seguir»).
+ *
+ * Ahora la llama secEjecutarLote, el viaje de fondo que hace toda pantalla con sesión al abrir:
+ * como mucho una vez cada SES_PURGA_CADA_SEG y con SES_PURGA_TOPE borrados; lo que quede se borra
+ * en el barrido siguiente. Una sesión vencida que siga en el almacén no abre nada: sesValidar_
+ * comprueba la inactividad en cada llamada.
+ *
+ * @return {number} cuántas borró (0 si otro barrido reciente ya lo hizo).
+ */
 function sesPurgar_(ahora) {
+  try {
+    const cache = CacheService.getScriptCache();
+    if (cache.get(SES_PURGA_MARCA)) return 0;
+    cache.put(SES_PURGA_MARCA, String(ahora), SES_PURGA_CADA_SEG);
+  } catch (e) { /* sin caché se barre igual: es lo que se hacía siempre */ }
+  let borradas = 0;
   try {
     const props = PropertiesService.getScriptProperties();
     const todas = props.getProperties();
     const limite = sesInactividadMs_();
-    Object.keys(todas).forEach(function (k) {
-      if (k.indexOf(SES_PREFIJO) !== 0) return;
+    const claves = Object.keys(todas);
+    for (let i = 0; i < claves.length && borradas < SES_PURGA_TOPE; i++) {
+      const k = claves[i];
+      if (k.indexOf(SES_PREFIJO) !== 0) continue;
       let r = null;
       try { r = JSON.parse(todas[k]); } catch (e) {}
-      if (!r || !(ahora - Number(r.u || 0) <= limite)) props.deleteProperty(k);
-    });
+      if (!r || !(ahora - Number(r.u || 0) <= limite)) {
+        props.deleteProperty(k);
+        borradas++;
+      }
+    }
   } catch (e) {
     Logger.log('sesPurgar_: ' + e);
   }
+  return borradas;
 }
 
 // ── Ciclo de vida ───────────────────────────────────────────────────────────
@@ -137,6 +168,7 @@ function sesPurgar_(ahora) {
 /**
  * Abre una sesión para un correo YA verificado (contraseña o vale). Devuelve la llave en claro:
  * es la única vez que existe fuera del navegador. Solo se guardan números en el registro.
+ * Aquí NO se barren las vencidas: eso lo hace secEjecutarLote, fuera del login (ver sesPurgar_).
  */
 function sesCrear_(email) {
   const correo = secNormalizarCorreo_(email);
@@ -144,7 +176,6 @@ function sesCrear_(email) {
   const llave = 'vs1.' + Utilities.getUuid().replace(/-/g, '') + Utilities.getUuid().replace(/-/g, '');
   const ahora = Date.now();
   sesGuardar_(sesClave_(llave), { e: correo, u: ahora, i: ahora });
-  sesPurgar_(ahora);
   return llave;
 }
 
@@ -282,6 +313,8 @@ var SES_LOTE_MAX = 8;
  *     van bien, { v: respuesta, ms }. El orden de la respuesta es el del lote.
  *   · Corren en serie, en el orden en que llegan: la respuesta tarda lo que suman sus trabajos.
  *     Por eso AppRun solo junta llamadas cortas de fondo, nunca las que pintan la pantalla.
+ *   · Al final, la limpieza de sesiones vencidas (sesPurgar_, como mucho cada 30 min): aquí nadie
+ *     está esperando para cambiar de pantalla, que es justo lo que no podía pasar en el login.
  *
  * @param {string} llave      Llave de sesión, o '' si no hay.
  * @param {Array}  lote       [[función, args], …], como mucho SES_LOTE_MAX.
@@ -293,7 +326,7 @@ function secEjecutarLote(llave, lote, actividad) {
     throw new Error('Lote de llamadas no válido.');
   }
   sesAbrirEjecucion_(llave, actividad);
-  return lote.map(function (item) {
+  const respuestas = lote.map(function (item) {
     const t0 = Date.now();
     const fn = String((Array.isArray(item) && item[0]) || '');
     const f = sesFuncionExpuesta_(fn);
@@ -305,6 +338,9 @@ function secEjecutarLote(llave, lote, actividad) {
       return { e: String((err && err.message) || err) };
     }
   });
+  // Nunca lanza: un barrido que falla no puede tumbar las respuestas ya calculadas.
+  sesPurgar_(Date.now());
+  return respuestas;
 }
 
 /** Cierra la sesión en el servidor. Se puede llamar sin sesión: solo borra si la llave es válida. */

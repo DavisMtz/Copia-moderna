@@ -530,12 +530,19 @@
                     loaderTween = null;
                     AuthStage.success(loadingIcon, '¡Contraseña actualizada!', loadingText);
                     loadingSub.textContent = 'Te llevamos al inicio de sesión…';
-                    setTimeout(() => {
-                        if (!AppUrl.go('login')) {
-                            ocultarCarga();
-                            showMessage('Tu contraseña ya cambió, pero no pudimos abrir el inicio de sesión. Recarga la página.');
-                        }
-                    }, 1400);
+                    /* Se navega YA (03/10/2026): los 1400 ms que se esperaban aquí se comían la
+                       activación del clic y salía el aviso de «toca aquí para seguir». La
+                       confirmación viaja al login, que la enseña al abrir (ver
+                       «ventel-aviso-login» en inicioDeSesion.html). */
+                    try {
+                        sessionStorage.setItem('ventel-aviso-login', JSON.stringify({
+                            texto: 'Tu contraseña quedó actualizada. Entra con la nueva.', at: Date.now()
+                        }));
+                    } catch (e) {}
+                    if (!AppUrl.go('login')) {
+                        ocultarCarga();
+                        showMessage('Tu contraseña ya cambió, pero no pudimos abrir el inicio de sesión. Recarga la página.');
+                    }
                 }, err => {
                     ocultarCarga();
                     console.error(err);

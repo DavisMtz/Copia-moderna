@@ -231,15 +231,22 @@
             AuthStage.stopLoader(loaderTween, loadingIcon);
             loaderTween = null;
             AuthStage.success(loadingIcon, '¡Listo! Redirigiendo…', loadingText);
-            setTimeout(() => {
-                // Si se llegó aquí desde una pantalla concreta (?next=cotizacion,
-                // que es como entra quien viene de la extensión con su bolsa), se
-                // vuelve a ella; si no, al panel del rol de siempre.
-                if (!AppUrl.goNextOrHome()) {
-                    hideLoadingState();
-                    showMessage('No pudimos abrir tu panel. Recarga la página e inténtalo de nuevo.');
-                }
-            }, 900);
+            /* Se navega YA, sin esperar a la animación (03/10/2026). Una webapp de Apps
+               Script solo puede cambiar de pantalla unos 5 s después del clic en «Entrar»
+               —el iframe de Google trae allow-top-navigation-by-user-activation—, y el
+               servidor ya se comió casi todo ese tiempo. Los 900 ms que se esperaban aquí
+               para lucir la palomita bastaban para que la navegación llegara tarde y saliera
+               el aviso de «toca aquí para seguir». La palomita se alcanza a ver un instante;
+               enseguida la tapa la escena del destino que enciende AppUrl.go, que es la
+               espera de cambio de pantalla de toda la app.
+
+               Si se llegó aquí desde una pantalla concreta (?next=cotizacion, que es como
+               entra quien viene de la extensión con su bolsa), se vuelve a ella; si no, al
+               panel del rol de siempre. */
+            if (!AppUrl.goNextOrHome()) {
+                hideLoadingState();
+                showMessage('No pudimos abrir tu panel. Recarga la página e inténtalo de nuevo.');
+            }
         };
 
         // ── Paso 2: elegir contraseña propia tras entrar con una temporal ──────────
@@ -333,10 +340,10 @@
                         // La respuesta ES la sesión: se entra sin volver a teclear nada.
                         AppSession.save(response);
                         pendiente = null;
-                        AppMotion.swap(setPasswordContainer, loadingContainer, () => {
-                            loaderTween = AuthStage.startLoader(loadingIcon);
-                            showSuccessStateAndRedirect();
-                        });
+                        // El cambio de tarjeta es solo visual: la navegación no lo espera
+                        // (ver showSuccessStateAndRedirect, la activación del clic se acaba).
+                        AppMotion.swap(setPasswordContainer, loadingContainer);
+                        showSuccessStateAndRedirect();
                         return;
                     }
                     // El vale caducó: no queda más remedio que volver a empezar, y se
@@ -456,6 +463,18 @@
                 emailInput.value = AppSession.lastEmail;
                 passwordInput.focus();
             }
+
+            // La confirmación que dejaron el registro o la recuperación de contraseña al traer
+            // aquí a la persona: ellas ya no esperan a lucirla antes de navegar (ver registro.html
+            // y recuperar.html). Se enseña una vez y se tira; si es de hace rato, ya no dice nada.
+            try {
+                const crudo = sessionStorage.getItem('ventel-aviso-login');
+                sessionStorage.removeItem('ventel-aviso-login');
+                const aviso = crudo ? JSON.parse(crudo) : null;
+                if (aviso && aviso.texto && Date.now() - Number(aviso.at || 0) < 10 * 60000) {
+                    showMessage(String(aviso.texto), false);
+                }
+            } catch (e) {}
 
             AuthStage.play({ title: '[data-split]' });
         })();

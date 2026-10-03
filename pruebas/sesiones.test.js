@@ -24,6 +24,8 @@ function lanza(fn) { try { fn(); return null; } catch (e) { return String(e && e
 const MIN = 60000;
 let reloj = Date.UTC(2026, 8, 24, 15, 0, 0);
 let props = {}, cache = {}, escrituras = 0;
+// Lecturas del almacén ENTERO (getProperties): es lo caro del barrido de sesiones (sección 8).
+let lecturasTodas = 0, cacheRota = false;
 let activa = 'ana.asesora@liverpool.com.mx', efectiva = 'dueno@liverpool.com.mx';
 
 function contexto() {
@@ -39,11 +41,11 @@ function contexto() {
       getProperty: (k) => (k in props ? props[k] : null),
       setProperty: (k, v) => { escrituras++; props[k] = String(v); },
       deleteProperty: (k) => { delete props[k]; },
-      getProperties: () => Object.assign({}, props)
+      getProperties: () => { lecturasTodas++; return Object.assign({}, props); }
     }) },
     CacheService: { getScriptCache: () => ({
-      get: (k) => (k in cache ? cache[k] : null),
-      put: (k, v) => { cache[k] = v; },
+      get: (k) => { if (cacheRota) throw new Error('caché caída'); return (k in cache ? cache[k] : null); },
+      put: (k, v) => { if (cacheRota) throw new Error('caché caída'); cache[k] = v; },
       remove: (k) => { delete cache[k]; }
     }) },
     Utilities: {
@@ -192,12 +194,47 @@ ok('con el interruptor apagado se vuelve al comportamiento anterior', r.ok && r.
 delete props.AUTH_SESIONES;
 
 /* ── 8 · Limpieza del almacén ─────────────────────────────────────────── */
-console.log('\n8 · Purga de sesiones vencidas');
-props = {}; cache = {};
-const viejas = [1, 2, 3].map(() => ejecucion(() => C.sesParaCliente_('ana.asesora@liverpool.com.mx')));
+/* Desde el 03/10/2026 el barrido NO corre al abrir sesión: leía el almacén entero y borraba de una
+   en una dentro del login, que tiene ~5 s para cambiar de pantalla. Lo hace secEjecutarLote (el
+   viaje de fondo), como mucho cada 30 min y con tope de borrados. La caché de mentira no caduca
+   sola: «pasaron 30 min» se simula quitando la marca. */
+console.log('\n8 · Purga de sesiones vencidas (en el viaje de fondo, no en el login)');
+props = {}; cache = {}; lecturasTodas = 0;
+const sesionesGuardadas = () => Object.keys(props).filter((k) => k.indexOf('ses_') === 0);
+const pasaMediaHora = () => { delete cache.sesPurgaReciente; };
+[1, 2, 3].forEach(() => ejecucion(() => C.sesParaCliente_('ana.asesora@liverpool.com.mx')));
 reloj += 130 * MIN;
+const s8p = ejecucion(() => C.sesParaCliente_('ana.asesora@liverpool.com.mx'));
+ok('abrir sesión YA NO lee el almacén entero ni borra (el login no paga la limpieza)',
+  lecturasTodas === 0 && sesionesGuardadas().length === 4, { lecturasTodas, n: sesionesGuardadas().length });
+let rp = ejecucion(() => C.secEjecutarLote(s8p.llave, [['pruebaQuienSoy', ['']]], reloj));
+ok('el viaje de fondo barre las vencidas (queda solo la vigente)', sesionesGuardadas().length === 1 && lecturasTodas === 1,
+  { lecturasTodas, n: sesionesGuardadas().length });
+ok('…y contesta lo de siempre', Array.isArray(rp) && rp.length === 1 && rp[0].v && rp[0].v.ok === true, rp);
+[1, 2].forEach(() => ejecucion(() => C.sesParaCliente_('ana.asesora@liverpool.com.mx')));
+reloj += 125 * MIN;   // esas dos vencen; la del lote sigue viva por la actividad que informa
+ejecucion(() => C.secEjecutarLote(s8p.llave, [['pruebaQuienSoy', ['']]], reloj));
+ok('otro viaje dentro de los 30 min no vuelve a barrer', lecturasTodas === 1 && sesionesGuardadas().length === 3,
+  { lecturasTodas, n: sesionesGuardadas().length });
+pasaMediaHora();
+ejecucion(() => C.secEjecutarLote(s8p.llave, [['pruebaQuienSoy', ['']]], reloj));
+ok('pasada la media hora, el siguiente viaje barre otra vez', lecturasTodas === 2 && sesionesGuardadas().length === 1,
+  { lecturasTodas, n: sesionesGuardadas().length });
+for (let i = 0; i < 30; i++) ejecucion(() => C.sesParaCliente_('ana.asesora@liverpool.com.mx'));
+reloj += 125 * MIN;
+pasaMediaHora();
+ejecucion(() => C.secEjecutarLote(s8p.llave, [['pruebaQuienSoy', ['']]], reloj));
+ok('un barrido borra como mucho 25 (quedan 5 de 30 vencidas + la vigente)', sesionesGuardadas().length === 6, sesionesGuardadas().length);
+pasaMediaHora();
+ejecucion(() => C.secEjecutarLote(s8p.llave, [['pruebaQuienSoy', ['']]], reloj));
+ok('…y el siguiente termina el trabajo', sesionesGuardadas().length === 1, sesionesGuardadas().length);
+cacheRota = true;
 ejecucion(() => C.sesParaCliente_('ana.asesora@liverpool.com.mx'));
-ok('al abrir una sesión se borran las vencidas (queda solo la nueva)', Object.keys(props).filter((k) => k.indexOf('ses_') === 0).length === 1, Object.keys(props));
+reloj += 125 * MIN;
+rp = ejecucion(() => C.secEjecutarLote(s8p.llave, [['pruebaQuienSoy', ['']]], reloj));
+cacheRota = false;
+ok('con la caché caída se barre igual y el lote contesta', sesionesGuardadas().length === 1 && rp[0].v && rp[0].v.ok === true,
+  { n: sesionesGuardadas().length, rp });
 
 /* ── 8b · Tiempo de servidor (F3) ─────────────────────────────────────── */
 console.log('\n8b · secEjecutar con medir = 1 (AppRun.medidas)');

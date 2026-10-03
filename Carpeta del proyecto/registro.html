@@ -483,12 +483,20 @@
                     loadingSub.textContent = 'Te llevamos al inicio de sesión…';
                     // El correo queda precargado en el login (AppSession.lastEmail).
                     try { localStorage.setItem('ventel-last-email', res.userEmail || pendiente.correo); } catch (e) {}
-                    setTimeout(() => {
-                        if (!AppUrl.go('login')) {
-                            ocultarCarga();
-                            showMessage('Tu cuenta ya existe, pero no pudimos abrir el inicio de sesión. Recarga la página.');
-                        }
-                    }, 1400);
+                    /* Se navega YA (03/10/2026): los 1400 ms que se esperaban aquí para lucir
+                       «¡Cuenta creada!» se comían la activación del clic (unos 5 s en Apps
+                       Script, y el servidor ya gastó casi todos) y salía el aviso de «toca
+                       aquí para seguir». La confirmación no se pierde: viaja al login, que la
+                       enseña al abrir (ver «ventel-aviso-login» en inicioDeSesion.html). */
+                    try {
+                        sessionStorage.setItem('ventel-aviso-login', JSON.stringify({
+                            texto: 'Tu cuenta quedó creada. Entra con tu contraseña.', at: Date.now()
+                        }));
+                    } catch (e) {}
+                    if (!AppUrl.go('login')) {
+                        ocultarCarga();
+                        showMessage('Tu cuenta ya existe, pero no pudimos abrir el inicio de sesión. Recarga la página.');
+                    }
                 }, err => {
                     ocultarCarga();
                     console.error(err);
