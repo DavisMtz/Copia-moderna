@@ -1042,6 +1042,17 @@ y qué se dejó fuera a propósito**. Mismo formato que el registro del document
 
 <!-- Las entradas nuevas van arriba, con la más reciente primero. -->
 
+### 2026-10-03 — Producción @133: el Monitor de promociones más visual, pedido por el creador
+
+**Qué se cambió:** el creador lo vio en pruebas y pidió subirlo («sí me gustó. Sube esta producción»). Producción pasó de la @131 a la **@133** (03/10, 01:01) con un build de `500c00e`. Entre `71c5d2b` y ese commit solo cambian `Promociones.html` y el parcial nuevo `app_monitor.html`. La @132 es una versión sin descripción que no creó esta sesión y que nunca se desplegó.
+
+**Qué se comprobó:**
+- Antes de subir: el paquete es idéntico a pruebas (91 de 91) y el editor de producción seguía igual al paquete de la @131 (90 de 90).
+- Después: el editor de producción es igual al paquete (91 de 91) y el deployment `AKfycbwGYZs3…` apunta a la @133.
+- El `/exec` sirve el Monitor nuevo (en `userHtml`: `MonitorVivo`, el cielo, el Gantt nuevo, sin `vigSection` y sin `/*` en los scripts) y el Portal sigue sirviendo `secEjecutar`.
+
+**Cómo volver atrás:** `clasp deploy -P <config de producción> -i AKfycbwGYZs3… -V 131 -d "rollback"`.
+
 ### 2026-10-02 — Monitor de promociones: más visual con el formato de siempre — en PRUEBAS
 
 **Qué se cambió** (commits `6327112` y `a43ba14`; respaldo: etiqueta `respaldo-monitor-antes-vivo` = `028d43f`):
