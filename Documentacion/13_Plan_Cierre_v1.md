@@ -1042,6 +1042,34 @@ y qué se dejó fuera a propósito**. Mismo formato que el registro del document
 
 <!-- Las entradas nuevas van arriba, con la más reciente primero. -->
 
+### 2026-10-03 — Login, registro y recuperar navegan en cuanto el servidor confirma; la purga de sesiones sale del login — en PRUEBAS
+
+**Qué se cambió** (commit `5bb0cbe`; producción @133 no lo tiene):
+- **El pedido:** el creador probó la opción C («funcionó correctamente») y pidió la A de la misma investigación: quitar lo que se come los ~5 s que tiene la app para cambiar de pantalla después de un clic.
+- **Sin esperas antes de navegar:**
+  - `inicioDeSesion.html` ya no espera 900 ms a la palomita antes de `goNextOrHome`; «Guardar y entrar» (contraseña temporal) tampoco espera al cambio de tarjeta, que eran 250 ms más.
+  - `registro.html` y `recuperar.html` ya no esperan 1400 ms antes de ir al login. Su confirmación («Tu cuenta quedó creada…», «Tu contraseña quedó actualizada…») viaja en `sessionStorage` (`ventel-aviso-login`, vale 10 min) y el login la enseña una vez al abrir.
+- **La purga de sesiones, fuera del login:** `sesCrear_` (login y contraseña temporal) ya no llama a `sesPurgar_`, que leía el almacén entero (`getProperties`) y borraba de una en una las sesiones vencidas. La primera persona de la mañana pagaba la limpieza de las de ayer. Ahora barre `secEjecutarLote`, el viaje de fondo de cada pantalla con sesión: como mucho cada 30 min (`sesPurgaReciente` en CacheService) y con 25 borrados por barrido. Una vencida que siga guardada no abre nada: `sesValidar_` mira la inactividad en cada llamada.
+
+**Qué se comprobó:**
+- `pruebas/redireccion_sin_esperas.test.js` (18) vigila que no vuelvan las esperas y ejecuta la lectura del aviso con varios casos: reciente, viejo, ilegible y ausente. Contra el código anterior fallan 14 de 18.
+- La sección 8 de `sesiones.test.js`, reescrita, cubre:
+  - abrir sesión no lee el almacén;
+  - el lote barre;
+  - no vuelve a barrer antes de 30 min;
+  - el tope de 25;
+  - la caché caída.
+- `npm test`: 25 en verde. Build y quitacomentarios limpios.
+- **Sonda en Chrome headless** (`scratchpad/sonda_guardar/sonda_login.mjs`, misma página antes y ahora, clic de verdad por CDP):
+  - con el servidor contestando a los 1.5 s, navega a los 2.46 s antes y a los 1.54 s ahora;
+  - **a los 4.5 s, antes se quedaba en el login con «Ya casi: solo falta un toque» y ahora navega a los 4.54 s**.
+
+**Qué se dejó fuera a propósito:**
+- **Producción:** espera su palabra.
+- **No elimina el problema:** si el servidor pasa de ~5 s (arranque en frío, candado, pico), sigue saliendo el aviso. Lo de raíz es el login en la misma pantalla (opción B) o el login por `doPost` (D, que pide laboratorio).
+- **Sin medir en vivo** cuánto ganó el servidor sin la purga: el creador puede verlo en su consola con `console.table(AppRun.medidas())` (fila `loginUser`).
+- `cuentasPurgar_` (registro y recuperar, al emitir un código) tiene el mismo patrón pero no está en el login: no se tocó.
+
 ### 2026-10-03 — «Ir a Vista Previa» navega en el clic y la vista previa guarda al llegar — en PRUEBAS
 
 **Qué se cambió** (commit `a522f36`; producción @133 no lo tiene):
