@@ -1042,6 +1042,30 @@ y qué se dejó fuera a propósito**. Mismo formato que el registro del document
 
 <!-- Las entradas nuevas van arriba, con la más reciente primero. -->
 
+### 2026-10-03 — «Ir a Vista Previa» navega en el clic y la vista previa guarda al llegar — en PRUEBAS
+
+**Qué se cambió** (commit `a522f36`; producción @133 no lo tiene):
+- **El pedido:** el creador leyó la investigación del 03/10 sobre por qué el Portal «a veces no redirige» y pidió aplicar la opción C solo en la vista previa, en pruebas. La causa está medida en vivo: el iframe de Apps Script trae `allow-top-navigation-by-user-activation` y no `allow-top-navigation`, así que la app solo puede cambiar de pantalla unos 5 s después de un clic. `saveQuoteAndGoToPreview` (candado de folios, hojas enteras, dos escrituras) pasa de 5 s casi siempre, y por eso salía el aviso de «toca aquí para seguir».
+- **El orden nuevo:** `cotizacion.html` (`VistaPreviaPendiente`) deja la cotización en AppCache como `vp-pendiente-<ficha>` (`{email, firma, quote}`, 2 h, 4 como mucho). Vuelca el borrador y navega en el mismo clic a `?page=cotizado_preview&guardar=<ficha>`. `cotizado_preview.html` (`GuardadoPendiente`) guarda al llegar con la escena «Guardando tu cotización…» y Editar, PDF y Enviar quietos. Después cambia la ficha por `?folio=` sin apilar y pinta UNA vez con los datos que ya tiene. Ya no pide `getQuoteDetails`: un viaje menos.
+- **Nunca dos folios:** `saveQuoteAndGoToPreview` acepta `ficha` dentro de los datos (no llega a la hoja) y apunta qué folio salió de ella (`cotReciboLeer_`/`cotReciboApuntar_`, CacheService 6 h, con el correo del asesor). Lo consulta antes del candado y otra vez dentro. Un F5 a mitad, «Reintentar» o atrás y otra vez devuelven el mismo folio, sin escribir la hoja ni repetir el aviso al Chat. La cotización reutiliza la ficha si la cotización es idéntica.
+- **Si falla:** la copia y el borrador se quedan. La vista previa ofrece «Reintentar» (misma ficha) y «Volver a la cotización», que abre la nueva o el folio en edición; el borrador la repone. Una ficha sin copia en el equipo lo explica en vez de caer a la caché genérica, que podría enseñar otra cotización. Si el navegador no deja escribir la copia, se guarda en la cotización como antes.
+- `guardar` entra en `PARAMS_VISTA` de `Code.gs` y `app_core` (sobrevive al F5 y al login); no en `PASAN`.
+
+**Qué se comprobó:**
+- `pruebas/guardar_en_destino.test.js` (61) corre el código real: la AppCache de `app_core`, los dos módulos y `saveQuoteAndGoToPreview` con dobles. Cubre ficha repetida, carrera en el candado, recibo de otra cuenta, caché caída, almacenamiento lleno o bloqueado, borrador ajeno y orden del clic. `npm test`: 24 en verde. Build y quitacomentarios limpios.
+- Sonda en Chrome headless sobre `build/` (`scratchpad/sonda_guardar`):
+  - un clic de verdad navega con la ficha sin llamar a `saveQuoteAndGoToPreview` ni sacar el aviso;
+  - la vista previa guarda, reemplaza la dirección por `{page, folio}`, pinta el CCL y suelta copia, borrador y listas;
+  - el fallo enseña las dos salidas;
+  - sin copia, el mensaje.
+  - Sin excepciones.
+- Los avisos de diseño de `cotizado_preview.html` (contraste del rosa y letra de 10-11 px del documento) ya estaban en `HEAD`, idénticos; no se tocaron.
+
+**Qué se dejó fuera a propósito:**
+- **Producción:** espera su palabra. **Probar en pruebas crea folios reales y avisa al Chat** (misma hoja y mismo webhook).
+- **Atrás desde la vista previa** en una cotización NUEVA vuelve al formulario en blanco: antes se reescribía `?folio=…&action=edit` antes de navegar, y ahora el folio todavía no existe. «Editar Cotización» sigue llevando a la edición.
+- **El resto de la investigación** (login en el sitio, `doPost`, quitar las esperas de 900/1400 ms, sacar `sesPurgar_` del login) espera a que el creador lo elija.
+
 ### 2026-10-03 — Monitor de promociones: el ícono crece y gana detalle (panel de oferta) — en PRUEBAS
 
 **Qué se cambió** (commit `b90ba72`, sobre `74b8adb`; producción @133 no tiene ninguna de las dos):
