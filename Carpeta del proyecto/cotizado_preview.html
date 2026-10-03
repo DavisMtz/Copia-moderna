@@ -1218,6 +1218,168 @@
             }
         }
 
+        /* ═══════════════════════════════════════════════════════════════════════
+           LA COTIZACIÓN QUE LLEGA POR GUARDAR (?guardar=<ficha>)
+           ═══════════════════════════════════════════════════════════════════════
+           Desde el 03/10/2026 «Ir a Vista Previa» ya no espera a guardar: abre esta
+           pantalla en el mismo clic y deja la cotización en este navegador
+           (VistaPreviaPendiente, en cotizacion.html). Una webapp de Apps Script solo
+           puede cambiar de pantalla mientras dura la activación del clic —unos 5 s— y
+           guardar tarda más que eso casi siempre: guardando primero, el asesor se
+           quedaba quieto con el aviso de «toca aquí para seguir».
+
+           Aquí se guarda, se cambia la ficha por el folio en la dirección y se pinta con
+           los MISMOS datos que se mandaron: no hace falta volver a pedirle la cotización
+           al servidor (antes eran dos viajes: guardar allá y traerla aquí).
+
+           Lo que no se ve en el código:
+             · La ficha viaja al servidor, que apunta qué folio salió de ella
+               (cotReciboLeer_, en Code.gs). Un F5 a mitad, un «Reintentar» o una
+               respuesta perdida devuelven el MISMO folio: nunca dos.
+             · La copia y el borrador se sueltan solo cuando el servidor confirmó. Si
+               falla, siguen ahí: «Volver a la cotización» abre el formulario y el
+               borrador lo ofrece entero.
+             · El borrador se tira solo si es ESTA cotización (misma firma): si en otra
+               pestaña se empezó otra, se respeta.
+             · Se pinta UNA vez, al terminar: populatePreview cablea el selector de
+               formatos cada vez que corre.
+           ═══════════════════════════════════════════════════════════════════════ */
+        const GuardadoPendiente = (function () {
+            const PREFIJO = 'vp-pendiente-';         // el mismo que escribe cotizacion.html
+            const HECHO = 'vp-hecho-';
+            const HECHO_TTL_MS = 6 * 60 * 60 * 1000; // lo que dura el recibo en el servidor
+
+            function yo() { return String(AppSession.userEmail || '').toLowerCase(); }
+
+            /** La copia que dejó la cotización, o null (no está, caducó o es de otra cuenta). */
+            function leer(ficha) {
+                if (!ficha || !window.AppCache) return null;
+                const e = AppCache.get(PREFIJO + ficha);
+                const p = e && e.data;
+                if (!p || !p.quote) return null;
+                if (p.email && p.email !== yo()) return null;
+                return p;
+            }
+
+            /** Folio que ya salió de esa ficha en este navegador (un F5 justo al terminar), o ''. */
+            function folioHecho(ficha) {
+                if (!ficha || !window.AppCache) return '';
+                const e = AppCache.get(HECHO + ficha);
+                return (e && e.data && e.data.folio) || '';
+            }
+
+            /** Editar, PDF y Enviar necesitan folio: quietos mientras no lo hay. */
+            function acciones(activas) {
+                ['edit-quote-button', 'download-pdf-button', 'send-by-email-button'].forEach(function (id) {
+                    const b = document.getElementById(id);
+                    if (b) b.disabled = !activas;
+                });
+            }
+
+            /** La cotización ya está en Sheets: la copia y su borrador sobran. */
+            function soltar(ficha, p, folio) {
+                AppCache.remove(PREFIJO + ficha);
+                AppCache.set(HECHO + ficha, { folio: folio }, { ttl: HECHO_TTL_MS });
+                const claveBorrador = 'borrador-cot-' + (p.quote.folio || 'nuevo');
+                const b = AppCache.get(claveBorrador);
+                let mismo = false;
+                try { mismo = !!(b && b.data && b.data.quote && JSON.stringify(b.data.quote) === p.firma); } catch (e) {}
+                if (mismo) AppCache.remove(claveBorrador);
+                // Las listas guardadas de «mis cotizaciones» y de revisión ya no la incluyen.
+                ['quotes-', 'sup-quotes-', 'pendientes-'].forEach(function (f) { AppCache.removeByPrefix(f); });
+            }
+
+            /** Sin folio: se dice qué pasó y se ofrecen las dos salidas que sirven. */
+            function fallo(mensaje, ficha, p) {
+                const hoja = document.getElementById('pdf-preview-content');
+                if (hoja) hoja.classList.add('hidden');
+                showPreviewMessage(mensaje, true);
+                const area = document.getElementById('preview-message-area');
+                if (!area) return;
+                // showPreviewMessage reescribe el texto del área: los botones van después.
+                const caja = document.createElement('div');
+                caja.style.cssText = 'display:flex;justify-content:center;flex-wrap:wrap;gap:.5rem;margin-top:.75rem';
+                const reintentar = document.createElement('button');
+                reintentar.type = 'button';
+                reintentar.className = 'v-btn v-btn-primary v-btn-sm';
+                reintentar.textContent = 'Reintentar';
+                reintentar.addEventListener('click', function () {
+                    area.classList.add('hidden');
+                    area.textContent = '';
+                    guardar(ficha, p);
+                });
+                const volver = document.createElement('button');
+                volver.type = 'button';
+                volver.className = 'v-btn v-btn-ghost v-btn-sm';
+                volver.textContent = 'Volver a la cotización';
+                volver.addEventListener('click', function () {
+                    navigateToPage('cotizacion', p.quote.folio ? { folio: p.quote.folio, action: 'edit' } : {});
+                });
+                caja.appendChild(reintentar);
+                caja.appendChild(volver);
+                area.appendChild(caja);
+            }
+
+            function guardar(ficha, p) {
+                const hoja = document.getElementById('pdf-preview-content');
+                if (hoja) hoja.classList.remove('hidden');
+                acciones(false);
+                apagarArranque();
+                // Guardar puede esperar al candado de folios hasta 30 s: el tope de la escena
+                // va holgado para que no anuncie un fallo mientras el servidor sigue trabajando.
+                const fx = window.VentelFX
+                    ? VentelFX.section('#pdf-preview-content', 'documento', {
+                        mode: 'cover', maxMs: 120000,
+                        title: 'Guardando tu cotización…',
+                        sub: p.quote.folio ? 'Actualizando el folio ' + p.quote.folio : 'Generando el folio'
+                    })
+                    : { done: function (cb) { if (cb) cb(); } };
+
+                const datos = Object.assign({}, p.quote, { ficha: ficha });
+                AppRun.call('saveQuoteAndGoToPreview', [datos], { busy: false, key: 'vp-guardar:' + ficha })
+                    .then(function (r) {
+                        r = r || {};
+                        if (!r.success || !r.folio) {
+                            fx.done(function () {
+                                fallo(r.message || 'No pudimos guardar la cotización. Inténtalo de nuevo en un momento.', ficha, p);
+                            });
+                            return;
+                        }
+                        const quote = Object.assign({}, p.quote, { folio: r.folio, format: r.format || p.quote.format });
+                        // El estado va ANTES del pintado: los botones no deben encontrarlo a medias.
+                        quoteDataForSave = quote;
+                        currentFolioForPreview = r.folio;
+                        try { localStorage.setItem('pendingQuoteData_' + r.folio, JSON.stringify(quote)); } catch (e) {}
+                        soltar(ficha, p, r.folio);
+                        // Sin apilar: es ponerle nombre a lo que ya se ve. Un F5 abre el folio.
+                        if (window.AppUrl && AppUrl.reflejar) AppUrl.reflejar({ guardar: '', folio: r.folio }, { apilar: true });
+                        fx.done(function () {
+                            acciones(true);
+                            safeRenderPreview(quote);
+                            showPreviewMessage(r.repetida
+                                ? 'Esta cotización ya estaba guardada con el folio ' + r.folio + '.'
+                                : 'Cotización guardada con el folio ' + r.folio + '.', false);
+                        });
+                    }, function (err) {
+                        console.error('saveQuoteAndGoToPreview:', err);
+                        fx.done(function () {
+                            fallo('No hay conexión con el sistema. Revisa tu internet e inténtalo de nuevo.', ficha, p);
+                        });
+                    });
+            }
+
+            /** Llegó la ficha pero la copia no está en este equipo (otro navegador, caducó). */
+            function perdida() {
+                apagarArranque();
+                acciones(false);
+                showPreviewMessage('No encontramos en este equipo la cotización que ibas a guardar. Si ya la guardaste, búscala en «Mis cotizaciones».', true);
+                document.getElementById('pdf-preview-content').classList.add('hidden');
+                document.getElementById('ccl-preview-content').classList.add('hidden');
+            }
+
+            return { leer: leer, folioHecho: folioHecho, guardar: guardar, perdida: perdida };
+        })();
+
         document.addEventListener('DOMContentLoaded', () => {
             // Esta pantalla no es el documento público (esa es consulta_cotizacion): desde
             // aquí se edita, se descarga y se dispara el envío al cliente, así que exige
@@ -1226,12 +1388,25 @@
             // currentUserEmailForSave vacío.
             if (!requireBlock('cotizar', 'cotizado_preview')) return;
 
-            const folioFromUrl = AppUrl.param('folio');
+            // ¿Se viene de «Ir a Vista Previa» con la cotización todavía por guardar?
+            // (ver GuardadoPendiente, arriba)
+            const fichaPendiente = AppUrl.param('guardar');
+            const pendiente = GuardadoPendiente.leer(fichaPendiente);
+            let folioFromUrl = AppUrl.param('folio');
+            if (fichaPendiente && !pendiente && !folioFromUrl) {
+                // Ya se guardó y el F5 llegó antes de que la dirección cambiara: se sigue con su folio.
+                folioFromUrl = GuardadoPendiente.folioHecho(fichaPendiente);
+                if (folioFromUrl && window.AppUrl && AppUrl.reflejar) {
+                    AppUrl.reflejar({ guardar: '', folio: folioFromUrl }, { apilar: true });
+                }
+            }
             currentUserEmailForSave = AppSession.userEmail;
-            
+
             let loadedFromCache = false;
-            
-            if (folioFromUrl) {
+
+            if (pendiente) {
+                GuardadoPendiente.guardar(fichaPendiente, pendiente);
+            } else if (folioFromUrl) {
                 // 1. Intentar cargar desde caché específica del Folio (evita colisiones multi-pestaña) o genérica
                 const storedData = localStorage.getItem('pendingQuoteData_' + folioFromUrl) || localStorage.getItem('pendingQuoteData');
                 if (storedData) {
@@ -1337,6 +1512,10 @@
                 }
                 // Sin rama para el camino de caché: `safeRenderPreview` ya apaga el
                 // arranque antes de pintar nada, así que aquí no queda espera que cerrar.
+            } else if (fichaPendiente) {
+                // La ficha llegó sin su copia ni su folio. La caché genérica de abajo NO vale
+                // aquí: podría enseñar otra cotización como si fuera la que se iba a guardar.
+                GuardadoPendiente.perdida();
             } else {
                 // Si no hay folio en la URL, intentar con la caché genérica antigua
                 try {

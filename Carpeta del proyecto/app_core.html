@@ -783,10 +783,15 @@
    * es un sitio del que se vuelve con «atrás». Viaja en esta lista para que sobreviva al
    * login —quien recibe el enlace sin sesión aterriza en la publicación, no en el inicio—.
    *
+   * `guardar` es la ficha de una cotización que la vista previa tiene que guardar al llegar
+   * (cotizacion.html → cotizado_preview.html, desde el 03/10/2026). Va en esta lista para
+   * que sobreviva a un F5 a mitad del guardado y al desvío por el login. No va en PASAN:
+   * ninguna acción del buscador abre una vista previa por guardar.
+   *
    * Quien añada un nombre aquí lo añade también en Code.gs y en la lista PASAN del
    * Index: son tres listas espejo y el sistema no avisa cuando dejan de decir lo mismo.
    */
-  const PARAMS_VISTA = ['folio', 'action', 'format', 'q', 'buscar', 'tpl', 'sec', 'ancla', 'inc', 'next', 'promo', 'item', 'rango', 'estatus', 'dir', 'origen', 'pub', 'art'];
+  const PARAMS_VISTA = ['folio', 'action', 'format', 'q', 'buscar', 'tpl', 'sec', 'ancla', 'inc', 'next', 'promo', 'item', 'rango', 'estatus', 'dir', 'origen', 'pub', 'art', 'guardar'];
 
   /** Parámetros de campaña que ensucian un enlace compartido y no significan nada aquí. */
   const PARAMS_BASURA = /^(utm_|fbclid$|gclid$|mc_eid$|_ga$)/i;

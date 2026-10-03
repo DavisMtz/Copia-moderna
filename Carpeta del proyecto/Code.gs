@@ -143,8 +143,12 @@ const PORTAL_PAGES = {
  *           fila insertada más arriba no se lo cambia. Va aparte de `item` porque `item`
  *           señala DENTRO de una sección —hay que decir también en cuál— y una
  *           publicación se abre encima del Portal, venga uno de donde venga.
+ *   guardar FICHA de una cotización que la vista previa tiene que guardar al llegar (ver
+ *           cotReciboLeer_). No es la cotización: es la clave de la copia que dejó la
+ *           pantalla de cotización en el navegador. Vive solo hasta que hay folio; la
+ *           vista previa la cambia por `folio` en cuanto guarda.
  */
-const PARAMS_VISTA = ['folio', 'action', 'format', 'q', 'buscar', 'tpl', 'sec', 'ancla', 'inc', 'next', 'promo', 'item', 'rango', 'estatus', 'dir', 'origen', 'pub', 'art'];
+const PARAMS_VISTA = ['folio', 'action', 'format', 'q', 'buscar', 'tpl', 'sec', 'ancla', 'inc', 'next', 'promo', 'item', 'rango', 'estatus', 'dir', 'origen', 'pub', 'art', 'guardar'];
 
 /**
  * El estado inicial que recibe el navegador, serializado y listo para pegarse dentro de
@@ -825,19 +829,111 @@ function saveQuoteDataToSheets(quoteData, status, pdfLink = null) {
   // Va al FINAL a propósito: si algo de arriba falla, la caché vigente sigue siendo válida.
   if (typeof cotInvalidarCache_ === 'function') cotInvalidarCache_();
 }
+
+/**
+ * RECIBO DEL GUARDADO · que «Ir a Vista Previa» nunca dé dos folios para la misma cotización.
+ *
+ * Desde el 03/10/2026 la cotización ya no se guarda en su pantalla. El clic abre la vista previa
+ * en el acto, con la activación del clic todavía viva —es lo único que deja a una webapp de Apps
+ * Script cambiar de pantalla: pasados ~5 s el navegador ignora la navegación en silencio—, y es la
+ * vista previa la que guarda al llegar. Antes se guardaba primero y se navegaba después, y como
+ * guardar tarda más de esos 5 s casi siempre, el asesor se quedaba quieto con el aviso de «toca
+ * aquí para seguir».
+ *
+ * El precio de ese orden es que la misma cotización puede llegar aquí más de una vez: un F5 a
+ * mitad del guardado, atrás y otra vez «Ir a Vista Previa», una respuesta que se pierde por la
+ * red. Por eso la pantalla manda una FICHA (32 caracteres hexadecimales al azar, la misma para la
+ * misma cotización) y aquí se apunta qué folio salió de ella. Si la ficha vuelve, se contesta lo
+ * mismo sin tocar la hoja: ni folio nuevo, ni filas repetidas, ni un segundo aviso al Chat.
+ *
+ *   · Vive en CacheService 6 h (el tope). Sobra para un F5 o un reintento, y no ensucia las
+ *     propiedades del script.
+ *   · Se consulta dos veces: antes del candado (un F5 después de guardar contesta sin esperar a
+ *     nadie) y otra vez DENTRO, que es la que vale: si dos llamadas con la misma ficha llegan a la
+ *     vez, la segunda espera al candado y para entonces el recibo de la primera ya está escrito.
+ *   · Lleva el correo de quien guardó: una ficha que llegara con otro asesor no recibe ese folio.
+ *   · Si la caché falla se guarda igual: el recibo protege contra duplicados, no es un requisito.
+ *   · Sin ficha (pantallas de antes, la extensión) todo sigue exactamente como era.
+ */
+var COT_RECIBO_PREFIJO = 'vpRecibo_';
+var COT_RECIBO_SEG = 21600;
+
+/** La ficha tal como la manda la pantalla, o '' si no viene o no tiene la forma esperada. */
+function cotReciboFicha_(valor) {
+  const ficha = String(valor == null ? '' : valor).trim().toLowerCase();
+  return /^[a-f0-9]{32}$/.test(ficha) ? ficha : '';
+}
+
+/**
+ * La respuesta que ya se dio para esa ficha, o null si no hay recibo (o es de otra persona).
+ * @param {string} ficha  Ya validada con cotReciboFicha_ ('' = no hay nada que buscar).
+ * @param {string} correo Asesor que guarda ahora.
+ */
+function cotReciboLeer_(ficha, correo) {
+  if (!ficha) return null;
+  let texto = null;
+  try { texto = CacheService.getScriptCache().get(COT_RECIBO_PREFIJO + ficha); } catch (e) { return null; }
+  if (!texto) return null;
+  let recibo = null;
+  try { recibo = JSON.parse(texto); } catch (e) { return null; }
+  if (!recibo || !recibo.folio) return null;
+  if (recibo.correo && recibo.correo !== secNormalizarCorreo_(correo)) return null;
+  return {
+    success: true,
+    folio: recibo.folio,
+    format: recibo.format,
+    requiereRevision: recibo.requiereRevision,
+    motivoRevision: recibo.motivoRevision,
+    // La pantalla lo dice distinto: «ya estaba guardada» en vez de «guardada».
+    repetida: true,
+    message: 'Datos de cotización ' + recibo.folio + ' preparados.'
+  };
+}
+
+/** Apunta qué salió de esa ficha. Nunca lanza: sin recibo solo se pierde la protección. */
+function cotReciboApuntar_(ficha, correo, datos) {
+  if (!ficha) return;
+  try {
+    CacheService.getScriptCache().put(COT_RECIBO_PREFIJO + ficha, JSON.stringify({
+      correo: secNormalizarCorreo_(correo),
+      folio: datos.folio,
+      format: datos.format,
+      requiereRevision: datos.requiereRevision,
+      motivoRevision: datos.motivoRevision
+    }), COT_RECIBO_SEG);
+  } catch (e) {
+    Logger.log('cotReciboApuntar_: no se pudo apuntar el recibo de ' + datos.folio + ': ' + e);
+  }
+}
+
 /**
  * Guarda los datos de la cotización con estado "Folio Generado" para la vista previa.
- * quoteDataFromClient - Los datos de la cotización enviados desde el cliente.
+ * quoteDataFromClient - Los datos de la cotización enviados desde el cliente. Puede traer
+ *   `ficha` (ver cotReciboLeer_): con ella, repetir la llamada no vuelve a guardar.
  */
 function saveQuoteAndGoToPreview(quoteDataFromClient) {
   Logger.log("saveQuoteAndGoToPreview - Datos recibidos: " + JSON.stringify(quoteDataFromClient));
   try {
     if (!quoteDataFromClient) throw new Error("No se recibieron datos de la cotización.");
-    
+
+    // La ficha viaja dentro de los datos para no cambiar la firma de la función, y se separa
+    // aquí para que no siga hasta la hoja.
+    const ficha = cotReciboFicha_(quoteDataFromClient.ficha);
+    delete quoteDataFromClient.ficha;
+
     if (!quoteDataFromClient.advisorEmail) {
       // Respaldo cuando el cliente no manda el correo de la sesión del portal.
       quoteDataFromClient.advisorEmail = secCorreoEfectivo_('') || null;
     }
+
+    // ¿Esta misma cotización ya se guardó? (Un F5 en la vista previa, un reintento.) Se contesta
+    // lo mismo sin leer ni escribir la hoja y sin esperar al candado.
+    const yaGuardada = cotReciboLeer_(ficha, quoteDataFromClient.advisorEmail);
+    if (yaGuardada) {
+      Logger.log('saveQuoteAndGoToPreview: esa ficha ya dio el folio ' + yaGuardada.folio + '; no se vuelve a guardar.');
+      return yaGuardada;
+    }
+
     if (!quoteDataFromClient.advisorName && quoteDataFromClient.advisorEmail) {
         const registrosSheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName(REGISTROS_SHEET_NAME);
         if (registrosSheet) {
@@ -871,6 +967,15 @@ function saveQuoteAndGoToPreview(quoteDataFromClient) {
       throw new Error("El sistema está ocupado guardando otra cotización. Intenta de nuevo en unos segundos.");
     }
     try {
+      // La comprobación que vale: con el candado puesto nadie más está guardando. Si otra llamada
+      // con esta misma ficha guardó mientras esta esperaba, su recibo ya está escrito.
+      const guardadaMientras = cotReciboLeer_(ficha, quoteDataFromClient.advisorEmail);
+      if (guardadaMientras) {
+        Logger.log('saveQuoteAndGoToPreview: la ficha se guardó mientras se esperaba el candado (folio ' +
+          guardadaMientras.folio + ').');
+        return guardadaMientras;   // el finally suelta el candado
+      }
+
       if (!quoteDataFromClient.folio) {
         const cotizacionesSheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName(COTIZACIONES_SHEET_NAME);
         if (!cotizacionesSheet) throw new Error(`Hoja "${COTIZACIONES_SHEET_NAME}" no encontrada.`);
@@ -905,6 +1010,14 @@ function saveQuoteAndGoToPreview(quoteDataFromClient) {
       if (!decision.revisar && typeof revpolSellarAprobacionAutomatica_ === 'function') {
         revpolSellarAprobacionAutomatica_(quoteDataFromClient.folio, decision);
       }
+
+      // Todavía DENTRO del candado: quien espere con la misma ficha tiene que encontrarlo al entrar.
+      cotReciboApuntar_(ficha, quoteDataFromClient.advisorEmail, {
+        folio: quoteDataFromClient.folio,
+        format: quoteDataFromClient.format,
+        requiereRevision: decision.revisar,
+        motivoRevision: decision.motivo
+      });
     } finally {
       lock.releaseLock();
     }

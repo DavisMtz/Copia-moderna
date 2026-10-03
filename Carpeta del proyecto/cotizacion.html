@@ -596,6 +596,86 @@
             AppCache.set('ultima-vista-previa', data, { ttl: PREVIEW_TTL_MS });
         }
 
+        /**
+         * =====================================================================
+         * «IR A VISTA PREVIA»: SE NAVEGA EN EL CLIC Y SE GUARDA AL LLEGAR
+         * =====================================================================
+         * Una webapp de Apps Script solo puede cambiar de pantalla mientras dura la
+         * activación del clic: unos 5 s en Chrome, porque el iframe de Google trae
+         * `allow-top-navigation-by-user-activation` y no `allow-top-navigation`.
+         * Guardar una cotización tarda más que eso casi siempre —candado de folios,
+         * la hoja entera, dos escrituras—, así que «guardar y luego navegar» dejaba
+         * al asesor quieto con el aviso de «toca aquí para seguir».
+         *
+         * Ahora el orden es el contrario (03/10/2026): el clic deja la cotización en
+         * este navegador con una FICHA y abre la vista previa EN EL ACTO; la vista
+         * previa la guarda al llegar (GuardadoPendiente, en cotizado_preview.html) y
+         * cambia la ficha por el folio en la dirección. El servidor apunta qué folio
+         * salió de cada ficha (cotReciboLeer_, en Code.gs): repetirla —un F5 a mitad
+         * del guardado, volver atrás y pulsar otra vez— no da un segundo folio.
+         *
+         * Contrato con la vista previa (los dos lados tienen que decir lo mismo):
+         *   · AppCache 'vp-pendiente-<ficha>' = { email, firma, quote }, 2 h.
+         *   · `?guardar=<ficha>` en la dirección (está en PARAMS_VISTA).
+         *   · `firma` es la cotización tal cual en JSON: la vista previa la compara
+         *     con el borrador y lo tira solo si es esta misma cotización.
+         *
+         * Si el navegador no deja escribir (lleno, bloqueado), `dejar` devuelve '' y
+         * se guarda aquí como antes: nunca se navega sin la cotización a salvo.
+         */
+        const VistaPreviaPendiente = (function () {
+            const PREFIJO = 'vp-pendiente-';
+            const TTL_MS = 2 * 60 * 60 * 1000;   // lo que dura una sesión sin actividad
+            const MAX_ENTRADAS = 4;              // nunca crece sin límite
+            const FORMA = /^[a-f0-9]{32}$/;
+
+            function fichaNueva() {
+                try {
+                    const bytes = new Uint8Array(16);
+                    window.crypto.getRandomValues(bytes);
+                    return Array.prototype.map.call(bytes, function (b) {
+                        return (b < 16 ? '0' : '') + b.toString(16);
+                    }).join('');
+                } catch (e) { return ''; }
+            }
+
+            /**
+             * Deja la cotización lista para que la vista previa la guarde.
+             * @return {string} la ficha, o '' si no quedó escrita en disco.
+             */
+            function dejar(quoteData) {
+                if (!window.AppCache) return '';
+                let firma = '';
+                try { firma = JSON.stringify(quoteData); } catch (e) { return ''; }
+                const yo = String(currentUserEmail || '').toLowerCase();
+
+                /* La MISMA cotización que ya salió y no se confirmó (atrás a mitad del
+                   guardado, un segundo clic) reutiliza su ficha: si el servidor ya la
+                   guardó, contesta el mismo folio en lugar de dar otro. */
+                let ficha = '';
+                AppCache.keys(PREFIJO).some(function (nombre) {
+                    const e = AppCache.get(nombre, TTL_MS);
+                    const p = e && e.data;
+                    if (!p || p.firma !== firma || String(p.email || '').toLowerCase() !== yo) return false;
+                    ficha = nombre.slice(PREFIJO.length);
+                    return true;
+                });
+                if (!FORMA.test(ficha)) ficha = fichaNueva();
+                if (!FORMA.test(ficha)) return '';
+
+                AppCache.prune(PREFIJO, MAX_ENTRADAS, PREFIJO + ficha);
+                const enDisco = AppCache.set(PREFIJO + ficha, { email: yo, firma: firma, quote: quoteData }, { ttl: TTL_MS });
+                if (!enDisco) {
+                    // Solo en memoria no sirve: la vista previa es otra página.
+                    AppCache.remove(PREFIJO + ficha);
+                    return '';
+                }
+                return ficha;
+            }
+
+            return { dejar: dejar };
+        })();
+
         function setLoadingState(isLoading, button, buttonTextElement, originalText, spinnerElement) {
             if (isLoading) {
                 button.disabled = true;
@@ -1970,7 +2050,22 @@
 
                 const quoteData = collectQuoteData();
 
-                /* Escritura que CREA: guarda la cotización y devuelve el folio. Va por
+                /* Se navega YA, con la activación del clic todavía viva, y la vista previa
+                   guarda al llegar (ver VistaPreviaPendiente). El borrador se vuelca antes
+                   de salir: si el guardado fallara allá, «Volver a la cotización» lo
+                   encuentra completo. */
+                const fichaPendiente = VistaPreviaPendiente.dejar(quoteData);
+                if (fichaPendiente) {
+                    Borrador.volcar();
+                    navigateToPage('cotizado_preview', { guardar: fichaPendiente });
+                    return;
+                }
+
+                /* Respaldo: el navegador no dejó escribir la copia. Se guarda aquí, como
+                   siempre, y la vista previa se abre después (con el aviso de «un toque»
+                   si el servidor tarda más que la activación del clic).
+
+                   Escritura que CREA: guarda la cotización y devuelve el folio. Va por
                    `AppRun.call` y no por la cola de guardado en segundo plano porque el
                    folio que devuelve el servidor decide a dónde se navega, y eso no se
                    puede adelantar. La deduplicación por (función + argumentos) es aquí
