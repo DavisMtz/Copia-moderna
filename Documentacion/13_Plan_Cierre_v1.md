@@ -1042,6 +1042,33 @@ y qué se dejó fuera a propósito**. Mismo formato que el registro del document
 
 <!-- Las entradas nuevas van arriba, con la más reciente primero. -->
 
+### 2026-10-03 — Favicon del Portal: la etiqueta de venta con el isotipo de Liverpool — en PRUEBAS
+
+**Qué se cambió** (commit `7c9c569`):
+- **El pedido:** el creador pidió analizar cómo funciona el favicon en Apps Script y crear uno para el Portal, mostrándole opciones.
+  - Rechazó la primera tirada de cinco: V rosa, V tinta, diadema, globo con V y el sol de «Tu turno».
+  - Pidió «una que tenga que ver con el logo de Liverpool y ventas». De la segunda tirada de cuatro (isotipo, bolsa, etiqueta, globo), eligió **la etiqueta de venta**.
+  - El isotipo es el oficial: los 8 primeros trazos de `liverpool-logo-header.svg`, el mismo archivo que el Portal carga en su barra lateral. No se redibujó; solo se escaló.
+- **`Code.gs`:** `FAVICON_URL` y `conFavicon_()` se aplican en las tres salidas de `doGet` (las dos ramas de `servirPagina_` y la página de error). Si Google rechazara la URL, la página sale igual, sin favicon.
+- **La imagen:** un PNG de 64 px, el archivo de Drive `1VtltjIyK1WwHFXYK99c6wJNBB9lTh9bP` en la carpeta «Proyecto Ventel». Hereda de la carpeta el permiso «Liverpool · lector» y no es público. La URL es `https://lh3.googleusercontent.com/d/<id>#.png`.
+
+**Qué se midió** (en LAB-mini, con una ruta `?exp=favicon` que ya se retiró; el laboratorio volvió a su código original):
+- **Solo cuenta `setFaviconUrl`**, y solo con URLs que TERMINAN en `.png` o `.ico`: https, http y hasta rutas relativas.
+- **Lo que rechaza** («No se admite el tipo de imagen de icono de página»): `.svg`, `data:image/png`, `data:image/svg+xml`, URLs sin extensión y una PNG con `?v=2` al final. El truco `#.png` (también `?ext=.png`) sí pasa.
+- **Google copia la URL tal cual** en la página de arriba (`<link rel="shortcut icon" type="image/png">`, sin proxy). La pide el navegador de cada asesor, y por eso el repo, que es privado, no servía.
+- **Desde una página de `script.google.com`, con la sesión del creador:** `lh3…/d/<id>` carga (64×64); `drive.google.com/thumbnail?id=` y `uc?export=view` fallan.
+- **Sin sesión**, `lh3` termina en el inicio de sesión de Google: el archivo no es público y lh3 lo entrega con la sesión de quien abre el Portal.
+
+**Qué se comprobó:**
+- `npm test` da 25 en verde, el build sale limpio y `publicar.sh` lo subió a pruebas.
+- **En la `/dev` de pruebas, en el Chrome del creador:** el Portal y el Monitor llevan `<link rel="shortcut icon" … href="https://lh3.googleusercontent.com/d/1VtltjIyK1WwHFXYK99c6wJNBB9lTh9bP#.png">`, y esa imagen carga.
+
+**Qué se dejó fuera a propósito:**
+- **Producción:** espera su palabra.
+- **Cuentas múltiples:** un asesor con varias cuentas de Google en el navegador y otra cuenta como predeterminada podría ver el ícono de Apps Script. Es lo mismo que pasa con las imágenes de los anuncios.
+- **Cambiar el ícono más adelante** pide OTRO archivo: los navegadores guardan el favicon y el `#…` no cuenta para su caché.
+- **El respaldo:** opciones, rasterizador, hojas comparativas, PNG finales y el guion del laboratorio están en `Desktop\Proyectos\_respaldos\favicon_portal_20261003`.
+
 ### 2026-10-03 — Login, registro y recuperar navegan en cuanto el servidor confirma; la purga de sesiones sale del login — en PRUEBAS
 
 **Qué se cambió** (commit `5bb0cbe`; producción @133 no lo tiene):
