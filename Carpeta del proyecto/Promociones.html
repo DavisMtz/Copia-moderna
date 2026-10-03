@@ -2790,6 +2790,7 @@ function pcSet(i, sinUrl, apilar){
   pcClearHint();
   cards.forEach(function(c,idx){ c.classList.toggle('kb-focus', idx===pcIndex); });
   var c = cards[pcIndex];
+  if(window.MonitorVivo && MonitorVivo.icono) MonitorVivo.icono(c);
   // Letrero: indica que con otro Enter se abre el enlace
   var a = c.querySelector('a.card-btn');
   var hasLink = !!(a && a.href);
