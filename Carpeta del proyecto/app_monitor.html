@@ -113,8 +113,15 @@
 [data-theme="carbon"] .mv-card .vig-pill.warn,[data-theme="carbon"] .mv-card .origin-tag.mkp{color:color-mix(in srgb,var(--warn) 40%,#fff)}
 [data-theme="carbon"] .mv-card .vig-pill.alert{color:color-mix(in srgb,var(--alert) 40%,#fff)}
 .mv-card-dir .ic{width:14px;height:14px}
-.mv-oferta{display:grid;grid-template-columns:minmax(0,1fr) auto;align-items:center;gap:.5rem .8rem;margin:.6rem 0 .55rem}
-.mv-oferta-l{display:flex;align-items:flex-end;flex-wrap:wrap;gap:.35rem .7rem;min-width:0}
+/* La oferta es un panel con el tinte de la dirección: el número a la izquierda y, a la derecha, el dibujo
+   de la categoría en grande. El panel ES el fondo del dibujo (--ico-bg): las piezas que tapan (.b/.bf)
+   se pintan de ese mismo color, así que entre los dos no puede ir nada. */
+.mv-card{container:mvcard / inline-size}
+.mv-oferta{--ico-bg:color-mix(in srgb,var(--dept-color,var(--brand)) 9%,var(--surface));
+  display:grid;grid-template-columns:minmax(0,1fr) auto;align-items:center;gap:.4rem;
+  margin:.65rem 0 .6rem;padding:.4rem .3rem .4rem .8rem;min-height:6.1rem;border-radius:14px;background:var(--ico-bg)}
+[data-theme="carbon"] .mv-oferta{--ico-bg:color-mix(in srgb,var(--dept-color) 18%,var(--surface))}
+.mv-oferta-l{display:flex;align-items:flex-end;flex-wrap:wrap;gap:.35rem .7rem;min-width:0;align-self:start}
 .mv-sinpct.is-tenue{color:var(--ink-soft)}
 
 /* — Ícono de la categoría: una familia por categoría frecuente de «Home Promociones comercial 2026» —
@@ -122,17 +129,26 @@
    el JS desde el reposo); nada da vueltas solo mientras el asesor está en llamada. El reposo es el 0 %
    y el 100 % de cada animación. Las piezas que se mueven no llevan atributo transform: la animación
    lo pisaría. */
-.mv-ico{--ico-bg:color-mix(in srgb,var(--dept-color,var(--brand)) 10%,var(--surface));flex:none;display:grid;place-items:center;
-  width:54px;height:54px;border-radius:16px;color:var(--dept-color,var(--brand));background:var(--ico-bg);
-  align-self:start}
-.mv-ico svg{width:36px;height:36px;fill:none;stroke:currentColor;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round;overflow:visible}
+.mv-ico{flex:none;display:grid;place-items:center;width:84px;height:84px;color:var(--dept-color,var(--brand))}
+.mv-ico svg{width:78px;height:78px;fill:none;stroke:currentColor;stroke-width:1.4;stroke-linecap:round;stroke-linejoin:round;overflow:visible}
+/* «HASTA 58 %» mide 116 px: en las tarjetas angostas el dibujo cede antes que el número (medido por el ancho
+   de contenido de la tarjeta; la más angosta de la rejilla da 198 px). La altura mínima del panel es la del
+   número con su chip de MSI: los paneles de una fila miden lo mismo con chip o sin él. */
+@container mvcard (max-width:226px){.mv-ico{width:72px;height:72px}.mv-ico svg{width:67px;height:67px}}
+@container mvcard (max-width:212px){.mv-ico{width:62px;height:62px}.mv-ico svg{width:58px;height:58px}
+  .mv-oferta{min-height:6.5rem}.mv-pct{flex-wrap:wrap}.mv-pct small{flex-basis:100%;margin:0 0 .2rem}}
 .mv-ico .f{fill:currentColor;fill-opacity:.15}
 .mv-ico .m{fill:currentColor;fill-opacity:.42}
 .mv-ico .b{fill:var(--ico-bg)}
 .mv-ico .bf{fill:color-mix(in srgb,currentColor 15%,var(--ico-bg))}
 .mv-ico .s{fill:currentColor;stroke:none}
 .mv-ico .s2{fill:currentColor;fill-opacity:.4;stroke:none}
-[data-theme="carbon"] .mv-ico{--ico-bg:color-mix(in srgb,var(--dept-color) 20%,var(--surface));color:color-mix(in srgb,var(--dept-color) 45%,#fff)}
+/* El detalle: líneas finas (costuras, rejillas, marcas) y brillos blancos, que solo se leen sobre los tonos medios. */
+.mv-ico .d{stroke-width:.95}
+.mv-ico .h{fill:#fff;fill-opacity:.85;stroke:none}
+.mv-ico .h2{fill:#fff;fill-opacity:.35;stroke:none}
+.mv-ico .hl{stroke:#fff;stroke-opacity:.9}
+[data-theme="carbon"] .mv-ico{color:color-mix(in srgb,var(--dept-color) 45%,#fff)}
 .mv-ico [class*="a-"]{transform-box:view-box}
 .mv-ico .a-gira{--an:mvi-gira;--ad:1.4s;--at:cubic-bezier(.5,0,.3,1)}
 .mv-ico .a-late{--an:mvi-late}
@@ -359,123 +375,226 @@
   var BRILLO = 'l.6 1.2 1.2.6-1.2.6-.6 1.2-.6-1.2-1.2-.6 1.2-.6z';
   var VAPOR = 'c-1.3-1.3 1.3-2.6 0-3.9';
   var CAT = {
-    pantallas: '<rect class="f" x="3" y="6" width="26" height="17" rx="2.5"/><path d="M12 27h8M16 23v4"/><path class="s a-late"' + O(16.5, 14.5) + ' d="M14.3 11.3v6.4l5.2-3.2z"/>',
-    audifonos: '<path d="M8 19v-3a8 8 0 0 1 16 0v3"/><rect class="f" x="5.5" y="17.5" width="5.5" height="9" rx="2.2"/><rect class="f" x="21" y="17.5" width="5.5" height="9" rx="2.2"/>' +
+    pantallas: '<rect class="f" x="3" y="6" width="26" height="17" rx="2.5"/><rect class="m d" x="5.5" y="8.5" width="21" height="12" rx="1"/>' +
+      '<path class="h2" d="M6.5 17.2 13.2 9.5h2.6L6.5 20z"/><path class="h a-late"' + O(16.4, 14.5) + ' d="M14.4 11.8v5.4l4.6-2.7z"/>' +
+      '<circle class="s" cx="25.6" cy="21.8" r=".55"/><path d="M11 27h10M16 23v4"/>',
+    audifonos: '<path d="M8 19v-3a8 8 0 0 1 16 0v3"/><path class="m d" d="M12.4 8.7a8 8 0 0 1 7.2 0l-.7 1.6a6.3 6.3 0 0 0-5.8 0z"/>' +
+      '<rect class="m" x="5.5" y="17.5" width="5.5" height="9" rx="2.2"/><rect class="m" x="21" y="17.5" width="5.5" height="9" rx="2.2"/>' +
+      '<rect class="h" x="6.9" y="19.3" width="1.1" height="4.6" rx=".55"/><rect class="h" x="22.4" y="19.3" width="1.1" height="4.6" rx=".55"/>' +
       '<path class="a-onda"' + O(8, 22) + ' d="M3 19.5a5 5 0 0 0 0 5"/><path class="a-onda"' + O(24, 22, .15) + ' d="M29 19.5a5 5 0 0 1 0 5"/>',
-    audio: '<rect class="f" x="6.5" y="3.5" width="15" height="25" rx="3"/><circle cx="14" cy="9.5" r="2"/><g class="a-late"' + O(14, 19.5) + '><circle cx="14" cy="19.5" r="4.6"/><circle class="s" cx="14" cy="19.5" r="1.4"/></g>' +
-      '<path class="a-onda"' + O(21, 19.5) + ' d="M25 15.5a6 6 0 0 1 0 8"/><path class="a-onda"' + O(21, 19.5, .18) + ' d="M28 13a9.5 9.5 0 0 1 0 13"/>',
-    celulares: '<path class="a-parpadea" d="M6 12.5v7M3 14.5v3M26 12.5v7M29 14.5v3"/><g class="a-vibra"' + O(16, 16) + '><rect class="f" x="10" y="3.5" width="12" height="25" rx="2.6"/><path d="M14.5 7h3"/><circle class="s" cx="16" cy="24.3" r="1.1"/></g>',
-    computadoras: '<rect class="f" x="5.5" y="6" width="21" height="15" rx="1.8"/><path d="M2.5 22.5h27l-1.6 3.5H4.1z"/><path d="M10 11l2.6 2.5L10 16"/><path class="a-parpadea" d="M15 16.2h4.5"/>',
-    tablets: '<rect class="f" x="6.5" y="3.5" width="19" height="25" rx="2.8"/><rect class="b" x="9" y="6.5" width="14" height="16" rx="1"/><circle class="s" cx="16" cy="25.3" r="1"/>' +
-      '<g class="a-desliza"><path class="s2" d="M11 9h8.5v5H11z"/><path d="M11 17h7.5M11 19.8h5"/></g>',
-    impresion: '<path d="M9.5 11.5v-7h13v7"/><path class="f" d="M6 11.5h20a2.5 2.5 0 0 1 2.5 2.5v7.5h-25V14A2.5 2.5 0 0 1 6 11.5z"/><circle class="s" cx="24.2" cy="15" r="1"/><path d="M7.5 18.5h17"/>' +
-      '<g class="a-cae"><path class="b" d="M10 18.5h12v9.5H10z"/><path d="M13 22h6M13 24.8h4"/></g>',
+    audio: '<rect class="f" x="6.5" y="3.5" width="15" height="25" rx="3"/><circle class="m" cx="14" cy="9.5" r="2.3"/><circle class="h" cx="13.2" cy="8.7" r=".7"/>' +
+      '<g class="a-late"' + O(14, 19.5) + '><circle class="m" cx="14" cy="19.5" r="4.8"/><circle class="d" cx="14" cy="19.5" r="3"/><circle class="s" cx="14" cy="19.5" r="1.3"/></g>' +
+      '<path class="d" d="M10 26.2h8"/><path class="a-onda"' + O(21, 19.5) + ' d="M25 15.5a6 6 0 0 1 0 8"/><path class="a-onda"' + O(21, 19.5, .18) + ' d="M28 13a9.5 9.5 0 0 1 0 13"/>',
+    celulares: '<path class="a-parpadea" d="M6 12.5v7M3 14.5v3M26 12.5v7M29 14.5v3"/><g class="a-vibra"' + O(16, 16) + '><rect class="f" x="10" y="3.5" width="12" height="25" rx="2.6"/>' +
+      '<rect class="m d" x="11.6" y="6.6" width="8.8" height="15.8" rx="1"/><path class="h2" d="m11.6 15 5.2-8.4H19l-7.4 12z"/>' +
+      '<path class="d" d="M14.6 5h2.8"/><circle class="s" cx="16" cy="25.3" r=".9"/></g>',
+    computadoras: '<rect class="f" x="5.5" y="6" width="21" height="15" rx="1.8"/><rect class="m d" x="7.4" y="7.9" width="17.2" height="11.2" rx=".8"/>' +
+      '<path class="hl" d="M10 11l2.6 2.5L10 16"/><path class="hl a-parpadea" d="M15 16.2h4.5"/>' +
+      '<path d="M2.5 22.5h27l-1.6 3.5H4.1z"/><path class="d" d="M13.5 22.5v1h5v-1"/>',
+    tablets: '<rect class="f" x="6.5" y="3.5" width="19" height="25" rx="2.8"/><rect class="b d" x="9" y="6.5" width="14" height="16" rx="1"/>' +
+      '<circle class="s" cx="16" cy="25.3" r="1"/><circle class="s" cx="16" cy="5" r=".45"/>' +
+      '<g class="a-desliza"><path class="m d" d="M11 9h8.5v5H11z"/><path class="h" d="m12.2 13.2 2.3-2.5 1.6 1.6 1.1-1 1.7 1.9z"/><path class="d" d="M11 17h7.5M11 19.6h5"/></g>',
+    impresion: '<path d="M9.5 11.5v-7h13v7"/><path class="d" d="M12 7.5h8"/><path class="f" d="M6 11.5h20a2.5 2.5 0 0 1 2.5 2.5v7.5h-25V14A2.5 2.5 0 0 1 6 11.5z"/>' +
+      '<circle class="s" cx="24.2" cy="15" r="1"/><path class="d" d="M6.5 15h4"/><path d="M7.5 18.5h17"/>' +
+      '<g class="a-cae"><path class="b" d="M10 18.5h12v9.5H10z"/><path class="d" d="M12.8 21.8h6.4M12.8 24.3h3.6"/><path class="m d" d="M17.6 23.6h2.4V26h-2.4z"/></g>',
     parrilla: '<path class="a-sube" d="M11.5 9' + VAPOR + '"/><path class="a-sube"' + R(.22) + ' d="M16 9' + VAPOR + '"/><path class="a-sube"' + R(.44) + ' d="M20.5 9' + VAPOR + '"/>' +
-      '<path d="M4 12.5h24M10.5 19.5 8 28M21.5 19.5 24 28M16 21v7"/><path class="f" d="M5.5 12.5h21a10.5 8.5 0 0 1-21 0z"/>',
-    smartwatch: '<path d="M12 7.5v-4h8v4M12 24.5v4h8v-4M25.2 14v4"/><rect class="f" x="8.5" y="7.5" width="15" height="17" rx="3.5"/>' +
-      '<path class="s a-late"' + O(16, 16.5) + ' d="M16 20s-4.3-2.7-4.3-5.8a2.2 2.2 0 0 1 4.3-.7 2.2 2.2 0 0 1 4.3.7c0 3.1-4.3 5.8-4.3 5.8z"/>',
-    relojes: '<path d="m12.5 8.5 1-5h5l1 5M12.5 23.5l1 5h5l1-5M24.5 16h1.6"/><circle class="f" cx="16" cy="16" r="8.5"/><path d="M16 16h3.4"/><path class="a-tic"' + O(16, 16) + ' d="M16 16v-6"/><circle class="s" cx="16" cy="16" r="1.2"/>',
-    consolas: '<path class="f" d="M10 9h12a6.5 6.5 0 0 1 6.4 7.6l-.9 5.4a3 3 0 0 1-5.2 1.5L20 21h-8l-2.3 2.5a3 3 0 0 1-5.2-1.5l-.9-5.4A6.5 6.5 0 0 1 10 9z"/><path d="M9.5 13.5v5M7 16h5"/>' +
-      '<circle class="s a-late"' + O(22, 14) + ' cx="22" cy="14" r="1.35"/><circle class="s a-late"' + O(24.6, 17.2, .18) + ' cx="24.6" cy="17.2" r="1.35"/>',
-    foto: '<path class="f" d="M5 10h4.5l2-3h9l2 3H27a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V12a2 2 0 0 1 2-2z"/><circle cx="16" cy="17.5" r="5"/><circle cx="16" cy="17.5" r="2"/>' +
-      '<path class="s a-brilla"' + O(25.5, 13.5) + ' d="M25.5 11.7' + BRILLO + '"/>',
-    aire: '<rect class="f" x="3.5" y="5" width="25" height="10" rx="2.5"/><path d="M7 11.5h18"/><circle class="s" cx="24.5" cy="8" r=".9"/>' +
+      '<path d="M4 12.5h24"/><rect class="m d" x="9" y="10.1" width="6" height="2.2" rx="1.1"/><rect class="m d" x="17" y="10.1" width="6" height="2.2" rx="1.1"/>' +
+      '<path class="f" d="M5.5 12.5h21a10.5 8.5 0 0 1-21 0z"/><path class="d" d="M8.6 16.6h14.8"/><circle class="s" cx="16" cy="19" r=".8"/>' +
+      '<path d="M10.5 19.5 8 28M21.5 19.5 24 28M16 21v7"/>',
+    smartwatch: '<path d="M12 7.5v-4h8v4M12 24.5v4h8v-4M25.2 14v4"/><path class="d" d="M14 5.3h4M14 26.7h4"/>' +
+      '<rect class="f" x="8.5" y="7.5" width="15" height="17" rx="3.5"/><rect class="m d" x="10.5" y="9.5" width="11" height="13" rx="2"/>' +
+      '<path class="h a-late"' + O(16, 16.5) + ' d="M16 19.6s-3.6-2.3-3.6-4.9a1.9 1.9 0 0 1 3.6-.6 1.9 1.9 0 0 1 3.6.6c0 2.6-3.6 4.9-3.6 4.9z"/>',
+    relojes: '<path d="m12.5 8.5 1-5h5l1 5M12.5 23.5l1 5h5l1-5M24.5 16h1.6"/><path class="d" d="M14.5 5.6h3M14.5 26.4h3"/>' +
+      '<circle class="f" cx="16" cy="16" r="8.5"/><circle class="b d" cx="16" cy="16" r="6.7"/><path class="d" d="M16 10.3v1.3M21.7 16h-1.3M16 21.7v-1.3M10.3 16h1.3"/>' +
+      '<path d="M16 16h3.2"/><path class="a-tic"' + O(16, 16) + ' d="M16 16v-5"/><circle class="s" cx="16" cy="16" r="1.1"/>',
+    consolas: '<path class="f" d="M10 9h12a6.5 6.5 0 0 1 6.4 7.6l-.9 5.4a3 3 0 0 1-5.2 1.5L20 21h-8l-2.3 2.5a3 3 0 0 1-5.2-1.5l-.9-5.4A6.5 6.5 0 0 1 10 9z"/>' +
+      '<path class="m d" d="M8.4 13.2h2.2v2.1h2.1v2.2h-2.1v2.1H8.4v-2.1H6.3v-2.2h2.1z"/><path class="d" d="M14 17h1.4M16.6 17H18"/>' +
+      '<circle class="s2" cx="21.4" cy="14.3" r="1.1"/><circle class="s2" cx="23.3" cy="16.7" r="1.1"/>' +
+      '<circle class="s a-late"' + O(23.3, 11.9) + ' cx="23.3" cy="11.9" r="1.1"/><circle class="s a-late"' + O(25.2, 14.3, .18) + ' cx="25.2" cy="14.3" r="1.1"/>',
+    foto: '<path class="f" d="M5 10h4.5l2-3h9l2 3H27a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V12a2 2 0 0 1 2-2z"/>' +
+      '<rect class="m d" x="5.5" y="12" width="3.6" height="2.2" rx=".5"/><path class="d" d="M3 15.5h4.5M24.5 15.5H29M24 12.8h2.5"/>' +
+      '<circle class="b" cx="16" cy="17.5" r="5.2"/><circle class="m d" cx="16" cy="17.5" r="3.4"/><circle class="h" cx="14.8" cy="16.3" r="1"/>' +
+      '<path class="s a-brilla"' + O(7.3, 8.6) + ' d="M7.3 6.8' + BRILLO + '"/>',
+    aire: '<rect class="f" x="3.5" y="5" width="25" height="10" rx="2.5"/><path class="d" d="M6.5 12.1h19M6.5 13.6h19"/>' +
+      '<rect class="m d" x="6.2" y="7.2" width="5.2" height="2.4" rx=".6"/><circle class="s2" cx="22.2" cy="8.3" r=".8"/><circle class="s" cx="24.6" cy="8.3" r=".8"/>' +
       '<path class="a-cae" d="M10 18.5q1.5 2 0 4t0 4"/><path class="a-cae"' + R(.15) + ' d="M16 18.5q1.5 2 0 4t0 4"/><path class="a-cae"' + R(.3) + ' d="M22 18.5q1.5 2 0 4t0 4"/>',
-    ventilador: '<circle cx="16" cy="13" r="10"/><g class="a-gira"' + O(16, 13) + '>' +
-      [0, 120, 240].map(function (g) { return '<path class="f" transform="rotate(' + g + ' 16 13)" d="M16 13c-2.6-1.6-3-5.2-.9-7.2 1.6-1.4 3.9-.6 4.2 1.4.3 2.3-1.3 4.3-3.3 5.8z"/>'; }).join('') +
-      '</g><circle class="s" cx="16" cy="13" r="1.7"/><path d="M16 23v5M11 28.5h10"/>',
-    refrigeradores: '<rect class="f" x="8" y="3.5" width="16" height="25" rx="2.5"/><path d="M8 12.5h16M11.5 16v4.5"/><path class="s2" d="M10.5 6.5H14V10h-3.5zM15.5 7.5h5V10h-5z"/>' +
+    ventilador: '<circle cx="16" cy="13" r="10"/><circle class="d" cx="16" cy="13" r="7.6"/><g class="a-gira"' + O(16, 13) + '>' +
+      [0, 120, 240].map(function (g) { return '<path class="m" transform="rotate(' + g + ' 16 13)" d="M16 13c-2.6-1.6-3-5.2-.9-7.2 1.6-1.4 3.9-.6 4.2 1.4.3 2.3-1.3 4.3-3.3 5.8z"/>'; }).join('') +
+      '</g><circle class="s" cx="16" cy="13" r="1.8"/><circle class="h" cx="15.4" cy="12.4" r=".55"/>' +
+      '<path d="M16 23v4.5"/><path class="m d" d="M10.5 27.5h11a1 1 0 0 1 1 1v.5h-13v-.5a1 1 0 0 1 1-1z"/>',
+    refrigeradores: '<rect class="f" x="8" y="3.5" width="16" height="25" rx="2.5"/><path d="M8 12.5h16M11.5 16v4.5"/><path class="d" d="M10 28.5v1M22 28.5v1"/>' +
+      '<rect class="m d" x="15.6" y="15.6" width="5.4" height="3.2" rx=".6"/><path class="s2" d="M10.5 6.5H14V10h-3.5zM15.5 7.5h5V10h-5z"/>' +
       '<g class="a-abre"' + O(24, 8) + '><path class="bf" d="M10.5 3.5h11A2.5 2.5 0 0 1 24 6v6.5H8V6a2.5 2.5 0 0 1 2.5-2.5z"/><path d="M11.5 6.5v3"/></g>',
-    lavadoras: '<rect class="f" x="5.5" y="3.5" width="21" height="25" rx="2.5"/><path d="M5.5 9h21M14 6.3h8"/><circle class="s" cx="9.5" cy="6.3" r="1"/><circle class="b" cx="16" cy="18.5" r="6.5"/>' +
-      '<g class="a-gira"' + O(16, 18.5) + '><path class="s2" d="M11.7 19.5a4.3 4.3 0 0 0 8.6 0c-1.4.9-2.9.9-4.3 0s-2.9-.9-4.3 0z"/></g>',
-    aspiradoras: '<path d="M14.5 18.5c1-4.6 3-7.4 6-7.5"/><g class="a-mece"' + O(20.5, 11) + '><path d="m20.5 11 5.2 13.5"/><path class="f" d="M22.5 24.5H29a1 1 0 0 1 1 1V27h-8.5v-1.5a1 1 0 0 1 1-1z"/></g>' +
-      '<path class="f" d="M3 26v-3a5.5 5.5 0 0 1 5.5-5.5h3A5.5 5.5 0 0 1 17 23v3z"/><circle class="bf" cx="8" cy="26" r="2.2"/>',
-    cocina: '<g class="a-rebota"><path d="M5 13h22M8 13a8 4 0 0 1 16 0M14.5 8.5h3"/></g><path class="f" d="M6.5 14h19v9.5a4 4 0 0 1-4 4h-11a4 4 0 0 1-4-4z"/><path d="M6.5 17.5h-3M25.5 17.5h3"/>',
-    electro: '<g class="a-vibra"' + O(16, 19) + '><path class="f" d="M9 4h14l-2 15H11z"/><path d="M8 4h16M12.5 8h3M13 12h2.5"/></g><path class="f" d="M9 19h14l1 8.5H8z"/><circle class="s" cx="16" cy="23.3" r="1.4"/>',
-    mascotas: '<path class="f" d="M16 15.5c-3.6 0-7 4.6-7 8 0 2.2 1.8 3.2 3.6 3.2 1.4 0 2.2-.8 3.4-.8s2 .8 3.4.8c1.8 0 3.6-1 3.6-3.2 0-3.4-3.4-8-7-8z"/>' +
+    lavadoras: '<rect class="f" x="5.5" y="3.5" width="21" height="25" rx="2.5"/><path d="M5.5 9h21"/><circle class="m d" cx="9.3" cy="6.3" r="1.5"/>' +
+      '<rect class="m d" x="13" y="5.3" width="6" height="2" rx=".5"/><circle class="s" cx="22.4" cy="6.3" r=".6"/><circle class="s" cx="24.2" cy="6.3" r=".6"/>' +
+      '<circle class="d" cx="16" cy="18.5" r="7.7"/><circle class="bf" cx="16" cy="18.5" r="6.3"/>' +
+      '<g class="a-gira"' + O(16, 18.5) + '><path class="s2" d="M11.7 19.5a4.3 4.3 0 0 0 8.6 0c-1.4.9-2.9.9-4.3 0s-2.9-.9-4.3 0z"/><circle class="s2" cx="13.6" cy="16.2" r=".8"/><circle class="s2" cx="17.4" cy="15.2" r=".55"/></g>',
+    aspiradoras: '<path d="M14.5 18.5c1-4.6 3-7.4 6-7.5"/><path class="d" d="m15 16.6 1 .3M15.7 14.6l1 .4M16.8 12.8l.9.6"/>' +
+      '<g class="a-mece"' + O(20.5, 11) + '><path d="m20.5 11 5.2 13.5"/><path class="m d" d="M22.5 24.5H29a1 1 0 0 1 1 1V27h-8.5v-1.5a1 1 0 0 1 1-1z"/><path class="d" d="M22.6 28.3h6.8"/></g>' +
+      '<path class="f" d="M3 26v-3a5.5 5.5 0 0 1 5.5-5.5h3A5.5 5.5 0 0 1 17 23v3z"/><path class="d" d="M4.4 21.6h11.2"/><circle class="s" cx="13.4" cy="19.8" r=".7"/>' +
+      '<circle class="bf" cx="8" cy="26" r="2.2"/><circle class="s" cx="8" cy="26" r=".7"/>',
+    cocina: '<g class="a-rebota"><path d="M5 13h22"/><path class="m d" d="M8 13a8 4 0 0 1 16 0z"/><path d="M14.5 8.5h3"/><path class="h" d="M11 11.8c.9-.8 2-1.3 3.2-1.5l.2.8c-1 .2-2 .6-2.7 1.2z"/></g>' +
+      '<path class="f" d="M6.5 14h19v9.5a4 4 0 0 1-4 4h-11a4 4 0 0 1-4-4z"/><path class="d" d="M6.5 18h19"/><path d="M6.5 17.5h-3M25.5 17.5h3"/>',
+    electro: '<g class="a-vibra"' + O(16, 19) + '><path class="f" d="M9 4h14l-2 15H11z"/><path class="s2" d="M10.6 11.5h10.8l-1 7.5h-8.8z"/>' +
+      '<path d="M8 4h16"/><path class="d" d="M12.5 7.5h3M13 10h2.5M13.4 16.6 16 15.6l2.6 1"/><path class="h" d="M19.4 12.4h.9l-.5 4.6h-.9z"/></g>' +
+      '<path class="f" d="M9 19h14l1 8.5H8z"/><circle class="m d" cx="16" cy="23.3" r="1.8"/><path class="d" d="M10.8 25.8H13M19 25.8h2.2"/>',
+    mascotas: '<path class="m" d="M16 15.5c-3.6 0-7 4.6-7 8 0 2.2 1.8 3.2 3.6 3.2 1.4 0 2.2-.8 3.4-.8s2 .8 3.4.8c1.8 0 3.6-1 3.6-3.2 0-3.4-3.4-8-7-8z"/>' +
+      '<path class="h" d="M12.2 21.6c.4-1.6 1.4-3 2.6-3.8l.5.7c-1.1.7-1.9 1.9-2.3 3.3z"/>' +
       '<ellipse class="s a-rebota" cx="7.6" cy="13.2" rx="2.2" ry="2.8"/><ellipse class="s a-rebota"' + R(.1) + ' cx="12.4" cy="8.4" rx="2.3" ry="2.9"/>' +
       '<ellipse class="s a-rebota"' + R(.2) + ' cx="19.6" cy="8.4" rx="2.3" ry="2.9"/><ellipse class="s a-rebota"' + R(.3) + ' cx="24.4" cy="13.2" rx="2.2" ry="2.8"/>',
-    viaje: '<g class="a-mece"' + O(16, 27) + '><path d="M13 8V4.5h6V8M12.5 11.5v10M19.5 11.5v10"/><rect class="f" x="8" y="8" width="16" height="17" rx="2.5"/>' +
-      '<circle class="s" cx="11.5" cy="27.3" r="1.4"/><circle class="s" cx="20.5" cy="27.3" r="1.4"/></g>',
-    vinos: '<path class="f" d="M9.5 3.5h3v5.2c2 1 3 2.9 3 5.1V27a1.5 1.5 0 0 1-1.5 1.5H8A1.5 1.5 0 0 1 6.5 27V13.8c0-2.2 1-4.1 3-5.1z"/><path d="M6.5 17h9"/>' +
-      '<path class="s2 a-llena"' + O(23.5, 18.7) + ' d="M19.8 14h7.4c-.4 3-1.8 4.7-3.7 4.7s-3.3-1.7-3.7-4.7z"/><path d="M19.5 11.5h8c0 4.6-1.8 7.2-4 7.2s-4-2.6-4-7.2zM23.5 18.7V28M20.5 28h6"/>',
-    mesabar: '<circle class="f" cx="16" cy="16.5" r="7.5"/><circle cx="16" cy="16.5" r="4.2"/><path d="M4.5 5v5a2 2 0 0 0 4 0V5M6.5 5v22.5M27.5 27.5V5c-2 1.5-2.7 5-2.7 9h2.7"/>' +
+    viaje: '<g class="a-mece"' + O(16, 27) + '><path d="M13 8V4.5h6V8"/><rect class="f" x="8" y="8" width="16" height="17" rx="2.5"/>' +
+      '<path class="d" d="M12 8.6v15.8M16 8.6v15.8M20 8.6v15.8"/>' +
+      '<circle class="s" cx="11.5" cy="27.3" r="1.5"/><circle class="s" cx="20.5" cy="27.3" r="1.5"/></g>',
+    vinos: '<path class="m" d="M9.5 3.5h3v5.2c2 1 3 2.9 3 5.1V27a1.5 1.5 0 0 1-1.5 1.5H8A1.5 1.5 0 0 1 6.5 27V13.8c0-2.2 1-4.1 3-5.1z"/>' +
+      '<path class="s" d="M9.5 3.5h3v2.6h-3z"/><path class="b d" d="M6.5 16.5h9V23h-9z"/><path class="d" d="M8.6 18.8h4.8M9.4 20.8h3.2"/>' +
+      '<path class="h" d="M8 13.4c0-1.5.6-2.7 1.6-3.5l.5.6c-.8.7-1.2 1.6-1.2 2.9z"/>' +
+      '<path class="s2 a-llena"' + O(23.5, 18.7) + ' d="M19.8 14h7.4c-.4 3-1.8 4.7-3.7 4.7s-3.3-1.7-3.7-4.7z"/>' +
+      '<path d="M19.5 11.5h8c0 4.6-1.8 7.2-4 7.2s-4-2.6-4-7.2zM23.5 18.7V28M20.5 28h6"/>',
+    mesabar: '<circle class="f" cx="16" cy="16.5" r="7.5"/><circle class="d" cx="16" cy="16.5" r="6.2"/><circle class="b d" cx="16" cy="16.5" r="4.4"/>' +
+      '<path d="M4.5 5v5a2 2 0 0 0 4 0V5M6.5 5v22.5"/><path class="m" d="M27.5 27.5V5c-2 1.5-2.7 5-2.7 9h2.7"/>' +
       '<path class="s a-brilla"' + O(20.3, 12.2) + ' d="M20.3 10.4' + BRILLO + '"/>',
-    decoracion: '<g class="a-mece"' + O(16, 19) + '><path d="M16 19V9.5"/><path class="f" d="M16 13.5c-1-4-4.6-6.2-8.2-5.6.5 3.6 4.1 6.1 8.2 5.6zM16 11.2c1-4 4.6-6.2 8.2-5.6-.5 3.6-4.1 6.1-8.2 5.6zM16 17c1.3-2.7 3.8-3.8 6.3-3.3-.6 2.5-3.2 3.8-6.3 3.3z"/></g>' +
-      '<path d="M8.5 19h15"/><path class="f" d="M9.5 19h13l-1.6 8.5h-9.8z"/>',
-    navidad: '<path class="f" d="m16 6-6 7.5h3L8 20h3.5l-5 6h19l-5-6H24l-5-6.5h3z"/><path d="M16 26v3"/><circle class="s" cx="13.5" cy="17" r="1"/><circle class="s" cx="19" cy="22.5" r="1"/><circle class="s" cx="17.5" cy="12.5" r=".9"/>' +
+    decoracion: '<g class="a-mece"' + O(16, 19) + '><path d="M16 19V9.5"/>' +
+      '<path class="m" d="M16 13.5c-1-4-4.6-6.2-8.2-5.6.5 3.6 4.1 6.1 8.2 5.6zM16 11.2c1-4 4.6-6.2 8.2-5.6-.5 3.6-4.1 6.1-8.2 5.6zM16 17c1.3-2.7 3.8-3.8 6.3-3.3-.6 2.5-3.2 3.8-6.3 3.3z"/>' +
+      '<path class="hl d" d="M15.4 13.2c-1.7-1.8-3.8-3-6.4-3.7M16.6 10.9c1.7-1.8 3.8-3 6.4-3.7M16.6 16.6c1.3-1 2.8-1.7 4.6-2"/></g>' +
+      '<path d="M8.5 19h15"/><path class="f" d="M9.5 19h13l-1.6 8.5h-9.8z"/><path class="m d" d="M9.9 21.3h12.2l-.3 1.7H10.2z"/>',
+    navidad: '<path class="m" d="m16 6-6 7.5h3L8 20h3.5l-5 6h19l-5-6H24l-5-6.5h3z"/><path class="hl d" d="M12.4 15.6c2 .9 4.6 1 7-.2M9.8 22.2c3 1.3 7.4 1.4 11.8-.3"/>' +
+      '<path class="s" d="M14.8 26h2.4v3h-2.4z"/><circle class="h" cx="13.5" cy="17.4" r="1"/><circle class="h" cx="19.2" cy="22.9" r="1"/>' +
+      '<circle class="h" cx="17.6" cy="12.2" r=".85"/><circle class="h" cx="11.6" cy="23.4" r=".85"/>' +
       '<path class="s a-brilla"' + O(16, 4.8) + ' d="m16 2.2.85 1.6 1.75.35-1.25 1.25.3 1.8L16 6.35l-1.65.85.3-1.8-1.25-1.25 1.75-.35z"/>',
-    halloween: '<path d="M16 9.5c0-2.2.6-4 2.2-5"/><path class="f" d="M17.6 6.2c1.6-1.8 4-2 5.6-1.2-.9 1.9-3.2 2.8-5.6 1.2z"/>' +
-      '<path class="f" d="M16 9.5C9.9 9.5 5 13 5 18.2S9.9 27 16 27s11-3.6 11-8.8-4.9-8.7-11-8.7z"/><path d="M10.6 10.8c-2.6 3.6-2.6 11 0 14.6M21.4 10.8c2.6 3.6 2.6 11 0 14.6"/>' +
-      '<path class="s a-parpadea" d="m12.6 14.6 1.8 2.6h-3.6zM19.4 14.6l1.8 2.6h-3.6z"/><path d="m11.5 21.2 1.5 1.4 1.5-1.4 1.5 1.4 1.5-1.4 1.5 1.4 1.5-1.4"/>',
-    /* Llave de tuercas: gira sobre la tuerca que muerde. */
-    ferreteria: '<g class="a-pisa"' + O(23.3, 8.7) + '><path class="f" d="m6.73 22.73 11-11 2.54 2.54-11 11a1.8 1.8 0 0 1-2.54-2.54z"/>' +
+    /* La calabaza encendida: los ojos y la boca son la luz de la vela, que parpadea. */
+    halloween: '<path d="M16 9.5c0-2.2.6-4 2.2-5"/><path class="m d" d="M17.6 6.2c1.6-1.8 4-2 5.6-1.2-.9 1.9-3.2 2.8-5.6 1.2z"/>' +
+      '<path class="m" d="M16 9.5C9.9 9.5 5 13 5 18.2S9.9 27 16 27s11-3.6 11-8.8-4.9-8.7-11-8.7z"/><path class="d" d="M10.6 10.8c-2.6 3.6-2.6 11 0 14.6M21.4 10.8c2.6 3.6 2.6 11 0 14.6"/>' +
+      '<path class="h2" d="M7.6 15.6c.4-1.5 1.2-2.7 2.3-3.5l.5.6c-1 .7-1.6 1.7-2 3z"/>' +
+      '<path class="h a-parpadea" d="m12.6 14.6 1.8 2.6h-3.6zM19.4 14.6l1.8 2.6h-3.6z"/><path class="hl" d="m11.5 21.2 1.5 1.4 1.5-1.4 1.5 1.4 1.5-1.4 1.5 1.4 1.5-1.4"/>',
+    /* Llave de tuercas: gira con la tuerca que muerde. */
+    ferreteria: '<g class="a-pisa"' + O(23.3, 8.7) + '><path class="f" d="m6.73 22.73 11-11 2.54 2.54-11 11a1.8 1.8 0 0 1-2.54-2.54z"/><path class="d" d="m9.6 22.4 5.4-5.4"/>' +
+      '<path class="m d" d="M25.3 8.7 24.3 10.43h-2L21.3 8.7l1-1.73h2z"/><circle class="b" cx="23.3" cy="8.7" r=".75"/>' +
       '<path class="bf" d="M26.16 8.67A5 5 0 1 1 23.33 5.85l-2.89 2.88 2.83 2.83z"/></g>',
     automotriz: '<path class="a-parpadea" d="M1.5 15h3M2.5 18.5H5"/><g class="a-rebota"><path class="f" d="M5.5 21.5v-4l2.6-5.6a3 3 0 0 1 2.7-1.9h10.4a3 3 0 0 1 2.7 1.9l2.6 5.6v4a1.5 1.5 0 0 1-1.5 1.5H7a1.5 1.5 0 0 1-1.5-1.5z"/>' +
-      '<path d="m9.4 16.5 1.6-3.5h10l1.6 3.5zM6.5 19.3h2M23.5 19.3h2"/><circle class="bf" cx="10.5" cy="23" r="2.7"/><circle class="bf" cx="21.5" cy="23" r="2.7"/></g>',
-    motos: '<path class="a-parpadea" d="M1.5 14H5M2.5 18H5"/><g class="a-desliza"><circle cx="9" cy="23.5" r="3.4"/><circle cx="24.5" cy="23.5" r="3.4"/>' +
-      '<path class="f" d="M7 20h9.5l3.5-7.5h2.5l2.2 11H13a5 5 0 0 1-6-3.5z"/><path d="M9 17h6M22.5 12.5 20.9 7h-2.8"/></g>',
-    libreria: '<path class="f" d="M16 8.5c-3-2-7-2.5-11-1.5v17c4-1 8-.5 11 1.5zM16 8.5c3-2 7-2.5 11-1.5v17c-4-1-8-.5-11 1.5z"/><path d="M8.5 12c2.2 0 3.8.4 5 1M8.5 15.8c2.2 0 3.8.4 5 1"/>' +
-      '<path class="bf a-pagina"' + O(16, 16) + ' d="M16 8.5c2.4-1.6 5.6-2.1 8.5-1.5v16.3c-2.9-.6-6.1-.2-8.5 1.2z"/>',
-    escolares: '<path d="M10 27c2-1.5 3.6 1.5 5.6 0s3.6 1.5 5.6 0"/><g class="a-mece"' + O(7.6, 22.5) + '><path class="f" d="m21 4 4.5 4.5-13 13-5.3 1.4 1.4-5.3z"/><path d="m18.3 6.7 4.5 4.5M8.6 17.6l3.9 3.9"/></g>',
+      '<path class="b d" d="m9.4 16.5 1.6-3.5h4.4v3.5zM16.6 13H21l1.6 3.5h-6z"/><path class="d" d="M16 16.5v4.2"/><path class="m d" d="M6.2 18.3h2.6v1.6H6.2zM23.2 18.3h2.6v1.6h-2.6z"/>' +
+      '<circle class="bf" cx="10.5" cy="23" r="2.7"/><circle class="b" cx="10.5" cy="23" r="1"/><circle class="bf" cx="21.5" cy="23" r="2.7"/><circle class="b" cx="21.5" cy="23" r="1"/></g>',
+    motos: '<path class="a-parpadea" d="M1.5 14H5M2.5 18H5"/><g class="a-desliza">' +
+      '<path class="f" d="M7 20h9.5l3.5-7.5h2.5l2.2 11H13a5 5 0 0 1-6-3.5z"/><rect class="m d" x="8.4" y="17.4" width="6.8" height="2.2" rx="1.1"/>' +
+      '<path d="M22.5 12.5 20.9 7h-2.8"/><path class="m d" d="M22.4 9.2h2.2v2.4h-2.2z"/><path class="d" d="M13.4 22.2h7"/>' +
+      '<circle class="bf" cx="9" cy="23.5" r="3.4"/><circle class="b" cx="9" cy="23.5" r="1.2"/><circle class="bf" cx="24.5" cy="23.5" r="3.4"/><circle class="b" cx="24.5" cy="23.5" r="1.2"/></g>',
+    libreria: '<path d="M4 9.5v15.5c4.3-.9 8.6-.4 12 1.5 3.4-1.9 7.7-2.4 12-1.5V9.5"/>' +
+      '<path class="f" d="M16 8.5c-3-2-7-2.5-11-1.5v17c4-1 8-.5 11 1.5zM16 8.5c3-2 7-2.5 11-1.5v17c-4-1-8-.5-11 1.5z"/>' +
+      '<path class="d" d="M8.5 12c2.2 0 3.8.4 5 1M8.5 15.8c2.2 0 3.8.4 5 1M8.5 19.6c2.2 0 3.8.4 5 1M18.5 13c1.2-.6 2.8-1 5-1M18.5 16.8c1.2-.6 2.8-1 5-1"/>' +
+      '<g class="a-pagina"' + O(16, 16) + '><path class="bf" d="M16 8.5c2.4-1.6 5.6-2.1 8.5-1.5v16.3c-2.9-.6-6.1-.2-8.5 1.2z"/><path class="d" d="M18.2 12.4c1.2-.6 2.6-.9 4.2-.9M18.2 15.8c1.2-.6 2.6-.9 4.2-.9"/></g>' +
+      '<path class="s" d="M22.4 6.6h2V12l-1-.9-1 .9z"/>',
+    escolares: '<path d="M10 27c2-1.5 3.6 1.5 5.6 0s3.6 1.5 5.6 0"/><g class="a-mece"' + O(7.6, 22.5) + '>' +
+      '<path class="f" d="m21 4 4.5 4.5-13 13-5.3 1.4 1.4-5.3z"/><path class="m" d="m21 4 4.5 4.5-2.7 2.7-4.5-4.5z"/>' +
+      '<path class="b" d="m8.6 17.6 3.9 3.9-5.3 1.4z"/><path class="s" d="m7.2 22.9.42-1.59 1.17 1.17z"/>' +
+      '<path d="m18.3 6.7 4.5 4.5"/><path class="d" d="m10.6 19.6 10-10"/></g>',
     mochilas: '<g class="a-rebota"><path d="M13 6.5V5.2a3 3 0 0 1 6 0v1.3M9 14c-2.2.2-3 1.8-3 4v4.5c0 1.3.7 2.2 2 2.4M23 14c2.2.2 3 1.8 3 4v4.5c0 1.3-.7 2.2-2 2.4"/>' +
-      '<path class="f" d="M9 12a6 6 0 0 1 6-6h2a6 6 0 0 1 6 6v13.5a2 2 0 0 1-2 2H11a2 2 0 0 1-2-2z"/><path d="M12 18.5h8V24h-8zM12 18.5v-1a4 4 0 0 1 8 0v1"/></g>',
-    fragancias: '<rect x="12.5" y="5.5" width="7" height="4.5" rx="1"/><path d="M14 10v3M18 10v3M12.5 20.2h7"/><rect class="f" x="8.5" y="13" width="15" height="14.5" rx="3"/>' +
+      '<path class="f" d="M9 12a6 6 0 0 1 6-6h2a6 6 0 0 1 6 6v13.5a2 2 0 0 1-2 2H11a2 2 0 0 1-2-2z"/><path class="d" d="M11.5 14.6h9"/><circle class="s" cx="19.6" cy="14.6" r=".65"/>' +
+      '<path class="m d" d="M12 18.5h8V24h-8zM12 18.5v-1a4 4 0 0 1 8 0v1z"/><path class="d" d="M14.5 21h3"/></g>',
+    fragancias: '<rect class="m d" x="12.5" y="5.5" width="7" height="4.5" rx="1"/><path d="M14 10v3M18 10v3"/><rect class="f" x="8.5" y="13" width="15" height="14.5" rx="3"/>' +
+      '<path class="s2" d="M10 18.5h12V25a1.5 1.5 0 0 1-1.5 1.5h-9A1.5 1.5 0 0 1 10 25z"/><rect class="b d" x="12" y="15.6" width="8" height="4.6" rx=".8"/>' +
+      '<rect class="h" x="10.7" y="20.8" width="1" height="4.4" rx=".5"/>' +
       '<circle class="s a-sube" cx="23.5" cy="7.5" r="1"/><circle class="s a-sube"' + R(.2) + ' cx="26.6" cy="5.4" r=".9"/><circle class="s a-sube"' + R(.4) + ' cx="26.2" cy="9.3" r=".8"/>',
-    maquillaje: '<path class="m a-rebota" d="M13.2 14V9.3l5.6-3.6V14z"/><path class="bf" d="M12 14h8v3.5h-8z"/><rect class="f" x="11" y="17.5" width="10" height="10.5" rx="1.5"/>',
-    piel: '<path class="m a-cae" d="M16 3.5c2 2.6 3 4.2 3 5.6a3 3 0 0 1-6 0c0-1.4 1-3 3-5.6z"/><rect class="bf" x="6" y="14" width="20" height="4" rx="1.5"/><path class="f" d="M7 18h18v7.5a2 2 0 0 1-2 2H9a2 2 0 0 1-2-2z"/>',
+    maquillaje: '<g class="a-rebota"><path class="m" d="M13.2 14V9.3l5.6-3.6V14z"/><path class="h" d="M14.2 13.4V9.9l1-.65v4.15z"/></g>' +
+      '<path class="bf" d="M12 14h8v3.5h-8z"/><rect class="f" x="11" y="17.5" width="10" height="10.5" rx="1.5"/><path class="d" d="M11 20.2h10M11 25.6h10"/>',
+    piel: '<g class="a-cae"><path class="m" d="M16 3.5c2 2.6 3 4.2 3 5.6a3 3 0 0 1-6 0c0-1.4 1-3 3-5.6z"/><path class="h" d="M14.4 9.2c0-.9.4-1.8 1-2.6l.5.4c-.5.7-.8 1.4-.8 2.2z"/></g>' +
+      '<rect class="bf" x="6" y="14" width="20" height="4" rx="1.5"/><path class="d" d="M6.6 16h18.8"/>' +
+      '<path class="f" d="M7 18h18v7.5a2 2 0 0 1-2 2H9a2 2 0 0 1-2-2z"/><rect class="b d" x="10" y="20.5" width="12" height="4.6" rx="1"/>' +
+      '<path class="m" d="M14.3 24.1c0-1.6 1.1-2.6 3.4-2.7-.1 1.8-1.3 2.8-3.4 2.7z"/>',
     cabello: '<path class="a-parpadea" d="M27 6.5h2.8"/><path class="a-parpadea"' + R(.15) + ' d="M27.6 9.5h2.8"/><path class="a-parpadea"' + R(.3) + ' d="M27 12.5h2.8"/>' +
-      '<path class="f" d="M10 15h5l-1.6 12.5h-3zM4.5 9.5A5.5 5.5 0 0 1 10 4h10v11H10a5.5 5.5 0 0 1-5.5-5.5z"/><path d="M20 6h4.8v7H20"/><circle cx="10" cy="9.5" r="2.2"/>',
-    joyeria: '<circle cx="16" cy="20" r="7.5"/><path class="bf" d="m12 9 2-3h4l2 3-4 4.6z"/><path d="M12 9h8"/><path class="s a-brilla"' + O(24, 5.5) + ' d="M24 3.5' + BRILLO + '"/>',
-    lentes: '<path d="M4 13.5 2.6 9.8M28 13.5l1.4-3.7M13.5 15c1.6-1 3.4-1 5 0"/><path class="f" d="M4 13.5h9.5V17a4.5 4.5 0 0 1-4.5 4.5h-.5A4.5 4.5 0 0 1 4 17zM18.5 13.5H28V17a4.5 4.5 0 0 1-4.5 4.5H23a4.5 4.5 0 0 1-4.5-4.5z"/>' +
-      '<path class="a-parpadea" d="m6.8 17.5 2.6-2.6M21.3 17.5l2.6-2.6"/>',
-    farmacia: '<path d="M6.5 4.5v5M4 7h5"/><g class="a-mece"' + O(16, 17) + '><g transform="rotate(-38 16 17)"><rect class="f" x="5.5" y="13" width="21" height="8" rx="4"/><path class="m" d="M16 13h6.5a4 4 0 0 1 0 8H16z"/></g></g>',
-    bolsas: '<g class="a-mece"' + O(16, 6.5) + '><path d="M11.5 13v-2a4.5 4.5 0 0 1 9 0v2M14 17.5h4"/><path class="f" d="M7 13h18l-1.5 13.3a2 2 0 0 1-2 1.7h-11a2 2 0 0 1-2-1.7z"/></g>',
-    tacon: '<path class="f a-pisa"' + O(6, 26.5) + ' d="M28.5 23.5c0-1.4-1.1-2.5-2.5-2.5-4 0-7.5-2.6-10-6.4L13.6 11a2 2 0 0 0-3.1-.3L5 16.5v10h2V21c2 0 3.6.9 5 2.4l2 2.1h12.5a2 2 0 0 0 2-2z"/>',
+      '<path class="f" d="M10 15h5l-1.6 12.5h-3z"/><path class="d" d="M10.8 19.5h3.6M10.6 22h3.4M12 27.5c0 1.6 1 2.2 2.6 2.2"/><circle class="s" cx="12.4" cy="17.3" r=".7"/>' +
+      '<path class="m" d="M4.5 9.5A5.5 5.5 0 0 1 10 4h10v11H10a5.5 5.5 0 0 1-5.5-5.5z"/><path class="f" d="M20 6h4.8v7H20z"/>' +
+      '<circle class="b d" cx="10" cy="9.5" r="2.6"/><circle class="d" cx="10" cy="9.5" r="1.2"/><path class="h" d="M13 5.5h5.5v1H13z"/>',
+    joyeria: '<circle cx="16" cy="20" r="7.5"/><circle class="d" cx="16" cy="20" r="6.2"/><path class="d" d="m13.2 12.6.9 1.1M18.8 12.6l-.9 1.1"/>' +
+      '<path class="b" d="m12 9 2-3h4l2 3-4 4.6z"/><path class="m" d="m12 9 2-3h4l2 3-4 4.6z"/><path class="hl d" d="M12.6 9h6.8M15 6.3 14.3 9 16 12.6 17.7 9 17 6.3"/>' +
+      '<path class="s a-brilla"' + O(24, 5.5) + ' d="M24 3.7' + BRILLO + '"/>',
+    lentes: '<path d="M4 13.5 2.6 9.8M28 13.5l1.4-3.7M13.5 15c1.6-1 3.4-1 5 0"/>' +
+      '<path class="m" d="M4 13.5h9.5V17a4.5 4.5 0 0 1-4.5 4.5h-.5A4.5 4.5 0 0 1 4 17zM18.5 13.5H28V17a4.5 4.5 0 0 1-4.5 4.5H23a4.5 4.5 0 0 1-4.5-4.5z"/>' +
+      '<path class="h a-parpadea" d="m5.7 17.9 3.3-3.3.9.9-3.3 3.3zM20.2 17.9l3.3-3.3.9.9-3.3 3.3z"/><circle class="s" cx="4" cy="13.5" r=".75"/><circle class="s" cx="28" cy="13.5" r=".75"/>',
+    farmacia: '<path class="s" d="M5.6 3.4h1.8v1.9h1.9v1.8H7.4V9H5.6V7.1H3.7V5.3h1.9z"/>' +
+      '<g class="a-mece"' + O(16, 17) + '><g transform="rotate(-38 16 17)"><rect class="f" x="5.5" y="13" width="21" height="8" rx="4"/><path class="m" d="M16 13h6.5a4 4 0 0 1 0 8H16z"/>' +
+      '<rect class="h" x="17.4" y="14.3" width="6.2" height="1.2" rx=".6"/></g></g><circle class="m d" cx="24.8" cy="25.4" r="2.2"/><path class="hl d" d="m23.3 26.9 3-3"/>',
+    bolsas: '<g class="a-mece"' + O(16, 6.5) + '><path d="M11.5 13v-2a4.5 4.5 0 0 1 9 0v2"/><path class="f" d="M7 13h18l-1.5 13.3a2 2 0 0 1-2 1.7h-11a2 2 0 0 1-2-1.7z"/>' +
+      '<path class="m d" d="M7.3 13h17.4l-.5 4.6c-2.6 1.6-5.4 2.4-8.2 2.4s-5.6-.8-8.2-2.4z"/><rect class="s" x="14.9" y="18.6" width="2.2" height="2.2" rx=".5"/>' +
+      '<path class="d" d="M10 24.6h12"/></g>',
+    tacon: '<g class="a-pisa"' + O(6, 26.5) + '><path class="m" d="M28.5 23.5c0-1.4-1.1-2.5-2.5-2.5-4 0-7.5-2.6-10-6.4L13.6 11a2 2 0 0 0-3.1-.3L5 16.5v10h2V21c2 0 3.6.9 5 2.4l2 2.1h12.5a2 2 0 0 0 2-2z"/>' +
+      '<path class="s" d="M5 21.5h2v5H5z"/><path class="h" d="M20.4 19.6c1.5.6 3 .9 4.6 1v.9c-1.7-.1-3.3-.4-4.9-1.1z"/></g>',
     /* Zapato de vestir: tacón aparte, arco al aire, suela delgada y punta afilada; sin agujetas (eso es del tenis). */
-    zapatos: '<g class="a-pisa"' + O(5, 25) + '><path class="f" d="M4.5 20.5v-6a1.4 1.4 0 0 1 1.4-1.4h3.6c1.4 1.6 3.4 2.4 5.6 2.4h2c4.5.5 8.6 2.5 11.2 5z"/>' +
+    zapatos: '<g class="a-pisa"' + O(5, 25) + '><path class="m" d="M4.5 20.5v-6a1.4 1.4 0 0 1 1.4-1.4h3.6c1.4 1.6 3.4 2.4 5.6 2.4h2c4.5.5 8.6 2.5 11.2 5z"/>' +
+      '<path class="d" d="M19.6 16c1.3 1.3 2 2.8 2.1 4.5"/><path class="h" d="M23.2 17.6c1.5.5 2.9 1.3 4 2.3l-.6.5c-1-.9-2.3-1.6-3.6-2z"/>' +
       '<path class="f" d="M12.5 20.5h15.8c.2 1.3-.6 2-1.8 2H13.8a1.3 1.3 0 0 1-1.3-1.3z"/><path class="s" d="M4.5 20.5h5V25h-5z"/></g>',
     tenis: '<g class="a-pisa"' + O(5, 26) + '><path class="f" d="M4 21.5v-10A1.5 1.5 0 0 1 5.5 10H9c.8 2 2.4 3 4.5 3 1 0 1.8-.3 2.5-.8l7.3 4.8c2.6.6 4.7 2.6 4.7 4.5z"/>' +
-      '<path d="M4 21.5h24v2a2.5 2.5 0 0 1-2.5 2.5h-19A2.5 2.5 0 0 1 4 23.5zM14.5 15.6l1.5-2M17.5 17.4l1.5-2M20.5 19.2l1.5-2"/></g>',
-    botas: '<g class="a-pisa"' + O(7, 28) + '><path class="f" d="M7 4h9v13l7.6 2.5c2.6.9 4.4 3.2 4.4 5.9v.6H7z"/><path d="M7 8h9M7 22.5h21"/><path class="s" d="M7 26h5v2H7z"/></g>',
+      '<path class="m d" d="M23.3 17c2.6.6 4.7 2.6 4.7 4.5h-6.3c0-1.7.6-3.2 1.6-4.5zM4 13.6h2.8v4.2H4z"/><path class="d" d="M8.4 19.4c3-1.3 6.4-1.8 10.2-1.1"/>' +
+      '<path class="b" d="M4 21.5h24v2a2.5 2.5 0 0 1-2.5 2.5h-19A2.5 2.5 0 0 1 4 23.5z"/><path class="d" d="M7 24.2h18"/>' +
+      '<path d="M14.5 15.6l1.5-2M17.5 17.4l1.5-2M20.5 19.2l1.5-2"/></g>',
+    botas: '<g class="a-pisa"' + O(7, 28) + '><path class="f" d="M7 4h9v13l7.6 2.5c2.6.9 4.4 3.2 4.4 5.9v.6H7z"/><path class="m d" d="M7 4h9v4H7z"/>' +
+      '<path class="d" d="M13 4V2.6h1.8V4M8.8 10v6.6"/><path class="m" d="M7 22.5h21V26H7z"/><path class="s" d="M7 26h5v2H7z"/></g>',
     sandalias: '<g class="a-mece"' + O(16, 28) + '><path class="f" d="M16 3.5c3.9 0 6 3 6 7 0 3-1 5.5-1 9 0 3.5 1 4.6 1 6 0 2-2.6 3-6 3s-6-1-6-3c0-1.4 1-2.5 1-6 0-3.5-1-6-1-9 0-4 2.1-7 6-7z"/>' +
-      '<path d="m16 8.5-5.2 7M16 8.5l5.2 7"/><circle class="s" cx="16" cy="8.5" r="1.1"/></g>',
-    jeans: '<g class="a-mece"' + O(16, 4) + '><path class="f" d="M9 4h14l1.5 24h-6L16 13l-2.5 15h-6z"/><path d="M9 7.5h14M10.5 7.5c0 2.2 1.2 3.6 3.2 3.6M21.5 7.5c0 2.2-1.2 3.6-3.2 3.6"/></g>',
-    playeras: '<path class="f a-mece"' + O(16, 4.5) + ' d="M11 4.5 4.5 8 7 13.5l3-1.2v15.2h12V12.3l3 1.2L27.5 8 21 4.5c-.8 2-2.8 3.3-5 3.3s-4.2-1.3-5-3.3z"/>',
-    ropa: '<g class="a-mece"' + O(16, 4) + '><path d="M16 11.5V10a2.6 2.6 0 1 0-2.6-2.6"/><path class="f" d="M16 11.5 3.7 20.6c-1.1.8-.6 2.4.8 2.4h23c1.4 0 1.9-1.6.8-2.4z"/></g>',
-    vestidos: '<g class="a-mece"' + O(16, 4) + '><path class="f" d="m12.5 4 1 5c-2 1-2.5 3-1.5 5L6.5 27.5h19L20 14c1-2 .5-4-1.5-5l1-5c-.8 2.2-2 3.2-3.5 3.2S13.3 6.2 12.5 4z"/><path d="M12 14h8"/></g>',
+      '<path class="d" d="M16 5.6c2.6 0 4.1 2.1 4.1 5 0 2.6-.9 4.8-.9 8.9 0 3.3.9 4.4.9 5.6 0 1.4-1.8 2.1-4.1 2.1s-4.1-.7-4.1-2.1c0-1.2.9-2.3.9-5.6 0-4.1-.9-6.3-.9-8.9 0-2.9 1.5-5 4.1-5z"/>' +
+      '<path class="m d" d="M16 8.5 10.4 15.6l1.1.9L16 10.4l4.5 6.1 1.1-.9z"/><circle class="s" cx="16" cy="8.6" r="1.15"/></g>',
+    jeans: '<g class="a-mece"' + O(16, 4) + '><path class="m" d="M9 4h14l1.5 24h-6L16 13l-2.5 15h-6z"/><path d="M9 7.5h14"/>' +
+      '<path class="hl d" d="M10.5 7.5c0 2.2 1.2 3.6 3.2 3.6M21.5 7.5c0 2.2-1.2 3.6-3.2 3.6M16 7.5v4.4M8.4 25.4H13M19 25.4h4.6"/>' +
+      '<path class="d" d="M11.5 4v3.5M20.5 4v3.5"/><circle class="h" cx="16" cy="5.8" r=".8"/></g>',
+    playeras: '<g class="a-mece"' + O(16, 4.5) + '><path class="f" d="M11 4.5 4.5 8 7 13.5l3-1.2v15.2h12V12.3l3 1.2L27.5 8 21 4.5c-.8 2-2.8 3.3-5 3.3s-4.2-1.3-5-3.3z"/>' +
+      '<path class="m" d="M10 16h12v3.2H10z"/><path class="d" d="M12.6 5.4c.9 1.2 2.1 1.9 3.4 1.9s2.5-.7 3.4-1.9M6.6 7.5l2 4.5M25.4 7.5l-2 4.5"/></g>',
+    ropa: '<g class="a-mece"' + O(16, 4) + '><path d="M16 11.5V10a2.6 2.6 0 1 0-2.6-2.6"/><circle class="s" cx="16" cy="11.5" r=".8"/>' +
+      '<path class="f" d="M16 11.5 3.7 20.6c-1.1.8-.6 2.4.8 2.4h23c1.4 0 1.9-1.6.8-2.4z"/>' +
+      '<path class="d" d="M21 23v1.8"/><path class="m d" d="M19.4 24.8h3.2V28l-1.6 1.2-1.6-1.2z"/><circle class="b" cx="21" cy="26.1" r=".5"/></g>',
+    vestidos: '<g class="a-mece"' + O(16, 4) + '><path class="f" d="m12.5 4 1 5c-2 1-2.5 3-1.5 5L6.5 27.5h19L20 14c1-2 .5-4-1.5-5l1-5c-.8 2.2-2 3.2-3.5 3.2S13.3 6.2 12.5 4z"/>' +
+      '<path class="m" d="M13.5 9c-2 1-2.5 3-1.5 5h8c1-2 .5-4-1.5-5-.8.6-1.6.9-2.5.9s-1.7-.3-2.5-.9z"/>' +
+      '<path class="s" d="M12 13.6h8V15h-8z"/><path class="d" d="M14 15.4 12 27.4M18 15.4l2 12M16 15.4v12"/></g>',
     chamarras: '<path class="f" d="M13 4.5 8 6.5 4 24.5h4L9.2 14v13.5h13.6V14L24 24.5h4L24 6.5l-5-2-3 4z"/>' +
-      '<path d="m13 4.5-1.2 4.1 4.2-.1M19 4.5l1.2 4.1-4.2-.1M16 8.5v19M11.5 20.5H14M18 20.5h2.5"/><path class="s a-cae" d="M14.9 10.5h2.2v3.2h-2.2z"/>',
+      '<path class="m d" d="m13 4.5-1.2 4.1 4.2-.1zM19 4.5l1.2 4.1-4.2-.1z"/><path d="M16 8.5v19"/>' +
+      '<path class="m d" d="M10.8 19.4h3.8V21h-3.8zM17.4 19.4h3.8V21h-3.8z"/><path class="d" d="M4.5 22.6h3.7M23.8 22.6h3.7"/>' +
+      '<path class="s a-cae" d="M14.9 10.5h2.2v3.2h-2.2z"/>',
     banos: '<g class="a-rebota"><circle class="f" cx="16" cy="13" r="8"/><path class="m" d="M10.34 7.34a8 8 0 0 1 11.32 0l-3.11 3.11a3.6 3.6 0 0 0-5.1 0zM21.66 18.66a8 8 0 0 1-11.32 0l3.11-3.11a3.6 3.6 0 0 0 5.1 0z"/>' +
-      '<circle class="b" cx="16" cy="13" r="3.6"/></g><path class="a-desliza" d="M3 24.5c2 0 2.5-1.5 4.3-1.5s2.4 1.5 4.3 1.5 2.5-1.5 4.4-1.5 2.4 1.5 4.3 1.5 2.5-1.5 4.3-1.5 2.4 1.5 4.4 1.5"/>' +
+      '<circle class="b" cx="16" cy="13" r="3.6"/><path class="h" d="M12.9 8.4c.6-.5 1.3-.8 2.1-1l.2.8c-.7.2-1.3.4-1.8.8z"/></g>' +
+      '<path class="a-desliza" d="M3 24.5c2 0 2.5-1.5 4.3-1.5s2.4 1.5 4.3 1.5 2.5-1.5 4.4-1.5 2.4 1.5 4.3 1.5 2.5-1.5 4.3-1.5 2.4 1.5 4.4 1.5"/>' +
       '<path class="a-desliza"' + R(.2) + ' d="M6 28c1.5 0 2-1 3.3-1s1.9 1 3.3 1 2-1 3.4-1 2 1 3.4 1 1.9-1 3.3-1 1.9 1 3.3 1"/>',
-    accesorios: '<g class="a-mece"' + O(15, 19) + '><path class="f" d="M5 19a10 9.5 0 0 1 20 0z"/><path d="M5 19h22.5a1.6 1.6 0 0 1 0 3.2H9M15 9.5c-2.4 2.6-3.4 5.8-3.4 9.5"/><circle class="s" cx="15" cy="9.3" r="1.1"/></g>',
+    accesorios: '<g class="a-mece"' + O(15, 19) + '><path class="f" d="M5 19a10 9.5 0 0 1 20 0z"/><path class="m d" d="M5 19h22.5a1.6 1.6 0 0 1 0 3.2H9a4 4 0 0 1-4-3.2z"/>' +
+      '<path d="M15 9.5c-2.4 2.6-3.4 5.8-3.4 9.5"/><path class="d" d="M15 9.5c2 2.7 2.9 5.9 2.9 9.5"/><circle class="s" cx="15" cy="9.3" r="1.1"/><circle class="s" cx="20.8" cy="13.6" r=".6"/></g>',
     mameluco: '<g class="a-mece"' + O(16, 4.5) + '><path class="f" d="M11 4.5 5.5 8l2 4.5 2.5-1V18c0 2 1 3 2 4l-.5 6h3l1.5-4 1.5 4h3l-.5-6c1-1 2-2 2-4v-6.5l2.5 1 2-4.5L21 4.5c-1 1.8-2.8 2.8-5 2.8s-4-1-5-2.8z"/>' +
-      '<circle class="s" cx="14.5" cy="21" r=".8"/><circle class="s" cx="17.5" cy="21" r=".8"/></g>',
-    cuna: '<path d="M5 6.5V28M27 6.5V28M5 11.5h22M9.4 11.5V23M13.8 11.5V23M18.2 11.5V23M22.6 11.5V23"/><path class="f" d="M5 19.5h22V23H5z"/>' +
+      '<path class="m d" d="M11 4.5c1 1.8 2.8 2.8 5 2.8s4-1 5-2.8l.9 1.1c-1.2 1.9-3.4 3.1-5.9 3.1s-4.7-1.2-5.9-3.1z"/>' +
+      '<path class="m" d="M16 16.6s-2-1.2-2-2.8a1 1 0 0 1 2-.3 1 1 0 0 1 2 .3c0 1.6-2 2.8-2 2.8z"/>' +
+      '<circle class="s" cx="14.5" cy="21" r=".8"/><circle class="s" cx="17.5" cy="21" r=".8"/><path class="d" d="M6.6 7.5l2 4.5M25.4 7.5l-2 4.5"/></g>',
+    cuna: '<path d="M5 6.5V28M27 6.5V28M5 11.5h22M9.4 11.5V23M13.8 11.5V23M18.2 11.5V23M22.6 11.5V23"/><circle class="s" cx="5" cy="6" r="1.1"/><circle class="s" cx="27" cy="6" r="1.1"/>' +
+      '<path class="m d" d="M5 19.5h22V23H5z"/><path class="d" d="M5 25h22"/>' +
       '<g class="a-mece"' + O(16, 2.5) + '><path d="M16 2.5v3M11.5 5.5h9M11.5 5.5v1.6M20.5 5.5v1.4"/><circle class="s" cx="11.5" cy="8.3" r="1.2"/>' +
       '<path class="s" d="m20.5 6.9.6 1.1 1.2.3-.9.8.2 1.2-1.1-.6-1.1.6.2-1.2-.9-.8 1.2-.3z"/></g>',
-    carriola: '<g class="a-mece"' + O(14.5, 28.5) + '><path class="f" d="M6 15a10 10 0 0 1 10-10v10zM6 15h16a6 6 0 0 1-6 6h-4a6 6 0 0 1-6-6z"/><path d="m22 15 2.4-8h3M11 21l-1.3 2.7M17 21l1.3 2.7"/>' +
-      '<circle cx="9" cy="26" r="2.5"/><circle cx="20" cy="26" r="2.5"/></g>',
+    carriola: '<g class="a-mece"' + O(14.5, 28.5) + '><path class="m" d="M6 15a10 10 0 0 1 10-10v10z"/><path class="d" d="M8.9 9.1 16 15M12.4 6.2 16 15"/>' +
+      '<path class="f" d="M6 15h16a6 6 0 0 1-6 6h-4a6 6 0 0 1-6-6z"/><path d="m22 15 2.4-8h3M11 21l-1.3 2.7M17 21l1.3 2.7"/>' +
+      '<circle class="bf" cx="9" cy="26" r="2.5"/><circle class="bf" cx="20" cy="26" r="2.5"/><circle class="s" cx="9" cy="26" r=".8"/><circle class="s" cx="20" cy="26" r=".8"/></g>',
     biberon: '<path class="s2 a-llena"' + O(16, 27.4) + ' d="M12 17h8v8.6a1.8 1.8 0 0 1-1.8 1.8h-4.4a1.8 1.8 0 0 1-1.8-1.8z"/>' +
-      '<path d="M14 7V5.5a2 2 0 0 1 4 0V7M12 10.5h8l1 3v12a2.5 2.5 0 0 1-2.5 2.5h-5a2.5 2.5 0 0 1-2.5-2.5v-12zM13.5 14.5h2M13.5 21h2"/><rect x="11.5" y="7" width="9" height="3.5" rx="1"/>',
-    juguetes: '<g class="a-mece"' + O(16, 26) + '><circle class="f" cx="8.5" cy="9.5" r="3"/><circle class="f" cx="23.5" cy="9.5" r="3"/><circle class="bf" cx="16" cy="17" r="9"/>' +
-      '<circle class="s" cx="12.5" cy="15.5" r="1.1"/><circle class="s" cx="19.5" cy="15.5" r="1.1"/><ellipse cx="16" cy="20.5" rx="3.6" ry="2.8"/><path class="s" d="M14.7 19.4h2.6L16 21z"/></g>',
-    deportes: '<g class="a-rebota"><circle class="f" cx="16" cy="15.5" r="9.5"/>' +
-      '<path d="M16 6v19M6.5 15.5h19M9.3 8.7c2.9 3.7 2.9 9.9 0 13.6M22.7 8.7c-2.9 3.7-2.9 9.9 0 13.6"/></g>',
-    ejercicio: '<g class="a-rebota"><rect class="f" x="3.5" y="10" width="4.5" height="12" rx="1.5"/><rect class="f" x="24" y="10" width="4.5" height="12" rx="1.5"/>' +
-      '<rect class="f" x="8" y="12.5" width="3" height="7" rx="1"/><rect class="f" x="21" y="12.5" width="3" height="7" rx="1"/><path d="M11 16h10"/></g>',
-    muebles: '<path class="f" d="M7 15.5V11a3 3 0 0 1 3-3h12a3 3 0 0 1 3 3v4.5"/><path class="f" d="M4.5 16a2.5 2.5 0 0 1 5 0v2h13v-2a2.5 2.5 0 0 1 5 0v8a1.5 1.5 0 0 1-1.5 1.5H6A1.5 1.5 0 0 1 4.5 24z"/>' +
-      '<path d="M7 25.5V28M25 25.5V28"/><rect class="bf a-aplasta"' + O(16, 18) + ' x="9.5" y="14" width="13" height="4" rx="1.5"/>',
-    exterior: '<g class="a-mece"' + O(16, 21) + '><path class="f" d="M4 13a12 7.5 0 0 1 24 0c-2 0-2-1.2-4-1.2s-2 1.2-4 1.2-2-1.2-4-1.2-2 1.2-4 1.2-2-1.2-4-1.2-2 1.2-4 1.2z"/><path d="M16 5.5V21"/></g>' +
-      '<path d="M16 21v7M12.5 28h7M9.5 21h13"/>',
+      '<path class="m" d="M14 7V5.5a2 2 0 0 1 4 0V7z"/><rect class="m d" x="11.5" y="7" width="9" height="3.5" rx="1"/>' +
+      '<path d="M12 10.5h8l1 3v12a2.5 2.5 0 0 1-2.5 2.5h-5a2.5 2.5 0 0 1-2.5-2.5v-12z"/><path class="d" d="M13.5 14.5h2M13.5 18h1.4M13.5 21.5h2"/>' +
+      '<path class="s" d="M18.2 15.4s-1.2-.7-1.2-1.6a.6.6 0 0 1 1.2-.2.6.6 0 0 1 1.2.2c0 .9-1.2 1.6-1.2 1.6z"/>',
+    juguetes: '<g class="a-mece"' + O(16, 26) + '><circle class="f" cx="8.5" cy="9.5" r="3"/><circle class="f" cx="23.5" cy="9.5" r="3"/>' +
+      '<circle class="m" cx="8.5" cy="9.5" r="1.4"/><circle class="m" cx="23.5" cy="9.5" r="1.4"/><circle class="bf" cx="16" cy="17" r="9"/>' +
+      '<circle class="s" cx="12.5" cy="15.5" r="1.1"/><circle class="s" cx="19.5" cy="15.5" r="1.1"/>' +
+      '<ellipse class="b d" cx="16" cy="20.5" rx="3.6" ry="2.8"/><path class="s" d="M14.7 19.4h2.6L16 21z"/><path class="d" d="M16 21v1.1c-.6.7-1.5.8-2.1.3M16 22.1c.6.7 1.5.8 2.1.3"/>' +
+      '<path class="m d" d="M16 27.4 13 26v3l3-1.4 3 1.4v-3z"/></g>',
+    deportes: '<g class="a-rebota"><circle class="m" cx="16" cy="15.5" r="9.5"/>' +
+      '<path d="M16 6v19M6.5 15.5h19M9.3 8.7c2.9 3.7 2.9 9.9 0 13.6M22.7 8.7c-2.9 3.7-2.9 9.9 0 13.6"/>' +
+      '<path class="h" d="M11.4 10.4c.8-.9 1.8-1.6 2.9-2l.3.8c-1 .4-1.8.9-2.5 1.7z"/></g>',
+    ejercicio: '<g class="a-rebota"><rect class="m" x="3.5" y="10" width="4.5" height="12" rx="1.5"/><rect class="m" x="24" y="10" width="4.5" height="12" rx="1.5"/>' +
+      '<rect class="f" x="8" y="12.5" width="3" height="7" rx="1"/><rect class="f" x="21" y="12.5" width="3" height="7" rx="1"/><path d="M11 16h10"/>' +
+      '<rect class="m d" x="13" y="14.8" width="6" height="2.4" rx="1.2"/>' +
+      '<rect class="h" x="4.7" y="11.6" width="1" height="5" rx=".5"/><rect class="h" x="25.2" y="11.6" width="1" height="5" rx=".5"/></g>',
+    muebles: '<path class="f" d="M7 15.5V11a3 3 0 0 1 3-3h12a3 3 0 0 1 3 3v4.5"/><path class="d" d="M16 8.4V14"/>' +
+      '<path class="f" d="M4.5 16a2.5 2.5 0 0 1 5 0v2h13v-2a2.5 2.5 0 0 1 5 0v8a1.5 1.5 0 0 1-1.5 1.5H6A1.5 1.5 0 0 1 4.5 24z"/>' +
+      '<path d="M7 25.5V28M25 25.5V28"/><path class="d" d="M9.5 21.6h13"/>' +
+      '<g class="a-aplasta"' + O(16, 18) + '><rect class="m d" x="9.5" y="14" width="6.4" height="4" rx="1.4"/><rect class="m d" x="16.1" y="14" width="6.4" height="4" rx="1.4"/></g>',
+    exterior: '<g class="a-mece"' + O(16, 21) + '><path class="m" d="M4 13a12 7.5 0 0 1 24 0c-2 0-2-1.2-4-1.2s-2 1.2-4 1.2-2-1.2-4-1.2-2 1.2-4 1.2-2-1.2-4-1.2-2 1.2-4 1.2z"/>' +
+      '<path class="hl d" d="M16 5.6 11.2 12M16 5.6 20.8 12"/><path d="M16 5.5V21"/><circle class="s" cx="16" cy="5" r=".9"/></g>' +
+      '<path d="M16 21v7M12.5 28h7"/><path class="m d" d="M9.5 20.3h13v1.5h-13z"/><path class="d" d="M11.6 18.3h1.6l-.3 2h-1z"/>',
     colchones: '<path class="a-sube" d="M17.5 6.5h3l-3 3.5h3"/><path class="a-sube"' + R(.3) + ' d="M23 3h2.5L23 6h2.5"/><path d="M4 8v20M28 24v4"/>' +
-      '<rect class="f" x="6" y="13.5" width="7" height="3.5" rx="1.5"/><path class="f" d="M4 17h21a3 3 0 0 1 3 3v4H4z"/>',
-    /* Toalla colgada del toallero, con su doblez arriba y las franjas abajo: se mece. */
-    blancos: '<path d="M3.5 6.5h25"/><g class="a-mece"' + O(16, 6.5) + '><path class="f" d="M8.5 6.5h15V26a2 2 0 0 1-2 2h-11a2 2 0 0 1-2-2z"/>' +
-      '<path class="bf" d="M8.5 6.5h15V13h-15z"/><path d="M8.5 22h15M8.5 24.5h15"/></g>',
-    generico: '<g class="a-mece"' + O(10, 10) + '><path class="f" d="M27 17.3 17.3 27a2 2 0 0 1-2.8 0l-8.9-8.9A2 2 0 0 1 5 16.7V7a2 2 0 0 1 2-2h9.7a2 2 0 0 1 1.4.6l8.9 8.9a2 2 0 0 1 0 2.8z"/>' +
-      '<circle cx="10" cy="10" r="1.6"/><path d="m13.6 21.4 6-6"/><circle class="s" cx="14.4" cy="16.4" r="1.1"/><circle class="s" cx="18.8" cy="20.6" r="1.1"/></g>'
+      '<path class="m d" d="M4 9h2.6v8H4z"/><rect class="b d" x="6.6" y="13.5" width="6.4" height="3.5" rx="1.5"/><path class="f" d="M4 17h21a3 3 0 0 1 3 3v4H4z"/>' +
+      '<path class="m d" d="M13 17h12a3 3 0 0 1 3 3v1.4H13z"/><path class="d" d="M4 21.4h9"/>',
+    /* Toalla colgada del toallero, con su doblez arriba, la franja y los flecos: se mece. */
+    blancos: '<path d="M3.5 6.5h25"/><circle class="s" cx="3.5" cy="6.5" r="1"/><circle class="s" cx="28.5" cy="6.5" r="1"/>' +
+      '<g class="a-mece"' + O(16, 6.5) + '><path class="f" d="M8.5 6.5h15V26a2 2 0 0 1-2 2h-11a2 2 0 0 1-2-2z"/><path class="bf" d="M8.5 6.5h15V13h-15z"/>' +
+      '<path class="m" d="M8.5 21.4h15v3.2h-15z"/><path class="d" d="M10.2 28v1.4M12.6 28v1.4M15 28v1.4M17.4 28v1.4M19.8 28v1.4M22.2 28v1.4"/></g>',
+    generico: '<g class="a-mece"' + O(10, 10) + '><path class="d" d="M10 10C7.6 7.4 4.8 6.3 3.2 7"/>' +
+      '<path class="f" d="M27 17.3 17.3 27a2 2 0 0 1-2.8 0l-8.9-8.9A2 2 0 0 1 5 16.7V7a2 2 0 0 1 2-2h9.7a2 2 0 0 1 1.4.6l8.9 8.9a2 2 0 0 1 0 2.8z"/>' +
+      '<circle class="b d" cx="10" cy="10" r="1.6"/><path d="m13.6 21.4 6-6"/><circle class="s" cx="14.4" cy="16.4" r="1.1"/><circle class="s" cx="18.8" cy="20.6" r="1.1"/></g>'
   };
   /* El orden manda: lo de varias palabras va antes que la palabra suelta («zapatos deportivos» son tenis,
      «muebles exterior» no son muebles). Se compara sin acentos ni mayúsculas y tolera las erratas que trae
