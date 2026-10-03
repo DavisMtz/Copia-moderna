@@ -1042,6 +1042,52 @@ y qué se dejó fuera a propósito**. Mismo formato que el registro del document
 
 <!-- Las entradas nuevas van arriba, con la más reciente primero. -->
 
+### 2026-10-03 — Vista previa: «Ver en Google Sheets» junto a «Enviar por Correo», con «Generando documento…» mientras se genera — en PRUEBAS
+
+**Qué se cambió** (commit `633a9c9`; producción @135 no lo tiene):
+- **El pedido:** cuando el documento oficial termina de generarse («Documento oficial listo»), que aparezca arriba, a un lado de «Enviar por Correo», un botón «Ver en Google Sheets» que lleve al documento, igual que el botón «Sheets» del panel de inicio. Mientras se genera, en ese sitio, un aviso que diga «Generando documento».
+- **Servidor (`Formatos.gs`):** `previewSheetCcl` devuelve también `url`, la dirección de la hoja que `openQuoteInSheets` ya le daba al panel de inicio.
+  - Hasta hoy devolvía solo la de incrustar, a propósito: la pantalla no ofrecía salida a Drive. El comentario cuenta el cambio.
+  - No enseña nada nuevo: la de incrustar ya lleva el id del archivo, y la hoja sigue compartida en solo lectura (`cclCompartirPublico_`).
+- **Pantalla (`cotizado_preview.html`):** dos elementos nuevos al final de la barra de acciones:
+  - `#doc-sheets-espera`: aviso (`role="status"`) con el disco y «Generando documento…»;
+  - `#doc-sheets-abrir`: enlace con `target="_blank"` y `rel="noopener"`, con el ícono `document` en el verde del botón del panel de inicio.
+- **Quién los enciende:** `DocumentoCcl`, en tres estados que siguen al panel del documento:
+  - `generar` → generando;
+  - `estadoListo` → listo, solo si llegó una dirección https;
+  - `retirarPanel` (fallo, llamada rechazada o tope de 45 s) → nada.
+  - Si la hoja llega después del tope, el botón aparece, igual que vuelve el panel.
+- **Un enlace, no un clic que pide la hoja:** en el panel de inicio el clic llama a `openQuoteInSheets` y espera. Aquí el documento ya está hecho: el botón abre al instante y el navegador no lo trata como ventana emergente.
+- **A la derecha de «Enviar por Correo», no antes.** La primera versión iba entre «Descargar PDF» y «Enviar por Correo», y la sonda enseñó dos fallos:
+  - el botón principal se movía (de x=939 a x=916) justo cuando el documento quedaba listo;
+  - en ventanas angostas, el que bajaba de fila era «Enviar por Correo».
+  - Al final de la fila, lo que aparece, cambia de ancho o se va es lo único que se mueve.
+- **La barra:** pasa de 980 a 1100 px, el ancho de `.ccl-sheet` (el formato predeterminado): ahora alinean sus bordes. La fila de acciones va siempre bajo el título (`flex-basis: 100%`).
+  - Con 980, los cinco no cabían en una línea a 1366 px.
+  - Con 1100 y sin la fila fija, cuatro botones cabían junto al título y cinco no: la barra cambiaba de alto (151 ↔ 95 px) al aparecer o irse el aviso, y todo el documento daba un salto.
+- **Sin el aviso de la esquina:** la llamada pasa a `busy: false`. El aviso de `AppBusy` vive arriba a la derecha y decía «Generando el documento…» a la vez que la barra (medido con el código anterior): dos esperas para un trabajo. Gana la más específica, como en la descarga del PDF.
+
+**Qué se comprobó:**
+- `pruebas/vista_previa_sheets.test.js` (37) corre el `DocumentoCcl` real y `previewSheetCcl` con dobles. Contra el código anterior fallan 17 de 37. Cubre:
+  - el marcado: orden en la barra, nace oculto y sin `href`, y ninguna regla propia con `display` (el atributo `hidden` tiene que ganarle a `.v-btn`);
+  - el servidor: `url` en la respuesta y ningún `Date`;
+  - los tres estados, el servidor sin `url`, una dirección que no es https, el fallo, el rechazo y el tope de 45 s con la hoja llegando tarde;
+  - sin `google.script.run`, la entrada con `fromTo` y destino explícito, y sin animación con la pestaña oculta.
+- `npm test`: 26 en verde. Build y quitacomentarios limpios.
+- **Sonda en Chrome headless sobre `build/`** (`scratchpad/sonda_sheets.mjs`, con un servidor falso que tarda 3 s):
+  - a 1366 y 1280 px los cinco caben en una fila, la barra mide 151 px en los tres estados (generando, listo y fallo) y «Enviar por Correo» no se mueve;
+  - a 1024 px el aviso, y después el botón, bajan a su propia fila; a 390 px, uno por fila;
+  - con y sin movimiento reducido: sin excepciones y con opacidad final 1;
+  - con el código anterior, la esquina decía «Generando el documento…»; ahora no aparece.
+- **Pruebas:** `scripts/publicar.sh`, sin id de despliegue, y `clasp pull` del editor de pruebas contra `build/`: 91 de 91 iguales.
+- Los avisos de diseño de `cotizado_preview.html` (contraste del rosa y letra de 10-11 px del documento) ya estaban en `HEAD`, idénticos; no se tocaron.
+
+**Qué se dejó fuera a propósito:**
+- **Producción:** espera su palabra. Va con `Formatos.gs` (toca el servidor): receta en el doc 16, «Ojo al promover».
+- **Sin ver en vivo con su cuenta:** el clic real en la `/dev` y que la hoja abra en solo lectura, con el mismo permiso con el que la abre el botón del panel de inicio. Abrir la vista previa de un folio en pruebas vuelve a escribir su hoja CCL, como siempre.
+- `consulta_cotizacion.html` conserva su barra de 980 px y no tiene el botón: es otra pantalla y no se pidió.
+- **A 1024 px o menos,** la barra crece una fila (unos 48 px) cuando aparece el aviso, poco después de cargar. A 1280 px o más no pasa.
+
 ### 2026-10-03 — Producción @135: íconos de categoría del Monitor (dos rondas) y favicon del Portal, pedido por el creador
 
 **Qué se cambió:**
