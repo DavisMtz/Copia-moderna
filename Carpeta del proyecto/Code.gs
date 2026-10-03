@@ -341,6 +341,27 @@ function datosInicialesDePagina_(pagina) {
   return { datos: datos, at: Date.now(), ms: ms };
 }
 
+/**
+ * Favicon del Portal: la etiqueta de venta con el isotipo de Liverpool (elegida por el creador el 03/10/2026).
+ * Apps Script solo lo acepta por setFaviconUrl y solo si la URL TERMINA en .png o .ico: rechaza SVG, data: y
+ * hasta una PNG con «?v=2» al final (medido en LAB-mini). El «#.png» es para pasar esa revisión; no viaja al
+ * servidor. Google copia la URL tal cual en la página de arriba y la pide el navegador de cada asesor, así que
+ * vive en Drive (carpeta «Proyecto Ventel»), legible para todo liverpool.com.mx y no pública: lh3 la entrega con
+ * la sesión de Google de quien abre el Portal. Para cambiarla hace falta OTRO archivo (otro id): los navegadores
+ * guardan el favicon y el «#…» no cuenta para su caché.
+ */
+const FAVICON_URL = 'https://lh3.googleusercontent.com/d/1VtltjIyK1WwHFXYK99c6wJNBB9lTh9bP#.png';
+
+/** Pone el favicon del Portal a una salida de doGet; si Google lo rechazara, la página sale igual sin él. */
+function conFavicon_(salida) {
+  try {
+    return salida.setFaviconUrl(FAVICON_URL);
+  } catch (err) {
+    Logger.log('conFavicon_: ' + err);
+    return salida;
+  }
+}
+
 function doGet(e) {
   // Las funciones internas que arman la página (getScriptUrl, formatCurrencyGS…) llevan secSoloInterno_:
   // así saben que las llamó el servidor y no el navegador (ver Sesiones.gs).
@@ -351,7 +372,7 @@ function doGet(e) {
     // Sin esto, cualquier fallo al renderizar (una hoja movida, un include que no
     // existe) le muestra al asesor la pantalla amarilla de error de Apps Script.
     Logger.log('doGet falló: ' + error.message + ' Stack: ' + error.stack);
-    return HtmlService.createHtmlOutput(
+    return conFavicon_(HtmlService.createHtmlOutput(
       '<div style="font-family:system-ui,Segoe UI,sans-serif;max-width:520px;margin:12vh auto;padding:32px;' +
       'border:1px solid #eadfe6;border-radius:16px;color:#3d2b36;line-height:1.6">' +
       '<h1 style="color:#E10098;font-size:20px;margin:0 0 12px">No pudimos abrir esta pantalla</h1>' +
@@ -359,7 +380,7 @@ function doGet(e) {
       'con la hora exacta y qué estabas haciendo.</p>' +
       '<p style="margin:0;font-size:12px;color:#8a7480">Si necesitas ayuda, escribe al equipo de Ventel.</p>' +
       '</div>'
-    ).setTitle('Error · Sistema Ventel');
+    ).setTitle('Error · Sistema Ventel'));
   }
 }
 
@@ -384,10 +405,10 @@ function servirPagina_(e) {
     // respuestas que la pantalla pediría al abrir si ya estaban en caché (F3).
     pTemplate.APP_JSON = appEstadoInicialJson_(pTemplate.APP_URL, e,
       datosInicialesDePagina_(PORTAL_PAGES[page] ? page : 'portal'));
-    return pTemplate.evaluate()
+    return conFavicon_(pTemplate.evaluate()
       .setTitle(pConfig.title)
       .setXFrameOptionsMode(HtmlService.XFrameOptionsMode.ALLOWALL)
-      .addMetaTag('viewport', 'width=device-width, initial-scale=1');
+      .addMetaTag('viewport', 'width=device-width, initial-scale=1'));
   }
 
   const config = PAGES[page];
@@ -407,10 +428,10 @@ function servirPagina_(e) {
   // El <meta viewport> escrito dentro del HTML se IGNORA en Apps Script (documentación de
   // HtmlOutput): solo cuenta addMetaTag. Sin esto, en un teléfono las pantallas de la app se
   // dibujaban a ancho de escritorio y encogidas. Las públicas ya lo tenían (arriba).
-  return template.evaluate()
+  return conFavicon_(template.evaluate()
     .setTitle(config.title)
     .setXFrameOptionsMode(HtmlService.XFrameOptionsMode.ALLOWALL)
-    .addMetaTag('viewport', 'width=device-width, initial-scale=1');
+    .addMetaTag('viewport', 'width=device-width, initial-scale=1'));
 }
 
 /**
