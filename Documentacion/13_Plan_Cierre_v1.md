@@ -1042,6 +1042,38 @@ y qué se dejó fuera a propósito**. Mismo formato que el registro del document
 
 <!-- Las entradas nuevas van arriba, con la más reciente primero. -->
 
+### 2026-10-03 — Monitor de promociones: íconos de categoría animados en las tarjetas — en PRUEBAS
+
+**Qué se cambió** (commit `74b8adb`; producción @133 no lo tiene):
+- **El pedido:** el creador pidió que las tarjetas de la pestaña Promociones tuvieran un SVG por cada categoría que se repite en el documento «Home Promocional». Lo quería animado si se podía, con uno genérico para lo poco frecuente y con el descuento destacando como ahora.
+- **La fuente:** es «Home Promociones comercial 2026» (`1rZCrNpN…`), la hoja de comercial que importan `PortalPromosComercial.gs` y `PromosAuto.gs`. Se leyeron sus 19 pestañas visibles (campañas de agosto de 2026 a enero de 2027): 625 filas y 103 categorías.
+- **Lo que más se repite:**
+  - En 15 campañas: muebles, colchones, blancos, muebles exterior y audífonos.
+  - En 11, las seis de Marketplace: celular reacondicionado, computadora, impresión, parrilla, smartwatch y telefonía libre.
+  - Después: fragancias, maquillaje, zapatos, ropa, tenis, jeans, playeras y bolsas.
+  - La lista completa está en el respaldo (`analisis/frecuencias.md`).
+- **`app_monitor.html`:**
+  - **Dibujos:** 64 familias de ícono más una genérica (`CAT`, de 32 × 32, con trazo de 1.8 y relleno suave en el color de la dirección). Hay versión para Carbón y ningún logotipo de marca.
+  - **Reglas (`REGLAS`):** lo de varias palabras va antes que la palabra suelta. Comparan sin acentos y toleran las erratas de la hoja. La dirección desempata: la ropa de Bebés es un mameluco, sus muebles una cuna, sus accesorios un biberón y los zapatos de Mujer una zapatilla.
+  - **En la tarjeta:** el número, o el texto corto de la oferta si no hay % ni MSI, va a la izquierda. El azulejo de 54 px va arriba a la derecha. «Sin descuento» y «no aplica» van en gris.
+- **Movimiento:** cada ícono hace una acción de su objeto. Se mueve una vez al entrar en pantalla (escalonado, y no se repite al volver a pintar la lista mientras se busca) y otra vez al apuntar la tarjeta o recorrerla con las flechas: `pcSet` llama a `MonitorVivo.icono`, la única línea nueva de `Promociones.html`. Nada da vueltas solo; con movimiento reducido, los íconos quedan quietos.
+
+**Qué se comprobó:**
+- **Cobertura:** de las 331 filas reales del Monitor (payload del 02/10), solo 2 caen en la genérica: «Hasta 30% de dto» y «Acc. Multimedia». De las 87 categorías del archivo comercial, ninguna.
+- **Pruebas:** `npm test` da 23 en verde. El build y el quitacomentarios de Google salen limpios, y `revelado-monitor.mjs` pasa con los datos en la página y por red.
+- **Capturas** con datos reales en escritorio, Carbón, teléfono y búsqueda. Con movimiento, los 12 íconos a la vista se animan. Al apuntar, la animación pasa de terminada a corriendo desde 0. Al buscar y limpiar, no se repiten solos. No hay errores de consola.
+- **Peso:** el parcial construido pasa de 38.4 a 64.8 KB (de 12.2 a 21.1 KB comprimido con gzip).
+- **Revisión final** (`impeccable-finish-reviewer`): el veredicto fue «fix» con 8 arreglos. Zapatos y tenis se confundían, blancos parecía un vale, tablets una bocina, Halloween una carita y Ferretería un pico; los azulejos saltaban de altura; la mancuerna latía y el balón llevaba sombra; y había dos reglas que ajustar. Además se redibujaron Chamarras y Mochilas. Se aplicaron todos antes del commit, sin otra ronda de revisión.
+- **Pruebas en Apps Script:** después de `./scripts/publicar.sh`, el editor de pruebas es idéntico al build (91 de 91 archivos) y lleva el código nuevo.
+
+**Qué se dejó fuera a propósito:**
+- **Producción:** espera su vistazo y su palabra.
+- **El servidor** no cambia.
+- **Encabezado de grupo:** conserva su ícono de dirección.
+- **Sin bucle al apuntar:** al pasar el cursor, el ícono se mueve una vez y se detiene. Fue una decisión, para no distraer en llamada.
+- **Lo que cambia de tamaño:** en escritorio, el chip de MSI cae debajo del número porque la columna izquierda es 54 px más angosta, y las tarjetas quedan un poco más altas.
+- **El respaldo:** el análisis, la hoja de íconos (`galeria/armar.cjs`), los GIF y su receta (`cuadros.mjs` + `gif.py`), el contrato, la revisión y las capturas están en `Desktop\Proyectos\_respaldos\monitor_iconos_20261003` (LEEME.txt).
+
 ### 2026-10-03 — Producción @133: el Monitor de promociones más visual, pedido por el creador
 
 **Qué se cambió:** el creador lo vio en pruebas y pidió subirlo («sí me gustó. Sube esta producción»). Producción pasó de la @131 a la **@133** (03/10, 01:01) con un build de `500c00e`. Entre `71c5d2b` y ese commit solo cambian `Promociones.html` y el parcial nuevo `app_monitor.html`. La @132 es una versión sin descripción que no creó esta sesión y que nunca se desplegó.
