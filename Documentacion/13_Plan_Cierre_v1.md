@@ -1042,6 +1042,35 @@ y qué se dejó fuera a propósito**. Mismo formato que el registro del document
 
 <!-- Las entradas nuevas van arriba, con la más reciente primero. -->
 
+### 2026-10-03 — Monitor de promociones: el ícono crece y gana detalle (panel de oferta) — en PRUEBAS
+
+**Qué se cambió** (commit `b90ba72`, sobre `74b8adb`; producción @133 no tiene ninguna de las dos):
+- **El pedido:** el creador aprobó los íconos («me gustó bastante, está muy genial») y pidió que el ícono «tome más relevancia», que «abarque un poco más» y que se detallara «un poquito más». Sigue en pie lo de la ronda anterior: el descuento destaca como hasta ahora.
+- **El panel de oferta:** la oferta es ahora un panel con el tinte de la dirección (9 %, 18 % en Carbón). El número sigue a la izquierda con el mismo tamaño y color (3.3rem) y va arriba, para quedar a la misma altura en toda la fila. El dibujo pasa de 36 a 78 px a la derecha. El panel es el fondo del dibujo (`--ico-bg`), así que las piezas que tapan se pintan de ese color.
+- **Tamaño según el ancho de la tarjeta** (container query `mvcard`): 84/78 px; 72/67 px con 226 px de contenido o menos; y 62/58 px, con «HASTA» encima del número, con 212 o menos. La tarjeta más angosta de la rejilla tiene 198 px de contenido y «HASTA 58 %» mide 116. El alto mínimo del panel es el del número con su chip de MSI, así que los paneles de una fila miden lo mismo con chip o sin él.
+- **Detalle:** los 64 dibujos ganan segundo tono, líneas finas (costuras, rejillas, marcas, flecos, agujetas), brillos blancos solo sobre tonos medios, y botones o luces. Las siluetas y los movimientos son los mismos. El trazo pasa a 1.4 y el detalle a 0.95.
+- **Arreglo colateral en `Promociones.html`:** `fxRevealCards` dispara en `'top bottom+=40'`. ScrollTrigger medía la tarjeta ya bajada 14 px por el `gsap.set` del revelado. Con las tarjetas más altas, la fila que asomaba 4 px por el borde no se revelaba cuando los datos llegaban por red. Lo cazó `revelado-monitor.mjs`: el disparo quedaba guardado en 1415 cuando la tarjeta pedía 1396.
+
+**Qué se comprobó:**
+- **Medidas:** en 1920, 1440, 1366 y 1300 px ninguna cifra se desborda. Los paneles de cada fila miden lo mismo (98 px, o 104 en el tramo angosto) y en las 31 filas el número queda a la misma altura.
+- **Pruebas:** la cobertura no cambia (331 → 2 genéricas). `npm test` da 23 en verde y el build y el quitacomentarios salen limpios. `revelado-monitor.mjs` pasa en las dos variantes, con las 14 tarjetas a la vista en opacidad 1 al bajar.
+- **Con movimiento:** los 12 íconos a la vista se animan, también al apuntar y con el teclado.
+- **Peso:** el parcial construido pasa de 64.8 a 75.9 KB (de 21.1 a 24.2 KB con gzip).
+- **Revisión final** (`impeccable-finish-reviewer`): «fix» con 6 arreglos, todos aplicados antes del commit:
+  - la cifra cambiaba unos 18 px de altura dentro de una fila;
+  - el brillo de Lavadoras caía sobre un tono claro;
+  - la suela del tenis tenía una línea punteada;
+  - la cruz de la secadora se confundía con la de Farmacia;
+  - la maleta tenía dos manchas sueltas;
+  - la mancuerna parecía un resorte.
+- **Pruebas en Apps Script:** tras `./scripts/publicar.sh`, el editor de pruebas es idéntico al build (91 de 91 archivos) y lleva el código nuevo.
+
+**Qué se dejó fuera a propósito:**
+- **Producción:** espera su palabra.
+- **Segundo tono en toda la silueta:** algunos dibujos lo llevan en todo el objeto (Jeans, Zapatos, Deportes, Halloween, Navidad) y pesan un poco más que sus vecinos. El revisor lo aceptó como «material».
+- **Hueco bajo el número:** en los paneles sin chip queda un espacio debajo del número; es el precio de alinearlo.
+- **El respaldo:** contrato de la ronda, revisión, capturas por ancho y GIF están en `Desktop\Proyectos\_respaldos\monitor_iconos_20261003`.
+
 ### 2026-10-03 — Monitor de promociones: íconos de categoría animados en las tarjetas — en PRUEBAS
 
 **Qué se cambió** (commit `74b8adb`; producción @133 no lo tiene):
