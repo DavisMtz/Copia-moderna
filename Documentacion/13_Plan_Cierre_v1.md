@@ -1042,6 +1042,32 @@ y qué se dejó fuera a propósito**. Mismo formato que el registro del document
 
 <!-- Las entradas nuevas van arriba, con la más reciente primero. -->
 
+### 2026-10-02 — Monitor de promociones: más visual con el formato de siempre — en PRUEBAS
+
+**Qué se cambió** (commits `6327112` y `a43ba14`; respaldo: etiqueta `respaldo-monitor-antes-vivo` = `028d43f`):
+- El creador pidió un rediseño «dinámico» del Monitor. Lo aclaró así: «que se sienta vivo», para el asesor en llamada y para supervisión, y en todo el Monitor. Se le mostraron tres estructuras nuevas de la tirada `2db96f0a`: Río del tiempo, Consola viva y Mosaico de direcciones. Las rechazó («No me gustó ninguno») y fijó la estructura de hoy: un apartado con las promociones vigentes del día, otro con «solamente el calendario con estilo Gantt» y otro con el listado de todas «así como aparece actualmente». Pidió que se viera más visual para que fuera más clara.
+- Parcial nuevo `app_monitor.html`: CSS y JS en un IIFE, con un solo global, `MonitorVivo`. `Promociones.html` lo llama desde `refreshActiveData` (`alDia`), `renderCards` (`tarjetas`, con el código viejo debajo como respaldo) y `renderGantt` (`gantt`).
+  - **Encabezado:** el cielo del turno de «Tu turno» con el día en grande. Al lado va la campaña del calendario que corre hoy, con cuenta regresiva viva, SL/HL «hasta X %», lo que llega y lo que sigue; al tocarla, se abre en el Gantt. Las tres cifras de siempre se montan sobre el borde del cielo, con ícono y nota.
+  - **Promociones:** agrupadas por dirección (ícono, cuántas, Marketplace, cuándo terminan y «hasta X %»). El descuento sale en grande, en el color de la dirección. El texto solo aparece cuando dice algo más que el porcentaje, y la vigencia cuenta sola. Al buscar, salen las coincidencias sin agrupar, por relevancia.
+  - **Calendario:** solo el Gantt. Lleva nombres cortos, SL/HL, días con fin de semana y hoy marcados, la línea de hoy por debajo de las barras, y la duración al lado de las barras angostas. Al tocar una campaña se ven sus condiciones por línea. Se quita «Vigencias de la hoja».
+  - **Agenda:** igual.
+- `fxRevealCards` pasa de `'top 92%'` a `'top bottom'`. Con el encabezado nuevo, la primera fila caía en el borde inferior y, si los datos llegaban por red, se quedaba invisible hasta hacer scroll.
+
+**Qué se comprobó:**
+- `npm test`: 23 en verde, incluido el candado de globales por pantalla. El build y el quitacomentarios de Google, en verde.
+- `revelado-monitor.mjs`, con los datos en la página y por red: todas las tarjetas a la vista llegan a opacidad 1, también al bajar. Antes del cambio del revelado fallaba la variante por red.
+- Capturas con datos reales (331 filas y 17 eventos del 02/10, bajados con el Drive y el Calendar del creador y pasados por el `Portal.gs` real) en escritorio, teléfono, Carbón, mañana, con movimiento y con una búsqueda. El detector de impeccable no encontró nada.
+- Revisión final (`impeccable-finish-reviewer`): «fix» con 7 arreglos, entre ellos un antetítulo, contraste en Carbón, la leyenda y el rosa del Gantt, el Gantt en el teléfono, la alineación de los porcentajes y los dos conteos del calendario. En el pase de veredicto, los 7 quedaron resueltos. Las 3 regresiones menores que dejó ese lote, todas del Gantt, se corrigieron en `a43ba14` sin otra ronda de revisión.
+- La `/dev` sirve el código nuevo (leído con `fetch` y `userHtml`).
+
+**Qué se dejó fuera a propósito:**
+- El servidor no cambia.
+- Producción (@131) no lo tiene: espera su vistazo y su palabra.
+- En el teléfono, las 110 tarjetas siguen siendo largas (se usa sobre todo en escritorio).
+- `GANTT_PALETTE` de la página solo pinta en el respaldo.
+- No se escribió un DESIGN.md: es un refinamiento dentro del mundo de «Tu turno».
+- Prototipos, datos, guiones de integración, contrato y capturas: `Desktop\Proyectos\_respaldos\monitor_promociones_propuestas_20261002` (LEEME.txt).
+
 ### 2026-10-02 — Producción @131: todo lo que estaba en pruebas (F0-F5, decisión 8 y los 10 rediseños), pedido por el creador
 
 **Qué se cambió:**
