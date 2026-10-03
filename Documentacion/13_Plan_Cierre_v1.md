@@ -1042,6 +1042,28 @@ y qué se dejó fuera a propósito**. Mismo formato que el registro del document
 
 <!-- Las entradas nuevas van arriba, con la más reciente primero. -->
 
+### 2026-10-03 — Producción @135: íconos de categoría del Monitor (dos rondas) y favicon del Portal, pedido por el creador
+
+**Qué se cambió:**
+- **El pedido:** después de ver el favicon en pruebas, el creador dijo «sube a producción».
+- **Qué faltaba:** lo único que había en pruebas y no en producción eran los íconos del Monitor (`74b8adb` + `b90ba72`) y el favicon (`7c9c569`). Las opciones C y A ya estaban en la @134, que otra sesión subió esa misma tarde.
+- **El cambio:** producción pasó de la @134 a la **@135** con un build de `e600c89`, idéntico a pruebas.
+
+**Qué se comprobó:**
+- **Antes de subir:**
+  - El editor de producción era la @134 documentada: 88 de 91 archivos iguales al paquete; solo cambiaban `app_monitor.html`, `Promociones.html` y `Code.gs`.
+  - En `Code.gs`, la diferencia era únicamente el favicon (`FAVICON_URL`, `conFavicon_` y las tres salidas envueltas).
+  - El deployment estaba en la @134.
+- **Después:**
+  - El editor de producción es igual al paquete (91 de 91).
+  - El deployment `AKfycbwGYZs3…` apunta a la @135 («Iconos del Monitor + favicon sobre la 134»).
+  - En el `/exec`, con el Chrome del creador:
+    - el Monitor lleva el `<link rel="shortcut icon">` del favicon;
+    - su `userHtml` trae `container:mvcard`, `mv-oferta-l` y el revelado `top bottom+\x3d40`;
+    - la portada del Portal lleva el mismo favicon y la imagen carga (64×64).
+
+**Cómo volver atrás:** `clasp update-deployment AKfycbwGYZs3… -V 134 -d "rollback" -P <config de producción>`. La @134 ya tiene las opciones C y A.
+
 ### 2026-10-03 — Producción @134: «Ir a Vista Previa» sin esperar (C) y login sin esperas (A), pedido por el creador
 
 **Qué se cambió:** el creador probó C en pruebas («funcionó correctamente»), pidió A y después «Sube a producción». Producción pasó de la @133 a la **@134** (03/10, ~13:38).
