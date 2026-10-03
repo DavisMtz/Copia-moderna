@@ -180,7 +180,9 @@
 /* La línea de hoy pasa POR DEBAJO de las barras: no tacha su etiqueta. Solo la cabeza asoma. */
 .mv-g-hoy{position:absolute;top:0;bottom:0;width:2px;margin-left:-1px;background:var(--brand);z-index:1;pointer-events:none}
 .mv-g-barra{z-index:2}
-.mv-g-dur{position:absolute;top:50%;z-index:2;display:none;transform:translateY(-50%);font-family:var(--f-mono);font-size:.7rem;font-weight:700;color:var(--bar-color);white-space:nowrap}
+.mv-g-dur{position:absolute;top:50%;z-index:2;display:none;transform:translateY(-50%);padding:.1rem .3rem;border-radius:5px;background:var(--surface);
+  font-family:var(--f-mono);font-size:.7rem;font-weight:700;color:var(--bar-color);white-space:nowrap}
+[data-theme="carbon"] .mv-g-dur{color:color-mix(in srgb,var(--bar-color) 45%,#fff)}
 .mv-g-barra.is-paso + .mv-g-dur{color:var(--ink-faint)}
 .mv-g-barra.es-angosta > *{display:none}
 .mv-g-barra.es-angosta + .mv-g-dur{display:block}
@@ -233,6 +235,7 @@
   .mv-g-barra > span{display:none}
   .mv-g-barra.es-angosta-m > *{display:none}
   .mv-g-barra.es-angosta-m + .mv-g-dur{display:block}
+  .mv-g-hoy::after{display:none}
   .mv-g-dia{font-size:0;padding:.35rem 0}
   .mv-g-dia b{font-size:.6rem}
   .mv-g-dia:not(.es-lunes):not(.es-hoy) b{visibility:hidden}
