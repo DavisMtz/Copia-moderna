@@ -1042,6 +1042,42 @@ y qué se dejó fuera a propósito**. Mismo formato que el registro del document
 
 <!-- Las entradas nuevas van arriba, con la más reciente primero. -->
 
+### 2026-10-04 — «Vende más»: cuatro propuestas para fortalecerlo, probadas antes de implementar (doc 18) — sin cambios en la extensión ni en el Portal
+
+**Qué se cambió:**
+- **El pedido:** «haz pruebas e investigaciones para el punto 1, el punto 2, el punto 4 y el punto 5… pruebas reales… basadas en datos… dame un resultado antes de implementar algo. ¿Qué sí es viable? ¿Qué no?».
+- **Solo documentación:** el documento 18 (`18_Investigacion_Fortalecer_Recomendador.md`). Ni la extensión ni el Portal cambiaron.
+
+**Qué se comprobó** (todo en el doc 18):
+- **Liverpool entrega mucho más de lo que la extensión lee:**
+  - cinco carruseles estructurados (Jewel / VertexAI), con categoría, calificación, opiniones, vendedor y descuento;
+  - la búsqueda trae `records` con `isSponsoredRecord` y existencia en línea;
+  - la bolsa se lee desde la ficha (519 KB, 0.5 s) con `productId` y `addedAt`.
+- **2. El mejor candidato:** reordenar dentro de los 5 primeros con promedio bayesiano y tope de +25 % cambia 76 de 140 elecciones. Las recomendaciones sin opiniones bajan de 49 a 23; la calificación sube de 4.64 a 4.85; el marketplace baja de 47 a 34; y la alternativa cuesta 20 % menos.
+  - En 12,297 resultados hubo 0 patrocinados y 0 sin existencia en línea.
+  - La categoría de Liverpool sirve para confirmar el tipo, no para decidirlo.
+- **1. La bolsa:**
+  - En las fichas de accesorio la tarjeta pasa de no mostrar nada a lo correcto: el adaptador Apple recibe funda y mica del iPhone 16; el control de PS5, juego y base de carga.
+  - La bolsa real tenía artículos de 56-61 h: hace falta una ventana de tiempo. También un guardia de modelo, y que `si` se evalúe sobre el equipo.
+- **4. Medir:** el `productId` une tarjeta, bolsa y confirmación. No hay línea base propia: 42 renglones de cotización, casi todos de prueba.
+  - Con 11 asesores, ±2 puntos se miden en días.
+  - Bandidos: no.
+  - Enviar a un servidor exige TI (doc 14: «cero red») y Jurídico (LFPDPPP 2025).
+- **5. IA para reglas:** un borrador a ciegas para 12 categorías clasificó 24 de 24 fichas reales sin robar ninguna, y sus plantillas pasaron el 76 %. Tras una ronda con errores reales pasaron el 94 %, frente al 90 % de las hechas a mano.
+- **Cuatro errores de la v3.1 encontrados de paso:**
+  - mochila escolar → maleta;
+  - filtro de agua → purificador, con Liverpool Care;
+  - cargador para laptop como cargador de celular;
+  - adaptador de Pencil como hub de laptop.
+
+**Qué se dejó fuera a propósito:**
+- **Implementar cualquiera de las cuatro:** el pedido fue el resultado antes de implementar. El orden recomendado está en el doc 18, §8.
+- **Corregir los cuatro errores de la v3.1:** van como primer paso de ese orden.
+- **Avisos:**
+  - un intento de leer la hoja de cotizaciones descargó un archivo de 198 bytes con los encabezados; se revisó y se borró;
+  - los agentes de investigación agotaron la cuota de búsquedas web de la sesión;
+  - una consulta guardó sola dos PDF en la carpeta interna de la sesión.
+
 ### 2026-10-04 — «Vende más» 2.9: la investigación de venta cruzada, reglas v3.1 con 56 clases — solo la extensión
 
 **Qué se cambió:**
