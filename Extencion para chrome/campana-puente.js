@@ -19,7 +19,7 @@
  *     hijos del mismo origen.
  *   · Solo LEE: nunca escribe en la página ni habla primero con ella.
  *
- * Hecho para Ventel · v1.0 · 04/10/2026
+ * Hecho para Ventel · v1.0 · 03/10/2026
  */
 (function () {
   'use strict';

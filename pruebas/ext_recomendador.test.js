@@ -4,8 +4,8 @@
  *   Ejecutar:  node pruebas/ext_recomendador.test.js
  *
  * Se cargan reglas-venta.js y recomendador-nucleo.js en un contexto aislado, igual que los ve el
- * content script. Las fichas (ext_recomendador_fichas_20261004.json) son las que leyó la propia
- * extensión el 04/10/2026: el iPhone 16, con fundas de otros teléfonos en «Complementa con», y el
+ * content script. Las fichas (ext_recomendador_fichas_20261003.json) son las que leyó la propia
+ * extensión el 03/10/2026: el iPhone 16, con fundas de otros teléfonos en «Complementa con», y el
  * protector solar ISDIN del mensaje del equipo de venta cruzada.
  *
  * Lo que importa comprobar es lo que NO puede pasar: ofrecer una funda que no le queda, un
@@ -17,7 +17,7 @@ const vm = require('vm');
 const path = require('path');
 
 const EXT = path.join(__dirname, '..', 'Extencion para chrome');
-const FICHAS = JSON.parse(fs.readFileSync(path.join(__dirname, 'ext_recomendador_fichas_20261004.json'), 'utf8'));
+const FICHAS = JSON.parse(fs.readFileSync(path.join(__dirname, 'ext_recomendador_fichas_20261003.json'), 'utf8'));
 
 let total = 0, fallos = 0;
 function ok(nombre, cond, extra) {
@@ -123,11 +123,37 @@ ok('sin subida de capacidad (una sola variante)', mPs.incremental.capacidad === 
 ok('sin subida de modelo (nada de ISDIN dentro del 25 %)', mPs.incremental.modelo === null, mPs.incremental.modelo);
 ok('venta cruzada: el sérum y la crema de ISDIN primero',
   mPs.cruzada.length >= 2 && mPs.cruzada[0].id === '1139728676' && mPs.cruzada[1].id === '1009176981', mPs.cruzada.map((r) => r.nombre));
+{
+  const a56 = { id: '9', nombre: 'Galaxy A56 Super AMOLED 6.7 pulgadas', marca: 'SAMSUNG', migas: ['Samsung', 'Celulares'], producto: 'Smartphone', modeloComercial: 'Galaxy A56', variantes: [] };
+  const mA = VM.recomendar(a56, { complementa: [
+    { id: '1', marca: 'SAMSUNG', nombre: 'Mica para smartphone Galaxy de pet', precio: 119 },
+    { id: '2', marca: 'TEKNET', nombre: 'Funda para Galaxy A56 de silicón', precio: 359 }] }, null, REGLAS, AHORA);
+  ok('una mica «Galaxy» sin modelo no se ofrece (puede no ser de su medida): queda la búsqueda',
+    !mA.cruzada.some((r) => r.id === '1') && mA.sugeridas.some((s) => s.consulta === 'mica Galaxy A56'), [mA.cruzada, mA.sugeridas]);
+  ok('la funda del A56 sí, exacta', mA.cruzada.some((r) => r.id === '2' && r.compat === 'exacto'));
+  const honor = { id: '8', nombre: 'Smartphone Honor 400 Lite AMOLED 6.7 pulgadas', marca: 'HONOR', migas: ['Celulares'], producto: 'Smartphone', modeloComercial: 'Honor 400 Lite', variantes: [] };
+  const mH = VM.recomendar(honor, { complementa: [{ id: '3', marca: 'GENERICA', nombre: 'Funda para Honor 400 Lite de TPU', precio: 299 }] }, null, REGLAS, AHORA);
+  ok('una marca cuyo modelo no se sabe leer: su «Modelo comercial» basta para la funda exacta', mH.cruzada.some((r) => r.id === '3' && r.compat === 'exacto'), mH.cruzada);
+  const a57 = { id: '6', nombre: 'Galaxy A57 Super AMOLED plus 6.7 pulgadas', marca: 'SAMSUNG', migas: ['Samsung', 'Celulares'], producto: 'Smartphone', modeloComercial: 'Galaxy A57', variantes: [] };
+  const fundaA57 = { id: '1197734147', marca: 'SAMSUNG', nombre: 'Funda para Galaxy A57 de policarbonato', precio: 209.6 };
+  const m57 = VM.recomendar(a57, { relacionados: [fundaA57, { id: '5', marca: 'SAMSUNG', nombre: 'Galaxy A37 Super AMOLED 6.7 pulgadas', precio: 6199 }] },
+    null, REGLAS, AHORA, { 'funda Galaxy A57': [fundaA57] });
+  ok('la funda exacta que Liverpool también pone en «Artículos relacionados» no queda vetada', m57.cruzada.some((r) => r.id === fundaA57.id && r.compat === 'exacto'), m57.cruzada);
+  const sinClase = { id: '4', nombre: 'Artículo sin clase', marca: 'ZARA', migas: ['Accesorios'], variantes: [] };
+  const mB = VM.recomendar(sinClase,
+    { complementa: [{ id: '31', marca: 'X', nombre: 'Artículo parecido', precio: 300 }], relacionados: [{ id: '31', marca: 'X', nombre: 'Artículo parecido', precio: 300 }] }, null, REGLAS, AHORA);
+  ok('sin clase reconocida, lo que también está en «Artículos relacionados» sigue fuera', !mB.cruzada.some((r) => r.id === '31'), mB.cruzada);
+  const sinModelo = { id: '7', nombre: 'Smartphone Honor AMOLED 6.7 pulgadas', marca: 'HONOR', migas: ['Celulares'], producto: 'Smartphone', variantes: [] };
+  const mS = VM.recomendar(sinModelo, { complementa: [{ id: '4', marca: 'HONOR', nombre: 'Funda Honor transparente', precio: 249 }] }, null, REGLAS, AHORA);
+  ok('sin saber el modelo del equipo, la funda de su marca se sigue ofreciendo', mS.cruzada.some((r) => r.id === '4' && r.compat === 'marca'), mS.cruzada);
+}
 ok('ningún protector o bloqueador solar como «complemento»', !mPs.cruzada.some((r) => /protector solar|bloqueador/i.test(r.nombre)));
 ok('ni el labial ni el aceite capilar (tipos que la regla no conoce)',
   !mPs.cruzada.some((r) => ['1174570027', '1159294591'].indexOf(r.id) > -1), mPs.cruzada.map((r) => r.nombre));
-ok('las búsquedas llenan los huecos con tipos que sí le van',
-  JSON.stringify(mPs.sugeridas.map((s) => s.consulta)) === JSON.stringify(['limpiador facial Isdin', 'agua termal']), mPs.sugeridas);
+ok('el tercer lugar es otro tipo facial que la regla conoce (el tónico)',
+  mPs.cruzada.length === 3 && mPs.cruzada[2].tipo === 'tonico', mPs.cruzada.map((r) => r.tipo + ' ' + r.nombre));
+ok('la búsqueda llena el hueco con un tipo que sí le va',
+  JSON.stringify(mPs.sugeridas.map((s) => s.consulta)) === JSON.stringify(['limpiador facial Isdin']), mPs.sugeridas);
 ok('nunca sugiere buscar otro protector solar', !mPs.sugeridas.some((s) => /solar/.test(s.consulta)));
 ok('Liverpool Care no aplica a cuidado facial aunque la ficha traiga la póliza', mPs.servicio === false);
 
@@ -230,6 +256,128 @@ error = null;
 try { VM.recomendar({ id: '9', nombre: 'iPhone 16' }, { complementa: [{}, null, { id: '1' }] }, { promos: [null, {}] }, REGLAS, AHORA); } catch (e) { error = e.message; }
 ok('candidatos y promociones rotos se ignoran', !error, error);
 
+seccion('12 · Lo que falló al medir 15 categorías el 03/10/2026 (fichas reales, casos recortados)');
+const BUS = JSON.parse(fs.readFileSync(path.join(__dirname, 'ext_busquedas_20261003.json'), 'utf8'));
+const fichaDe = (o) => Object.assign({ id: '1', migas: [], producto: null, modeloComercial: null, precio: null, esRango: false,
+  varianteActual: null, skuUrl: null, seleccion: null, variantes: [], colores: [], care: false }, o);
+const it = (id, marca, nombre, precio) => ({ id: String(id), marca, nombre, precio: precio == null ? 500 : precio });
+{
+  const laptop = fichaDe({ nombre: 'Laptop 15-fd0161la 15.6 pulgadas Full HD Intel Core i5', marca: 'HP', migas: ['Electrónica', 'Computación', 'Laptops'], producto: 'Laptop', precio: 11999,
+    variantes: [{ sku: '1', price: 11999, inStock: true }], varianteActual: '1' });
+  const m = VM.recomendar(laptop, { complementa: [
+    it(10, 'APPLE', 'iPhone 16 6.1 pulgadas Super Retina XDR', 17499),
+    it(11, 'HP', 'Mouse inalámbrico 400 silencioso AZ7B2AA', 399),
+    it(12, 'XIAOMI', 'Funda para tablet Xiaomi Pad 6 y Pad 6 Pro de 11 pulgadas', 499),
+    it(13, 'KINGSTON', 'Memoria Micro SD capacidad 512 GB', 899)
+  ] }, null, REGLAS, AHORA);
+  ok('laptop: el mouse sí', m.cruzada.some((r) => r.id === '11'), m.cruzada.map((r) => r.nombre));
+  ok('laptop: una funda de tablet NO es su mochila', !m.cruzada.some((r) => r.id === '12'));
+  ok('laptop: una micro SD NO es un disco externo', !m.cruzada.some((r) => r.id === '13'));
+  ok('laptop: busca la mochila (para 15 pulgadas) y el disco', JSON.stringify(m.busquedas.map((b) => b.consulta)) ===
+    JSON.stringify(['mochila para laptop 15 pulgadas', 'disco duro externo']), m.busquedas);
+  const m2 = VM.recomendar(laptop, { complementa: [it(11, 'HP', 'Mouse inalámbrico 400 silencioso AZ7B2AA', 399)] }, null, REGLAS, AHORA,
+    { 'mochila para laptop 15 pulgadas': BUS['mochila para laptop 15 pulgadas'] });
+  const moch = m2.cruzada.find((r) => r.tipo === 'mochila');
+  ok('laptop: con la búsqueda, una mochila CON portalaptop (la «escolar» no dice laptop)', moch && moch.id === '1168658720' && moch.origen === 'busqueda', m2.cruzada);
+}
+{
+  const lav = fichaDe({ nombre: 'Lavadora Kit Limpieza 25 KG automática carga superior LMP752', marca: 'MABE', migas: ['Mabe', 'Lavado y Secado'], producto: 'Lavadora', precio: 12000,
+    variantes: [{ sku: '1', price: 12000, inStock: true }], varianteActual: '1' });
+  const m = VM.recomendar(lav, { complementa: [
+    it(20, 'MABE', 'Combo lavadora + secadora 23 kg automática carga frontal', 30000),
+    it(21, 'GENÉRICA', 'Funda secadora compatible con Whirlpool 17-24 kg', 400),
+    it(22, 'WHIRLPOOL', 'Pedestal Plata XHPC155YC', 3000)
+  ] }, null, REGLAS, AHORA);
+  ok('lavadora: clase propia (no «línea blanca» revuelta)', m.clase && m.clase.id === 'lavadora', m.clase);
+  ok('lavadora: el combo lavadora + secadora es un sustituto, no un complemento', !m.cruzada.some((r) => r.id === '20'));
+  ok('lavadora: una funda de secadora no es la secadora', !m.cruzada.some((r) => r.id === '21'));
+  ok('lavadora: el pedestal de OTRA marca no se ofrece', !m.cruzada.some((r) => r.id === '22'));
+  ok('lavadora: busca su secadora Mabe y el regulador', JSON.stringify(m.busquedas.map((b) => b.consulta)) ===
+    JSON.stringify(['secadora Mabe', 'regulador para lavadora']), m.busquedas);
+  const m2 = VM.recomendar(lav, {}, null, REGLAS, AHORA, { 'secadora Mabe': BUS['secadora Mabe'] });
+  const sec = m2.cruzada.find((r) => r.tipo === 'secadora');
+  ok('lavadora: con la búsqueda, la secadora de 25 kg (hace par con la de 25 kg), no lavadoras ni centros de lavado',
+    sec && sec.id === '1126937152', m2.cruzada);
+}
+{
+  const refri = fichaDe({ nombre: 'Refrigerador dúplex 20 pies cúbicos inverter Y no frost RS20', marca: 'HISENSE', migas: ['Hisense', 'Linea Blanca'], producto: 'Dúplex', precio: 15000 });
+  const m = VM.recomendar(refri, { complementa: [it(30, 'WHIRLPOOL', 'Pedestal blanco WFP2715HW', 3000), it(31, 'HISENSE', 'Lavadora 22 kg automática carga frontal', 9000)] }, null, REGLAS, AHORA);
+  ok('refrigerador: clase propia', m.clase && m.clase.id === 'refrigerador', m.clase);
+  ok('refrigerador: un pedestal de lavadora no se ofrece, ni una lavadora', m.cruzada.length === 0, m.cruzada);
+  ok('refrigerador: busca el regulador', m.busquedas.length && m.busquedas[0].consulta === 'regulador para refrigerador', m.busquedas);
+}
+{
+  const a56 = fichaDe({ nombre: 'Galaxy A56 Super AMOLED 6.7 pulgadas', marca: 'SAMSUNG', migas: ['Samsung', 'Celulares'], producto: 'Smartphone', precio: 8999 });
+  const m = VM.recomendar(a56, { complementa: [it(40, 'GENERICA', 'Funda para Apple de plástico', 299), it(41, 'SAMSUNG', 'Adaptador tipo C', 399)] }, null, REGLAS, AHORA);
+  ok('Galaxy A56: una «Funda para Apple» no se cuela', !m.cruzada.some((r) => r.id === '40'), m.cruzada);
+  ok('Galaxy A56: el adaptador Samsung sí', m.cruzada.some((r) => r.id === '41'));
+  ok('Galaxy A56: busca funda y mica de su modelo', JSON.stringify(m.busquedas.map((b) => b.consulta)) === JSON.stringify(['funda Galaxy A56', 'mica Galaxy A56'])
+    || JSON.stringify(m.busquedas.map((b) => b.consulta)) === JSON.stringify(['funda galaxy a56', 'mica galaxy a56']), m.busquedas);
+}
+{
+  const gg = fichaDe({ nombre: 'Eau de parfum Good Girl para mujer', marca: 'CAROLINA HERRERA', migas: ['Belleza', 'Perfumes', 'Perfumes Mujer'], producto: 'Aceite', precio: 2800,
+    variantes: [{ sku: '50', size: '50 ml', price: 2800, inStock: true }, { sku: '80', size: '80 ml', price: 3610, inStock: true }], varianteActual: '50', seleccion: { talla: '50 ml' } });
+  const m = VM.recomendar(gg, { complementa: [it(50, 'CAROLINA HERRERA', 'Kit Eau de parfum Heiress para mujer', 3000)],
+    relacionados: [it(51, 'CAROLINA HERRERA', 'Eau de parfum La Bomba Intensa para mujer', 2940)] }, null, REGLAS, AHORA);
+  ok('perfume: sube a 80 ml (la misma fragancia)', m.incremental.capacidad && m.incremental.capacidad.talla === '80 ml', m.incremental.capacidad);
+  ok('perfume: OTRA fragancia no es «subir la versión»', m.incremental.modelo === null, m.incremental.modelo);
+  ok('perfume: el kit de otra línea (Heiress) no es su set', !m.cruzada.some((r) => r.id === '50'));
+  ok('perfume: busca el set de SU línea', m.busquedas[0] && m.busquedas[0].consulta === 'set good girl Carolina herrera', m.busquedas);
+  const m2 = VM.recomendar(gg, {}, null, REGLAS, AHORA, { 'set good girl Carolina herrera': BUS['set good girl Carolina herrera'] });
+  ok('perfume: con la búsqueda, el Kit Good Girl, de su línea', m2.cruzada[0] && m2.cruzada[0].id === '1204484968' && m2.cruzada[0].compat === 'exacto', m2.cruzada);
+}
+{
+  const nike = fichaDe({ nombre: 'Tenis Air Max Excee de hombre', marca: 'NIKE', migas: ['Hombre', 'Zapatos', 'Tenis Casuales de Hombre'], producto: 'Tenis', precio: 2299 });
+  const m = VM.recomendar(nike, { complementa: [it(60, 'NIKE', 'Pants slim con elástico para hombre', 1299), it(61, 'NIKE', 'Playera cuello redondo para mujer', 699)] }, null, REGLAS, AHORA);
+  ok('tenis: «completa el look» con ropa del mismo género', m.cruzada.some((r) => r.id === '60'), m.cruzada);
+  ok('tenis: una playera de mujer no, para unos tenis de hombre', !m.cruzada.some((r) => r.id === '61'));
+  ok('tenis: busca calcetines Nike de hombre', m.busquedas.some((b) => b.consulta === 'calcetines Nike hombre'), m.busquedas);
+  const m2 = VM.recomendar(nike, {}, null, REGLAS, AHORA, { 'calcetines Nike hombre': BUS['calcetines Nike hombre'] });
+  const cal = m2.cruzada.find((r) => r.tipo === 'calcetines');
+  ok('tenis: con la búsqueda, una calceta (unisex u hombre), nunca la de niño', cal && cal.id !== '1157860064', m2.cruzada);
+}
+{
+  const col = fichaDe({ nombre: 'Colchón performance', marca: 'SPRING AIR', migas: ['Muebles', 'Colchones', 'Colchones'], producto: 'Colchón', precio: 9000,
+    variantes: [{ sku: 'm', size: 'Matrimonial', price: 9000, inStock: true }, { sku: 'k', size: 'King Size', price: 12000, inStock: true }], varianteActual: 'm', seleccion: { talla: 'Matrimonial' } });
+  const m = VM.recomendar(col, { complementa: [it(70, 'SPRING AIR', 'Box King Size', 4000), it(71, 'SPRING AIR', 'Box matrimonial Wonder', 3500), it(72, 'SLEEP', 'Protector de colchón Towel-Tech', 900)] }, null, REGLAS, AHORA);
+  ok('colchón: la medida sale de la variante elegida (matrimonial), no del nombre', m.busquedas.every((b) => !/\{/.test(b.consulta)), m.busquedas);
+  ok('colchón: un box King no le queda a un matrimonial', !m.cruzada.some((r) => r.id === '70'), m.cruzada);
+  ok('colchón: el box matrimonial sí, como exacto', m.cruzada.some((r) => r.id === '71' && r.compat === 'exacto'), m.cruzada);
+}
+{
+  const sony = fichaDe({ nombre: 'Audífonos On-Ear inalámbricos', marca: 'SONY', migas: ['Electrónica', 'Audio', 'Audífonos'], producto: 'Audífonos On-Ear', precio: 1499 });
+  const m = VM.recomendar(sony, { complementa: [it(80, 'HP', 'Multifuncional Smart Tank 580 de tinta continua', 4999), it(81, 'SONY', 'Micrófono portátil inalámbrico ECM-G1', 2999), it(82, 'GENÉRICA', 'Porta audífonos in-ear', 199)] }, null, REGLAS, AHORA);
+  ok('audífonos: clase audio', m.clase && m.clase.id === 'audio', m.clase);
+  ok('audífonos: ni la impresora ni el micrófono', !m.cruzada.some((r) => r.id === '80' || r.id === '81'), m.cruzada);
+  ok('audífonos: el porta audífonos sí', m.cruzada.some((r) => r.id === '82'), m.cruzada);
+}
+{
+  const ps5 = fichaDe({ nombre: 'Consola PS5 de 825 GB edición bundle', marca: 'PLAYSTATION', migas: ['Otras Categorias', 'Top deals'], producto: 'Consola fija', precio: 11000 });
+  const m = VM.recomendar(ps5, { complementa: [it(90, 'ROCKSTAR', 'Grand Theft Auto VI estándar para PS5', 1599), it(91, 'NINTENDO', 'Mario Kart World para Nintendo Switch 2', 1599)] }, null, REGLAS, AHORA);
+  ok('consola: «Grand Theft Auto VI… para PS5» cuenta como juego', m.cruzada.some((r) => r.id === '90' && r.tipo === 'juego'), m.cruzada);
+  ok('consola: un juego de Switch no, para una PS5', !m.cruzada.some((r) => r.id === '91'));
+}
+{
+  const sol = fichaDe({ nombre: 'Protector solar FPS 50', marca: 'ISDIN', migas: ['Belleza', 'Cuidado Facial', 'Protectores Solares'], producto: 'Protector solar', precio: 650,
+    variantes: [{ sku: '1', price: 650, inStock: true }], varianteActual: '1' });
+  const m = VM.recomendar(sol, { complementa: [it(95, 'SISLEY', 'Crema Ecological Compound para todo tipo de piel', 7050), it(96, 'ISDIN', 'Crema facial hidratante', 600)] }, null, REGLAS, AHORA);
+  ok('precio: una crema de $7,050 junto a un protector de $650, no', !m.cruzada.some((r) => r.id === '95'), m.cruzada);
+  ok('precio: la de $600 sí', m.cruzada.some((r) => r.id === '96'));
+}
+
+seccion('13 · iPhone 16: qué busca y cómo entra lo que trae la búsqueda');
+{
+  const plan = mIp.busquedas.map((b) => b.consulta);
+  ok('solo busca la mica (la funda exacta y el cargador de la marca ya estaban)', JSON.stringify(plan) === '["mica iPhone 16"]', plan);
+  const mB = VM.recomendar(copia(ip.ficha), copia(ip.carruseles), null, REGLAS, AHORA, { 'mica iPhone 16': BUS['mica iPhone 16'] });
+  const mica = mB.cruzada.find((r) => r.tipo === 'mica');
+  ok('con la búsqueda entra una mica del iPhone 16 exacto (no Pro, Plus ni 17)', mica && mica.compat === 'exacto' && /iphone 16(?! pro| plus)/i.test(mica.nombre), mica);
+  ok('la funda de la búsqueda no cuenta como mica', !mB.cruzada.some((r) => r.id === '1185859220'));
+  ok('los dos exactos van primero: funda y mica; después el adaptador', JSON.stringify(mB.cruzada.map((r) => r.tipo)) === '["funda","mica","cargador"]', mB.cruzada.map((r) => r.tipo));
+  ok('el plan no cambia al llegar los resultados (no se vuelve a buscar)', JSON.stringify(mB.busquedas.map((b) => b.consulta)) === '["mica iPhone 16"]');
+  ok('la mica de la búsqueda trae su consulta (para «más opciones»)', mica && mica.consulta === 'mica iPhone 16' && mica.origen === 'busqueda');
+}
+
 seccion('11 · El fondo (fondo.js): de dónde acepta promociones y cómo las sanea');
 {
   let oyente = null;
@@ -283,8 +431,89 @@ seccion('11 · El fondo (fondo.js): de dónde acepta promociones y cómo las san
     ok('desde el /exec configurado en el popup: sí', r.ok && almacen.ventelPromos && almacen.ventelPromos.despliegue === 'AKfycbMIO', r);
     r = await mandar({ id: 'EXT', url: marco, tab: { url: 'https://script.google.com/macros/s/' + PRUE + '/dev' } }, JSON.stringify(Object.assign({}, crudo, { generado: AH - 3600000 })));
     ok('una copia más vieja no pisa la guardada', r.ok && r.guardado === false && almacen.ventelPromos.despliegue === 'AKfycbMIO', r);
+    ok('el interruptor del Portal: «busqueda: false» llega tal cual',
+      fondo.sanear(JSON.stringify(Object.assign({}, crudo, { ajustes: { busqueda: false } })), AH).ajustes.busqueda === false);
+    ok('…y sin ajustes, o con basura, la búsqueda queda encendida',
+      fondo.sanear(JSON.stringify(crudo), AH).ajustes.busqueda === true &&
+      fondo.sanear(JSON.stringify(Object.assign({}, crudo, { ajustes: { busqueda: 'no' } })), AH).ajustes.busqueda === true);
 
+    await pruebasBuscador();
     console.log('\n' + (fallos ? '✖ ' + fallos + ' de ' + total + ' fallaron' : '✔ ' + total + ' comprobaciones en verde'));
     process.exit(fallos ? 1 : 0);
   })();
+}
+
+/* El buscador (buscador-liverpool.js): caché, ritmo, freno. Con un sitio y un almacén falsos. */
+async function pruebasBuscador() {
+  seccion('14 · El buscador: nunca hace que Liverpool bloquee al asesor');
+  vm.runInContext(fs.readFileSync(path.join(EXT, 'buscador-liverpool.js'), 'utf8'), ctx, { filename: 'buscador-liverpool.js' });
+  const B = ctx.VentelBuscador;
+  ok('VentelBuscador existe', !!B && typeof B.crear === 'function');
+  let reloj = 1000000000000;
+  let almacen = {}, pedidos = [], respuesta = { status: 200, texto: 'ok' }, lectura = { titulo: 'Mica | Liverpool', items: [{ id: '1', nombre: 'Mica para iPhone 16' }] };
+  const nuevo = () => B.crear({
+    leer: (ks) => Promise.resolve(ks.reduce((o, k) => { if (k in almacen) o[k] = JSON.parse(JSON.stringify(almacen[k])); return o; }, {})),
+    guardar: (o) => { Object.assign(almacen, JSON.parse(JSON.stringify(o))); return Promise.resolve(); },
+    pedir: (url) => { pedidos.push(url); return typeof respuesta === 'function' ? respuesta() : Promise.resolve(respuesta); },
+    leerResultados: () => lectura,
+    ahora: () => reloj
+  });
+  let b = nuevo();
+  let r = await b.buscar('Mica iPhone 16');
+  ok('la primera vez va a la red, con la búsqueda pública', r.de === 'red' && pedidos.length === 1 && pedidos[0] === '/tienda?s=Mica%20iPhone%2016', [r, pedidos]);
+  r = await b.buscar('mica   iphone 16');
+  ok('la misma búsqueda (otra escritura) sale de la caché, sin red', r.de === 'cache' && pedidos.length === 1, [r, pedidos.length]);
+  ok('deCache la encuentra sin salir a la red', (await b.deCache('MICA IPHONE 16')).length === 1 && pedidos.length === 1);
+  reloj += B.TTL + 1;
+  r = await b.buscar('mica iphone 16');
+  ok('pasadas 24 h, vuelve a la red', r.de === 'red' && pedidos.length === 2, pedidos.length);
+
+  almacen = {}; pedidos = []; b = nuevo();
+  for (let i = 0; i < 4; i++) await b.buscar('consulta ' + i);
+  r = await b.buscar('consulta 4');
+  ok('ritmo: la quinta en el mismo minuto no sale', r.items === null && r.motivo === 'ritmo' && pedidos.length === 4, [r, pedidos.length]);
+  reloj += 61000;
+  r = await b.buscar('consulta 4');
+  ok('…y al minuto siguiente sí', r.de === 'red' && pedidos.length === 5);
+  almacen[B.CLAVES.ritmo] = Array.from({ length: 40 }, (_, i) => reloj - 120000 - i * 1000);
+  r = await b.buscar('consulta 5');
+  ok('ritmo: 40 en la última hora y no sale ni una más', r.items === null && r.motivo === 'ritmo', r);
+
+  almacen = {}; pedidos = []; b = nuevo();
+  respuesta = { status: 403, texto: '' };
+  r = await b.buscar('algo');
+  ok('freno: un 403 apaga la búsqueda', r.items === null && r.motivo === 'freno' && almacen[B.CLAVES.pausa] === reloj + B.PAUSA, [r, almacen[B.CLAVES.pausa]]);
+  respuesta = { status: 200, texto: 'ok' };
+  r = await b.buscar('otra cosa');
+  ok('freno: durante la pausa no sale nada, ni otra búsqueda', r.motivo === 'pausa' && pedidos.length === 1, [r, pedidos.length]);
+  reloj += B.PAUSA + 1;
+  r = await b.buscar('otra cosa');
+  ok('freno: pasada la hora, vuelve', r.de === 'red' && pedidos.length === 2, [r, pedidos.length]);
+  lectura = { titulo: 'Access Denied', items: [] };
+  r = await b.buscar('tercera');
+  ok('freno: una página «Access Denied» también lo activa', r.motivo === 'freno' && almacen[B.CLAVES.pausa] > reloj, r);
+  lectura = { titulo: 'Mica | Liverpool', items: [{ id: '1', nombre: 'x' }] };
+
+  almacen = {}; pedidos = []; b = nuevo(); reloj += B.PAUSA + 1;
+  respuesta = () => Promise.reject(new Error('sin red'));
+  r = await b.buscar('sin red');
+  ok('sin red: no lanza y frena', r.items === null && r.motivo === 'freno', r);
+  respuesta = { status: 200, texto: 'ok' };
+
+  almacen = {}; pedidos = []; b = nuevo(); reloj += B.PAUSA + 1;
+  const cache = {};
+  for (let i = 0; i < B.TOPE_CACHE; i++) cache['vieja ' + i] = { en: reloj - 1000 + i, items: [] };
+  almacen[B.CLAVES.cache] = cache;
+  await b.buscar('la nueva');
+  const claves = Object.keys(almacen[B.CLAVES.cache]);
+  ok('la caché no pasa de ' + B.TOPE_CACHE + ' búsquedas y tira la más vieja', claves.length === B.TOPE_CACHE && claves.indexOf('vieja 0') === -1 && claves.indexOf('la nueva') > -1, claves.length);
+
+  almacen = {}; pedidos = []; b = nuevo(); reloj += 120000;
+  let soltar;
+  respuesta = () => new Promise((res) => { soltar = () => res({ status: 200, texto: 'ok' }); });
+  const p1 = b.buscar('doble'), p2 = b.buscar('doble');
+  await new Promise((res) => setTimeout(res, 5));
+  soltar();
+  const [r1, r2] = await Promise.all([p1, p2]);
+  ok('dos pedidos iguales a la vez salen como UNO', pedidos.length === 1 && r1 === r2, pedidos.length);
 }

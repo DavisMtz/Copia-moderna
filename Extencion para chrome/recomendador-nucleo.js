@@ -4,27 +4,30 @@
  * =============================================================================
  * Todas las decisiones de la tarjeta «Vende más con este artículo», sin DOM ni
  * chrome.*: de qué tipo es el artículo, qué complemento SÍ le queda, cuál es el
- * siguiente escalón y qué promoción del Monitor se le puede decir al cliente.
+ * siguiente escalón, qué buscar en liverpool.com.mx y qué promoción del Monitor
+ * se le puede decir al cliente.
  *
- * Va aparte de recomendador.js (que lee la ficha y pinta) para poder probarlo en
- * Node con datos de fichas reales: pruebas/ext_recomendador.test.js.
+ * Va aparte de recomendador.js (que lee la ficha, busca y pinta) para poder
+ * probarlo en Node con fichas y búsquedas reales: pruebas/ext_recomendador.test.js.
  *
- * Tres reglas que no se ven leyendo el código y que costaría romper:
+ * Reglas que no se ven leyendo el código y que costaría romper:
  *
- *   1. LOS CANDIDATOS SON DE LIVERPOOL. Salen de los carruseles que la ficha ya
- *      pinta. Aquí solo se filtran, se ordenan y se reparten por tipo; lo único
- *      que se inventa es una BÚSQUEDA para el tipo que faltó (nunca un producto
- *      ni un precio).
+ *   1. LOS CANDIDATOS SON DE LIVERPOOL: los carruseles de la ficha y, desde la
+ *      2.7, la búsqueda del sitio. Aquí se filtran, se ordenan y se reparten
+ *      por tipo; nunca se inventa un producto ni un precio.
  *   2. COMPATIBILIDAD ANTES QUE NADA. En la ficha del iPhone 16, «Complementa
- *      con» ofrecía fundas de iPhone 17e, de Pixel y de Samsung (03/10/2026). Una
- *      funda de otro modelo no es venta cruzada: es una devolución.
- *   3. EL MONITOR MANDA EN LAS PROMOCIONES. «La más fuerte» es la misma cuenta
- *      que el Monitor hace en notas(): el mayor porcentaje de las vigentes, y en
- *      empate la primera. El servidor la manda ya hecha (ventaCruzadaPromos).
+ *      con» ofrecía fundas de iPhone 17e, de Pixel y de Samsung (03/10/2026); en
+ *      el Galaxy A56, una «Funda para Apple». Una funda de otro modelo no es
+ *      venta cruzada: es una devolución.
+ *   3. UNO POR TIPO, Y EL MEJOR DE CADA TIPO: primero el del mismo modelo;
+ *      dentro del mismo nivel, el del carrusel antes que el de la búsqueda (el
+ *      carrusel dice que la gente lo compra; la búsqueda solo que se llama así).
+ *   4. EL MONITOR MANDA EN LAS PROMOCIONES. «La más fuerte» es la cuenta de
+ *      notas() del Monitor; el servidor la manda hecha (ventaCruzadaPromos).
  *
  * Expone `VentelVM` en el global (el mundo aislado de la extensión, o el
  * contexto de la prueba).
- * Hecho para Ventel · v1.0 · 04/10/2026
+ * Hecho para Ventel · v1.1 · 03/10/2026
  */
 (function (raiz) {
   'use strict';
@@ -57,11 +60,12 @@
     });
   }
 
-  /** «iphone 16» → «iPhone 16»; el resto, con mayúscula inicial. */
+  /** «iphone 16» → «iPhone 16», «galaxy a56» → «Galaxy A56»; el resto, con mayúscula inicial. */
   function bonito(s) {
     var t = String(s || '').trim();
     if (!t) return '';
     return t.replace(/\biphone\b/gi, 'iPhone').replace(/\bipad\b/gi, 'iPad')
+      .replace(/\b([a-z])(\d{1,3}[a-z]?)\b/g, function (_, l, n) { return l.toUpperCase() + n; })
       .replace(/^./, function (c) { return c.toUpperCase(); });
   }
 
@@ -70,10 +74,9 @@
   // ===========================================================================
 
   /**
-   * La clase de la ficha. Puntúa tres señales y gana la más alta:
-   *   la característica «Producto» (3), la ÚLTIMA miga (2) y el principio del
-   *   nombre (1). La primera miga no cuenta: puede ser una campaña («Regreso a
-   *   Clases») y entonces todo sería «Regreso a Clases».
+   * La clase de la ficha. Puntúa tres señales y gana la más alta: la
+   * característica «Producto» (3), la ÚLTIMA miga (2) y el principio del nombre
+   * (1). La primera miga no cuenta: puede ser una campaña («Regreso a Clases»).
    */
   function clasificar(ficha, reglas) {
     if (!reglas || !reglas.clases) return null;
@@ -92,7 +95,7 @@
     return mejor;
   }
 
-  /** La clase que delata el nombre de OTRO artículo (un candidato de carrusel). */
+  /** La clase que delata el nombre de OTRO artículo (un candidato). */
   function claseDeNombre(nombre, reglas) {
     var t = norm(nombre);
     if (!t || !reglas || !reglas.clases) return null;
@@ -103,11 +106,13 @@
   }
 
   // ===========================================================================
-  // Dispositivos: familia, modelo, plataforma, pulgadas
+  // Datos que se leen del nombre: familia, modelo, plataforma, medidas, género, línea
   // ===========================================================================
 
+  // «apple» cuenta como iPhone y como iPad: una «Funda para Apple» se coló en la
+  // ficha del Galaxy A56 cuando solo se miraba la palabra «iphone».
   var FAMILIAS = [
-    ['iphone', /\biphone/], ['ipad', /\bipad/],
+    ['iphone', /\b(iphone|apple)\b/], ['ipad', /\b(ipad|apple)\b/],
     ['samsung', /\b(samsung|galaxy)\b/], ['pixel', /\b(pixel|google)\b/],
     ['xiaomi', /\b(xiaomi|redmi|poco)\b/], ['motorola', /\b(motorola|moto)\b/],
     ['oppo', /\boppo\b/], ['huawei', /\b(huawei|matepad)\b/], ['honor', /\bhonor\b/],
@@ -123,8 +128,7 @@
 
   /**
    * El modelo concreto: «iphone 16», «iphone 16 pro», «iphone 17e», «galaxy s25
-   * ultra», «moto g15». Sin modelo (null) si el texto solo dice la familia:
-   * «Funda para iPhone» no dice para cuál.
+   * ultra», «moto g15». Sin modelo (null) si el texto solo dice la familia.
    */
   function modeloDe(texto) {
     var t = norm(texto);
@@ -158,9 +162,41 @@
     return a < b ? [a, b] : null;
   }
 
-  function tamanoColchon(texto) {
-    var m = norm(texto).match(/\b(individual|matrimonial|queen|king)\b/);
+  var TAMANOS = /\b(individual|matrimonial|queen|king)\b/;
+  function tamanoDe(texto) {
+    var m = norm(texto).match(TAMANOS);
     return m ? m[1] : null;
+  }
+
+  /** Los kilos de un aparato de lavado («22 kg»): sirven para que la secadora haga par. */
+  function kilosDe(texto) {
+    var m = norm(texto).match(/\b(\d{1,2})\s*kg\b/);
+    return m ? parseInt(m[1], 10) : null;
+  }
+
+  /** Para quién es: mujer, hombre, niño o unisex (null si no lo dice). */
+  function generoDe(texto) {
+    var t = norm(texto);
+    if (/\bunisex\b/.test(t)) return 'unisex';
+    if (/\b(nin[oa]s?|infantil(es)?|bebes?|junior|kids)\b/.test(t)) return 'nino';
+    if (/\b(mujer(es)?|dama(s)?|femenin[oa])\b/.test(t)) return 'mujer';
+    if (/\b(hombres?|caballeros?|masculin[oa])\b/.test(t)) return 'hombre';
+    return null;
+  }
+  var GENERO_TEXTO = { mujer: 'mujer', hombre: 'hombre', nino: 'niño' };
+
+  // Lo que dice el nombre de un perfume y NO es su línea.
+  var GENERICO_PERFUME = /\b(eau de (parfum|toilette|cologne)|edp|edt|perfume|fragancia|colonia|locion|intenso|intense|para|de|del|la|el|mujer|hombre|dama|caballero|unisex|mini|travel|spray|vaporizador|\d+(\.\d+)?\s*ml)\b/g;
+
+  /** La línea de una fragancia: «Eau de parfum Good Girl para mujer» → «good girl». */
+  function lineaDe(nombre, marca) {
+    var t = norm(nombre);
+    norm(marca).split(' ').forEach(function (w) {
+      if (w.length > 2) t = t.replace(new RegExp('\\b' + w.replace(/[.*+?^${}()|[\]\\]/g, '') + '\\b', 'g'), ' ');
+    });
+    t = t.replace(GENERICO_PERFUME, ' ').replace(/[^a-z0-9 ]+/g, ' ').replace(/\s+/g, ' ').trim();
+    var palabras = t.split(' ').filter(function (w) { return w.length > 1; }).slice(0, 3);
+    return palabras.length ? palabras.join(' ') : null;
   }
 
   // ===========================================================================
@@ -177,6 +213,16 @@
     var texto = (ficha.nombre || '') + ' ' + (ficha.modeloComercial || '');
     var esEquipo = !!(clase && clase.dispositivo);
     var modelo = esEquipo ? (modeloDe(ficha.modeloComercial || '') || modeloDe(ficha.nombre || '')) : null;
+    var vs = (ficha.variantes || []).filter(function (v) { return v && typeof v.price === 'number'; });
+    var elegida = varianteElegida(ficha, vs);
+    // La medida del colchón vive en la VARIANTE («Matrimonial»), no en el nombre («Colchón performance»).
+    var tamano = null;
+    if (clase && clase.id === 'colchon') {
+      tamano = tamanoDe((ficha.seleccion && ficha.seleccion.talla) || '') ||
+        (elegida ? tamanoDe(elegida.size || '') : null) || tamanoDe(texto);
+    }
+    var genero = clase && clase.moda ? generoDe((ficha.migas || []).join(' ') + ' ' + (ficha.nombre || '')) : null;
+    var linea = clase && clase.id === 'perfume' ? lineaDe(ficha.nombre, ficha.marca) : null;
     var ctx = {
       ficha: ficha,
       clase: clase,
@@ -184,7 +230,11 @@
       modelo: modelo,
       plataforma: clase && clase.id === 'consola' ? plataformaDe(texto) : null,
       pulgadas: clase && (clase.id === 'tv' || clase.id === 'laptop') ? pulgadasDe(texto) : null,
-      tamano: clase && clase.id === 'colchon' ? tamanoColchon(texto) : null,
+      tamano: tamano,
+      kilos: clase && (clase.id === 'lavadora' || clase.id === 'secadora') ? kilosDe(texto) : null,
+      modeloComercial: esEquipo && ficha.modeloComercial ? norm(ficha.modeloComercial) : null,
+      genero: genero,
+      linea: linea,
       precioBase: precioBase(ficha)
     };
     ctx.vars = {
@@ -192,7 +242,9 @@
       marca: ficha.marca ? bonito(String(ficha.marca).toLowerCase()) : null,
       pulgadas: ctx.pulgadas ? String(ctx.pulgadas) : null,
       plataforma: ctx.plataforma ? PLATAFORMA_TEXTO[ctx.plataforma] : null,
-      tamano: ctx.tamano
+      tamano: ctx.tamano,
+      genero: genero && genero !== 'unisex' ? GENERO_TEXTO[genero] : null,
+      linea: linea
     };
     return ctx;
   }
@@ -200,7 +252,7 @@
   /**
    * ¿La variante en foco es una ELECCIÓN del asesor o solo la primera del color?
    * Lo es si eligió talla en la ficha, si la abrió por su enlace (?skuid=, que
-   * Liverpool no marca como talla elegida: medido el 04/10/2026 con el iPhone 16
+   * Liverpool no marca como talla elegida: medido el 03/10/2026 con el iPhone 16
    * de 512 GB) o si la ficha no enseña un rango de precios.
    */
   function varianteElegida(ficha, vs) {
@@ -222,8 +274,27 @@
   }
 
   // ===========================================================================
-  // Venta cruzada
+  // Venta cruzada: tipo, sustituto y compatibilidad de cada candidato
   // ===========================================================================
+
+  /**
+   * El tipo de un candidato: el de la regla cuya palabra ABRE su nombre (el
+   * sustantivo), con sus `requiere`/`excluye`; o «otro» con su primera palabra.
+   * `conocido` dice si salió de la regla.
+   */
+  function tipoDe(item, clase) {
+    var t = norm(item.nombre);
+    if (clase) {
+      for (var i = 0; i < clase.complementos.length; i++) {
+        var c = clase.complementos[i];
+        if (!c.palabras.test(t)) continue;
+        if (c.requiere && !c.requiere.test(t)) continue;
+        if (c.excluye && c.excluye.test(t)) continue;
+        return { tipo: c.tipo, etiqueta: c.etiqueta, peso: c.peso, conocido: true, regla: c };
+      }
+    }
+    return { tipo: 'otro:' + (t.split(' ')[0] || '?'), etiqueta: '', peso: 0.2, conocido: false, regla: null };
+  }
 
   function esAccesorio(t, clase) {
     if (!clase) return false;
@@ -244,6 +315,8 @@
       var propio = tipoDe({ nombre: ctx.ficha.nombre }, ctx.clase);
       return !!(propio.conocido && tipoDe(item, ctx.clase).tipo === propio.tipo);
     }
+    // «Combo lavadora + secadora» no complementa a la lavadora: la reemplaza.
+    if (/^combo\b/.test(t)) return true;
     var c = claseDeNombre(t, reglas);
     if (c && c.id === ctx.clase.id) return true;
     // Un equipo que no dice su familia: «600E Amoled 6.6 Pulgadas Telcel».
@@ -254,145 +327,208 @@
 
   /**
    * Qué tan bien le queda al artículo de la ficha:
-   *   'exacto'   nombra el mismo modelo, plataforma o un rango de pulgadas que lo incluye;
-   *   'marca'    misma marca, sin modelo de por medio («Adaptador de corriente» de Apple);
+   *   'exacto'   mismo modelo, plataforma, rango de pulgadas, medida o línea;
+   *   'marca'    misma marca, sin modelo de por medio;
    *   'generico' no depende del equipo (un cargador USB-C);
    *   'familia'  misma familia pero sin modelo («Funda para iPhone»: ¿cuál?);
-   *   null       es de otro equipo: se descarta.
+   *   null       no le queda: se descarta.
+   * `regla` es la del tipo del candidato (sus candados: mismaMarca, mismaLinea,
+   * mismoTamano, mismoGenero).
    */
-  function compatibilidad(item, ctx) {
+  function compatibilidad(item, ctx, regla) {
     var t = String(item.nombre || '');
+    var nt = norm(t);
+    var marcaFicha = norm(ctx.ficha.marca);
+    var mismaMarca = !!marcaFicha && (norm(item.marca) === marcaFicha || nt.indexOf('compatible con ' + marcaFicha) > -1);
+    var exacto = false;
+
     if (ctx.familias.length) {
       var fams = familiasDe(t + ' ' + (item.marca || ''));
       var comun = fams.some(function (f) { return ctx.familias.indexOf(f) > -1; });
       if (fams.length && !comun) return null;
       var m = modeloDe(t);
       if (m && ctx.modelo && m !== ctx.modelo) return null;
-      if (m && ctx.modelo && m === ctx.modelo) return 'exacto';
-      if (comun && norm(item.marca) !== norm(ctx.ficha.marca)) return 'familia';
+      if (m && ctx.modelo && m === ctx.modelo) exacto = true;
+      // El «Modelo comercial» de la ficha, dicho tal cual en el candidato, también es exacto:
+      // así entran las marcas cuyo modelo no se sabe leer («Funda para Honor 400 Lite»).
+      else if (!m && ctx.modeloComercial && ctx.modeloComercial.length > 3 && nt.indexOf(ctx.modeloComercial) > -1) exacto = true;
+      else if (comun && !mismaMarca) return 'familia';
     }
     if (ctx.plataforma) {
       var p = plataformaDe(t);
       if (p && p !== ctx.plataforma) return null;
-      if (p) return 'exacto';
+      if (p) exacto = true;
     }
     if (ctx.pulgadas) {
       var r = rangoPulgadas(t);
       if (r && (ctx.pulgadas < r[0] || ctx.pulgadas > r[1])) return null;
-      if (r) return 'exacto';
+      if (r) exacto = true;
     }
-    if (ctx.ficha.marca && norm(item.marca) === norm(ctx.ficha.marca)) return 'marca';
-    return 'generico';
-  }
-
-  /** Dónde termina la segunda palabra: el tipo tiene que empezar antes de ahí. */
-  function finDeLaCabeza(t) {
-    var p = t.split(' ');
-    return p.length > 2 ? p[0].length + 1 + p[1].length : t.length;
-  }
-
-  /**
-   * El tipo de complemento de un candidato: el de la regla cuya palabra EMPIEZA
-   * en las dos primeras del nombre (el sustantivo, en los nombres de Liverpool),
-   * o «otro» con su primera palabra. `conocido` dice si salió de la regla.
-   */
-  function tipoDe(item, clase) {
-    var t = norm(item.nombre);
-    var cabeza = finDeLaCabeza(t);
-    if (clase) {
-      for (var i = 0; i < clase.complementos.length; i++) {
-        var c = clase.complementos[i];
-        var m = c.palabras.exec(t);
-        if (m && m.index <= cabeza) {
-          return { tipo: c.tipo, etiqueta: c.etiqueta, peso: c.peso, conocido: true };
-        }
+    if (regla) {
+      if (regla.mismaMarca && !mismaMarca) return null;
+      if (regla.mismaLinea && ctx.linea) {
+        if (nt.indexOf(ctx.linea) === -1) return null;
+        exacto = true;
+      }
+      if (regla.mismoTamano && ctx.tamano) {
+        var tam = tamanoDe(t);
+        if (tam && tam !== ctx.tamano) return null;
+        if (tam) exacto = true;
+      }
+      if (regla.mismoGenero && ctx.genero && ctx.genero !== 'unisex') {
+        var g = generoDe(t);
+        if (g && g !== 'unisex' && g !== ctx.genero) return null;
       }
     }
-    return { tipo: 'otro:' + (t.split(' ')[0] || '?'), etiqueta: '', peso: 0.2, conocido: false };
+    if (exacto) return 'exacto';
+    if (mismaMarca) return 'marca';
+    return 'generico';
   }
 
   var RANGO_COMPAT = { exacto: 0, marca: 1, generico: 2, familia: 3 };
 
-  /**
-   * El escalón de un candidato: 0 el mismo modelo; 1 un tipo que la regla da por
-   * natural; 2 un tipo que la regla no conoce (lo propuso Liverpool, pero sin
-   * respaldo: un shampoo íntimo «complementaba» un protector solar); 3 la misma
-   * familia sin modelo («Funda para iPhone»: puede no ser la suya).
-   */
-  function escalon(c) {
-    if (c.compat === 'exacto') return 0;
-    if (c.compat === 'familia') return 3;
-    return c.conocido ? 1 : 2;
+  /** ¿El precio es proporcionado? Un complemento de más del doble del artículo, no. */
+  function precioRazonable(item, ctx, reglas, regla) {
+    if (typeof item.precio !== 'number' || !ctx.precioBase) return true;
+    var tope = (regla && regla.topePrecio) || (reglas && reglas.topePrecio) || 2;
+    return item.precio <= ctx.precioBase * tope;
   }
 
   /**
-   * Hasta `maximo` complementos, UNO POR TIPO, por escalón; dentro del escalón,
-   * el tipo que más se vende con este artículo, luego la misma marca antes que
-   * el genérico, y al final el orden en que los puso Liverpool.
-   * @param {Array<{origen:string, items:Array}>} listas «Complementa con» primero.
+   * Todos los candidatos que sirven, con su tipo y su compatibilidad.
+   * `listas`: [{ origen, items, tipoBuscado? }]. Los de una búsqueda solo valen
+   * si son del tipo que se buscó: buscar «mica iPhone 16» también trae fundas.
    */
-  function elegirCruzada(listas, ctx, reglas, opciones) {
-    var maximo = (opciones && opciones.maximo) || 3;
-    var excluir = (opciones && opciones.excluir) || {};
-    var vistos = {}, candidatos = [];
-    (listas || []).forEach(function (lista) {
+  function candidatos(listas, ctx, reglas, excluir) {
+    excluir = excluir || {};
+    var vistos = {}, out = [];
+    (listas || []).forEach(function (lista, nLista) {
       (lista.items || []).forEach(function (it) {
-        if (!it || !it.id || !it.nombre || vistos[it.id] || it.id === ctx.ficha.id || excluir[it.id]) return;
-        vistos[it.id] = true;
-        if (esSustituto(it, ctx, reglas)) return;
-        var c = compatibilidad(it, ctx);
-        if (!c) return;
+        if (!it || !it.id || !it.nombre || it.id === ctx.ficha.id) return;
         var tipo = tipoDe(it, ctx.clase);
         // Con el tipo de artículo reconocido, un complemento que la regla no conoce
-        // no ocupa lugar: el hueco lo llena una búsqueda de un tipo que sí le va
-        // (en el protector solar, «limpiador facial» en vez de un labial).
+        // no ocupa lugar (en el protector solar se colaba un shampoo íntimo).
         if (ctx.clase && !tipo.conocido) return;
-        candidatos.push(Object.assign({}, it, {
+        // «Artículos relacionados» son parecidos al artículo: fuera, salvo que sean un
+        // complemento reconocido (Liverpool también pone ahí la funda del mismo modelo).
+        if (excluir[it.id] && !tipo.conocido) return;
+        if (lista.tipoBuscado && tipo.tipo !== lista.tipoBuscado) return;
+        var clave = it.id;
+        if (vistos[clave]) return;
+        if (esSustituto(it, ctx, reglas)) return;
+        var c = compatibilidad(it, ctx, tipo.regla);
+        if (!c) return;
+        // Sabiendo el modelo del equipo, una funda o una mica que no lo dice puede no ser
+        // de su medida: mejor la búsqueda (o su sugerencia). Sin modelo, se queda la de la marca.
+        if (tipo.regla && tipo.regla.exacto && c !== 'exacto' && (ctx.modelo || ctx.modeloComercial)) return;
+        if (!precioRazonable(it, ctx, reglas, tipo.regla)) return;
+        vistos[clave] = true;
+        out.push(Object.assign({}, it, {
           compat: c, tipo: tipo.tipo, etiquetaTipo: tipo.etiqueta, peso: tipo.peso, conocido: tipo.conocido,
-          origen: lista.origen, orden: candidatos.length
+          regla: undefined, origen: lista.origen, nLista: nLista, orden: out.length,
+          consulta: lista.consulta || null
         }));
       });
     });
-    candidatos.sort(function (a, b) {
-      return (escalon(a) - escalon(b)) || (b.peso - a.peso) ||
-        (RANGO_COMPAT[a.compat] - RANGO_COMPAT[b.compat]) || (a.orden - b.orden);
-    });
-    var tipos = {}, out = [];
-    for (var i = 0; i < candidatos.length && out.length < maximo; i++) {
-      if (tipos[candidatos[i].tipo]) continue;
-      tipos[candidatos[i].tipo] = true;
-      out.push(candidatos[i]);
-    }
     return out;
   }
 
   /**
-   * Búsquedas para los tipos que la regla da por naturales y Liverpool no trajo
-   * (la mica del iPhone). Solo si la plantilla se puede llenar entera.
+   * El mejor candidato de cada tipo: el del mismo modelo; luego el que no es
+   * «familia»; luego el del carrusel antes que el de la búsqueda; luego la marca
+   * antes que el genérico; y al final el orden de Liverpool. Para el par de un
+   * aparato (secadora de una lavadora), los kilos más parecidos.
    */
-  function sugerirBusquedas(ctx, elegidos, maximo) {
+  function mejorPorTipo(cands, ctx) {
+    var porTipo = {};
+    cands.forEach(function (c) { (porTipo[c.tipo] = porTipo[c.tipo] || []).push(c); });
+    var mejores = {};
+    Object.keys(porTipo).forEach(function (tipo) {
+      porTipo[tipo].sort(function (a, b) {
+        var ea = a.compat === 'exacto' ? 0 : 1, eb = b.compat === 'exacto' ? 0 : 1;
+        if (ea !== eb) return ea - eb;
+        var fa = a.compat === 'familia' ? 1 : 0, fb = b.compat === 'familia' ? 1 : 0;
+        if (fa !== fb) return fa - fb;
+        if (ctx.kilos) {
+          var ka = kilosDe(a.nombre), kb = kilosDe(b.nombre);
+          var da = ka ? Math.abs(ka - ctx.kilos) : 99, db = kb ? Math.abs(kb - ctx.kilos) : 99;
+          if (da !== db) return da - db;
+        }
+        var oa = a.origen === 'busqueda' ? 1 : 0, ob = b.origen === 'busqueda' ? 1 : 0;
+        if (oa !== ob) return oa - ob;
+        return (RANGO_COMPAT[a.compat] - RANGO_COMPAT[b.compat]) || (a.orden - b.orden);
+      });
+      mejores[tipo] = porTipo[tipo][0];
+    });
+    return mejores;
+  }
+
+  /**
+   * Hasta `maximo` complementos, UNO POR TIPO: primero los tipos con un
+   * candidato del mismo modelo, luego por lo natural que es ofrecerlos (peso).
+   */
+  function elegirCruzada(listas, ctx, reglas, opciones) {
+    var maximo = (opciones && opciones.maximo) || 3;
+    var mejores = mejorPorTipo(candidatos(listas, ctx, reglas, opciones && opciones.excluir), ctx);
+    return Object.keys(mejores).map(function (k) { return mejores[k]; }).sort(function (a, b) {
+      var ea = a.compat === 'exacto' ? 0 : 1, eb = b.compat === 'exacto' ? 0 : 1;
+      var fa = a.compat === 'familia' ? 1 : 0, fb = b.compat === 'familia' ? 1 : 0;
+      return (fa - fb) || (ea - eb) || (b.peso - a.peso) || (a.orden - b.orden);
+    }).slice(0, maximo);
+  }
+
+  /** Los tipos que la regla da por naturales para ESTA ficha (respeta `si`), del más al menos natural. */
+  function tiposNaturales(ctx) {
     if (!ctx.clase) return [];
+    var titulo = norm(ctx.ficha.nombre);
+    var propio = tipoDe({ nombre: ctx.ficha.nombre }, ctx.clase);
+    return ctx.clase.complementos.filter(function (c) {
+      if (c.si && !c.si.test(titulo)) return false;
+      // Nunca el tipo del propio artículo: en un protector solar, «busca un protector solar» es un sustituto.
+      return !(propio.conocido && propio.tipo === c.tipo);
+    }).sort(function (a, b) { return b.peso - a.peso; });
+  }
+
+  /** La búsqueda de un tipo, con la plantilla llena; null si le falta un dato. */
+  function consultaDe(regla, ctx) {
+    if (!regla || !regla.buscar) return null;
+    var falta = false;
+    var q = regla.buscar.replace(/\{(\w+)\}/g, function (_, k) {
+      var v = ctx.vars[k];
+      if (!v) falta = true;
+      return v || '';
+    }).replace(/\s+/g, ' ').trim();
+    return falta || !q ? null : q;
+  }
+
+  /**
+   * Qué buscar en liverpool.com.mx: de los tres tipos más naturales, los que
+   * no tienen un buen candidato (ninguno, o uno «familia», o sin el modelo
+   * exacto cuando el tipo lo exige). Como mucho `maximo`.
+   */
+  function planDeBusquedas(ctx, mejores, maximo) {
+    var out = [];
+    tiposNaturales(ctx).slice(0, 3).forEach(function (regla) {
+      if (out.length >= (maximo || 2)) return;
+      var b = mejores[regla.tipo];
+      var bueno = b && b.compat !== 'familia' && (!regla.exacto || b.compat === 'exacto');
+      if (bueno) return;
+      var q = consultaDe(regla, ctx);
+      if (q) out.push({ tipo: regla.tipo, etiqueta: regla.etiqueta, consulta: q });
+    });
+    return out;
+  }
+
+  /** Búsquedas para abrir en Liverpool de los tipos naturales que se quedaron sin candidato. */
+  function sugerirBusquedas(ctx, elegidos, maximo) {
     var hechos = {};
     (elegidos || []).forEach(function (e) { hechos[e.tipo] = true; });
-    // Nunca el tipo del propio artículo: en un protector solar, «busca un protector solar» es un sustituto.
-    var propio = tipoDe({ nombre: ctx.ficha.nombre }, ctx.clase);
-    if (propio.conocido) hechos[propio.tipo] = true;
-    var titulo = norm(ctx.ficha.nombre);
-    var lista = ctx.clase.complementos.slice().sort(function (a, b) { return b.peso - a.peso; });
     var out = [];
-    for (var i = 0; i < lista.length && out.length < (maximo || 2); i++) {
-      var c = lista[i];
-      if (hechos[c.tipo] || !c.buscar) continue;
-      if (c.si && !c.si.test(titulo)) continue;
-      var faltaAlgo = false;
-      var consulta = c.buscar.replace(/\{(\w+)\}/g, function (_, k) {
-        var v = ctx.vars[k];
-        if (!v) faltaAlgo = true;
-        return v || '';
-      }).replace(/\s+/g, ' ').trim();
-      if (faltaAlgo || !consulta) continue;
-      out.push({ tipo: c.tipo, etiqueta: c.etiqueta, consulta: consulta });
-    }
+    tiposNaturales(ctx).forEach(function (regla) {
+      if (out.length >= (maximo || 2) || hechos[regla.tipo]) return;
+      var q = consultaDe(regla, ctx);
+      if (q) out.push({ tipo: regla.tipo, etiqueta: regla.etiqueta, consulta: q });
+    });
     return out;
   }
 
@@ -456,11 +592,13 @@
   /**
    * El siguiente modelo, de «Artículos relacionados»: misma marca, mismo tipo,
    * más caro pero dentro del tope (25 %, o 35 % en ticket alto). Gana el escalón
-   * más cercano: el que el cliente sí puede decir que sí.
+   * más cercano. No aplica donde otro artículo no es «más versión» (perfumes,
+   * cuidado facial, ropa y calzado): ahí solo cuenta la capacidad de la ficha.
    */
   function subidaModelo(relacionados, ctx, reglas) {
     var base = ctx.precioBase;
     if (!base || !relacionados || !relacionados.length) return null;
+    if (ctx.clase && ctx.clase.sinSubidaDeModelo) return null;
     var s = (reglas && reglas.subida) || { tope: 0.25, topeAlto: 0.35, ticketAlto: 10000 };
     var tope = base >= s.ticketAlto ? s.topeAlto : s.tope;
     var marca = norm(ctx.ficha.marca);
@@ -576,20 +714,31 @@
    * @param {Object} paquete     las promociones del Portal (o null)
    * @param {Object} reglas      VENTEL_REGLAS
    * @param {number} ahora       ms
+   * @param {Object} busquedas   (opcional) { consulta: [items] } lo que ya trajo la búsqueda
    */
-  function recomendar(ficha, carruseles, paquete, reglas, ahora) {
+  function recomendar(ficha, carruseles, paquete, reglas, ahora, busquedas) {
     var ctx = contexto(ficha, reglas);
     carruseles = carruseles || {};
+    busquedas = busquedas || {};
     var relacionados = carruseles.relacionados || [];
     var excluir = {};
     relacionados.forEach(function (r) { if (r && r.id) excluir[r.id] = true; });
 
     var capacidad = subidaCapacidad(ficha);
     var modelo = subidaModelo(relacionados, ctx, reglas);
-    var cruzada = elegirCruzada([
+
+    var listas = [
       { origen: 'complementa', items: carruseles.complementa || [] },
       { origen: 'otros', items: carruseles.otros || [] }
-    ], ctx, reglas, { maximo: 3, excluir: excluir });
+    ];
+    // El plan se decide SIN las búsquedas: así no cambia cuando llegan sus resultados.
+    var plan = planDeBusquedas(ctx, mejorPorTipo(candidatos(listas, ctx, reglas, excluir), ctx), 2);
+    plan.forEach(function (b) {
+      if (busquedas[b.consulta]) {
+        listas.push({ origen: 'busqueda', items: busquedas[b.consulta], tipoBuscado: b.tipo, consulta: b.consulta });
+      }
+    });
+    var cruzada = elegirCruzada(listas, ctx, reglas, { maximo: 3, excluir: excluir });
     var sugeridas = sugerirBusquedas(ctx, cruzada, cruzada.length >= 3 ? 1 : 2);
 
     var frase = paquete ? fraseApertura(paquete, ahora) : null;
@@ -602,6 +751,7 @@
       precioBase: ctx.precioBase,
       incremental: { capacidad: capacidad, modelo: modelo },
       cruzada: cruzada,
+      busquedas: plan,
       sugeridas: sugeridas,
       servicio: !!(ficha.care && (!ctx.clase || ctx.clase.servicio)),
       promos: {
@@ -614,14 +764,17 @@
   }
 
   raiz.VentelVM = {
-    version: '1.0',
+    version: '1.1',
     norm: norm, num: num, pesos: pesos, bonito: bonito,
     clasificar: clasificar, claseDeNombre: claseDeNombre,
     familiasDe: familiasDe, modeloDe: modeloDe, plataformaDe: plataformaDe,
-    pulgadasDe: pulgadasDe, rangoPulgadas: rangoPulgadas, tamanoColchon: tamanoColchon,
+    pulgadasDe: pulgadasDe, rangoPulgadas: rangoPulgadas, tamanoDe: tamanoDe,
+    kilosDe: kilosDe, generoDe: generoDe, lineaDe: lineaDe,
     contexto: contexto, precioBase: precioBase, varianteElegida: varianteElegida,
     esSustituto: esSustituto, compatibilidad: compatibilidad, tipoDe: tipoDe,
-    elegirCruzada: elegirCruzada, sugerirBusquedas: sugerirBusquedas,
+    candidatos: candidatos, mejorPorTipo: mejorPorTipo, elegirCruzada: elegirCruzada,
+    tiposNaturales: tiposNaturales, consultaDe: consultaDe, planDeBusquedas: planDeBusquedas,
+    sugerirBusquedas: sugerirBusquedas,
     maxMsi: maxMsi, subidaCapacidad: subidaCapacidad, subidaModelo: subidaModelo,
     promosVigentes: promosVigentes, fraseApertura: fraseApertura, promoParaFicha: promoParaFicha,
     recomendar: recomendar

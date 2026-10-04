@@ -1,0 +1,50 @@
+{
+  "capturado": "2026-10-03",
+  "nota": "Resultados REALES de la búsqueda de liverpool.com.mx (/tienda?s=…), leídos como los lee la extensión (marca en h4, nombre en h3, primer precio). Recortados a los primeros 12-14. Datos de Liverpool: si cambian, se vuelven a capturar, no se editan a mano.",
+  "mica iPhone 16": [
+    { "id": "99984306223", "marca": "ATTI", "nombre": "Mica para smartphone Serie de iphone 16 de cristal templado", "precio": 299, "rango": false, "desc": null },
+    { "id": "1181424245", "marca": "GENERICA", "nombre": "Mica para smartphone iPhone 16 de hidrogel", "precio": 499, "rango": false, "desc": null },
+    { "id": "1173853340", "marca": "GENÉRICA", "nombre": "Mica para iPhone 16 Pro de hidrogel", "precio": 399, "rango": false, "desc": null },
+    { "id": "1180661341", "marca": "TEKNET", "nombre": "Mica para smartphone iPhone 16 Plus de cristal templado", "precio": 359, "rango": false, "desc": null },
+    { "id": "1180661359", "marca": "TEKNET", "nombre": "Mica para smartphone iPhone 16 Pro de cristal templado", "precio": 359, "rango": false, "desc": null },
+    { "id": "1176013741", "marca": "GENÉRICA", "nombre": "Mica para smartphone iPhone 16 Pro de hidrogel", "precio": 499, "rango": false, "desc": null },
+    { "id": "1183920568", "marca": "GROUND", "nombre": "Mica para smartphone iPhone 17 Pro de cristal templado", "precio": 186.75, "rango": false, "desc": null },
+    { "id": "1193182425", "marca": "BELKIN", "nombre": "Mica para tablet smartphone compatible con Iphone 16 Pro/17", "precio": 599, "rango": false, "desc": null },
+    { "id": "99981415573", "marca": "TEKNET", "nombre": "Mica para smartphone iPhone 16 de cristal templado", "precio": 418.56, "rango": true, "desc": null },
+    { "id": "1183920533", "marca": "GROUND", "nombre": "Mica para smartphone iPhone 17 Pro Max de cristal templado", "precio": 186.75, "rango": false, "desc": null },
+    { "id": "1183920541", "marca": "GROUND", "nombre": "Mica para smartphone iPhone 17 de cristal templado", "precio": 186.75, "rango": false, "desc": null },
+    { "id": "1173850766", "marca": "GENÉRICA", "nombre": "Mica para iPhone 16 Pro Max de hidrogel", "precio": 399, "rango": false, "desc": null },
+    { "id": "1185859220", "marca": "TEKNET", "nombre": "Funda para iPhone 16 de silicón", "precio": 359, "rango": false, "desc": null },
+    { "id": "1180661332", "marca": "TEKNET", "nombre": "Mica para smarphone iPhone 16 de 6.1 pulgadas de cristal templado", "precio": 359, "rango": false, "desc": null }
+  ],
+  "secadora Mabe": [
+    { "id": "1085618454", "marca": "MABE", "nombre": "Secadora de gas lp de 22 kg con 4 ciclos SMG47N5MSBAB0", "precio": 8644.55, "rango": false, "desc": null },
+    { "id": "1049824340", "marca": "MABE", "nombre": "Secadora de gas LP de 22 kg con 4 ciclos SMG47N8MSBAB0", "precio": 9848.58, "rango": false, "desc": null },
+    { "id": "1105661793", "marca": "MABE", "nombre": "Secadora electrónica de 22 kg con 4 ciclos SME47N8MSBBT0", "precio": 9848.51, "rango": false, "desc": null },
+    { "id": "1105386831", "marca": "MABE", "nombre": "Secadora de gas LP de 22 kg con 4 ciclos SMG47N8MSDAB0", "precio": 11171.51, "rango": false, "desc": null },
+    { "id": "1126937152", "marca": "MABE", "nombre": "Secadora de gas lp de 25 kg con 37 ciclos DMG17R8MSDAB2", "precio": 13229.58, "rango": false, "desc": null },
+    { "id": "1105027911", "marca": "MABE", "nombre": "Lavadora 22 kg automática carga superior lma72215wbab0ja", "precio": 9816.91, "rango": false, "desc": null },
+    { "id": "1175156352", "marca": "MABE", "nombre": "Lavadora 20 kg automática carga superior lma70214cbab0", "precio": 7912.91, "rango": false, "desc": null },
+    { "id": "1158330381", "marca": "MABE", "nombre": "Centro de lavado gas LP 24 kg MCL2440PSBB0", "precio": 21461.51, "rango": false, "desc": null }
+  ],
+  "mochila para laptop 15 pulgadas": [
+    { "id": "1168658720", "marca": "COOL CAPITAL", "nombre": "Mochila con portalaptop Dott impermeable unisex", "precio": 619, "rango": true, "desc": null },
+    { "id": "1109875798", "marca": "HP", "nombre": "Mochila escolar 15 Prelude impermeable unisex", "precio": 349.3, "rango": false, "desc": null },
+    { "id": "1182395745", "marca": "CM TOP", "nombre": "Mochila con portalaptop impermeable", "precio": 569, "rango": false, "desc": null },
+    { "id": "1187389321", "marca": "SAMSONITE", "nombre": "Mochila con portalaptop Guardit 3.0 para hombre", "precio": 1124.25, "rango": false, "desc": null },
+    { "id": "1157485039", "marca": "TRAVEL BLUE", "nombre": "Mochila para viaje Artículos De Viaje unisex", "precio": 599.5, "rango": false, "desc": null },
+    { "id": "1103812913", "marca": "REDLEMON", "nombre": "Mochila para Laptop Antirrobo Puerto USB extra grande", "precio": 699, "rango": false, "desc": null }
+  ],
+  "calcetines Nike hombre": [
+    { "id": "1180900101", "marca": "NIKE", "nombre": "Calceta para entrenamiento U Nk Nsw Everyday Essential An unisex", "precio": 265.3, "rango": false, "desc": null },
+    { "id": "1081976332", "marca": "NIKE", "nombre": "Calceta comfort para entrenamiento para hombre", "precio": 449, "rango": false, "desc": null },
+    { "id": "1157860064", "marca": "NIKE", "nombre": "Set de calceta comfort para entrenamiento para niño 6 pares", "precio": 349.3, "rango": false, "desc": null },
+    { "id": "1097494591", "marca": "NIKE", "nombre": "Set de calceta para entrenamiento para hombre 3 pares", "precio": 449, "rango": false, "desc": null }
+  ],
+  "set good girl Carolina herrera": [
+    { "id": "1204484968", "marca": "CAROLINA HERRERA", "nombre": "Kit Eau de parfum Good Girl para mujer", "precio": 3690, "rango": false, "desc": null },
+    { "id": "1204093624", "marca": "CAROLINA HERRERA", "nombre": "Kit Eau de parfum Good Girl Blush para mujer", "precio": 4020, "rango": false, "desc": null },
+    { "id": "1142934062", "marca": "CAROLINA HERRERA", "nombre": "Eau de parfum good girl blush para mujer", "precio": 3135, "rango": true, "desc": null },
+    { "id": "1106802463", "marca": "CAROLINA HERRERA", "nombre": "Bálsamo Good Girl Mini Tint de 13 g", "precio": 680, "rango": false, "desc": null }
+  ]
+}

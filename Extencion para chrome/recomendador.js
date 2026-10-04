@@ -15,6 +15,9 @@
  *   · los candidatos: los carruseles que Liverpool ya pinta en la ficha
  *     («Complementa con», «Otros clientes compraron», «Artículos relacionados»).
  *     Llegan en la página desde el servidor, sin bajar por ella (03/10/2026);
+ *   · desde la 2.7, la búsqueda del sitio (buscador-liverpool.js) para los tipos
+ *     que los carruseles no trajeron bien: como mucho dos por ficha, DESPUÉS de
+ *     pintar, con caché de 24 h, ritmo acotado y freno si el sitio se queja;
  *   · las promociones: chrome.storage.local['ventelPromos'], que deja ahí la
  *     extensión cuando el asesor abre el Portal (campana-puente.js → fondo.js).
  *
@@ -28,7 +31,7 @@
  *   · Nada aquí agrega a la bolsa: la sesión del asesor puede estar ligada a un
  *     cliente por el Panel del agente. Todo abre la ficha y el asesor decide.
  *
- * Hecho para Ventel · v1.0 · 04/10/2026
+ * Hecho para Ventel · v1.0 · 03/10/2026
  */
 (function () {
   'use strict';
@@ -51,7 +54,10 @@
     promos: null,
     plegado: false,
     firma: '',
-    avisoCopia: 0
+    avisoCopia: 0,
+    resultados: {},   // consulta → resultados de la búsqueda, para ESTA ficha
+    intentadas: {},   // consulta → ya se pidió (a la caché o a la red) en esta ficha
+    buscando: false
   };
 
   // ── chrome.storage, con red: al recargar la extensión, una pestaña ya abierta
@@ -64,6 +70,12 @@
     } catch (e) { cb({}); }
   }
   function guardar(obj) { try { chrome.storage.local.set(obj); } catch (e) { /* sin contexto */ } }
+  function leerP(claves) { return new Promise(function (r) { leer(claves, r); }); }
+  function guardarP(obj) {
+    return new Promise(function (r) {
+      try { chrome.storage.local.set(obj, function () { r(); }); } catch (e) { r(); }
+    });
+  }
 
   function esFicha() { return /^\/tienda\/pdp\/[^/]+\/\d{6,}/.test(location.pathname); }
   function idDeRuta() { var m = location.pathname.match(/\/(\d{6,})\/?$/); return m ? m[1] : null; }
@@ -162,26 +174,46 @@
     var vistos = {}, out = [];
     var tarjetas = document.querySelectorAll('a[data-testid^="' + prefijo + '-product-"]');
     for (var t = 0; t < tarjetas.length; t++) {
-      var a = tarjetas[t];
-      var m = (a.getAttribute('data-testid') || '').match(/-product-(\d{6,})-card-link$/);
+      var m = (tarjetas[t].getAttribute('data-testid') || '').match(/-product-(\d{6,})-card-link$/);
       if (!m || vistos[m[1]]) continue;
       vistos[m[1]] = true;
-      var plano = (a.textContent || '').replace(/\s+/g, '');
-      var precios = plano.match(/\$[\d,]+(?:\.\d{1,2})?/g) || [];
-      var img = a.querySelector('img');
-      var h4 = a.querySelector('h4'), h3 = a.querySelector('h3');
-      out.push({
-        id: m[1],
-        marca: h4 ? (h4.textContent || '').trim() : '',
-        nombre: h3 ? (h3.textContent || '').trim() : '',
-        precio: precios[0] ? VM.num(precios[0]) : null,
-        rango: /\$[\d,.]+-\$/.test(plano),
-        desc: (plano.match(/-(\d{1,2})%/) || [])[1] || null,
-        img: img ? (img.currentSrc || img.getAttribute('src')) : null,
-        href: a.getAttribute('href') || ''
-      });
+      out.push(tarjetaDe(tarjetas[t], m[1]));
     }
     return out;
+  }
+
+  /** Una tarjeta de producto de Liverpool (carrusel o búsqueda: la misma forma, marca en h4 y nombre en h3). */
+  function tarjetaDe(a, id) {
+    var plano = (a.textContent || '').replace(/\s+/g, '');
+    var precios = plano.match(/\$[\d,]+(?:\.\d{1,2})?/g) || [];
+    var img = a.querySelector('img');
+    var h4 = a.querySelector('h4'), h3 = a.querySelector('h3');
+    return {
+      id: id,
+      marca: h4 ? (h4.textContent || '').trim() : '',
+      nombre: h3 ? (h3.textContent || '').trim() : '',
+      precio: precios[0] ? VM.num(precios[0]) : null,
+      rango: /\$[\d,.]+-\$/.test(plano),
+      desc: (plano.match(/-(\d{1,2})%/) || [])[1] || null,
+      img: img ? (img.currentSrc || img.getAttribute('src')) : null,
+      href: a.getAttribute('href') || ''
+    };
+  }
+
+  /** Los productos de una página de resultados (/tienda?s=…) ya descargada. */
+  function resultadosDe(texto) {
+    var doc = new DOMParser().parseFromString(String(texto || ''), 'text/html');
+    var vistos = {}, items = [];
+    var enlaces = doc.querySelectorAll('a[href*="/pdp/"]');
+    for (var i = 0; i < enlaces.length; i++) {
+      var id = (enlaces[i].getAttribute('href') || '').split('?')[0].split('/').pop();
+      if (!/^\d{6,}$/.test(id) || vistos[id] || !enlaces[i].querySelector('h3')) continue;
+      vistos[id] = true;
+      var it = tarjetaDe(enlaces[i], id);
+      it.img = it.img && /^https:/.test(it.img) ? it.img : null;
+      items.push(it);
+    }
+    return { titulo: doc.title || '', items: items };
   }
 
   function leerCarruseles() {
@@ -273,9 +305,19 @@
         precio: r.precio, desc: r.desc, desde: r.rango
       });
     }).join('');
-    var chips = m.sugeridas.map(function (b) {
-      return '<a class="chip" href="' + esc(urlBusqueda(b.consulta)) + '" target="_blank" rel="noopener">' +
-        LUPA + '<span>' + esc(VM.bonito(b.consulta)) + '</span></a>';
+    // «Más opciones» de lo que se buscó (la página entera de Liverpool) y las
+    // búsquedas de los tipos que se quedaron sin candidato, sin repetir.
+    var consultas = [], vistas = {};
+    m.cruzada.forEach(function (r) { if (r.origen === 'busqueda' && r.consulta) consultas.push(r.consulta); });
+    m.sugeridas.forEach(function (b) { consultas.push(b.consulta); });
+    var chips = consultas.filter(function (q) {
+      var k = VM.norm(q);
+      if (vistas[k]) return false;
+      vistas[k] = true;
+      return true;
+    }).map(function (q) {
+      return '<a class="chip" href="' + esc(urlBusqueda(q)) + '" target="_blank" rel="noopener">' +
+        LUPA + '<span>' + esc(VM.bonito(q)) + '</span></a>';
     }).join('');
     var servicio = m.servicio
       ? '<div class="srv">' + ESCUDO + '<span><b>Liverpool Care</b> · ofrece la protección del equipo; está en esta misma ficha.</span></div>'
@@ -408,13 +450,18 @@
       if (!esFicha()) { quitar(); return; }
       var a = ancla();
       if (!a) return;
+      if (estado.url !== location.href) {
+        // Otra ficha: lo buscado para la anterior no le sirve a esta.
+        estado.resultados = {};
+        estado.intentadas = {};
+      }
       if (estado.url !== location.href || estado.sucio || !estado.ficha) {
         estado.ficha = leerFicha();
         estado.url = location.href;
         estado.sucio = false;
       }
       if (!estado.ficha || !estado.ficha.nombre) return;
-      var modelo = VM.recomendar(estado.ficha, leerCarruseles(), estado.promos, REGLAS, Date.now());
+      var modelo = VM.recomendar(estado.ficha, leerCarruseles(), estado.promos, REGLAS, Date.now(), estado.resultados);
       var html = pintar(modelo);
       var h = host(a);
       var firma = html + '|' + estado.plegado;
@@ -423,10 +470,72 @@
         estado.firma = firma;
         estado.modelo = modelo;
       }
+      buscarLoQueFalta(modelo.busquedas);
     } catch (e) {
       try { console.warn('Ventel Vende más:', e && e.message); } catch (e2) { /* nada */ }
     }
   }
+
+  // ===========================================================================
+  // Búsqueda de lo que les faltó a los carruseles (buscador-liverpool.js)
+  // ===========================================================================
+
+  var buscador = window.VentelBuscador ? window.VentelBuscador.crear({
+    leer: leerP,
+    guardar: guardarP,
+    pedir: function (url) {
+      // Absoluta y del mismo origen que la ficha: es la búsqueda que haría el asesor.
+      return fetch(location.origin + url, { credentials: 'include' }).then(function (r) {
+        return r.text().then(function (t) { return { status: r.status, texto: t }; });
+      });
+    },
+    leerResultados: resultadosDe,
+    ahora: function () { return Date.now(); }
+  }) : null;
+
+  /** El Portal puede apagar la búsqueda para todos (ajustes.busqueda del paquete de promociones). */
+  function busquedaEncendida() {
+    return !(estado.promos && estado.promos.ajustes && estado.promos.ajustes.busqueda === false);
+  }
+
+  /**
+   * Primero la caché (no sale a la red), después la red, de una en una, y solo con
+   * la pestaña a la vista: una pestaña en segundo plano no necesita la tarjeta y
+   * no tiene por qué gastar el ritmo de búsquedas.
+   */
+  function buscarLoQueFalta(plan) {
+    if (!buscador || !plan || !plan.length || estado.buscando) return;
+    var url = estado.url;
+    var pendientes = plan.filter(function (b) { return !estado.intentadas[b.consulta]; });
+    if (!pendientes.length) return;
+    estado.buscando = true;
+    var siguiente = function (i) {
+      if (i >= pendientes.length || estado.url !== url) { estado.buscando = false; return; }
+      var b = pendientes[i];
+      estado.intentadas[b.consulta] = true;
+      buscador.deCache(b.consulta).then(function (items) {
+        if (items) return { items: items };
+        if (!busquedaEncendida()) return { items: null };
+        if (document.hidden) { estado.intentadas[b.consulta] = false; return { items: null, oculta: true }; }
+        return buscador.buscar(b.consulta);
+      }).then(function (res) {
+        if (estado.url !== url) { estado.buscando = false; return; }
+        if (res && res.oculta) { estado.buscando = false; return; }
+        if (res && res.items) {
+          estado.resultados[b.consulta] = res.items;
+          estado.firma = '';
+          asegurar();
+        }
+        siguiente(i + 1);
+      }, function () { siguiente(i + 1); });
+    };
+    siguiente(0);
+  }
+
+  // Con la pestaña de vuelta a la vista, lo que se dejó pendiente se busca.
+  document.addEventListener('visibilitychange', function () {
+    if (!document.hidden) programar(200);
+  });
 
   var temporizador = null;
   function programar(ms) {

@@ -17,7 +17,7 @@
  * Y aun así se sanea: textos recortados, números acotados, nada de HTML ni
  * enlaces (la tarjeta arma los suyos y escribe todo con escape).
  *
- * Hecho para Ventel · v1.0 · 04/10/2026
+ * Hecho para Ventel · v1.0 · 03/10/2026
  */
 'use strict';
 
@@ -67,7 +67,10 @@ function sanear(crudo, ahora) {
     var p = promoLimpia(d.promos[i]);
     if (p) promos.push(p);
   }
-  return { v: 1, generado: generado, fuerte: promoLimpia(d.fuerte), promos: promos };
+  // Los ajustes del Portal: hoy, solo si la tarjeta puede buscar en liverpool.com.mx.
+  // Encendida salvo que el Portal diga expresamente que no.
+  var ajustes = { busqueda: !(d.ajustes && d.ajustes.busqueda === false) };
+  return { v: 1, generado: generado, fuerte: promoLimpia(d.fuerte), promos: promos, ajustes: ajustes };
 }
 
 function leer(claves) {
