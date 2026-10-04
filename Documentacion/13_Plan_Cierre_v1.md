@@ -1042,6 +1042,28 @@ y qué se dejó fuera a propósito**. Mismo formato que el registro del document
 
 <!-- Las entradas nuevas van arriba, con la más reciente primero. -->
 
+### 2026-10-04 — Producción @139: el tema oscuro (carbón) revisado — pedido por el creador
+
+**Qué se cambió:**
+- **El pedido:** «Subelo a produccion», justo después de dejar el tema oscuro en pruebas (entrada de abajo). Pruebas era la @138 más ese cambio y nada más, así que no hubo nada que elegir.
+- **Portal, producción @139 (~16:45):** la @138 más el tema oscuro revisado (`0d25f8d`). Solo cliente: no toca el servidor ni el manifiesto (no hubo que reautorizar).
+- **Cómo se armó:** build de `5c95f54` (mismo código del Portal que `0d25f8d`) con `git archive` en el scratchpad, sin tocar la `build/` del checkout. Configuración de clasp aparte, fuera del repo, escrita con la herramienta de escritura.
+
+**Qué se comprobó:**
+- **Antes de subir:**
+  - el build es igual al de pruebas (el `build/` que dejó `publicar.sh`), 96 de 96;
+  - el editor de producción era la @138 exacta: 96 de 96 contra el build de `6f8ab4c`, sin nada editado a mano. Contra el paquete nuevo, 76 iguales y solo los 20 esperados distintos, sin archivos nuevos ni de menos;
+  - `clasp status`: 96 archivos rastreados; solo `.claspignore` fuera.
+- **Después:**
+  - el editor de producción es igual al paquete, 96 de 96 (`clasp pull`);
+  - `clasp deployments` muestra `AKfycbwGYZs3…` en la @139;
+  - el `/exec` (con `cb`, leyendo el `userHtml`) sirve `v-papel` en la hoja de Cotización, `--ok-solid`, el remapeo de Tailwind y `color-scheme: dark`; el Portal, `--brand-deep:#F46BC6` y la placa oscura del destacado; el Monitor, la tarjeta de campaña oculta sin campaña y el gris tenue nuevo.
+
+**Qué se dejó fuera a propósito:**
+- **Lo mismo que en pruebas** (entrada de abajo): la barra lateral rosa, la vista previa del correo, «Compacto» desbordando la barra, el chip de Atenciones en tres renglones y la sombra rosa de los botones primarios, que espera la decisión del creador.
+- **Sin ver con sesión:** las pantallas del marco en carbón las tiene que mirar el creador en el `/exec`.
+- **Para volver:** `-V 138`.
+
 ### 2026-10-04 — Tema oscuro (carbón): revisión de todas las pantallas y arreglo de lo que no se veía (en pruebas)
 
 **Qué se cambió:**
