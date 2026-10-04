@@ -1042,6 +1042,33 @@ y qué se dejó fuera a propósito**. Mismo formato que el registro del document
 
 <!-- Las entradas nuevas van arriba, con la más reciente primero. -->
 
+### 2026-10-03 — Extensión de Chrome 2.5: el ícono es la etiqueta del favicon del Portal
+
+**Qué se cambió** (commit `2679dd7`):
+- **El pedido:** que la extensión lleve de ícono el mismo que el favicon del Portal.
+- **Los PNG:** `Extencion para chrome/iconos/icono16|32|48|128.png`, copias byte a byte de `lp-etiqueta-16/32/48/128.png` del respaldo `Desktop\Proyectos\_respaldos\favicon_portal_20261003\png\`: el mismo SVG y el mismo rasterizador que el favicon. El de 64 de esa carpeta es idéntico al archivo de Drive que sirve el Portal (1722 bytes, mismo md5).
+- **El manifest:** declara los cuatro en `icons` (lo que enseña `chrome://extensions`) y el de 16 y el de 32 en `action.default_icon` (la barra). Hasta hoy no declaraba ninguno y Chrome le ponía el genérico.
+  - Versión 2.4 → 2.5.
+  - Los nombres siguen la convención de la extensión de Salesforce (`iconos/iconoNN.png`).
+- No toca Apps Script: ni pruebas ni producción cambian.
+
+**Qué se comprobó:**
+- Una copia idéntica (el manifest real y el probado son iguales byte a byte) se cargó en un Chrome headless aparte con `Extensions.loadUnpacked`:
+  - Chrome lee la 2.5, los `icons` y el `default_icon`;
+  - los cuatro PNG se decodifican a su tamaño (16, 32, 48 y 128);
+  - sin avisos de instalación ni errores de manifest;
+  - la tarjeta y el detalle de `chrome://extensions` enseñan la etiqueta.
+- La barra de herramientas no existe en headless: el ícono no se vio ahí. Es el mismo PNG de 16 y 32 px que la pestaña del Portal.
+
+**Qué se dejó fuera a propósito:**
+- **La carpeta de Drive que descargan los asesores** (`1NSPE-03rT4G5iO5soZeEiScexSY_ZJ4l`, la que enlaza `app_extension_guia.html`) no se tocó. Va en la **2.1** (05/09):
+  - le faltan la 2.2 y la 2.3 (el popup agrupado por pantalla, con `popup-contexto.js`) y la 2.4 (el puente v4 del 13/09);
+  - el conector de Drive no reemplaza el contenido de un archivo, y subir solo los íconos y el manifest nuevo sobre la 2.1 dejaría una mezcla;
+  - sincronizarla entera espera su palabra.
+- **La guía de instalación** (`app_extension_guia.html`) sigue dibujando el ícono fijado como un cuadrito rosa, y su tarjeta dice «Versión 1.4».
+- **`05_Extension_Chrome.md`** sigue diciendo 1.7: está desfasado en más cosas que el ícono, y un arreglo parcial haría creer que lo demás está al día.
+- **Su Chrome:** el ícono aparece al pulsar «Actualizar» (↻) en la tarjeta de la extensión, en `chrome://extensions`.
+
 ### 2026-10-03 — Vista previa: «Ver en Google Sheets» junto a «Enviar por Correo», con «Generando documento…» mientras se genera — en PRUEBAS
 
 **Qué se cambió** (commit `633a9c9`; producción @135 no lo tiene):
