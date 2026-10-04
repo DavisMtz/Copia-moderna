@@ -1077,9 +1077,14 @@ y qué se dejó fuera a propósito**. Mismo formato que el registro del document
 
 - **La ficha de accesorio no tiene falsos positivos:** de las 81 fichas, ninguna queda marcada como accesorio.
 - **El barrido:** de 23 de 102 mal clasificadas a 4, y las 4 son discutibles (silla gamer, tetera, centro de lavado, lavasecadora).
-- **`pruebas/ext_recomendador.test.js`:** de 163 a 238, en verde.
+- **`pruebas/ext_recomendador.test.js`:** de 163 a 252, en verde.
   - Tres secciones nuevas: el corpus, el barrido y la ficha de un accesorio.
-  - Contra las reglas de la 2.8, 49 de las 238 fallan.
+  - Contra las reglas de la 2.8 fallan 60 de las 252.
+- **`noEs` anclado al sustantivo (segundo commit del día):**
+  - la primera versión, suelta, dejaba sin clase y sin recomendaciones a 19 nombres legítimos («Escritorio para computadora», «Plancha… suela de acero»);
+  - lo encontró la revisión final;
+  - 13 quedaron en las pruebas, que contra esa versión fallan 12;
+  - las 81 fichas reales, medidas otra vez: idénticas.
 - **La extensión REAL en Chrome headless** (`e2e-gsap.mjs`, modos normal, reducido y bolsa): Chrome la reporta como 2.9, sin avisos ni errores. La tarjeta, sus tres filas, las dos promociones y la entrada con GSAP salen como en la 2.8.
 - **`npm test`: 28 en verde** en el checkout principal. En el worktree, `tipos` pedía TypeScript instalado en su raíz. El flujo «Pruebas» de GitHub, en verde con `5bfa012`.
 

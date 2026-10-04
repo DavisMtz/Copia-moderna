@@ -40,6 +40,9 @@
  *               También dice si un CANDIDATO es de esta clase (un sustituto).
  *   noEs      → (opcional) lo que se le parece y no es («Traje de baño», «Reloj de
  *               pared»): si el nombre o el «Producto» lo dicen, la clase no puntúa.
+ *               VA ANCLADO AL SUSTANTIVO que modifica: suelto, «de acero» sacaba de
+ *               Planchas a una plancha «con suela de acero», y «computadora» a un
+ *               «Escritorio para computadora». Suelto, solo lo que no admite duda.
  *   palabras  → de qué tipo es un candidato. VA ANCLADO AL PRINCIPIO DEL NOMBRE:
  *               en Liverpool el nombre empieza por el sustantivo.
  *   requiere  → (opcional) además tiene que decir esto en algún lado.
@@ -180,7 +183,7 @@ var VENTEL_REGLAS = {
       migas: /televisiones|pantallas?$|smart tv/,
       producto: /pantalla|television|smart tv/,
       titulo: /^(pantalla|smart tv|television|tv\b)/,
-      noEs: /proyeccion|proyector/,
+      noEs: /^pantalla( [a-z]+)? (de |para )?(proyeccion|proyector)/,
       complementos: [
         { tipo: 'soporte', etiqueta: 'Soporte', peso: 0.80, palabras: /^soporte\b/, requiere: /pantalla|tv|television|pulgadas/, buscar: 'soporte para pantalla {pulgadas} pulgadas' },
         { tipo: 'barra', etiqueta: 'Barra de sonido', peso: 0.75, palabras: /^(barra|soundbar|teatro)\b/, buscar: 'barra de sonido {marca}' },
@@ -228,7 +231,7 @@ var VENTEL_REGLAS = {
       producto: /camara|gopro/,
       titulo: /^(camara (instantanea|digital|fotografica|reflex|mirrorless|sin espejo|de accion|deportiva|compacta)|gopro|instax)\b/,
       // La de seguridad y la web no llevan lente, papel ni mochila de cámara.
-      noEs: /seguridad|vigilancia|web ?cam|camara web|\bip\b|espia|reversa|para (auto|coche)|dashcam|de tablero/,
+      noEs: /^camaras? (de )?(seguridad|vigilancia|videovigilancia|web|ip|espia|reversa|tablero)\b|^camaras? (para|de) (auto|coche)|^(web ?cam|dashcam)/,
       variables: {
         formato: [[/instax mini|\bmini (\d+|evo|link|se)\b/, 'instax mini'], [/instax wide|\bwide \d+/, 'instax wide'],
           [/instax square|\bsquare\b/, 'instax square'], [/polaroid/, 'polaroid']]
@@ -459,7 +462,7 @@ var VENTEL_REGLAS = {
       producto: /plancha|vaporizador|central de vapor|generador de vapor|cepillo de vapor/,
       titulo: /^(plancha|vaporizador|central de vapor|generador de vapor|cepillo de vapor)\b(?! (de|para) (cabello|pelo|asar|cocinar)| de (acero|hierro))/,
       // «Plancha para EL cabello» (con artículo) se le escapaba al título y ganaba por la miga.
-      noEs: /cabello|pelo|asar|cocinar|de acero|de hierro|parrilla|hot ?cakes|crepas|tortillas|sandwich/,
+      noEs: /^planchas?( [a-z0-9-]+){0,3} (de |para )(el )?(cabello|pelo)|^planchas? (de |para )(asar|cocinar)|^planchas? (de|en) (acero|hierro)|^plancha (asadora|parrilla)|hot ?cakes|crepas?\b|tortillas|sandwich|panini|hierro fundido/,
       complementos: [
         { tipo: 'burro', etiqueta: 'Burro de planchar', peso: 0.65, palabras: /^(burro|tabla) (de|para) planchar\b/, buscar: 'burro de planchar' },
         { tipo: 'quitapelusas', etiqueta: 'Quitapelusas', peso: 0.45, palabras: /^(quitapelusas|rasuradora de pelusa|removedor de pelusa)\b/, buscar: 'quitapelusas' },
@@ -475,7 +478,7 @@ var VENTEL_REGLAS = {
       migas: /colchon/,
       producto: /colchon/,
       titulo: /^(colchon|juego de colchon|juego de box)\b/,
-      noEs: /inflable|de aire|para (campismo|acampar|perros?|gatos?|mascotas?)|de yoga|para cuna|de cuna/,
+      noEs: /^colchon(es)? (inflables?|de aire|para (campismo|acampar|perros?|gatos?|mascotas?|cuna|bebe)|de (yoga|cuna|bebe))|^colchoneta/,
       complementos: [
         { tipo: 'protector', etiqueta: 'Protector', peso: 0.80, palabras: /^protector\b/, mismoTamano: true, buscar: 'protector de colchón {tamano}' },
         { tipo: 'almohada', etiqueta: 'Almohadas', peso: 0.70, palabras: /^(set de )?almohadas?\b/, buscar: 'almohada' },
@@ -524,7 +527,7 @@ var VENTEL_REGLAS = {
       producto: /silla (de escritorio|de oficina|gamer|ejecutiva)|escritorio/,
       titulo: /^(silla (de escritorio|de oficina|gamer|ejecutiva|secretarial)|escritorio)\b/,
       // «Computadoras de escritorio» es una miga de Computación, no un mueble.
-      noEs: /computadora|all in one|todo en uno|\bpc\b|cpu/,
+      noEs: /^(computadora|all in one|todo en uno|pc|cpu|imac|mini pc)\b|^computadoras? de escritorio/,
       complementos: [
         { tipo: 'escritorio', etiqueta: 'Escritorio', peso: 0.65, palabras: /^escritorio\b/, buscar: 'escritorio' },
         { tipo: 'silla', etiqueta: 'Silla', peso: 0.60, palabras: /^silla (de escritorio|de oficina|gamer|ejecutiva|secretarial)\b/, buscar: 'silla de escritorio' },
@@ -703,7 +706,7 @@ var VENTEL_REGLAS = {
       migas: /mochilas?( escolares)?$|escolares/,
       producto: /mochila/,
       titulo: /^mochila\b(?! (para|con) (laptop|portalaptop))/,
-      noEs: /laptop|portalaptop|para camara|hidratacion|de viaje|panalera|antirrobo|ejecutiva/,
+      noEs: /^mochilas? (para|con) (laptop|portalaptop|camara)|^mochilas? (de hidratacion|antirrobo|ejecutiva|portabebe)|panalera|hidratacion/,
       complementos: [
         { tipo: 'lonchera', etiqueta: 'Lonchera', peso: 0.70, palabras: /^lonchera\b/, topePrecio: 0.8, buscar: 'lonchera térmica' },
         { tipo: 'lapicera', etiqueta: 'Lapicera', peso: 0.55, palabras: /^(lapicera|estuche escolar|cosmetiquera)\b/, topePrecio: 0.5, buscar: 'lapicera' },
@@ -738,7 +741,7 @@ var VENTEL_REGLAS = {
       producto: /^traje|saco formal|smoking/,
       titulo: /^(traje|saco formal|smoking)\b/,
       // Con un traje de baño no va una corbata.
-      noEs: /de bano|de neopreno|de buzo|de natacion|de dormir|de bebe|disfraz/,
+      noEs: /^trajes? (de )?(bano|neopreno|buzo|natacion|dormir|bebe|bautizo|charro)\b|disfraz/,
       complementos: [
         { tipo: 'camisa', etiqueta: 'Camisa de vestir', peso: 0.65, palabras: /^camisa\b/, requiere: /vestir|formal|manga larga/, buscar: 'camisa de vestir para hombre' },
         { tipo: 'corbata', etiqueta: 'Corbata', peso: 0.55, palabras: /^(corbata|corbatin|mono)\b/, buscar: 'corbata' },
@@ -776,7 +779,7 @@ var VENTEL_REGLAS = {
       migas: /bolsas?( de mano)?$|accesorios y bolsas|bolsos/,
       producto: /^bolsa|bolso|clutch/,
       titulo: /^(bolsa|bolso|clutch)\b(?! (de|para) (dormir|basura|regalo|aseo|panalera))/,
-      noEs: /(de|para) (dormir|basura|regalo|aseo|hielo|agua caliente|lavanderia|ropa sucia|mandado|super)|panalera|termica|hermetica|organizador/,
+      noEs: /^bolsas? (de |para )(dormir|basura|regalo|aseo|hielo|agua caliente|lavanderia|ropa sucia|mandado|super|almacenamiento|vacio)|^bolsas? (hermeticas?|ziploc|organizadoras?|termicas? para (alimentos|comida|lunch))|panalera/,
       complementos: [
         { tipo: 'cartera', etiqueta: 'Cartera', peso: 0.65, palabras: /^(cartera|monedero|tarjetero)\b/, mismaMarca: true, buscar: 'cartera {marca}' },
         { tipo: 'cinturon', etiqueta: 'Cinturón', peso: 0.40, palabras: /^cinturon\b/, mismoGenero: true, buscar: 'cinturón para mujer' },
@@ -805,7 +808,7 @@ var VENTEL_REGLAS = {
       migas: /relojes?$/,
       producto: /^reloj(?! inteligente)/,
       titulo: /^reloj\b(?! inteligente)/,
-      noEs: /de pared|despertador|de mesa|de escritorio|de cocina|de arena|checador|cronometro/,
+      noEs: /^reloj(es)? (de )?(pared|mesa|escritorio|cocina|arena|buro|chimenea)\b|^reloj(es)? (despertador|checador|cucu)|^despertador/,
       complementos: [
         { tipo: 'estuche', etiqueta: 'Estuche para relojes', peso: 0.40, palabras: /^(estuche|caja|organizador|alhajero|relojero)\b/, requiere: /reloj/, buscar: 'estuche para relojes' },
         { tipo: 'cartera', etiqueta: 'Cartera', peso: 0.40, palabras: /^cartera\b/, mismoGenero: true, si: /hombre|caballero/, buscar: 'cartera de piel para hombre' },
@@ -821,7 +824,7 @@ var VENTEL_REGLAS = {
       migas: /lentes|solares|armazones/,
       producto: /lentes|armazon/,
       titulo: /^(lentes|armazon|gafas)\b/,
-      noEs: /natacion|goggles|de seguridad|de proteccion|realidad virtual|\bvr\b|\b3d\b|de contacto|de lectura|para (nieve|ski|esqui)/,
+      noEs: /natacion|goggles|realidad virtual|^lentes (de |para )?(seguridad|proteccion|contacto|lectura|nieve|ski|esqui|vr|3d)\b/,
       complementos: [
         // Los lentes de sol se compran con lo del verano (H&M: traje de baño 12-13 % en mujer,
         // bolsa de playa lift 3.3). El estuche casi siempre viene incluido.

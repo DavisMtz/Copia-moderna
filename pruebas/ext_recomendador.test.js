@@ -545,7 +545,22 @@ seccion('16 · Lo que se parece y no es: barrido de nombres típicos de Liverpoo
     ['Bolsa de mano para mujer', 'Bolsa', ['Mujer', 'Bolsas', 'Bolsas de Mano'], 'bolsa'],
     ['Mochila escolar con ruedas', 'Mochila', ['Escolares', 'Mochilas Escolares'], 'mochilaEscolar'],
     ['Reloj análogo para mujer', 'Reloj', ['Relojes', 'Relojes de Mujer'], 'reloj'],
-    ['Collar de plata para mujer', 'Collar', ['Joyería', 'Collares'], 'joyeria']
+    ['Collar de plata para mujer', 'Collar', ['Joyería', 'Collares'], 'joyeria'],
+    // `noEs` va anclado al sustantivo: suelto, estos 19 nombres legítimos se quedaban SIN clase
+    // (y sin una sola recomendación) por una palabra de más adelante (04/10/2026).
+    ['Escritorio para computadora con repisa', 'Escritorio', ['Muebles', 'Oficina'], 'oficina'],
+    ['Silla de oficina ergonómica para computadora', 'Silla de oficina', ['Muebles', 'Oficina'], 'oficina'],
+    ['Mochila escolar Chenson con portalaptop', 'Mochila', ['Escolares', 'Mochilas Escolares'], 'mochilaEscolar'],
+    ['Mochila escolar de viaje con ruedas', 'Mochila', ['Escolares', 'Mochilas Escolares'], 'mochilaEscolar'],
+    ['Reloj digital deportivo con cronómetro y alarma', 'Reloj', ['Relojes', 'Relojes'], 'reloj'],
+    ['Bolsa de mano para mujer con organizador interior', 'Bolsa', ['Mujer', 'Bolsas', 'Bolsas de Mano'], 'bolsa'],
+    ['Bolsa tote térmica para mujer', 'Bolsa', ['Mujer', 'Bolsas'], 'bolsa'],
+    ['Lentes de sol polarizados de protección UV400', 'Lentes de sol', ['Accesorios', 'Lentes de Sol'], 'lentes'],
+    ['Plancha de vapor 1800 W suela de acero inoxidable', 'Plancha', ['Electrodomésticos', 'Planchado'], 'plancha'],
+    ['Colchón memory foam con canales de aire matrimonial', 'Colchón', ['Muebles', 'Colchones'], 'colchon'],
+    ['Traje slim fit para hombre de lana con bolsillos', 'Traje', ['Hombre', 'Ropa', 'Trajes'], 'traje'],
+    ['Pantalla Smart TV 65 pulgadas compatible con proyector de pantalla', 'Pantalla', ['Electrónica', 'Pantallas'], 'tv'],
+    ['Cámara deportiva 4K sumergible con soporte para auto', 'Cámara deportiva', ['Electrónica', 'Cámaras de Acción'], 'camara']
   ].forEach(([n, p, mg, esperada]) => { const c = clase(n, p, mg); ok('«' + n + '» → ' + esperada, c === esperada, c); });
   // [nombre, «Producto», migas, la clase que NO puede ser]
   [
@@ -563,6 +578,7 @@ seccion('16 · Lo que se parece y no es: barrido de nombres típicos de Liverpoo
     ['Colchón inflable', 'Colchón inflable', ['Deportes', 'Campismo'], 'colchon'],
     ['Cámara de seguridad Wi-Fi', 'Cámara de seguridad', ['Electrónica', 'Casa Inteligente'], 'camara'],
     ['Computadora de escritorio todo en uno', 'All in one', ['Computación', 'Computadoras de Escritorio'], 'oficina'],
+    ['iMac 24 pulgadas chip M4', null, ['Computación', 'Computadoras de Escritorio'], 'oficina'],
     ['Plancha para el cabello', 'Plancha para cabello', ['Cuidado Personal', 'Planchas de Cabello'], 'plancha'],
     ['Collar para perro', 'Collar', ['Mascotas', 'Perros'], 'joyeria'],
     ['Shampoo para perro', 'Shampoo', ['Mascotas', 'Perros'], 'cabello']

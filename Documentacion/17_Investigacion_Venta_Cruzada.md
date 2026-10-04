@@ -8,7 +8,7 @@
 >
 > **Dónde vive cada cosa:**
 > - Las reglas y su porqué, en los comentarios de `reglas-venta.js`.
-> - Las pruebas, en `pruebas/ext_recomendador.test.js` (238).
+> - Las pruebas, en `pruebas/ext_recomendador.test.js` (252).
 > - Las herramientas para repetir la medición, en `pruebas/ext_corpus_medir.js` y `pruebas/ext_corpus_comparar.js` (§9).
 
 ---
@@ -184,6 +184,7 @@ Las mismas 81 fichas, la misma caché de búsquedas y la misma herramienta (`ext
   - «Bolsa para dormir» no es bolsa;
   - «Lentes de natación» no son lentes de sol;
   - «Computadoras de escritorio» no es mueble de oficina.
+- **`noEs` va anclado al sustantivo que modifica** (`^reloj de pared`, no «de pared» en cualquier lugar). La primera versión, suelta, dejaba SIN clase y sin una sola recomendación a 19 nombres legítimos: «Escritorio para computadora», «Plancha de vapor… suela de acero», «Mochila escolar con portalaptop», «Lentes de sol… de protección UV400». No salía basura, solo silencio, y por eso ni el corpus ni el barrido lo vieron. Lo encontró la revisión final; 13 de esos nombres quedaron en las pruebas.
 - **La laptop ya no se queda con todo lo «portátil»:** «Portátil» a secas sí (así viene la MacBook); «Batería portátil», «Disco duro portátil» y «Ventilador portátil» no.
 - **Ropa es «por tipo»:** con los jeans va una blusa, que también es ropa. Antes, TODO lo que traía la búsqueda «blusa para mujer» se descartaba como sustituto, en cada jeans y cada playera.
 - **Pisos de precio:** el tope general es el doble del artículo. Debajo de $1,500 es al menos 1.5: junto a una sartén de $356, unas espátulas de $424 son normales.
@@ -204,14 +205,16 @@ Las mismas 81 fichas, la misma caché de búsquedas y la misma herramienta (`ext
 - **«Genérico» no es una marca que buscar** («cargador usb c Genérico»).
 - `diceVariables`, `soloSugerir` y el `si` de cada tipo, respetados al elegir y al buscar.
 
-### 6.3 Pruebas: 163 → 238
+### 6.3 Pruebas: 163 → 252
 
 `pruebas/ext_recomendador.test.js` suma tres secciones:
 - **15:** casos recortados del corpus real.
-- **16:** el barrido; 14 nombres con su clase y 17 con la que NO pueden tener.
+- **16:** el barrido. 27 nombres con su clase, 13 de ellos legítimos que un `noEs` suelto dejaba sin clase, y 18 con la que NO pueden tener.
 - **17:** la ficha de un accesorio.
 
-**Contra las reglas de la 2.8, 49 de las 238 fallan.** Las pruebas sí distinguen la versión nueva de la vieja.
+**Las pruebas sí distinguen la versión nueva de la vieja:**
+- contra las reglas de la 2.8, fallan 60 de las 252;
+- contra la primera v3.1, la del `noEs` suelto, fallan 12.
 
 ---
 
