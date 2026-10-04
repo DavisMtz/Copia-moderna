@@ -8,8 +8,10 @@
     B · Sello bajo la marca de la barra lateral del Portal (Index.html, .reco-sello-lat), con la
         medalla del 3 (el creador la prefirió a la insignia).
     C · Banda en la portada «Tu turno» (Index.html, .reco-banda).
+    D · Credencial en la barra superior (Index.html, .reco-cred): «que se note pero sea sutil».
+        Sin fondo ni fila propia; la medalla se columpia una vez al día (ventel-reco-saludo).
   Las tres comparten este parcial: el sprite (logotipo, insignia, medalla y la miniatura del
-  diploma, UNA vez por página), el visor y su comportamiento. B y C viven solo en Index hasta
+  diploma, UNA vez por página), el visor y su comportamiento. B, C y D viven solo en Index hasta
   que el creador elija: app_shell y Promociones no se tocan en esta ronda.
 
   Interruptor: quien publica anuncios lo apaga y lo enciende desde anuncios.html (recoEstado y
@@ -29,7 +31,7 @@
 .reco-sprite{position:absolute;width:0;height:0;overflow:hidden}
 
 /* Interruptor apagado (anuncios.html): ninguna de las tres se pinta. */
-[data-reco="no"] .reco-vitrina,[data-reco="no"] .reco-sello-lat,[data-reco="no"] .reco-banda{display:none !important}
+[data-reco="no"] .reco-vitrina,[data-reco="no"] .reco-sello-lat,[data-reco="no"] .reco-banda,[data-reco="no"] .reco-cred{display:none !important}
 
 /* ── Piezas comunes ── */
 .reco-placa{display:inline-flex;align-items:center;gap:10px;padding:8px 14px 8px 10px;border-radius:12px;background:#fff;border:1px solid rgba(27,35,48,.08);box-shadow:0 1px 2px rgba(27,35,48,.06),0 10px 24px -16px rgba(27,35,48,.4)}
@@ -98,6 +100,29 @@
 @media (max-width:640px){
   .reco-banda{grid-template-columns:minmax(0,1fr);padding:16px}
 }
+
+/* ── D · Credencial en la barra superior (Index) ──
+   Sutil: sin fondo, sin borde y sin fila propia, con la tipografía de la barra.
+   Se nota: es lo único bronce de la interfaz y se columpia UNA vez al día, al llegar. */
+.reco-cred{display:inline-flex;align-items:center;gap:10px;flex-shrink:0;margin-left:auto;padding:.3rem .85rem .3rem .4rem;border:1px solid transparent;border-radius:12px;background:none;color:var(--ink);text-align:left;cursor:pointer;transition:background-color .2s,border-color .2s}
+.reco-cred + .clock{margin-left:0}
+.reco-cred:hover{background:var(--surface);border-color:var(--line)}
+.reco-cred:focus-visible{outline:2px solid var(--brand);outline-offset:2px}
+.reco-cred-med{display:block;flex:none;width:24px;height:30px;transform-origin:50% 0;filter:drop-shadow(0 2px 2px rgba(27,35,48,.22));transition:transform .45s cubic-bezier(.22,1,.36,1)}
+.reco-cred:hover .reco-cred-med{transform:rotate(-9deg)}
+.reco-cred-tx{display:flex;flex-direction:column;gap:1px;line-height:1.15}
+.reco-cred-tx b{font:700 .78rem/1.2 var(--f-display);color:var(--ink);letter-spacing:.005em;white-space:nowrap}
+.reco-cred-tx small{font-size:.68rem;font-weight:600;color:var(--ink-soft);white-space:nowrap}
+@keyframes reco-columpio{0%{transform:rotate(0)}16%{transform:rotate(16deg)}34%{transform:rotate(-11deg)}52%{transform:rotate(7deg)}68%{transform:rotate(-4deg)}84%{transform:rotate(1.5deg)}100%{transform:rotate(0)}}
+@media (prefers-reduced-motion:no-preference){
+  .reco-cred.saluda .reco-cred-med{animation:reco-columpio 1.7s cubic-bezier(.36,.07,.19,.97) .7s both}
+}
+/* El buscador no cede ancho: la credencial se encoge antes que él. Medido con sesión abierta:
+   a 1366 px, «Tercer lugar nacional» le quitaba 70 px; «3.er lugar» cabe sin tocarlo. */
+.reco-cred .rc-corto{display:none}
+@media (max-width:1479px){ .reco-cred-tx small,.reco-cred .rc-largo{display:none} .reco-cred .rc-corto{display:inline} }
+@media (max-width:1180px){ .reco-cred{padding:.35rem} .reco-cred-tx{display:none} }
+@media (max-width:720px){ .reco-cred{display:none} }
 
 /* ── Visor: el diploma y la insignia a tamaño de lectura ── */
 .reco-visor{width:min(1080px,94vw);max-width:none;max-height:94vh;margin:auto;padding:0;border:1px solid var(--line);border-radius:18px;background:var(--surface);color:var(--ink);box-shadow:var(--sh-lg);overflow:hidden}
@@ -197,6 +222,19 @@
      oculta y se enseña aquí, que ya va después de __APP__; el Portal lo resuelve antes de pintar. */
   if (window.__APP__ && window.__APP__.reco === false) document.documentElement.setAttribute('data-reco', 'no');
   else document.querySelectorAll('.reco-vitrina[hidden]').forEach(function (v) { v.hidden = false; });
+
+  /* D: la medalla de la barra se columpia la primera vez que se abre el Portal cada día; después,
+     quieta. Es adorno: sin ella (o con movimiento reducido) la credencial se ve igual. */
+  function saludar() {
+    var creds = document.querySelectorAll('.reco-cred');
+    if (!creds.length || document.documentElement.getAttribute('data-reco') === 'no') return;
+    var hoy = new Date().toISOString().slice(0, 10);
+    try { if (localStorage.getItem('ventel-reco-saludo') === hoy) return; localStorage.setItem('ventel-reco-saludo', hoy); }
+    catch (e) { return; }
+    creds.forEach(function (b) { b.classList.add('saluda'); });
+  }
+  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', saludar);
+  else saludar();
 
   function pedir() {
     if (datos) return Promise.resolve(datos);

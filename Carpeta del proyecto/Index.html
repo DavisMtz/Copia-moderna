@@ -1439,6 +1439,13 @@ a:focus-visible,button:focus-visible,input:focus-visible,[tabindex]:focus-visibl
       <button class="s-clear" id="hsClear" onclick="clearGlobalSearch()" aria-label="Limpiar"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M6 6l12 12M18 6 6 18"/></svg></button>
       <div class="search-drop" id="searchDrop"></div>
     </div>
+    <!-- Propuesta D (04/10/2026, en pruebas): la credencial del Reto de Innovación Liverpool 2026 en la
+         barra superior. A la vista en todas las pantallas sin ocupar una fila; la medalla se columpia una
+         vez al día. Estilos y visor en app_reconocimiento.html. -->
+    <button type="button" class="reco-cred" data-reco-abrir="diploma" title="Tercer lugar nacional · Reto de Innovación Liverpool 2026" aria-label="Tercer lugar nacional en el Reto de Innovación Liverpool 2026. Ver el diploma y la insignia">
+      <svg class="reco-cred-med" viewBox="0 0 28 34" aria-hidden="true"><use href="#recoMedalla"/></svg>
+      <span class="reco-cred-tx"><b><span class="rc-largo">Tercer lugar nacional</span><span class="rc-corto">3.er lugar</span></b><small>Reto de Innovación Liverpool 2026</small></span>
+    </button>
     <div class="clock">
       <span class="c-time" id="clockTime">--:--:--</span>
       <span class="c-date" id="clockDate"></span>

@@ -1057,6 +1057,12 @@ y qué se dejó fuera a propósito**. Mismo formato que el registro del document
   - **Cómo llega a las pantallas:** el __APP__ del Portal y del inicio de sesión lleva `reco` (`recoEnEstado_`). El Portal lo aplica antes de pintar la barra (`data-reco="no"` en `<html>`); la vitrina del inicio de sesión nace `hidden` y solo se enseña encendida, así que nada parpadea.
   - **Pruebas y producción no comparten propiedades:** apagarlo en uno no lo apaga en el otro.
   - **`pruebas/f3_datos_en_pagina.test.js`:** el Portal pasa de dos a tres lecturas de propiedad como mucho. La tercera es el interruptor, una sola propiedad; el almacén entero sigue prohibido.
+- **Tercera vuelta, propuesta D** («dame otra propuesta… que se note pero sea sutil», con las skills de diseño):
+  - **El análisis:** crítica de A, B y C con el plugin de diseño y las reglas de impeccable y del PRODUCT.md del Portal (modo Operate: la marca vive en los detalles). A compite con el formulario de entrada; B parece un elemento de navegación; C ocupa el lugar de los avisos y las promos.
+  - **La D, credencial en la barra superior** (`Index.html`, `.reco-cred`): la medalla de bronce y el texto con la tipografía de la barra, sin fondo ni fila propia, a la vista en todas las pantallas. La medalla se columpia una vez al día (`ventel-reco-saludo`); con movimiento reducido no se mueve.
+  - **El buscador no cede ancho:** medido con sesión abierta, a 1366 px «Tercer lugar nacional» le quitaba 70 px, así que la credencial se encoge antes que él. Las dos líneas desde 1480 px, «3.er lugar» hasta 1181, solo la medalla hasta 721, y en teléfono se oculta (la barra ya iba justa).
+  - **Comprobado:** buscador a 560 px en 1366 y 1600; 526 de 560 en 1024 (solo la medalla); sin desborde en ninguno; aurora, slate y carbón.
+  - **El interruptor la apaga junto con las otras.** Su texto en anuncios ya no enumera piezas: «Se muestra en el Portal y en el inicio de sesión».
 - **Las imágenes grandes no viajan en la página:** `recoImagenes()` (Portal.gs) las entrega desde `reco_imagenes.html` la primera vez que se abre el visor y el cliente las guarda 30 días (`AppCache`, clave `reco-imagenes-v1`), como los logotipos de Formas de Pago. El base64 va en su variante URL (sin `/`): ningún `//` que el quitacomentarios de Google pudiera cortar.
 
 **Qué se comprobó:**

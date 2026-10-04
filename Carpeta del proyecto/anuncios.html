@@ -364,7 +364,7 @@
       }
 
       /* Interruptor del reconocimiento del Reto de Innovación 2026 (04/10/2026): enciende y apaga
-         el sello y la banda del Portal y la vitrina del inicio de sesión (recoCambiarVisible). */
+         todo lo del reconocimiento en el Portal y en el inicio de sesión (recoCambiarVisible). */
       .reco-ajuste{display:flex;align-items:center;gap:var(--s4);margin:0 0 var(--s5);padding:var(--s3) var(--s4);
         background:var(--surface);border:1px solid var(--line);border-radius:var(--rad);box-shadow:var(--sh-xs)}
       .reco-ajuste-med{flex:none;width:26px;height:32px}
@@ -2323,7 +2323,7 @@
           function pintar(visible) {
             sw.setAttribute('aria-checked', String(!!visible));
             estado.textContent = visible
-              ? 'Se muestra en el Portal (sello de la barra y banda de la portada) y en el inicio de sesión.'
+              ? 'Se muestra en el Portal y en el inicio de sesión.'
               : 'Apagado: no se muestra en el Portal ni en el inicio de sesión.';
           }
           AppRun.call('recoEstado', [correo], { busy: false }).then(function (r) {
