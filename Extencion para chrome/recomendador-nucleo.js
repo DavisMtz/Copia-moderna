@@ -510,7 +510,9 @@
     (listas || []).forEach(function (lista, nLista) {
       (lista.items || []).forEach(function (it) {
         if (!it || !it.id || !it.nombre || it.id === ctx.ficha.id) return;
-        if (it.agotado) return;
+        // Lo agotado no se ofrece: `online` es false cuando la búsqueda dice dónde hay
+        // existencia y la tienda en línea no está (lector-liverpool.js, desde la 3.0).
+        if (it.agotado || it.online === false) return;
         var tipo = tipoDe(it, ctx.clase);
         // Un tipo con «si» solo aplica a las fichas que casan: el molino es para la
         // espresso, no para la de cápsulas (aunque Liverpool lo ponga en su carrusel).
@@ -544,13 +546,78 @@
     return out;
   }
 
+  // ===========================================================================
+  // Calidad: entre los parecidos, el que tiene respaldo de otros clientes (2.0)
+  // ===========================================================================
+
+  /** Cuántas opiniones tiene (0 si no se sabe). */
+  function opiniones(c) {
+    return typeof c.nOp === 'number' && c.nOp > 0 ? c.nOp : 0;
+  }
+
+  /**
+   * La calificación de un candidato, como promedio bayesiano: sus estrellas pesan
+   * según cuántas opiniones tiene (un 5.0 con una opinión no le gana a un 4.8 con
+   * 300). Suma si lo vende Liverpool y resta si es un resultado patrocinado.
+   * `q` son los parámetros de `reglas.calidad`.
+   */
+  function calidad(c, q) {
+    var n = opiniones(c);
+    var a = n && typeof c.cal === 'number' ? Math.max(0, Math.min(5, c.cal)) : 0;
+    var p = (q.peso * q.media + a * n) / (q.peso + n);
+    if (c.mkp === false) p += q.bonoLiverpool || 0;
+    if (c.patroc === true) p -= q.castigoPatrocinado || 0;
+    return p;
+  }
+
+  /** En el par de un aparato (la secadora de una lavadora), a cuántos kilos queda del artículo. */
+  function distanciaKilos(c, ctx) {
+    if (!ctx.kilos) return 0;
+    var k = kilosDe(c.nombre);
+    return k ? Math.abs(k - ctx.kilos) : 99;
+  }
+
+  /**
+   * De los candidatos de UN tipo, ya ordenados como siempre, cuál se ofrece. El
+   * primero es el de Liverpool y se queda, salvo que otro lo supere con evidencia:
+   *   · de su mismo nivel (misma compatibilidad y, en un par, los mismos kilos de
+   *     distancia) y entre los `top` primeros de ese nivel: más abajo Liverpool ya
+   *     no responde de que encaje (unas tazas infantiles para una cafetera);
+   *   · que no cueste más de `topePrecio` veces el primero;
+   *   · con opiniones, y `margen` estrellas mejor que el primero.
+   * Y el primero de un CARRUSEL que nadie ha calificado se queda siempre: lo puso
+   * ahí la venta de Liverpool, y un estreno (el juego que sale el mes que viene) no
+   * tiene opiniones. De una búsqueda sí cede: su orden solo dice que se llama así.
+   * Medido en 110 fichas reales el 04/10/2026: documento 18 y su anexo de la 3.0.
+   */
+  function elegirPorCalidad(lista, ctx, q) {
+    var primero = lista[0];
+    if (!q || lista.length < 2) return primero;
+    if (primero.origen !== 'busqueda' && !opiniones(primero)) return primero;
+    var dk = distanciaKilos(primero, ctx);
+    var nivel = lista.filter(function (c) { return c.compat === primero.compat && distanciaKilos(c, ctx) === dk; }).slice(0, q.top || 5);
+    var mejor = primero, porSuperar = calidad(primero, q) + (q.margen || 0), puntos = -Infinity;
+    nivel.forEach(function (c) {
+      if (c === primero || !opiniones(c)) return;
+      if (typeof c.precio !== 'number' || typeof primero.precio !== 'number' || c.precio > primero.precio * (q.topePrecio || 1.25)) return;
+      var p = calidad(c, q);
+      if (p >= porSuperar && p > puntos) { mejor = c; puntos = p; }
+    });
+    // Queda dicho a quién le quitó el lugar: lo usan el diagnóstico y la medición.
+    if (mejor !== primero) mejor.enLugarDe = primero.id;
+    return mejor;
+  }
+
   /**
    * El mejor candidato de cada tipo: el del mismo modelo; luego el que no es
    * «familia»; luego el del carrusel antes que el de la búsqueda; luego la marca
    * antes que el genérico; y al final el orden de Liverpool. Para el par de un
-   * aparato (secadora de una lavadora), los kilos más parecidos.
+   * aparato (secadora de una lavadora), los kilos más parecidos. Con
+   * `reglas.calidad`, dentro de ese orden gana el de mejor respaldo
+   * (elegirPorCalidad); sin él, el primero.
    */
-  function mejorPorTipo(cands, ctx) {
+  function mejorPorTipo(cands, ctx, reglas) {
+    var q = (reglas && reglas.calidad) || null;
     var porTipo = {};
     cands.forEach(function (c) { (porTipo[c.tipo] = porTipo[c.tipo] || []).push(c); });
     var mejores = {};
@@ -560,16 +627,13 @@
         if (ea !== eb) return ea - eb;
         var fa = a.compat === 'familia' ? 1 : 0, fb = b.compat === 'familia' ? 1 : 0;
         if (fa !== fb) return fa - fb;
-        if (ctx.kilos) {
-          var ka = kilosDe(a.nombre), kb = kilosDe(b.nombre);
-          var da = ka ? Math.abs(ka - ctx.kilos) : 99, db = kb ? Math.abs(kb - ctx.kilos) : 99;
-          if (da !== db) return da - db;
-        }
+        var da = distanciaKilos(a, ctx), db = distanciaKilos(b, ctx);
+        if (da !== db) return da - db;
         var oa = a.origen === 'busqueda' ? 1 : 0, ob = b.origen === 'busqueda' ? 1 : 0;
         if (oa !== ob) return oa - ob;
         return (RANGO_COMPAT[a.compat] - RANGO_COMPAT[b.compat]) || (a.orden - b.orden);
       });
-      mejores[tipo] = porTipo[tipo][0];
+      mejores[tipo] = elegirPorCalidad(porTipo[tipo], ctx, q);
     });
     return mejores;
   }
@@ -580,7 +644,7 @@
    */
   function elegirCruzada(listas, ctx, reglas, opciones) {
     var maximo = (opciones && opciones.maximo) || 3;
-    var mejores = mejorPorTipo(candidatos(listas, ctx, reglas, opciones && opciones.excluir), ctx);
+    var mejores = mejorPorTipo(candidatos(listas, ctx, reglas, opciones && opciones.excluir), ctx, reglas);
     return Object.keys(mejores).map(function (k) { return mejores[k]; }).sort(function (a, b) {
       var ea = a.compat === 'exacto' ? 0 : 1, eb = b.compat === 'exacto' ? 0 : 1;
       var fa = a.compat === 'familia' ? 1 : 0, fb = b.compat === 'familia' ? 1 : 0;
@@ -841,7 +905,7 @@
       { origen: 'otros', items: carruseles.otros || [] }
     ];
     // El plan se decide SIN las búsquedas: así no cambia cuando llegan sus resultados.
-    var plan = planDeBusquedas(ctx, mejorPorTipo(candidatos(listas, ctx, reglas, excluir), ctx), 2);
+    var plan = planDeBusquedas(ctx, mejorPorTipo(candidatos(listas, ctx, reglas, excluir), ctx, reglas), 2);
     plan.forEach(function (b) {
       if (busquedas[b.consulta]) {
         listas.push({ origen: 'busqueda', items: busquedas[b.consulta], tipoBuscado: b.tipo, consulta: b.consulta });
@@ -886,6 +950,7 @@
     contexto: contexto, precioBase: precioBase, varianteElegida: varianteElegida,
     esSustituto: esSustituto, compatibilidad: compatibilidad, tipoDe: tipoDe,
     candidatos: candidatos, mejorPorTipo: mejorPorTipo, elegirCruzada: elegirCruzada,
+    calidad: calidad, elegirPorCalidad: elegirPorCalidad,
     tiposNaturales: tiposNaturales, consultaDe: consultaDe, planDeBusquedas: planDeBusquedas,
     sugerirBusquedas: sugerirBusquedas,
     maxMsi: maxMsi, subidaCapacidad: subidaCapacidad, subidaModelo: subidaModelo,

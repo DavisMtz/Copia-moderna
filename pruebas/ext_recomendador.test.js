@@ -603,6 +603,156 @@ seccion('17 · La ficha de un ACCESORIO (una mica en «Celulares»)');
   ok('un vaporizador es un equipo (abre como su clase), no un accesorio de la plancha: Liverpool Care sí', VM.recomendar(vap, {}, null, REGLAS, AHORA).servicio === true);
 }
 
+seccion('18 · Reglas v4: los cuatro errores que encontró la investigación del documento 18 (fichas reales, 04/10/2026)');
+{
+  const clase = (o) => { const m = VM.recomendar(fichaDe(o), {}, null, REGLAS, AHORA); return m.clase && m.clase.id; };
+  // 1) La miga «Mochilas y maletas deportivas» (2 puntos) le ganaba al nombre (1): caía en «maleta».
+  const moch = fichaDe({ id: '1176537899', nombre: 'Mochila escolar Phase Small para niño', marca: 'PUMA',
+    migas: ['Deportes', 'Accesorios y complementos Deportivos', 'Mochilas y maletas deportivas'], precio: 314 });
+  const mm = VM.recomendar(moch, {}, null, REGLAS, AHORA);
+  const qsM = mm.busquedas.concat(mm.sugeridas).map((b) => b.consulta);
+  ok('mochila escolar en «Mochilas y maletas deportivas»: es mochila escolar, no maleta', mm.clase && mm.clase.id === 'mochilaEscolar', mm.clase);
+  ok('…busca la lonchera y la lapicera; ya no el candado TSA ni los organizadores de viaje',
+    qsM.includes('lonchera térmica') && qsM.includes('lapicera') && !qsM.some((q) => /candado|maleta/.test(q)), qsM);
+  ok('una maleta sigue siendo maleta, también en esa miga y aunque nombre una mochila más adelante',
+    clase({ nombre: 'Maleta de viaje Kioto 20 pulgadas', marca: 'X', migas: ['Viaje', 'Maletas'], producto: 'Maleta', precio: 1019 }) === 'maleta' &&
+    clase({ nombre: 'Maleta deportiva con compartimento para mochila', marca: 'X', migas: ['Deportes', 'Mochilas y maletas deportivas'], precio: 899 }) === 'maleta' &&
+    clase({ nombre: 'Set de maletas 3 piezas con mochila', marca: 'X', migas: ['Viaje', 'Maletas'], precio: 2999 }) === 'maleta');
+
+  // 2) Un filtro de AGUA se trataba como purificador de AIRE (y ofrecía Liverpool Care).
+  const fil = fichaDe({ id: '1', nombre: 'Filtro purificador de agua FPA5L', marca: 'AVERA',
+    migas: ['Línea Blanca y Electrodomésticos', 'Electrodomésticos de Cocina', 'Despachadores y Purificadores de Agua'], producto: 'Filtro/purificador agua', precio: 709, care: true });
+  const mf = VM.recomendar(fil, { otros: [it(31, 'KOBLENZ', 'Aspiradora vertical d300 plus 1 litro', 2999), it(32, 'X', 'Humidificador ultrasónico 320 ml', 1199)] }, null, REGLAS, AHORA);
+  ok('filtro purificador de AGUA: no es de la clase de los purificadores de aire', !mf.clase || mf.clase.id !== 'purificador', mf.clase);
+  ok('…ni se le ofrece Liverpool Care ni un humidificador', mf.servicio === false && mf.cruzada.length === 0, [mf.servicio, mf.cruzada]);
+  ok('un purificador de agua tampoco («Purificador de agua de ósmosis inversa»)',
+    clase({ nombre: 'Purificador de agua de ósmosis inversa 5 etapas', marca: 'X', migas: ['Electrodomésticos de Cocina', 'Despachadores y Purificadores de Agua'], producto: 'Purificador de agua', precio: 3999 }) !== 'purificador');
+  ok('los de aire siguen siéndolo, aunque nombren el agua más adelante',
+    clase({ nombre: 'Purificador True HEPA Turbo+ 11071', marca: 'CLOROX', migas: ['Línea Blanca y Electrodomésticos', 'Electrodomésticos de Casa', 'Purificadores de Aire'], producto: 'Purificador', precio: 2029 }) === 'purificador' &&
+    clase({ nombre: 'Humidificador ultrasónico con tanque de agua de 4 litros', marca: 'X', migas: ['Electrodomésticos de Casa', 'Humidificadores'], producto: 'Humidificador', precio: 899 }) === 'purificador' &&
+    clase({ nombre: 'Purificador de aire con filtro HEPA lavable con agua', marca: 'X', migas: ['Electrodomésticos de Casa', 'Purificadores de Aire'], producto: 'Purificador de aire', precio: 2500 }) === 'purificador');
+
+  // 3) En la funda del iPhone 16, el «cargador» era uno PARA LAPTOP (lo real de su «Complementa con»).
+  const funda = fichaDe({ id: '999673023163', nombre: 'Funda para Iphone 16 de TPU', marca: 'LACOSTE',
+    migas: ['Electrónica', 'Celulares y Telefonía', 'Fundas para celular'], producto: 'Funda celular', precio: 899, care: true });
+  const carF = { complementa: [
+    it(1141152838, 'GENÉRICA', 'Cargador para laptop 1/4 pulgadas', 685.24),
+    it(1190921413, 'MOBEST', 'Adaptador de corriente de 40 w USB tipo C dinámico de 40 w máx 60 w', 459),
+    it(1135532866, 'APPLE', 'Cable auxiliar 3.5 mm a tipo lightning de 120 cm', 899),
+    it(1135719257, 'APPLE', 'Cable thunderbolt 3 de 80 cm', 899)] };
+  const mF = VM.recomendar(funda, carF, null, REGLAS, AHORA);
+  const cargF = mF.cruzada.find((r) => r.tipo === 'cargador');
+  ok('funda de iPhone 16: el cargador ya no es el de laptop', !mF.cruzada.some((r) => r.id === '1141152838'), mF.cruzada.map((r) => r.nombre));
+  ok('…es el adaptador de corriente USB-C que venía detrás', cargF && cargF.id === '1190921413', cargF);
+  ok('un cable de audio o un Thunderbolt no son «cargador» de celular', !VM.tipoDe({ nombre: 'Cable auxiliar 3.5 mm a tipo lightning de 120 cm' }, celular).conocido &&
+    !VM.tipoDe({ nombre: 'Cable thunderbolt 3 de 80 cm' }, celular).conocido && !VM.tipoDe({ nombre: 'Cable HDMI 4K de 2 m' }, celular).conocido);
+  ['Cargador USB C 20 W', 'Cable USB-C a Lightning de 1 m', 'Adaptador de corriente USB tipo C', 'Cargador inalámbrico Magsafe', 'Cargador para auto USB-C 30 W',
+    'Cargador de pared 65 W para celular y laptop', 'Cubo de carga rápida 25 W'].forEach((n) =>
+    ok('«' + n + '» sigue siendo cargador de celular', VM.tipoDe({ nombre: n }, celular).tipo === 'cargador', VM.tipoDe({ nombre: n }, celular).tipo));
+  const tabletC = REGLAS.clases.find((c) => c.id === 'tablet');
+  ok('en la tablet tampoco: ni el cargador de laptop ni el adaptador del Pencil son su cargador',
+    !VM.tipoDe({ nombre: 'Cargador para laptop 1/4 pulgadas' }, tabletC).conocido && VM.tipoDe({ nombre: 'Adaptador de USB-C a Pencil Apple' }, tabletC).tipo !== 'cargador');
+
+  // 4) En la laptop, cualquier «adaptador» pasaba por hub: el del Pencil de Apple.
+  const lapC = REGLAS.clases.find((c) => c.id === 'laptop');
+  const lap = fichaDe({ id: '1200533310', nombre: 'Laptop thin & light omnibook 3 16-bu0054la 16 pulgadas 2k intel core i5 integradas 16 GB ram 512 gb ssd', marca: 'HP',
+    migas: ['Electrónica', 'Computación', 'Laptops'], producto: 'Laptop', modeloComercial: 'OmniBook 3 16 Laptop 16-bu0054la', precio: 18959, care: true });
+  const mL = VM.recomendar(lap, { otros: [it(1128411280, 'APPLE', 'Adaptador de USB-C a Pencil Apple', 199)] }, null, REGLAS, AHORA);
+  ok('laptop: el «Adaptador de USB-C a Pencil Apple» no es su hub', !mL.cruzada.some((r) => r.id === '1128411280'), mL.cruzada);
+  ['Hub USB-C 7 en 1', 'Adaptador USB-C a HDMI 4K', 'Adaptador multipuerto USB-C', 'Docking station USB-C', 'Adaptador USB C a Ethernet RJ45'].forEach((n) =>
+    ok('«' + n + '» sí es hub de laptop', VM.tipoDe({ nombre: n }, lapC).tipo === 'hub', VM.tipoDe({ nombre: n }, lapC).tipo));
+  ['Adaptador de USB-C a Pencil Apple', 'Adaptador de corriente de 20 W', 'Adaptador de viaje universal'].forEach((n) =>
+    ok('«' + n + '» no es hub de laptop', VM.tipoDe({ nombre: n }, lapC).tipo !== 'hub', VM.tipoDe({ nombre: n }, lapC).tipo));
+}
+
+seccion('19 · Núcleo 2.0: entre los parecidos, el que tiene respaldo (casos reales de las 110 fichas del documento 18)');
+{
+  // Un candidato con lo que el stream de Liverpool sabe de él: calificación, opiniones y si es de marketplace.
+  const con = (item, cal, nOp, mkp) => Object.assign(item, { cal: nOp ? cal : null, nOp: nOp || 0, mkp: !!mkp });
+  const Q = REGLAS.calidad;
+  ok('las reglas traen los parámetros de calidad', Q && Q.media === 4.2 && Q.peso === 5 && Q.top === 5 && Q.topePrecio === 1.25 && Q.margen === 0.25 && Q.bonoLiverpool === 0.15, Q);
+  ok('calidad: un 5.0 con una opinión no le gana a un 4.8 con 300',
+    VM.calidad({ cal: 5, nOp: 1, mkp: true }, Q) < VM.calidad({ cal: 4.8, nOp: 300, mkp: true }, Q), [VM.calidad({ cal: 5, nOp: 1, mkp: true }, Q), VM.calidad({ cal: 4.8, nOp: 300, mkp: true }, Q)]);
+  ok('calidad: sin opiniones vale la media, y lo vendido por Liverpool suma', VM.calidad({ nOp: 0, mkp: true }, Q) === 4.2 && Math.abs(VM.calidad({ nOp: 0, mkp: false }, Q) - 4.35) < 1e-9 &&
+    VM.calidad({ cal: 4.9, nOp: 0 }, Q) === 4.2, VM.calidad({ nOp: 0, mkp: false }, Q));
+  ok('calidad: sin saber quién lo vende no hay bono; un patrocinado resta', VM.calidad({ nOp: 0 }, Q) === 4.2 && VM.calidad({ nOp: 0, mkp: true, patroc: true }, Q) === 3.7);
+
+  const fre = fichaDe({ nombre: 'Freidora de aire con compartimento único 6 L', marca: 'CHEFMAN', migas: ['Electrodomésticos de Cocina', 'Freidoras'], producto: 'Freidora de aire', precio: 1756 });
+  const Qm = 'molde para freidora de aire';
+  const moldes = (lista) => { const o = {}; o[Qm] = lista; return VM.recomendar(fre, {}, null, REGLAS, AHORA, o).cruzada.find((r) => r.tipo === 'accesorios'); };
+  let r = moldes([con(it(101, 'X', 'Molde para freidora de aire', 199), 0, 0), con(it(102, 'Y', 'Molde para freidora de aire', 199), 4.6818, 22)]);
+  ok('de una búsqueda: el primero sin opiniones cede ante el mismo molde con 22 opiniones de 4.7 (caso real)', r && r.id === '102' && r.enLugarDe === '101', r);
+  r = moldes([con(it(101, 'X', 'Molde para freidora de aire', 199), 0, 0), con(it(102, 'Y', 'Molde para freidora de aire', 199), 5, 1)]);
+  ok('…pero no ante una sola opinión de 5: no llega al cuarto de estrella', r && r.id === '101' && !r.enLugarDe, r);
+  r = moldes([con(it(101, 'X', 'Molde para freidora de aire', 199), 0, 0), con(it(102, 'Y', 'Molde para freidora de aire', 259), 4.9, 300)]);
+  ok('…ni ante uno mejor que cuesta más de un 25 % sobre el primero', r && r.id === '101', r);
+  r = moldes([con(it(101, 'X', 'Molde para freidora de aire', 199), 0, 0), con(it(102, 'Y', 'Molde para freidora de aire', 248), 4.9, 300)]);
+  ok('…dentro del 25 % sí', r && r.id === '102', r);
+  r = moldes([con(it(101, 'X', 'Molde para freidora de aire', 199), 0, 0), Object.assign(con(it(102, 'Y', 'Molde para freidora de aire', 199), 4.9, 300), { precio: null })]);
+  ok('…ni ante uno sin precio a la vista', r && r.id === '101', r);
+  r = moldes([101, 102, 103, 104, 105].map((n) => con(it(n, 'X', 'Molde para freidora de aire', 199), 0, 0)).concat([con(it(106, 'Y', 'Molde para freidora de aire', 199), 4.9, 300)]));
+  ok('…ni ante el sexto: solo entre los 5 primeros de Liverpool', r && r.id === '101', r);
+  r = moldes([101, 102, 103, 104].map((n) => con(it(n, 'X', 'Molde para freidora de aire', 199), 0, 0)).concat([con(it(105, 'Y', 'Molde para freidora de aire', 199), 4.9, 300)]));
+  ok('…el quinto sí', r && r.id === '105', r);
+  r = moldes([con(it(101, 'X', 'Molde para freidora de aire', 199), 4.8, 480), con(it(102, 'Y', 'Molde para freidora de aire', 150), 4.9, 176)]);
+  ok('el primero con buen respaldo se queda aunque otro sea un poco mejor y más barato (4.8 con 480 contra 4.9 con 176)', r && r.id === '101', r);
+  r = moldes([con(it(101, 'X', 'Molde para freidora de aire', 199), 4, 1, true), con(it(102, 'Y', 'Molde para freidora de aire', 199), 5, 1, false)]);
+  ok('una opinión contra una: decide que lo venda Liverpool (bono de 0.15)', r && r.id === '102', r);
+  {
+    const sinBono = Object.assign({}, REGLAS, { calidad: Object.assign({}, Q, { bonoLiverpool: 0 }) }), o = {};
+    o[Qm] = [con(it(101, 'X', 'Molde para freidora de aire', 199), 4, 1, true), con(it(102, 'Y', 'Molde para freidora de aire', 199), 5, 1, false)];
+    const x = VM.recomendar(fre, {}, null, sinBono, AHORA, o).cruzada.find((c) => c.tipo === 'accesorios');
+    ok('…sin el bono, se queda el primero', x && x.id === '101', x);
+    const sinCal = Object.assign({}, REGLAS, { calidad: null });
+    o[Qm] = [con(it(101, 'X', 'Molde para freidora de aire', 199), 0, 0), con(it(102, 'Y', 'Molde para freidora de aire', 199), 4.9, 300)];
+    const y = VM.recomendar(fre, {}, null, sinCal, AHORA, o).cruzada.find((c) => c.tipo === 'accesorios');
+    ok('sin `calidad` en las reglas, gana siempre el primero de Liverpool (como en la 2.9)', y && y.id === '101' && !y.enLugarDe, y);
+  }
+  r = moldes([Object.assign(it(101, 'X', 'Molde para freidora de aire', 199), { online: false }), con(it(102, 'Y', 'Molde para freidora de aire', 199), 0, 0)]);
+  ok('lo que no tiene existencia en línea no se ofrece', r && r.id === '102', r);
+
+  // El primero de un CARRUSEL sin opiniones se queda: un estreno no tiene opiniones (la PS5 real).
+  const ps5b = fichaDe({ nombre: 'Consola PS5 de 2 TB edición bundle', marca: 'PLAYSTATION', migas: ['Videojuegos', 'Consolas'], producto: 'Consola fija', precio: 24019, care: true });
+  const mP = VM.recomendar(ps5b, { complementa: [con(it(101, 'ROCKSTAR', 'Grand Theft Auto VI estandar para PS5', 1529.1), 0, 0),
+    con(it(102, 'PLAYSTATION', "Marvel'S Spider-Man 2 estándar para PS5", 1349.1), 4.9, 181)] }, null, REGLAS, AHORA);
+  ok('PS5: el GTA VI que Liverpool pone primero en «Complementa con» se queda, sin opiniones y todo', mP.cruzada.some((c) => c.id === '101') && !mP.cruzada.some((c) => c.id === '102'), mP.cruzada);
+  // …pero uno CALIFICADO, y mal, sí cede (la cafetera espresso real).
+  const esp = fichaDe({ nombre: 'Cafetera espresso semiautomática 15 bar', marca: 'OSTER', migas: ['Cafeteras y Teteras', 'Cafeteras'], producto: 'Cafetera espresso', precio: 1559, care: true });
+  const mE = VM.recomendar(esp, { complementa: [con(it(101, 'GENÉRICA', 'Espumador de leche eléctrico Genérica', 324), 2.5, 8, true)],
+    otros: [con(it(102, 'X', 'Jarra espumadora espresso maker', 272.35), 4.4, 16)] }, null, REGLAS, AHORA);
+  ok('cafetera: el espumador de 2.5 estrellas cede ante la jarra espumadora de 4.4 con 16 opiniones', mE.cruzada.some((c) => c.id === '102' && c.enLugarDe === '101'), mE.cruzada);
+  const tazas = { 'set de tazas para café': [con(it(111, 'X', 'Set de tazas americanas 4 piezas', 349), 0, 0), con(it(112, 'X', 'Set de tazas infantil Bob Esponja 4 piezas', 229), 4.6471, 17)] };
+  const mT = VM.recomendar(esp, { complementa: [con(it(101, 'X', 'Molino para café de acero inoxidable', 551.4), 5, 30), con(it(102, 'X', 'Jarra espumadora espresso maker', 272.35), 4.4, 16)] }, null, REGLAS, AHORA, tazas);
+  ok('cafetera: las tazas infantiles de Bob Esponja no son complemento, por bien calificadas que estén',
+    mT.cruzada.some((c) => c.id === '111') && !mT.cruzada.some((c) => c.id === '112'), mT.cruzada);
+
+  // El nivel de compatibilidad no se cruza: la marca del equipo antes que una genérica mejor calificada.
+  const mH = VM.recomendar(ps5b, { complementa: [con(it(121, 'PLAYSTATION', 'Audífonos On-Ear Pulse Elite inalámbricos', 3399), 5, 1),
+    con(it(122, 'TURTLE BEACH', 'Audífonos On-Ear Stealth 600 Gen 3 XB Black inalámbricos', 2599), 4.875, 16)] }, null, REGLAS, AHORA);
+  ok('PS5: los audífonos PlayStation (su marca) no ceden ante unos genéricos mejor calificados (eran la versión de Xbox)',
+    mH.cruzada.some((c) => c.id === '121' && c.compat === 'marca') && !mH.cruzada.some((c) => c.id === '122'), mH.cruzada);
+  // En el par de un aparato, los kilos mandan: el cambio es entre las de 22 kg.
+  const sec = fichaDe({ nombre: 'Secadora 22 kg eléctrica carga frontal', marca: 'WHIRLPOOL', migas: ['Lavado y Secado', 'Secadoras'], producto: 'Secadora', precio: 13999, care: true });
+  const mS = VM.recomendar(sec, { complementa: [con(it(131, 'X', 'Lavadora 22 kg automática carga superior wsa', 12559), 4, 6),
+    con(it(132, 'Y', 'Lavadora 20 kg automática carga superior C', 10499.3), 4.7134, 321), con(it(133, 'Z', 'Lavadora 22 kg automática carga superior lmp', 8938.3), 4.7, 46)] }, null, REGLAS, AHORA);
+  ok('secadora de 22 kg: la lavadora de 22 kg de 4.0 cede ante OTRA de 22 kg (4.7 con 46), no ante la de 20 kg con 321 opiniones',
+    mS.cruzada.some((c) => c.id === '133' && c.enLugarDe === '131') && !mS.cruzada.some((c) => c.id === '132'), mS.cruzada);
+
+  // Cámaras: lo que la elección por calidad destapó (una mirrorless recibía micro SD y estuche de instantánea).
+  const mir = fichaDe({ nombre: 'Cámara mirrorless EOS R50 con lente 18-45 mm', marca: 'CANON', migas: ['Cámaras y Fotografía', 'Cámaras Fotográficas'], producto: 'Cámara mirrorless', precio: 15999, care: true });
+  const mM = VM.recomendar(mir, {}, null, REGLAS, AHORA, {
+    'memoria sd 128 gb': [con(it(141, 'X', 'Memoria SD capacidad 128 GB', 1199), 0, 0), con(it(142, 'X', 'Memoria micro SD capacidad 128 GB', 849), 4.9647, 85)],
+    'estuche para cámara': [con(it(143, 'X', 'Mochila para cámara', 379), 0, 0), con(it(144, 'X', 'Estuche para cámara instantánea Wilderness', 399), 5, 12)] });
+  ok('mirrorless: su memoria es la SD, no la micro SD', mM.cruzada.some((c) => c.id === '141') && !mM.cruzada.some((c) => c.id === '142'), mM.cruzada);
+  ok('mirrorless: la mochila para cámara, no el estuche de una instantánea', mM.cruzada.some((c) => c.id === '143') && !mM.cruzada.some((c) => c.id === '144'), mM.cruzada);
+  const gop = fichaDe({ nombre: 'Cámara de acción Hero 13 Black', marca: 'GOPRO', migas: ['Cámaras y Fotografía', 'Cámaras de Acción'], producto: 'Cámara de acción', precio: 8999, care: true });
+  const mG = VM.recomendar(gop, {}, null, REGLAS, AHORA, { 'memoria micro sd 128 gb': [con(it(142, 'X', 'Memoria micro SD capacidad 128 GB', 849), 4.9647, 85), con(it(141, 'X', 'Memoria SD capacidad 128 GB', 1199), 0, 0)] });
+  ok('cámara de acción: la suya sí es la micro SD', mG.busquedas.some((b) => b.consulta === 'memoria micro sd 128 gb') && mG.cruzada.some((c) => c.id === '142') && !mG.cruzada.some((c) => c.id === '141'), [mG.busquedas, mG.cruzada]);
+  const ins = fichaDe({ nombre: 'Cámara instantánea film modelo Instax Mini 12', marca: 'FUJI', migas: ['Cámaras y Fotografía', 'Cámaras Fotográficas'], producto: 'Cámara instantánea', modeloComercial: 'Instax Mini 12', precio: 1861 });
+  const mI = VM.recomendar(ins, { complementa: [it(143, 'X', 'Mochila para cámara', 379), it(144, 'X', 'Estuche para cámara instantánea Wilderness', 399)] }, null, REGLAS, AHORA);
+  ok('instantánea: su estuche es el de instantánea, no la mochila de cámara', mI.cruzada.some((c) => c.id === '144') && !mI.cruzada.some((c) => c.id === '143'), mI.cruzada);
+}
+
 seccion('11 · El fondo (fondo.js): de dónde acepta promociones y cómo las sanea');
 {
   let oyente = null;

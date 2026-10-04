@@ -94,6 +94,24 @@ var VENTEL_REGLAS = {
   // Debajo de este precio la proporción no dice nada: el tope es al menos 1.5.
   pisoProporcion: 1500,
 
+  // Cuál de los parecidos se ofrece (núcleo 2.0, elegirPorCalidad). El primero de Liverpool
+  // se queda, salvo que otro de su mismo tipo y su mismo nivel de compatibilidad lo supere con
+  // evidencia. Medido el 04/10/2026 sobre 110 fichas reales y 213 recomendaciones (documento 18):
+  //   media, peso   → promedio bayesiano de la calificación: cada artículo arranca con `peso`
+  //                   opiniones de `media` estrellas (un 5.0 con una opinión no le gana a un
+  //                   4.8 con 300);
+  //   bonoLiverpool → lo que suma que lo venda Liverpool y no un vendedor de marketplace (es
+  //                   una decisión de negocio: el descuento de marketplace se maneja distinto);
+  //   castigoPatrocinado → lo que resta un resultado patrocinado (hoy no hay ni uno en lo que
+  //                   lee la tarjeta: 0 en 12,297; queda el candado por si cambia);
+  //   top           → solo entre los 5 primeros de su nivel, en el orden de Liverpool;
+  //   topePrecio    → nunca uno que cueste más de un 25 % sobre el primero;
+  //   margen        → y le tiene que ganar por un cuarto de estrella. Con menos, casi todos los
+  //                   cambios eran ruido (una opinión de 5 contra ninguna) o subían el precio.
+  // Con esto cambian 24 de 213: las que pasan a ofrecerse tienen en promedio 136 opiniones
+  // (las que dejan, 12) y cuestan un tercio menos. Sin `calidad`, gana siempre el primero.
+  calidad: { media: 4.2, peso: 5, bonoLiverpool: 0.15, castigoPatrocinado: 0.5, top: 5, topePrecio: 1.25, margen: 0.25 },
+
   clases: [
     // =========================================================================
     // Tecnología
@@ -106,7 +124,12 @@ var VENTEL_REGLAS = {
       complementos: [
         { tipo: 'funda', etiqueta: 'Funda', peso: 0.85, palabras: /^(funda|case|carcasa|estuche)\b/, exacto: true, buscar: 'funda {modelo}' },
         { tipo: 'mica', etiqueta: 'Mica', peso: 0.80, palabras: /^(mica|protector|cristal templado|vidrio templado)\b/, exacto: true, buscar: 'mica {modelo}' },
-        { tipo: 'cargador', etiqueta: 'Cargador', peso: 0.65, palabras: /^(cargador|adaptador|cubo|cable)\b/, topePrecio: 0.4, buscar: 'cargador usb c {marca}' },
+        // Lo que abre igual y no carga un teléfono: en la funda del iPhone 16 el «cargador» era un
+        // «Cargador para laptop 1/4 pulgadas», y detrás venían un cable de audio y un Thunderbolt
+        // (su «Complementa con» del 04/10/2026). «…para celular y laptop» sí pasa.
+        { tipo: 'cargador', etiqueta: 'Cargador', peso: 0.65, palabras: /^(cargador|adaptador|cubo|cable)\b/,
+          excluye: /\bpara (laptop|notebook|macbook|computadora)\b|thunderbolt|hdmi|vga|displayport|ethernet|rj45|auxiliar|3\.5 ?mm|\baudio\b|pencil|lapiz|rubik|\bpilas?\b|impresora/,
+          topePrecio: 0.4, buscar: 'cargador usb c {marca}' },
         { tipo: 'audifonos', etiqueta: 'Audífonos', peso: 0.55, palabras: /^(audifonos|airpods|buds|earbuds)\b/, topePrecio: 0.6, buscar: 'audífonos inalámbricos {marca}' },
         { tipo: 'bateria', etiqueta: 'Batería portátil', peso: 0.45, palabras: /^(bateria|power ?bank)\b/, topePrecio: 0.4, buscar: 'batería portátil' },
         // Un reloj de casi el precio del teléfono no es «sumar el complemento» (el
@@ -125,7 +148,9 @@ var VENTEL_REGLAS = {
         { tipo: 'lapiz', etiqueta: 'Lápiz', peso: 0.55, palabras: /^(lapiz|pencil|apple pencil|stylus|pluma)\b/, buscar: 'lápiz {marca}' },
         // Del mismo modelo: el Magic Keyboard del iPad Air no es el del iPad A16 (corpus 04/10/2026).
         { tipo: 'teclado', etiqueta: 'Teclado', peso: 0.50, palabras: /^(teclado|magic keyboard|funda de teclado)\b/, exacto: true, buscar: 'teclado {modelo}' },
-        { tipo: 'cargador', etiqueta: 'Cargador', peso: 0.45, palabras: /^(cargador|adaptador)\b/, topePrecio: 0.4, buscar: 'cargador usb c {marca}' },
+        { tipo: 'cargador', etiqueta: 'Cargador', peso: 0.45, palabras: /^(cargador|adaptador)\b/,
+          excluye: /\bpara (laptop|notebook|macbook|computadora)\b|thunderbolt|hdmi|vga|displayport|ethernet|rj45|auxiliar|3\.5 ?mm|\baudio\b|pencil|lapiz|\bpilas?\b|impresora/,
+          topePrecio: 0.4, buscar: 'cargador usb c {marca}' },
         { tipo: 'mouse', etiqueta: 'Mouse', peso: 0.30, palabras: /^(mouse|magic mouse)\b/, topePrecio: 0.3, buscar: 'mouse inalámbrico {marca}' },
         // Solo las Android con ranura (investigación): el iPad no la lleva.
         { tipo: 'memoria', etiqueta: 'Memoria micro SD', peso: 0.30, palabras: /^(memoria|tarjeta de memoria|micro ?sd)\b/, si: /^(?!ipad)/, topePrecio: 0.25, buscar: 'memoria micro sd 128 gb' }
@@ -139,7 +164,9 @@ var VENTEL_REGLAS = {
       complementos: [
         { tipo: 'correa', etiqueta: 'Correa', peso: 0.65, palabras: /^(correa|extensible|pulso|malla)\b/, mismaMarca: true, topePrecio: 0.5, buscar: 'correa para smartwatch {marca}' },
         { tipo: 'mica', etiqueta: 'Mica', peso: 0.50, palabras: /^(mica|protector|cristal templado)\b/, requiere: /smartwatch|reloj|watch/, excluye: /tablet|smartphone|celular|laptop|ipad/, topePrecio: 0.3, buscar: 'mica para smartwatch {marca}' },
-        { tipo: 'cargador', etiqueta: 'Cargador', peso: 0.40, palabras: /^(cargador|base de carga|cable)\b/, topePrecio: 0.4, buscar: 'cargador smartwatch {marca}' },
+        { tipo: 'cargador', etiqueta: 'Cargador', peso: 0.40, palabras: /^(cargador|base de carga|cable)\b/,
+          excluye: /\bpara (laptop|notebook|macbook|computadora)\b|thunderbolt|hdmi|vga|displayport|ethernet|rj45|auxiliar|3\.5 ?mm|\baudio\b|\bpilas?\b|impresora/,
+          topePrecio: 0.4, buscar: 'cargador smartwatch {marca}' },
         { tipo: 'audifonos', etiqueta: 'Audífonos', peso: 0.40, palabras: /^(audifonos|airpods|buds|earbuds)\b/, mismaMarca: true, topePrecio: 1, buscar: 'audífonos inalámbricos {marca}' }
       ]
     },
@@ -157,7 +184,11 @@ var VENTEL_REGLAS = {
         // Office y antivirus: 14-17 % y 2-6 % del precio de la laptop en Liverpool (investigación).
         { tipo: 'software', etiqueta: 'Microsoft 365 o antivirus', peso: 0.45, palabras: /^(microsoft 365|office|antivirus|norton|mcafee|kaspersky|eset)\b/, topePrecio: 0.3, buscar: 'microsoft 365' },
         { tipo: 'audifonos', etiqueta: 'Audífonos', peso: 0.40, palabras: /^(audifonos|diadema)\b/, buscar: 'audífonos inalámbricos' },
-        { tipo: 'hub', etiqueta: 'Adaptador', peso: 0.35, palabras: /^(hub|adaptador|docking)\b/, buscar: 'hub usb c' },
+        // «Adaptador» a secas no basta: pasaba por hub el «Adaptador de USB-C a Pencil Apple»
+        // (04/10/2026). Tiene que decir que da puertos o salida de video o de red.
+        { tipo: 'hub', etiqueta: 'Hub USB-C', peso: 0.35, palabras: /^(hub|adaptador|docking)\b/,
+          requiere: /\bhub\b|docking|multipuerto|puertos|\d ?en ?1\b|hdmi|ethernet|rj45|vga|displayport|lector/,
+          excluye: /pencil|lapiz|\bcorriente\b|\bviaje\b|celular|iphone/, buscar: 'hub usb c' },
         { tipo: 'teclado', etiqueta: 'Teclado gamer', peso: 0.35, palabras: /^teclado\b/, si: /gamer/, buscar: 'teclado gamer' },
         { tipo: 'silla', etiqueta: 'Silla gamer', peso: 0.30, palabras: /^silla gamer\b/, si: /gamer/, topePrecio: 0.4, buscar: 'silla gamer' },
         // Liverpool vende la multifuncional junto a la laptop (corpus: 2 de 7 en «Otros clientes compraron»).
@@ -241,8 +272,15 @@ var VENTEL_REGLAS = {
         // En Liverpool la película se llama «Papel fotográfico Instax mini» (corpus e investigación).
         { tipo: 'pelicula', etiqueta: 'Papel fotográfico', peso: 0.85, palabras: /^(pelicula|papel fotografico|papel instax|film|cartucho)\b/, si: /instantanea|instax|polaroid/,
           requiereVar: 'formato', buscar: 'papel {formato}' },
-        { tipo: 'estuche', etiqueta: 'Estuche', peso: 0.55, palabras: /^(estuche|funda|bolsa|mochila)\b/, requiere: /camara|instax|fotograf/, topePrecio: 0.5, buscar: 'estuche para cámara' },
-        { tipo: 'memoria', etiqueta: 'Memoria', peso: 0.60, palabras: /^(memoria|tarjeta de memoria|micro ?sd|sd)\b/, si: /digital|reflex|mirrorless|sin espejo|accion|deportiva|gopro|compacta/, buscar: 'memoria sd 128 gb' },
+        // Cada una con lo suyo: al elegir por calificación, a una mirrorless le tocaban el «Estuche
+        // para cámara instantánea» y una memoria MICRO SD (04/10/2026). El estuche de la
+        // instantánea es otro tipo; la micro SD, de la cámara de acción.
+        { tipo: 'estuche', etiqueta: 'Estuche', peso: 0.55, palabras: /^(estuche|funda|bolsa|mochila)\b/, requiere: /camara|fotograf/, excluye: /instantanea|instax|polaroid/,
+          si: /^(?!.*(instantanea|instax|polaroid))/, topePrecio: 0.5, buscar: 'estuche para cámara' },
+        { tipo: 'estucheInstantanea', etiqueta: 'Estuche', peso: 0.55, palabras: /^(estuche|funda|bolsa)\b/, requiere: /instantanea|instax|polaroid/,
+          si: /instantanea|instax|polaroid/, topePrecio: 0.5, buscar: 'estuche para cámara' },
+        { tipo: 'memoria', etiqueta: 'Memoria SD', peso: 0.60, palabras: /^(memoria|tarjeta de memoria|sd)\b/, excluye: /micro ?sd|\busb\b|\bram\b|ddr/, si: /digital|reflex|mirrorless|sin espejo|compacta/, buscar: 'memoria sd 128 gb' },
+        { tipo: 'microsd', etiqueta: 'Memoria micro SD', peso: 0.60, palabras: /^(memoria|tarjeta de memoria|micro ?sd)\b/, requiere: /micro ?sd/, si: /accion|deportiva|gopro/, buscar: 'memoria micro sd 128 gb' },
         { tipo: 'lente', etiqueta: 'Lente', peso: 0.45, palabras: /^(lente|objetivo)\b/, si: /reflex|mirrorless|sin espejo/, mismaMarca: true, buscar: 'lente {marca}' },
         { tipo: 'bateria', etiqueta: 'Batería extra', peso: 0.40, palabras: /^(bateria|pila recargable)\b/, si: /digital|reflex|mirrorless|sin espejo|accion|deportiva|gopro/, mismaMarca: true, topePrecio: 0.3, buscar: 'batería para cámara {marca}' },
         { tipo: 'tripie', etiqueta: 'Tripié', peso: 0.40, palabras: /^(tripie|tripode|estabilizador|monopie|gimbal)\b/, si: /digital|reflex|mirrorless|sin espejo|accion|deportiva|gopro/, buscar: 'tripié para cámara' },
@@ -271,7 +309,9 @@ var VENTEL_REGLAS = {
         // La funda para AirPods solo con unos AirPods (en unos Sony salía una, corpus 04/10/2026).
         { tipo: 'estuche', etiqueta: 'Estuche', peso: 0.50, palabras: /^(estuche|funda|porta ?audifonos|soporte para audifonos)\b/, excluye: /airpod/, si: /^(?!.*airpods)/, buscar: 'estuche para audífonos' },
         { tipo: 'fundaAirpods', etiqueta: 'Funda', peso: 0.55, palabras: /^(estuche|funda)\b/, requiere: /airpod/, si: /airpods/, buscar: 'funda para {modelo}' },
-        { tipo: 'cargador', etiqueta: 'Cargador', peso: 0.40, palabras: /^(cargador|adaptador|cable)\b/, topePrecio: 0.5, buscar: 'cargador usb c' },
+        { tipo: 'cargador', etiqueta: 'Cargador', peso: 0.40, palabras: /^(cargador|adaptador|cable)\b/,
+          excluye: /\bpara (laptop|notebook|macbook|computadora)\b|thunderbolt|hdmi|vga|displayport|ethernet|rj45|pencil|lapiz|\bpilas?\b|impresora/,
+          topePrecio: 0.5, buscar: 'cargador usb c' },
         // Liverpool los vende juntos (corpus: 15 bocinas en «Complementa con» de unos Sony).
         { tipo: 'bocina', etiqueta: 'Bocina', peso: 0.35, palabras: /^bocina\b/, topePrecio: 1, buscar: 'bocina bluetooth {marca}' }
       ]
@@ -286,7 +326,9 @@ var VENTEL_REGLAS = {
         { tipo: 'soporte', etiqueta: 'Soporte', peso: 0.40, palabras: /^soporte\b/, si: /^(barra|soundbar)/, buscar: 'soporte para barra de sonido' },
         { tipo: 'cable', etiqueta: 'Cable óptico o HDMI', peso: 0.35, palabras: /^cable\b/, requiere: /optico|hdmi/, si: /^(barra|soundbar)/, buscar: 'cable hdmi' },
         { tipo: 'microfono', etiqueta: 'Micrófono', peso: 0.40, palabras: /^microfono\b/, si: /^bocina/, buscar: 'micrófono inalámbrico' },
-        { tipo: 'cargador', etiqueta: 'Cargador', peso: 0.30, palabras: /^(cargador|adaptador|cable)\b/, topePrecio: 0.5, buscar: 'cargador usb c' }
+        { tipo: 'cargador', etiqueta: 'Cargador', peso: 0.30, palabras: /^(cargador|adaptador|cable)\b/,
+          excluye: /\bpara (laptop|notebook|macbook|computadora)\b|thunderbolt|hdmi|vga|displayport|ethernet|rj45|pencil|lapiz|\bpilas?\b|impresora/,
+          topePrecio: 0.5, buscar: 'cargador usb c' }
       ]
     },
 
@@ -405,7 +447,9 @@ var VENTEL_REGLAS = {
           requiereVar: 'sistema', buscar: 'cápsulas {sistema}' },
         { tipo: 'molino', etiqueta: 'Molino para café', peso: 0.60, palabras: /^(molino|molinillo)\b/, requiere: /cafe/, si: /espresso|express|goteo|filtro|prensa|barista|italiana/, buscar: 'molino para café' },
         { tipo: 'espumador', etiqueta: 'Espumador de leche', peso: 0.50, palabras: /^(espumador|jarra espumadora|batidor espumador|aeroccino)\b/, buscar: 'espumador de leche' },
-        { tipo: 'tazas', etiqueta: 'Tazas', peso: 0.40, palabras: /^(set de tazas|juego de tazas|taza|tazas|mug)\b/, topePrecio: 0.5, buscar: 'set de tazas para café' },
+        // Sin las infantiles: la mejor calificada de «set de tazas para café» era un «Set de tazas
+        // infantil Bob Esponja» (04/10/2026).
+        { tipo: 'tazas', etiqueta: 'Tazas', peso: 0.40, palabras: /^(set de tazas|juego de tazas|taza|tazas|mug)\b/, excluye: /infantil|\bnin[oa]s?\b|\bbebes?\b|entrenador/, topePrecio: 0.5, buscar: 'set de tazas para café' },
         { tipo: 'termo', etiqueta: 'Termo', peso: 0.30, palabras: /^(termo|vaso termico)\b/, topePrecio: 0.5, buscar: 'termo para café' }
       ]
     },
@@ -449,6 +493,10 @@ var VENTEL_REGLAS = {
       migas: /purificadores?|humidificadores?|deshumidificadores?|calidad del aire/,
       producto: /purificador|humidificador|deshumidificador/,
       titulo: /^(purificador|humidificador|deshumidificador)\b/,
+      // Los de AGUA no son de esta clase: el «Filtro purificador de agua FPA5L» («Producto:
+      // Filtro/purificador agua», miga «Despachadores y Purificadores de Agua») caía aquí y se le
+      // ofrecía Liverpool Care (04/10/2026). Anclado: «…con tanque de agua» no lo saca.
+      noEs: /^(filtros?[ \/]+)?(purificador(es|a)?|filtros?|despachador(es)?|dispensador(es)?)( [a-z0-9+-]+){0,2}? (de |para )?agua\b/,
       complementos: [
         // Del modelo exacto: botón de búsqueda (la de la marca trajo purificadores, no filtros).
         { tipo: 'filtro', etiqueta: 'Filtro de repuesto', peso: 0.75, palabras: /^(filtro|repuesto)\b/, mismaMarca: true, topePrecio: 0.6, soloSugerir: true, buscar: 'filtro para purificador de aire' },
@@ -692,6 +740,9 @@ var VENTEL_REGLAS = {
       migas: /maletas?|equipaje|viaje/,
       producto: /maleta|equipaje/,
       titulo: /^((set|juego) (de )?)?maletas?\b/,
+      // Una mochila no es maleta aunque su miga sea «Mochilas y maletas deportivas»: a la
+      // «Mochila escolar Phase Small para niño» se le ofrecía el candado TSA (04/10/2026).
+      noEs: /^mochilas?\b/,
       complementos: [
         { tipo: 'candado', etiqueta: 'Candado', peso: 0.60, palabras: /^candado\b/, buscar: 'candado para maleta' },
         { tipo: 'organizador', etiqueta: 'Organizador', peso: 0.50, palabras: /^((set|juego) (de )?)?(organizadores?|cubos?|bolsas? organizadoras?)\b/, buscar: 'organizador para maleta' },
