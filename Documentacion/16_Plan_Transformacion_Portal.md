@@ -83,6 +83,13 @@
 - Lo que falta comprobar después de subir: §18 del plan 13, entrada del 02/10/2026.
 
 **Ojo al promover** (desde el 02/10/2026 todo lo de abajo ya está en producción: estas recetas sirven solo para volver atrás una parte. Y la portada «Tu turno» —`fd41ba1`…`9fd6d08`, etiqueta `respaldo-portada-antes-tu-turno`— entró ANTES que la F0, así que toda copia desde `a50a234` la lleva; F0 + F1 + F2 sin ella = `23144aa` + `git diff 9fd6d08 11e77a8 -- "Carpeta del proyecto"`, probado el 02/10/2026): lo que se sube es `build/`, hecho con el código actual y el `build.js` actual: hoy lleva **F0 + F1 + F2 + F3a + F3a.1 + F3b + F3a.2 + F5 + decisión 8** juntas, más el arreglo del Monitor. Para subir menos:
+- **Desde el 04/10/2026 `build/` lleva además las promociones del Monitor para la extensión de Chrome** (`e7443c4`, «Vende más» de la extensión 2.6, a pedido del creador; EN PRUEBAS, no en producción). Ver §18 del plan 13.
+  - Toca `Portal.gs`: `portalVigentes_` sale de `portalContarPromos_`, con la misma respuesta (comparada en `pruebas/venta_cruzada.test.js`).
+  - Archivos nuevos: `VentaCruzada.gs`, con `ventaCruzadaPromos()`, pública como `fetchPromoCounts`, y `app_venta_cruzada.html`. **Toca el servidor.**
+  - En `Index.html`: una inclusión y una llamada.
+  - Desfasados no se rompen. Con la portada nueva y el servidor viejo, la llamada falla en silencio y la extensión dice «abre el Portal». Con el servidor nuevo y la portada vieja, nadie llama.
+  - Para promoverlo: la fuente de la @136 es `269228b`, y entre `269228b` y `e7443c4` solo cambió esto. El build de `e7443c4` (o de lo que siga) es producción más esto.
+  - Para promover otra cosa sin él: worktree en `269228b` y su build.
 - **Desde el 03/10/2026 (tarde) `build/` lleva además «Ver en Google Sheets» en la vista previa** (`633a9c9`, a pedido del creador; EN PRODUCCIÓN desde la @136). Ver §18 del plan 13.
   - Toca `Formatos.gs` (`previewSheetCcl` devuelve también `url`): **toca el servidor**. Y `cotizado_preview.html`: el aviso y el botón, la barra de 1100 px y `busy: false`.
   - Van juntos, pero desfasados no se rompen: con la pantalla nueva y el servidor viejo, el botón simplemente no aparece y el panel funciona igual (probado en `pruebas/vista_previa_sheets.test.js`); con el servidor nuevo y la pantalla vieja no cambia nada, porque la vieja solo lee `success`, `urlIncrustable` y `message` (leído en el código, sin prueba).

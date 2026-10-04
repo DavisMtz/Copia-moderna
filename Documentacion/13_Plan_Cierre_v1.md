@@ -1042,6 +1042,73 @@ y qué se dejó fuera a propósito**. Mismo formato que el registro del document
 
 <!-- Las entradas nuevas van arriba, con la más reciente primero. -->
 
+### 2026-10-04 — «Vende más con este artículo»: venta cruzada e incremental en la extensión 2.6, con la promoción más fuerte del Monitor — Portal en PRUEBAS
+
+**Qué se cambió** (commits `e7443c4`, Portal, y `a1c2ce3`, extensión):
+- **El pedido:** que la extensión, en la ficha de un artículo, sepa cuál es y recomiende otros de Liverpool para venta cruzada (el complemento: celular → funda) e incremental (subir la versión: 64 → 128 GB), con el mensaje del equipo de contexto.
+  - Dos decisiones del creador: la campaña se maneja desde el Portal y la tarjeta va debajo de «Agregar a mi bolsa».
+  - Y una precisión: «la campaña que vaya con lo que el monitor de descuentos tiene como descuento más agresivo».
+- **La tarjeta (extensión 2.6),** debajo de «Agregar a mi bolsa»:
+  - venta incremental: la capacidad o medida siguiente de la misma ficha, con la diferencia y «+$X al mes» a los MSI que comparten las dos variantes; y el siguiente modelo de «Artículos relacionados», de la misma marca, con tope de 25 % (35 % desde $10,000);
+  - venta cruzada: hasta tres complementos de «Complementa con» y «Otros clientes compraron», uno por tipo y solo compatibles, más una búsqueda en liverpool.com.mx para el tipo natural que faltó; y Liverpool Care cuando la ficha lo ofrece;
+  - promoción de hoy: la del Monitor para la categoría de la ficha y la frase de apertura con la más fuerte (las palabras del mensaje, las cifras del Monitor), con botón para copiarla.
+- **De dónde salen los candidatos:** de los carruseles que la ficha ya trae del servidor (medido: están en el DOM al cargar, sin bajar). La investigación decía que Liverpool solo enseña sustitutos; en vivo, también «Complementa con» y «Otros clientes compraron». Nada se agrega a la bolsa desde la tarjeta.
+- **Las reglas** (`reglas-venta.js`): once tipos de artículo de la tabla de la investigación. Con ellas se reconoce el artículo (característica «Producto», última miga, nombre) y se da tipo a cada complemento, por su sustantivo (las dos primeras palabras del nombre).
+- **Archivos de la extensión:** `recomendador-nucleo.js` decide sin DOM; `recomendador.js` lee la ficha con el mismo `inspectProductFromDOM` del popup (sin tocarlo) y pinta en un shadow DOM.
+- **El canal Portal → extensión:**
+  - la portada deja el paquete en un script de datos (`ventel-promos-datos`) en su página y en la de arriba;
+  - `campana-puente.js` lo lee en los marcos de Apps Script;
+  - `fondo.js` (service worker nuevo) lo guarda solo si la pestaña es el Portal de producción, el de pruebas o el `/exec` configurado en el popup, y lo sanea;
+  - permiso nuevo: `https://script.google.com/*`, sin el que Chrome no da la URL de la pestaña.
+- **Portal:**
+  - `VentaCruzada.gs`: `ventaCruzadaPromos()`, pública como `fetchPromoCounts`, sobre la caché del Monitor. «La más fuerte» es la cuenta de `notas()` del Monitor con su `pctDe`.
+  - `Portal.gs`: `portalVigentes_` sale de `portalContarPromos_` sin cambiar su respuesta.
+  - `app_venta_cruzada.html`: caché primero, 30 min en el navegador.
+  - `Index.html`: una inclusión y una llamada.
+  - No va dentro de la página (F3): unos 20 KB en cada visita cuestan más que una llamada de fondo cada media hora.
+
+**Qué se comprobó:**
+- `pruebas/ext_recomendador.test.js` (87), con fichas reales capturadas el 04/10 (`ext_recomendador_fichas_20261004.json`):
+  - iPhone 16: 512 GB a +$6,899.85 (+$431.24 al mes a 16 MSI, solo Azul y Verde), iPhone 16 Plus, y funda del 16 + adaptador Apple + batería;
+  - ni una funda de otro modelo, ni un teléfono, ni el propio artículo; búsqueda de mica;
+  - protector solar ISDIN: sérum y crema de ISDIN, sin labial ni aceite capilar, búsquedas de limpiador y agua termal;
+  - pantallas, consolas, ropa, perfume, topes y promociones con casos armados;
+  - el filtro de origen y el saneo de `fondo.js`.
+- `pruebas/venta_cruzada.test.js` (70):
+  - la portada responde idéntico a la versión anterior;
+  - porcentaje y MSI comparados con las reglas sacadas del `app_monitor.html` real;
+  - desempate por la primera, tope y peso (menos de 25 KB con textos largos);
+  - sin abrir hojas con la caché caliente, sin lanzar con la hoja caída;
+  - el parcial: dónde escribe, caché primero y nunca tumba la portada.
+- `npm test`: 28 suites en verde. Build limpio.
+- **Canal de punta a punta**, en Chrome headless con la extensión real cargada y el parcial real dentro de marcos de Apps Script simulados: 9 de 9.
+  - Guarda desde la `/dev` de pruebas y desde el `/exec` del popup.
+  - No guarda desde otra webapp, ni un paquete de otra versión, y una copia vieja no pisa a la nueva.
+  - Confirmó que Chrome da `sender.tab.url` con ese permiso.
+- **La tarjeta inyectada en fichas reales en el Chrome del creador:**
+  - iPhone 16;
+  - el mismo abierto en 512 GB por su enlace (sube a iPhone Air);
+  - protector solar ISDIN.
+  - Plegar funciona y se recuerda. En headless, Liverpool contesta «Access Denied»: la ficha real solo se prueba en un Chrome de verdad.
+- **Fallos encontrados y corregidos por el camino:**
+  - con `?skuid=` Liverpool no marca la talla como elegida, y la tarjeta volvía a ofrecer los 512 GB;
+  - en cuidado facial, el sérum se tomaba por sustituto del protector solar;
+  - «Labial brillante Sérum Rose» contaba como sérum;
+  - un shampoo íntimo entraba por ser de la misma marca;
+  - un comentario del parcial escribía la etiqueta de cierre de script y partía el bloque (lo cazó el build).
+
+**Qué se dejó fuera a propósito:**
+- **Producción del Portal:** espera su palabra. Mientras, la tarjeta funciona igual, pero «Promoción de hoy» solo llega abriendo el Portal de pruebas; con la @136 dice «Abre el Portal Ventel para traer las promociones del Monitor». Receta en el doc 16, «Ojo al promover».
+- **Los asesores:** la carpeta de Drive de la extensión va en la 2.1. Hasta sincronizarla nadie más ve esto (ni la 2.2 a la 2.5).
+- **Los productos fijos del mensaje** (cargador Logiix, protector solar, agua termal, sérum): la campaña es la del Monitor. Si se quieren, caben como una sección más de Contenido del Portal.
+- **De la investigación:**
+  - búsquedas automáticas en el sitio: el sitio bloquea robots;
+  - aprendizaje por aceptación, registro de eventos y la capa de IA: fase siguiente.
+- **No llevan la tarjeta:** la copia personal de la extensión y «Herramientas Liverpool».
+- **Sin ver en vivo con la extensión instalada:**
+  - el canal con el Portal real: se probó en el Chrome aparte, con el parcial real y marcos simulados;
+  - la tarjeta como content script: se probó inyectada.
+
 ### 2026-10-03 — Producción @136: «Ver en Google Sheets» en la vista previa, pedido por el creador
 
 **Qué se cambió:**
