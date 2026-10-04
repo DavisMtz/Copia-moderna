@@ -958,6 +958,24 @@ function fpLogosTiendas() {
 }
 
 /**
+ * Reconocimiento del Reto de Innovación Liverpool 2026 (04/10/2026): el diploma a tamaño de
+ * lectura y el mensaje del Director Corporativo de Operaciones, { v, diploma, mensaje } en data URI.
+ * Como fpLogosTiendas: viven en reco_imagenes.html (~160 KB) y NO en la página; el visor de
+ * app_reconocimiento.html los pide la primera vez que se abre y los guarda 30 días.
+ * En el archivo el base64 va en su variante URL (- y _ en vez de + y /): así no lleva ningún //
+ * que el quitacomentarios de Google pudiera tomar por comentario; aquí se devuelve al normal.
+ * Pública a propósito, como fpLogosTiendas: el Portal y el inicio de sesión se ven sin sesión, y
+ * son las mismas imágenes que esas pantallas ya enseñan en miniatura.
+ */
+function recoImagenes() {
+  const d = JSON.parse(HtmlService.createHtmlOutputFromFile('reco_imagenes').getContent());
+  ['diploma', 'mensaje'].forEach(function (k) {
+    d[k] = String(d[k] || '').replace(/-/g, '+').replace(/_/g, '/');
+  });
+  return d;
+}
+
+/**
  * Pago Web (25/09/2026): lo que la consola de #sec-pdepago no saca de la hoja PdePago.
  *   · factores: la tabla de «Pagos Fijos 3.0» (mensualidad = precio × factor), leída de la hoja
  *     del simulador y guardada 6 h. null si no se puede abrir: el cliente usa su copia del

@@ -1042,6 +1042,30 @@ y qué se dejó fuera a propósito**. Mismo formato que el registro del document
 
 <!-- Las entradas nuevas van arriba, con la más reciente primero. -->
 
+### 2026-10-04 — Reconocimiento del Reto de Innovación Liverpool 2026: tres propuestas en el Portal (en pruebas)
+
+**Qué se cambió:**
+- **El pedido:** añadir «alguna insignia o alguna etiqueta… dentro del Portal Ventel», con el logotipo del Reto de Innovación Liverpool 2026, que el proyecto es el tercer lugar, y que se vean el diploma y la insignia; primero en pruebas y con varias propuestas.
+- **Tres propuestas que conviven en pruebas** para elegir en una visita; todas abren el mismo visor (diploma a tamaño de lectura, insignia «Innovación» y el mensaje del Director Corporativo de Operaciones):
+  - **A · Vitrina en el inicio de sesión** (`inicioDeSesion.html`): el diploma con la insignia de sello, la placa del Reto y «Tercer lugar nacional», en la columna vacía de la derecha; en angosto, debajo de las notas.
+  - **B · Sello bajo la marca** de la barra lateral (`Index.html`): insignia + «Tercer lugar nacional · Reto de Innovación 2026».
+  - **C · Banda en la portada «Tu turno»** (`Index.html`), debajo del encabezado: placa, texto, miniaturas del diploma y la insignia, «Ver reconocimiento».
+- **Parcial nuevo `app_reconocimiento.html`:** estilos de las tres, el sprite (logotipo vectorial del Reto, insignia, medalla y miniatura del diploma, una vez por página, ~65 KB), el visor y `AppReco`.
+- **Las imágenes grandes no viajan en la página:** `recoImagenes()` (Portal.gs) las entrega desde `reco_imagenes.html` la primera vez que se abre el visor y el cliente las guarda 30 días (`AppCache`, clave `reco-imagenes-v1`), como los logotipos de Formas de Pago. El base64 va en su variante URL (sin `/`): ningún `//` que el quitacomentarios de Google pudiera cortar.
+
+**Qué se comprobó:**
+- `npm test`: 28 en verde (build 99, globales y tipos incluidos).
+- Vista previa con los datos reales en Chrome headless: las tres propuestas en aurora, slate y carbón; 1366, 1920 y teléfono; el visor en sus dos pestañas. Ningún `<use>` roto ni desborde horizontal.
+- Detector de impeccable sobre el parcial: 0 hallazgos.
+- `Index.html` conserva sus finales CRLF: el diff son solo las líneas nuevas.
+
+**Qué se dejó fuera a propósito:**
+- **B y C solo en `Index.html`:** `app_shell.html` y `Promociones.html` no se tocan hasta que el creador elija.
+- **Producción:** no se toca; se promueve solo si el creador lo pide.
+- **Pendiente de decidir:** cuál propuesta (o cuáles) se queda, y retirar las otras.
+- **Aviso:** el diploma dice «uno de los finalistas»; «tercer lugar nacional» es el texto del creador.
+- **Las imágenes, retocadas solo en forma:** al diploma se le enderezó la perspectiva y se le emparejó la luz (receta en `carpeta de apoyo/scripts/mudanza/escanear.py`); a la captura del mensaje solo se le quitó la papelera.
+
 ### 2026-10-04 — «Vende más»: cuatro propuestas para fortalecerlo, probadas antes de implementar (doc 18) — sin cambios en la extensión ni en el Portal
 
 **Qué se cambió:**

@@ -162,6 +162,22 @@
                 <li><span data-icon="shield" aria-hidden="true"></span> Folios protegidos</li>
                 <li><span data-icon="sparkle" aria-hidden="true"></span> Formatos oficiales</li>
             </ul>
+
+            <!-- Propuesta A (04/10/2026, en pruebas): vitrina del Reto de Innovación Liverpool 2026.
+                 En pantalla ancha ocupa la columna vacía de la derecha; en angosta va debajo de las
+                 notas. Estilos, sprite y visor en app_reconocimiento.html. -->
+            <aside class="reco-vitrina" aria-labelledby="recoVitrinaT">
+                <button type="button" class="reco-vitrina-doc" data-reco-abrir="diploma" aria-label="Ver el diploma del Reto de Innovación Liverpool 2026">
+                    <svg class="reco-mini" viewBox="0 0 560 404" aria-hidden="true"><use href="#recoDiplomaMini"/></svg>
+                    <svg class="reco-sello" viewBox="0 0 87 87" aria-hidden="true"><use href="#recoInsignia"/></svg>
+                </button>
+                <div class="reco-vitrina-tx">
+                    <span class="reco-placa"><svg class="reco-logo" viewBox="8 27 556 191" role="img" aria-label="Reto de Innovación Liverpool"><use href="#recoLogo"/></svg><span class="reco-sep" aria-hidden="true"></span><span class="reco-anio">2026</span></span>
+                    <h2 class="reco-tit" id="recoVitrinaT"><svg class="reco-medalla" viewBox="0 0 28 34" aria-hidden="true"><use href="#recoMedalla"/></svg>Tercer lugar nacional</h2>
+                    <p class="reco-txt">El Portal Ventel, con este sistema de cotizaciones, es el proyecto ganador del tercer lugar en el Reto de Innovación Liverpool 2026, a nivel nacional.</p>
+                    <button type="button" class="reco-ver" data-reco-abrir="diploma">Ver el diploma y la insignia<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 12h15M13 6l6 6-6 6"/></svg></button>
+                </div>
+            </aside>
         </main>
 
         <p class="auth-foot">Sistema de cotizaciones Ventel · Liverpool</p>
@@ -187,6 +203,8 @@
     <script>if (window.VentelFX) VentelFX.pagina("login");</script>
     <?!= include('app_support'); ?>
     <?!= include('app_operacion'); ?>
+    <!-- Reconocimiento del Reto de Innovación 2026 (propuesta A, arriba): sprite, visor y AppReco. -->
+    <?!= include('app_reconocimiento'); ?>
     <!-- Plugins GSAP (gratuitos desde 3.13). Si el CDN falla, AuthStage no oculta nada. -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.13.0/SplitText.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.13.0/DrawSVGPlugin.min.js"></script>
