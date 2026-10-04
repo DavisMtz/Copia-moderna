@@ -1067,7 +1067,7 @@ y qué se dejó fuera a propósito**. Mismo formato que el registro del document
 - **Núcleo 1.1** (`recomendador-nucleo.js`):
   - el plan de búsquedas se decide solo con los carruseles, así que no cambia cuando llegan los resultados;
   - si se sabe el modelo del equipo, una funda o mica que no lo dice no se ofrece, porque puede no ser de su medida. Se busca, y si no aparece, queda el botón de búsqueda;
-  - el «Modelo comercial» de la ficha, dicho en el nombre del candidato, cuenta como modelo exacto (para marcas cuyo modelo no se sabe leer);
+  - el «Modelo comercial» de la ficha, dicho completo en el nombre del candidato, cuenta como modelo exacto (para marcas cuyo modelo no se sabe leer). «Honor 400» no vale dentro de «Honor 400 Lite» ni de «Honor 4000»;
   - lo que Liverpool pone en «Artículos relacionados» ya no queda vetado si es un complemento reconocido. Pasaba desde la 2.6: la funda exacta del Galaxy A57 estaba ahí, y ni la búsqueda la podía ofrecer.
 - **Interruptor desde el Portal** (`VentaCruzada.gs`, `app_venta_cruzada.html`): el paquete lleva `ajustes.busqueda`.
   - La propiedad de script `VC_BUSQUEDA_EN_VIVO` = `no` apaga la búsqueda en las extensiones que reciban el paquete: al abrir el Portal, con hasta 30 min de caché del navegador.
@@ -1075,7 +1075,7 @@ y qué se dejó fuera a propósito**. Mismo formato que el registro del document
   - `fondo.js` lo sanea. Sin el dato (la @137), la búsqueda queda encendida.
 
 **Qué se comprobó:**
-- **Las mismas 11 fichas con la 2.7**, en el Chrome del creador. Ninguna recomienda algo que no vaya:
+- **Las mismas 11 fichas con la 2.7**, en el Chrome del creador (y otra vez con el código final, `fa38051`: idénticas). Ninguna recomienda algo que no vaya:
   - laptop: mouse HP 400, mochila Wenger para laptop y disco duro externo ADATA 2 TB (búsqueda);
   - lavadora: secadora Maytag de 25 kg y regulador Koblenz (búsqueda); botón «pedestal para lavadora Mabe»;
   - refrigerador: regulador Koblenz (búsqueda); botón «filtro de agua para refrigerador Hisense»;
@@ -1089,7 +1089,9 @@ y qué se dejó fuera a propósito**. Mismo formato que el registro del document
   - iPhone 16: funda del 16, mica ATTI del 16 (búsqueda) y adaptador Apple.
 - **Galaxy A57:** funda y mica del A57 (las dos de búsqueda) y adaptador Samsung. Antes del arreglo del veto no salía funda.
 - **La tarjeta completa** inyectada en el iPhone 16 con la caché vacía: una búsqueda real, guardada; la segunda visita sale de la caché.
-- `pruebas/ext_recomendador.test.js`: 153 (antes 87). Incluye:
+- **Sin paquete del Portal**, como la verá quien recargue la extensión sin abrir el Portal: busca igual, sin errores, y «Promoción de hoy» pide abrir el Portal.
+- **La 2.7 carga en Chrome:** con `Extensions.loadUnpacked` en un Chrome aparte, versión 2.7, sin avisos ni errores (`developerPrivate.getExtensionInfo`). Los 14 archivos del manifiesto existen y compilan.
+- `pruebas/ext_recomendador.test.js`: 154 (antes 87). Incluye:
   - los fallos medidos, recortados de las fichas reales;
   - resultados reales de 5 búsquedas (`ext_busquedas_20261003.json`);
   - el buscador con caché, TTL, ritmo, 403, «Access Denied», sin red, desalojo y peticiones repetidas.
