@@ -57,6 +57,7 @@
     firma: '',
     resultados: {},   // consulta → resultados de la búsqueda, para ESTA ficha
     intentadas: {},   // consulta → ya se pidió (a la caché o a la red) en esta ficha
+    producto: '',     // de qué producto son resultados e intentadas (su id, no su URL)
     buscando: false
   };
 
@@ -501,8 +502,11 @@
     if (filas.length) G.to(filas, { backgroundColor: 'rgba(225,0,152,0)', duration: 1.4, delay: 0.35, ease: 'power1.out', clearProps: 'backgroundColor' });
   }
 
+  /** La ficha por su producto, no por su URL: cambiar color o capacidad (?skuid=) no es otra ficha. */
+  function fichaEnPantalla() { return idDeRuta() || location.pathname; }
+
   function animar(h, primera, antes) {
-    if (primera) mov.url = estado.url;
+    if (primera) mov.url = fichaEnPantalla();
     if (sinMovimiento()) { terminar(mov.entrada); return; }
     if (primera) entrada(h);
     else nuevas(h.shadowRoot, antes);
@@ -544,10 +548,13 @@
       if (!esFicha()) { quitar(); return; }
       var a = ancla();
       if (!a) return;
-      if (estado.url !== location.href) {
-        // Otra ficha: lo buscado para la anterior no le sirve a esta.
+      if (estado.producto !== fichaEnPantalla()) {
+        // Otro producto: lo buscado para el anterior no le sirve a este. Elegir color o
+        // capacidad cambia la URL (?skuid=…&size=…, medido el 03/10/2026), pero es el
+        // mismo producto: lo buscado sigue valiendo y no se vuelve a pedir.
         estado.resultados = {};
         estado.intentadas = {};
+        estado.producto = fichaEnPantalla();
       }
       if (estado.url !== location.href || estado.sucio || !estado.ficha) {
         estado.ficha = leerFicha();
@@ -559,7 +566,7 @@
       var html = pintar(modelo);
       var h = host(a);
       var firma = html + '|' + estado.plegado;
-      var primera = mov.url !== estado.url;   // la primera vez que se pinta ESTA ficha
+      var primera = mov.url !== fichaEnPantalla();   // la primera vez que se pinta ESTE producto
       // A media entrada no se repinta: rehacer el DOM la cortaría (pasa con la
       // búsqueda que sale de la caché). Al terminar, lo nuevo entra marcado.
       if (firma !== estado.firma && !(entrando() && !primera)) {
@@ -604,12 +611,12 @@
    */
   function buscarLoQueFalta(plan) {
     if (!buscador || !plan || !plan.length || estado.buscando) return;
-    var url = estado.url;
+    var producto = fichaEnPantalla();
     var pendientes = plan.filter(function (b) { return !estado.intentadas[b.consulta]; });
     if (!pendientes.length) return;
     estado.buscando = true;
     var siguiente = function (i) {
-      if (i >= pendientes.length || estado.url !== url) { estado.buscando = false; return; }
+      if (i >= pendientes.length || fichaEnPantalla() !== producto) { estado.buscando = false; return; }
       var b = pendientes[i];
       estado.intentadas[b.consulta] = true;
       buscador.deCache(b.consulta).then(function (items) {
@@ -618,7 +625,7 @@
         if (document.hidden) { estado.intentadas[b.consulta] = false; return { items: null, oculta: true }; }
         return buscador.buscar(b.consulta);
       }).then(function (res) {
-        if (estado.url !== url) { estado.buscando = false; return; }
+        if (fichaEnPantalla() !== producto) { estado.buscando = false; return; }
         if (res && res.oculta) { estado.buscando = false; return; }
         if (res && res.items) {
           estado.resultados[b.consulta] = res.items;

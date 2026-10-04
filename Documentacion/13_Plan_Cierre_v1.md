@@ -1062,13 +1062,18 @@ y qué se dejó fuera a propósito**. Mismo formato que el registro del document
     - a los 3 s se fuerza el final;
     - si algo falla, se quitan los estilos en línea.
 - **`bonito`:** «iPhone 16», no «IPhone 16», cuando la ficha no trae «Modelo comercial».
+- **La ficha es el PRODUCTO, no la URL.** Medido en la ficha real: al elegir capacidad, Liverpool cambia la URL (`?skuid=…&size=128+GB`).
+  - Si no, la entrada se repetía con cada clic de variante.
+  - La búsqueda de la 2.7 (resultados, intentadas y su control a media búsqueda) también se ata al id del producto. Antes se reiniciaba con cada variante y su renglón reaparecía.
 
 **Qué se comprobó:**
 - **La extensión REAL en Chrome headless.** Liverpool bloquea a headless, así que la ficha es sintética y se sirve en la URL de Liverpool por intercepción de red, con promociones de muestra (`e2e-gsap.mjs`, en el scratchpad de la sesión):
   - GSAP 3.15.0 en el mundo aislado; la página no lo ve. Sin avisos ni errores (`developerPrivate.getExtensionInfo`);
   - los dos renglones de promoción, sin botón ni frase;
   - muestreo por fotograma: la caja está en opacidad 0 desde el primer fotograma. La mica de la búsqueda, servida al instante, espera al final de la entrada (~1 s) y entra marcada. Al terminar no queda ningún estilo en línea;
-  - con «reducir movimiento», todo visible desde el primer fotograma y sin animación.
+  - con «reducir movimiento», todo visible desde el primer fotograma y sin animación;
+  - cambio de variante (`history.replaceState` con `?skuid=`): la caja no baja de opacidad 1 y la mica no vuelve a entrar;
+  - ficha sintética de Bolsas, cuya promoción de categoría ES la más fuerte: un solo renglón con el sello, visible al final y sin estilos en línea.
 - **Dos fallos encontrados midiendo y corregidos:**
   - con `fromTo`, la caja se veía entera un fotograma antes de entrar: el punto de partida se aplicaba tarde;
   - la búsqueda que sale de la caché (lo normal en una segunda visita) repintaba a media entrada y cortaba el escalonado. Ahora espera a que termine.
