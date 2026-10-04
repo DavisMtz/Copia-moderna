@@ -27,7 +27,7 @@
  *   dep.leerResultados(texto) → { titulo, items: [{ id, marca, nombre, precio, rango, desc, img, href }] }
  *   dep.ahora() → ms
  *
- * Hecho para Ventel · v1.0 · 03/10/2026
+ * Hecho para Ventel · v1.1 · 04/10/2026
  */
 (function (raiz) {
   'use strict';
@@ -35,6 +35,10 @@
   var CLAVE_CACHE = 'vmBusquedas';
   var CLAVE_PAUSA = 'vmBusquedaPausa';
   var CLAVE_RITMO = 'vmBusquedaRitmo';
+  // La forma de lo guardado. Desde la 3.0 cada resultado lleva su calificación, sus
+  // opiniones y su vendedor (lector-liverpool.js): lo que guardó la 2.9 no los trae y
+  // se da por caducado, en vez de esperar 24 h a que el núcleo pueda elegir por calidad.
+  var FORMA = 2;
   var TTL = 24 * 3600000;
   var TOPE_CACHE = 200;
   var TOPE_ITEMS = 24;
@@ -54,7 +58,7 @@
       var k = clave(consulta);
       return dep.leer([CLAVE_CACHE]).then(function (r) {
         var hit = (r[CLAVE_CACHE] || {})[k];
-        return hit && dep.ahora() - hit.en < TTL ? hit.items : null;
+        return hit && hit.v === FORMA && dep.ahora() - hit.en < TTL ? hit.items : null;
       });
     }
 
@@ -70,7 +74,7 @@
         var ahora = dep.ahora();
         var cache = r[CLAVE_CACHE] || {};
         var hit = cache[k];
-        if (hit && ahora - hit.en < TTL) return { items: hit.items, de: 'cache' };
+        if (hit && hit.v === FORMA && ahora - hit.en < TTL) return { items: hit.items, de: 'cache' };
         if (r[CLAVE_PAUSA] && r[CLAVE_PAUSA] > ahora) return { items: null, motivo: 'pausa' };
         var ritmo = (r[CLAVE_RITMO] || []).filter(function (t) { return ahora - t < 3600000; });
         var ultimoMinuto = ritmo.filter(function (t) { return ahora - t < 60000; }).length;
@@ -92,7 +96,7 @@
           // Se vuelve a leer la caché: otra pestaña pudo guardar algo mientras tanto.
           return dep.leer([CLAVE_CACHE]).then(function (r2) {
             var c2 = r2[CLAVE_CACHE] || {};
-            c2[k] = { en: dep.ahora(), items: items };
+            c2[k] = { en: dep.ahora(), v: FORMA, items: items };
             var claves = Object.keys(c2);
             if (claves.length > TOPE_CACHE) {
               claves.sort(function (a, b) { return c2[a].en - c2[b].en; })
@@ -111,7 +115,7 @@
   }
 
   raiz.VentelBuscador = {
-    crear: crear, clave: clave,
+    crear: crear, clave: clave, FORMA: FORMA,
     TTL: TTL, PAUSA: PAUSA, POR_MINUTO: POR_MINUTO, POR_HORA: POR_HORA, TOPE_CACHE: TOPE_CACHE,
     CLAVES: { cache: CLAVE_CACHE, pausa: CLAVE_PAUSA, ritmo: CLAVE_RITMO }
   };

@@ -1,0 +1,90 @@
+/*
+  =====================================================================
+   Ventel · Medición de «Vende más» — lo propio de esta página.
+   El sistema (colores, espacios, botones, tablas, tarjetas) es el del
+   inspector: inspector.css. Aquí no hay ni un color ni un espacio suelto.
+   Hecho para Ventel · 04/10/2026
+  =====================================================================
+*/
+
+/* --- El embudo: mostradas → abiertas → en la bolsa --- */
+.embudo {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: var(--s3);
+  margin-top: var(--s5);
+}
+.paso {
+  background-color: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  padding: var(--s4) var(--s5);
+  display: flex;
+  flex-direction: column;
+  gap: var(--s1);
+}
+.paso-cifra {
+  font-size: var(--fs-2xl);
+  font-weight: 700;
+  line-height: 1.1;
+  letter-spacing: -0.02em;
+  font-variant-numeric: tabular-nums;
+}
+.paso-etiqueta { font-size: var(--fs-sm); font-weight: 600; }
+.paso-tasa { font-size: var(--fs-xs); color: var(--text-mut); font-variant-numeric: tabular-nums; }
+/* La tasa va en el color del texto, no en rosa: a 12 px sobre la superficie gris el acento se queda en 4.2:1. */
+.paso-tasa strong { color: var(--text); font-weight: 600; }
+
+@media (max-width: 640px) {
+  .embudo { grid-template-columns: 1fr; }
+}
+
+/* --- Sin datos --- */
+.vacio {
+  margin-top: var(--s6);
+  padding: var(--s5);
+  max-width: 65ch;
+  border: 1px dashed var(--border);
+  border-radius: var(--radius-md);
+}
+.vacio h2 { font-size: var(--fs-md); font-weight: 600; margin-bottom: var(--s2); }
+.vacio p { font-size: var(--fs-sm); color: var(--text-mut); }
+
+/* --- Tablas: las cifras a la derecha, la tasa en gris --- */
+.tabla-variantes th.num { text-align: right; }
+/* La primera columna nombra la fila; no es un encabezado de columna: sin su fondo ni su gris. */
+.tabla-variantes tbody th {
+  background-color: transparent;
+  color: var(--text);
+  font-weight: 400;
+  white-space: nowrap;
+}
+.tasa-celda { color: var(--text-mut); }
+.fila-total td, .tabla-variantes tbody .fila-total th { font-weight: 600; border-top: 2px solid var(--border); }
+
+/* --- Notas --- */
+.lista-notas {
+  margin: 0;
+  padding-left: var(--s5);
+  max-width: 75ch;
+  display: grid;
+  gap: var(--s2);
+  font-size: var(--fs-sm);
+  color: var(--text-mut);
+}
+.lista-notas strong { color: var(--text); font-weight: 600; }
+
+/* --- Sin datos no hay nada que copiar ni que borrar --- */
+.btn:disabled { opacity: 0.5; cursor: default; }
+
+/* --- Borrar pide confirmar: el mismo botón, en rojo, unos segundos --- */
+.btn-confirmar {
+  background-color: var(--bg);
+  border-color: var(--danger);
+  color: var(--danger);
+}
+.btn-confirmar:hover { background-color: var(--surface); }
+
+@media print {
+  .cabecera-acciones { display: none; }
+}

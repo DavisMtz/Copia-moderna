@@ -20,7 +20,13 @@
  *     que los carruseles no trajeron bien: como mucho dos por ficha, DESPUÉS de
  *     pintar, con caché de 24 h, ritmo acotado y freno si el sitio se queja;
  *   · las promociones: chrome.storage.local['ventelPromos'], que deja ahí la
- *     extensión cuando el asesor abre el Portal (campana-puente.js → fondo.js).
+ *     extensión cuando el asesor abre el Portal (campana-puente.js → fondo.js);
+ *   · desde la 3.0, lo que la página trae y no pinta (lector-liverpool.js): la
+ *     calificación y las opiniones de cada candidato, para que el núcleo elija el
+ *     que tiene respaldo; y la bolsa del cliente (bolsa-liverpool.js), para
+ *     ofrecer en la ficha de un accesorio lo que le falta al equipo que ya lleva;
+ *   · y cuenta, solo en este navegador, qué se mostró, qué se abrió y qué acabó
+ *     en la bolsa (medicion-local.js; se ve en medicion.html).
  *
  * Tres cosas que se ven en la práctica y no en el código:
  *   · Cada carrusel se lee por el PREFIJO de sus tarjetas (blt…-product-<id>-
@@ -32,7 +38,7 @@
  *   · Nada aquí agrega a la bolsa: la sesión del asesor puede estar ligada a un
  *     cliente por el Panel del agente. Todo abre la ficha y el asesor decide.
  *
- * Hecho para Ventel · v1.1 · 03/10/2026
+ * Hecho para Ventel · v2.0 · 04/10/2026
  */
 (function () {
   'use strict';
@@ -42,6 +48,8 @@
   var VM = window.VentelVM;
   var REGLAS = window.VENTEL_REGLAS;
   if (!VM || !REGLAS || typeof inspectProductFromDOM !== 'function') return;
+  // Los tres de la 3.0 son opcionales: si alguno falta, la tarjeta sigue como en la 2.9.
+  var LECTOR = window.VentelLector || null;
 
   var HOST_ID = 'ventel-vende-mas';
   var CLAVE_PROMOS = 'ventelPromos';
@@ -58,7 +66,15 @@
     resultados: {},   // consulta → resultados de la búsqueda, para ESTA ficha
     intentadas: {},   // consulta → ya se pidió (a la caché o a la red) en esta ficha
     producto: '',     // de qué producto son resultados e intentadas (su id, no su URL)
-    buscando: false
+    buscando: false,
+    calidad: { producto: '', mapa: null },   // lo que el stream sabe de los productos de los carruseles
+    bolsa: null,      // los artículos de la bolsa del cliente (null = no se sabe)
+    bolsaCuenta: null,   // la cuenta de la cabecera con la que se leyó
+    bolsaQuien: null, // la huella de la sesión con la que se leyó
+    bolsaEn: 0,       // cuándo se preguntó por última vez
+    bolsaLeyendo: false,
+    aLaVista: false,  // la tarjeta está en pantalla (para contar lo «mostrado»)
+    medido: ''        // lo último que se le avisó a la medición
   };
 
   // ── chrome.storage, con red: al recargar la extensión, una pestaña ya abierta
@@ -121,10 +137,12 @@
         migas: migasDelDom(),
         producto: null, modeloComercial: null, precio: null, esRango: false,
         variantes: [], varianteActual: null, seleccion: null, colores: [],
-        care: careEnPantalla
+        care: careEnPantalla,
+        delStream: false
       };
     }
     return {
+      delStream: true,
       id: id,
       nombre: P.name || textoDe('h1'),
       marca: P.brand || textoDe('[data-testid$="-brand-link"]'),
@@ -201,9 +219,14 @@
     };
   }
 
-  /** Los productos de una página de resultados (/tienda?s=…) ya descargada. */
+  /**
+   * Los productos de una página de resultados (/tienda?s=…) ya descargada: las
+   * tarjetas del HTML y, de su stream, la calificación, las opiniones, el vendedor
+   * y la existencia en línea de cada una (desde la 3.0).
+   */
   function resultadosDe(texto) {
-    var doc = new DOMParser().parseFromString(String(texto || ''), 'text/html');
+    texto = String(texto || '');
+    var doc = new DOMParser().parseFromString(texto, 'text/html');
     var vistos = {}, items = [];
     var enlaces = doc.querySelectorAll('a[href*="/pdp/"]');
     for (var i = 0; i < enlaces.length; i++) {
@@ -214,14 +237,42 @@
       it.img = it.img && /^https:/.test(it.img) ? it.img : null;
       items.push(it);
     }
+    if (LECTOR) {
+      try { items = LECTOR.enriquecer(items, LECTOR.calidadDeBusqueda(LECTOR.streamDe(texto))); } catch (e) { /* sin esos datos, el orden de Liverpool */ }
+    }
     return { titulo: doc.title || '', items: items };
   }
 
+  /**
+   * Lo que el stream de ESTA ficha sabe de los productos de sus carruseles (id →
+   * calificación, opiniones, vendedor). Se lee una vez por producto: son ~500 KB
+   * de texto y `asegurar` corre cada dos segundos. Solo si el stream es el de la
+   * ficha abierta (la misma guardia que las variantes: ver la cabecera).
+   */
+  function calidadDeLaFicha() {
+    if (!LECTOR || !estado.ficha || !estado.ficha.delStream) return null;
+    var producto = fichaEnPantalla();
+    if (estado.calidad.producto === producto) return estado.calidad.mapa;
+    var mapa = null;
+    try {
+      var codigo = '', scripts = document.scripts;
+      for (var i = 0; i < scripts.length; i++) {
+        var t = scripts[i].textContent;
+        if (t && t.indexOf('self.__next_f.push') > -1) codigo += t + '\n';
+      }
+      mapa = LECTOR.calidadDeFicha(LECTOR.streamDe(codigo));
+    } catch (e) { mapa = null; }
+    estado.calidad = { producto: producto, mapa: mapa };
+    return mapa;
+  }
+
   function leerCarruseles() {
+    var mapa = calidadDeLaFicha();
+    var con = function (items) { return (LECTOR && mapa) ? LECTOR.enriquecer(items, mapa) : items; };
     return {
-      complementa: carrusel(/^complementa con/i),
-      otros: carrusel(/^otros clientes compraron/i),
-      relacionados: carrusel(/^art[ií]culos relacionados$/i)
+      complementa: con(carrusel(/^complementa con/i)),
+      otros: con(carrusel(/^otros clientes compraron/i)),
+      relacionados: con(carrusel(/^art[ií]culos relacionados$/i))
     };
   }
 
@@ -257,6 +308,28 @@
   var CHEVRON = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="m6 15 6-6 6 6" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>';
   var ESCUDO = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3 4.5 6v5.5c0 4.5 3.2 8.4 7.5 9.5 4.3-1.1 7.5-5 7.5-9.5V6Z" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/><path d="m8.8 12 2.2 2.2 4.2-4.4" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>';
   var LUPA = '<svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="6.5" fill="none" stroke="currentColor" stroke-width="2"/><path d="m16 16 4 4" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>';
+  var BOLSA = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 8h12l1 12H5L6 8Z" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/><path d="M9 8V6.5a3 3 0 0 1 6 0V8" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>';
+
+  /**
+   * El respaldo de una recomendación, para que el asesor lo diga: «★ 4.8 · 371
+   * opiniones». Sin opiniones no se dice nada (un 0 no es «cero estrellas»). Y si
+   * la vende un tercero, se avisa: las promociones de Liverpool no siempre le aplican.
+   */
+  function respaldo(r) {
+    var partes = [];
+    if (typeof r.nOp === 'number' && r.nOp > 0 && typeof r.cal === 'number') {
+      partes.push('★ ' + (Math.round(r.cal * 10) / 10).toFixed(1) + ' · ' + r.nOp.toLocaleString('es-MX') + (r.nOp === 1 ? ' opinión' : ' opiniones'));
+    }
+    if (r.mkp === true) partes.push('Marketplace');
+    return partes.join(' · ');
+  }
+
+  /** El nombre de un artículo en pocas palabras, para una línea de la tarjeta. */
+  function corto(nombre) {
+    var palabras = String(nombre || '').replace(/\s+/g, ' ').trim().split(' ');
+    var t = palabras.slice(0, 5).join(' ');
+    return t.length > 42 ? t.slice(0, 41) + '…' : t;
+  }
 
   function fila(o) {
     // o: { k, href, nueva, img, ceja, nombre, nota, dif, precio, desc, desde }
@@ -305,9 +378,18 @@
     var filas = m.cruzada.map(function (r) {
       return fila({
         k: 'x:' + r.id, href: urlFicha(r), nueva: true, img: urlImagen(r.img), ceja: r.marca, nombre: r.nombre,
-        precio: r.precio, desc: r.desc, desde: r.rango
+        nota: respaldo(r), precio: r.precio, desc: r.desc, desde: r.rango
       });
     }).join('');
+    // Con el equipo tomado de la bolsa, se dice de quién son los complementos: en la
+    // ficha de un adaptador, «funda para iPhone 16» sin esto parecería un error.
+    var eq = m.bolsa && m.bolsa.equipo;
+    var deQuien = eq
+      ? '<p class="eq" data-k="e:' + esc(eq.id) + '">' + BOLSA + '<span>Para <b>' + esc(eq.modelo || corto(eq.nombre)) + '</b>, que ya va en la bolsa</span></p>'
+      : '';
+    var yaVa = (m.bolsa && m.bolsa.etiquetas && m.bolsa.etiquetas.length)
+      ? '<p class="ya">Ya va en la bolsa: ' + esc(m.bolsa.etiquetas.join(', ').toLowerCase()) + '.</p>'
+      : '';
     // «Más opciones» de lo que se buscó (la página entera de Liverpool) y las
     // búsquedas de los tipos que se quedaron sin candidato, sin repetir.
     var consultas = [], vistas = {};
@@ -326,8 +408,8 @@
       ? '<div class="srv">' + ESCUDO + '<span><b>Liverpool Care</b> · ofrece la protección del equipo; está en esta misma ficha.</span></div>'
       : '';
     if (!filas && !chips && !servicio) return '';
-    return '<section class="sec"><h3>Venta cruzada <span>suma el complemento</span></h3>' + filas +
-      (chips ? '<div class="chips" aria-label="Búsquedas sugeridas">' + chips + '</div>' : '') + servicio + '</section>';
+    return '<section class="sec"><h3>Venta cruzada <span>suma el complemento</span></h3>' + deQuien + filas +
+      (chips ? '<div class="chips" aria-label="Búsquedas sugeridas">' + chips + '</div>' : '') + yaVa + servicio + '</section>';
   }
 
   function seccionPromos(m) {
@@ -409,6 +491,10 @@
     '.chip svg{width:12px;height:12px;color:#767676}' +
     '.chip:hover{border-color:#E10098;color:#E10098}' +
     '.chip:hover svg{color:#E10098}' +
+    '.eq{display:flex;gap:6px;align-items:center;margin:1px 0 5px;color:#555;font-size:11.5px}' +
+    '.eq svg{width:14px;height:14px;flex:none;color:#E10098}' +
+    '.eq b{color:#1a1a1a;font-weight:600}' +
+    '.ya{margin:6px 0 2px;color:#767676;font-size:10.5px}' +
     '.srv{display:flex;gap:8px;align-items:flex-start;margin:8px 0 2px;color:#555;font-size:11.5px}' +
     '.srv svg{width:16px;height:16px;flex:none;color:#E10098;margin-top:1px}' +
     '.srv b{color:#1a1a1a;font-weight:600}' +
@@ -470,7 +556,7 @@
     var raiz = h.shadowRoot;
     var logo = raiz.querySelector('.logo');
     // En orden de lectura; plegada, solo la cabecera.
-    var piezas = [].slice.call(raiz.querySelectorAll(estado.plegado ? '.cab-tx' : '.cab-tx, .sec h3, a.f, .chips, .srv, .promo, .nota-camp'));
+    var piezas = [].slice.call(raiz.querySelectorAll(estado.plegado ? '.cab-tx' : '.cab-tx, .sec h3, .eq, a.f, .chips, .ya, .srv, .promo, .nota-camp'));
     var sellos = estado.plegado ? [] : [].slice.call(raiz.querySelectorAll('.sello'));
     // Los puntos de partida se escriben YA: gsap.set no espera fotograma. Con
     // fromTo, la caja alcanzaba a verse entera un fotograma antes de entrar
@@ -529,7 +615,9 @@
       h.id = HOST_ID;
       h.attachShadow({ mode: 'open' });
       h.shadowRoot.addEventListener('click', alClic);
+      h.shadowRoot.addEventListener('auxclick', alClic);   // el clic de en medio también abre la ficha
       estado.firma = '';
+      vigilar(h);
     }
     if (h.previousElementSibling !== a) a.insertAdjacentElement('afterend', h);
     return h;
@@ -541,6 +629,27 @@
     var h = document.getElementById(HOST_ID);
     if (h) h.remove();
     estado.firma = '';
+    estado.aLaVista = false;
+    estado.medido = '';
+    if (vigia) { try { vigia.disconnect(); } catch (e) { /* nada */ } }
+  }
+
+  // «Mostrada» quiere decir que el asesor la tuvo en pantalla, no que se pintó: la
+  // tarjeta va debajo de «Agregar a mi bolsa» y en una pantalla chica queda fuera.
+  var vigia = null;
+  function vigilar(h) {
+    if (vigia === null) {
+      if (typeof IntersectionObserver !== 'function') { vigia = false; }
+      else {
+        vigia = new IntersectionObserver(function (entradas) {
+          var e = entradas[entradas.length - 1];
+          estado.aLaVista = !!(e && e.isIntersecting && e.intersectionRatio >= 0.4);
+          if (estado.aLaVista) avisarMostradas();
+        }, { threshold: [0, 0.4, 1] });
+      }
+    }
+    if (vigia) { try { vigia.observe(h); } catch (e) { estado.aLaVista = true; } }
+    else estado.aLaVista = true;
   }
 
   function asegurar() {
@@ -555,6 +664,7 @@
         estado.resultados = {};
         estado.intentadas = {};
         estado.producto = fichaEnPantalla();
+        estado.medido = '';
       }
       if (estado.url !== location.href || estado.sucio || !estado.ficha) {
         estado.ficha = leerFicha();
@@ -562,7 +672,7 @@
         estado.sucio = false;
       }
       if (!estado.ficha || !estado.ficha.nombre) return;
-      var modelo = VM.recomendar(estado.ficha, leerCarruseles(), estado.promos, REGLAS, Date.now(), estado.resultados);
+      var modelo = VM.recomendar(estado.ficha, leerCarruseles(), estado.promos, REGLAS, Date.now(), estado.resultados, estado.bolsa);
       var html = pintar(modelo);
       var h = host(a);
       var firma = html + '|' + estado.plegado;
@@ -576,10 +686,27 @@
         estado.modelo = modelo;
         try { animar(h, primera, antes); } catch (e) { terminar(mov.entrada); rescatar(h); }
       }
-      buscarLoQueFalta(modelo.busquedas);
+      // Primero la bolsa: con el equipo que lleva el cliente, lo que hay que buscar es otra cosa.
+      leerLaBolsa();
+      if (!bolsaPendiente()) buscarLoQueFalta(modelo.busquedas);
+      avisarMostradas();
     } catch (e) {
       try { console.warn('Ventel Vende más:', e && e.message); } catch (e2) { /* nada */ }
     }
+  }
+
+  /**
+   * Un GET a una página de la propia tienda (mismo origen, con la sesión del
+   * asesor), con tope de tiempo: una petición que se queda colgada no puede dejar
+   * a la tarjeta esperando la bolsa o una búsqueda para siempre.
+   */
+  function pedirPagina(url) {
+    var control = (typeof AbortController === 'function') ? new AbortController() : null;
+    var tope = control ? setTimeout(function () { control.abort(); }, 15000) : null;
+    var listo = function () { if (tope) clearTimeout(tope); };
+    return fetch(location.origin + url, { credentials: 'include', signal: control ? control.signal : undefined }).then(function (r) {
+      return r.text().then(function (t) { listo(); return { status: r.status, texto: t }; });
+    }).then(null, function (e) { listo(); throw e; });
   }
 
   // ===========================================================================
@@ -589,12 +716,8 @@
   var buscador = window.VentelBuscador ? window.VentelBuscador.crear({
     leer: leerP,
     guardar: guardarP,
-    pedir: function (url) {
-      // Absoluta y del mismo origen que la ficha: es la búsqueda que haría el asesor.
-      return fetch(location.origin + url, { credentials: 'include' }).then(function (r) {
-        return r.text().then(function (t) { return { status: r.status, texto: t }; });
-      });
-    },
+    // Absoluta y del mismo origen que la ficha: es la búsqueda que haría el asesor.
+    pedir: pedirPagina,
     leerResultados: resultadosDe,
     ahora: function () { return Date.now(); }
   }) : null;
@@ -638,6 +761,154 @@
     siguiente(0);
   }
 
+  // ===========================================================================
+  // La bolsa del cliente (bolsa-liverpool.js)
+  // ===========================================================================
+
+  var lectorBolsa = (window.VentelBolsa && LECTOR) ? window.VentelBolsa.crear({
+    leer: leerP,
+    guardar: guardarP,
+    // La misma página que abre el asesor al entrar a su bolsa: un GET, sin tocar nada.
+    pedir: pedirPagina,
+    // De toda la página se queda SOLO la lista de artículos (nunca la dirección ni el pago).
+    leerBolsa: function (texto) { return LECTOR.bolsaDe(LECTOR.streamDe(texto)); },
+    ahora: function () { return Date.now(); }
+  }) : null;
+
+  /**
+   * Cuántos artículos dice la cabecera que hay en la bolsa: 0 si el enlace de la
+   * bolsa está y no lleva número; null si ni el enlace se encuentra (no se sabe).
+   */
+  function cuentaDeBolsa() {
+    var n = document.querySelector('[data-testid$="-header-cart-quantity"]');
+    if (!n) return document.querySelector('[data-testid$="-header-shopping-cart-shopping-link"]') ? 0 : null;
+    var v = parseInt((n.textContent || '').replace(/\D/g, ''), 10);
+    return isFinite(v) ? v : null;
+  }
+
+  function firmaDeBolsa(items) {
+    return Array.isArray(items) ? items.map(function (b) { return b.id + '@' + b.agregado; }).join(',') : 'sin leer';
+  }
+
+  /**
+   * La huella de la sesión: la atención del Panel del agente (la cookie del folio,
+   * la misma que lee el resumen de la compra) y el usuario de la tienda. Si cambia,
+   * la bolsa guardada es de OTRO cliente aunque la cabecera diga la misma cuenta.
+   * Se guarda la huella (un número corto), nunca el dato. '' si no hay con qué.
+   */
+  function huellaDeSesion() {
+    var partes = [];
+    try {
+      String(document.cookie || '').split(';').forEach(function (c) {
+        var i = c.indexOf('='), k = c.slice(0, i).trim();
+        if (k === 'x-cs-folio-id' || /^jml_userid_/.test(k)) partes.push(k + '=' + c.slice(i + 1).trim());
+      });
+    } catch (e) { /* sin cookies a la vista */ }
+    if (!partes.length) return '';
+    var s = partes.sort().join('|'), h = 5381;
+    for (var j = 0; j < s.length; j++) h = ((h << 5) + h + s.charCodeAt(j)) | 0;
+    return (h >>> 0).toString(36);
+  }
+
+  /**
+   * ¿Falta leer la bolsa para ESTA cuenta y ESTA sesión? Mientras falte, las
+   * búsquedas esperan: con el equipo de la bolsa el plan es otro (en la funda
+   * Lacoste se buscaba «audífonos inalámbricos Lacoste» y, al llegar la bolsa,
+   * «…Apple»: una búsqueda tirada). Si la bolsa no se puede leer, no se espera.
+   */
+  function bolsaPendiente() {
+    if (!lectorBolsa || document.hidden || !busquedaEncendida()) return false;
+    var cuenta = cuentaDeBolsa();
+    if (!cuenta) return false;
+    return !(estado.bolsaCuenta === cuenta && estado.bolsaQuien === huellaDeSesion());
+  }
+
+  /**
+   * La bolsa se vuelve a mirar solo cuando cambia la cuenta de la cabecera o la
+   * sesión (o cada minuto se le pregunta al almacén, que no sale a la red si lo
+   * guardado sirve). Con la pestaña oculta o con el interruptor del Portal
+   * apagado, nada.
+   */
+  function leerLaBolsa() {
+    if (!lectorBolsa || estado.bolsaLeyendo || document.hidden || !busquedaEncendida()) return;
+    var cuenta = cuentaDeBolsa();
+    if (cuenta === null) return;
+    var quien = huellaDeSesion();
+    if (estado.bolsaCuenta === cuenta && estado.bolsaQuien === quien && Date.now() - estado.bolsaEn < 60000) return;
+    estado.bolsaLeyendo = true;
+    lectorBolsa.leer(cuenta, quien).then(function (res) {
+      estado.bolsaLeyendo = false;
+      var otra = estado.bolsaCuenta !== cuenta || estado.bolsaQuien !== quien;
+      estado.bolsaCuenta = cuenta;
+      estado.bolsaQuien = quien;
+      estado.bolsaEn = Date.now();
+      var items = res && Array.isArray(res.items) ? res.items : null;
+      if (!items) {
+        // No se pudo leer ahora (ritmo o freno). Si la bolsa es la misma de antes, se queda
+        // lo que se sabía; si es otra (otra cuenta, otra sesión), lo de antes ya no vale.
+        // Por ritmo se reintenta en unos segundos en vez de esperar el minuto.
+        if (res && res.motivo === 'ritmo') estado.bolsaEn -= 40000;
+        if (otra && estado.bolsa !== null) { estado.bolsa = null; estado.firma = ''; }
+        programar(30);       // las búsquedas que esperaban a la bolsa ya pueden salir
+        return;
+      }
+      var cambio = firmaDeBolsa(items) !== firmaDeBolsa(estado.bolsa);
+      estado.bolsa = items;
+      if (medicion && items.length) medicion.bolsa(items);
+      if (cambio) estado.firma = '';
+      programar(30);
+    }, function () { estado.bolsaLeyendo = false; estado.bolsaEn = Date.now(); programar(30); });
+  }
+
+  // ===========================================================================
+  // Medición local (medicion-local.js): qué se mostró, qué se abrió, qué acabó en la bolsa
+  // ===========================================================================
+
+  var medicion = window.VentelMedicion ? window.VentelMedicion.crear({
+    leer: leerP,
+    guardar: guardarP,
+    ahora: function () { return Date.now(); }
+  }) : null;
+
+  /** Lo que la tarjeta enseña ahora, como lo quiere la medición. */
+  function recomendacionesDe(m) {
+    var out = [], ficha = fichaEnPantalla();
+    var c = m.incremental.capacidad;
+    if (c) out.push({ k: 'c', id: ficha, sku: c.sku });
+    var s = m.incremental.modelo;
+    if (s) out.push({ k: 'm', id: s.id });
+    var equipo = m.bolsa && m.bolsa.equipo;
+    var clase = equipo ? equipo.clase.id : (m.clase ? m.clase.id : '');
+    m.cruzada.forEach(function (r, i) {
+      out.push({ k: 'x', id: r.id, tipo: clase + '/' + r.tipo, pos: i, origen: r.origen, calidad: !!r.enLugarDe, equipo: !!equipo });
+    });
+    return out;
+  }
+
+  /**
+   * ¿La tarjeta ya enseña lo definitivo? Mientras falte la bolsa o alguna búsqueda
+   * de su plan, lo que se ve dura un segundo (el tercer complemento del carrusel,
+   * que la mica de la búsqueda reemplaza enseguida): contarlo inflaría lo «mostrado».
+   */
+  function asentada() {
+    if (estado.buscando || estado.bolsaLeyendo || bolsaPendiente()) return false;
+    if (!buscador) return true;
+    var plan = (estado.modelo && estado.modelo.busquedas) || [];
+    return plan.every(function (b) { return estado.intentadas[b.consulta]; });
+  }
+
+  /** Avisa a la medición de lo que está a la vista; solo cuando cambia y ya asentada. */
+  function avisarMostradas() {
+    if (!medicion || !estado.modelo || estado.plegado || !estado.aLaVista || document.hidden) return;
+    if (!asentada()) return;
+    var ficha = fichaEnPantalla();
+    var recs = recomendacionesDe(estado.modelo);
+    var firma = ficha + '|' + recs.map(function (r) { return r.k + ':' + r.id + ':' + (r.sku || ''); }).join(',');
+    if (firma === estado.medido) return;
+    estado.medido = firma;
+    medicion.mostrar(ficha, recs);
+  }
+
   // Con la pestaña de vuelta a la vista, lo que se dejó pendiente se busca.
   document.addEventListener('visibilitychange', function () {
     if (!document.hidden) programar(200);
@@ -649,7 +920,33 @@
     temporizador = setTimeout(function () { temporizador = null; asegurar(); }, ms || 300);
   }
 
+  /** El asesor abrió un renglón de la tarjeta: se anota. */
+  function anotarClic(ev) {
+    if (!medicion) return;
+    var a = ev.target && ev.target.closest ? ev.target.closest('a[data-k]') : null;
+    if (!a) return;
+    if (ev.type === 'auxclick' && ev.button !== 1) return;   // el botón derecho no abre nada
+    var k = a.getAttribute('data-k') || '', ficha = fichaEnPantalla();
+    if (k.indexOf('x:') === 0) medicion.clic(ficha, 'x', k.slice(2));
+    else if (k.indexOf('m:') === 0) medicion.clic(ficha, 'm', k.slice(2));
+    else if (k.indexOf('q:') === 0) medicion.clic(ficha, 'q');
+    else if (k.indexOf('c:') === 0) {
+      // «Sube a 512 GB» abre en ESTA pestaña: sin esperar, la página se va antes de que
+      // el aviso llegue a guardarse.
+      var anotado = medicion.clic(ficha, 'c', ficha, k.slice(2));
+      if (ev.type === 'click' && !ev.ctrlKey && !ev.metaKey && !ev.shiftKey && a.target !== '_blank') {
+        var destino = a.href, ido = false;
+        var ir = function () { if (!ido) { ido = true; location.href = destino; } };
+        ev.preventDefault();
+        anotado.then(ir, ir);
+        setTimeout(ir, 400);
+      }
+    }
+  }
+
   function alClic(ev) {
+    try { anotarClic(ev); } catch (e) { /* la medición nunca estorba al clic */ }
+    if (ev.type !== 'click') return;
     var b = ev.target && ev.target.closest ? ev.target.closest('[data-accion]') : null;
     if (!b) return;
     if (b.getAttribute('data-accion') === 'plegar') {
@@ -680,7 +977,8 @@
   // Diagnóstico: desde la consola de DevTools, en el contexto de la extensión,
   // __ventelVendeMas() dice qué leyó la tarjeta y qué decidió.
   window.__ventelVendeMas = function () {
-    return { ficha: estado.ficha, carruseles: leerCarruseles(), promos: estado.promos, modelo: estado.modelo };
+    return { ficha: estado.ficha, carruseles: leerCarruseles(), promos: estado.promos, modelo: estado.modelo,
+      bolsa: { cuenta: estado.bolsaCuenta, articulos: estado.bolsa }, aLaVista: estado.aLaVista, medido: estado.medido };
   };
 
   leer([CLAVE_PROMOS, CLAVE_PLEGADO], function (r) {

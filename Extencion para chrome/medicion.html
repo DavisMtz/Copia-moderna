@@ -1,0 +1,92 @@
+<!DOCTYPE html>
+<!--
+  =====================================================================
+   Ventel · Medición de «Vende más»
+   Lo que la tarjeta de las fichas lleva contado EN ESTE NAVEGADOR:
+   recomendaciones mostradas, abiertas y que acabaron en la bolsa
+   (medicion-local.js, fase A del documento 18). Nada sale del equipo.
+
+   Usa el sistema de diseño del inspector (inspector.css); lo propio de
+   esta página está en medicion.css. La interfaz la escribe medicion.js.
+
+   Hecho para Ventel · v1.0 · 04/10/2026
+  =====================================================================
+-->
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Ventel · Medición de «Vende más»</title>
+  <link rel="stylesheet" href="inspector.css">
+  <link rel="stylesheet" href="medicion.css">
+</head>
+<body>
+  <header class="cabecera">
+    <div class="contenedor cabecera-fila">
+      <div class="marca">
+        <svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+          <path d="M4 20V10"></path>
+          <path d="M10 20V4"></path>
+          <path d="M16 20v-7"></path>
+          <path d="M22 20H2"></path>
+        </svg>
+        <div>
+          <h1>Medición de «Vende más»</h1>
+          <p class="origen" id="origen">Cargando…</p>
+        </div>
+      </div>
+      <div class="cabecera-acciones">
+        <button id="btnPausar" class="btn btn-sec" type="button">Pausar</button>
+        <button id="btnBorrar" class="btn btn-sec" type="button">Borrar todo</button>
+        <button id="btnCopiar" class="btn btn-pri" type="button">Copiar resumen</button>
+      </div>
+    </div>
+  </header>
+
+  <main class="contenedor">
+    <div id="avisos"></div>
+
+    <!-- Sin datos todavía: qué es esto y cómo empieza a contar -->
+    <section class="vacio" id="vacio" hidden>
+      <h2>Todavía no hay nada que contar</h2>
+      <p>Abre la ficha de un artículo en Liverpool. Cuando la tarjeta «Vende más con este artículo» esté a la vista, aquí aparecerá lo que mostró, lo que abriste y lo que acabó en la bolsa.</p>
+    </section>
+
+    <div id="contenido" hidden>
+      <!-- El embudo: lo que importa, en tres pasos -->
+      <section class="embudo" id="embudo" aria-label="De lo mostrado a la bolsa"></section>
+
+      <!-- Lo demás, de un vistazo -->
+      <section class="tarjetas-resumen" id="cifras" aria-label="Otras cifras"></section>
+
+      <section class="seccion-inspector" id="secDias">
+        <h2>Por día</h2>
+        <div class="seccion-cuerpo"></div>
+      </section>
+
+      <section class="seccion-inspector" id="secTipos">
+        <h2>Por tipo de complemento <span class="conteo-seccion" id="conteoTipos"></span></h2>
+        <div class="seccion-cuerpo"></div>
+      </section>
+    </div>
+
+    <section class="seccion-inspector" id="secComo">
+      <h2>Cómo leer estas cifras</h2>
+      <ul class="lista-notas">
+        <li><strong>Mostrada</strong> quiere decir que tuviste la tarjeta en pantalla con esa recomendación, no solo que se pintó. La misma recomendación en la misma ficha no cuenta dos veces en media hora.</li>
+        <li><strong>En la bolsa</strong> es que el artículo recomendado apareció en la bolsa hasta 60 minutos después de mostrarse. Es un indicio, no una venta: no prueba que la tarjeta lo causó.</li>
+        <li><strong>El margen (±)</strong> dice cuánto puede moverse la tasa con tan pocos datos. Con menos de unas 400 recomendaciones mostradas, varios puntos.</li>
+        <li><strong>Nada sale de este equipo.</strong> Se guardan claves de producto de Liverpool, tipos de complemento y horas; nada del cliente ni tuyo. Para compartirlo, usa «Copiar resumen» y pégalo en una hoja.</li>
+      </ul>
+    </section>
+  </main>
+
+  <div class="aviso-flotante" id="aviso" role="status" aria-live="polite" hidden></div>
+
+  <!-- ORDEN OBLIGATORIO: las reglas dan los nombres de las clases y los tipos;
+       medicion-local.js, los totales; medicion.js pinta. -->
+  <script src="reglas-venta.js"></script>
+  <script src="medicion-local.js"></script>
+  <script src="medicion.js"></script>
+</body>
+</html>

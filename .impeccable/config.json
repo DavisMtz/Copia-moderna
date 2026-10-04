@@ -47,6 +47,15 @@
         ],
         "createdAt": "2026-10-04T21:19:28.148Z",
         "reason": "Regla del creador (memoria sistema-cotizaciones-ventel): formato de cotización intocable; el texto de 8pt son términos y pie del documento oficial imprimible"
+      },
+      {
+        "rule": "low-contrast",
+        "value": "*",
+        "files": [
+          "Extencion para chrome/medicion.html"
+        ],
+        "createdAt": "2026-10-04T22:45:44.343Z",
+        "reason": "Claude, verificado en el código 04/10/2026: el detector cruza los tokens del tema oscuro de inspector.css (--text #e8ecf1 y --text-mut #9aa5b4, dentro de @media prefers-color-scheme: dark) con el fondo del tema claro (#ffffff), y el negro de @media print con la superficie oscura. En cada tema real el contraste calculado es de 5.2:1 o más (claro: #14181f y #5b6572 sobre #fff, #f7f8fa y #eef0f4; oscuro: #e8ecf1 y #9aa5b4 sobre #0f1319 y #171c24). inspector.html, que usa la misma hoja, da los mismos avisos."
       }
     ]
   }

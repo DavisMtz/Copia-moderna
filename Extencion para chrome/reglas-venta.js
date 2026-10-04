@@ -112,6 +112,12 @@ var VENTEL_REGLAS = {
   // (las que dejan, 12) y cuestan un tercio menos. Sin `calidad`, gana siempre el primero.
   calidad: { media: 4.2, peso: 5, bonoLiverpool: 0.15, castigoPatrocinado: 0.5, top: 5, topePrecio: 1.25, margen: 0.25 },
 
+  // La bolsa del cliente como contexto (núcleo 2.0, contextoConBolsa): solo cuenta lo que se
+  // agregó en esta ventana de minutos. La bolsa no es el cliente de esta llamada: la real del
+  // 04/10/2026 tenía artículos de hace 56 y 61 horas, y sin ventana la ficha de un adaptador
+  // Apple adoptaba una bocina JBL (documento 18, §3).
+  bolsa: { ventanaMin: 90 },
+
   clases: [
     // =========================================================================
     // Tecnología
@@ -120,7 +126,9 @@ var VENTEL_REGLAS = {
       id: 'smartphone', nombre: 'Celulares', servicio: true, dispositivo: true,
       migas: /celular|smartphone|telefonia/,
       producto: /smartphone|celular|telefono/,
-      titulo: /^(iphone|galaxy [asz]?\d|smartphone|celular|moto [eg]\d|motorola|redmi|xiaomi|pixel|honor|oppo|realme|zte|huawei)\b/,
+      // «Galaxy A56», «Moto G15»: el modelo entero. Con un solo dígito («galaxy a5» + «6») el nombre
+      // solo no bastaba, y de un artículo de la bolsa no se sabe más que el nombre (04/10/2026).
+      titulo: /^(iphone|galaxy (?:[asmz]\d{1,3}[a-z]?|z (?:flip|fold))|smartphone|celular|moto (?:edge|razr|[eg]\d{1,3})|motorola|redmi|xiaomi|pixel|honor|oppo|realme|zte|huawei)\b/,
       complementos: [
         { tipo: 'funda', etiqueta: 'Funda', peso: 0.85, palabras: /^(funda|case|carcasa|estuche)\b/, exacto: true, buscar: 'funda {modelo}' },
         { tipo: 'mica', etiqueta: 'Mica', peso: 0.80, palabras: /^(mica|protector|cristal templado|vidrio templado)\b/, exacto: true, buscar: 'mica {modelo}' },

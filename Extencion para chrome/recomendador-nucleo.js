@@ -360,9 +360,11 @@
    * combustible, y el carbón dejaba de ofrecerse).
    */
   function tipoPropio(ctx) {
-    var propio = tipoDe({ nombre: ctx.ficha.nombre }, ctx.clase);
-    var abreComoClase = !!(ctx.clase && ctx.clase.titulo && ctx.clase.titulo.test(norm(ctx.ficha.nombre || '')));
-    if (!propio.conocido && ctx.ficha.producto && !abreComoClase) propio = tipoDe({ nombre: ctx.ficha.producto }, ctx.clase);
+    // Con el equipo tomado de la bolsa (contextoConBolsa), la ficha abierta es `propia`.
+    var f = ctx.propia || ctx.ficha;
+    var propio = tipoDe({ nombre: f.nombre }, ctx.clase);
+    var abreComoClase = !!(ctx.clase && ctx.clase.titulo && ctx.clase.titulo.test(norm(f.nombre || '')));
+    if (!propio.conocido && f.producto && !abreComoClase) propio = tipoDe({ nombre: f.producto }, ctx.clase);
     return propio;
   }
 
@@ -507,13 +509,19 @@
     // La tarjeta se queda con la subida y la promoción.
     if (!ctx.clase) return out;
     var titulo = norm(ctx.ficha.nombre);
+    var enBolsa = ctx.enBolsa || null;
     (listas || []).forEach(function (lista, nLista) {
       (lista.items || []).forEach(function (it) {
         if (!it || !it.id || !it.nombre || it.id === ctx.ficha.id) return;
+        if (ctx.propia && it.id === ctx.propia.id) return;
         // Lo agotado no se ofrece: `online` es false cuando la búsqueda dice dónde hay
         // existencia y la tienda en línea no está (lector-liverpool.js, desde la 3.0).
         if (it.agotado || it.online === false) return;
+        // Lo que el cliente ya lleva en la bolsa no se le vuelve a ofrecer.
+        if (enBolsa && enBolsa.ids[it.id]) return;
         var tipo = tipoDe(it, ctx.clase);
+        // …ni otro del mismo tipo: con la funda ya en la bolsa, otra funda no suma.
+        if (enBolsa && tipo.conocido && enBolsa.tipos[tipo.tipo]) return;
         // Un tipo con «si» solo aplica a las fichas que casan: el molino es para la
         // espresso, no para la de cápsulas (aunque Liverpool lo ponga en su carrusel).
         if (tipo.regla && tipo.regla.si && !tipo.regla.si.test(titulo)) return;
@@ -659,6 +667,8 @@
     var propio = tipoPropio(ctx);
     return ctx.clase.complementos.filter(function (c) {
       if (c.si && !c.si.test(titulo)) return false;
+      // Lo que ya está en la bolsa no se busca ni se sugiere.
+      if (ctx.enBolsa && ctx.enBolsa.tipos[c.tipo]) return false;
       // Nunca el tipo del propio artículo: en un protector solar, «busca un protector solar» es un sustituto.
       return !(propio.conocido && propio.tipo === c.tipo);
     }).sort(function (a, b) { return b.peso - a.peso; });
@@ -777,16 +787,24 @@
     var base = ctx.precioBase;
     if (!base || !relacionados || !relacionados.length) return null;
     if (ctx.clase && ctx.clase.sinSubidaDeModelo) return null;
+    // En la ficha de un accesorio no hay «siguiente modelo»: lo que casaría con el título de
+    // su clase son los equipos (a una funda no se le «sube» a un teléfono).
+    if (ctx.accesorio) return null;
     var s = (reglas && reglas.subida) || { tope: 0.25, topeAlto: 0.35, ticketAlto: 10000 };
     var tope = base >= s.ticketAlto ? s.topeAlto : s.tope;
     var marca = norm(ctx.ficha.marca);
     var nombre = norm(ctx.ficha.nombre);
+    var sustantivo = nombre.split(' ')[0];
     var cands = relacionados.filter(function (r) {
       if (!r || typeof r.precio !== 'number' || r.id === ctx.ficha.id) return false;
       if (!(r.precio > base * 1.02 && r.precio <= base * (1 + tope))) return false;
       if (marca && norm(r.marca) !== marca) return false;
       if (norm(r.nombre) === nombre) return false;
       if (ctx.clase && ctx.clase.titulo && !ctx.clase.titulo.test(norm(r.nombre))) return false;
+      // Sin clase, lo único que dice que es «el mismo artículo en más versión» es que su nombre
+      // abra con el mismo sustantivo: al «Adaptador de corriente» de Apple se le ofrecía un
+      // AirTag como subida (misma marca, $100 más; prueba de punta a punta del 04/10/2026).
+      if (!ctx.clase && norm(r.nombre).split(' ')[0] !== sustantivo) return false;
       if (ctx.modelo && modeloDe(r.nombre) === ctx.modelo) return false;
       return true;
     }).sort(function (a, b) { return a.precio - b.precio; });
@@ -878,6 +896,99 @@
   }
 
   // ===========================================================================
+  // La bolsa: el equipo que el cliente ya lleva (2.0)
+  // ===========================================================================
+  // La ficha de un accesorio suele quedarse corta: un «Adaptador de corriente» no
+  // dice de qué teléfono es. Pero si el cliente acaba de meter un iPhone 16 a la
+  // bolsa, el contexto está ahí: en la ficha del adaptador se ofrecen la funda y la
+  // mica DE ESE iPhone, y lo que ya lleva no se le vuelve a ofrecer.
+  // Medido el 04/10/2026 (documento 18, §3). Las tres condiciones que salieron de ahí:
+  //   · VENTANA DE TIEMPO. La bolsa no es el cliente de esta llamada: la real tenía
+  //     artículos de hace 56 y 61 horas. Solo cuenta lo agregado hace poco.
+  //   · GUARDIA DE COMPATIBILIDAD. El equipo se toma solo si el artículo de la ficha
+  //     le queda: una mica de Galaxy A57 no adopta un A56, ni un control de Xbox una PS5.
+  //   · EL `si` MIRA AL EQUIPO. En el prototipo, «Set de 16 cápsulas Espresso Intenso»
+  //     activaba el molino de las cafeteras de espresso: se evaluaba sobre el nombre
+  //     del accesorio. Aquí el contexto ES el del equipo (ctx.ficha) y la ficha abierta
+  //     queda aparte (ctx.propia).
+
+  /** Lo agregado dentro de la ventana, lo más reciente primero. Sin hora de alta no cuenta. */
+  function bolsaVigente(bolsa, reglas, ahora) {
+    var minutos = (reglas && reglas.bolsa && reglas.bolsa.ventanaMin) || 90;
+    return (bolsa || []).filter(function (b) {
+      return !!b && !!b.id && !!b.nombre && typeof b.agregado === 'number' &&
+        b.agregado <= ahora + 5 * 60000 && ahora - b.agregado <= minutos * 60000;
+    }).sort(function (a, b) { return b.agregado - a.agregado; });
+  }
+
+  /** Un artículo de la bolsa como ficha mínima: de él solo se saben el nombre, la marca y el precio. */
+  function fichaDeBolsa(b) {
+    return {
+      id: String(b.id), nombre: b.nombre, marca: b.marca || '', migas: [], producto: null, modeloComercial: null,
+      precio: typeof b.precio === 'number' ? b.precio : null, esRango: false, variantes: [], varianteActual: null,
+      skuUrl: null, seleccion: null, colores: [], care: false
+    };
+  }
+
+  /**
+   * El equipo de la bolsa al que le sirve el artículo de la ficha: el más reciente
+   * que sea un equipo (con clase, y no un accesorio) y para el que la ficha sea un
+   * complemento reconocido y compatible. null si no hay.
+   */
+  function equipoDeLaBolsa(ficha, vigentes, reglas) {
+    var articulo = { id: ficha.id, nombre: ficha.nombre, marca: ficha.marca };
+    for (var i = 0; i < vigentes.length; i++) {
+      var b = vigentes[i];
+      if (String(b.id) === String(ficha.id)) continue;
+      var c = contexto(fichaDeBolsa(b), reglas);
+      if (!c.clase || c.accesorio) continue;
+      var t = tipoDe(articulo, c.clase);
+      if (!t.conocido && ficha.producto) t = tipoDe({ nombre: ficha.producto }, c.clase);
+      if (!t.conocido) continue;
+      if (t.regla.si && !t.regla.si.test(norm(b.nombre))) continue;
+      if (!compatibilidad(articulo, c, t.regla)) continue;
+      if (!diceVariables(articulo, c, t.regla)) continue;
+      return { articulo: b, ctx: c };
+    }
+    return null;
+  }
+
+  /**
+   * El contexto con el que se elige la venta cruzada: el de la ficha, o el del
+   * equipo de la bolsa si la ficha es un accesorio suyo (o no tiene clase). Lleva
+   * además lo que ya está en la bolsa, para no repetirlo.
+   * @param {Array} bolsa  [{ id, nombre, marca, precio, agregado }] (lector-liverpool.js) o null
+   */
+  function contextoConBolsa(ficha, propio, bolsa, reglas, ahora) {
+    if (!bolsa || !bolsa.length) return propio;
+    var vigentes = bolsaVigente(bolsa, reglas, ahora);
+    var ctx = propio, equipo = null;
+    if (vigentes.length && (!propio.clase || propio.accesorio)) {
+      var e = equipoDeLaBolsa(ficha, vigentes, reglas);
+      if (e) {
+        equipo = e.articulo;
+        ctx = Object.assign({}, e.ctx, { accesorio: true, propia: ficha });
+        ctx.vars = Object.assign({}, e.ctx.vars);
+      }
+    }
+    if (ctx === propio) ctx = Object.assign({}, propio);
+    // Por id, todo lo que hay en la bolsa (viejo o no: ahí está). Por tipo, solo lo de esta
+    // llamada: una funda de hace tres días no dice que este cliente ya tenga la suya.
+    var ids = {}, tipos = {};
+    bolsa.forEach(function (b) { if (b && b.id) ids[String(b.id)] = true; });
+    if (ctx.clase) {
+      vigentes.forEach(function (b) {
+        var t = tipoDe({ nombre: b.nombre }, ctx.clase);
+        if (t.conocido) tipos[t.tipo] = t.etiqueta || t.tipo;   // con su nombre, para decirlo en la tarjeta
+      });
+    }
+    ctx.enBolsa = { ids: ids, tipos: tipos };
+    ctx.equipo = equipo;
+    ctx.vigentes = vigentes.length;
+    return ctx;
+  }
+
+  // ===========================================================================
   // Todo junto
   // ===========================================================================
 
@@ -888,9 +999,13 @@
    * @param {Object} reglas      VENTEL_REGLAS
    * @param {number} ahora       ms
    * @param {Object} busquedas   (opcional) { consulta: [items] } lo que ya trajo la búsqueda
+   * @param {Array}  bolsa       (opcional) los artículos de la bolsa del cliente, o null si no se sabe
    */
-  function recomendar(ficha, carruseles, paquete, reglas, ahora, busquedas) {
-    var ctx = contexto(ficha, reglas);
+  function recomendar(ficha, carruseles, paquete, reglas, ahora, busquedas, bolsa) {
+    // Dos contextos: el de la FICHA (la subida, las promociones, Liverpool Care, la cabecera)
+    // y el de la venta CRUZADA, que puede ser el del equipo que el cliente lleva en la bolsa.
+    var propio = contexto(ficha, reglas);
+    var ctx = contextoConBolsa(ficha, propio, bolsa, reglas, ahora);
     carruseles = carruseles || {};
     busquedas = busquedas || {};
     var relacionados = carruseles.relacionados || [];
@@ -898,7 +1013,7 @@
     relacionados.forEach(function (r) { if (r && r.id) excluir[r.id] = true; });
 
     var capacidad = subidaCapacidad(ficha);
-    var modelo = subidaModelo(relacionados, ctx, reglas);
+    var modelo = subidaModelo(relacionados, propio, reglas);
 
     var listas = [
       { origen: 'complementa', items: carruseles.complementa || [] },
@@ -914,14 +1029,15 @@
     var cruzada = elegirCruzada(listas, ctx, reglas, { maximo: 3, excluir: excluir });
     var sugeridas = sugerirBusquedas(ctx, cruzada, cruzada.length >= 3 ? 1 : 2);
 
-    var deFicha = paquete ? promoParaFicha(paquete, ctx, ahora) : null;
+    var deFicha = paquete ? promoParaFicha(paquete, propio, ahora) : null;
     var fuerte = paquete ? promoMasFuerte(paquete, ahora) : null;
     var horas = paquete && paquete.generado ? (ahora - paquete.generado) / 3600000 : null;
+    var equipo = ctx.equipo || null;
 
     return {
-      clase: ctx.clase ? { id: ctx.clase.id, nombre: ctx.clase.nombre } : null,
-      modelo: ctx.vars.modelo,
-      precioBase: ctx.precioBase,
+      clase: propio.clase ? { id: propio.clase.id, nombre: propio.clase.nombre } : null,
+      modelo: propio.vars.modelo,
+      precioBase: propio.precioBase,
       incremental: { capacidad: capacidad, modelo: modelo },
       cruzada: cruzada,
       busquedas: plan,
@@ -929,7 +1045,17 @@
       // La marca de Liverpool Care viene en TODAS las fichas (corpus 04/10/2026: 81 de 81,
       // LEGO y almohadas incluidos): solo se ofrece en las clases de equipos, y no en sus
       // accesorios (una mica de $299 en «Celulares»).
-      servicio: !!(ficha.care && ctx.clase && ctx.clase.servicio && !ctx.accesorio),
+      servicio: !!(ficha.care && propio.clase && propio.clase.servicio && !propio.accesorio),
+      // Lo que la bolsa cambió: de qué equipo son los complementos (si se tomó uno) y
+      // cuántos artículos de esta llamada lleva ya el cliente.
+      bolsa: {
+        leida: Array.isArray(bolsa),
+        equipo: equipo ? { id: String(equipo.id), nombre: equipo.nombre, modelo: ctx.vars.modelo || null,
+          clase: { id: ctx.clase.id, nombre: ctx.clase.nombre } } : null,
+        vigentes: ctx.vigentes || 0,
+        tipos: ctx.enBolsa ? Object.keys(ctx.enBolsa.tipos) : [],
+        etiquetas: ctx.enBolsa ? Object.keys(ctx.enBolsa.tipos).map(function (k) { return ctx.enBolsa.tipos[k]; }) : []
+      },
       promos: {
         hay: !!paquete,
         ficha: deFicha,       // la de su categoría (o su dirección)
@@ -941,7 +1067,7 @@
   }
 
   raiz.VentelVM = {
-    version: '1.4',
+    version: '2.0',
     norm: norm, num: num, pesos: pesos, bonito: bonito,
     clasificar: clasificar, claseDeNombre: claseDeNombre, migaUtil: migaUtil,
     familiasDe: familiasDe, modeloDe: modeloDe, plataformaDe: plataformaDe,
@@ -955,6 +1081,7 @@
     sugerirBusquedas: sugerirBusquedas,
     maxMsi: maxMsi, subidaCapacidad: subidaCapacidad, subidaModelo: subidaModelo,
     promosVigentes: promosVigentes, promoMasFuerte: promoMasFuerte, promoParaFicha: promoParaFicha,
+    bolsaVigente: bolsaVigente, equipoDeLaBolsa: equipoDeLaBolsa, contextoConBolsa: contextoConBolsa,
     recomendar: recomendar
   };
 })(typeof globalThis !== 'undefined' ? globalThis : this);

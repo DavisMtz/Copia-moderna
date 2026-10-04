@@ -236,6 +236,20 @@ ok('dentro del 25 % y de la misma marca: la de $1,200', sub && sub.id === 'r2', 
 const subAlto = VM.subidaModelo([{ id: 'x', marca: 'OSTER', nombre: 'Licuadora Pro', precio: 13300 }],
   VM.contexto(Object.assign({}, base, { precio: 10000 }), REGLAS), REGLAS);
 ok('en ticket alto el tope es 35 %', subAlto && subAlto.id === 'x' && subAlto.tope === 0.35, subAlto);
+{
+  // Sin clase (la ficha real del adaptador de Apple): misma marca y $100 más no basta para ser «su siguiente modelo».
+  const adaptador = { id: '1168416900', nombre: 'Adaptador de corriente', marca: 'APPLE', migas: ['Apple', 'Accesorios Apple', 'Adaptadores y Cargadores Apple'], producto: 'Adaptador de corriente', precio: 499, esRango: false, varianteActual: null, variantes: [] };
+  const ctxA = VM.contexto(adaptador, REGLAS);
+  ok('sin clase, un AirTag no es la «subida» de un adaptador de corriente (prueba de punta a punta, 04/10/2026)',
+    ctxA.clase === null && VM.subidaModelo([{ id: '1193575630', marca: 'APPLE', nombre: 'AirTag MFE94BE/A 2da generación', precio: 599 }], ctxA, REGLAS) === null);
+  const subA = VM.subidaModelo([{ id: '1193575630', marca: 'APPLE', nombre: 'AirTag MFE94BE/A 2da generación', precio: 599 }, { id: '77', marca: 'APPLE', nombre: 'Adaptador de corriente USB-C de 35 W', precio: 599 }], ctxA, REGLAS);
+  ok('…otro adaptador de la marca, un escalón arriba, sí', subA && subA.id === '77', subA);
+  // La ficha de un accesorio (una funda en «Celulares»): no se le «sube» a un teléfono.
+  const fundaCara = { id: '5', nombre: 'Funda para iPhone 16 Pro Max de piel', marca: 'APPLE', migas: ['Celulares', 'Fundas para celular'], producto: 'Funda celular', precio: 15000, esRango: false, varianteActual: null, variantes: [] };
+  const ctxF = VM.contexto(fundaCara, REGLAS);
+  ok('en la ficha de un accesorio no hay «siguiente modelo» (los relacionados que casan son equipos)',
+    ctxF.accesorio === true && VM.subidaModelo([{ id: '6', marca: 'APPLE', nombre: 'iPhone 16e 6.1 pulgadas', precio: 15999 }], ctxF, REGLAS) === null);
+}
 
 seccion('9 · Promociones del Monitor');
 const paquete = {
@@ -842,6 +856,15 @@ async function pruebasBuscador() {
   reloj += B.TTL + 1;
   r = await b.buscar('mica iphone 16');
   ok('pasadas 24 h, vuelve a la red', r.de === 'red' && pedidos.length === 2, pedidos.length);
+
+  // Lo que guardó la 2.9 no trae calificación ni opiniones: se da por caducado (3.0).
+  almacen = {}; pedidos = []; b = nuevo();
+  almacen[B.CLAVES.cache] = { 'mica iphone 16': { en: reloj - 1000, items: [{ id: '9', nombre: 'Mica vieja' }] } };
+  ok('lo que guardó la 2.9 (sin la forma nueva) no se usa: deCache no lo da', (await b.deCache('mica iphone 16')) === null);
+  r = await b.buscar('mica iphone 16');
+  ok('…y buscar vuelve a la red y lo guarda con la forma nueva', r.de === 'red' && pedidos.length === 1 && almacen[B.CLAVES.cache]['mica iphone 16'].v === B.FORMA && B.FORMA === 2, [r, almacen[B.CLAVES.cache]]);
+  ok('…que la siguiente vez sí sale de la caché', (await b.buscar('mica iphone 16')).de === 'cache' && pedidos.length === 1);
+  reloj += 61000;
 
   almacen = {}; pedidos = []; b = nuevo();
   for (let i = 0; i < 4; i++) await b.buscar('consulta ' + i);
