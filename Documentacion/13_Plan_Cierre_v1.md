@@ -1042,6 +1042,36 @@ y qué se dejó fuera a propósito**. Mismo formato que el registro del document
 
 <!-- Las entradas nuevas van arriba, con la más reciente primero. -->
 
+### 2026-10-04 — Producción @138: el interruptor de la búsqueda (88ace27) y el Reconocimiento del Reto 2026; la extensión de Drive, en la 2.9 — pedido por el creador
+
+**Qué se cambió:**
+- **El pedido:** «Sube a produccion». Se le preguntó qué subir, porque pruebas llevaba trabajo de otra sesión (el Reconocimiento) con la vitrina del login (A) y la banda de la portada (C) todavía sin su visto bueno. Eligió **todo lo de pruebas** y **la extensión de Drive a la 2.9**.
+- **Portal, producción @138 (~14:35):** la @137 más:
+  - el interruptor `VC_BUSQUEDA_EN_VIVO` de la búsqueda en vivo de la extensión (`88ace27`);
+  - el Reconocimiento del Reto de Innovación Liverpool 2026 (`96f4a24` + `f16f955` + `e9f83ca` + `ab2f977`): la credencial D en las 13 barras, y también A y C.
+- **Cómo se armó:** build de `ab2f977` con `git archive` en el scratchpad, para no tocar la `build/` del checkout donde trabaja la otra sesión.
+- **Drive** (`1NSPE-03rT4G5iO5soZeEiScexSY_ZJ4l`): de la 2.8 a la 2.9. Se reemplazaron como versión nueva, con el mismo id, `manifest.json`, `reglas-venta.js` y `recomendador-nucleo.js`. Son los únicos que cambiaron desde la 2.8.
+
+**Qué se comprobó:**
+- **Antes de subir:**
+  - el build es igual a pruebas, 96 de 96;
+  - el editor de producción era la @137 documentada: 74 archivos iguales, solo los 19 esperados distintos, sin los 3 nuevos y nada editado a mano.
+- **Después:**
+  - el editor de producción es igual al build, 96 de 96 (`clasp pull`);
+  - `clasp deployments` muestra `AKfycbwGYZs3…` en la @138;
+  - el `/exec` (`page=portal` y `page=promociones`, con `cb`) sirve `AppReco` y «Tercer lugar nacional»;
+  - una captura del Portal real muestra la banda de la portada.
+- **Drive:** los tres archivos con su tamaño exacto (2,091, 79,641 y 44,114 bytes), el mismo id y ninguno convertido a documento de Google.
+
+**Qué se dejó fuera a propósito:**
+- **Propiedades de producción** (no se tocaron; las de pruebas no se comparten):
+  - sin `VC_BUSQUEDA_EN_VIVO`, la búsqueda queda encendida, que es lo de siempre;
+  - el reconocimiento se ve (comprobado en el `/exec`) y se apaga desde anuncios, con `RECO_VISIBLE`.
+- **Los asesores** tienen que volver a bajar la carpeta de Drive y recargar la extensión.
+- **Para volver:**
+  - el Portal, con `-V 137`;
+  - la extensión, desde el historial de versiones de cada archivo en Drive.
+
 ### 2026-10-04 — Reconocimiento 2026: la credencial (D) en la barra de todas las pantallas y el sello lateral (B) retirado (en pruebas)
 
 **Qué se cambió:**
