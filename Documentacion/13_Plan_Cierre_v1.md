@@ -1042,6 +1042,29 @@ y qué se dejó fuera a propósito**. Mismo formato que el registro del document
 
 <!-- Las entradas nuevas van arriba, con la más reciente primero. -->
 
+### 2026-10-03 — Producción @136: «Ver en Google Sheets» en la vista previa, pedido por el creador
+
+**Qué se cambió:**
+- **El pedido:** después de tener el enlace de la `/dev`, el creador dijo «Sube a producción» (sábado 03/10, ~18:25).
+- **Qué entra:** solo «Ver en Google Sheets» (`633a9c9`): `Formatos.gs` y `cotizado_preview.html`. Era lo único del proyecto de Apps Script que pruebas tenía y producción no. (La extensión 2.5 de la entrada de abajo, de otra sesión a la misma hora, no toca el proyecto de Apps Script.)
+- **El cambio:** producción pasó de la @135 a la **@136** con un build de `7d0fbd4`, armado en el scratchpad con `git archive` (`--salida … --sin-clasp`). Es la fuente de la @135 (`e600c89`) más esos dos archivos.
+
+**Qué se comprobó:**
+- **Antes de subir:**
+  - el editor de producción era exactamente el build de `e600c89` (91 de 91): nadie lo había tocado a mano;
+  - el paquete es idéntico a lo que servía pruebas (91 de 91);
+  - frente a producción solo cambiaban `Formatos.gs` y `cotizado_preview.html`;
+  - `appsscript.json` igual: nadie tiene que volver a autorizar;
+  - el quitacomentarios, limpio.
+- **Después:**
+  - `clasp push --force -P` con la configuración de producción fuera del repo y `clasp deploy -i AKfycbwGYZs3…`: el deployment apunta a la @136 («Ver en Google Sheets en la vista previa (build de 7d0fbd4) 03/10/2026»);
+  - `clasp pull` del editor de producción contra el paquete: 91 de 91;
+  - el `/exec`, leído con `fetch` desde el Chrome del creador (`?page=cotizado_preview&cb=136`, sin abrir la pantalla para no regenerar ninguna hoja), ya sirve `doc-sheets-abrir`, «Ver en Google Sheets», `doc-sheets-espera`, la barra de 1100 px y `busy: false` en `previewSheetCcl`. El texto «Generando el documento» que sigue en la página es de `app_loaders` (la escena del PDF y la transición al entrar a la vista previa), y ya estaba.
+
+**Cómo volver atrás:** `clasp update-deployment AKfycbwGYZs3… -V 135 -d "rollback" -P <config de producción>`. El activador diario corre el código del editor (HEAD), que ahora lleva estos dos archivos; no tocan `PromosAuto.gs`.
+
+**Lo que hay que mirar en producción** (con su cuenta): el clic real en «Ver en Google Sheets» y que la hoja abra en solo lectura, con el mismo permiso que el botón del panel de inicio.
+
 ### 2026-10-03 — Extensión de Chrome 2.5: el ícono es la etiqueta del favicon del Portal
 
 **Qué se cambió** (commit `2679dd7`):
