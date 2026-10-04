@@ -451,9 +451,15 @@ seccion('15 · Reglas v3: el corpus de Liverpool del 04/10/2026 (81 fichas reale
 }
 {
   const ven = fichaDe({ nombre: 'Ventilador de torre 3 velocidades', marca: 'MIDEA', migas: ['Línea Blanca y Electrodomésticos', 'Clima y Ventilación', 'Ventilación'], producto: 'Ventilador de torre', precio: 999, care: true });
-  const m = VM.recomendar(ven, { complementa: [it(1145698550, 'COOKIFY', 'Rebanador y rallador Tipo Multifuncional', 549), it(1177598573, 'XTELLAR', 'Set espátulas de silicón', 459.86)] }, null, REGLAS, AHORA);
-  ok('sin clase reconocida, ningún complemento (la 2.8 ofrecía un rebanador y espátulas con un ventilador)', m.clase === null && m.cruzada.length === 0, m.cruzada);
-  ok('sin clase tampoco se ofrece Liverpool Care (su marca viene en TODAS las fichas: 81 de 81)', m.servicio === false);
+  const car = { complementa: [it(1145698550, 'COOKIFY', 'Rebanador y rallador Tipo Multifuncional', 549), it(1177598573, 'XTELLAR', 'Set espátulas de silicón', 459.86)] };
+  const m = VM.recomendar(ven, car, null, REGLAS, AHORA);
+  // Hasta la 2.9 el ventilador no tenía clase; desde la v4 de las reglas sí. Lo que no cambia: el
+  // rebanador y las espátulas de su carrusel no son complemento suyo (la 2.8 los ofrecía).
+  ok('ventilador: ni el rebanador ni las espátulas de su carrusel (los tipos van cerrados)', m.clase && m.clase.id === 'ventilador' && m.cruzada.length === 0, [m.clase, m.cruzada]);
+  const tap = fichaDe({ nombre: 'Tapete de baño antiderrapante', marca: 'X', migas: ['Hogar', 'Baño'], producto: 'Tapete', precio: 299, care: true });
+  const mt = VM.recomendar(tap, car, null, REGLAS, AHORA);
+  ok('sin clase reconocida, ningún complemento', mt.clase === null && mt.cruzada.length === 0 && mt.busquedas.length === 0, [mt.clase, mt.cruzada]);
+  ok('sin clase tampoco se ofrece Liverpool Care (su marca viene en TODAS las fichas: 81 de 81)', mt.servicio === false);
   const alm = fichaDe({ nombre: 'Set de almohada pillow', marca: 'X', migas: ['Ropa de Cama', 'Almohadas'], producto: 'Set de almohada', precio: 599, care: true });
   ok('ni en una almohada; sí en las clases de equipos (el iPhone)', VM.recomendar(alm, {}, null, REGLAS, AHORA).servicio === false && mIp.servicio === true);
 }
