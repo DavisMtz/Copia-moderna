@@ -72,6 +72,13 @@
   --info: #1D4ED8; --info-bg: #EAF0FE;
   --violet: #6D28D9; --violet-bg: #F1EAFD;
 
+  /* RELLENOS CON TEXTO BLANCO ENCIMA. En carbón, --ok, --alert y --brand-deep se aclaran
+     para leerse como TEXTO sobre fondo oscuro (ver el bloque de carbón); un botón que los
+     usara de fondo con letra blanca quedaría en ~2:1. Lo que pinta un relleno con texto
+     blanco encima (.v-btn-success, .v-btn-danger, los hovers del rosa oscuro) usa estas
+     variantes, que valen lo mismo en los tres temas. Copiadas en Index y Promociones. */
+  --ok-solid: #0E7A4F; --alert-solid: #C81E3C; --brand-deep-solid: #A8006F;
+
   --grad-brand: #E10098;
   --grad-ink: #241C22;
 
@@ -144,6 +151,14 @@
   --line: #2C313A; --line-soft: #262B33;
   --brand-tint: rgba(225,0,152,.16); --brand-soft: rgba(225,0,152,.34);
   --top-bg: rgba(21,24,30,.82);
+  /* Los tonos de señal y el rosa oscuro, ACLARADOS para leerse como texto: los de aurora
+     están hechos para fondo claro y sobre #1C2027 caían a 2-3:1 (insignias de Inicio, rol
+     de Consola, tonos de Anuncios, avisos azules del Portal…). Todos pasan de 6:1 sobre la
+     superficie y sobre su propio tinte. Son los mismos valores que Estado, Operación,
+     Trazabilidad y las secciones del Portal ya usaban en local. Para un relleno con texto
+     blanco encima están las variantes -solid de :root, que aquí no cambian. */
+  --ok: #4ADE80; --warn: #F2B65A; --alert: #FB7185; --info: #93B4FF; --violet: #B79CFF;
+  --brand-deep: #F46BC6;
   --ok-bg: rgba(14,122,79,.18); --warn-bg: rgba(180,83,9,.18);
   --alert-bg: rgba(200,30,60,.18); --info-bg: rgba(29,78,216,.20); --violet-bg: rgba(109,40,217,.20);
   --app-glow:
@@ -155,6 +170,38 @@
   --sh-md: 0 16px 40px -18px rgba(0,0,0,.7);
   --sh-lg: 0 30px 60px -24px rgba(0,0,0,.75);
   --ring: 0 0 0 4px rgba(225,0,152,.22);
+  /* Lo que pinta el navegador y no la hoja de estilos —la lista abierta de un <select>,
+     el calendario de un <input type="date">, las barras de desplazamiento, un campo sin
+     clase— también va en oscuro. Sin esto la lista de opciones salía blanca con el texto
+     claro del tema: opciones invisibles. */
+  color-scheme: dark;
+}
+
+/* ── PAPEL · un documento imprimible sigue siendo papel blanco en carbón ──
+   La hoja de Cotización y los documentos de la vista previa y la consulta replican un
+   documento oficial (FORMATOS INTOCABLES): en carbón la página de alrededor se oscurece,
+   pero la hoja no. Sin esto, todo lo que hereda la tinta del tema —etiquetas, campos,
+   importes, totales— salía claro sobre la hoja blanca: invisible. Dentro de .v-papel
+   vuelve la paleta de aurora, y el remapeo de Tailwind de app_tailwind no entra. */
+[data-theme="carbon"] .v-papel {
+  --app-bg: #EEF1F5; --content-bg: #F7F9FB; --surface: #FFFFFF; --surface-2: #F4F7FA;
+  --ink: #1B2330; --ink-soft: #5C6B7E; --ink-faint: #94A1B2;
+  --line: #E4E9F0; --line-soft: #EEF2F7;
+  --brand-tint: #FDE7F4; --brand-soft: #FBD0E9; --brand-deep: #A8006F;
+  --ok: #0E7A4F; --ok-bg: #E5F5EE; --warn: #B45309; --warn-bg: #FDF1E0;
+  --alert: #C81E3C; --alert-bg: #FDE8EC; --info: #1D4ED8; --info-bg: #EAF0FE;
+  --violet: #6D28D9; --violet-bg: #F1EAFD;
+  --grad-ink: #241C22; --top-bg: rgba(255,255,255,.82); --app-glow: none;
+  --sh-xs: 0 1px 2px rgba(27,35,48,.06);
+  --sh-sm: 0 2px 8px -2px rgba(27,35,48,.08), 0 1px 2px rgba(27,35,48,.05);
+  --sh-md: 0 14px 34px -16px rgba(27,35,48,.22);
+  --sh-lg: 0 30px 60px -24px rgba(27,35,48,.26);
+  --ring: 0 0 0 4px #FDE7F4;
+  color: var(--ink);
+  color-scheme: light;
+}
+html[data-contrast="high"][data-theme="carbon"] .v-papel {
+  --line: #0c1420; --line-soft: #22303f; --ink-soft: #2b3645; --ink-faint: #475160;
 }
 
 /* ── Ajustes de vista: escala de texto (rem globales) ── */
@@ -301,8 +348,8 @@ h4 { line-height: 1.3; letter-spacing: -.012em; }
 .v-btn-dark:hover:not(:disabled) { background: #000; }
 .v-btn-ghost { background: var(--surface); color: var(--ink-soft); border-color: var(--line); }
 .v-btn-ghost:hover:not(:disabled) { color: var(--ink); border-color: var(--brand-soft); }
-.v-btn-success { background: var(--ok); color: #fff; }
-.v-btn-danger { background: var(--alert); color: #fff; }
+.v-btn-success { background: var(--ok-solid); color: #fff; }
+.v-btn-danger { background: var(--alert-solid); color: #fff; }
 .v-btn-indigo { background: linear-gradient(135deg, #5850ec, #6d28d9); color: #fff; }
 .v-btn-sm { padding: .4rem .75rem; font-size: .8rem; border-radius: var(--rad-sm); }
 
@@ -325,6 +372,8 @@ h4 { line-height: 1.3; letter-spacing: -.012em; }
 .v-row-action:disabled { opacity: .5; cursor: wait; }
 .v-row-action svg { width: 1em; height: 1em; }
 .v-act-pink { color: var(--brand); } .v-act-pink:hover:not(:disabled) { background: var(--brand-tint); }
+/* En carbón el rosa de marca como texto se queda en 3,6:1; el claro del tema pasa de 6:1. */
+[data-theme="carbon"] .v-act-pink { color: var(--brand-deep); }
 .v-act-blue { color: var(--info); } .v-act-blue:hover:not(:disabled) { background: var(--info-bg); }
 .v-act-green { color: var(--ok); } .v-act-green:hover:not(:disabled) { background: var(--ok-bg); }
 .v-act-slate { color: var(--ink-soft); } .v-act-slate:hover:not(:disabled) { background: var(--surface-2); }
@@ -437,6 +486,9 @@ h4 { line-height: 1.3; letter-spacing: -.012em; }
   box-shadow: var(--sh-md);
   border-left: 4px solid var(--brand);
 }
+/* En carbón el aviso (casi negro) se fundía con el fondo: un filete lo despega sin tocar
+   el borde de color de la izquierda, que es el que dice qué tipo de aviso es. */
+[data-theme="carbon"] .v-toast { box-shadow: var(--sh-md), 0 0 0 1px var(--line); }
 .v-toast.ok { border-left-color: var(--ok); }
 .v-toast.bad { border-left-color: var(--alert); }
 .v-toast.warn { border-left-color: var(--warn); }

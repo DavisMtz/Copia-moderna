@@ -167,6 +167,9 @@ html[data-contrast="high"] .auth-card { border: 2px solid var(--line); }
   border-radius: 4px;
 }
 .auth-link:hover { color: var(--brand-deep); text-decoration: underline; }
+/* En carbón el rosa de marca como TEXTO se queda en 3,6:1 sobre la tarjeta oscura; el
+   rosa claro del tema (lo que vale --brand-deep en carbón) pasa de 6:1. */
+[data-theme="carbon"] .auth-link { color: var(--brand-deep); }
 
 /* ── Formulario ── */
 .auth-form { display: flex; flex-direction: column; gap: var(--s4); margin-top: var(--s6); }
@@ -256,7 +259,7 @@ html[data-contrast="high"] .auth-card { border: 2px solid var(--line); }
   flex: none;
   width: 1rem; height: 1rem;
   border-radius: 50%;
-  background: var(--alert);
+  background: var(--alert-solid);
   color: #fff;
   font-size: .68rem;
   font-weight: 800;
@@ -357,8 +360,8 @@ html[data-contrast="high"] .auth-card { border: 2px solid var(--line); }
 /* Paso hecho y paso actual se distinguen por FORMA (relleno vs. borde) y no solo por
    color: en alto contraste, impreso o en blanco y negro siguen siendo legibles. */
 .auth-steps li.is-done { color: var(--ink-soft); }
-.auth-steps li.is-done .auth-step-dot { background: var(--ok); border-color: var(--ok); color: #fff; }
-.auth-steps li.is-done:not(:last-child)::after { background: var(--ok); }
+.auth-steps li.is-done .auth-step-dot { background: var(--ok-solid); border-color: var(--ok-solid); color: #fff; }
+.auth-steps li.is-done:not(:last-child)::after { background: var(--ok-solid); }
 .auth-steps li.is-on { color: var(--ink); }
 .auth-steps li.is-on .auth-step-dot { background: var(--brand); border-color: var(--brand); color: #fff; }
 /* En pantalla estrecha solo se rotula el paso actual: 3 etiquetas no caben. */

@@ -49,6 +49,8 @@
   --ok:#0E7A4F; --ok-bg:#E5F5EE; --warn:#B45309; --warn-bg:#FDF1E0;
   --alert:#C81E3C; --alert-bg:#FDE8EC; --info:#1D4ED8; --info-bg:#EAF0FE;
   --violet:#6D28D9; --violet-bg:#F1EAFD;
+  /* Rellenos con texto blanco encima: no cambian con el tema (ver app_theme). */
+  --ok-solid:#0E7A4F; --alert-solid:#C81E3C; --brand-deep-solid:#A8006F;
 
   --grad-brand:#E10098;
   --grad-ink:#241C22;
@@ -94,6 +96,9 @@
   --brand-tint:rgba(225,0,152,.16); --brand-soft:rgba(225,0,152,.34);
   /* La barra lateral conserva el rosa Liverpool base en todos los temas */
   --top-bg:rgba(21,24,30,.82);
+  /* Señales y rosa oscuro aclarados para leerse como texto (ver app_theme). */
+  --ok:#4ADE80; --warn:#F2B65A; --alert:#FB7185; --info:#93B4FF; --violet:#B79CFF;
+  --brand-deep:#F46BC6;
   --ok-bg:rgba(14,122,79,.18); --warn-bg:rgba(180,83,9,.18);
   --alert-bg:rgba(200,30,60,.18); --info-bg:rgba(29,78,216,.20); --violet-bg:rgba(109,40,217,.20);
   --app-glow:
@@ -105,6 +110,8 @@
   --sh-md:0 16px 40px -18px rgba(0,0,0,.7);
   --sh-lg:0 30px 60px -24px rgba(0,0,0,.75);
   --ring:0 0 0 4px rgba(225,0,152,.22);
+  /* Listas de <select>, calendarios y barras de desplazamiento nativas, en oscuro. */
+  color-scheme:dark;
 }
 
 *{margin:0;padding:0;box-sizing:border-box}
@@ -591,6 +598,9 @@ a:focus-visible,button:focus-visible,input:focus-visible,[tabindex]:focus-visibl
 .anc-destacado.alert{background:var(--alert-bg);border-color:color-mix(in srgb,var(--alert) 26%,transparent)}
 .anc-destacado.ok{background:var(--ok-bg);border-color:color-mix(in srgb,var(--ok) 24%,transparent)}
 .anc-d-ic{flex-shrink:0;width:38px;height:38px;border-radius:11px;display:flex;align-items:center;justify-content:center;background:rgba(255,255,255,.6)}
+/* En carbón el icono va en el tono aclarado del tema: sobre la placa blanca al 60 % se
+   perdía. La misma placa oscura que ya llevaba la variante .marca (más abajo). */
+[data-theme="carbon"] .anc-d-ic{background:rgba(0,0,0,.24)}
 .anc-destacado.info .anc-d-ic{color:var(--info)} .anc-destacado.warn .anc-d-ic{color:var(--warn)}
 .anc-destacado.alert .anc-d-ic{color:var(--alert)} .anc-destacado.ok .anc-d-ic{color:var(--ok)}
 .anc-d-ic .ic{width:20px;height:20px}
@@ -2191,8 +2201,8 @@ html[data-contrast="high"] :focus-visible{ outline:3px solid var(--brand); outli
 .uid-btn{ display:inline-flex; align-items:center; gap:.4rem; padding:.62rem 1.05rem; border-radius:var(--rad-sm); border:1px solid var(--line); background:var(--surface); color:var(--ink); font-weight:700; font-size:.88rem; cursor:pointer; transition:var(--tr); }
 .uid-btn:hover{ background:var(--surface-2); }
 .uid-btn.primary{ background:var(--brand); border-color:var(--brand); color:#fff; }
-.uid-btn.primary:hover{ background:var(--brand-deep); }
-.uid-btn.danger{ background:var(--alert); border-color:var(--alert); color:#fff; }
+.uid-btn.primary:hover{ background:var(--brand-deep-solid); }
+.uid-btn.danger{ background:var(--alert-solid); border-color:var(--alert-solid); color:#fff; }
 .uid-btn.danger:hover{ filter:brightness(.93); }
 
 /* ── Botón flotante de copiados ── */
@@ -2203,7 +2213,7 @@ html[data-contrast="high"] :focus-visible{ outline:3px solid var(--brand); outli
 }
 .clip-fab:hover{ transform:translateY(-2px) scale(1.04); }
 .clip-fab .ic{ width:22px; height:22px; }
-.clip-fab-n{ position:absolute; top:-4px; right:-4px; min-width:19px; height:19px; padding:0 4px; border-radius:999px; background:var(--ink); color:#fff; font-size:.68rem; font-weight:800; display:grid; place-items:center; border:2px solid var(--content-bg); }
+.clip-fab-n{ position:absolute; top:-4px; right:-4px; min-width:19px; height:19px; padding:0 4px; border-radius:999px; background:var(--ink); color:var(--surface); font-size:.68rem; font-weight:800; display:grid; place-items:center; border:2px solid var(--content-bg); }
 @media (max-width:880px){ .clip-fab{ bottom:78px; } }
 @media (min-width:881px){ .clip-fab{ bottom:22px; } }
 

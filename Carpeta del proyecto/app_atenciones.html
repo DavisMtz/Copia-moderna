@@ -274,6 +274,14 @@
 .atn-card.atn-subiendo { border-style: dashed; }
 .atn-chip.subiendo { background: var(--brand-tint, #FDE7F4); color: var(--brand, #E10098); }
 
+/* Carbón: el rosa de marca como TEXTO sobre su propio tinte se queda en 3,3:1; el rosa claro
+   del tema (--brand-deep en carbón) pasa de 5:1. Y la burbuja del número de la pestaña
+   elegida era blanca al 60 %: en carbón, una mancha clara con el número rosa encima. */
+[data-theme="carbon"] .atn-tab[aria-selected="true"],
+[data-theme="carbon"] .atn-hora-chip[aria-pressed="true"],
+[data-theme="carbon"] .atn-chip.subiendo { color: var(--brand-deep); }
+[data-theme="carbon"] .atn-tab[aria-selected="true"] .atn-tab-num { background: rgba(0, 0, 0, .28); }
+
 @media (max-width: 640px) {
   .atn-panel { max-height: 100%; height: 100%; border-radius: 14px; }
   .atn-panel-head, .atn-panel-barra, .atn-panel-cuerpo, .atn-panel-pie { padding-left: .9rem; padding-right: .9rem; }

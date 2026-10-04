@@ -1042,6 +1042,51 @@ y qué se dejó fuera a propósito**. Mismo formato que el registro del document
 
 <!-- Las entradas nuevas van arriba, con la más reciente primero. -->
 
+### 2026-10-04 — Tema oscuro (carbón): revisión de todas las pantallas y arreglo de lo que no se veía (en pruebas)
+
+**Qué se cambió:**
+- **El pedido:** «revisa todas las pantallas, específicamente en el modo oscuro, porque algunas no se muestran correctamente». El oscuro es el tema **carbón**; aurora y slate son claros.
+- **Cómo se revisó:** un banco nuevo, `scripts/laboratorio/oscuro.mjs`, abre las 20 pantallas y las 14 secciones del Portal en Chrome headless y mide el contraste de cada texto contra su fondo real. Se corrió en carbón y en aurora, y `oscuro-diff.mjs` dejó solo lo que falla en oscuro.
+  - Con datos de prueba (`oscuro-datos.mjs`): Inicio con cotizaciones, Revisión con un folio (la auditoría sale del motor real), el Monitor con 50 promociones, Supervisión y Atenciones.
+  - Los estados que solo salen al pulsar: la paleta Ctrl K, Ajustes de vista, el modal de ayuda, los avisos flotantes, el panel de Atenciones, el de operación y el recorrido de bienvenida.
+  - `oscuro-estatico.js` barrió sin navegador las reglas y estilos en línea con colores claros fijos.
+- **Causa 1 · los tonos de señal no se aclaraban en carbón.** `--ok`, `--warn`, `--alert`, `--info`, `--violet` y `--brand-deep` quedaban en 2-3:1 sobre la superficie oscura: insignias de Inicio, rol de Consola, tonos y vista previa de Anuncios, avisos azules del Portal, contador del Monitor, chips y estados con datos.
+  - Se aclaran en las TRES copias de tokens (`app_theme`, `Index`, `Promociones`), con los valores que Estado, Operación, Trazabilidad y las secciones del Portal ya usaban en local. Todos pasan de 6:1.
+  - Lo que pinta un relleno con texto blanco encima pasa a `--ok-solid`, `--alert-solid` y `--brand-deep-solid`, que valen lo mismo en los tres temas: `.v-btn-success` y `.v-btn-danger`, el botón peligroso y el hover del principal en el Portal, el hover de Plantillas, el sello de Formas de Pago, los pasos hechos del registro, el error del login y el paso hecho de Enviar correo.
+  - La sombra de los dibujos de las escenas de carga (`--vfx-deep`) también va con `-solid`: aclarada, el sombreado salía invertido.
+- **Causa 2 · las utilidades de color de Tailwind son hex de tema claro.** `app_tailwind` lleva ahora, solo en carbón, un remapeo a tokens de las 46 utilidades de color que existen (`bg-white`, `text-slate-800`, `bg-green-100`…). El borde por omisión del preflight pasa a `--line` con especificidad cero, para no pisar ningún borde propio.
+- **Causa 3 · los documentos son papel blanco** (formatos intocables) y heredaban la tinta clara: en Cotización, etiquetas, campos, importes y totales salían blanco sobre blanco.
+  - La clase nueva `.v-papel` (`app_theme`) les devuelve la paleta de aurora en carbón, y el remapeo de Tailwind no entra en ella (`:where(:not(.v-papel, .v-papel *))`). La llevan la hoja de Cotización, `.container-pdf` de la vista previa y la consulta, y `.ccl-sheet`.
+  - La vista previa y la consulta oscurecen ahora la página de alrededor (fondo, barra de acciones, mensajes, velo de redirección). Solo en pantalla: va en `@media screen`, para que Ctrl+P siga imprimiendo blanco.
+- **Arreglos sueltos:**
+  - **Correos a clientes** usaba `var(--card, #fff)` y `--card` no existe en ningún tema: las tarjetas de plantilla y el modal de verificación salían blancos con la tinta clara. Pasan a `--surface`, y su aviso naranja a los tonos del tema.
+  - **El modal «Contacta al equipo de Ventel»** tenía el título en `#0f172a` fijo: invisible en carbón. Pasa a tokens.
+  - **El texto rosa** (rosa de marca como texto, 3,6:1) pasa al rosa claro en carbón: la acción «Ver» de las tablas, los enlaces del login, `.text-brand-pink`, la pestaña activa y los chips de Atenciones, el rango del historial de Estado y el subtítulo del formato elegido en Anuncios.
+  - «Reintentar» de las escenas de carga (texto oscuro sobre rosa), el contador del portapapeles del Portal, la placa blanca bajo el icono del destacado (Portal y vista previa de Anuncios), la burbuja del número de la pestaña de Atenciones y el destello del hueco de imagen.
+  - El gris tenue del Monitor, alineado con las otras dos copias (`#736E78` → `#8B8590`).
+  - La dona de Métricas (Supervisión): Chart.js no lee el tema, y su leyenda gris quedaba en ~3:1 con separadores blancos entre porciones. En carbón toma `--ink-soft` y `--surface`; en los temas claros, sus colores de siempre.
+  - `color-scheme: dark` en carbón, para las listas de `<select>`, los calendarios y las barras nativas.
+  - Un filete en los avisos flotantes, que se fundían con el fondo.
+- **De paso, un fallo de los dos temas:** la tarjeta de campaña del héroe del Monitor salía vacía cuando no hay campaña en curso (`display:block` le ganaba a `hidden`).
+
+**Qué se comprobó:**
+- **Carbón:** la auditoría de antes marcaba textos que fallaban solo en oscuro en 25 de las 34 vistas: 92 textos, 81 de ellos por debajo de 3:1 (en Cotización, 22 textos y 35 superficies claras). La de después ya no marca ninguno; lo que queda es intencional: la hoja blanca, las placas de los logos, el sol del héroe y los chips activos invertidos.
+- **Con datos y al pulsar:** capturas y sonda en carbón de Inicio, Revisión, el Monitor, Supervisión (sus cuatro pestañas), Atenciones, Enviar correo y los siete estados de interacción.
+  - La dona de Métricas se comprobó por la API de Chart.js (borde `#1C2027`, leyenda `#A7A2AC` en carbón): en Chrome sin cabeza el lienzo no se pinta bien en ningún tema, así que la foto no sirve de prueba.
+  - El banco terminaba las animaciones CSS en vez de pausarlas: pausada, la entrada de las pestañas de Supervisión (`svFadeIn`) dejaba el panel transparente en la foto, sin que hubiera fallo.
+- **Aurora no cambia:** la misma sonda antes y después da lo mismo, y `banco.mjs` (`main` contra la rama, aurora) da 0 píxeles distintos en 18 de las 20 pantallas.
+  - En Cotización, la vista previa y la consulta, con 0 píxeles distintos, solo difiere la estructura: la clase `v-papel`.
+  - En el Monitor, 12 662 píxeles: la barra vacía de la campaña que ahora se oculta (el arreglo de arriba).
+  - En Atenciones, 112 píxeles: la barra animada de la escena de error, que nunca se fotografía en el mismo punto (el ruido conocido).
+- **`npm test`:** las 29 suites en verde. El build compila las reglas nuevas, sin `//` ni `/*` en ningún `<script>`.
+
+**Qué se dejó fuera a propósito:**
+- **La barra lateral rosa** es igual en los tres temas (decisión anterior): su texto al 66 % sobre el rosa queda en ~2,5:1 en todos, no solo en oscuro.
+- **La vista previa del correo** en Correos a clientes sigue clara: es el correo como lo verá el cliente. **La hoja de Revisión** ya era documento con sus colores reales.
+- **Fallos de los dos temas vistos sin tocar:** «Compacto» se sale de la barra en Ajustes de vista (269 px en una barra de 252); el chip «Liberada al equipo» de Atenciones se parte en tres renglones.
+- **Pendiente de decisión del creador:** la sombra rosa bajo los botones primarios, que en carbón se lee como un brillo (previa a este cambio).
+- **Sin ver en vivo:** las pantallas del marco con sesión no se pueden abrir sin iniciar sesión en la `/dev`; que el creador las mire en carbón.
+
 ### 2026-10-04 — Producción @138: el interruptor de la búsqueda (88ace27) y el Reconocimiento del Reto 2026; la extensión de Drive, en la 2.9 — pedido por el creador
 
 **Qué se cambió:**

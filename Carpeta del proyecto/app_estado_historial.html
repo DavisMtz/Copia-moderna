@@ -41,6 +41,8 @@
 }
 .eh-rango[aria-pressed="true"] { color: var(--brand, #E10098); border-color: var(--brand, #E10098);
   background: var(--brand-tint, #FDE7F4); }
+/* Carbón: el rosa de marca sobre su tinte se queda en 3,3:1; el claro del tema pasa de 5:1. */
+[data-theme="carbon"] .eh-rango[aria-pressed="true"] { color: var(--brand-deep); }
 
 .eh-fila { display: grid; grid-template-columns: minmax(6.5rem, 9rem) minmax(0, 1fr) auto;
   gap: .75rem; align-items: center; padding: .5rem 0; }

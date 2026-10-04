@@ -336,6 +336,23 @@
             size: letter;
             margin: 0mm;
         }
+
+        /* TEMA CARBÓN · la página de alrededor se oscurece y el documento sigue siendo
+           papel (.v-papel, ver app_theme). Sin esto el fondo y la barra eran blancos fijos
+           mientras los botones del tema salían oscuros encima. SOLO EN PANTALLA: con
+           print-color-adjust:exact, un fondo oscuro fuera de @media screen le ganaría al
+           blanco de @media print y Ctrl+P desde carbón imprimiría la página oscura. */
+        @media screen {
+            [data-theme="carbon"] body { color: var(--ink); background-color: var(--app-bg); }
+            [data-theme="carbon"] .preview-controls { background-color: var(--surface); border-color: var(--line); box-shadow: var(--sh-sm); }
+            [data-theme="carbon"] #success-confirmation-area-preview { background-color: var(--ok-bg); border-color: var(--ok); color: var(--ink); }
+            [data-theme="carbon"] #redirect-overlay { background-color: color-mix(in srgb, var(--app-bg) 90%, transparent); }
+            [data-theme="carbon"] .modern-spinner { border-color: var(--line); border-top-color: var(--brand); }
+            [data-theme="carbon"] .loading-text { color: var(--ink-soft); }
+        }
+        /* El documento heredaba el #333 del body; con la tinta clara que el body lleva en
+           carbón, lo fija él mismo. */
+        [data-theme="carbon"] .container-pdf { color: #333; }
     </style>
 <!-- Utilidades Tailwind compiladas: va al final del head, igual que la hoja que el CDN inyectaba. -->
 <?!= include('app_tailwind'); ?>
@@ -400,7 +417,7 @@
         </div>
     </div>
 
-    <div class="container-pdf" id="pdf-preview-content">
+    <div class="container-pdf v-papel" id="pdf-preview-content">
         <!-- Sin overlay de carga propio: la espera la cuenta la escena de VentelFX que
              se monta sobre este mismo contenedor cuando hay que ir a buscar el folio
              (`mode:'cover'`). Un disco genérico encima nacía visible en el primer

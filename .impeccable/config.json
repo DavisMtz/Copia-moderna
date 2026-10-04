@@ -11,6 +11,42 @@
         ],
         "createdAt": "2026-09-24T02:09:49.605Z",
         "reason": "Claude, verificado en el código 23/09/2026: los 3 hallazgos son indicadores de carga (brillo de esqueletos vfx-shimmer en .vfx-imgfx y .vfx-sk-b, barra indeterminada vfx-slide), no contenido que se desplace; los brillos se apagan con prefers-reduced-motion y la barra queda como única señal de espera"
+      },
+      {
+        "rule": "low-contrast",
+        "value": "*",
+        "files": [
+          "Carpeta del proyecto/consulta_cotizacion.html"
+        ],
+        "createdAt": "2026-10-04T21:18:25.841Z",
+        "reason": "Regla del creador del proyecto (memoria sistema-cotizaciones-ventel): los formatos de cotización son intocables; los hallazgos son del documento oficial (títulos #E10098 sobre #fdfdfd, notas #9ca3af), previos a esta sesión"
+      },
+      {
+        "rule": "tiny-text",
+        "value": "*",
+        "files": [
+          "Carpeta del proyecto/consulta_cotizacion.html"
+        ],
+        "createdAt": "2026-10-04T21:18:28.379Z",
+        "reason": "Regla del creador (memoria sistema-cotizaciones-ventel): formato de cotización intocable; el texto de 8pt son términos y pie del documento oficial imprimible"
+      },
+      {
+        "rule": "low-contrast",
+        "value": "*",
+        "files": [
+          "Carpeta del proyecto/cotizado_preview.html"
+        ],
+        "createdAt": "2026-10-04T21:19:26.005Z",
+        "reason": "Regla del creador del proyecto (memoria sistema-cotizaciones-ventel): los formatos de cotización son intocables; los hallazgos son del documento oficial (títulos #E10098 sobre #fdfdfd), previos a esta sesión"
+      },
+      {
+        "rule": "tiny-text",
+        "value": "*",
+        "files": [
+          "Carpeta del proyecto/cotizado_preview.html"
+        ],
+        "createdAt": "2026-10-04T21:19:28.148Z",
+        "reason": "Regla del creador (memoria sistema-cotizaciones-ventel): formato de cotización intocable; el texto de 8pt son términos y pie del documento oficial imprimible"
       }
     ]
   }

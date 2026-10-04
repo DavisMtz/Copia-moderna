@@ -28,17 +28,17 @@
     overlay.innerHTML = `
       <div class="v-modal" role="dialog" aria-modal="true" aria-labelledby="support-modal-title" style="max-width: 26rem;">
         <div style="display:flex; align-items:center; gap:.75rem; margin-bottom:.75rem;">
-          <span style="display:inline-flex; align-items:center; justify-content:center; width:2.5rem; height:2.5rem; border-radius:12px; background:#fce7f3; color:#E10098; flex:none;">
+          <span style="display:inline-flex; align-items:center; justify-content:center; width:2.5rem; height:2.5rem; border-radius:12px; background:var(--brand-tint); color:var(--brand); flex:none;">
             ${icon('mail', 'w-5 h-5')}
           </span>
-          <h3 id="support-modal-title" style="font-size:1.15rem; font-weight:700; color:#0f172a; margin:0;">Contacta al equipo de Ventel</h3>
+          <h3 id="support-modal-title" style="font-size:1.15rem; font-weight:700; color:var(--ink); margin:0;">Contacta al equipo de Ventel</h3>
         </div>
-        <p style="color:#475569; font-size:.9rem; line-height:1.55; margin:0 0 1rem 0;">
+        <p style="color:var(--ink-soft); font-size:.9rem; line-height:1.55; margin:0 0 1rem 0;">
           ¿Tienes dudas, encontraste un problema o necesitas un acceso? El equipo de Ventel te apoya directamente.
         </p>
-        <div style="background:#f8fafc; border:1px solid #e2e8f0; border-radius:12px; padding:.9rem 1rem; margin-bottom:1.25rem;">
-          <p style="font-size:.8rem; font-weight:600; color:#64748b; margin:0 0 .15rem 0;">${SUPPORT_NAME}</p>
-          <p id="support-modal-email" style="font-size:.95rem; font-weight:700; color:#E10098; margin:0; word-break:break-all;">${SUPPORT_EMAIL}</p>
+        <div style="background:var(--surface-2); border:1px solid var(--line); border-radius:12px; padding:.9rem 1rem; margin-bottom:1.25rem;">
+          <p style="font-size:.8rem; font-weight:600; color:var(--ink-soft); margin:0 0 .15rem 0;">${SUPPORT_NAME}</p>
+          <p id="support-modal-email" style="font-size:.95rem; font-weight:700; color:var(--brand-deep); margin:0; word-break:break-all;">${SUPPORT_EMAIL}</p>
         </div>
         <div style="display:flex; gap:.6rem; flex-wrap:wrap; justify-content:flex-end;">
           <button type="button" id="support-modal-close" class="v-btn v-btn-ghost v-btn-sm">Cerrar</button>

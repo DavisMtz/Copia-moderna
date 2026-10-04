@@ -51,6 +51,8 @@
   /* ── Semánticos ── */
   --ok:#0E7A4F; --ok-bg:#E8F4EE; --warn:#B45309; --warn-bg:#FBF0E2;
   --alert:#C81E3C; --alert-bg:#FBE9ED; --info:#1D4ED8; --info-bg:#EBF0FD;
+  /* Rellenos con texto blanco encima: no cambian con el tema (ver app_theme). */
+  --ok-solid:#0E7A4F; --alert-solid:#C81E3C; --brand-deep-solid:#A8006F;
 
   /* Alias históricos: hay reglas y plantillas que aún los nombran. */
   --rosa:var(--brand); --rosa-deep:var(--brand-deep); --rosa-tint:var(--brand-tint); --rosa-soft:var(--brand-soft);
@@ -91,9 +93,13 @@
 }
 [data-theme="carbon"]{
   --app-bg:#0D0F13; --content-bg:#14171C; --surface:#1A1E25; --surface-2:#20252D;
-  --ink:#F2EFF1; --ink-soft:#A8A3AD; --ink-faint:#736E78; --line:#2A2F38; --line-soft:#232830;
+  /* --ink-faint igual que en app_theme e Index: con #736E78 los rótulos chicos del Monitor
+     (origen de la tarjeta, marca, «Promos activas hoy», las pestañas) caían a ~3,3:1. */
+  --ink:#F2EFF1; --ink-soft:#A8A3AD; --ink-faint:#8B8590; --line:#2A2F38; --line-soft:#232830;
   --brand-tint:rgba(225,0,152,.14); --brand-soft:rgba(225,0,152,.32);
   --top-bg:rgba(20,23,28,.78);
+  /* Señales y rosa oscuro aclarados para leerse como texto (ver app_theme). */
+  --ok:#4ADE80; --warn:#F2B65A; --alert:#FB7185; --info:#93B4FF; --brand-deep:#F46BC6;
   --ok-bg:rgba(14,122,79,.16); --warn-bg:rgba(180,83,9,.16);
   --alert-bg:rgba(200,30,60,.16); --info-bg:rgba(29,78,216,.18);
   --app-glow:
@@ -104,6 +110,8 @@
   --sh-md:0 4px 12px -4px rgba(0,0,0,.5), 0 16px 36px -18px rgba(0,0,0,.66);
   --sh-lg:0 10px 24px -8px rgba(0,0,0,.55), 0 32px 64px -28px rgba(0,0,0,.72);
   --ring:0 0 0 3px rgba(225,0,152,.28);
+  /* Listas de <select>, calendarios y barras de desplazamiento nativas, en oscuro. */
+  color-scheme:dark;
 }
 
 /* ════════════════════════════════════════════ BASE + APP SHELL ════════════════════════════════════════════ */

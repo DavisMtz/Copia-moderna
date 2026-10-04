@@ -1150,6 +1150,11 @@
                     return;
                 }
                 const ctx = document.getElementById('userPieChart').getContext('2d');
+                // Chart.js no lee el tema: en carbón su leyenda gris (#666) quedaba en ~3:1 sobre la
+                // tarjeta oscura y los separadores blancos entre porciones parecían un aro suelto.
+                // En los temas claros se queda con sus colores de siempre.
+                const oscuro = document.documentElement.getAttribute('data-theme') === 'carbon';
+                const temaCss = getComputedStyle(document.documentElement);
                 new Chart(ctx, {
                     type: 'doughnut',
                     data: {
@@ -1159,14 +1164,15 @@
                             data: data.map(u => u.count),
                             backgroundColor: ['#E10098', '#6D28D9', '#3B82F6', '#10B981', '#F59E0B', '#EF4444', '#8B5CF6', '#F97316'],
                             hoverOffset: 8,
-                            borderWidth: 2
+                            borderWidth: 2,
+                            borderColor: oscuro ? (temaCss.getPropertyValue('--surface').trim() || '#1C2027') : '#fff'
                         }]
                     },
                     options: {
                         responsive: true, maintainAspectRatio: false,
                         animation: { animateRotate: true, duration: 900, easing: 'easeOutQuart' },
                         plugins: {
-                            legend: { position: 'bottom' },
+                            legend: { position: 'bottom', labels: oscuro ? { color: temaCss.getPropertyValue('--ink-soft').trim() || '#A7A2AC' } : {} },
                             tooltip: { callbacks: { label: (context) => ` ${context.label}: ${context.parsed}` } }
                         }
                     }

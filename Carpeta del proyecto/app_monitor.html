@@ -45,6 +45,9 @@
 /* — La campaña del calendario que corre hoy — */
 .mv-campana{position:relative;display:block;width:100%;min-width:0;padding:1.05rem 1.2rem 1rem;border:0;border-radius:20px;background:var(--surface);color:var(--ink);
   font:inherit;text-align:left;cursor:pointer;box-shadow:0 24px 40px -24px rgba(40,0,25,.6);transition:transform .3s cubic-bezier(.16,1,.3,1),box-shadow .3s}
+/* `display:block` le gana al atributo hidden: sin campaña en curso la tarjeta seguía en el
+   héroe, vacía (una barra blanca en aurora y negra en carbón). */
+.mv-campana[hidden]{display:none}
 .mv-campana:hover{transform:translateY(-2px);box-shadow:0 30px 48px -26px rgba(40,0,25,.7)}
 .mv-campana:focus-visible{outline:3px solid #fff;outline-offset:3px}
 .mv-camp-nom{display:flex;align-items:center;gap:.55rem;font-family:var(--f-display);font-weight:800;font-size:1.22rem;line-height:1.12;letter-spacing:-.005em}

@@ -469,4 +469,52 @@ img, video {
 @media (min-width: 1280px) {
   .xl\:max-w-7xl { max-width: 80rem; }
 }
+
+/* ═══════════════════════════════════════════════════════════════════
+   3. TEMA CARBÓN · los colores fijos de Tailwind pasan a los tokens
+═══════════════════════════════════════════════════════════════════
+   Las utilidades de arriba son colores de tema claro escritos a mano
+   (#fff, #0f172a, #dcfce7…) y no oyen al tema: en carbón dejaban texto
+   oscuro sobre fondo oscuro y cajas blancas con la tinta clara del tema
+   encima. Aquí, SOLO en carbón, cada una apunta al token que le toca.
+   Siempre a un token y nunca a un hex: así un .v-papel (la hoja blanca de
+   un documento, ver app_theme), que redeclara la paleta clara, vuelve a
+   aclarar lo que esto oscurece. Además, `:where(:not(.v-papel, .v-papel *))`
+   deja la hoja fuera del todo, sin subir la especificidad: (0,2,0), igual
+   que el remapeo más antiguo que app_shell sigue llevando para sus once
+   pantallas. Si se añade aquí una utilidad de color nueva, va también en
+   esta lista. */
+[data-theme="carbon"] :is(.text-slate-900, .text-slate-800, .text-slate-700,
+  .text-gray-900, .text-gray-800, .text-gray-700):where(:not(.v-papel, .v-papel *)) { color: var(--ink); }
+[data-theme="carbon"] :is(.text-slate-600, .text-slate-500,
+  .text-gray-600, .text-gray-500):where(:not(.v-papel, .v-papel *)) { color: var(--ink-soft); }
+[data-theme="carbon"] :is(.text-slate-400, .text-gray-400):where(:not(.v-papel, .v-papel *)) { color: var(--ink-faint); }
+[data-theme="carbon"] :is(.text-brand-pink, .text-pink-600, .text-pink-700):where(:not(.v-papel, .v-papel *)) { color: var(--brand-deep); }
+[data-theme="carbon"] :is(.text-red-500, .text-red-600, .text-red-700):where(:not(.v-papel, .v-papel *)) { color: var(--alert); }
+[data-theme="carbon"] :is(.text-yellow-700, .text-amber-700):where(:not(.v-papel, .v-papel *)) { color: var(--warn); }
+[data-theme="carbon"] :is(.text-green-600, .text-green-700,
+  .text-emerald-500, .text-emerald-600):where(:not(.v-papel, .v-papel *)) { color: var(--ok); }
+
+[data-theme="carbon"] .bg-white:where(:not(.v-papel, .v-papel *)) { background-color: var(--surface); }
+[data-theme="carbon"] :is(.bg-gray-50, .bg-gray-100):where(:not(.v-papel, .v-papel *)) { background-color: var(--surface-2); }
+[data-theme="carbon"] :is(.bg-pink-50, .bg-pink-100):where(:not(.v-papel, .v-papel *)) { background-color: var(--brand-tint); }
+[data-theme="carbon"] :is(.bg-red-50, .bg-red-100):where(:not(.v-papel, .v-papel *)) { background-color: var(--alert-bg); }
+[data-theme="carbon"] :is(.bg-yellow-100, .bg-amber-50):where(:not(.v-papel, .v-papel *)) { background-color: var(--warn-bg); }
+[data-theme="carbon"] :is(.bg-green-100, .bg-emerald-50):where(:not(.v-papel, .v-papel *)) { background-color: var(--ok-bg); }
+
+[data-theme="carbon"] :is(.border-slate-100, .border-slate-200,
+  .border-gray-200, .border-gray-300):where(:not(.v-papel, .v-papel *)) { border-color: var(--line); }
+[data-theme="carbon"] .divide-slate-200:where(:not(.v-papel, .v-papel *)) > :not([hidden]) ~ :not([hidden]) { border-color: var(--line); }
+[data-theme="carbon"] :is(.border-pink-200, .border-pink-300):where(:not(.v-papel, .v-papel *)) { border-color: var(--brand-soft); }
+[data-theme="carbon"] .hover\:border-pink-400:hover:where(:not(.v-papel, .v-papel *)) { border-color: var(--brand); }
+[data-theme="carbon"] .border-amber-200:where(:not(.v-papel, .v-papel *)) { border-color: color-mix(in srgb, var(--warn) 35%, transparent); }
+
+/* El borde por omisión del preflight (#e5e7eb): una clase `border` sin color
+   pintaba en carbón un filete gris claro. Especificidad CERO a propósito,
+   como el preflight: cualquier regla con clase que fije su propio borde
+   (el rosa de una tarjeta elegida, el rojo de un campo inválido) sigue
+   mandando. */
+:where([data-theme="carbon"] :not(.v-papel, .v-papel *)),
+:where([data-theme="carbon"] :not(.v-papel, .v-papel *))::before,
+:where([data-theme="carbon"] :not(.v-papel, .v-papel *))::after { border-color: var(--line); }
 </style>

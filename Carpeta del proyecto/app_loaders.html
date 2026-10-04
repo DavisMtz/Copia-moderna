@@ -33,7 +33,10 @@
 /* ── Variables de escena: se alimentan de los tokens del tema, con respaldo ── */
 .vfx{
   --vfx-brand: var(--brand,#E10098);
-  --vfx-deep: var(--brand-deep,#A8006F);
+  /* -solid y no --brand-deep: en carbón --brand-deep se aclara para leerse como texto,
+     y aquí es la SOMBRA de los dibujos (solapas, asas, la parte de atrás) y el fondo del
+     botón «Reintentar» al pasar el cursor. Aclarada, el sombreado salía invertido. */
+  --vfx-deep: var(--brand-deep-solid,#A8006F);
   --vfx-soft: var(--brand-soft,#FBD0E9);
   --vfx-tint: var(--brand-tint,#FDE7F4);
   --vfx-ink: var(--ink,#1B2330);
@@ -124,7 +127,7 @@
 .vfx-err .vfx-stage{ opacity:.42; filter:grayscale(.75) }
 .vfx-retry{
   margin-top:.9rem; font:inherit; font-size:.82rem; font-weight:600; cursor:pointer;
-  padding:.5rem 1.1rem; border-radius:99px; color:var(--vfx-surface);
+  padding:.5rem 1.1rem; border-radius:99px; color:#fff;
   background:var(--vfx-brand); border:0; box-shadow:var(--sh-sm,0 2px 8px -2px rgba(27,35,48,.18));
 }
 .vfx-retry:hover{ background:var(--vfx-deep) }
@@ -154,8 +157,14 @@
 }
 .vfx-imgfx::after{
   content:''; position:absolute; inset:0; transform:translateX(-100%);
-  background:linear-gradient(90deg,transparent,rgba(255,255,255,.72),transparent);
+  /* Con la superficie del tema y no blanco fijo, como el brillo de .vfx-sk-b: en carbón el
+     barrido blanco era un destello sobre el hueco oscuro. */
+  background:linear-gradient(90deg,transparent,
+    color-mix(in srgb, var(--vfx-surface) 72%, transparent),transparent);
   animation:vfx-shimmer 1.35s ease-in-out infinite;
+}
+@supports not (background: color-mix(in srgb, red 50%, transparent)){
+  .vfx-imgfx::after{ background:linear-gradient(90deg,transparent,rgba(255,255,255,.72),transparent) }
 }
 @media (prefers-reduced-motion:reduce){ .vfx-imgfx::after{ animation:none } }
 
