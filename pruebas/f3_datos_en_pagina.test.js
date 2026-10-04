@@ -291,8 +291,11 @@ console.log('\nA8 · F3a.1: un solo viaje a la caché y un tope a lo que viaja')
     r.lecturas.getProperty <= 3 && r.lecturas.getProperties === 0, r.lecturas);
 
   r = servir('promociones');
-  ok('Monitor: un getAll con appData_v1 y nada más',
-    r.lecturas.getAll === 1 && r.lecturas.get === 0 && JSON.stringify(pedidas(r)) === '["appData_v1"]' && r.lecturas.getProperty === 0, r.lecturas);
+  // Desde el 04/10/2026 el Monitor lleva en su barra la credencial del Reto de Innovación 2026, y con
+  // ella su interruptor: una propiedad, como en el Portal. El almacén entero sigue sin leerse.
+  ok('Monitor: un getAll con appData_v1, y como mucho la propiedad del interruptor del reconocimiento',
+    r.lecturas.getAll === 1 && r.lecturas.get === 0 && JSON.stringify(pedidas(r)) === '["appData_v1"]' &&
+    r.lecturas.getProperty <= 1 && r.lecturas.getProperties === 0, r.lecturas);
   r = servir('estado');
   ok('una pantalla sin lista no lee nada', r.lecturas.getAll === 0 && r.lecturas.get === 0 && r.lecturas.getProperty === 0, r.lecturas);
 
@@ -362,6 +365,38 @@ console.log('\nA8 · F3a.1: un solo viaje a la caché y un tope a lo que viaja')
   vm.runInContext('opCacheClave_ = __claveOriginal;', S);
   ok('si falla la clave del estado público, no lanza y las otras cuatro siguen',
     err === null && claves(r) === JSON.stringify(cinco.filter((f) => f !== 'opEstadoPublico')), err || (r && Object.keys(r.datos)));
+}
+
+console.log('\nA8b · El interruptor del reconocimiento viaja solo a las pantallas que lo enseñan (04/10/2026)');
+{
+  const servir = (page) => {
+    plantillas = [];
+    ponerLecturasACero();
+    ejecucion(() => S.doGet({ parameter: { page: page } }));
+    const t = plantillas[plantillas.length - 1];
+    return { archivo: t && t.__archivo, estado: t && t.APP_JSON ? JSON.parse(t.APP_JSON) : {}, lecturas: JSON.parse(JSON.stringify(lecturas)) };
+  };
+  reiniciar(); calentar();
+  // dashboard (inicio) y anuncios son del marco; login, el inicio de sesión; promociones, el Monitor.
+  ['portal', 'promociones', 'login', 'dashboard', 'anuncios', 'consola'].forEach((p) => {
+    const r = servir(p);
+    ok(p + ' (' + r.archivo + ') lleva reco: true con el interruptor sin tocar', r.estado.reco === true, r.estado.reco);
+  });
+  let r = servir('dashboard');
+  ok('una pantalla del marco lee UNA propiedad (el interruptor) y nada de la caché',
+    r.lecturas.getProperty === 1 && r.lecturas.getAll === 0 && r.lecturas.get === 0 && r.lecturas.getProperties === 0, r.lecturas);
+  ok('…y el resto de su __APP__ sigue igual (baseUrl y los parámetros de vista)', typeof r.estado.baseUrl === 'string' && 'sec' in r.estado, Object.keys(r.estado));
+  props.RECO_VISIBLE = 'no';
+  ['portal', 'promociones', 'login', 'dashboard', 'consola'].forEach((p) => {
+    const r2 = servir(p);
+    ok(p + ' apagado → reco: false', r2.estado.reco === false, r2.estado.reco);
+  });
+  ['estado', 'cotizacion', 'registro'].forEach((p) => {
+    const r3 = servir(p);
+    ok(p + ' no enseña el reconocimiento: ni reco ni lectura de propiedades',
+      !('reco' in r3.estado) && r3.lecturas.getProperty === 0, { reco: r3.estado.reco, lecturas: r3.lecturas });
+  });
+  ok('ninguna de estas peticiones escribió', cuentas.escriturasProp === 0 && cuentas.escriturasCache === 0, cuentas);
 }
 
 console.log('\nA9 · F3a.2: los resultados de las encuestas, dentro de la página');

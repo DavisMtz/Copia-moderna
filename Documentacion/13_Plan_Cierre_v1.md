@@ -1042,6 +1042,57 @@ y qué se dejó fuera a propósito**. Mismo formato que el registro del document
 
 <!-- Las entradas nuevas van arriba, con la más reciente primero. -->
 
+### 2026-10-04 — Reconocimiento 2026: la credencial (D) en la barra de todas las pantallas y el sello lateral (B) retirado (en pruebas)
+
+**Qué se cambió:**
+- **El pedido:** «Me gusta esta que subiste a pruebas, ponla en todas las pantallas y quita lo de la barra lateral»; a mitad del trabajo, «recuerda que se debe poder apagar».
+- **La credencial en las trece pantallas con barra:**
+  - el Portal ya la tenía;
+  - el Monitor (`Promociones.html`) la lleva escrita en su barra;
+  - las once del marco: `app_shell.html` la pide a `AppReco.credencial()` al armar su barra. Si una pantalla no incluye el parcial, su barra sale como siempre.
+- **Va detrás del buscador en las tres barras:**
+  - en el Portal, entre el buscador y el reloj;
+  - en el Monitor, entre «Buscar» y «Portal principal»;
+  - en el marco, primera del grupo de la sesión, donde `app_comando` le pone «Buscar» delante.
+- **No crece ninguna barra:**
+  - la del marco y la del Monitor miden ~32 px por dentro, y la credencial ~42 con el relleno de su recuadro;
+  - un margen negativo arriba y abajo la deja en 32, y el recuadro que sale al pasar el ratón se pinta sobre el relleno de la barra;
+  - los cortes de ancho son los mismos en todas: la credencial no cambia de forma al pasar de una pantalla a otra.
+- **El interruptor apaga en todas:**
+  - `RECO_PANTALLAS` (Portal.gs) lista las catorce pantallas que incluyen el parcial;
+  - `servirPagina_` pasa por `recoEnPagina_` en sus dos ramas, y solo esas pantallas leen la propiedad;
+  - el constructor de anuncios lo aplica en su propia barra sin recargar (`AppReco.encender`), y su texto ya dice «todas las pantallas».
+- **Los pesos: el parcial se partió en dos**, porque ahora va en catorce pantallas.
+  - `app_reconocimiento.html` (19 KB compilado, 6 KB comprimido) lleva los estilos, la medalla, el visor y `AppReco`.
+  - Los dibujos grandes (logotipo, insignia y miniatura del diploma, ~64 KB) pasaron a `app_reconocimiento_sprite.html`. Solo lo incluyen el Portal (banda) y el inicio de sesión (vitrina).
+  - Las demás pantallas reciben los dibujos con `recoImagenes()` (campo `sprite`) al abrir el visor, que enseña un hueco de carga mientras llegan. Se piden ya al apuntar a la credencial y se guardan 30 días (clave `reco-imagenes-v2`).
+  - Copiar el parcial entero habría sumado 82 KB (44 KB comprimidos) a cada visita de las doce pantallas nuevas.
+- **El saludo de la medalla:**
+  - el marco avisa con `AppReco.saludar()` cuando su barra ya está puesta;
+  - el día que cuenta es el local. Antes era el de Greenwich, que a las seis de la tarde ya es mañana.
+- **B retirada:** el sello de la barra lateral del Portal y sus estilos. A (vitrina del inicio de sesión) y C (banda de la portada) siguen, porque el creador no se pronunció sobre ellas.
+
+**Qué se comprobó:**
+- **`npm test`: 29 suites en verde.**
+  - Suite nueva `pruebas/reconocimiento.test.js` (50 comprobaciones): las pantallas y la lista, los pesos, la misma credencial en las tres barras, el guion del parcial con un DOM de mentira y el servidor. De once fallos introducidos a propósito, detectó los once.
+  - `f3_datos_en_pagina` (179): el Monitor pasa de ninguna lectura de propiedad a una como mucho (el interruptor). Una sección nueva (A8b) comprueba qué pantallas llevan `reco` y que las demás no leen nada.
+- **Vista previa en Chrome headless** del Portal, el Monitor y seis pantallas del marco, a 1600, 1366, 1024, 760 y 390 px:
+  - la barra mide lo mismo con y sin la credencial en todas;
+  - sin desbordes ni títulos cortados;
+  - temas slate y carbón, y el recuadro al pasar el ratón.
+- **El visor en una pantalla del marco y en el Monitor:** se abre con el hueco de carga, a los 900 ms llegan los dibujos y el `<use>` se repinta. Una sola petición entre apuntar y hacer clic.
+- **Apagado:** ni credencial, ni banda, ni vitrina en las cinco pantallas probadas. El interruptor de anuncios la quita y la devuelve sin recargar.
+- La credencial del Portal es idéntica píxel a píxel a la de la propuesta D; lo único distinto es el hueco del sello.
+- Detector de impeccable: 0 hallazgos.
+- Finales de línea conservados en cada archivo (de los del marco, ocho CRLF y tres LF).
+- Build: 39 parciales.
+
+**Qué se dejó fuera a propósito:**
+- **Una lectura de propiedad más en doce `doGet`** (el Monitor y las once del marco): queda por debajo del ruido medido en la F3a.1, donde ~57 ms de primer byte se perdían entre los 2.3-3.0 s del envoltorio de Google. Leerla de la caché no ahorraba nada en las pantallas del marco, que no hacen `getAll`.
+- **Los estilos de A y C viajan también en el marco** (~4 KB sin comprimir): separarlos costaba otro parcial para ahorrar menos de 1 KB comprimido.
+- **Las pantallas sin barra** (cotización, registro, recuperar, vistas previas, estado) no tienen dónde ponerla.
+- **Producción:** no se toca; se promueve solo si el creador lo pide.
+
 ### 2026-10-04 — Reconocimiento del Reto de Innovación Liverpool 2026: tres propuestas en el Portal (en pruebas)
 
 **Qué se cambió:**

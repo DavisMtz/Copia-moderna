@@ -966,12 +966,16 @@ function fpLogosTiendas() {
  * que el quitacomentarios de Google pudiera tomar por comentario; aquí se devuelve al normal.
  * Pública a propósito, como fpLogosTiendas: el Portal y el inicio de sesión se ven sin sesión, y
  * son las mismas imágenes que esas pantallas ya enseñan en miniatura.
+ * `sprite` lleva además los dibujos grandes (logotipo, insignia y miniatura del diploma, ~64 KB),
+ * que solo vienen escritos en el Portal y en el inicio de sesión: las otras doce pantallas con la
+ * credencial los añaden al abrir el visor, en vez de cargarlos en cada visita.
  */
 function recoImagenes() {
   const d = JSON.parse(HtmlService.createHtmlOutputFromFile('reco_imagenes').getContent());
   ['diploma', 'mensaje'].forEach(function (k) {
     d[k] = String(d[k] || '').replace(/-/g, '+').replace(/_/g, '/');
   });
+  d.sprite = HtmlService.createHtmlOutputFromFile('app_reconocimiento_sprite').getContent();
   return d;
 }
 
@@ -988,9 +992,24 @@ function recoVisible_() {
   catch (e) { return true; }
 }
 
-/** El __APP__ del Portal y del inicio de sesión lleva `reco`: esas pantallas lo leen antes de pintar. */
+/** El __APP__ de cada pantalla con el reconocimiento lleva `reco`: lo leen antes de pintar. */
 function recoEnEstado_(json) {
   return '{"reco":' + (recoVisible_() ? 'true' : 'false') + ',' + String(json).slice(1);
+}
+
+/*
+ * Las pantallas que incluyen app_reconocimiento (la credencial de la barra, más la vitrina del
+ * inicio de sesión y la banda del Portal): el Portal, el Monitor, el inicio de sesión y las once
+ * del marco. Solo ellas leen el interruptor al servirse, una propiedad por visita; las demás
+ * (registro, cotización, estado…) no pagan esa lectura. pruebas/reconocimiento.test.js vigila que
+ * esta lista y los include coincidan.
+ */
+var RECO_PANTALLAS = ['Index', 'Promociones', 'inicioDeSesion',
+  'inicio', 'inicio_avanzado', 'revision_cotizacion', 'correoventel', 'correo_cliente', 'anuncios',
+  'portal_contenido', 'operacion', 'consola', 'atenciones', 'articulo'];
+
+function recoEnPagina_(archivo, json) {
+  return RECO_PANTALLAS.indexOf(archivo) === -1 ? json : recoEnEstado_(json);
 }
 
 /** Estado del interruptor, para el constructor de anuncios. */
@@ -1000,7 +1019,7 @@ function recoEstado(email) {
   return { status: 'ok', visible: recoVisible_() };
 }
 
-/** Enciende o apaga el reconocimiento en el Portal (sello y banda) y en el inicio de sesión. */
+/** Enciende o apaga el reconocimiento en todas las pantallas que lo enseñan (RECO_PANTALLAS). */
 function recoCambiarVisible(visible, email) {
   try {
     const gate = portalGateAvanzado_(email);

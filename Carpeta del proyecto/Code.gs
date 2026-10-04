@@ -405,9 +405,9 @@ function servirPagina_(e) {
     // respuestas que la pantalla pediría al abrir si ya estaban en caché (F3).
     pTemplate.APP_JSON = appEstadoInicialJson_(pTemplate.APP_URL, e,
       datosInicialesDePagina_(PORTAL_PAGES[page] ? page : 'portal'));
-    // El Portal enseña el reconocimiento del Reto de Innovación 2026 si su interruptor está
-    // encendido (Portal.gs, recoEnEstado_); va en __APP__ para leerse antes de pintar.
-    if (pConfig.file === 'Index') pTemplate.APP_JSON = recoEnEstado_(pTemplate.APP_JSON);
+    // El Portal y el Monitor enseñan el reconocimiento del Reto de Innovación 2026 si su
+    // interruptor está encendido (Portal.gs, recoEnPagina_); va en __APP__ para leerse antes de pintar.
+    pTemplate.APP_JSON = recoEnPagina_(pConfig.file, pTemplate.APP_JSON);
     return conFavicon_(pTemplate.evaluate()
       .setTitle(pConfig.title)
       .setXFrameOptionsMode(HtmlService.XFrameOptionsMode.ALLOWALL)
@@ -427,8 +427,9 @@ function servirPagina_(e) {
   });
   // …y el mismo juego ya serializado, que es lo que la plantilla pega en __APP__.
   template.APP_JSON = appEstadoInicialJson_(template.baseUrl, e);
-  // La vitrina del reconocimiento del inicio de sesión obedece al mismo interruptor que el Portal.
-  if (config.file === 'inicioDeSesion') template.APP_JSON = recoEnEstado_(template.APP_JSON);
+  // La credencial del reconocimiento (y la vitrina del inicio de sesión) obedece al mismo
+  // interruptor que el Portal, en cada pantalla que la enseña (RECO_PANTALLAS, Portal.gs).
+  template.APP_JSON = recoEnPagina_(config.file, template.APP_JSON);
 
   // El <meta viewport> escrito dentro del HTML se IGNORA en Apps Script (documentación de
   // HtmlOutput): solo cuenta addMetaTag. Sin esto, en un teléfono las pantallas de la app se

@@ -1291,8 +1291,11 @@ a:focus-visible,button:focus-visible,input:focus-visible,[tabindex]:focus-visibl
 <!-- Presentaciones en consola (26/09/2026): renderP(), pvContar(), pvCoincide(), pvAlEntrar(), pvElemento(), pvRevelar(),
      el visor y el lector. La consola de Herramientas con la presentación a la vista. Parcial para que el build lo minifique. -->
 <?!= include('app_presentaciones') ?>
-<!-- Reconocimiento del Reto de Innovación Liverpool 2026 (04/10/2026, propuestas B y C en pruebas):
-     sprite, visor y AppReco. Las imágenes grandes no viajan aquí: las pide el visor al abrirse. -->
+<!-- Reconocimiento del Reto de Innovación Liverpool 2026 (04/10/2026, en pruebas): la credencial de la
+     barra y la banda de la portada. Los dibujos grandes van escritos porque la banda los pinta al
+     cargar; la medalla, el visor y AppReco, en el parcial común. Las imágenes grandes no viajan
+     aquí: las pide el visor al abrirse. -->
+<?!= include('app_reconocimiento_sprite') ?>
 <?!= include('app_reconocimiento') ?>
 <template id="__bundler_thumbnail" data-bg-color="#E10098">
   <svg viewBox="0 0 1200 800" xmlns="http://www.w3.org/2000/svg">
@@ -1318,15 +1321,6 @@ a:focus-visible,button:focus-visible,input:focus-visible,[tabindex]:focus-visibl
     <span class="sb-divider"></span>
     <span class="sb-sub">Portal<small>VENTEL</small></span>
   </div>
-
-  <!-- Propuesta B (04/10/2026, en pruebas): sello del Reto de Innovación Liverpool 2026 bajo la
-       marca. Solo en esta barra hasta que se elija (app_shell y Promociones no lo llevan).
-       Estilos, sprite y visor en app_reconocimiento.html. -->
-  <button type="button" class="reco-sello-lat" data-reco-abrir="insignia" aria-label="Tercer lugar nacional en el Reto de Innovación Liverpool 2026. Ver el diploma y la insignia">
-    <span class="reco-sello-med"><svg viewBox="0 0 28 34" aria-hidden="true"><use href="#recoMedalla"/></svg></span>
-    <span class="reco-sello-tx"><b>Tercer lugar nacional</b><small>Reto de Innovación 2026</small></span>
-    <svg class="reco-sello-chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m9 6 6 6-6 6"/></svg>
-  </button>
 
   <!-- Conmutador de área compartido (mismo bloque en Cotizaciones y Correos) -->
   <nav class="app-switch" aria-label="Cambiar de área">
@@ -1439,9 +1433,10 @@ a:focus-visible,button:focus-visible,input:focus-visible,[tabindex]:focus-visibl
       <button class="s-clear" id="hsClear" onclick="clearGlobalSearch()" aria-label="Limpiar"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M6 6l12 12M18 6 6 18"/></svg></button>
       <div class="search-drop" id="searchDrop"></div>
     </div>
-    <!-- Propuesta D (04/10/2026, en pruebas): la credencial del Reto de Innovación Liverpool 2026 en la
-         barra superior. A la vista en todas las pantallas sin ocupar una fila; la medalla se columpia una
-         vez al día. Estilos y visor en app_reconocimiento.html. -->
+    <!-- La credencial del Reto de Innovación Liverpool 2026 (04/10/2026, en pruebas; la eligió el creador
+         entre cuatro). Va en la barra de todas las pantallas: esta, la del Monitor (Promociones.html) y la
+         del marco (app_shell la pide a AppReco.credencial()). La medalla se columpia una vez al día.
+         Estilos y visor en app_reconocimiento.html. -->
     <button type="button" class="reco-cred" data-reco-abrir="diploma" title="Tercer lugar nacional · Reto de Innovación Liverpool 2026" aria-label="Tercer lugar nacional en el Reto de Innovación Liverpool 2026. Ver el diploma y la insignia">
       <svg class="reco-cred-med" viewBox="0 0 28 34" aria-hidden="true"><use href="#recoMedalla"/></svg>
       <span class="reco-cred-tx"><b><span class="rc-largo">Tercer lugar nacional</span><span class="rc-corto">3.er lugar</span></b><small>Reto de Innovación Liverpool 2026</small></span>
@@ -1508,7 +1503,8 @@ a:focus-visible,button:focus-visible,input:focus-visible,[tabindex]:focus-visibl
     </div>
 
     <!-- Propuesta C (04/10/2026, en pruebas): banda del Reto de Innovación Liverpool 2026, debajo
-         del encabezado. Estilos, sprite y visor en app_reconocimiento.html. -->
+         del encabezado. Estilos y visor en app_reconocimiento.html; sus dibujos, en
+         app_reconocimiento_sprite.html. -->
     <section class="reco-banda" aria-labelledby="recoBandaT">
       <span class="reco-placa"><svg class="reco-logo" viewBox="8 27 556 191" role="img" aria-label="Reto de Innovación Liverpool"><use href="#recoLogo"/></svg><span class="reco-sep" aria-hidden="true"></span><span class="reco-anio">2026</span></span>
       <div class="reco-banda-tx">

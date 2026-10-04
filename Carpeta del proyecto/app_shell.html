@@ -630,11 +630,16 @@ html[data-density="compact"] .side-label { padding-block: .5rem .25rem; }
       '</div>';
   }
 
+  /* La credencial del Reto de Innovación 2026 (04/10/2026) va primera en el grupo de la sesión: el
+     botón «Buscar» de app_comando se pone delante, y queda buscador → credencial → saludo, el mismo
+     orden que en el Portal y el Monitor. Su marcado, sus estilos y el visor viven en
+     app_reconocimiento: si una pantalla no lo incluye, la barra sale como siempre. */
   function topbarHTML(title) {
     return '' +
       '<button class="menu-btn" aria-label="Menú" onclick="AppShell.toggleDrawer()">' + IC_MENU + '</button>' +
       '<h1 class="shell-title">' + esc(title) + '</h1>' +
       '<div class="shell-session">' +
+        (window.AppReco && AppReco.credencial ? AppReco.credencial() : '') +
         '<span class="shell-user">Hola, <strong id="user-name">Usuario</strong></span>' +
         '<button id="logoutButton" class="v-btn v-btn-ghost v-btn-sm" onclick="AppShell.logout()">' + IC_OUT + '<span class="hidden sm:inline">Salir</span></button>' +
       '</div>';
@@ -782,6 +787,8 @@ html[data-density="compact"] .side-label { padding-block: .5rem .25rem; }
       root.appendChild(col);
       col.appendChild(top);
       col.appendChild(main); /* mueve el main existente dentro de la columna */
+      /* La medalla de la credencial saluda una vez al día, y aquí es cuando por fin está puesta. */
+      if (window.AppReco && AppReco.saludar) AppReco.saludar();
 
       /* ALTURA REAL DEL TOPBAR, publicada como token.
          El topbar se pega arriba con z-index 40, así que TODO lo que una pantalla pegue
