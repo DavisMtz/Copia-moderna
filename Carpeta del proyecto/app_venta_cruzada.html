@@ -1,0 +1,76 @@
+<script>
+/**
+ * =====================================================================================
+ * VENTA CRUZADA · las promociones del Monitor para la extensión de Chrome | Sistema Ventel
+ * =====================================================================================
+ * Se incluye en la portada del Portal (Index), después de app_core. No pinta nada: deja
+ * las promociones vigentes del Monitor, con «la más fuerte», en un elemento script de tipo
+ * application/json con id «ventel-promos-datos», en esta página y en la de arriba (el
+ * marco de Apps Script, mismo origen). De ahí las lee
+ * la extensión «Ventel Extractor de Bolsa» (2.6) para su tarjeta «Vende más con este
+ * artículo» en las fichas de liverpool.com.mx. Ver VentaCruzada.gs.
+ *
+ * CACHÉ PRIMERO, como la lista de módulos apagados de app_core: con una copia de menos de
+ * 30 minutos no se pregunta al servidor. La extensión no necesita más fresco que eso, y
+ * cada apertura del Portal no tiene por qué pagar una llamada.
+ *
+ * Un script de tipo application/json nunca se ejecuta: es solo un contenedor de datos.
+ * Se escribe con textContent, así que una etiqueta de cierre metida en un texto de la hoja
+ * no cierra nada. (Por lo mismo, este comentario no la escribe: dentro de un bloque de
+ * script, el navegador la tomaría por el final del bloque.)
+ *
+ * Nunca lanza: si algo falla, la extensión sigue con la última copia que guardó.
+ */
+(function () {
+  'use strict';
+
+  var CLAVE = 'vc-promos-v1';
+  var TTL = 30 * 60 * 1000;
+  var ID = 'ventel-promos-datos';
+
+  function documentos() {
+    var docs = [document];
+    try {
+      if (window.parent && window.parent !== window && window.parent.document) docs.push(window.parent.document);
+    } catch (e) { /* otro origen: solo el propio */ }
+    return docs;
+  }
+
+  /** Deja el paquete donde la extensión lo busca. false si la respuesta no sirve. */
+  function publicar(r) {
+    if (!r || r.status !== 'ok' || !Array.isArray(r.promos)) return false;
+    var texto = JSON.stringify({ v: r.v, generado: r.generado, fuerte: r.fuerte || null, promos: r.promos });
+    documentos().forEach(function (doc) {
+      try {
+        var el = doc.getElementById(ID);
+        if (!el) {
+          el = doc.createElement('script');
+          el.type = 'application/json';
+          el.id = ID;
+          (doc.head || doc.documentElement).appendChild(el);
+        }
+        if (el.textContent !== texto) el.textContent = texto;
+      } catch (e) { /* ese documento no se deja escribir: queda el otro */ }
+    });
+    return true;
+  }
+
+  /** La copia fresca del navegador, o una pregunta al servidor si ya caducó. */
+  function pedir(fuerza) {
+    try {
+      if (!fuerza && window.AppCache) {
+        var g = AppCache.get(CLAVE, TTL);
+        if (g && g.data && publicar(g.data)) return;
+      }
+      if (!window.AppRun || typeof google === 'undefined' || !google.script || !google.script.run) return;
+      AppRun.call('ventaCruzadaPromos', [], { key: 'venta-cruzada', busy: false }).then(function (r) {
+        if (!r || r.status !== 'ok') return;
+        try { AppCache.set(CLAVE, r, { ttl: TTL }); } catch (e) { /* sin almacén: se publica igual */ }
+        publicar(r);
+      }, function () { /* sin red: la extensión conserva su copia */ });
+    } catch (e) { /* nunca tumba la portada */ }
+  }
+
+  window.VentaCruzadaExtension = { pedir: pedir, publicar: publicar };
+})();
+</script>

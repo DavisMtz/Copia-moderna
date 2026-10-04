@@ -458,21 +458,18 @@ function fetchPromoCounts() {
 }
 
 /**
- * Lo que calcula fetchPromoCounts, sobre los datos del Monitor ya leídos. Va aparte para que
- * el doGet pueda hacer la cuenta con la copia de la caché sin arriesgarse a leer las hojas
- * (portalPromoCountsEnCache_, F3). Puede lanzar: quien la llama decide qué hacer.
+ * Las promociones del Monitor vigentes en `now`, EN EL ORDEN DE LA HOJA (Promociones y luego MKP),
+ * con su fin y los días que les quedan, decididas con el MISMO parseVigencia_ que usa el Monitor
+ * (activePromosToday en Promociones.html). Las usan la portada (portalContarPromos_) y la
+ * extensión de Chrome (VentaCruzada.gs): el orden importa ahí, porque «la más fuerte» del Monitor
+ * desempata por la primera.
  */
-function portalContarPromos_(data) {
-  const now = new Date();
+function portalVigentes_(data, now) {
   const DIA = 86400000;
-  let activas = 0, porTerminar = 0;
   const vigentes = [];
-
   (data.promociones || []).forEach(function (p) {
     const r = parseVigencia_(p.vigencia, now);
     if (r && now >= r.start && now <= r.end) {
-      activas++;
-      if ((r.end - now) / DIA <= 3) porTerminar++;
       vigentes.push({
         direccion: String(p.direccion || '').trim(),
         categoria: String(p.categoria || '').trim(),
@@ -486,6 +483,20 @@ function portalContarPromos_(data) {
       });
     }
   });
+  return vigentes;
+}
+
+/**
+ * Lo que calcula fetchPromoCounts, sobre los datos del Monitor ya leídos. Va aparte para que
+ * el doGet pueda hacer la cuenta con la copia de la caché sin arriesgarse a leer las hojas
+ * (portalPromoCountsEnCache_, F3). Puede lanzar: quien la llama decide qué hacer.
+ */
+function portalContarPromos_(data) {
+  const now = new Date();
+  const DIA = 86400000;
+  const vigentes = portalVigentes_(data, now);
+  const activas = vigentes.length;
+  const porTerminar = vigentes.filter(function (v) { return (v.fin - now.getTime()) / DIA <= 3; }).length;
   vigentes.sort(function (a, b) { return a.fin - b.fin; });
 
   const desde = now.getTime() - DIA, hasta = now.getTime() + 28 * DIA;

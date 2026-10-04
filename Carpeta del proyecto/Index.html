@@ -1242,6 +1242,9 @@ a:focus-visible,button:focus-visible,input:focus-visible,[tabindex]:focus-visibl
 <?!= include('app_onboarding') ?>
 <?!= include('app_operacion') ?>
 <?!= include('app_precarga') ?>
+<!-- Venta cruzada: deja las promociones del Monitor para la tarjeta «Vende más» de la
+     extensión de Chrome. No pinta nada (ver VentaCruzada.gs). -->
+<?!= include('app_venta_cruzada') ?>
 <!-- Atenciones, aquí dentro. El Portal es de donde más se sale a mirar quién está
      esperando, y hasta ahora ese enlace costaba una carga completa de Apps Script para
      una consulta de cinco segundos —y otra para volver—. Con el módulo cargado, pedir
@@ -2662,6 +2665,9 @@ function requestData(manual){
     onData: c => { fxPromos.done(); renderPromoStrip(c); },
     onError: () => { fxPromos.done(); renderPromoStrip(null); }
   });
+
+  // Las promociones para la extensión de Chrome: copia de media hora, sin pintar nada.
+  if (window.VentaCruzadaExtension) VentaCruzadaExtension.pedir(manual === true);
 
   // Trazabilidad va en su propia llamada: si la hoja de Homologación falla,
   // el resto del Portal (herramientas, formatos, plantillas) no se cae con ella.
