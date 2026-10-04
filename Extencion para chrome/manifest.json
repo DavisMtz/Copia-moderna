@@ -1,8 +1,8 @@
 {
   "manifest_version": 3,
   "name": "Ventel Extractor de Bolsa",
-  "version": "2.5",
-  "description": "Extrae artículos de la bolsa de compras de Liverpool (con su enlace a la ficha) para el Sistema de Cotizaciones Ventel, los lleva de un clic a una cotización nueva desde el popup o desde un botón 'Cotizar' incrustado en la propia bolsa, incluye un visor avanzado con todos los datos que la página no muestra, abre un inspector de artículo con toda la información visible y oculta de una ficha de producto, y arma el resumen de la compra confirmada listo para pegar. Todo es extraccion local. DMA:)",
+  "version": "2.6",
+  "description": "Extrae artículos de la bolsa de compras de Liverpool (con su enlace a la ficha) para el Sistema de Cotizaciones Ventel, los lleva de un clic a una cotización nueva desde el popup o desde un botón 'Cotizar' incrustado en la propia bolsa, incluye un visor avanzado con todos los datos que la página no muestra, abre un inspector de artículo con toda la información visible y oculta de una ficha de producto, arma el resumen de la compra confirmada listo para pegar, y en cada ficha sugiere la venta incremental, los complementos que sí le quedan y la promoción del Monitor para decírsela al cliente. Todo es extraccion local. DMA:)",
   "icons": {
     "16": "iconos/icono16.png",
     "32": "iconos/icono32.png",
@@ -15,8 +15,12 @@
     "storage"
   ],
   "host_permissions": [
-    "*://*.liverpool.com.mx/*"
+    "*://*.liverpool.com.mx/*",
+    "https://script.google.com/*"
   ],
+  "background": {
+    "service_worker": "fondo.js"
+  },
   "content_scripts": [
     {
       "matches": ["https://*.googleusercontent.com/*"],
@@ -25,8 +29,19 @@
       "run_at": "document_start"
     },
     {
+      "matches": ["https://*.googleusercontent.com/*"],
+      "js": ["campana-puente.js"],
+      "all_frames": true,
+      "run_at": "document_idle"
+    },
+    {
       "matches": ["https://*.liverpool.com.mx/tienda/*"],
       "js": ["cart-cotizar-button.js"],
+      "run_at": "document_idle"
+    },
+    {
+      "matches": ["https://*.liverpool.com.mx/tienda/*"],
+      "js": ["product-inspector.js", "reglas-venta.js", "recomendador-nucleo.js", "recomendador.js"],
       "run_at": "document_idle"
     }
   ],
