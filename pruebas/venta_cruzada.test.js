@@ -34,6 +34,7 @@ function seccion(t) { console.log('\n' + t); }
 
 const HOY = new Date(2026, 9, 4, 12, 0, 0).getTime();   // sábado 4 de octubre de 2026, mediodía
 let cache = {};
+let propsVC = {};
 const cuentas = { hojas: 0 };
 
 function contextoServidor() {
@@ -58,7 +59,7 @@ function contextoServidor() {
     },
     CalendarApp: { getCalendarById: () => null },
     PropertiesService: { getScriptProperties: () => ({ getProperty: () => null }) },
-    secConfig_: (k, d) => d
+    secConfig_: (k, d) => (k in propsVC ? propsVC[k] : d)
   };
   vm.createContext(ctx);
   ['Portal.gs', 'VentaCruzada.gs'].forEach((f) => vm.runInContext(fs.readFileSync(path.join(PROY, f), 'utf8'), ctx, { filename: f }));
@@ -196,6 +197,19 @@ ok('el fin viaja en milisegundos (fin del día 6 para Línea blanca)', linea && 
   ok('pesa menos de 25 KB aun con textos largos (' + Math.round(tam / 1024) + ' KB)', tam < 25000, tam);
 }
 
+seccion('A3b · El interruptor de la búsqueda en vivo de la extensión (VC_BUSQUEDA_EN_VIVO)');
+{
+  propsVC = {};
+  ok('por omisión, la búsqueda va encendida', S.vcPaqueteDesde_(APPDATA, ahora).ajustes.busqueda === true);
+  propsVC = { VC_BUSQUEDA_EN_VIVO: 'no' };
+  ok('con la propiedad en «no», el paquete la apaga', S.vcPaqueteDesde_(APPDATA, ahora).ajustes.busqueda === false);
+  propsVC = { VC_BUSQUEDA_EN_VIVO: ' NO ' };
+  ok('sin importar mayúsculas ni espacios', S.vcPaqueteDesde_(APPDATA, ahora).ajustes.busqueda === false);
+  propsVC = { VC_BUSQUEDA_EN_VIVO: 'si' };
+  ok('cualquier otra cosa la deja encendida', S.vcPaqueteDesde_(APPDATA, ahora).ajustes.busqueda === true);
+  propsVC = {};
+}
+
 seccion('A4 · ventaCruzadaPromos: de la caché del Monitor, sin abrir hojas, sin lanzar');
 cache = { appData_v1: JSON.stringify(APPDATA) };
 cuentas.hojas = 0;
@@ -279,6 +293,9 @@ const esperar = () => new Promise((r) => setTimeout(r, 10));
     const leido = el && JSON.parse(el.textContent);
     ok('el JSON se lee igual, con el texto de la hoja intacto', leido && leido.fuerte.t === RESP.fuerte.t && leido.promos.length === 1 && leido.v === 1, leido);
     ok('solo viaja lo que la extensión usa (sin status)', leido && !('status' in leido));
+    const conAjustes = Object.assign({}, RESP, { ajustes: { busqueda: false } });
+    c.ctx.VentaCruzadaExtension.publicar(conAjustes);
+    ok('los ajustes del Portal viajan con el paquete', JSON.parse(c.propio.getElementById('ventel-promos-datos').textContent).ajustes.busqueda === false);
     ok('una respuesta de error no se publica', c.ctx.VentaCruzadaExtension.publicar({ status: 'error' }) === false);
   }
   {

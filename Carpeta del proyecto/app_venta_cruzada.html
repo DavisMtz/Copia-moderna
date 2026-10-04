@@ -39,7 +39,7 @@
   /** Deja el paquete donde la extensión lo busca. false si la respuesta no sirve. */
   function publicar(r) {
     if (!r || r.status !== 'ok' || !Array.isArray(r.promos)) return false;
-    var texto = JSON.stringify({ v: r.v, generado: r.generado, fuerte: r.fuerte || null, promos: r.promos });
+    var texto = JSON.stringify({ v: r.v, generado: r.generado, fuerte: r.fuerte || null, promos: r.promos, ajustes: r.ajustes || null });
     documentos().forEach(function (doc) {
       try {
         var el = doc.getElementById(ID);

@@ -67,9 +67,26 @@ function vcCorta_(v) {
 }
 
 /**
+ * Ajustes que viajan con el paquete y obedece la extensión (desde la 2.7).
+ *   busqueda → si la tarjeta puede buscar en liverpool.com.mx lo que les faltó a los
+ *              carruseles. Es el interruptor de emergencia: la extensión se reparte a
+ *              mano por Drive y tarda semanas en llegar a todos; esto, en cuanto cada
+ *              asesor abre el Portal. Se apaga con la propiedad de script
+ *              VC_BUSQUEDA_EN_VIVO = no (en el editor: Configuración del proyecto →
+ *              Propiedades de la secuencia de comandos). Ojo: cada proyecto (producción
+ *              y pruebas) tiene sus propiedades.
+ */
+function vcAjustes_() {
+  let busqueda = true;
+  try { busqueda = String(secConfig_('VC_BUSQUEDA_EN_VIVO', 'si')).trim().toLowerCase() !== 'no'; } catch (e) { /* por omisión, encendida */ }
+  return { busqueda: busqueda };
+}
+
+/**
  * El paquete para la extensión, sobre los datos del Monitor ya leídos.
  *   fuerte  → la más fuerte del Monitor (null si ninguna vigente trae porcentaje)
  *   promos  → las vigentes, de mayor a menor porcentaje (estable: en empate, el orden de la hoja)
+ *   ajustes → ver vcAjustes_
  */
 function vcPaqueteDesde_(data, now) {
   const vigentes = portalVigentes_(data || {}, now);
@@ -86,7 +103,8 @@ function vcPaqueteDesde_(data, now) {
     v: 1,
     generado: now.getTime(),
     fuerte: fuerte && fuerte.pct ? vcCorta_(fuerte.v) : null,
-    promos: promos
+    promos: promos,
+    ajustes: vcAjustes_()
   };
 }
 
