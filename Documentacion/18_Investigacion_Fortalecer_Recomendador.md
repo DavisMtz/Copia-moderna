@@ -27,7 +27,7 @@
 | **2. El mejor candidato** | **Sí. Es la de mayor valor y menor riesgo.** | Reordenando solo entre los 5 primeros de Liverpool y con tope de precio (+25 %), cambian 76 de 140 elecciones. Las recomendaciones sin una sola opinión bajan de 49 a 23; la calificación sube de 4.64 a 4.85; las de marketplace bajan de 47 a 34; y la alternativa cuesta 20 % menos. **[medido]** | Las estrellas no miden si encaja: sin el límite de los 5 primeros salían unas tazas infantiles de Bob Esponja para una cafetera. Por teléfono el cliente no ve la calificación. Es un indicio de aceptación, no una venta medida. | Medio. Leer los datos estructurados de la página (ya están ahí) y cambiar cómo se ordena. |
 | **1. La bolsa como contexto** | **Sí, con condiciones:** ventana de tiempo, guardia de modelo y releerla solo cuando cambie. | En la ficha de un accesorio, la tarjeta pasa de no mostrar nada a mostrar lo correcto. Con el iPhone en la bolsa, el adaptador Apple recibe funda y mica de iPhone 16; con la consola, el control recibe juego y base de carga. Deja de recomendar lo que ya está en la bolsa. **[medido]** | La bolsa real tenía artículos de 56 y 61 horas: sin ventana, contamina la llamada siguiente. Leerla cuesta 519 KB. Hoy no hay forma de saber con qué frecuencia ayuda. | Medio-alto. |
 | **4. Medir qué se acepta** | **Sí, por fases. No como envío a un servidor sin TI y Jurídico.** | Los cruces existen: el mismo `productId` está en la tarjeta, la bolsa (con su hora) y la confirmación de compra. **[medido]** Con 11 asesores, ±2 puntos se miden en días. | Hoy no hay línea base propia: las cotizaciones son 42 renglones de prueba. **[medido]** TI destacó que la extensión «no puede enviar nada a ningún lado». Registrar por asesor es dato personal según la LFPDPPP 2025. **[fuente]** Para bandidos (Thompson) no hay tráfico. | Bajo, si se empieza en local; alto, si es central. |
-| **5. IA para escribir reglas** | **Sí, fuera de línea y con el banco validando. Nunca en vivo.** | El borrador a ciegas clasificó bien 24 de 24 fichas reales, sin robarle fichas a ninguna clase. Sus plantillas pasaron 38 de 50 (76 %), contra 90 % de las hechas a mano. Tras una ronda de corrección con los errores reales: **47 de 50 (94 %)**. **[medido]** | Falla en cómo nombra Liverpool las cosas y propone lo que Liverpool no vende (baterías sueltas de dron, fundas de Stanley). En vivo serían ~4 s por ficha. **[fuente]** | Bajo por categoría, con revisión humana. |
+| **5. IA para escribir reglas** | **Sí, fuera de línea y con el banco validando. Nunca en vivo.** | El borrador a ciegas clasificó bien 24 de 24 fichas reales, sin robarle fichas a ninguna clase. Sus plantillas pasaron 38 de 50 (76 %), contra 90 % de las hechas a mano. Tras una ronda de corrección con los errores reales: **47 de 50 (94 %)**. **[medido]** | Falla en cómo nombra Liverpool las cosas y propone lo que Liverpool no vende (baterías sueltas de dron, fundas de Stanley). En vivo serían ~4 s por ficha. **[cálculo con cifras de fuente]** | Bajo por categoría, con revisión humana. |
 
 **Orden recomendado (§8):**
 1. medición local y la evaluación humana, para tener una línea base;
@@ -121,6 +121,8 @@
 - **promedio bayesiano** de la calificación, con media 4.2 y peso de 5 opiniones (así un 5.0 con una opinión no le gana a un 4.8 con 300);
 - **+0.15** si la vende Liverpool;
 - castigo si es patrocinado o no tiene existencia en línea.
+
+Esos parámetros (media 4.2, peso 5, +0.15) son un punto de partida, no un ajuste fino. La investigación sugiere poner lo que no tiene opiniones **detrás** de cualquier cosa con al menos una. Aquí recibe la media previa (4.2), así que puede ganarle a un 4.0 con 50 opiniones. Eso explica en parte las 23 recomendaciones que se quedan sin opiniones.
 
 Sin datos de ventas, la calificación y las opiniones son la mejor señal disponible:
 - de 0 a 5 opiniones, la probabilidad de compra sube 270 %;
@@ -249,7 +251,11 @@ La unión es el `productId`, el mismo en la ruta de la ficha, en los carruseles,
 - Ajustó `palabras` a los nombres reales.
 - Quitó lo que Liverpool no vende: cargador de scooter, funda y cepillo de termo, hélices de dron.
 - Agregó tres complementos que sí aparecen en «Complementa con»: mochila de senderismo, contenedor de acero y cargador de pared para drones DJI.
-- Pasan **47 de 50 (94 %)**, por encima del control hecho a mano (90 %) con el mismo criterio.
+- Pasan **47 de 50 (94 %)**, comparable al control hecho a mano (90 %).
+
+**Dos matices de esa comparación:**
+- Las 30 plantillas de control ya habían pasado por las rondas de validación de la v3.1. El criterio solo comprueba que el buscador traiga cosas que la regex reconoce, no que el complemento tenga sentido.
+- Las 24 fichas se tomaron buscando el nombre de la propia categoría («dron», «guitarra eléctrica»): son los casos fáciles. El lado difícil es la prueba de choques, y ahí no se robó ninguna ficha.
 
 **Un hallazgo de método.** El agente aseguró que «ahora pasan todas». La validación independiente encontró **3 fallas nuevas**, todas en tipos de LEGO que su propio cambio activó: «minifiguras LEGO» (Liverpool las llama «Bloques Minifigures»), «llavero LEGO» y «base para construcción».
 - Por eso la validación tiene que ser del banco, no del mismo modelo que redacta.
@@ -267,7 +273,8 @@ Las reglas de la IA reconocen el 10.5 % de lo que trae ese carrusel; las de la v
 - **Sin validar:** un borrador de modelo acierta en el tipo plausible el 65-85 % de las veces y en la búsqueda útil, el 58-67 %.
 - **Validado:** tras validar contra el catálogo y una ronda con errores reales, lo que sobrevive llega a 85-90 %. A cambio se descarta entre un tercio y la mitad.
 - **Seguridad:** los modelos fallan entre el 35 % y el 88 % de las trampas de seguridad. Hace falta una lista fija de exclusión, como la de la chichonera.
-- **En vivo:** unos 4 s de espera por ficha y unos US$3,000 por millón de vistas. Redactar 300 categorías fuera de línea cuesta unos US$3, una sola vez.
+- **En vivo, la espera:** un modelo rápido tarda ~0.9 s en dar la primera palabra y genera ~90 palabras-ficha por segundo. **[fuente]**
+- **En vivo, el costo [cálculo, no fuente]:** con esas cifras, ~4 s de espera por ficha y unos US$3,000 por millón de vistas. Redactar 300 categorías fuera de línea costaría unos US$3, una sola vez.
 
 **Veredicto:**
 - viable para crecer de 56 clases a muchas más, con este proceso: borrador de IA → banco (clasificación, choques, búsquedas) → una ronda con errores reales → revisión humana → pruebas;
@@ -362,13 +369,14 @@ La fila 36 ya muestra lo que la evaluación cazaría: es uno de los errores de �
 ## 10. Método, reproducibilidad y fuentes
 
 **Cómo se hizo:**
-- **Recolector:** `inv/colector-v2.js` (scratchpad). Lee el stream de la ficha y de la búsqueda.
+- **El código de laboratorio y las cifras en bruto están en `Documentacion/anexos-18/`**, con un README de cómo correrlo. No es la extensión.
+- **Recolector:** `anexos-18/colector-v2.js`. Lee el stream de la ficha y de la búsqueda.
   - 110 fichas: las 81 del corpus del doc 17, 21 de las categorías nuevas y 8 de accesorios.
   - 234 búsquedas, con 3 s entre pedidos y freno ante cualquier bloqueo. **No hubo ni uno.**
-  - Una pestaña de ficha se colgó a la media hora (los scripts de Liverpool corriendo de fondo); se siguió desde `robots.txt`, que no ejecuta nada, y los datos se guardaron en IndexedDB.
-- **Análisis:** `inv/analisis.js` (puntos 1 y 2) y `inv/validar-ia.js` (punto 5).
-- **Borradores de la IA:** `inv/borrador-ia.js` y `inv/borrador-ia-v2.js`.
-- **Cifras:** en `inv/resultados.md`.
+  - Una pestaña de ficha se colgó a la media hora, probablemente por los scripts de Liverpool corriendo de fondo **[supuesto]**: con la misma página, el análisis tardó 43 ms. Se siguió desde `robots.txt`, que no ejecuta nada, sin perder lo guardado en IndexedDB.
+- **Análisis:** `anexos-18/analisis.js` (puntos 1 y 2) y `anexos-18/validar-ia.js` (punto 5).
+- **Borradores de la IA:** `anexos-18/borrador-ia.js` y `anexos-18/borrador-ia-v2.js`. Sin revisión humana.
+- **Cifras:** en `anexos-18/resultados.md`.
 
 **Avisos:**
 - Las cifras de las cotizaciones se leyeron por consulta, solo columnas de producto y fecha. Un primer intento descargó por error un archivo de 198 bytes con los encabezados de `DetalleCotizaciones`; se revisó (sin datos de clientes) y se borró.

@@ -1063,7 +1063,7 @@ y qué se dejó fuera a propósito**. Mismo formato que el registro del document
   - Con 11 asesores, ±2 puntos se miden en días.
   - Bandidos: no.
   - Enviar a un servidor exige TI (doc 14: «cero red») y Jurídico (LFPDPPP 2025).
-- **5. IA para reglas:** un borrador a ciegas para 12 categorías clasificó 24 de 24 fichas reales sin robar ninguna, y sus plantillas pasaron el 76 %. Tras una ronda con errores reales pasaron el 94 %, frente al 90 % de las hechas a mano.
+- **5. IA para reglas:** un borrador a ciegas para 12 categorías clasificó 24 de 24 fichas reales sin robar ninguna, y sus plantillas pasaron el 76 %. Tras una ronda con errores reales pasaron el 94 %, comparable al 90 % de las hechas a mano.
 - **Cuatro errores de la v3.1 encontrados de paso:**
   - mochila escolar → maleta;
   - filtro de agua → purificador, con Liverpool Care;
