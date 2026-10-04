@@ -1042,6 +1042,57 @@ y qué se dejó fuera a propósito**. Mismo formato que el registro del document
 
 <!-- Las entradas nuevas van arriba, con la más reciente primero. -->
 
+### 2026-10-04 — «Vende más» 2.9: la investigación de venta cruzada, reglas v3.1 con 56 clases — solo la extensión
+
+**Qué se cambió:**
+- **El pedido:** «… sigas nutriendo más y potenciando más las recomendaciones que da la extensión de forma inteligente… Investiga a profundidad qué artículos suelen llevarse… buenas recomendaciones disponibles en… la página de Liverpool». Y, sobre el Portal, que otro agente estaba rediseñando: «no lo subas».
+- **La investigación, completa en el documento 17** (`17_Investigacion_Venta_Cruzada.md`):
+  - un corpus de 81 fichas reales con los tres carruseles de Liverpool;
+  - tres investigaciones de fuera (tasas de compra conjunta y canastas; en moda, el *lift* sobre 31.8 M líneas de H&M);
+  - 94 plantillas de búsqueda probadas en el buscador real;
+  - un barrido de 102 nombres que no estaban en el corpus.
+- **`reglas-venta.js` v2 → v3.1:**
+  - de 16 clases a 56, y de 62 tipos a 281;
+  - opciones nuevas: `variables`, `requiereVar`, `soloSugerir` (7 tipos que van como botón), `topePrecio` por clase y tipo, y `noEs` (10 clases: «Traje de baño» no es traje, «Reloj de pared» no es reloj…);
+  - sin no-break en línea blanca (Profeco) y nunca una chichonera con la cuna;
+  - la ropa se complementa por tipo: antes, todo lo que traía «blusa para mujer» se descartaba en cada jeans.
+- **`recomendador-nucleo.js` 1.2 → 1.4:**
+  - las migas de campaña no cuentan;
+  - sin clase no hay complementos ni Liverpool Care;
+  - el tipo de la propia ficha también sale de «Producto», salvo si el nombre abre como su clase (el asador dice «Producto: Carbón»);
+  - la ficha de un ACCESORIO (una mica en «Celulares») no lleva Liverpool Care ni otro igual, y busca con el modelo del equipo;
+  - «Genérico» no se usa en búsquedas;
+  - la sección de Mascotas no se clasifica.
+- **`manifest.json`: 2.9.** La tarjeta (`recomendador.js`) no cambió.
+- **Al repo, para repetir la medición:** `pruebas/ext_corpus_medir.js` y `pruebas/ext_corpus_comparar.js`. Corren en el navegador, no en `npm test`.
+
+**Qué se comprobó:**
+- **La 2.8 y la 2.9 sobre las mismas 81 fichas,** con el mismo método y las búsquedas que pide cada una (doc 17, §1 y §7):
+
+  | | 2.8 | 2.9 |
+  |---|---|---|
+  | Clase reconocida | 31 | 78 |
+  | Recomendaciones de tipo desconocido (el carrusel sin filtro) | 147 | 0 |
+  | Recomendaciones traídas por la búsqueda | 29 | 83 |
+
+- **La ficha de accesorio no tiene falsos positivos:** de las 81 fichas, ninguna queda marcada como accesorio.
+- **El barrido:** de 23 de 102 mal clasificadas a 4, y las 4 son discutibles (silla gamer, tetera, centro de lavado, lavasecadora).
+- **`pruebas/ext_recomendador.test.js`:** de 163 a 238, en verde.
+  - Tres secciones nuevas: el corpus, el barrido y la ficha de un accesorio.
+  - Contra las reglas de la 2.8, 49 de las 238 fallan.
+- **La extensión REAL en Chrome headless** (`e2e-gsap.mjs`, modos normal, reducido y bolsa): Chrome la reporta como 2.9, sin avisos ni errores. La tarjeta, sus tres filas, las dos promociones y la entrada con GSAP salen como en la 2.8.
+- **`npm test`:** en el worktree, con las dependencias del checkout principal, 27 de 28. La de `tipos` pide TypeScript instalado en la raíz del worktree; la corre GitHub al subir.
+
+**Qué se dejó fuera a propósito:**
+- **El Portal:** no se tocó ni un archivo. El interruptor `VC_BUSQUEDA_EN_VIVO` (`88ace27`) sigue solo en pruebas, como pidió el creador.
+- **Drive sigue en la 2.8.** Actualizarla es decisión del creador. Los asesores tendrían que volver a bajar la carpeta.
+- **Lo que sigue débil** (doc 17, §8):
+  - perfumes sin el set de su línea;
+  - juguetes y ventiladores sin clase;
+  - las computadoras de escritorio;
+  - el tope de precio en moda;
+  - la marca «agotado» en la tarjeta.
+
 ### 2026-10-04 — La extensión de Drive, de la 2.1 a la 2.8, pedido por el creador
 
 **Qué se cambió:**
