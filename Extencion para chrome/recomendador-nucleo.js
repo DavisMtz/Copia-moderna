@@ -26,10 +26,16 @@
  *      notas() del Monitor; el servidor la manda hecha (ventaCruzadaPromos).
  *      La tarjeta enseña dos: la de la categoría de la ficha y la más fuerte
  *      (desde la 2.8, sin frase para copiar).
+ *   5. SIN CLASE, SIN COMPLEMENTOS. Si la ficha no es de una clase de las reglas,
+ *      los carruseles traen de todo (un rebanador junto a un ventilador): la
+ *      tarjeta se queda con la subida y las promociones. Mejor callar que errar.
+ *   6. LA FICHA DE UN ACCESORIO NO ES LA DEL EQUIPO (2.9). Una mica en
+ *      «Celulares» no lleva Liverpool Care ni otra mica, y sus búsquedas van con
+ *      el modelo del equipo que dice su nombre, no con su propia clave.
  *
  * Expone `VentelVM` en el global (el mundo aislado de la extensión, o el
  * contexto de la prueba).
- * Hecho para Ventel · v1.2 · 03/10/2026
+ * Hecho para Ventel · v1.4 · 04/10/2026
  */
 (function (raiz) {
   'use strict';
@@ -75,22 +81,43 @@
   // ¿Qué tipo de artículo es?
   // ===========================================================================
 
+  // Migas que son una campaña o un escaparate, no una categoría: «Buen Fin Cocina»,
+  // «Top deals», «Lo más vendido en tienda», «Outlet Muebles», «LANZAMIENTOS» (medido
+  // en el corpus del 04/10/2026: la freidora vivía en «Outlet Muebles»).
+  var CAMPANA = /\b(buen fin|hot sale|top deals?|lo mas vendido|mas vendidos?|outlet|otras categorias|lanzamientos?|novedades|nocturna|venta nocturna|ofertas?|promociones?|liquidacion|remate|regreso a clases|dia de las madres|dia del padre|navidad|black friday|cyber|temporada|exclusivos?|gift guide|guia de regalos|regalos?)\b/;
+
+  /** La miga más específica que de verdad es una categoría (de la última hacia atrás). */
+  function migaUtil(migas) {
+    for (var i = (migas || []).length - 1; i >= 0; i--) {
+      var m = norm(migas[i]);
+      if (m && !CAMPANA.test(m)) return m;
+    }
+    return '';
+  }
+
   /**
    * La clase de la ficha. Puntúa tres señales y gana la más alta: la
-   * característica «Producto» (3), la ÚLTIMA miga (2) y el principio del nombre
-   * (1). La primera miga no cuenta: puede ser una campaña («Regreso a Clases»).
+   * característica «Producto» (3), la miga más específica que no es campaña (2) y
+   * el principio del nombre (1). Las campañas no cuentan: «Lo más vendido en tienda».
    */
+  // La sección de Mascotas tiene collares, camas y shampoos que no son joyería, colchones
+  // ni cuidado del cabello. Solo cuenta la MIGA: «Dije de perro» es joyería de verdad.
+  var MASCOTAS = /^(mascotas?|perros?|gatos?)$/;
+
   function clasificar(ficha, reglas) {
     if (!reglas || !reglas.clases) return null;
-    var migas = ficha.migas || [];
-    var ultima = norm(migas[migas.length - 1] || '');
+    if ((ficha.migas || []).some(function (m) { return MASCOTAS.test(norm(m)); })) return null;
+    var ultima = migaUtil(ficha.migas);
     var producto = norm(ficha.producto || '');
     var titulo = norm(ficha.nombre || '');
     var mejor = null, puntos = 0;
     for (var i = 0; i < reglas.clases.length; i++) {
       var c = reglas.clases[i], p = 0;
+      // Lo que se le parece y no es («Traje de baño», «Reloj de pared») no puntúa; si
+      // solo lo dice la miga («Computadoras de escritorio»), la miga no cuenta.
+      if (c.noEs && (c.noEs.test(titulo) || (producto && c.noEs.test(producto)))) continue;
       if (c.producto && producto && c.producto.test(producto)) p += 3;
-      if (c.migas && ultima && c.migas.test(ultima)) p += 2;
+      if (c.migas && ultima && c.migas.test(ultima) && !(c.noEs && c.noEs.test(ultima))) p += 2;
       if (c.titulo && titulo && c.titulo.test(titulo)) p += 1;
       if (p > puntos) { puntos = p; mejor = c; }
     }
@@ -102,7 +129,8 @@
     var t = norm(nombre);
     if (!t || !reglas || !reglas.clases) return null;
     for (var i = 0; i < reglas.clases.length; i++) {
-      if (reglas.clases[i].titulo && reglas.clases[i].titulo.test(t)) return reglas.clases[i];
+      var c = reglas.clases[i];
+      if (c.titulo && c.titulo.test(t) && !(c.noEs && c.noEs.test(t))) return c;
     }
     return null;
   }
@@ -241,15 +269,40 @@
     };
     ctx.vars = {
       modelo: ficha.modeloComercial ? String(ficha.modeloComercial).trim() : (modelo ? bonito(modelo) : null),
-      marca: ficha.marca ? bonito(String(ficha.marca).toLowerCase()) : null,
+      // «Genérico» no es una marca que buscar («cargador usb c Genérico»).
+      marca: ficha.marca && !MARCA_GENERICA.test(norm(ficha.marca)) ? bonito(String(ficha.marca).toLowerCase()) : null,
       pulgadas: ctx.pulgadas ? String(ctx.pulgadas) : null,
       plataforma: ctx.plataforma ? PLATAFORMA_TEXTO[ctx.plataforma] : null,
       tamano: ctx.tamano,
       genero: genero && genero !== 'unisex' ? GENERO_TEXTO[genero] : null,
       linea: linea
     };
+    // Variables propias de la clase, declaradas en las reglas: el sistema de una
+    // cafetera de cápsulas («Dolce Gusto»), el tipo de una consola portátil…
+    if (clase && clase.variables) {
+      var fuente = norm(texto + ' ' + (ficha.marca || ''));
+      Object.keys(clase.variables).forEach(function (k) {
+        var lista = clase.variables[k];
+        for (var i = 0; i < lista.length; i++) if (lista[i][0].test(fuente)) { ctx.vars[k] = lista[i][1]; return; }
+        ctx.vars[k] = null;
+      });
+      // La medida de los blancos (king, matrimonial…) también sirve de candado.
+      if (!ctx.tamano && ctx.vars.tamano) ctx.tamano = ctx.vars.tamano;
+    }
+    // ¿La ficha es un ACCESORIO de su clase? Una mica en «Celulares», una correa en
+    // «Smartwatches»: su tipo es uno de los complementos de la clase. Entonces no se
+    // ofrece Liverpool Care y otro del mismo tipo es un sustituto (mica junto a mica).
+    // En las clases «por tipo» todo es del mismo género y ya se resuelve así. Si el
+    // nombre abre como la clase («Vaporizador de ropa» en Planchas), es un equipo.
+    ctx.accesorio = !!(clase && !clase.sustitutoPorTipo && tipoPropio(ctx).conocido &&
+      !(clase.titulo && clase.titulo.test(norm(ficha.nombre || ''))));
+    // En un accesorio, el «Modelo comercial» es la clave del accesorio, no el equipo:
+    // las búsquedas van con el modelo del equipo que dice el nombre («…para iPhone 16»).
+    if (ctx.accesorio) ctx.vars.modelo = modelo ? bonito(modelo) : null;
     return ctx;
   }
+
+  var MARCA_GENERICA = /^(genericos?|genericas?|generic|sin marca|otras? marcas?|varios|varias|n\/?a)$/;
 
   /**
    * ¿La variante en foco es una ELECCIÓN del asesor o solo la primera del color?
@@ -298,6 +351,21 @@
     return { tipo: 'otro:' + (t.split(' ')[0] || '?'), etiqueta: '', peso: 0.2, conocido: false, regla: null };
   }
 
+  /**
+   * El tipo de la propia ficha: por su nombre y, si el nombre abre con la marca o la
+   * línea («Anthelios UVmune 400…»), por su característica «Producto» («Protector
+   * solar»). Sin el respaldo, a un protector solar se le ofrecía otro (04/10/2026).
+   * Si el nombre abre como la clase («Asador de carbón…»), la ficha es el artículo
+   * principal: ahí «Producto» puede decir otra cosa (el del asador dice «Carbón», su
+   * combustible, y el carbón dejaba de ofrecerse).
+   */
+  function tipoPropio(ctx) {
+    var propio = tipoDe({ nombre: ctx.ficha.nombre }, ctx.clase);
+    var abreComoClase = !!(ctx.clase && ctx.clase.titulo && ctx.clase.titulo.test(norm(ctx.ficha.nombre || '')));
+    if (!propio.conocido && ctx.ficha.producto && !abreComoClase) propio = tipoDe({ nombre: ctx.ficha.producto }, ctx.clase);
+    return propio;
+  }
+
   function esAccesorio(t, clase) {
     if (!clase) return false;
     for (var i = 0; i < clase.complementos.length; i++) if (clase.complementos[i].palabras.test(t)) return true;
@@ -312,10 +380,12 @@
     var t = norm(item.nombre);
     if (!t || !ctx.clase) return false;
     // En cuidado facial el sérum y el protector solar son de la misma clase y aun
-    // así uno complementa al otro: ahí el sustituto es el del MISMO tipo.
-    if (ctx.clase.sustitutoPorTipo) {
-      var propio = tipoDe({ nombre: ctx.ficha.nombre }, ctx.clase);
-      return !!(propio.conocido && tipoDe(item, ctx.clase).tipo === propio.tipo);
+    // así uno complementa al otro: ahí el sustituto es el del MISMO tipo. En la
+    // ficha de un accesorio, también (y además, el equipo mismo no se ofrece).
+    if (ctx.clase.sustitutoPorTipo || ctx.accesorio) {
+      var propio = tipoPropio(ctx);
+      if (propio.conocido && tipoDe(item, ctx.clase).tipo === propio.tipo) return true;
+      if (ctx.clase.sustitutoPorTipo) return false;
     }
     // «Combo lavadora + secadora» no complementa a la lavadora: la reemplaza.
     if (/^combo\b/.test(t)) return true;
@@ -401,11 +471,27 @@
 
   var RANGO_COMPAT = { exacto: 0, marca: 1, generico: 2, familia: 3 };
 
-  /** ¿El precio es proporcionado? Un complemento de más del doble del artículo, no. */
+  /**
+   * ¿El precio es proporcionado? Tope del tipo, si no el de la clase, si no el
+   * general (el doble).
+   */
   function precioRazonable(item, ctx, reglas, regla) {
     if (typeof item.precio !== 'number' || !ctx.precioBase) return true;
-    var tope = (regla && regla.topePrecio) || (reglas && reglas.topePrecio) || 2;
+    var tope = (regla && regla.topePrecio) || (ctx.clase && ctx.clase.topePrecio) || (reglas && reglas.topePrecio) || 2;
+    // En lo barato la proporción no dice nada: junto a una sartén de $356, unas espátulas
+    // de $519 son un complemento normal (corpus 04/10/2026). Ahí el tope es al menos 1.5.
+    if (ctx.precioBase < ((reglas && reglas.pisoProporcion) || 1500)) tope = Math.max(tope, 1.5);
     return item.precio <= ctx.precioBase * tope;
+  }
+
+  /** ¿El nombre del candidato dice las variables que la regla exige? («Cápsulas … Dolce Gusto»). */
+  function diceVariables(item, ctx, regla) {
+    if (!regla || !regla.requiereVar) return true;
+    var t = norm(item.nombre + ' ' + (item.marca || ''));
+    return [].concat(regla.requiereVar).every(function (v) {
+      var valor = ctx.vars[v];
+      return !!valor && t.indexOf(norm(valor)) > -1;
+    });
   }
 
   /**
@@ -416,10 +502,19 @@
   function candidatos(listas, ctx, reglas, excluir) {
     excluir = excluir || {};
     var vistos = {}, out = [];
+    // Sin clase no hay complementos: sin reglas, los carruseles traen de todo (un
+    // rebanador junto a un ventilador; una tetera junto a una aspiradora, 04/10/2026).
+    // La tarjeta se queda con la subida y la promoción.
+    if (!ctx.clase) return out;
+    var titulo = norm(ctx.ficha.nombre);
     (listas || []).forEach(function (lista, nLista) {
       (lista.items || []).forEach(function (it) {
         if (!it || !it.id || !it.nombre || it.id === ctx.ficha.id) return;
+        if (it.agotado) return;
         var tipo = tipoDe(it, ctx.clase);
+        // Un tipo con «si» solo aplica a las fichas que casan: el molino es para la
+        // espresso, no para la de cápsulas (aunque Liverpool lo ponga en su carrusel).
+        if (tipo.regla && tipo.regla.si && !tipo.regla.si.test(titulo)) return;
         // Con el tipo de artículo reconocido, un complemento que la regla no conoce
         // no ocupa lugar (en el protector solar se colaba un shampoo íntimo).
         if (ctx.clase && !tipo.conocido) return;
@@ -433,8 +528,10 @@
         var c = compatibilidad(it, ctx, tipo.regla);
         if (!c) return;
         // Sabiendo el modelo del equipo, una funda o una mica que no lo dice puede no ser
-        // de su medida: mejor la búsqueda (o su sugerencia). Sin modelo, se queda la de la marca.
-        if (tipo.regla && tipo.regla.exacto && c !== 'exacto' && (ctx.modelo || ctx.modeloComercial)) return;
+        // de su medida: mejor la búsqueda (o su sugerencia). Sin modelo, se queda la de la marca,
+        // salvo en la ficha de un accesorio: a un cargador no se le pega la funda de UN iPhone.
+        if (tipo.regla && tipo.regla.exacto && c !== 'exacto' && (ctx.modelo || ctx.modeloComercial || ctx.accesorio)) return;
+        if (!diceVariables(it, ctx, tipo.regla)) return;
         if (!precioRazonable(it, ctx, reglas, tipo.regla)) return;
         vistos[clave] = true;
         out.push(Object.assign({}, it, {
@@ -495,7 +592,7 @@
   function tiposNaturales(ctx) {
     if (!ctx.clase) return [];
     var titulo = norm(ctx.ficha.nombre);
-    var propio = tipoDe({ nombre: ctx.ficha.nombre }, ctx.clase);
+    var propio = tipoPropio(ctx);
     return ctx.clase.complementos.filter(function (c) {
       if (c.si && !c.si.test(titulo)) return false;
       // Nunca el tipo del propio artículo: en un protector solar, «busca un protector solar» es un sustituto.
@@ -524,6 +621,9 @@
     var out = [];
     tiposNaturales(ctx).slice(0, 3).forEach(function (regla) {
       if (out.length >= (maximo || 2)) return;
+      // Lo que no se puede comprobar que le quede (la tinta de UNA impresora) no se
+      // busca solo: queda como botón, y el asesor elige con el cliente.
+      if (regla.soloSugerir) return;
       var b = mejores[regla.tipo];
       var bueno = b && b.compat !== 'familia' && (!regla.exacto || b.compat === 'exacto');
       if (bueno) return;
@@ -762,7 +862,10 @@
       cruzada: cruzada,
       busquedas: plan,
       sugeridas: sugeridas,
-      servicio: !!(ficha.care && (!ctx.clase || ctx.clase.servicio)),
+      // La marca de Liverpool Care viene en TODAS las fichas (corpus 04/10/2026: 81 de 81,
+      // LEGO y almohadas incluidos): solo se ofrece en las clases de equipos, y no en sus
+      // accesorios (una mica de $299 en «Celulares»).
+      servicio: !!(ficha.care && ctx.clase && ctx.clase.servicio && !ctx.accesorio),
       promos: {
         hay: !!paquete,
         ficha: deFicha,       // la de su categoría (o su dirección)
@@ -774,9 +877,9 @@
   }
 
   raiz.VentelVM = {
-    version: '1.2',
+    version: '1.4',
     norm: norm, num: num, pesos: pesos, bonito: bonito,
-    clasificar: clasificar, claseDeNombre: claseDeNombre,
+    clasificar: clasificar, claseDeNombre: claseDeNombre, migaUtil: migaUtil,
     familiasDe: familiasDe, modeloDe: modeloDe, plataformaDe: plataformaDe,
     pulgadasDe: pulgadasDe, rangoPulgadas: rangoPulgadas, tamanoDe: tamanoDe,
     kilosDe: kilosDe, generoDe: generoDe, lineaDe: lineaDe,

@@ -360,7 +360,7 @@ const it = (id, marca, nombre, precio) => ({ id: String(id), marca, nombre, prec
   ok('tenis: «completa el look» con ropa del mismo género', m.cruzada.some((r) => r.id === '60'), m.cruzada);
   ok('tenis: una playera de mujer no, para unos tenis de hombre', !m.cruzada.some((r) => r.id === '61'));
   ok('tenis: busca calcetines Nike de hombre', m.busquedas.some((b) => b.consulta === 'calcetines Nike hombre'), m.busquedas);
-  const m2 = VM.recomendar(nike, {}, null, REGLAS, AHORA, { 'calcetines Nike hombre': BUS['calcetines Nike hombre'] });
+  const m2 = VM.recomendar(nike, { complementa: [it(60, 'NIKE', 'Pants slim con elástico para hombre', 1299)] }, null, REGLAS, AHORA, { 'calcetines Nike hombre': BUS['calcetines Nike hombre'] });   // con pants ya resuelto, la calceta entra al plan (v3: pesa menos que playera y pants, H&M)
   const cal = m2.cruzada.find((r) => r.tipo === 'calcetines');
   ok('tenis: con la búsqueda, una calceta (unisex u hombre), nunca la de niño', cal && cal.id !== '1157860064', m2.cruzada);
 }
@@ -375,7 +375,7 @@ const it = (id, marca, nombre, precio) => ({ id: String(id), marca, nombre, prec
 {
   const sony = fichaDe({ nombre: 'Audífonos On-Ear inalámbricos', marca: 'SONY', migas: ['Electrónica', 'Audio', 'Audífonos'], producto: 'Audífonos On-Ear', precio: 1499 });
   const m = VM.recomendar(sony, { complementa: [it(80, 'HP', 'Multifuncional Smart Tank 580 de tinta continua', 4999), it(81, 'SONY', 'Micrófono portátil inalámbrico ECM-G1', 2999), it(82, 'GENÉRICA', 'Porta audífonos in-ear', 199)] }, null, REGLAS, AHORA);
-  ok('audífonos: clase audio', m.clase && m.clase.id === 'audio', m.clase);
+  ok('audífonos: su clase propia (v3 separa audífonos de bocinas)', m.clase && m.clase.id === 'audifonos', m.clase);
   ok('audífonos: ni la impresora ni el micrófono', !m.cruzada.some((r) => r.id === '80' || r.id === '81'), m.cruzada);
   ok('audífonos: el porta audífonos sí', m.cruzada.some((r) => r.id === '82'), m.cruzada);
 }
@@ -404,6 +404,187 @@ seccion('13 · iPhone 16: qué busca y cómo entra lo que trae la búsqueda');
   ok('los dos exactos van primero: funda y mica; después el adaptador', JSON.stringify(mB.cruzada.map((r) => r.tipo)) === '["funda","mica","cargador"]', mB.cruzada.map((r) => r.tipo));
   ok('el plan no cambia al llegar los resultados (no se vuelve a buscar)', JSON.stringify(mB.busquedas.map((b) => b.consulta)) === '["mica iPhone 16"]');
   ok('la mica de la búsqueda trae su consulta (para «más opciones»)', mica && mica.consulta === 'mica iPhone 16' && mica.origen === 'busqueda');
+}
+
+seccion('15 · Reglas v3: el corpus de Liverpool del 04/10/2026 (81 fichas reales; casos recortados)');
+{
+  const clase = (o) => { const m = VM.recomendar(fichaDe(o), {}, null, REGLAS, AHORA); return m.clase && m.clase.id; };
+  ok('las migas de campaña no cuentan («Top deals», «Buen Fin Cocina»)', typeof VM.migaUtil === 'function' &&
+    VM.migaUtil(['Otras Categorias', 'Top deals']) === '' && VM.migaUtil(['Cocina', 'Buen Fin Cocina']) === 'cocina');
+  ok('el lavavajillas es lavavajillas, aunque su miga diga «Estufas y hornos de microondas» (la 2.8 lo tomaba por estufa)',
+    clase({ nombre: 'Lavavajillas de empotre 15 servicios LDFC2423V', marca: 'LG', migas: ['LG', 'Equipo de Cocina', 'Estufas y hornos de microondas'], producto: 'Lavavajillas de empotre', precio: 9099 }) === 'lavavajillas');
+  ok('la secadora de cabello no es la de ropa', clase({ nombre: 'Secadora de cabello InfinitiPro 530WES', marca: 'CONAIR', migas: ['Ojos y cejas', 'Sueros de Pestañas y Cejas'], precio: 749 }) === 'secadoraCabello');
+  ok('el proyector no es monitor (su miga es «Proyectores y monitores»)', clase({ nombre: 'Proyector Sp-Lff3Claxxzx', marca: 'SAMSUNG', migas: ['Samsung', 'Equipo de entretenimiento', 'Proyectores y monitores'], precio: 11998 }) === 'proyector');
+  ok('la licuadora en «Top deals» se reconoce por su característica «Producto»', clase({ nombre: 'Combo licuadora 53800FJ 5 velocidades', marca: 'HAMILTON BEACH', migas: ['Otras Categorias', 'Top deals'], producto: 'Set licuadora', precio: 1319 }) === 'cocinaElectrica');
+  ok('el smartwatch en «Buen Fin Smartwatch» se reconoce por su nombre', clase({ nombre: 'Smartwatch Fit 3 unisex con GPS', marca: 'SAMSUNG', migas: ['Buen Fin', 'Buen Fin Smartwatch'], modeloComercial: 'Fit 3', precio: 1199 }) === 'smartwatch');
+  ok('«Base» a secas (la de la cama) no es maquillaje', clase({ nombre: 'Base para cama matrimonial', marca: 'X', migas: ['Muebles', 'Bases'], producto: 'Base', precio: 2000 }) !== 'maquillaje');
+}
+{
+  // La cafetera de cápsulas: las cápsulas de SU sistema, por búsqueda; el molino no (es para la espresso).
+  const caf = fichaDe({ id: '1182048221', nombre: 'Cafetera de cápsula dolce gusto kp240ax0', marca: 'KRUPS', migas: ['Línea Blanca y Electrodomésticos', 'Cafeteras y Teteras', 'Cafeteras'], producto: 'Cafetera de cápsula', precio: 2099 });
+  const car = { complementa: [it(1171368410, 'HISENSE', 'Lavadora doble tina 18 kg semiautomática carga superior wsa1804p', 5389.51), it(1127899769, 'HEUMAN BRAND', 'Enfriador de aire con control remoto 3 velocidades', 1699),
+    it(1115918792, 'MASTERCHEF', 'Molino para café de plástico', 719.4), it(9001, 'GENÉRICO', 'Espumador de leche eléctrico', 324)] };
+  const m0 = VM.recomendar(caf, car, null, REGLAS, AHORA);
+  ok('cafetera de cápsulas: busca «cápsulas Dolce Gusto» (no están en sus carruseles)', m0.busquedas.some((b) => b.consulta === 'cápsulas Dolce Gusto'), m0.busquedas);
+  ok('cafetera de cápsulas: ni molino (es para la espresso), ni lavadora, ni enfriador; el espumador sí',
+    !m0.cruzada.some((r) => ['1115918792', '1171368410', '1127899769'].includes(r.id)) && m0.cruzada.some((r) => r.id === '9001'), m0.cruzada);
+  const caps = [it(1, 'STARBUCKS', 'Set de 12 cápsulas café con leche', 239), it(2, 'DOLCE GUSTO', 'Set de 16 cápsulas Latte Macchiato', 199),
+    it(3, 'NESPRESSO', 'Set de 10 cápsulas Ristretto', 189), it(4, 'DOLCE GUSTO', 'Cafetera Genio S Plus', 2999)];
+  const m1 = VM.recomendar(caf, car, null, REGLAS, AHORA, { 'cápsulas Dolce Gusto': caps });
+  const cap = m1.cruzada.find((r) => r.tipo === 'capsulas');
+  ok('con la búsqueda, las cápsulas que dicen su sistema («Set de 16 cápsulas…» de Dolce Gusto); ni las que no lo dicen, ni Nespresso, ni otra cafetera',
+    cap && cap.id === '2' && !m1.cruzada.some((r) => ['1', '3', '4'].includes(r.id)), m1.cruzada);
+}
+{
+  const ven = fichaDe({ nombre: 'Ventilador de torre 3 velocidades', marca: 'MIDEA', migas: ['Línea Blanca y Electrodomésticos', 'Clima y Ventilación', 'Ventilación'], producto: 'Ventilador de torre', precio: 999, care: true });
+  const m = VM.recomendar(ven, { complementa: [it(1145698550, 'COOKIFY', 'Rebanador y rallador Tipo Multifuncional', 549), it(1177598573, 'XTELLAR', 'Set espátulas de silicón', 459.86)] }, null, REGLAS, AHORA);
+  ok('sin clase reconocida, ningún complemento (la 2.8 ofrecía un rebanador y espátulas con un ventilador)', m.clase === null && m.cruzada.length === 0, m.cruzada);
+  ok('sin clase tampoco se ofrece Liverpool Care (su marca viene en TODAS las fichas: 81 de 81)', m.servicio === false);
+  const alm = fichaDe({ nombre: 'Set de almohada pillow', marca: 'X', migas: ['Ropa de Cama', 'Almohadas'], producto: 'Set de almohada', precio: 599, care: true });
+  ok('ni en una almohada; sí en las clases de equipos (el iPhone)', VM.recomendar(alm, {}, null, REGLAS, AHORA).servicio === false && mIp.servicio === true);
+}
+{
+  const sw = fichaDe({ nombre: 'Smartwatch Fit 3 unisex con GPS', marca: 'SAMSUNG', migas: ['Buen Fin', 'Buen Fin Smartwatch'], modeloComercial: 'Fit 3', precio: 1199 });
+  const m = VM.recomendar(sw, { complementa: [it(1166880820, 'VENTDEPOT', 'Colgante Y Dije de perro perros y gatos', 391), it(1146966647, 'GENERICO', 'Set de pulsera', 500.87)] }, null, REGLAS, AHORA, {
+    'mica para smartwatch Samsung': [it(5, 'SAMSUNG', 'Mica para smartphone Galaxy de pet', 119.2), it(6, 'GENÉRICO', 'Mica para tablet compatible con huawei watch', 150), it(7, 'GENÉRICO', 'Mica para smartwatch Galaxy Fit 3', 129)] });
+  ok('smartwatch: ni el colgante ni la pulsera de joyería de su carrusel', !m.cruzada.some((r) => ['1166880820', '1146966647'].includes(r.id)), m.cruzada);
+  ok('smartwatch: la mica es la del reloj, no la del teléfono ni la de tablet', m.cruzada.some((r) => r.id === '7') && !m.cruzada.some((r) => r.id === '5' || r.id === '6'), m.cruzada);
+}
+{
+  const cam = fichaDe({ nombre: 'Cámara instantánea film modelo Instax Mini 12', marca: 'FUJI', migas: ['Electrónica', 'Cámaras y Fotografía', 'Cámaras Fotográficas'], producto: 'Cámara instantánea', modeloComercial: 'Instax Mini 12', precio: 1861 });
+  const m = VM.recomendar(cam, { complementa: [it(1026095499, 'FUJIFILM', 'Papel para arte A4 modelo Instax Mini', 259), it(1026095502, 'FUJI', 'Papel fotográfico A4 film modelo Instax Mini 2-Pack', 479),
+    it(1137343103, 'FUJI', 'Estuche para cámara instantánea film para Instax Mini 12', 419.3), it(8, 'FUJI', 'Papel fotográfico film modelo Instax Wide', 499)] }, null, REGLAS, AHORA);
+  ok('cámara instantánea: su papel fotográfico Instax mini y su estuche', m.cruzada.some((r) => r.id === '1026095502') && m.cruzada.some((r) => r.id === '1137343103'), m.cruzada);
+  ok('cámara instantánea: ni el papel para arte ni el de otro formato (wide)', !m.cruzada.some((r) => r.id === '1026095499' || r.id === '8'), m.cruzada);
+}
+{
+  const imp = fichaDe({ nombre: 'Multifuncional Smart Tank 580 de tinta continua inalámbrica a color', marca: 'HP', migas: ['Impresión', 'Impresoras Hogar'], producto: 'Multifuncional', modeloComercial: 'Smart Tank 580', precio: 3399 });
+  const m = VM.recomendar(imp, { complementa: [it(1187379489, 'HP', 'Laptop 14-dq6015dx 14 pulgadas HD Intel Celeron', 5487)] }, null, REGLAS, AHORA);
+  ok('impresora: la tinta no se busca sola (no se adivina el cartucho)…', !m.busquedas.some((b) => /tinta/.test(b.consulta)), m.busquedas);
+  ok('…queda como botón «tinta Hp»', m.sugeridas.some((s) => s.consulta === 'tinta Hp'), m.sugeridas);
+  ok('impresora: la laptop de su carrusel no es complemento', !m.cruzada.some((r) => r.id === '1187379489'));
+}
+{
+  const sar = fichaDe({ nombre: 'Sartén Easy Titanium de aluminio', marca: 'T-FAL', migas: ['Buen Fin', 'Buen Fin Cocina'], producto: 'Sartén', precio: 356 });
+  const m = VM.recomendar(sar, {}, null, REGLAS, AHORA, { 'set de utensilios de cocina': [it(1161439459, 'MOVEN', 'Set espátulas acero inoxidable', 424.15)], 'set de cuchillos': [it(1173490247, 'BOGNER', 'Set de cuchillos utilitario 15 piezas', 899)] });
+  ok('sartén de $356: entran unas espátulas de $424 (debajo de $1,500 el tope es al menos 1.5)', m.cruzada.some((r) => r.id === '1161439459'), m.cruzada);
+  ok('…pero no unos cuchillos de $899 (2.5 veces la sartén)', !m.cruzada.some((r) => r.id === '1173490247'), m.cruzada);
+}
+{
+  const cartera = fichaDe({ nombre: 'Cartera para hombre', marca: 'HARDLEY', migas: ['Accesorios de Hombre', 'Carteras'], producto: 'Cartera', precio: 699 });
+  const m = VM.recomendar(cartera, { complementa: [it(1162191639, 'WÜND', 'Cinturón para hombre', 612)], otros: [it(10, 'HARDLEY', 'Tarjetero para hombre', 399), it(9, 'X', 'Cartera para hombre de piel', 799)] }, null, REGLAS, AHORA);
+  ok('cartera: el cinturón para hombre va primero (la 2.8 ofrecía un pantalón y una playera)', m.cruzada[0] && m.cruzada[0].id === '1162191639', m.cruzada);
+  ok('cartera: el tarjetero entra (no es «otra cartera»); otra cartera no', m.cruzada.some((r) => r.id === '10') && !m.cruzada.some((r) => r.id === '9'), m.cruzada);
+  const rel = fichaDe({ nombre: 'Reloj Coronado Bay para hombre NAPCNS406', marca: 'NAUTICA', migas: ['Relojes', 'Relojes'], producto: 'Reloj', precio: 1199 });
+  const mr = VM.recomendar(rel, { complementa: [it(1157104469, 'HOROZ', 'Collar de eslabones 18 K', 549)] }, null, REGLAS, AHORA);
+  ok('reloj de hombre: el collar de su carrusel no (la joyería es para el de mujer)', !mr.cruzada.some((r) => r.id === '1157104469'), mr.cruzada);
+}
+{
+  const ps = fichaDe({ nombre: 'Kit de protector solar FPS 50+ Pack Anthelios UVMune 400 Fluido Oil Control Verano', marca: 'LA ROCHE POSAY', migas: ['Cuidado Facial', 'Protectores Solares'], producto: 'Protector solar', precio: 674 });
+  const m = VM.recomendar(ps, {}, null, REGLAS, AHORA, { 'sérum facial La roche posay': [it(1102024539, 'LA ROCHE POSAY', 'Sérum antiacné facial Ultra concentré Effaclar todo tipo piel', 714.35),
+    it(1197787755, 'LA ROCHE POSAY', 'Protector solar fps 50+ la roche-posay anthelios uv air', 336.75)] });
+  ok('protector solar cuyo nombre abre con «Kit de…»: su tipo sale de «Producto» y no busca otro protector', !m.busquedas.some((b) => /protector solar/.test(b.consulta)), m.busquedas);
+  ok('protector solar: el sérum sí; otro protector no (aunque venga en la búsqueda)', m.cruzada.some((r) => r.id === '1102024539') && !m.cruzada.some((r) => r.id === '1197787755'), m.cruzada);
+  // Lo contrario: el asador de esa ficha dice «Producto: Carbón» (su combustible). Abre como asador: es el asador.
+  const asa = fichaDe({ nombre: 'Asador de carbón ASA-2N', marca: 'CHAR-BROIL', migas: ['Jardín', 'Asadores'], producto: 'Carbón', precio: 1989 });
+  const ma = VM.recomendar(asa, { complementa: [it(201, 'X', 'Set bbq de acero inoxidable', 1199), it(202, 'X', 'Funda asador', 769), it(203, 'X', 'Encendedor eléctrico portátil', 302)] }, null, REGLAS, AHORA,
+    { 'carbón para asador': [it(204, 'X', 'Carbón vegetal de 4 kg', 399.2)] });
+  ok('asador con «Producto: Carbón»: el carbón se sigue ofreciendo (no es «otro de lo mismo»)', ma.busquedas.some((b) => b.consulta === 'carbón para asador') && ma.cruzada.some((r) => r.id === '204'), [ma.busquedas, ma.cruzada]);
+}
+{
+  const asp = fichaDe({ nombre: 'Aspiradora robot gamma', marca: 'KOBLENZ', migas: ['Línea Blanca y Electrodomésticos', 'Aspiradoras'], modeloComercial: 'Gamma', precio: 3199 });
+  const m = VM.recomendar(asp, { complementa: [it(1184728903, 'MIDEA', 'Lavavajillas de empotre 14 servicios MDWPS1401KSS', 9999)],
+    otros: [it(1158784269, 'DREAMETECH', 'Set repuestos para aspiradora', 259), it(1189271006, 'BELUG', 'Aspiradora de mano 500 ml', 972.43)] }, null, REGLAS, AHORA);
+  ok('aspiradora robot Koblenz: ni repuestos de otra marca, ni aspiradora de mano (sustituto), ni lavavajillas', m.cruzada.length === 0, m.cruzada);
+  ok('aspiradora: los repuestos quedan como botón (son por modelo)', !m.busquedas.length && m.sugeridas.some((s) => s.consulta === 'repuestos aspiradora Koblenz'), [m.busquedas, m.sugeridas]);
+  const lic = fichaDe({ nombre: 'Combo licuadora 53800FJ 5 velocidades', marca: 'HAMILTON BEACH', migas: ['Otras Categorias', 'Top deals'], producto: 'Set licuadora', modeloComercial: '53800FJ', precio: 1319 });
+  const ml = VM.recomendar(lic, { complementa: [it(1204883692, 'MAKOM HOME', 'Molde para freidora de aire', 129.35), it(1195171862, 'CHEFMAN', 'Freidora de aire con compartimento único TurboFry Touch 7.5 L', 1379.4),
+    it(1152914641, 'CHEFMAN', 'Horno de microondas convencional RJ55-7-SMR-MX de 0.7 pies', 1619.4)], otros: [it(99984447915, 'BLUEWARE', 'Combo licuadora BW-PACK-BW-VP1 2 velocidades', 479)] }, null, REGLAS, AHORA);
+  ok('licuadora: la freidora y el microondas sí (Liverpool los vende juntos)', ml.cruzada.some((r) => r.id === '1195171862') && ml.cruzada.some((r) => r.id === '1152914641'), ml.cruzada);
+  ok('licuadora: ni otra licuadora ni el molde de la freidora', !ml.cruzada.some((r) => r.id === '99984447915' || r.id === '1204883692'), ml.cruzada);
+}
+{
+  const ref = fichaDe({ nombre: 'Refrigerador dúplex 20 pies cúbicos inverter', marca: 'HISENSE', migas: ['Hisense', 'Linea Blanca'], producto: 'Dúplex', precio: 16999 });
+  const m = VM.recomendar(ref, { complementa: [it(301, 'SMARTBITT', 'No break 1000 VA', 1899), it(302, 'KOBLENZ', 'Regulador para refrigerador RLB-2603', 1539.3)] }, null, REGLAS, AHORA);
+  ok('refrigerador: el regulador sí; el no-break no (Profeco no lo recomienda para línea blanca)', m.cruzada.some((r) => r.id === '302') && !m.cruzada.some((r) => r.id === '301'), m.cruzada);
+  const cuna = fichaDe({ nombre: 'Cuna convertible', marca: 'PRINSEL', migas: ['Bebé', 'Recámara Bebé', 'Cunas y Colechos'], producto: 'Cuna convertible', precio: 6999 });
+  const mc = VM.recomendar(cuna, { complementa: [it(303, 'X', 'Protector chichonera acolchado para cuna', 699), it(304, 'X', 'Protector de colchón impermeable para cuna', 399)] }, null, REGLAS, AHORA);
+  ok('cuna: el protector de colchón sí; la chichonera nunca (prohibida en EE. UU., la AAP la desaconseja)', mc.cruzada.some((r) => r.id === '304') && !mc.cruzada.some((r) => r.id === '303'), mc.cruzada);
+}
+{
+  // Ropa es «por tipo» (04/10/2026): con los jeans va una blusa, que también es ropa. Antes, TODO lo
+  // que traía la búsqueda «blusa para mujer» se descartaba como sustituto.
+  const jeans = fichaDe({ nombre: 'Jeans skinny para mujer', marca: 'SEXY JEANS', migas: ['Mujer', 'Ropa', 'Jeans'], producto: 'Jeans', precio: 799 });
+  const m = VM.recomendar(jeans, {}, null, REGLAS, AHORA, { 'blusa para mujer': [it(11, 'X', 'Blusa manga corta para mujer', 399), it(12, 'X', 'Jeans mom para mujer', 499)] });
+  const todas = m.busquedas.concat(m.sugeridas).map((b) => b.consulta);
+  ok('jeans: ninguna búsqueda con la marca de la ropa («tenis Sexy jeans mujer» no existe)', !todas.some((q) => /sexy/i.test(q)) && todas.includes('tenis para mujer'), todas);
+  ok('jeans: la blusa de su búsqueda entra; otros jeans no', m.cruzada.some((r) => r.id === '11' && r.tipo === 'superior') && !m.cruzada.some((r) => r.id === '12'), m.cruzada);
+  const pla = fichaDe({ nombre: 'Playera polo para hombre', marca: 'X', migas: ['Hombre', 'Ropa', 'Playeras'], producto: 'Playera', precio: 499 });
+  const mp = VM.recomendar(pla, { complementa: [it(21, 'X', 'Jeans slim para hombre', 899), it(22, 'X', 'Playera cuello V para hombre', 399)] }, null, REGLAS, AHORA);
+  ok('playera: los jeans de su carrusel sí; otra playera no', mp.cruzada.some((r) => r.id === '21') && !mp.cruzada.some((r) => r.id === '22'), mp.cruzada);
+  const ves = fichaDe({ nombre: 'Vestido largo formal para mujer', marca: 'X', migas: ['Mujer', 'Ropa', 'Vestidos'], producto: 'Vestido', precio: 1890 });
+  const mv = VM.recomendar(ves, { complementa: [it(31, 'X', 'Zapatilla de tacón para mujer', 899), it(32, 'X', 'Vestido corto de noche', 1599), it(33, 'X', 'Bolsa clutch para mujer', 699)] }, null, REGLAS, AHORA);
+  ok('vestido: zapatillas y bolsa; otro vestido no', mv.cruzada.some((r) => r.id === '31') && mv.cruzada.some((r) => r.id === '33') && !mv.cruzada.some((r) => r.id === '32'), mv.cruzada);
+}
+
+seccion('16 · Lo que se parece y no es: barrido de nombres típicos de Liverpool fuera del corpus');
+{
+  const clase = (nombre, producto, migas) => { const m = VM.recomendar(fichaDe({ nombre, producto, migas, marca: 'X', precio: 1000 }), {}, null, REGLAS, AHORA); return m.clase && m.clase.id; };
+  // [nombre, «Producto», migas, la clase que debe ser]
+  [
+    ['Plancha para el cabello', 'Plancha para cabello', ['Cuidado Personal', 'Planchas de Cabello'], 'secadoraCabello'],
+    ['Pantalla para proyector 100 pulgadas', 'Pantalla de proyección', ['Electrónica', 'Proyectores'], 'proyector'],
+    ['MacBook Air 13 pulgadas chip M3', 'Portátil', ['Apple', 'Mac'], 'laptop'],
+    ['Computadora portátil Vivobook 14', 'Computadora portátil', ['Computación', 'Laptops'], 'laptop'],
+    ['Bocina portátil Flip 6 inalámbrica', 'Bocina portátil', ['Electrónica', 'Audio', 'Bocinas'], 'bocina'],
+    ['Aire acondicionado portátil 12000 BTU', 'Aire acondicionado portátil', ['Línea Blanca', 'Clima y Ventilación', 'Aires Acondicionados'], 'aire'],
+    ['Consola portátil Switch Lite', 'Consola portátil', ['Videojuegos', 'Consolas'], 'consola'],
+    ['Traje slim fit de lana para hombre', 'Traje', ['Hombre', 'Ropa', 'Trajes'], 'traje'],
+    ['Vaporizador de ropa', 'Vaporizador', ['Electrodomésticos', 'Planchado'], 'plancha'],
+    ['Pantalla Smart TV 55 pulgadas 4K UHD', 'Pantalla', ['Electrónica', 'Pantallas'], 'tv'],
+    ['Bolsa de mano para mujer', 'Bolsa', ['Mujer', 'Bolsas', 'Bolsas de Mano'], 'bolsa'],
+    ['Mochila escolar con ruedas', 'Mochila', ['Escolares', 'Mochilas Escolares'], 'mochilaEscolar'],
+    ['Reloj análogo para mujer', 'Reloj', ['Relojes', 'Relojes de Mujer'], 'reloj'],
+    ['Collar de plata para mujer', 'Collar', ['Joyería', 'Collares'], 'joyeria']
+  ].forEach(([n, p, mg, esperada]) => { const c = clase(n, p, mg); ok('«' + n + '» → ' + esperada, c === esperada, c); });
+  // [nombre, «Producto», migas, la clase que NO puede ser]
+  [
+    ['Traje de baño completo para mujer', 'Traje de baño', ['Mujer', 'Ropa', 'Trajes de Baño'], 'traje'],
+    ['Batería portátil 10000 mAh', 'Batería portátil', ['Celulares', 'Accesorios para Celulares'], 'laptop'],
+    ['Disco duro portátil 1 TB', 'Disco duro portátil', ['Computación', 'Almacenamiento'], 'laptop'],
+    ['Ventilador portátil USB', 'Ventilador portátil', ['Clima y Ventilación', 'Ventilación'], 'laptop'],
+    ['Batería portátil 10000 mAh', 'Batería portátil', ['Accesorios'], 'cocina'],
+    ['Reloj de pared', 'Reloj de pared', ['Hogar', 'Decoración'], 'reloj'],
+    ['Reloj despertador', 'Reloj despertador', ['Hogar', 'Decoración'], 'reloj'],
+    ['Bolsa para dormir', 'Bolsa para dormir', ['Deportes', 'Campismo'], 'bolsa'],
+    ['Bolsa de basura', 'Bolsa', ['Hogar', 'Limpieza'], 'bolsa'],
+    ['Mochila para laptop 15 pulgadas', 'Mochila', ['Computación', 'Mochilas'], 'mochilaEscolar'],
+    ['Lentes de natación', 'Goggles', ['Deportes', 'Natación'], 'lentes'],
+    ['Colchón inflable', 'Colchón inflable', ['Deportes', 'Campismo'], 'colchon'],
+    ['Cámara de seguridad Wi-Fi', 'Cámara de seguridad', ['Electrónica', 'Casa Inteligente'], 'camara'],
+    ['Computadora de escritorio todo en uno', 'All in one', ['Computación', 'Computadoras de Escritorio'], 'oficina'],
+    ['Plancha para el cabello', 'Plancha para cabello', ['Cuidado Personal', 'Planchas de Cabello'], 'plancha'],
+    ['Collar para perro', 'Collar', ['Mascotas', 'Perros'], 'joyeria'],
+    ['Shampoo para perro', 'Shampoo', ['Mascotas', 'Perros'], 'cabello']
+  ].forEach(([n, p, mg, prohibida]) => { const c = clase(n, p, mg); ok('«' + n + '» (' + mg.join(' > ') + ') no es ' + prohibida, c !== prohibida, c); });
+  ok('la sección de Mascotas cuenta por la MIGA, no por el nombre: «Dije de perro» sigue siendo joyería',
+    clase('Colgante Y Dije de perro perros y gatos', 'Dije', ['Joyería', 'Dijes']) === 'joyeria');
+}
+
+seccion('17 · La ficha de un ACCESORIO (una mica en «Celulares»)');
+{
+  const mica = fichaDe({ nombre: 'Mica para iPhone 16 cristal templado', marca: 'GENÉRICO', migas: ['Celulares', 'Accesorios para Celulares'], producto: 'Mica', precio: 299, care: true, modeloComercial: 'MC-IP16-01' });
+  const car = { complementa: [it(100, 'APPLE', 'iPhone 16 6.1 pulgadas Super Retina XDR', 17499), it(101, 'X', 'Mica para iPhone 16 de vidrio', 199), it(102, 'X', 'Funda para iPhone 16 transparente', 299)] };
+  const m = VM.recomendar(mica, car, null, REGLAS, AHORA);
+  const qs = m.busquedas.concat(m.sugeridas).map((b) => b.consulta);
+  ok('mica: sin Liverpool Care (es para el equipo, no para una mica de $299)', m.servicio === false);
+  ok('mica: la funda del MISMO iPhone sí; ni otra mica ni el teléfono', m.cruzada.some((r) => r.id === '102') && !m.cruzada.some((r) => r.id === '101' || r.id === '100'), m.cruzada);
+  ok('mica: ninguna búsqueda con «Genérico» ni con la clave del accesorio', !qs.some((q) => /gen[eé]rico|MC-IP16/i.test(q)), qs);
+  const carg = fichaDe({ nombre: 'Cargador USB C 20 W', marca: 'APPLE', migas: ['Celulares', 'Accesorios para Celulares'], producto: 'Cargador', precio: 499, care: true });
+  const mg = VM.recomendar(carg, car, null, REGLAS, AHORA);
+  ok('cargador sin modelo: no se le pega la funda ni la mica de UN iPhone', !mg.cruzada.some((r) => r.id === '101' || r.id === '102'), mg.cruzada);
+  const vap = fichaDe({ nombre: 'Vaporizador de ropa 1500 W', marca: 'OSTER', migas: ['Electrodomésticos', 'Planchado'], producto: 'Vaporizador', precio: 1299, care: true });
+  ok('un vaporizador es un equipo (abre como su clase), no un accesorio de la plancha: Liverpool Care sí', VM.recomendar(vap, {}, null, REGLAS, AHORA).servicio === true);
 }
 
 seccion('11 · El fondo (fondo.js): de dónde acepta promociones y cómo las sanea');

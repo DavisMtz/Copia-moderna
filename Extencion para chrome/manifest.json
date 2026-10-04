@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "Ventel Extractor de Bolsa",
-  "version": "2.8",
+  "version": "2.9",
   "description": "Extrae artículos de la bolsa de compras de Liverpool (con su enlace a la ficha) para el Sistema de Cotizaciones Ventel, los lleva de un clic a una cotización nueva desde el popup o desde un botón 'Cotizar' incrustado en la propia bolsa, incluye un visor avanzado con todos los datos que la página no muestra, abre un inspector de artículo con toda la información visible y oculta de una ficha de producto, arma el resumen de la compra confirmada listo para pegar, y en cada ficha sugiere la venta incremental, los complementos que sí le quedan y las promociones del Monitor para decírselas al cliente (la de su categoría y la más fuerte). Todo es extraccion local. DMA:)",
   "icons": {
     "16": "iconos/icono16.png",
