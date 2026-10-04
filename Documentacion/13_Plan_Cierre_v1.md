@@ -1042,6 +1042,27 @@ y qué se dejó fuera a propósito**. Mismo formato que el registro del document
 
 <!-- Las entradas nuevas van arriba, con la más reciente primero. -->
 
+### 2026-10-04 — Producción @137: las promociones del Monitor para «Vende más», pedido por el creador
+
+**Qué se cambió:**
+- **El pedido:** «Sube a produccion», con el lado del Portal de «Vende más» recién subido a pruebas (entrada siguiente).
+- **El paquete:** el build de `f5e125c`. Es la fuente de la @136 (`269228b`) más `e7443c4`:
+  - `VentaCruzada.gs` y `app_venta_cruzada.html`, nuevos;
+  - `Portal.gs` y `Index.html`, cambiados.
+- **Antes de subir**, el editor de producción coincidía con lo documentado: 89 archivos iguales al paquete, los 2 nuevos faltaban y solo cambiaban `Portal.gs` e `Index.html`. Nadie lo había tocado.
+- **Subida:** `clasp push --force` con una configuración de producción fuera del repo (`rootDir` en `build/`). Después, `clasp deploy -i AKfycbwGYZs3… -d "Vende mas: … (build de f5e125c sobre la 136)"`: el mismo `/exec` de siempre pasa a la **@137**.
+
+**Qué se comprobó:**
+- El editor de producción quedó igual al paquete: `clasp pull` comparado, 93 de 93.
+- `clasp deployments`: `AKfycbwGYZs3…` en la @137, con su descripción. 137 versiones, de las 200 posibles.
+- El `/exec` de producción sirve el código nuevo al primer intento: `fetch` con `cb` desde la pestaña del Portal; la página trae el parcial y el id `ventel-promos-datos`.
+- Pruebas ya tenía lo mismo (93 archivos, `clasp pull` con `VentaCruzada` y el parcial).
+
+**Qué se dejó fuera a propósito:**
+- **Ver la llamada a `ventaCruzadaPromos` en producción:** corre en el marco interior de Apps Script, que ninguna herramienta alcanza. La prueban `pruebas/venta_cruzada.test.js` y el canal de punta a punta. En vivo se verá cuando la extensión 2.6 esté cargada: en la ficha, «Promoción de hoy» deja de decir «Abre el Portal…».
+- **Los asesores:** siguen con la extensión 2.1 de Drive. Hasta sincronizarla, la tarjeta solo existe en el Chrome del creador, y solo después de recargar la extensión.
+- **Para volver:** `-V 136`.
+
 ### 2026-10-04 — «Vende más con este artículo»: venta cruzada e incremental en la extensión 2.6, con la promoción más fuerte del Monitor — Portal en PRUEBAS
 
 **Qué se cambió** (commits `e7443c4`, Portal, y `a1c2ce3`, extensión):
@@ -1098,7 +1119,7 @@ y qué se dejó fuera a propósito**. Mismo formato que el registro del document
   - un comentario del parcial escribía la etiqueta de cierre de script y partía el bloque (lo cazó el build).
 
 **Qué se dejó fuera a propósito:**
-- **Producción del Portal:** espera su palabra. Mientras, la tarjeta funciona igual, pero «Promoción de hoy» solo llega abriendo el Portal de pruebas; con la @136 dice «Abre el Portal Ventel para traer las promociones del Monitor». Receta en el doc 16, «Ojo al promover».
+- **Producción del Portal:** esperaba su palabra, y la dio el mismo día. Subió como la @137 (entrada de arriba). Con la @136, «Promoción de hoy» solo llegaba abriendo el Portal de pruebas.
 - **Los asesores:** la carpeta de Drive de la extensión va en la 2.1. Hasta sincronizarla nadie más ve esto (ni la 2.2 a la 2.5).
 - **Los productos fijos del mensaje** (cargador Logiix, protector solar, agua termal, sérum): la campaña es la del Monitor. Si se quieren, caben como una sección más de Contenido del Portal.
 - **De la investigación:**
