@@ -1086,6 +1086,7 @@ y qué se dejó fuera a propósito**. Mismo formato que el registro del document
 - **Fallos de los dos temas vistos sin tocar:** «Compacto» se sale de la barra en Ajustes de vista (269 px en una barra de 252); el chip «Liberada al equipo» de Atenciones se parte en tres renglones.
 - **Pendiente de decisión del creador:** la sombra rosa bajo los botones primarios, que en carbón se lee como un brillo (previa a este cambio).
 - **Sin ver en vivo:** las pantallas del marco con sesión no se pueden abrir sin iniciar sesión en la `/dev`; que el creador las mire en carbón.
+- **T13.3 avanza, no se cierra:** queda hecha su parte de «tokens en lugar de colores a mano» para el oscuro, con carbón y aurora probados en las 20 pantallas. Slate y el alto contraste no se midieron aparte.
 
 ### 2026-10-04 — Producción @138: el interruptor de la búsqueda (88ace27) y el Reconocimiento del Reto 2026; la extensión de Drive, en la 2.9 — pedido por el creador
 
