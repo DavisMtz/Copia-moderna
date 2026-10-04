@@ -1081,7 +1081,7 @@ y qué se dejó fuera a propósito**. Mismo formato que el registro del document
   - Tres secciones nuevas: el corpus, el barrido y la ficha de un accesorio.
   - Contra las reglas de la 2.8, 49 de las 238 fallan.
 - **La extensión REAL en Chrome headless** (`e2e-gsap.mjs`, modos normal, reducido y bolsa): Chrome la reporta como 2.9, sin avisos ni errores. La tarjeta, sus tres filas, las dos promociones y la entrada con GSAP salen como en la 2.8.
-- **`npm test`:** en el worktree, con las dependencias del checkout principal, 27 de 28. La de `tipos` pide TypeScript instalado en la raíz del worktree; la corre GitHub al subir.
+- **`npm test`: 28 en verde** en el checkout principal. En el worktree, `tipos` pedía TypeScript instalado en su raíz. El flujo «Pruebas» de GitHub, en verde con `5bfa012`.
 
 **Qué se dejó fuera a propósito:**
 - **El Portal:** no se tocó ni un archivo. El interruptor `VC_BUSQUEDA_EN_VIVO` (`88ace27`) sigue solo en pruebas, como pidió el creador.
