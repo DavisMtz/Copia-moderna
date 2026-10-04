@@ -1042,7 +1042,71 @@ y qué se dejó fuera a propósito**. Mismo formato que el registro del document
 
 <!-- Las entradas nuevas van arriba, con la más reciente primero. -->
 
-### 2026-10-04 — Producción @137: las promociones del Monitor para «Vende más», pedido por el creador
+### 2026-10-03 — «Vende más» busca mejor: búsqueda en vivo desde la ficha y reglas medidas en fichas reales (extensión 2.7) — Portal en PRUEBAS
+
+**Qué se cambió** (commits `88ace27`, Portal, y `a650c1d`, extensión 2.7):
+- **El pedido:** «¿hay forma de mejorar cómo busca las recomendaciones? … que le des poder de buscar mejor, porque no da recomendaciones buenas siempre».
+- **Primero se midió la 2.6** en 11 fichas reales (laptop HP, lavadora Mabe 25 kg, refrigerador Hisense, Good Girl, tenis Nike de hombre, pantalla Samsung 55", colchón, PS5, audífonos Sony, Galaxy A56, iPhone 16). En 6 recomendaba algo que no iba, y en los tenis, nada:
+  - laptop: «Funda para tablet Xiaomi» y una micro SD;
+  - lavadora: un combo lavadora + secadora, una funda de secadora Whirlpool y un pedestal de otra marca;
+  - refrigerador: un pedestal de lavadora;
+  - Good Girl: un kit de Heiress (otra línea) y «La Bomba» como «subir la versión»;
+  - audífonos Sony: una bocina, un micrófono y una impresora;
+  - Galaxy A56: «Funda para Apple».
+- **Búsqueda en vivo** (`buscador-liverpool.js`, nuevo):
+  - cuándo: si los carruseles de la ficha no traen un buen candidato para los tipos más naturales (ninguno, uno «de la familia» o una funda o mica sin el modelo exacto);
+  - cómo: busca en liverpool.com.mx (`/tienda?s=`) desde la misma ficha, con la sesión del asesor, y lee la primera página de resultados como los carruseles (marca, nombre, primer precio). De lo buscado solo vale el tipo que se buscó: «mica iPhone 16» también trae fundas;
+  - límites: 2 búsquedas por ficha, en fila; caché de 24 h (hasta 200 búsquedas); 4 por minuto y 40 por hora; con algo distinto de 200, «Access Denied» o un resultado ilegible, 60 min de freno. Nunca con la pestaña oculta: espera a que se vea;
+  - la 2.6 la dejó fuera porque «el sitio bloquea robots». Eso es Chrome headless. Desde la página real contesta 200 (~1.6 s, ~56 tarjetas);
+  - la API de sugerencias (`/api/plp/typeahead`) se descartó: es un POST interno y contesta 400.
+- **Reglas v2** (`reglas-venta.js`, 16 tipos de artículo; antes 11):
+  - el sustantivo se lee al inicio del nombre, y por eso la funda de una tablet ya no pasa por mochila de laptop;
+  - candados por tipo: misma marca (el pedestal de la lavadora), misma línea (el set de Good Girl), misma medida (el protector del colchón), mismo género (los calcetines), y el par de la lavadora con los kilos más parecidos;
+  - sin «subir de modelo» en perfume, cuidado facial, calzado y ropa: otra fragancia no es subir la versión;
+  - las búsquedas llevan acentos, como las escribiría una persona.
+- **Núcleo 1.1** (`recomendador-nucleo.js`):
+  - el plan de búsquedas se decide solo con los carruseles, así que no cambia cuando llegan los resultados;
+  - si se sabe el modelo del equipo, una funda o mica que no lo dice no se ofrece, porque puede no ser de su medida. Se busca, y si no aparece, queda el botón de búsqueda;
+  - el «Modelo comercial» de la ficha, dicho en el nombre del candidato, cuenta como modelo exacto (para marcas cuyo modelo no se sabe leer);
+  - lo que Liverpool pone en «Artículos relacionados» ya no queda vetado si es un complemento reconocido. Pasaba desde la 2.6: la funda exacta del Galaxy A57 estaba ahí, y ni la búsqueda la podía ofrecer.
+- **Interruptor desde el Portal** (`VentaCruzada.gs`, `app_venta_cruzada.html`): el paquete lleva `ajustes.busqueda`.
+  - La propiedad de script `VC_BUSQUEDA_EN_VIVO` = `no` apaga la búsqueda en las extensiones que reciban el paquete: al abrir el Portal, con hasta 30 min de caché del navegador.
+  - Cada proyecto (producción y pruebas) tiene sus propiedades.
+  - `fondo.js` lo sanea. Sin el dato (la @137), la búsqueda queda encendida.
+
+**Qué se comprobó:**
+- **Las mismas 11 fichas con la 2.7**, en el Chrome del creador. Ninguna recomienda algo que no vaya:
+  - laptop: mouse HP 400, mochila Wenger para laptop y disco duro externo ADATA 2 TB (búsqueda);
+  - lavadora: secadora Maytag de 25 kg y regulador Koblenz (búsqueda); botón «pedestal para lavadora Mabe»;
+  - refrigerador: regulador Koblenz (búsqueda); botón «filtro de agua para refrigerador Hisense»;
+  - Good Girl: kit Good Girl y crema corporal de Carolina Herrera (las dos de búsqueda); sube solo a 80 ml;
+  - tenis: calceta Nike (búsqueda), playera y pants de hombre;
+  - pantalla: soporte de 23-55", barra JBL y regulador (búsqueda);
+  - colchón: protector, almohada (búsqueda) y box;
+  - PS5: control, GTA VI y audífonos ASTRO;
+  - audífonos Sony: estuche OtterBox y cable USB-C;
+  - Galaxy A56: funda del A56 (búsqueda), adaptador Samsung y el Garmin que ya salía en la 2.6; botón «mica Galaxy A56»;
+  - iPhone 16: funda del 16, mica ATTI del 16 (búsqueda) y adaptador Apple.
+- **Galaxy A57:** funda y mica del A57 (las dos de búsqueda) y adaptador Samsung. Antes del arreglo del veto no salía funda.
+- **La tarjeta completa** inyectada en el iPhone 16 con la caché vacía: una búsqueda real, guardada; la segunda visita sale de la caché.
+- `pruebas/ext_recomendador.test.js`: 153 (antes 87). Incluye:
+  - los fallos medidos, recortados de las fichas reales;
+  - resultados reales de 5 búsquedas (`ext_busquedas_20261003.json`);
+  - el buscador con caché, TTL, ritmo, 403, «Access Denied», sin red, desalojo y peticiones repetidas.
+- `pruebas/venta_cruzada.test.js`: 75 (antes 70). El interruptor, y que el parcial lo lleva.
+- `npm test`: 28 suites en verde. Build limpio.
+
+**Qué se dejó fuera a propósito:**
+- **Producción del Portal (el interruptor):** sin su palabra. Mientras tanto, en producción la búsqueda va encendida y no se puede apagar desde ahí.
+- **Los asesores:** Drive sigue en la 2.1. La 2.7 solo corre en el Chrome del creador, después de recargar la extensión.
+- **La búsqueda no abre fichas:** no confirma existencias ni variantes. Usa lo que dice la tarjeta del resultado.
+- **Lo que sigue flojo:**
+  - el Garmin Forerunner de $6,649 en el Galaxy A56: viene de «Otros clientes compraron»;
+  - el refrigerador solo junta el regulador;
+  - el pedestal Mabe no aparece con esa búsqueda.
+- **De la investigación siguen fuera:** el aprendizaje por aceptación, el registro de eventos y la capa de IA.
+
+### 2026-10-03 — Producción @137: las promociones del Monitor para «Vende más», pedido por el creador
 
 **Qué se cambió:**
 - **El pedido:** «Sube a produccion», con el lado del Portal de «Vende más» recién subido a pruebas (entrada siguiente).
@@ -1063,7 +1127,7 @@ y qué se dejó fuera a propósito**. Mismo formato que el registro del document
 - **Los asesores:** siguen con la extensión 2.1 de Drive. Hasta sincronizarla, la tarjeta solo existe en el Chrome del creador, y solo después de recargar la extensión.
 - **Para volver:** `-V 136`.
 
-### 2026-10-04 — «Vende más con este artículo»: venta cruzada e incremental en la extensión 2.6, con la promoción más fuerte del Monitor — Portal en PRUEBAS
+### 2026-10-03 — «Vende más con este artículo»: venta cruzada e incremental en la extensión 2.6, con la promoción más fuerte del Monitor — Portal en PRUEBAS
 
 **Qué se cambió** (commits `e7443c4`, Portal, y `a1c2ce3`, extensión):
 - **El pedido:** que la extensión, en la ficha de un artículo, sepa cuál es y recomiende otros de Liverpool para venta cruzada (el complemento: celular → funda) e incremental (subir la versión: 64 → 128 GB), con el mensaje del equipo de contexto.
@@ -1089,7 +1153,7 @@ y qué se dejó fuera a propósito**. Mismo formato que el registro del document
   - No va dentro de la página (F3): unos 20 KB en cada visita cuestan más que una llamada de fondo cada media hora.
 
 **Qué se comprobó:**
-- `pruebas/ext_recomendador.test.js` (87), con fichas reales capturadas el 04/10 (`ext_recomendador_fichas_20261004.json`):
+- `pruebas/ext_recomendador.test.js` (87), con fichas reales capturadas el 03/10 (`ext_recomendador_fichas_20261003.json`):
   - iPhone 16: 512 GB a +$6,899.85 (+$431.24 al mes a 16 MSI, solo Azul y Verde), iPhone 16 Plus, y funda del 16 + adaptador Apple + batería;
   - ni una funda de otro modelo, ni un teléfono, ni el propio artículo; búsqueda de mica;
   - protector solar ISDIN: sérum y crema de ISDIN, sin labial ni aceite capilar, búsquedas de limpiador y agua termal;
