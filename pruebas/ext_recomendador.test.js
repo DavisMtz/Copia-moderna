@@ -134,6 +134,13 @@ ok('venta cruzada: el sérum y la crema de ISDIN primero',
   const honor = { id: '8', nombre: 'Smartphone Honor 400 Lite AMOLED 6.7 pulgadas', marca: 'HONOR', migas: ['Celulares'], producto: 'Smartphone', modeloComercial: 'Honor 400 Lite', variantes: [] };
   const mH = VM.recomendar(honor, { complementa: [{ id: '3', marca: 'GENERICA', nombre: 'Funda para Honor 400 Lite de TPU', precio: 299 }] }, null, REGLAS, AHORA);
   ok('una marca cuyo modelo no se sabe leer: su «Modelo comercial» basta para la funda exacta', mH.cruzada.some((r) => r.id === '3' && r.compat === 'exacto'), mH.cruzada);
+  const h400 = { id: '18', nombre: 'Smartphone Honor 400 AMOLED 6.5 pulgadas', marca: 'HONOR', migas: ['Celulares'], producto: 'Smartphone', modeloComercial: 'Honor 400', variantes: [] };
+  const mH4 = VM.recomendar(h400, { complementa: [
+    { id: '3', marca: 'GENERICA', nombre: 'Funda para Honor 400 Lite de TPU', precio: 299 },
+    { id: '13', marca: 'GENERICA', nombre: 'Funda para Honor 4000 de TPU', precio: 299 },
+    { id: '23', marca: 'GENERICA', nombre: 'Funda para Honor 400 5G de silicón', precio: 299 }] }, null, REGLAS, AHORA);
+  ok('«Honor 400» no es «Honor 400 Lite» ni «Honor 4000»: queda la del 400 (con su 5G)',
+    mH4.cruzada.filter((r) => r.tipo === 'funda').map((r) => r.id).join() === '23', mH4.cruzada);
   const a57 = { id: '6', nombre: 'Galaxy A57 Super AMOLED plus 6.7 pulgadas', marca: 'SAMSUNG', migas: ['Samsung', 'Celulares'], producto: 'Smartphone', modeloComercial: 'Galaxy A57', variantes: [] };
   const fundaA57 = { id: '1197734147', marca: 'SAMSUNG', nombre: 'Funda para Galaxy A57 de policarbonato', precio: 209.6 };
   const m57 = VM.recomendar(a57, { relacionados: [fundaA57, { id: '5', marca: 'SAMSUNG', nombre: 'Galaxy A37 Super AMOLED 6.7 pulgadas', precio: 6199 }] },

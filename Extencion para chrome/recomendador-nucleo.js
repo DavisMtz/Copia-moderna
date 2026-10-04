@@ -335,6 +335,18 @@
    * `regla` es la del tipo del candidato (sus candados: mismaMarca, mismaLinea,
    * mismoTamano, mismoGenero).
    */
+  var SUFIJO_DE_VARIANTE = /^\s?(pro max|pro\+|pro|plus|ultra|max|mini|air|fe|lite|neo|smart)\b/;
+
+  /** ¿El texto nombra ESE modelo y no otro de su familia? «honor 400» no es «honor 400 lite» ni «honor 4000». */
+  function nombraModelo(nt, modelo) {
+    for (var i = nt.indexOf(modelo); i > -1; i = nt.indexOf(modelo, i + 1)) {
+      var antes = i > 0 ? nt.charAt(i - 1) : ' ';
+      var resto = nt.slice(i + modelo.length);
+      if (!/[a-z0-9]/.test(antes) && !/^[a-z0-9+]/.test(resto) && !SUFIJO_DE_VARIANTE.test(resto)) return true;
+    }
+    return false;
+  }
+
   function compatibilidad(item, ctx, regla) {
     var t = String(item.nombre || '');
     var nt = norm(t);
@@ -351,7 +363,7 @@
       if (m && ctx.modelo && m === ctx.modelo) exacto = true;
       // El «Modelo comercial» de la ficha, dicho tal cual en el candidato, también es exacto:
       // así entran las marcas cuyo modelo no se sabe leer («Funda para Honor 400 Lite»).
-      else if (!m && ctx.modeloComercial && ctx.modeloComercial.length > 3 && nt.indexOf(ctx.modeloComercial) > -1) exacto = true;
+      else if (!m && ctx.modeloComercial && ctx.modeloComercial.length > 3 && nombraModelo(nt, ctx.modeloComercial)) exacto = true;
       else if (comun && !mismaMarca) return 'familia';
     }
     if (ctx.plataforma) {
