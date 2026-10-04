@@ -1042,6 +1042,27 @@ y qué se dejó fuera a propósito**. Mismo formato que el registro del document
 
 <!-- Las entradas nuevas van arriba, con la más reciente primero. -->
 
+### 2026-10-04 — La extensión de Drive, de la 2.1 a la 2.8, pedido por el creador
+
+**Qué se cambió:**
+- **El pedido:** «¿tú puedes ayudarme a actualizar la extensión en Drive?». La carpeta de Drive «Extencion para chrome» (`1NSPE-03rT4G5iO5soZeEiScexSY_ZJ4l`, la que enlaza la guía de la extensión) seguía en la 2.1 del 05/09.
+- **Reemplazados como versión nueva** (mismo id, mismo enlace y mismos permisos): `bridge.js`, `cart-cotizar-button.js`, `manifest.json`, `popup.html` y `popup.js`.
+- **Nuevos:** `buscador-liverpool.js`, `campana-puente.js`, `fondo.js`, `popup-contexto.js`, `recomendador-nucleo.js`, `recomendador.js`, `reglas-venta.js`, `iconos/` (4 PNG) y `vendor/gsap.min.js`.
+- **Sin tocar:** los otros 9, iguales desde antes del 05/09 (lo dicen el tamaño y el git de cada uno).
+- Subido desde la web de Drive con «Reemplazar elementos actuales», porque el conector de Drive no reemplaza contenido.
+
+**Qué se comprobó:**
+- **Antes de subir:** la 2.8 corre en el Chrome del creador sobre una ficha real (iPhone 16), con las promociones reales del Monitor (Celulares, 40 %; la más fuerte, 58 %).
+- **Después:**
+  - los 26 archivos están en Drive con el tamaño exacto del repo, y ninguno se convirtió a documento de Google;
+  - `manifest.json` es idéntico byte a byte (versión 2.8);
+  - las subcarpetas heredan lo compartido.
+
+**Qué se dejó fuera a propósito:**
+- **Los asesores** tienen que volver a bajar la carpeta y recargar la extensión: Chrome no actualiza solo una extensión sin empaquetar.
+- **El interruptor de la búsqueda** (`88ace27`) sigue solo en pruebas.
+- **La guía** (`app_extension_guia.html`) dibuja una tarjeta con «Versión 1.4»: es una ilustración y no se tocó.
+
 ### 2026-10-03 — «Vende más» 2.8: la promoción de la categoría y la más fuerte, sin frase para copiar, y la entrada animada con GSAP
 
 **Qué se cambió:**
