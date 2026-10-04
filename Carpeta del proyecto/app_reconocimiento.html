@@ -5,11 +5,15 @@
   creador pidió que el Portal lo enseñe —con el logotipo del Reto, el «tercer lugar», el
   diploma y la insignia «Innovación» de su identificación— y propuestas para ver dónde:
     A · Vitrina en el inicio de sesión (inicioDeSesion.html, .reco-vitrina).
-    B · Sello bajo la marca de la barra lateral del Portal (Index.html, .reco-sello-lat).
+    B · Sello bajo la marca de la barra lateral del Portal (Index.html, .reco-sello-lat), con la
+        medalla del 3 (el creador la prefirió a la insignia).
     C · Banda en la portada «Tu turno» (Index.html, .reco-banda).
   Las tres comparten este parcial: el sprite (logotipo, insignia, medalla y la miniatura del
   diploma, UNA vez por página), el visor y su comportamiento. B y C viven solo en Index hasta
   que el creador elija: app_shell y Promociones no se tocan en esta ronda.
+
+  Interruptor: quien publica anuncios lo apaga y lo enciende desde anuncios.html (recoEstado y
+  recoCambiarVisible en Portal.gs). Viaja en __APP__.reco del Portal y del inicio de sesión.
 
   Pesos: aquí van ~65 KB (el logotipo vectorial es la mitad). El diploma a tamaño de lectura y
   el mensaje del director (~120 KB) NO viajan en la página: los pide el visor al abrirse
@@ -23,6 +27,9 @@
 -->
 <style>
 .reco-sprite{position:absolute;width:0;height:0;overflow:hidden}
+
+/* Interruptor apagado (anuncios.html): ninguna de las tres se pinta. */
+[data-reco="no"] .reco-vitrina,[data-reco="no"] .reco-sello-lat,[data-reco="no"] .reco-banda{display:none !important}
 
 /* ── Piezas comunes ── */
 .reco-placa{display:inline-flex;align-items:center;gap:10px;padding:8px 14px 8px 10px;border-radius:12px;background:#fff;border:1px solid rgba(27,35,48,.08);box-shadow:0 1px 2px rgba(27,35,48,.06),0 10px 24px -16px rgba(27,35,48,.4)}
@@ -64,8 +71,8 @@
 .reco-sello-lat{display:flex;align-items:center;gap:10px;width:100%;margin:-.25rem 0 .8rem;padding:.5rem .65rem .5rem .5rem;border-radius:12px;border:1px solid var(--side-line);background:rgba(0,0,0,.16);color:var(--side-ink);text-align:left;cursor:pointer;transition:background-color .18s,border-color .18s}
 .reco-sello-lat:hover{background:rgba(255,255,255,.1);border-color:rgba(255,255,255,.26)}
 .reco-sello-lat:focus-visible{outline:2px solid #fff;outline-offset:2px}
-.reco-sello-ins{flex:none;width:36px;height:36px;border-radius:50%;background:#fff;box-shadow:0 2px 6px -1px rgba(0,0,0,.35)}
-.reco-sello-ins svg{display:block;width:100%;height:100%}
+.reco-sello-med{flex:none;display:grid;place-items:center;width:34px;height:38px}
+.reco-sello-med svg{display:block;width:27px;height:33px;filter:drop-shadow(0 3px 3px rgba(0,0,0,.28))}
 .reco-sello-tx{min-width:0;line-height:1.2}
 .reco-sello-tx b{display:block;font:700 .78rem/1.2 var(--f-display);letter-spacing:.01em}
 .reco-sello-tx small{display:block;margin-top:2px;font-size:.66rem;font-weight:600;color:var(--side-faint);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
@@ -185,6 +192,11 @@
     mensaje: 'Identificación «Innovación» del 2 de octubre de 2026: «Estimado David: ¡Muchas felicidades por tu reconocimiento en el Reto de Innovación 2026! Tu talento, iniciativa y dedicación son parte importante de los resultados que nos permiten seguir creciendo y transformando nuestra operación. ¡Enhorabuena por este gran logro!», de Enrique Antonio Pando Marino, Director Corporativo Operaciones Liverpool.'
   };
   var datos = null, pendiente = null, visor = null;
+
+  /* El interruptor (anuncios.html) viaja en __APP__.reco. La vitrina del inicio de sesión nace
+     oculta y se enseña aquí, que ya va después de __APP__; el Portal lo resuelve antes de pintar. */
+  if (window.__APP__ && window.__APP__.reco === false) document.documentElement.setAttribute('data-reco', 'no');
+  else document.querySelectorAll('.reco-vitrina[hidden]').forEach(function (v) { v.hidden = false; });
 
   function pedir() {
     if (datos) return Promise.resolve(datos);

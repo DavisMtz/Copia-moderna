@@ -285,8 +285,10 @@ console.log('\nA8 · F3a.1: un solo viaje a la caché y un tope a lo que viaja')
   ok('…con UN solo getAll y ningún get suelto', r.lecturas.getAll === 1 && r.lecturas.get === 0, r.lecturas);
   ok('…que pide las cuatro claves y ninguna más',
     JSON.stringify(pedidas(r).slice().sort()) === JSON.stringify(['appData_v1', 'op_g7_publico', 'toolsData_v1', 'trazData_v1']), pedidas(r));
-  ok('…y dos lecturas de propiedades como mucho (generación y módulos), nunca el almacén entero',
-    r.lecturas.getProperty <= 2 && r.lecturas.getProperties === 0, r.lecturas);
+  // La tercera es el interruptor del reconocimiento del Reto de Innovación 2026 (recoVisible_,
+  // 04/10/2026): una sola propiedad, como las otras dos. Lo que no se negocia es el almacén entero.
+  ok('…y tres lecturas de propiedades como mucho (generación, módulos y el interruptor del reconocimiento), nunca el almacén entero',
+    r.lecturas.getProperty <= 3 && r.lecturas.getProperties === 0, r.lecturas);
 
   r = servir('promociones');
   ok('Monitor: un getAll con appData_v1 y nada más',

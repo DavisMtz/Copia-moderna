@@ -975,6 +975,44 @@ function recoImagenes() {
   return d;
 }
 
+/*
+ * El interruptor del reconocimiento (pedido del creador el 04/10/2026: «un botón en la parte de
+ * anuncios que me deje apagar ese anuncio»). Lo mueve quien tiene el bloque 'anuncios', desde
+ * anuncios.html, y vive en las propiedades del script: sin la propiedad, se ve. Pruebas y
+ * producción tienen propiedades distintas, así que apagarlo en uno no lo apaga en el otro.
+ */
+var RECO_PROPIEDAD = 'RECO_VISIBLE';
+
+function recoVisible_() {
+  try { return PropertiesService.getScriptProperties().getProperty(RECO_PROPIEDAD) !== 'no'; }
+  catch (e) { return true; }
+}
+
+/** El __APP__ del Portal y del inicio de sesión lleva `reco`: esas pantallas lo leen antes de pintar. */
+function recoEnEstado_(json) {
+  return '{"reco":' + (recoVisible_() ? 'true' : 'false') + ',' + String(json).slice(1);
+}
+
+/** Estado del interruptor, para el constructor de anuncios. */
+function recoEstado(email) {
+  const gate = portalGateAvanzado_(email);
+  if (!gate.ok) return { status: 'error', error: gate.error };
+  return { status: 'ok', visible: recoVisible_() };
+}
+
+/** Enciende o apaga el reconocimiento en el Portal (sello y banda) y en el inicio de sesión. */
+function recoCambiarVisible(visible, email) {
+  try {
+    const gate = portalGateAvanzado_(email);
+    if (!gate.ok) return { status: 'error', error: gate.error };
+    PropertiesService.getScriptProperties().setProperty(RECO_PROPIEDAD, visible ? 'si' : 'no');
+    Logger.log('recoCambiarVisible → ' + (visible ? 'si' : 'no') + ' (' + gate.email + ')');
+    return { status: 'ok', visible: !!visible };
+  } catch (error) {
+    return { status: 'error', error: error.toString() };
+  }
+}
+
 /**
  * Pago Web (25/09/2026): lo que la consola de #sec-pdepago no saca de la hoja PdePago.
  *   · factores: la tabla de «Pagos Fijos 3.0» (mensualidad = precio × factor), leída de la hoja

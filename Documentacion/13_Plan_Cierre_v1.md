@@ -1051,6 +1051,12 @@ y qué se dejó fuera a propósito**. Mismo formato que el registro del document
   - **B · Sello bajo la marca** de la barra lateral (`Index.html`): insignia + «Tercer lugar nacional · Reto de Innovación 2026».
   - **C · Banda en la portada «Tu turno»** (`Index.html`), debajo del encabezado: placa, texto, miniaturas del diploma y la insignia, «Ver reconocimiento».
 - **Parcial nuevo `app_reconocimiento.html`:** estilos de las tres, el sprite (logotipo vectorial del Reto, insignia, medalla y miniatura del diploma, una vez por página, ~65 KB), el visor y `AppReco`.
+- **Segunda vuelta, mismo día** (el creador, viéndolo: «me está gustando»):
+  - **B lleva la medalla de bronce con el 3**, no la insignia («creo que se vería mejor»).
+  - **Interruptor en el constructor de anuncios** («un botón en la parte de anuncios que me deje apagar ese anuncio»): franja bajo el título de `anuncios.html`, con el mismo candado que los anuncios (`portalGateAvanzado_`, bloque 'anuncios'). `recoEstado` y `recoCambiarVisible` en Portal.gs; vive en la propiedad `RECO_VISIBLE` (sin ella, se ve).
+  - **Cómo llega a las pantallas:** el __APP__ del Portal y del inicio de sesión lleva `reco` (`recoEnEstado_`). El Portal lo aplica antes de pintar la barra (`data-reco="no"` en `<html>`); la vitrina del inicio de sesión nace `hidden` y solo se enseña encendida, así que nada parpadea.
+  - **Pruebas y producción no comparten propiedades:** apagarlo en uno no lo apaga en el otro.
+  - **`pruebas/f3_datos_en_pagina.test.js`:** el Portal pasa de dos a tres lecturas de propiedad como mucho. La tercera es el interruptor, una sola propiedad; el almacén entero sigue prohibido.
 - **Las imágenes grandes no viajan en la página:** `recoImagenes()` (Portal.gs) las entrega desde `reco_imagenes.html` la primera vez que se abre el visor y el cliente las guarda 30 días (`AppCache`, clave `reco-imagenes-v1`), como los logotipos de Formas de Pago. El base64 va en su variante URL (sin `/`): ningún `//` que el quitacomentarios de Google pudiera cortar.
 
 **Qué se comprobó:**
