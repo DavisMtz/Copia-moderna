@@ -1042,6 +1042,43 @@ y qué se dejó fuera a propósito**. Mismo formato que el registro del document
 
 <!-- Las entradas nuevas van arriba, con la más reciente primero. -->
 
+### 2026-10-03 — «Vende más» 2.8: la promoción de la categoría y la más fuerte, sin frase para copiar, y la entrada animada con GSAP
+
+**Qué se cambió:**
+- **El pedido:** «quita el botón de copiar frase… solo que muestre la promoción de la categoría y también la más fuerte, ¿y puedes animar esa inserción con GSAP?». Y después: «que permanezca la promoción de la categoría como ya lo hace y la más fuerte».
+- **«Promoción de hoy»:**
+  - el renglón «Hoy en {categoría}» se queda como estaba;
+  - debajo va «La más fuerte, en {dirección} · {categoría}», con su vigencia;
+  - si las dos son la misma, se dice una vez, con el sello «La más fuerte»;
+  - se van la frase «Sr. / Srta.…», su botón y el código del portapapeles.
+  - En el núcleo (1.2), `promoMasFuerte` sustituye a `fraseApertura`: la que marcó el Portal si sigue vigente; si no, la de mayor porcentaje (en empate, la primera de la hoja).
+- **GSAP 3.15.0** (`vendor/gsap.min.js`, la misma versión del deck del Reto). Es un content script que se carga antes de `recomendador.js`, en el mundo aislado de la extensión: la página no lo ve.
+  - Al llegar a cada ficha, la tarjeta entra: la caja sube y aparece, la etiqueta se asienta y lo de adentro llega en orden de lectura. En total, ~1 s.
+  - Lo que trae después la búsqueda entra deslizándose, con una marca rosa que se desvanece.
+  - Sin animación con «reducir movimiento», con la pestaña oculta o si GSAP no carga: la tarjeta simplemente está.
+  - Red de seguridad:
+    - los puntos de partida se escriben con `gsap.set`;
+    - al final, `clearProps`;
+    - a los 3 s se fuerza el final;
+    - si algo falla, se quitan los estilos en línea.
+- **`bonito`:** «iPhone 16», no «IPhone 16», cuando la ficha no trae «Modelo comercial».
+
+**Qué se comprobó:**
+- **La extensión REAL en Chrome headless.** Liverpool bloquea a headless, así que la ficha es sintética y se sirve en la URL de Liverpool por intercepción de red, con promociones de muestra (`e2e-gsap.mjs`, en el scratchpad de la sesión):
+  - GSAP 3.15.0 en el mundo aislado; la página no lo ve. Sin avisos ni errores (`developerPrivate.getExtensionInfo`);
+  - los dos renglones de promoción, sin botón ni frase;
+  - muestreo por fotograma: la caja está en opacidad 0 desde el primer fotograma. La mica de la búsqueda, servida al instante, espera al final de la entrada (~1 s) y entra marcada. Al terminar no queda ningún estilo en línea;
+  - con «reducir movimiento», todo visible desde el primer fotograma y sin animación.
+- **Dos fallos encontrados midiendo y corregidos:**
+  - con `fromTo`, la caja se veía entera un fotograma antes de entrar: el punto de partida se aplicaba tarde;
+  - la búsqueda que sale de la caché (lo normal en una segunda visita) repintaba a media entrada y cortaba el escalonado. Ahora espera a que termine.
+- `pruebas/ext_recomendador.test.js`: 163. Incluye las guardas de que GSAP va antes de la tarjeta, de que es la 3.15.0 tal cual y de que no queda botón de copiar ni `transition: all`. `npm test`: 28 suites en verde.
+
+**Qué se dejó fuera a propósito:**
+- **La ficha real de Liverpool con la 2.8:** el creador tenía la pestaña abierta con su extensión (2.7) y no se tocó. Se verá al recargar la extensión.
+- **Los asesores:** Drive sigue en la 2.1.
+- **Plegar y desplegar** siguen sin animación.
+
 ### 2026-10-03 — «Vende más» busca mejor: búsqueda en vivo desde la ficha y reglas medidas en fichas reales (extensión 2.7) — Portal en PRUEBAS
 
 **Qué se cambió** (commits `88ace27`, Portal, y `a650c1d`, extensión 2.7):
