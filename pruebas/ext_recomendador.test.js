@@ -50,12 +50,25 @@ ok('VentelVM y VENTEL_REGLAS existen', !!VM && !!REGLAS && Array.isArray(REGLAS.
 });
 ok('ninguna regla de tipo trae la bandera g (lastIndex rompería el .exec)',
   REGLAS.clases.every((c) => c.complementos.every((k) => !k.palabras.global)));
+{
+  const man = JSON.parse(fs.readFileSync(path.join(EXT, 'manifest.json'), 'utf8'));
+  const lista = (man.content_scripts.find((c) => c.js.indexOf('recomendador.js') > -1) || { js: [] }).js;
+  ok('GSAP se carga ANTES de la tarjeta, en el mismo grupo (mismo mundo aislado)',
+    lista.indexOf('vendor/gsap.min.js') > -1 && lista.indexOf('vendor/gsap.min.js') < lista.indexOf('recomendador.js'), lista);
+  const g = fs.readFileSync(path.join(EXT, 'vendor', 'gsap.min.js'), 'utf8');
+  ok('vendor/gsap.min.js es GSAP 3.15.0 tal cual (la versión del deck del Reto)', /^\/\*!\s*\n?\s*\* GSAP 3\.15\.0/.test(g) && g.length > 70000, g.slice(0, 40));
+  const tarjeta = fs.readFileSync(path.join(EXT, 'recomendador.js'), 'utf8');
+  ok('la tarjeta ya no tiene frase ni botón de copiar (2.8)', !/Copiar frase|data-accion="copiar"|clipboard/.test(tarjeta));
+  ok('nada que anime GSAP lleva transition-all (memoria «gsap-contenido-invisible»)', !/transition:\s*all/.test(tarjeta));
+}
 
 seccion('1 · Utilidades');
 ok('pesos sin centavos', VM.pesos(17499) === '$17,499', VM.pesos(17499));
 ok('pesos con centavos', VM.pesos(24398.85) === '$24,398.85', VM.pesos(24398.85));
 ok('norm quita acentos y mayúsculas', VM.norm('  Sérum  ANTIEDAD ') === 'serum antiedad');
 ok('bonito escribe iPhone', VM.bonito('mica iphone 16') === 'Mica iPhone 16', VM.bonito('mica iphone 16'));
+ok('…también al principio: «iPhone 16», no «IPhone 16» (la cabecera sin «Modelo comercial»)',
+  VM.bonito('iphone 16') === 'iPhone 16' && VM.bonito('ipad air 11') === 'iPad air 11' && VM.bonito('galaxy a56') === 'Galaxy A56', [VM.bonito('iphone 16'), VM.bonito('ipad air 11')]);
 
 seccion('2 · Modelos y familias de equipo');
 const modelos = [
@@ -106,7 +119,7 @@ ok('ninguna funda de otro modelo, ningún teléfono, ni el propio artículo', !c
 ok('búsqueda sugerida: «mica iPhone 16» (Liverpool no trajo mica)',
   mIp.sugeridas.length === 1 && mIp.sugeridas[0].consulta === 'mica iPhone 16', mIp.sugeridas);
 ok('ofrece Liverpool Care', mIp.servicio === true);
-ok('sin paquete de promociones: lo dice', mIp.promos.hay === false && mIp.promos.frase === null);
+ok('sin paquete de promociones: lo dice', mIp.promos.hay === false && mIp.promos.ficha === null && mIp.promos.fuerte === null);
 
 seccion('5 · iPhone 16 abierto en 512 GB por su enlace (?skuid=)');
 const f512 = Object.assign(copia(ip.ficha), { varianteActual: '1163058509', skuUrl: '1163058509', seleccion: { color: 'Azul', talla: null, completa: false } });
@@ -237,14 +250,16 @@ const paquete = {
     { d: 'Belleza', c: 'Cuidado facial', t: 'Hasta 30% de descuento', p: 30, m: 0, f: AHORA + 4 * DIA }
   ]
 };
-const frase = VM.fraseApertura(paquete, AHORA);
-ok('frase con la más fuerte y la siguiente de OTRA dirección, con sus MSI',
-  frase && frase.texto === 'Sr. / Srta., hoy tenemos hasta un 58% de descuento en Mujer o hasta 55% de descuento + 13 MSI en Hogar…', frase && frase.texto);
+const fuerte = VM.promoMasFuerte(paquete, AHORA);
+ok('la más fuerte es la que marcó el Portal', fuerte && fuerte.c === 'Bolsas' && fuerte.p === 58, fuerte);
 const vencida = Object.assign(copia(paquete), { fuerte: Object.assign({}, paquete.fuerte, { f: AHORA - 1 }) });
 vencida.promos[0].f = AHORA - 1;
-const fraseV = VM.fraseApertura(vencida, AHORA);
-ok('si la más fuerte ya venció, no sale en la frase', fraseV && fraseV.fuerte.p === 55 && fraseV.texto.indexOf('58%') === -1, fraseV && fraseV.texto);
-ok('sin porcentajes, no hay frase', VM.fraseApertura({ promos: [{ d: 'Hogar', t: '13 MSI', p: 0, m: 13 }] }, AHORA) === null);
+const fuerteV = VM.promoMasFuerte(vencida, AHORA);
+ok('si la marcada ya venció, la de mayor porcentaje entre las vigentes', fuerteV && fuerteV.c === 'Línea blanca' && fuerteV.p === 55, fuerteV);
+ok('sin marca del Portal y con empate, la primera de la hoja',
+  (VM.promoMasFuerte({ promos: [{ d: 'A', c: 'Uno', t: 'Hasta 30%', p: 30 }, { d: 'B', c: 'Dos', t: 'Hasta 30%', p: 30 }] }, AHORA) || {}).c === 'Uno');
+ok('sin porcentajes, no hay «más fuerte»', VM.promoMasFuerte({ promos: [{ d: 'Hogar', t: '13 MSI', p: 0, m: 13 }] }, AHORA) === null);
+ok('el núcleo ya no arma la frase para copiar (2.8)', typeof VM.fraseApertura === 'undefined');
 
 const mIpP = VM.recomendar(copia(ip.ficha), copia(ip.carruseles), paquete, REGLAS, AHORA);
 ok('iPhone: la promo de su categoría (Celulares)', mIpP.promos.ficha && mIpP.promos.ficha.por === 'categoria' && mIpP.promos.ficha.promo.c === 'Celulares', mIpP.promos.ficha);
@@ -254,6 +269,12 @@ const mTvP = VM.recomendar(tv, {}, paquete, REGLAS, AHORA);
 ok('pantalla: la de Pantallas venció ayer, así que cae a la dirección Electrónica',
   mTvP.promos.ficha && mTvP.promos.ficha.por === 'direccion' && mTvP.promos.ficha.promo.c === 'Celulares', mTvP.promos.ficha);
 ok('las horas del paquete se calculan', Math.abs(mIpP.promos.horas - 3) < 0.01, mIpP.promos.horas);
+ok('iPhone: además de la de Celulares, la más fuerte del Monitor (Bolsas), sin marcarlas como la misma',
+  mIpP.promos.fuerte && mIpP.promos.fuerte.c === 'Bolsas' && mIpP.promos.mismaQueFicha === false, mIpP.promos);
+const bolsa = { id: '77', nombre: 'Bolsa de mano tote para mujer', marca: 'GUESS', migas: ['Mujer', 'Bolsas'], variantes: [] };
+const mBo = VM.recomendar(bolsa, {}, paquete, REGLAS, AHORA);
+ok('en una bolsa, la de su categoría ES la más fuerte: se dice una vez',
+  mBo.promos.ficha && mBo.promos.ficha.promo.c === 'Bolsas' && mBo.promos.mismaQueFicha === true, mBo.promos);
 
 seccion('10 · Nada revienta con datos pobres');
 let error = null, vacio = null;

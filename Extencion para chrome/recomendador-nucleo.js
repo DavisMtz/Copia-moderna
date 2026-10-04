@@ -24,10 +24,12 @@
  *      carrusel dice que la gente lo compra; la búsqueda solo que se llama así).
  *   4. EL MONITOR MANDA EN LAS PROMOCIONES. «La más fuerte» es la cuenta de
  *      notas() del Monitor; el servidor la manda hecha (ventaCruzadaPromos).
+ *      La tarjeta enseña dos: la de la categoría de la ficha y la más fuerte
+ *      (desde la 2.8, sin frase para copiar).
  *
  * Expone `VentelVM` en el global (el mundo aislado de la extensión, o el
  * contexto de la prueba).
- * Hecho para Ventel · v1.1 · 03/10/2026
+ * Hecho para Ventel · v1.2 · 03/10/2026
  */
 (function (raiz) {
   'use strict';
@@ -66,7 +68,7 @@
     if (!t) return '';
     return t.replace(/\biphone\b/gi, 'iPhone').replace(/\bipad\b/gi, 'iPad')
       .replace(/\b([a-z])(\d{1,3}[a-z]?)\b/g, function (_, l, n) { return l.toUpperCase() + n; })
-      .replace(/^./, function (c) { return c.toUpperCase(); });
+      .replace(/^(?!iPhone\b|iPad\b)./, function (c) { return c.toUpperCase(); });   // «iPhone 16», no «IPhone 16»
   }
 
   // ===========================================================================
@@ -638,25 +640,20 @@
     return lista.filter(function (p) { return p && (!p.f || p.f >= ahora); });
   }
 
-  function conMsi(p) { return p.m > 1 ? ' + ' + p.m + ' MSI' : ''; }
-
   /**
-   * La frase de apertura, con las palabras del mensaje del equipo y las cifras
-   * del Monitor: la más fuerte y, si la hay, la siguiente de OTRA dirección.
+   * La más fuerte del Monitor: la que marcó el Portal (la cuenta de notas() del
+   * Monitor) si sigue vigente; si no, la de mayor porcentaje entre las vigentes
+   * (en empate, la primera de la hoja). Sin porcentajes, ninguna.
    */
-  function fraseApertura(paquete, ahora) {
-    var vig = promosVigentes(paquete, ahora).filter(function (p) { return p.p > 0; });
+  function promoMasFuerte(paquete, ahora) {
     var fuerte = paquete && paquete.fuerte;
-    if (!fuerte || !fuerte.p || (fuerte.f && fuerte.f < ahora)) {
-      fuerte = vig.slice().sort(function (a, b) { return b.p - a.p; })[0] || null;
-    }
-    if (!fuerte || !fuerte.p) return null;
-    var otra = vig.filter(function (p) { return norm(p.d) !== norm(fuerte.d); })
-      .sort(function (a, b) { return (b.p - a.p) || ((b.m || 0) - (a.m || 0)); })[0] || null;
-    var texto = 'Sr. / Srta., hoy tenemos hasta un ' + fuerte.p + '% de descuento' + conMsi(fuerte) +
-      (fuerte.d ? ' en ' + fuerte.d : '');
-    if (otra) texto += ' o hasta ' + otra.p + '% de descuento' + conMsi(otra) + (otra.d ? ' en ' + otra.d : '');
-    return { texto: texto + '…', fuerte: fuerte, otra: otra };
+    if (fuerte && fuerte.p > 0 && (!fuerte.f || fuerte.f >= ahora)) return fuerte;
+    var vig = promosVigentes(paquete, ahora).filter(function (p) { return p.p > 0; });
+    return vig.slice().sort(function (a, b) { return b.p - a.p; })[0] || null;
+  }
+
+  function mismaPromo(a, b) {
+    return !!(a && b) && norm(a.d) === norm(b.d) && norm(a.c) === norm(b.c) && norm(a.t) === norm(b.t);
   }
 
   // Las direcciones del Monitor y cómo se llaman sus cosas en las migas de Liverpool.
@@ -753,8 +750,8 @@
     var cruzada = elegirCruzada(listas, ctx, reglas, { maximo: 3, excluir: excluir });
     var sugeridas = sugerirBusquedas(ctx, cruzada, cruzada.length >= 3 ? 1 : 2);
 
-    var frase = paquete ? fraseApertura(paquete, ahora) : null;
     var deFicha = paquete ? promoParaFicha(paquete, ctx, ahora) : null;
+    var fuerte = paquete ? promoMasFuerte(paquete, ahora) : null;
     var horas = paquete && paquete.generado ? (ahora - paquete.generado) / 3600000 : null;
 
     return {
@@ -768,15 +765,16 @@
       servicio: !!(ficha.care && (!ctx.clase || ctx.clase.servicio)),
       promos: {
         hay: !!paquete,
-        frase: frase,
-        ficha: deFicha,
+        ficha: deFicha,       // la de su categoría (o su dirección)
+        fuerte: fuerte,       // la más fuerte del Monitor
+        mismaQueFicha: !!(deFicha && mismaPromo(deFicha.promo, fuerte)),
         horas: horas
       }
     };
   }
 
   raiz.VentelVM = {
-    version: '1.1',
+    version: '1.2',
     norm: norm, num: num, pesos: pesos, bonito: bonito,
     clasificar: clasificar, claseDeNombre: claseDeNombre,
     familiasDe: familiasDe, modeloDe: modeloDe, plataformaDe: plataformaDe,
@@ -788,7 +786,7 @@
     tiposNaturales: tiposNaturales, consultaDe: consultaDe, planDeBusquedas: planDeBusquedas,
     sugerirBusquedas: sugerirBusquedas,
     maxMsi: maxMsi, subidaCapacidad: subidaCapacidad, subidaModelo: subidaModelo,
-    promosVigentes: promosVigentes, fraseApertura: fraseApertura, promoParaFicha: promoParaFicha,
+    promosVigentes: promosVigentes, promoMasFuerte: promoMasFuerte, promoParaFicha: promoParaFicha,
     recomendar: recomendar
   };
 })(typeof globalThis !== 'undefined' ? globalThis : this);

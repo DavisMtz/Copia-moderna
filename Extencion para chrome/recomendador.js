@@ -5,9 +5,10 @@
  * Content script de liverpool.com.mx/tienda/*. Cuando la pestaña es una ficha de
  * producto, pone debajo de «Agregar a mi bolsa» la tarjeta «Vende más con este
  * artículo»: el siguiente escalón (venta incremental), hasta tres complementos
- * que sí le quedan (venta cruzada) y la promoción del Monitor para decírsela al
- * cliente. Las decisiones viven en recomendador-nucleo.js; aquí solo se lee la
- * ficha y se pinta.
+ * que sí le quedan (venta cruzada) y las promociones del Monitor para decírselas
+ * al cliente: la de su categoría y la más fuerte. Las decisiones viven en
+ * recomendador-nucleo.js; aquí solo se lee la ficha, se pinta y se anima (GSAP,
+ * desde la 2.8).
  *
  * De dónde sale cada cosa:
  *   · el artículo, sus variantes y sus meses: inspectProductFromDOM()
@@ -31,7 +32,7 @@
  *   · Nada aquí agrega a la bolsa: la sesión del asesor puede estar ligada a un
  *     cliente por el Panel del agente. Todo abre la ficha y el asesor decide.
  *
- * Hecho para Ventel · v1.0 · 03/10/2026
+ * Hecho para Ventel · v1.1 · 03/10/2026
  */
 (function () {
   'use strict';
@@ -54,7 +55,6 @@
     promos: null,
     plegado: false,
     firma: '',
-    avisoCopia: 0,
     resultados: {},   // consulta → resultados de la búsqueda, para ESTA ficha
     intentadas: {},   // consulta → ya se pidió (a la caché o a la red) en esta ficha
     buscando: false
@@ -258,7 +258,8 @@
   var LUPA = '<svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="6.5" fill="none" stroke="currentColor" stroke-width="2"/><path d="m16 16 4 4" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>';
 
   function fila(o) {
-    // o: { href, nueva, img, ceja, nombre, nota, dif, precio, desc, desde }
+    // o: { k, href, nueva, img, ceja, nombre, nota, dif, precio, desc, desde }
+    // k: clave estable del renglón; con ella se sabe qué llegó nuevo al repintar.
     var dentro =
       (o.img ? '<img class="img" src="' + esc(o.img) + '" alt="" loading="lazy">' : '<span class="img"></span>') +
       '<span class="tx">' +
@@ -271,7 +272,8 @@
         (o.precio != null ? '<span class="pz">' + (o.desde ? '<small>desde </small>' : '') + esc(VM.pesos(o.precio)) + '</span>' : '') +
         (o.desc && o.dif == null ? '<span class="dto">-' + esc(o.desc) + '%</span>' : '') +
       '</span>';
-    return '<a class="f" href="' + esc(o.href) + '"' + (o.nueva ? ' target="_blank" rel="noopener"' : '') + '>' + dentro + '</a>';
+    return '<a class="f" href="' + esc(o.href) + '"' + (o.k ? ' data-k="' + esc(o.k) + '"' : '') +
+      (o.nueva ? ' target="_blank" rel="noopener"' : '') + '>' + dentro + '</a>';
   }
 
   function seccionIncremental(m) {
@@ -282,7 +284,7 @@
       if (!c.todosLosColores && c.colores.length) notas.push('Solo en ' + c.colores.join(' y '));
       if (c.mensual) notas.push('+' + VM.pesos(c.mensual.monto) + ' al mes a ' + c.mensual.meses + ' MSI');
       filas += fila({
-        href: location.pathname + '?skuid=' + encodeURIComponent(c.sku), nueva: false,
+        k: 'c:' + c.sku, href: location.pathname + '?skuid=' + encodeURIComponent(c.sku), nueva: false,
         img: urlImagen(c.imagen), ceja: 'Misma ficha · ' + c.desde, nombre: 'Sube a ' + c.talla,
         nota: notas.join(' · '), dif: c.dif, precio: c.precio
       });
@@ -290,7 +292,7 @@
     var s = m.incremental.modelo;
     if (s) {
       filas += fila({
-        href: urlFicha(s), nueva: true, img: urlImagen(s.img), ceja: s.marca, nombre: s.nombre,
+        k: 'm:' + s.id, href: urlFicha(s), nueva: true, img: urlImagen(s.img), ceja: s.marca, nombre: s.nombre,
         dif: s.dif, precio: s.precio, desde: s.rango
       });
     }
@@ -301,7 +303,7 @@
   function seccionCruzada(m) {
     var filas = m.cruzada.map(function (r) {
       return fila({
-        href: urlFicha(r), nueva: true, img: urlImagen(r.img), ceja: r.marca, nombre: r.nombre,
+        k: 'x:' + r.id, href: urlFicha(r), nueva: true, img: urlImagen(r.img), ceja: r.marca, nombre: r.nombre,
         precio: r.precio, desc: r.desc, desde: r.rango
       });
     }).join('');
@@ -316,7 +318,7 @@
       vistas[k] = true;
       return true;
     }).map(function (q) {
-      return '<a class="chip" href="' + esc(urlBusqueda(q)) + '" target="_blank" rel="noopener">' +
+      return '<a class="chip" href="' + esc(urlBusqueda(q)) + '" data-k="q:' + esc(VM.norm(q)) + '" target="_blank" rel="noopener">' +
         LUPA + '<span>' + esc(VM.bonito(q)) + '</span></a>';
     }).join('');
     var servicio = m.servicio
@@ -333,24 +335,30 @@
       return '<section class="sec camp"><h3>Promoción de hoy</h3>' +
         '<p class="nota-camp">Abre el Portal Ventel para traer las promociones del Monitor.</p></section>';
     }
+    // La de su categoría, como siempre, y la más fuerte del Monitor. Si son la
+    // misma, se dice una vez, con el sello.
     var html = '';
     if (p.ficha) {
       var pr = p.ficha.promo;
       var donde = p.ficha.por === 'categoria' && pr.c ? pr.c : pr.d;
-      html += '<p class="aqui"><b>Hoy en ' + esc(donde) + ':</b> ' + esc(pr.t) +
-        (pr.f ? ' <span class="hasta">· vence el ' + esc(fechaCorta(pr.f)) + '</span>' : '') + '</p>';
+      html += lineaPromo('cat', 'Hoy en ' + donde, pr, p.mismaQueFicha);
     }
-    if (p.frase) {
-      html += '<p class="frase">«' + esc(p.frase.texto) + '»</p>' +
-        '<div class="acc"><button class="btn" type="button" data-accion="copiar">' +
-        (estado.avisoCopia > Date.now() ? 'Copiada' : 'Copiar frase') + '</button>' +
-        '<span class="fuente">La más fuerte del Monitor' + (p.frase.fuerte.f ? ' · vence el ' + esc(fechaCorta(p.frase.fuerte.f)) : '') + '</span></div>';
+    if (p.fuerte && !p.mismaQueFicha) {
+      var lugar = [p.fuerte.d, p.fuerte.c].filter(Boolean).join(' · ');
+      html += lineaPromo('fuerte', 'La más fuerte' + (lugar ? ', en ' + lugar : ''), p.fuerte, false);
     }
     if (!html) html = '<p class="nota-camp">El Monitor no tiene promociones vigentes hoy.</p>';
     var viejas = p.horas !== null && p.horas > 24;
     return '<section class="sec camp"><h3>Promoción de hoy</h3>' + html +
       (viejas ? '<p class="nota-camp">Son de hace ' + Math.round(p.horas / 24) + ' día(s): abre el Portal para actualizarlas.</p>' : '') +
-      '<p class="vivo" aria-live="polite"></p></section>';
+      '</section>';
+  }
+
+  function lineaPromo(cual, etiqueta, pr, sello) {
+    return '<p class="aqui promo" data-k="p:' + cual + ':' + esc(VM.norm([pr.d, pr.c, pr.t].join('|'))) + '">' +
+      '<b>' + esc(etiqueta) + ':</b> ' + esc(pr.t) +
+      (pr.f ? ' <span class="hasta">· vence el ' + esc(fechaCorta(pr.f)) + '</span>' : '') +
+      (sello ? ' <span class="sello">La más fuerte</span>' : '') + '</p>';
   }
 
   function pintar(m) {
@@ -405,16 +413,100 @@
     '.srv b{color:#1a1a1a;font-weight:600}' +
     '.camp{background:#fcf4f9;border-top-color:#f5dbeb;padding-bottom:12px}' +
     '.aqui{margin:2px 0 8px;color:#333}' +
+    '.aqui:last-child{margin-bottom:2px}' +
     '.aqui b{color:#1a1a1a;font-weight:600}' +
     '.hasta{color:#767676;font-size:11px;white-space:nowrap}' +
-    '.frase{margin:2px 0 8px;color:#333}' +
-    '.acc{display:flex;align-items:center;gap:10px;flex-wrap:wrap}' +
-    '.btn{font:inherit;font-size:11px;font-weight:600;color:#E10098;background:#fff;border:1px solid #E10098;border-radius:6px;padding:4px 10px;cursor:pointer}' +
-    '.btn:hover{background:#E10098;color:#fff}' +
-    '.fuente{font-size:10.5px;color:#767676}' +
+    '.sello{display:inline-block;margin-left:2px;padding:1px 7px;border-radius:999px;background:#E10098;color:#fff;font-size:10px;font-weight:600;line-height:1.5;white-space:nowrap;vertical-align:1px}' +
     '.nota-camp{margin:2px 0 4px;color:#767676;font-size:11.5px}' +
-    '.vivo{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0)}' +
     'a:focus-visible,button:focus-visible{outline:2px solid #E10098;outline-offset:2px}';
+
+  // ===========================================================================
+  // Movimiento (GSAP 3.15: vendor/gsap.min.js, cargado antes que este archivo)
+  // ===========================================================================
+  // Al llegar a una ficha, la tarjeta entra: la caja sube y aparece, la etiqueta
+  // se asienta y lo de adentro llega en orden de lectura. Lo que trae después la
+  // búsqueda entra marcado en rosa, para que el asesor vea qué llegó.
+  // Es adorno, y nunca lo único que hace visible algo: todo se pinta visible y
+  // GSAP solo lo trae hasta ahí (fromTo + clearProps). Sin GSAP, con «reducir
+  // movimiento» o con la pestaña oculta, la tarjeta simplemente está. Si el
+  // navegador congela los fotogramas a media entrada, una red de seguridad la
+  // termina: así dejó media portada en blanco el mismo patrón en otro proyecto.
+
+  var G = (typeof gsap !== 'undefined' && gsap && typeof gsap.timeline === 'function') ? gsap : null;
+  var LIMPIAR = 'opacity,visibility,transform';
+  var mov = { url: '', entrada: null };
+
+  function sinMovimiento() {
+    if (!G || document.hidden) return true;
+    try { return window.matchMedia('(prefers-reduced-motion: reduce)').matches; } catch (e) { return false; }
+  }
+
+  /** Lleva una animación a su final (todo visible, sin estilos en línea) y la suelta. */
+  function terminar(tl) {
+    if (!tl) return;
+    if (mov.entrada === tl) mov.entrada = null;
+    try { tl.progress(1); tl.kill(); } catch (e) { /* nada */ }
+  }
+
+  /** Si algo falla a media animación, nada se queda oculto: fuera los estilos en línea. */
+  function rescatar(h) {
+    try {
+      h.removeAttribute('style');
+      [].forEach.call(h.shadowRoot.querySelectorAll('[style]'), function (e) { e.removeAttribute('style'); });
+    } catch (e) { /* nada */ }
+  }
+
+  function entrando() { return !!(mov.entrada && mov.entrada.isActive()); }
+
+  function clavesDe(raiz) {
+    var out = {};
+    if (raiz) [].forEach.call(raiz.querySelectorAll('[data-k]'), function (e) { out[e.getAttribute('data-k')] = true; });
+    return out;
+  }
+
+  function entrada(h) {
+    terminar(mov.entrada);
+    var raiz = h.shadowRoot;
+    var logo = raiz.querySelector('.logo');
+    // En orden de lectura; plegada, solo la cabecera.
+    var piezas = [].slice.call(raiz.querySelectorAll(estado.plegado ? '.cab-tx' : '.cab-tx, .sec h3, a.f, .chips, .srv, .promo, .nota-camp'));
+    var sellos = estado.plegado ? [] : [].slice.call(raiz.querySelectorAll('.sello'));
+    // Los puntos de partida se escriben YA: gsap.set no espera fotograma. Con
+    // fromTo, la caja alcanzaba a verse entera un fotograma antes de entrar
+    // (medido en Chrome headless, 03/10/2026).
+    G.set(h, { autoAlpha: 0, y: 14 });
+    if (logo) G.set(logo, { autoAlpha: 0, scale: 0.4, rotation: -14 });
+    if (piezas.length) G.set(piezas, { autoAlpha: 0, y: 8 });
+    if (sellos.length) G.set(sellos, { autoAlpha: 0, scale: 0.6 });
+    var tl = G.timeline({
+      defaults: { ease: 'power2.out', clearProps: LIMPIAR },
+      onComplete: function () { programar(30); }   // lo que llegó a media entrada, ahora
+    });
+    tl.to(h, { autoAlpha: 1, y: 0, duration: 0.5, ease: 'power3.out' }, 0);
+    if (logo) tl.to(logo, { autoAlpha: 1, scale: 1, rotation: 0, duration: 0.6, ease: 'back.out(1.7)' }, 0.1);
+    if (piezas.length) tl.to(piezas, { autoAlpha: 1, y: 0, duration: 0.34, stagger: { amount: Math.min(0.65, 0.06 * piezas.length) } }, 0.18);
+    if (sellos.length) tl.to(sellos, { autoAlpha: 1, scale: 1, duration: 0.4, ease: 'back.out(2.2)' }, '>-0.15');
+    mov.entrada = tl;
+    setTimeout(function () { if (mov.entrada === tl && tl.progress() < 1) terminar(tl); }, 3000);
+  }
+
+  /** Lo que no estaba en el pintado anterior (lo que trajo la búsqueda) entra marcado. */
+  function nuevas(raiz, antes) {
+    var lista = [].filter.call(raiz.querySelectorAll('[data-k]'), function (e) { return !antes[e.getAttribute('data-k')]; });
+    if (!lista.length) return;
+    var filas = lista.filter(function (e) { return e.matches('a.f'); });
+    G.set(lista, { autoAlpha: 0, x: -10 });
+    if (filas.length) G.set(filas, { backgroundColor: 'rgba(225,0,152,0.12)' });
+    G.to(lista, { autoAlpha: 1, x: 0, duration: 0.45, ease: 'power3.out', stagger: 0.08, clearProps: LIMPIAR });
+    if (filas.length) G.to(filas, { backgroundColor: 'rgba(225,0,152,0)', duration: 1.4, delay: 0.35, ease: 'power1.out', clearProps: 'backgroundColor' });
+  }
+
+  function animar(h, primera, antes) {
+    if (primera) mov.url = estado.url;
+    if (sinMovimiento()) { terminar(mov.entrada); return; }
+    if (primera) entrada(h);
+    else nuevas(h.shadowRoot, antes);
+  }
 
   // ===========================================================================
   // Colocación y ciclo
@@ -440,6 +532,8 @@
   }
 
   function quitar() {
+    terminar(mov.entrada);
+    mov.url = '';
     var h = document.getElementById(HOST_ID);
     if (h) h.remove();
     estado.firma = '';
@@ -465,10 +559,15 @@
       var html = pintar(modelo);
       var h = host(a);
       var firma = html + '|' + estado.plegado;
-      if (firma !== estado.firma) {
+      var primera = mov.url !== estado.url;   // la primera vez que se pinta ESTA ficha
+      // A media entrada no se repinta: rehacer el DOM la cortaría (pasa con la
+      // búsqueda que sale de la caché). Al terminar, lo nuevo entra marcado.
+      if (firma !== estado.firma && !(entrando() && !primera)) {
+        var antes = clavesDe(h.shadowRoot);
         h.shadowRoot.innerHTML = '<style>' + CSS + '</style>' + html;
         estado.firma = firma;
         estado.modelo = modelo;
+        try { animar(h, primera, antes); } catch (e) { terminar(mov.entrada); rescatar(h); }
       }
       buscarLoQueFalta(modelo.busquedas);
     } catch (e) {
@@ -543,40 +642,15 @@
     temporizador = setTimeout(function () { temporizador = null; asegurar(); }, ms || 300);
   }
 
-  function copiar(texto, boton) {
-    function listo() {
-      estado.avisoCopia = Date.now() + 2000;
-      if (boton) boton.textContent = 'Copiada';
-      var vivo = boton && boton.getRootNode().querySelector('.vivo');
-      if (vivo) vivo.textContent = 'Frase copiada';
-      setTimeout(function () { estado.firma = ''; asegurar(); }, 2100);
-    }
-    try {
-      navigator.clipboard.writeText(texto).then(listo, function () { respaldo(); });
-    } catch (e) { respaldo(); }
-    function respaldo() {
-      var area = document.createElement('textarea');
-      area.value = texto;
-      area.setAttribute('readonly', '');
-      area.style.cssText = 'position:fixed;left:-9999px;top:0';
-      document.body.appendChild(area);
-      area.select();
-      try { document.execCommand('copy'); listo(); } catch (e) { /* sin portapapeles */ }
-      area.remove();
-    }
-  }
-
   function alClic(ev) {
     var b = ev.target && ev.target.closest ? ev.target.closest('[data-accion]') : null;
     if (!b) return;
-    var accion = b.getAttribute('data-accion');
-    if (accion === 'plegar') {
+    if (b.getAttribute('data-accion') === 'plegar') {
+      terminar(mov.entrada);   // lo que pide el asesor no espera a la animación
       estado.plegado = !estado.plegado;
       guardar({ vmPlegado: estado.plegado });
       estado.firma = '';
       asegurar();
-    } else if (accion === 'copiar' && estado.modelo && estado.modelo.promos.frase) {
-      copiar(estado.modelo.promos.frase.texto, b);
     }
   }
 
