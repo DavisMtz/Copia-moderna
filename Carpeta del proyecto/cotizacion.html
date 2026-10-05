@@ -178,57 +178,75 @@
         }
 
         /* ═══════════════════════════════════════════════════════════════════════
-           GALERÍA LATERAL DE ARTÍCULOS
+           COLUMNA «ARTÍCULO»: LA FOTO VIVE EN SU PROPIA FILA
            ═══════════════════════════════════════════════════════════════════════
-           Un espejo visual de las filas de la tabla. Sirve para lo que una tabla de
-           doce columnas no puede: reconocer de un vistazo que el artículo que se está
-           cotizando es el que el cliente pidió. Un SKU no se reconoce; una foto sí.
+           Sirve para lo que una tabla de doce columnas no puede: reconocer de un
+           vistazo que el artículo que se está cotizando es el que el cliente pidió.
+           Un SKU no se reconoce; una foto sí.
 
-           La tabla lleva `overflow-x` propio (tiene doce columnas y se recorre en
-           horizontal). Ese overflow vivía antes en la <section>; ahora vive en la
-           columna de la tabla, porque si se quedara en la sección arrastraría también
-           la galería al desplazarse y las fotos se saldrían de la vista justo cuando se
-           está mirando la columna del precio. */
-        .cot-productos { display: grid; grid-template-columns: minmax(0, 1fr) 15rem; gap: 1.5rem; align-items: start; }
+           Hasta el 04/10/2026 era una galería aparte, a la derecha de la tabla, y no
+           casaba con las filas (medido): cada tarjeta ocupaba 77 px con su hueco y cada
+           fila 59, así que la octava foto quedaba 66 px por debajo de su renglón; y
+           como era `sticky` y con scroll propio, se quedaba quieta mientras la tabla
+           corría: con dieciséis artículos, a media tabla, la primera foto acababa al
+           lado de la cuarta fila. Ahora la foto es una celda del MISMO <tr>: no hay
+           nada que sincronizar, la alineación la pone la propia tabla.
+
+           Lo que la galería sí resolvía se conserva: la celda es `sticky` a la derecha
+           del contenedor que desplaza la tabla en horizontal, así que la foto sigue a
+           la vista mientras se recorren las columnas del precio, que es justo cuando
+           más falta hace saber de qué artículo es cada importe.
+
+           El alto de la fila no cambia: la miniatura de 3 rem con 5 px arriba y abajo
+           mide lo mismo que un renglón con sus campos. */
         .cot-tabla-col { min-width: 0; overflow-x: auto; }
 
-        .cot-galeria {
-            position: sticky; top: 1rem;
-            border: 1px solid var(--line, #e5e7eb); border-radius: 14px;
-            background: var(--surface-2, #f8fafc); padding: .9rem;
-            max-height: calc(100vh - 2rem); overflow-y: auto;
+        #product-table .col-articulo {
+            position: sticky; right: 0; z-index: 1;
+            width: 14rem; min-width: 14rem; max-width: 14rem;
+            padding: 5px 10px;
+            background: var(--surface-2, #F4F7FA);
+            /* El borde izquierdo va como sombra interior, no como `border`: con
+               `border-collapse` los bordes los pinta la tabla y no acompañan a una
+               celda pegajosa, se quedarían atrás al desplazar. La sombra exterior es la
+               que dice que la columna va POR ENCIMA de lo que pasa por debajo. */
+            box-shadow: inset 1px 0 0 var(--line, #E4E9F0), -12px 0 14px -14px rgba(27, 35, 48, .35);
         }
-        .cot-galeria-tit {
-            font-size: .72rem; font-weight: 800; letter-spacing: .12em; text-transform: uppercase;
-            color: var(--ink-faint, #94a1b2); margin: 0 0 .7rem;
-        }
-        .cot-galeria-lista { display: grid; gap: .6rem; }
+        #product-table th.col-articulo { z-index: 2; padding: 10px; background-color: #f8fafc; }
+        /* El hover de la fila pinta el <tr>, y esta celda lleva fondo propio porque
+           tiene que tapar lo que pasa por debajo: hay que darle el suyo. */
+        #product-table tbody tr:hover > td.col-articulo { background: #EEF2F7; }
+        .cot-th-corto { display: none; }
 
         .cot-art {
-            display: grid; grid-template-columns: 3.2rem minmax(0, 1fr); gap: .6rem; align-items: center;
-            padding: .45rem; border-radius: 10px; background: var(--surface, #fff);
-            border: 1px solid var(--line, #e5e7eb);
-            /* Solo transform en el hover. La galería puede tener veinte tarjetas y
-               moverlas con márgenes recalcularía la columna entera. */
-            transition: transform .15s cubic-bezier(.32,.72,0,1), border-color .15s ease;
+            display: grid; grid-template-columns: 3rem minmax(0, 1fr); gap: .6rem; align-items: center;
+            cursor: pointer;
         }
-        .cot-art:hover { transform: translateX(-2px); border-color: var(--brand-soft, #FBD0E9); }
-        .cot-art.resaltado { border-color: var(--brand, #E10098); }
-
         .cot-art-img {
-            width: 3.2rem; height: 3.2rem; border-radius: 8px; overflow: hidden; flex: none;
-            background: var(--surface-2, #f1f5f9);
+            width: 3rem; height: 3rem; border-radius: 8px; overflow: hidden; flex: none;
+            background: var(--surface, #fff);
+            border: 1px solid var(--line, #E4E9F0);
             display: flex; align-items: center; justify-content: center;
+            transition: border-color .15s ease;
         }
+        /* La fila entera se ilumina al pasar por ella; el borde de la foto la acompaña
+           para que se lea como una sola cosa. Solo color: mover o escalar algo dentro
+           de la tabla recalcularía el ancho de las columnas en cada pasada del ratón. */
+        .product-row:hover .cot-art-img { border-color: var(--brand-soft, #FBD0E9); }
         .cot-art-img img { width: 100%; height: 100%; object-fit: contain; display: block; }
         .cot-art-tx { min-width: 0; }
+        /* Interlineado explícito en los dos textos: la tabla lleva `text-base`, que
+           hereda un alto de línea FIJO de 24 px, y con él el SKU solo ya haría crecer
+           la fila. */
         .cot-art-desc {
-            font-size: .76rem; font-weight: 600; color: var(--ink, #1B2330); line-height: 1.35;
+            font-size: .76rem; font-weight: 600; color: var(--ink, #1B2330); line-height: 1.3;
             /* Dos líneas y elipsis: una descripción de Liverpool puede traer ochenta
-               caracteres y desbordaría la columna. */
+               caracteres y desbordaría la columna. Entera, en el `title`. */
             display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden;
         }
-        .cot-art-sku { font-size: .68rem; color: var(--ink-soft, #64748b); margin-top: .1rem; }
+        .cot-art-sku { font-size: .68rem; line-height: 1.3; color: var(--ink-soft, #5C6B7E); margin-top: .1rem; font-variant-numeric: tabular-nums; }
+        .cot-art-sku[hidden] { display: none; }
+        .cot-art-pista { margin: 0; font-size: .72rem; line-height: 1.35; color: var(--ink-soft, #5C6B7E); }
 
         /* El SVG de la bolsa, para los artículos capturados a mano. Ocupa el hueco de la
            foto que no existe, que es el punto: un contenedor vacío se lee como que algo
@@ -238,24 +256,17 @@
         .cot-bolsa .b-asa { fill: none; stroke: currentColor; stroke-width: 1.6; stroke-linecap: round; }
         .cot-bolsa .b-brillo { fill: currentColor; opacity: .55; }
 
-        .cot-galeria-vacio { font-size: .76rem; color: var(--ink-soft, #64748b); line-height: 1.5; text-align: center; padding: .8rem .2rem; }
-
-        /* Fila resaltada al pasar por su tarjeta. Solo color de fondo: mover o escalar
-           una fila de la tabla recalcularía el ancho de doce columnas en cada pasada
-           del ratón, y la tabla daría tirones justo mientras se cotejan los artículos. */
-        .product-row.fila-resaltada > td { background: var(--brand-tint, #FDE7F4); }
-
+        /* En px, no en rem (ver arriba). En pantalla estrecha la tabla deja poco a la
+           vista y una columna de 14 rem pegada a la derecha se comería un tercio: se
+           queda en la miniatura, y el nombre completo sale al pasar el ratón. */
         @media (max-width: 1100px) {
-            /* La galería pasa arriba y en horizontal: en pantalla estrecha, una columna
-               lateral de 15rem deja la tabla sin sitio y obliga a desplazarse por todo. */
-            .cot-productos { grid-template-columns: minmax(0, 1fr); }
-            .cot-galeria { position: static; max-height: none; order: -1; }
-            .cot-galeria-lista { grid-auto-flow: column; grid-auto-columns: 11rem; overflow-x: auto; padding-bottom: .3rem; }
+            #product-table .col-articulo { width: 4.6rem; min-width: 4.6rem; max-width: 4.6rem; }
+            .cot-art { grid-template-columns: 3rem; }
+            .cot-art-tx, .cot-art-pista, .cot-th-ancho { display: none; }
+            .cot-th-corto { display: inline; }
         }
-        @media print { .cot-galeria { display: none !important; } }
         @media (prefers-reduced-motion: reduce) {
-            .cot-art { transition-duration: .01ms; }
-            .cot-art:hover { transform: none; }
+            .cot-art-img { transition-duration: .01ms; }
         }
     </style>
 <!-- Utilidades Tailwind compiladas: va al final del head, igual que la hoja que el CDN inyectaba. -->
@@ -329,17 +340,14 @@
                 </div>
             </section>
 
-            <!-- DETALLE DE PRODUCTOS + galería lateral.
-                 La tabla y la galería van en la MISMA rejilla, no en dos secciones
-                 apiladas: la galería es un espejo de las filas, y una que estuviera
-                 debajo obligaría a mirar arriba y abajo para cotejar cada artículo.
-
-                 En pantallas estrechas la rejilla colapsa a una columna y la galería
-                 pasa arriba, en una tira horizontal: ahí la tabla se recorre en
-                 horizontal y una columna lateral se quedaría fuera de la vista. -->
-            <section class="cot-productos mb-10" data-animate>
-                <div class="cot-tabla-col">
+            <!-- DETALLE DE PRODUCTOS.
+                 La foto de cada artículo es la última columna de la tabla, pegada a la
+                 derecha (ver «COLUMNA ARTÍCULO» en el CSS): vive en su propia fila, así
+                 que no puede desalinearse. Solo la tabla va dentro del contenedor que se
+                 desplaza en horizontal; el título y los botones se quedan quietos. -->
+            <section class="mb-10" data-animate>
                 <h2 class="text-2xl font-semibold text-gray-800 mb-6">DETALLE DE PRODUCTOS</h2>
+                <div class="cot-tabla-col">
                 <table id="product-table" class="w-full text-base border-collapse">
                     <thead class="bg-gray-100">
                         <tr>
@@ -357,10 +365,12 @@
                             <th class="col-iva">IVA<br>(16%)</th>
                             <th class="col-total-fila">Total<br>Fila</th>
                             <th class="no-print col-accion">Acción</th>
+                            <th class="no-print col-articulo"><span class="cot-th-ancho">Artículo</span><span class="cot-th-corto">Foto</span></th>
                         </tr>
                     </thead>
                     <tbody id="product-rows"></tbody>
                 </table>
+                </div><!-- /cot-tabla-col -->
                 <div class="flex flex-wrap gap-3 mt-6 no-print">
                     <button id="add-row" class="v-btn v-btn-primary">
                         <span class="w-5 h-5 block" data-icon="plus"></span>
@@ -375,14 +385,6 @@
                          que es donde le hace falta, y a quien ya la tiene no le estorba. -->
                     <button type="button" class="xg-abrir self-center" data-xg-abrir>¿Aún no tienes la extensión?</button>
                 </div>
-                </div><!-- /cot-tabla-col -->
-
-                <!-- Galería. La rellena el JS a partir de las filas: no hay markup por
-                     artículo escrito a mano, porque las filas nacen y mueren solas. -->
-                <aside class="cot-galeria no-print" id="cot-galeria" aria-labelledby="cot-galeria-tit">
-                    <h3 class="cot-galeria-tit" id="cot-galeria-tit">Artículos</h3>
-                    <div class="cot-galeria-lista" id="cot-galeria-lista"></div>
-                </aside>
             </section>
 
             <section class="grid grid-cols-1 md:grid-cols-2 gap-10 mb-10 observations-section">
@@ -785,11 +787,11 @@
             // un evento de formulario: añadir fila, eliminarla e importar desde JSON.
             Borrador.programar();
 
-            // La galería se cuelga del MISMO punto, por la misma razón: es el único sitio
-            // por el que pasan los cambios de la tabla vengan de donde vengan. Cuelga de
-            // aquí y no de cada operación por separado para que añadir mañana una forma
-            // nueva de meter artículos no obligue a acordarse de avisar también a la
-            // galería. Es barata: si nada cambió de identidad, no toca el DOM (ver `firma`).
+            // La columna de fotos se cuelga del MISMO punto, por la misma razón: es el
+            // único sitio por el que pasan los cambios de la tabla vengan de donde vengan.
+            // Cuelga de aquí y no de cada operación por separado para que añadir mañana
+            // una forma nueva de meter artículos no obligue a acordarse de avisarle
+            // también. Es barata: una celda que no cambió no se toca (ver `sincronizar`).
             if (typeof Galeria !== 'undefined') Galeria.sincronizar();
         }
 
@@ -816,6 +818,7 @@
                 <td class="border p-2 text-center no-print col-accion">
                     <button class="v-btn v-btn-danger v-btn-sm" onclick="removeRow(this)">Eliminar</button>
                 </td>
+                <td class="no-print col-articulo"></td>
             `;
         }
 
@@ -825,9 +828,10 @@
         }
 
         /* ═══════════════════════════════════════════════════════════════════════
-           GALERÍA LATERAL DE ARTÍCULOS
+           COLUMNA «ARTÍCULO» (antes, galería lateral)
            ═══════════════════════════════════════════════════════════════════════
-           Un espejo de las filas de la tabla, con dos estados por artículo:
+           Pinta en la última celda de cada fila la foto de su artículo, con dos
+           estados:
 
              CON FOTO   Los productos que llegan de la Bolsa ya traen `data-image-url`
                         en su fila (lo pone importarProductos). No hay que pedir nada:
@@ -838,10 +842,17 @@
                         foto que falló al cargar, y manda a la gente a recargar— sino que
                         se pinta una bolsa que dice, con su forma, "esto lo escribiste tú".
 
+           Una fila vacía, recién añadida, todavía no es un artículo: su celda se queda
+           en blanco. Si lo están TODAS, la primera explica qué va a salir ahí.
+
+           Cada celda es de su fila y no hay dos listas que casar por posición. La
+           galería de antes emparejaba la tarjeta i con la i-ésima fila CON DATOS, así
+           que una fila vacía a media tabla corría un lugar todas las fotos de debajo.
+
            ── SOBRE LA ANIMACIÓN DE LAS BOLSAS ─────────────────────────────────────
            Una sola línea de tiempo para TODAS las bolsas, no una por bolsa. Con doce
            artículos manuales serían doce `repeat:-1` independientes, cada uno con su
-           propio ciclo de vida que hay que recordar matar; en cuanto una tarjeta se
+           propio ciclo de vida que hay que recordar matar; en cuanto una celda se
            repinta, el tween anterior sigue vivo animando un nodo desconectado. Con una
            sola línea de tiempo hay UN objeto que matar y recrear, y el desfase entre
            bolsas se consigue con `stagger`, que además evita el efecto mecánico de
@@ -859,8 +870,8 @@
            un error que además no señala a la causa. Con `var`, la comprobación funciona
            como se lee. */
         var Galeria = (function () {
-            const lista = document.getElementById('cot-galeria-lista');
             let bucle = null;
+            let bolsasAnimadas = 0;
             let alVisibilidad = null;
 
             function reducido() {
@@ -892,62 +903,71 @@
                 '</svg>';
             }
 
-            /* Clave de identidad de una fila. Si cambia, la tarjeta se vuelve a pintar; si
-               no, se deja como está. Importa porque `calculateTotals` corre en CADA tecla:
-               reconstruir la galería entera en cada pulsación descargaría las imágenes otra
-               vez y reiniciaría las animaciones a media pasada. */
-            function firma(row) {
-                return [
-                    row.getAttribute('data-image-url') || '',
-                    (row.querySelector('.sku') || {}).value || '',
-                    (row.querySelector('.description') || {}).value || ''
-                ].join('␟');
+            function valor(row, sel) {
+                return ((row.querySelector(sel) || {}).value || '').trim();
             }
 
-            function tarjeta(row, i) {
-                const img = row.getAttribute('data-image-url') || '';
-                const sku = ((row.querySelector('.sku') || {}).value || '').trim();
-                const desc = ((row.querySelector('.description') || {}).value || '').trim();
+            /* Solo cuentan las filas con algo escrito o con foto. Pintarle una tarjeta
+               "sin descripción" a una fila en cuanto se pulsa "Añadir producto" es ruido. */
+            function tieneDatos(row) {
+                return !!(valor(row, '.sku') || valor(row, '.description') || row.getAttribute('data-image-url'));
+            }
 
+            /* El esqueleto de la tarjeta. El texto NO va aquí: lo escribe `rotular`. */
+            function tarjeta(img) {
                 const visual = img
                     /* `loading="lazy"` y `decoding="async"`: una bolsa de veinte artículos son
                        veinte peticiones a un CDN externo, y no deben competir con el guardado
                        de la cotización. Si la imagen no carga —enlace caducado, sin red—, la
-                       tarjeta cae a la bolsa en vez de dejar el icono roto del navegador. */
+                       celda cae a la bolsa en vez de dejar el icono roto del navegador. */
                     ? '<img src="' + esc(img) + '" alt="" loading="lazy" decoding="async" ' +
                       'onerror="this.closest(\'.cot-art-img\').innerHTML = window.__cotBolsaSVG || \'\'">'
                     : svgBolsa();
 
-                return '<div class="cot-art" data-cot-art="' + i + '">' +
+                return '<div class="cot-art">' +
                     '<div class="cot-art-img">' + visual + '</div>' +
                     '<div class="cot-art-tx">' +
-                        '<div class="cot-art-desc">' + esc(desc || 'Artículo sin descripción') + '</div>' +
-                        (sku ? '<div class="cot-art-sku">' + esc(sku) + '</div>' : '') +
+                        '<div class="cot-art-desc"></div>' +
+                        '<div class="cot-art-sku"></div>' +
                     '</div>' +
                 '</div>';
             }
 
-            function pintarVacio() {
-                lista.innerHTML = '<p class="cot-galeria-vacio">' +
-                    'Aquí verás los artículos de la cotización. Los que importes de la Bolsa ' +
-                    'llegan con su fotografía.</p>';
-                matarBucle();
+            /* El texto va aparte y con textContent: teclear en la descripción o en el
+               SKU cambia solo esas dos líneas, sin volver a pedir la foto ni reiniciar la
+               bolsa. */
+            function rotular(celda, row) {
+                const sku = valor(row, '.sku');
+                const desc = valor(row, '.description') || 'Artículo sin descripción';
+                const tarjetaEl = celda.firstElementChild;
+                const d = celda.querySelector('.cot-art-desc');
+                const s = celda.querySelector('.cot-art-sku');
+                if (d && d.textContent !== desc) d.textContent = desc;
+                if (s) {
+                    if (s.textContent !== sku) s.textContent = sku;
+                    s.hidden = !sku;
+                }
+                /* La descripción entera, al pasar el ratón: en pantalla estrecha solo
+                   queda la miniatura, y en ancha caben dos líneas de las ochenta letras
+                   que puede traer un artículo de Liverpool. */
+                const titulo = sku ? desc + ' · ' + sku : desc;
+                if (tarjetaEl && tarjetaEl.title !== titulo) tarjetaEl.title = titulo;
             }
 
             function matarBucle() {
                 if (bucle) { bucle.kill(); bucle = null; }
             }
 
-            /* Arranca (o rearranca) el latido de las bolsas visibles. */
+            /* Arranca (o rearranca) el latido de las bolsas de la tabla. */
             function animarBolsas() {
                 matarBucle();
-                if (!conGsap()) return;
-                const bolsas = lista.querySelectorAll('.cot-bolsa');
-                if (!bolsas.length) return;
+                const bolsas = productRowsContainer.querySelectorAll('.cot-bolsa');
+                bolsasAnimadas = bolsas.length;
+                if (!bolsas.length || !conGsap()) return;
 
-                const cuerpos = lista.querySelectorAll('.cot-bolsa .b-cuerpo-g');
-                const asas = lista.querySelectorAll('.cot-bolsa .b-asa-g');
-                const brillos = lista.querySelectorAll('.cot-bolsa .b-brillo');
+                const cuerpos = productRowsContainer.querySelectorAll('.cot-bolsa .b-cuerpo-g');
+                const asas = productRowsContainer.querySelectorAll('.cot-bolsa .b-asa-g');
+                const brillos = productRowsContainer.querySelectorAll('.cot-bolsa .b-brillo');
 
                 bucle = gsap.timeline({ repeat: -1, repeatDelay: 1.6, defaults: { force3D: true } });
 
@@ -973,72 +993,76 @@
                 bucle.to(brillos, { opacity: 0, duration: .3, ease: 'power1.in' }, '-=.35');
             }
 
-            let firmaAnterior = '';
-
             function sincronizar() {
-                if (!lista) return;
+                if (!productRowsContainer) return;
                 const filas = Array.prototype.slice.call(
                     productRowsContainer.querySelectorAll('.product-row'));
+                const hayArticulos = filas.some(tieneDatos);
+                const estrenadas = [];
+                let cambio = false;
 
-                // Solo cuentan las filas con algo escrito. Una fila recién añadida y vacía
-                // no es un artículo todavía, y pintarle una tarjeta "sin descripción" en
-                // cuanto se pulsa "Añadir producto" es ruido.
-                const conDatos = filas.filter(function (r) {
-                    return ((r.querySelector('.sku') || {}).value || '').trim() ||
-                           ((r.querySelector('.description') || {}).value || '').trim() ||
-                           r.getAttribute('data-image-url');
+                filas.forEach(function (row, i) {
+                    const celda = row.querySelector('td.col-articulo');
+                    if (!celda) return;
+                    const estado = tieneDatos(row) ? 'articulo'
+                        : (!hayArticulos && i === 0 ? 'pista' : 'vacia');
+                    const img = estado === 'articulo' ? (row.getAttribute('data-image-url') || '') : '';
+
+                    /* La misma foto (o la misma bolsa) que ya está pintada: solo el texto.
+                       Importa porque `calculateTotals` corre en CADA tecla, y rehacer la
+                       celda en cada pulsación volvería a pedir la imagen y reiniciaría la
+                       animación a media pasada. */
+                    if (celda.getAttribute('data-art') === estado && celda.getAttribute('data-art-img') === img) {
+                        if (estado === 'articulo') rotular(celda, row);
+                        return;
+                    }
+                    celda.setAttribute('data-art', estado);
+                    celda.setAttribute('data-art-img', img);
+                    cambio = true;
+
+                    if (estado === 'articulo') {
+                        celda.innerHTML = tarjeta(img);
+                        rotular(celda, row);
+                        estrenadas.push(celda.firstElementChild);
+                        /* Las fotos las sirve un CDN externo y pueden tardar: hasta que
+                           llegan, el hueco de 3 rem es un cuadro vacío idéntico al de una
+                           imagen rota. El brillo lo distingue. No hay nada que cerrar aquí:
+                           VentelFX.image se retira solo en `load`, en `error` —donde entra
+                           la bolsa— y por su propio tope. */
+                        const foto = celda.querySelector('.cot-art-img img');
+                        if (foto && window.VentelFX) VentelFX.image(foto);
+                    } else if (estado === 'pista') {
+                        celda.innerHTML = '<p class="cot-art-pista">Aquí verás cada artículo con su foto. ' +
+                            'Los que importes de la Bolsa llegan con ella.</p>';
+                    } else {
+                        celda.innerHTML = '';
+                    }
                 });
 
-                if (!conDatos.length) {
-                    if (firmaAnterior !== '∅') { firmaAnterior = '∅'; pintarVacio(); }
-                    return;
+                /* La línea de tiempo se rehace si cambió alguna celda o si cambió el número
+                   de bolsas por otra vía: una fila eliminada se lleva la suya y una foto que
+                   no carga deja una nueva (el `onerror`). */
+                if (cambio || productRowsContainer.querySelectorAll('.cot-bolsa').length !== bolsasAnimadas) {
+                    animarBolsas();
                 }
 
-                const firmaActual = conDatos.map(firma).join('␞');
-                if (firmaActual === firmaAnterior) return;   // nada cambió: ni se toca el DOM
-                firmaAnterior = firmaActual;
-
-                lista.innerHTML = conDatos.map(tarjeta).join('');
-                animarBolsas();
-
-                /* Las fotos las sirve un CDN externo y pueden tardar: hasta que llegan, el
-                   hueco de 3.2 rem es un cuadro gris idéntico al de una imagen rota. El
-                   brillo lo distingue. No hay nada que cerrar aquí: VentelFX.image se retira
-                   solo en `load`, en `error` —donde entra la bolsa— y por su propio tope. */
-                if (window.VentelFX) {
-                    lista.querySelectorAll('.cot-art-img img').forEach(function (im) {
-                        VentelFX.image(im);
-                    });
-                }
-
-                // Pasar por una tarjeta resalta su fila, y al revés. Es lo que convierte la
-                // galería en una ayuda para cotejar en vez de un adorno: se ve la foto, se
-                // sabe qué renglón de la tabla es.
-                lista.querySelectorAll('[data-cot-art]').forEach(function (card, i) {
-                    card.addEventListener('mouseenter', function () {
-                        const fila = conDatos[i];
-                        if (fila) fila.classList.add('fila-resaltada');
-                    });
-                    card.addEventListener('mouseleave', function () {
-                        const fila = conDatos[i];
-                        if (fila) fila.classList.remove('fila-resaltada');
-                    });
-                    card.addEventListener('click', function () {
-                        const fila = conDatos[i];
-                        if (!fila) return;
-                        const campo = fila.querySelector('.description') || fila.querySelector('.sku');
-                        if (campo) { campo.focus(); campo.select && campo.select(); }
-                    });
-                });
-
-                if (conGsap()) {
-                    gsap.from(lista.querySelectorAll('.cot-art'), {
-                        opacity: 0, y: 10, duration: .34, ease: 'power2.out', force3D: true,
-                        stagger: { amount: Math.min(.3, conDatos.length * .05) },
-                        clearProps: 'transform'
-                    });
+                // Entrada de lo recién pintado. Solo opacidad: moverla en vertical la
+                // descolocaría de su fila, que es justo lo que esta columna vino a evitar.
+                if (estrenadas.length && conGsap()) {
+                    gsap.from(estrenadas, { opacity: 0, duration: .3, ease: 'power2.out', clearProps: 'opacity' });
                 }
             }
+
+            /* Pulsar la foto lleva a la descripción de SU fila. Escucha delegada en el
+               <tbody>: las filas nacen y mueren solas, y así ninguna se queda sin oyente
+               ni hay un índice que pueda apuntar a la fila equivocada. */
+            productRowsContainer.addEventListener('click', function (e) {
+                const tarjetaEl = e.target && e.target.closest ? e.target.closest('.cot-art') : null;
+                if (!tarjetaEl) return;
+                const fila = tarjetaEl.closest('.product-row');
+                const campo = fila && (fila.querySelector('.description') || fila.querySelector('.sku'));
+                if (campo) { campo.focus(); if (campo.select) campo.select(); }
+            });
 
             /* El bucle se duerme con la pestaña. Es un repeat:-1 que puede quedarse
                corriendo toda la tarde sobre una cotización a medias. */

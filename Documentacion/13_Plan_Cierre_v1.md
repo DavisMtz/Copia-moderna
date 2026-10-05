@@ -1042,6 +1042,42 @@ y qué se dejó fuera a propósito**. Mismo formato que el registro del document
 
 <!-- Las entradas nuevas van arriba, con la más reciente primero. -->
 
+### 2026-10-04 — Cotización: la foto de cada artículo, en su propia fila (en pruebas)
+
+**Qué se cambió:**
+- **El pedido:** «que en la parte de la cotización se alinee la línea de cada producto con la parte donde se muestra la imagen, ya que en ese apartado parece que es un módulo aparte que se mueve independiente, valídalo primero».
+- **La validación, antes de tocar nada:** una sonda en Chrome headless con la pantalla montada (include de un nivel, sesión y `google.script.run` falsos) y 3, 8 y 16 artículos con foto y capturados a mano, a 1366 px, en cuatro posiciones de scroll. Tres causas, las tres medidas:
+  - **Pasos distintos:** cada tarjeta de la galería ocupaba 77,2 px con su hueco (67,6 + 9,6) y cada fila de la tabla 59. Con 8 artículos, la 1.ª foto quedaba 61 px por encima del centro de su fila y la 8.ª 66 px por debajo; con 16, la última 212 px.
+  - **Se movía sola:** la galería era `sticky` (`top: 1rem`), con `max-height: calc(100vh - 2rem)` y scroll propio. Cuando era más corta que la tabla (3 artículos) o la cortaba ese tope (16), se quedaba quieta mientras la tabla corría: con 16, a media tabla, la 1.ª foto estaba junto a la 4.ª fila, y al final de la página el desfase pasaba de 450 px.
+  - **Emparejaba por posición entre las filas con datos:** una fila vacía a media tabla corría un lugar todas las fotos de debajo.
+- **El arreglo (`cotizacion.html`, solo cliente):** la galería lateral desaparece y la foto pasa a ser la última columna de la tabla, «Artículo»: una celda del MISMO `<tr>`. La alineación la pone la tabla y no hay nada que sincronizar.
+  - La columna es `sticky` a la derecha del contenedor que desplaza la tabla en horizontal: la foto, con la descripción en dos líneas y el SKU, sigue a la vista al recorrer las columnas del precio, que era lo que la galería sí resolvía.
+  - El alto de la fila no cambia (59 px): miniatura de 3 rem (antes 3,2) con 5 px de relleno, e interlineado explícito en los textos. La tabla lleva `text-base`, que hereda un alto de línea fijo de 24 px, y con él la fila crecía.
+  - El borde izquierdo va como `box-shadow`: con `border-collapse` los bordes no acompañan a una celda pegajosa. La celda lleva fondo propio, también en el hover de la fila.
+  - El módulo `Galeria` pinta celda por celda. Cada una guarda su estado (`data-art`) y su foto (`data-art-img`): si solo cambió el texto, se reescriben dos líneas con `textContent` y la `<img>` no se vuelve a pedir (antes, cada tecla en el SKU o la descripción rehacía la galería entera).
+  - Se conservan la línea de tiempo única de las bolsas, el `onerror` que cae a la bolsa, el brillo de `VentelFX.image` y el clic que lleva a la descripción, ahora delegado en el `<tbody>` y sin índices. La entrada de lo recién pintado es solo opacidad: moverlo en vertical lo descolocaría de su fila.
+  - Fila vacía: celda en blanco. Cotización nueva, con todas vacías: la primera dice «Aquí verás cada artículo con su foto…», lo que antes decía la galería vacía.
+  - Hasta 1100 px: solo la miniatura (4,6 rem) y el encabezado dice «Foto»; el nombre entero, en el `title`. Antes la galería pasaba arriba, en una tira horizontal.
+  - De paso: solo la tabla va dentro del contenedor con scroll horizontal. El título «DETALLE DE PRODUCTOS» y los botones ya no se van de lado al desplazarla.
+- **Sonda guardada:** `scripts/laboratorio/cotizacion-articulos.mjs`, con su entrada en el README del laboratorio.
+
+**Qué se comprobó:**
+- **Alineación:** con 16 artículos, el centro de cada celda coincide con el de su fila (0 px) en las cuatro posiciones de scroll. Antes, de −61 a +212 px con la página arriba y hasta 459 px al bajar. Lo mismo con una fila vacía insertada a media tabla: cada celda con el SKU, la descripción y la foto de SU fila.
+- **Scroll horizontal (400 px y al final):** la columna sigue pegada al borde derecho y por encima de lo que pasa por debajo (`elementFromPoint` en las 9 celdas), sin bordes rezagados en las capturas.
+- **A la vista sin desplazar (1366 px):** 974 px de tabla y 9 columnas enteras, hasta «Desc. Adic.?». Antes, 934 px y 8, hasta «Precio c/Desc. Púb.».
+- **Impresión:** la columna no sale; se imprimen 13 columnas, igual que antes.
+- **Carbón:** la hoja y la columna siguen en papel claro (`.v-papel`): celda `#F4F7FA`, texto `#1B2330`.
+- **960 px:** solo la miniatura, encabezado «Foto», filas de 59 px.
+- **Con movimiento (GSAP vivo):** importar, teclear y eliminar deja todas las tarjetas visibles y las bolsas latiendo. Ningún error de JS en ningún escenario.
+- **Tecleo y clic:** teclear cambia el texto y el `title` con la misma `<img>`; el clic en la foto enfoca la descripción de su fila.
+- **La sonda entera (18 comprobaciones) en verde sobre la fuente y sobre `build/`.** `node scripts/sintaxis.js` sin errores; el build, sin `//` ni `/*` en ningún `<script>`; `npm test`, las 29 suites en verde.
+
+**Qué se dejó fuera a propósito:**
+- **Producción no se tocó** (sigue en la @139): el cambio está solo en pruebas.
+- **No se tocaron** los formatos (vista previa, consulta, CCL, correos) ni lo que se guarda: la celda no lleva campos y `collectQuoteData` lee por clase.
+- **Sin ver con sesión real:** la `/dev` pide iniciar sesión; que el creador lo mire con una bolsa importada.
+- A 1366 px la columna tapa lo que queda a su izquierda hasta desplazar, como lo tapaba la galería, pero con 40 px más de tabla a la vista.
+
 ### 2026-10-04 — Producción @139: el tema oscuro (carbón) revisado — pedido por el creador
 
 **Qué se cambió:**
