@@ -47,6 +47,13 @@ Son los guiones con que se midió todo lo que cuenta `Documentacion/15_Entorno_A
   - Se sirve con una ruta en el `doGet` del laboratorio: `if (exp === 'historial') return HtmlService.createHtmlOutputFromFile('ZZ_historial');`. Con `?reparar=reemplazar` usa `replace` en vez de `push`; con `?reparar=sync|micro|push`, prueba a reescribir la dirección dentro del aviso.
   - En la ventana de arriba (consola de Chrome): `window.__lab = []; addEventListener('message', (e) => { if (e.data && e.data.lab === 'f5-historial') __lab.push(e.data); });`. Volver a ponerlo después de cada recarga.
   - **La ventana del navegador tiene que estar visible** (`document.visibilityState`): oculta, el blanco no se pinta y los latidos se frenan.
+- `extension-e2e.mjs` (04/10/2026): la **extensión de Chrome** real, de punta a punta. Es el único de esta carpeta que no prueba el Portal: carga `Extencion para chrome/` en un Chrome headless aparte (`Extensions.loadUnpacked`), con su mundo aislado y todos sus content scripts, y abre fichas REALES de liverpool.com.mx guardadas en disco, servidas en su URL por intercepción de red.
+  - Liverpool contesta «Access Denied» a Chrome headless: por eso las páginas van guardadas (14, de invitado; la lista y cómo bajarlas están en la cabecera del guion). Durante la prueba nada sale a internet.
+  - La bolsa (`/tienda/cart`) la arma el guion con el formato real y un cliente de mentira, con nombre, dirección y teléfono: sirve para comprobar que la extensión NO los guarda.
+  - Recorre nueve escenarios de «Vende más» (3.0): el iPhone 16 con clic y llegada a la bolsa; el adaptador y la funda con el iPhone ya en la bolsa; la freidora (elección por calidad); la cafetera (el piso de calidad); la laptop; un dron (clase nueva); la página de la medición y el popup. Al final le pregunta a Chrome por avisos y errores de la extensión.
+  - 21 comprobaciones; sale con 1 si alguna falla. Deja `informe.json` y una captura por escenario.
+  - Uso: `node scripts/laboratorio/extension-e2e.mjs "Extencion para chrome" <scratchpad>/e2e-salida <scratchpad>/e2e-paginas`. La salida y las páginas van fuera del repo o se niega. Tarda unos 3 minutos: respeta los 20 s entre dos lecturas de la bolsa.
+  - Los artículos de Liverpool cambian: si una ficha guardada deja de existir, se cambia por otra de su tipo y se ajusta su escenario.
 
 ## Antes de usarlos
 

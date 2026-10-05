@@ -89,6 +89,25 @@ Resultado en los 10 .js de la extensión: 0 coincidencias
 lado. Lee el DOM de la página abierta, guarda en `chrome.storage.local` y abre una
 pestaña hacia Apps Script.
 
+> **Actualización (04/10/2026): esto describe la extensión 1.7 que se revisó, y la primera
+> frase ya no es cierta.** La tarjeta «Vende más» lee por su cuenta páginas de
+> `liverpool.com.mx` desde la propia ficha: la búsqueda del sitio desde la 2.7 y la bolsa
+> desde la 3.0.
+>
+> - **Qué es:** un `fetch` al mismo sitio, con la sesión que el asesor ya tiene abierta y solo
+>   para leer. Es el único de toda la extensión (`recomendador.js`, `pedirPagina`).
+> - **Qué sigue siendo cierto:** no envía nada a ningún servidor, propio ni ajeno. Lo que lee
+>   se queda en `chrome.storage.local` de ese navegador.
+> - **Qué guarda de la bolsa:** solo los artículos. Ni el cliente, ni su dirección, ni su
+>   teléfono (lo comprueba la prueba de punta a punta con una bolsa de mentira que sí los trae).
+> - **Qué más es nuevo:** la 3.0 cuenta, solo en ese navegador, qué recomendaciones se
+>   mostraron y cuáles se abrieron. Sin asesor ni cliente; se pausa y se borra desde el popup.
+> - **Cómo se apaga:** la propiedad de script `VC_BUSQUEDA_EN_VIVO = no` del Portal corta las
+>   dos lecturas para todos.
+>
+> El detalle, con sus límites, está en el documento 05, §10. Una revisión formal tendría que
+> volver a pasar esta sección; las conclusiones de abajo que dicen «cero red» son de la 1.7.
+
 Sobre «no modifica la página»: es cierto en el sentido que importa. El botón se crea
 con `document.createElement('button')` y se inserta arriba de «Comprar»
 (`cart-cotizar-button.js:238-270`). Vive en la memoria del navegador de esa persona.

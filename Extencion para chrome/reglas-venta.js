@@ -65,6 +65,8 @@
  *   sinSubidaDeModelo  → otro artículo no es «subir la versión» (otro perfume,
  *                        otro vestido): solo cuenta la capacidad de la misma ficha.
  *   variables          → datos propios de la clase que se leen del nombre: [[regex, 'Texto']].
+ *   subidaMismaVar     → la subida a otro artículo solo vale si nombra esa misma variable de la
+ *                        ficha (el mismo dron en un paquete mayor); sin ella, no hay subida.
  *   topePrecio         → el tope de precio de sus complementos, si el tipo no dice otro.
  *
  * El ORDEN de las clases importa: ante un empate gana la primera, y las más
@@ -77,11 +79,20 @@
  * traje de vestir, «Batería portátil» como laptop, «Reloj de pared» como reloj de
  * pulsera). De ahí `noEs`. Los 4 que quedan son discutibles, no errores.
  *
- * Hecho para Ventel · v3.1 · 04/10/2026
+ * Y la v4 (extensión 3.0, el mismo día), con lo que probó el documento 18:
+ *   · los cuatro errores que encontró (la mochila escolar como maleta, el filtro de agua como
+ *     purificador, el cargador de laptop como cargador de celular, el adaptador del Pencil como
+ *     hub de laptop);
+ *   · `calidad` y `bolsa`: los parámetros con que el núcleo 2.0 elige entre parecidos y usa la
+ *     bolsa del cliente como contexto;
+ *   · doce clases nuevas (de 56 a 68) que redactó un modelo a ciegas y se revisaron aquí contra
+ *     24 fichas reales y el buscador: cada cambio de la revisión lleva su caso y su fecha.
+ *
+ * Hecho para Ventel · v4 · 04/10/2026
  */
 
 var VENTEL_REGLAS = {
-  version: 3,
+  version: 4,
 
   // Subida a OTRO modelo (de «Artículos relacionados»): hasta un 25 % más caro,
   // un 35 % en ticket alto, donde los meses sin intereses lo suavizan. La subida
@@ -107,10 +118,12 @@ var VENTEL_REGLAS = {
   //   top           → solo entre los 5 primeros de su nivel, en el orden de Liverpool;
   //   topePrecio    → nunca uno que cueste más de un 25 % sobre el primero;
   //   margen        → y le tiene que ganar por un cuarto de estrella. Con menos, casi todos los
-  //                   cambios eran ruido (una opinión de 5 contra ninguna) o subían el precio.
-  // Con esto cambian 24 de 213: las que pasan a ofrecerse tienen en promedio 136 opiniones
-  // (las que dejan, 12) y cuestan un tercio menos. Sin `calidad`, gana siempre el primero.
-  calidad: { media: 4.2, peso: 5, bonoLiverpool: 0.15, castigoPatrocinado: 0.5, top: 5, topePrecio: 1.25, margen: 0.25 },
+  //                   cambios eran ruido (una opinión de 5 contra ninguna) o subían el precio;
+  //   piso          → lo que los clientes calificaron por debajo de esto (en promedio bayesiano,
+  //                   sin el bono) no se ofrece: un 2.5 con 8 opiniones, un 1.8 con 6. Un 1.0 con
+  //                   una sola opinión se queda en 3.67 y no cae: una opinión no prueba nada.
+  // Sin `calidad`, gana siempre el primero y no hay piso.
+  calidad: { media: 4.2, peso: 5, bonoLiverpool: 0.15, castigoPatrocinado: 0.5, top: 5, topePrecio: 1.25, margen: 0.25, piso: 3.3 },
 
   // La bolsa del cliente como contexto (núcleo 2.0, contextoConBolsa): solo cuenta lo que se
   // agregó en esta ventana de minutos. La bolsa no es el cliente de esta llamada: la real del
@@ -750,7 +763,8 @@ var VENTEL_REGLAS = {
       titulo: /^((set|juego) (de )?)?maletas?\b/,
       // Una mochila no es maleta aunque su miga sea «Mochilas y maletas deportivas»: a la
       // «Mochila escolar Phase Small para niño» se le ofrecía el candado TSA (04/10/2026).
-      noEs: /^mochilas?\b/,
+      // La de viaje sí puede serlo, mientras no sea escolar ni de niño.
+      noEs: /^mochilas?\b(?!.*\b(viaje|cabina|equipaje)\b)|^mochilas?\b.*\b(escolar(es)?|infantil(es)?|nin[oa]s?|kinder|preescolar|primaria)\b/,
       complementos: [
         { tipo: 'candado', etiqueta: 'Candado', peso: 0.60, palabras: /^candado\b/, buscar: 'candado para maleta' },
         { tipo: 'organizador', etiqueta: 'Organizador', peso: 0.50, palabras: /^((set|juego) (de )?)?(organizadores?|cubos?|bolsas? organizadoras?)\b/, buscar: 'organizador para maleta' },
@@ -765,7 +779,9 @@ var VENTEL_REGLAS = {
       migas: /mochilas?( escolares)?$|escolares/,
       producto: /mochila/,
       titulo: /^mochila\b(?! (para|con) (laptop|portalaptop))/,
-      noEs: /^mochilas? (para|con) (laptop|portalaptop|camara)|^mochilas? (de hidratacion|antirrobo|ejecutiva|portabebe)|panalera|hidratacion/,
+      // Las que no van a la escuela: la de viaje, la de senderismo y la del dron, que desde la v4 se
+      // recomiendan en otras fichas (a la «Mochila para drone» le tocaban lonchera y lapicera).
+      noEs: /^mochilas? (para|con) (laptop|portalaptop|camara|dron(e|es)?|viaje)\b|^mochilas? de (viaje|cabina|hidratacion|senderismo|campismo|camping|montana|montanismo|trekking|excursion|alpinismo)\b|^mochilas? (antirrobo|ejecutiva|porta ?bebe|tactica|militar)\b|panalera|hidratacion/,
       complementos: [
         { tipo: 'lonchera', etiqueta: 'Lonchera', peso: 0.70, palabras: /^lonchera\b/, topePrecio: 0.8, buscar: 'lonchera térmica' },
         { tipo: 'lapicera', etiqueta: 'Lapicera', peso: 0.55, palabras: /^(lapicera|estuche escolar|cosmetiquera)\b/, topePrecio: 0.5, buscar: 'lapicera' },
@@ -1003,11 +1019,14 @@ var VENTEL_REGLAS = {
 
     // =========================================================================
     // Juguetes y pasatiempos
-    // Estas doce clases (v4) las redactó un modelo a ciegas y se validaron contra Liverpool: 24 de
-    // 24 fichas reales bien clasificadas, ninguna ficha robada a otra clase y cada plantilla de
-    // búsqueda probada en el buscador (documento 18, §6). Revisadas el 04/10/2026: del LEGO se
-    // quitaron las minifiguras, la base y el llavero (Liverpool los nombra distinto o no los tiene).
-    // En estas categorías «Complementa con» casi no ayuda (trae relleno): manda la búsqueda.
+    // Estas doce clases (v4) las redactó un modelo a ciegas (documento 18, §6) y se revisaron aquí
+    // el 04/10/2026 contra Liverpool: las 24 fichas reales caen en su clase, ninguna ficha se le
+    // roba a otra, y las 54 búsquedas que arman traen al menos 3 de 10 resultados del tipo buscado.
+    // La revisión miró además QUÉ recomendaban, y de ahí sale cada nota con fecha de abajo (al
+    // dron le tocaba la batería de una cámara; a la guitarra clásica, la funda de la eléctrica).
+    // Del LEGO se quitaron las minifiguras, la base y el llavero: Liverpool los nombra distinto o
+    // no los tiene. En estas categorías «Complementa con» casi no ayuda (trae relleno): manda la
+    // búsqueda. Las cifras, en Documentacion/anexos-18/implementacion-3.0/resultados.md.
     // =========================================================================
     {
       id: 'muneca', nombre: 'Muñecas', sinSubidaDeModelo: true,
@@ -1050,7 +1069,8 @@ var VENTEL_REGLAS = {
       migas: /^juegos? de (mesa|cartas|tablero|salon|destreza|estrategia)\b|^juegos (familiares|clasicos)$/,
       producto: /^juegos? de (mesa|cartas|tablero|destreza|estrategia)\b/,
       titulo: /^juegos? de (mesa|cartas|tablero|destreza|estrategia|preguntas|palabras|domino|ajedrez|loteria|damas|salon|habilidad|memoria|mimica)\b(?!.*\bexpansion\b)|^(ajedrez|tablero de (ajedrez|damas)|domino|loteria|turista|monopoly|uno|jenga|scrabble|maraton|rummy|rummikub|clue|twister|pictionary|adivina quien|serpientes y escaleras|damas chinas|parchis|backgammon|basta|dixit|catan|dobble|operando|batalla naval|conecta 4|cuatro en linea|risk|stratego|jumanji|exploding kittens|carcassonne)\b(?!.*\bexpansion\b)/,
-      noEs: /^(rompecabezas|puzzles?|puzle|barajas?|naipes)\b/,
+      // El «Juego de mesa y sillas para jardín» es un mueble, no un juego (04/10/2026).
+      noEs: /^(rompecabezas|puzzles?|puzle|barajas?|naipes)\b|^juegos? de mesa (y|con) (\d+ )?(sillas?|bancas?|bancos?|taburetes?|sombrilla)\b|^juegos? de mesa\b.*\b(sillas|bancas|comedor|sombrilla)\b|^juegos? de mesa (de|para) (jardin|exterior|terraza|patio|centro|cafe|comedor|bar)\b/,
       variables: {
         juego: [[/catan/, 'Catan'], [/carcassonne/, 'Carcassonne'], [/dixit/, 'Dixit'], [/aventureros al tren|ticket to ride/, 'Aventureros al Tren'], [/exploding kittens/, 'Exploding Kittens'], [/unstable unicorns/, 'Unstable Unicorns'], [/munchkin/, 'Munchkin'], [/king of tokyo/, 'King of Tokyo'], [/wingspan/, 'Wingspan'], [/dominion/, 'Dominion']]
       },
@@ -1161,7 +1181,9 @@ var VENTEL_REGLAS = {
       ]
     },
     {
-      id: 'dron', nombre: 'Drones', servicio: true,
+      // «Subir de versión» es el mismo modelo en un paquete mayor (Fly More Combo), no otro modelo: al Mini 5 Pro
+      // se le ofrecía un Mini 4 Pro con más accesorios, que es la generación anterior (04/10/2026).
+      id: 'dron', nombre: 'Drones', servicio: true, subidaMismaVar: 'linea',
       migas: /^dron(es|e)?\b(?!.*\b(accesorios|refacciones|baterias|helices)\b)/,
       producto: /^(dron(es|e)?|cuadricopteros?)\b/,
       titulo: /^(dron(es|e)?|cuadricopteros?|cuadracopteros?|quadcopters?)\b|^dji\b(?! (baterias?|helices|cargador|mochila|osmo|pocket|action|mic|rc|goggles|lentes|ronin|filtros?|estuche|hub|control)\b)(?=.*\b(dron(es|e)?|mini|air|avata|mavic|neo|flip)\b)/,
@@ -1184,8 +1206,9 @@ var VENTEL_REGLAS = {
         // Con seña de serlo (mAh, USB…): Liverpool llama «Batería portátil 9967b002aa» a la batería de
         // una cámara Canon, y le tocaba al DJI Lito X1 (04/10/2026).
         { tipo: 'powerBank', etiqueta: 'Power bank', peso: 0.35, palabras: /^(power ?banks?|baterias? (portatil(es)?|externas?)|cargador(es)? portatil(es)?|bancos? de (energia|bateria|carga))\b/, requiere: /mah\b|power ?bank|\busb\b|carga rapida|magsafe|inalambric/, excluye: /dji|\bdron|intelligent|flight|vuelo/, si: /^(?!.*\b(juguete|infantil|para nin[oa]s|mini dron|syma|paw patrol|spider|hot wheels)\b)/, topePrecio: 0.3, buscar: 'power bank' },
-        // Liverpool lo liga al dron: baterías y control cargan por USB-C y la caja no siempre trae cargador.
-        { tipo: 'cargadorPared', etiqueta: 'Cargador de pared', peso: 0.30, palabras: /^(cargador|adaptador)(es)?( de pared| de corriente| pared| usb)?\b/, requiere: /pared|usb|tipo c|corriente|\d+ ?w\b/, excluye: /pilas|\baaa?\b|\bauto\b|carro|coche|inalambrico|laptop|solar|power ?bank|mah\b/, si: /^(?!.*\b(juguete|infantil|para nin[oa]s|mini dron|syma|paw patrol|spider|hot wheels)\b)/, buscar: 'cargador de pared USB' },
+        // Baterías y control cargan por USB-C y la caja no siempre trae cargador. Tiene que decir USB:
+        // el «Cargador pared» que Liverpool liga al DJI es el de una cámara Sony (04/10/2026).
+        { tipo: 'cargadorPared', etiqueta: 'Cargador de pared', peso: 0.30, palabras: /^(cargador|adaptador)(es)?( de pared| de corriente| pared| usb)?\b/, requiere: /\busb\b|tipo c/, excluye: /pilas|\baaa?\b|\bauto\b|carro|coche|inalambrico|laptop|solar|power ?bank|mah\b|camara|gopro/, si: /^(?!.*\b(juguete|infantil|para nin[oa]s|mini dron|syma|paw patrol|spider|hot wheels)\b)/, buscar: 'cargador de pared USB' },
         // Los de juguete usan pilas AA en el control.
         { tipo: 'pilas', etiqueta: 'Pilas', peso: 0.30, palabras: /^((paquete|pack|set|blister) de (\d+ )?)?pilas?\b/, requiere: /\baaa?\b|alcalinas?|recargables?/, si: /juguete|para nin[oa]s|infantil|mini dron|syma|paw patrol|spider|hot wheels/, buscar: 'pilas AA' }
       ]
@@ -1221,8 +1244,9 @@ var VENTEL_REGLAS = {
       titulo: /^((set|juego|paquete) de (\d+ )?)?(lamparas?|candil(es)?|plafon(es)?|arbotantes?)\b/,
       noEs: /^((set|juego|paquete) de (\d+ )?)?lamparas?\b.*\b(para (bicicleta|bici|auto|carro|coche|moto|acampar|campismo|camping|unas|gel|acuario|pecera)|de (mano|emergencia|cabeza|minero|unas|bolsillo|campismo|seguridad|trabajo)|solar(es)?|uv|antimosquitos|mata ?mosquitos|insecticida|tactica|aro de luz)\b|^lamparas? (de )?aro\b/,
       complementos: [
-        // Muchas se venden sin foco; si no es LED integrada, el foco es obligado.
-        { tipo: 'foco', etiqueta: 'Focos', peso: 0.70, palabras: /^((set|paquete|kit|pack|juego) de (\d+ )?)?focos?\b/, excluye: /\bauto\b|\bmoto\b|\bh[47]\b|faro|proyector|escenario/, si: /^(?!.*\bled\b)/, buscar: 'foco LED' },
+        // Muchas se venden sin foco; si no es LED integrada, el foco es obligado. El de rosca común:
+        // el foco «vela» (base delgada), el GU10 y el tubo no entran en una lámpara de pie (04/10/2026).
+        { tipo: 'foco', etiqueta: 'Focos', peso: 0.70, palabras: /^((set|paquete|kit|pack|juego) de (\d+ )?)?focos?\b/, excluye: /\bauto\b|\bmoto\b|\bh[47]\b|faro|proyector|escenario|\bvela\b|\be1[24]\b|gu ?10|mr ?16|\btubos?\b/, si: /^(?!.*\bled\b)/, buscar: 'foco LED' },
         // Con un contacto inteligente se prende y apaga desde el celular o por horario.
         { tipo: 'contactoInteligente', etiqueta: 'Contacto inteligente', peso: 0.35, palabras: /^((set|kit|paquete|pack)( de)?( \d+)? )?(contactos?|enchufes?|clavijas?|tomacorrientes?|toma ?corrientes?) (inteligentes?|wi-?fi|smart)\b|^smart ?plugs?\b/, si: /^(?!.*\b(inteligente|wi-?fi|smart|alexa|bluetooth|recargable|pilas|techo|candil|plafon|arbotante|colgante)\b)/, buscar: 'contacto inteligente' },
         // Las de pie y de buró casi nunca quedan junto al contacto.
@@ -1261,8 +1285,9 @@ var VENTEL_REGLAS = {
       titulo: /^(computadora|pc)s?\b(?=.*\b(escritorio|all[ -]?in[ -]?one|aio|todo en uno|desktop|gamer|torre|cpu)\b)|^(all[ -]?in[ -]?one|aio|imac|desktop|mini ?pc|cpu)\b|^mac (mini|studio|pro)\b/,
       noEs: /^(computadoras?|pcs?)\b.*\b(portatil|laptop|notebook|2 en 1|de juguete|infantil|didactica|educativa|para nin[oa]s)\b|^(laptops?|notebooks?|chromebooks?|macbooks?|tablets?|ipad)\b|^cpus? (coolers?|enfriador|disipador|ventilador)\b/,
       complementos: [
-        // Una torre o un mini PC no traen pantalla: el monitor es lo primero.
-        { tipo: 'monitor', etiqueta: 'Monitor', peso: 0.85, palabras: /^monitor(es)?\b/, excluye: /bebe|presion|arterial|glucosa|cardiac|signos|ritmo|de estudio/, si: /^(?!.*\b(all[ -]?in[ -]?one|aio|todo en uno|imac|monitor|pantalla|pulgadas|pulg|tactil|touch)\b)(?!.*\d ?("|in\b))/, buscar: 'monitor para computadora' },
+        // Una torre o un mini PC no traen pantalla: el monitor es lo primero. El «Monitor portátil»
+        // (16 pulgadas, por USB-C) es la segunda pantalla de una laptop, no la de un escritorio (04/10/2026).
+        { tipo: 'monitor', etiqueta: 'Monitor', peso: 0.85, palabras: /^monitor(es)?\b/, excluye: /bebe|presion|arterial|glucosa|cardiac|signos|ritmo|de estudio|portatil/, si: /^(?!.*\b(all[ -]?in[ -]?one|aio|todo en uno|imac|monitor|pantalla|pulgadas|pulg|tactil|touch)\b)(?!.*\d ?("|in\b))/, buscar: 'monitor para computadora' },
         // El no break la protege de apagones y picos de luz, que queman fuentes y discos.
         { tipo: 'noBreak', etiqueta: 'No break / regulador', peso: 0.55, palabras: /^(no ?-?break|ups|regulador(es)?( de voltaje)?|supresor(es)?( de picos)?)\b/, excluye: /\bgas\b|presion|agua|temperatura/, buscar: 'no break' },
         // El kit de la caja es básico; uno inalámbrico es mejora barata y natural.

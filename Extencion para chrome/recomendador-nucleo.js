@@ -32,10 +32,21 @@
  *   6. LA FICHA DE UN ACCESORIO NO ES LA DEL EQUIPO (2.9). Una mica en
  *      «Celulares» no lleva Liverpool Care ni otra mica, y sus búsquedas van con
  *      el modelo del equipo que dice su nombre, no con su propia clave.
+ *   7. LAS ESTRELLAS DESEMPATAN, NO DECIDEN (3.0). El orden de arriba no cambia:
+ *      entre los cinco primeros del mismo nivel puede ganar otro con opiniones,
+ *      mejor por un margen y sin costar un 25 % más (elegirPorCalidad). Las
+ *      estrellas no dicen si encaja: sin esos límites salían unas tazas
+ *      infantiles para una cafetera. Y lo que los clientes calificaron mal, con
+ *      opiniones suficientes, no se ofrece (malCalificado).
+ *   8. LA BOLSA ES CONTEXTO, NO VERDAD (3.0). Solo cuenta lo agregado en los
+ *      últimos minutos (reglas.bolsa.ventanaMin): la bolsa real del 04/10/2026
+ *      tenía artículos de hace 56 y 61 horas. Con el equipo en la bolsa, la ficha
+ *      de su accesorio adopta ese equipo (contextoConBolsa) solo si el accesorio
+ *      le queda; y lo que ya va en la bolsa no se vuelve a ofrecer.
  *
  * Expone `VentelVM` en el global (el mundo aislado de la extensión, o el
  * contexto de la prueba).
- * Hecho para Ventel · v1.4 · 04/10/2026
+ * Hecho para Ventel · v2.0 · 04/10/2026
  */
 (function (raiz) {
   'use strict';
@@ -510,6 +521,7 @@
     if (!ctx.clase) return out;
     var titulo = norm(ctx.ficha.nombre);
     var enBolsa = ctx.enBolsa || null;
+    var q = (reglas && reglas.calidad) || null;
     (listas || []).forEach(function (lista, nLista) {
       (lista.items || []).forEach(function (it) {
         if (!it || !it.id || !it.nombre || it.id === ctx.ficha.id) return;
@@ -517,6 +529,10 @@
         // Lo agotado no se ofrece: `online` es false cuando la búsqueda dice dónde hay
         // existencia y la tienda en línea no está (lector-liverpool.js, desde la 3.0).
         if (it.agotado || it.online === false) return;
+        // Ni lo que los clientes ya calificaron mal: en la cafetera de cápsulas, el primer
+        // complemento era un espumador de 2.5 estrellas con 8 opiniones (04/10/2026). Al no
+        // contar, su tipo queda libre para la búsqueda o para el botón.
+        if (malCalificado(it, q)) return;
         // Lo que el cliente ya lleva en la bolsa no se le vuelve a ofrecer.
         if (enBolsa && enBolsa.ids[it.id]) return;
         var tipo = tipoDe(it, ctx.clase);
@@ -558,24 +574,40 @@
   // Calidad: entre los parecidos, el que tiene respaldo de otros clientes (2.0)
   // ===========================================================================
 
-  /** Cuántas opiniones tiene (0 si no se sabe). */
+  /** Cuántas opiniones tiene (0 si no se sabe, o si vienen sin su calificación). */
   function opiniones(c) {
-    return typeof c.nOp === 'number' && c.nOp > 0 ? c.nOp : 0;
+    return typeof c.nOp === 'number' && c.nOp > 0 && typeof c.cal === 'number' && isFinite(c.cal) ? c.nOp : 0;
   }
 
   /**
-   * La calificación de un candidato, como promedio bayesiano: sus estrellas pesan
-   * según cuántas opiniones tiene (un 5.0 con una opinión no le gana a un 4.8 con
-   * 300). Suma si lo vende Liverpool y resta si es un resultado patrocinado.
-   * `q` son los parámetros de `reglas.calidad`.
+   * Sus estrellas como promedio bayesiano: pesan según cuántas opiniones tiene (un
+   * 5.0 con una opinión no le gana a un 4.8 con 300, y un 1.0 con una opinión no
+   * prueba nada). `q` son los parámetros de `reglas.calidad`.
+   */
+  function promedioBayes(c, q) {
+    var n = opiniones(c);
+    var a = n ? Math.max(0, Math.min(5, c.cal)) : 0;
+    return (q.peso * q.media + a * n) / (q.peso + n);
+  }
+
+  /**
+   * La calificación de un candidato para compararlo con otro: su promedio bayesiano,
+   * más si lo vende Liverpool y menos si es un resultado patrocinado.
    */
   function calidad(c, q) {
-    var n = opiniones(c);
-    var a = n && typeof c.cal === 'number' ? Math.max(0, Math.min(5, c.cal)) : 0;
-    var p = (q.peso * q.media + a * n) / (q.peso + n);
+    var p = promedioBayes(c, q);
     if (c.mkp === false) p += q.bonoLiverpool || 0;
     if (c.patroc === true) p -= q.castigoPatrocinado || 0;
     return p;
+  }
+
+  /**
+   * ¿Lo calificaron mal, y con opiniones suficientes para creerlo? Con `piso` 3.3
+   * cae un 2.5 con 8 opiniones o un 1.8 con 6; un 1.0 con una sola opinión no, ni
+   * un 3.5 con 44. Aquí no cuenta quién lo vende: es lo que dijeron los clientes.
+   */
+  function malCalificado(c, q) {
+    return !!(q && q.piso && opiniones(c) && promedioBayes(c, q) < q.piso);
   }
 
   /** En el par de un aparato (la secadora de una lavadora), a cuántos kilos queda del artículo. */
@@ -795,11 +827,20 @@
     var marca = norm(ctx.ficha.marca);
     var nombre = norm(ctx.ficha.nombre);
     var sustantivo = nombre.split(' ')[0];
+    // Donde la clase lo pide (`subidaMismaVar`), «subir» es el MISMO modelo en un paquete mayor: al
+    // DJI Mini 5 Pro se le ofrecía un Mini 4 Pro con más accesorios, que es la generación anterior
+    // (prueba de punta a punta del 04/10/2026). Sin saber el modelo de la ficha, no hay subida.
+    var misma = '';
+    if (ctx.clase && ctx.clase.subidaMismaVar) {
+      misma = norm((ctx.vars || {})[ctx.clase.subidaMismaVar] || '');
+      if (!misma) return null;
+    }
     var cands = relacionados.filter(function (r) {
       if (!r || typeof r.precio !== 'number' || r.id === ctx.ficha.id) return false;
       if (!(r.precio > base * 1.02 && r.precio <= base * (1 + tope))) return false;
       if (marca && norm(r.marca) !== marca) return false;
       if (norm(r.nombre) === nombre) return false;
+      if (misma && (' ' + norm(r.nombre) + ' ').indexOf(' ' + misma + ' ') === -1) return false;
       if (ctx.clase && ctx.clase.titulo && !ctx.clase.titulo.test(norm(r.nombre))) return false;
       // Sin clase, lo único que dice que es «el mismo artículo en más versión» es que su nombre
       // abra con el mismo sustantivo: al «Adaptador de corriente» de Apple se le ofrecía un
@@ -1076,7 +1117,7 @@
     contexto: contexto, precioBase: precioBase, varianteElegida: varianteElegida,
     esSustituto: esSustituto, compatibilidad: compatibilidad, tipoDe: tipoDe,
     candidatos: candidatos, mejorPorTipo: mejorPorTipo, elegirCruzada: elegirCruzada,
-    calidad: calidad, elegirPorCalidad: elegirPorCalidad,
+    calidad: calidad, promedioBayes: promedioBayes, malCalificado: malCalificado, elegirPorCalidad: elegirPorCalidad,
     tiposNaturales: tiposNaturales, consultaDe: consultaDe, planDeBusquedas: planDeBusquedas,
     sugerirBusquedas: sugerirBusquedas,
     maxMsi: maxMsi, subidaCapacidad: subidaCapacidad, subidaModelo: subidaModelo,

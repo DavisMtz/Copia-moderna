@@ -10,6 +10,15 @@ Esto **no es la extensión** ni se carga en ella. Es lo que se usó el 04/10/202
 | `borrador-ia.js` / `borrador-ia-v2.js` | Las 12 clases que redactó un modelo a ciegas, y su versión tras una ronda de corrección con datos reales. **Sin revisión humana**: no copiarlas tal cual a `reglas-venta.js`. |
 | `resultados.md` | Todas las cifras medidas, en bruto. |
 
+**Lo que vino después de la investigación** (la extensión 3.0, el mismo día) tiene su carpeta:
+
+| Carpeta | Qué es |
+|---|---|
+| `implementacion-3.0/` | El laboratorio con que se midió la 3.0 contra la 2.9, sus cifras y las pruebas de que las pruebas muerden. |
+| `evaluacion-humana/` | La hoja a ciegas de la fase B, su clave y el guion que calcula el resultado. **Lista, sin hacer.** |
+
+Las doce clases del borrador ya están en `reglas-venta.js` (v4), **revisadas**: la versión buena es la de ahí, no la de `borrador-ia-v2.js`.
+
 ## Cómo se corrió
 
 1. **Abrir una pestaña** en `https://www.liverpool.com.mx/robots.txt`. No ejecuta los scripts del sitio; una pestaña de ficha se colgó a la media hora.

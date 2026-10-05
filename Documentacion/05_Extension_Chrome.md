@@ -3,8 +3,13 @@
 Extensión Manifest V3 que se instala en el navegador del asesor. Lee `liverpool.com.mx` y
 deja los datos dentro del sistema de cotizaciones sin teclear nada.
 
-**Versión declarada:** 1.7 · **Toda la extracción es local**: no manda nada a ningún
-servidor propio.
+**Versión declarada:** 3.0 (04/10/2026) · **Toda la extracción es local**: no manda nada a
+ningún servidor propio.
+
+> **Cómo leer este documento.** Las secciones 1 a 9 describen la extensión hasta la 1.7
+> (agosto de 2026) y siguen valiendo para sus cinco funciones. Lo que vino después —la tarjeta
+> «Vende más con este artículo», de la 2.6 a la 3.0— está en la **§10**, con el manifiesto
+> actual y lo que cambió en seguridad.
 
 ---
 
@@ -206,11 +211,130 @@ en el comentario de cabecera, y es lo que permite saber qué cambió y cuándo.
 
 - **Nada sale hacia fuera.** No hay `fetch` a servidores propios. La extracción es local y el
   único destino de los datos es la webapp del propio sistema, por `chrome.storage.local`.
+  - **Matiz desde la 2.7:** «Vende más» sí *lee* por su cuenta páginas de `liverpool.com.mx`
+    desde la ficha (la búsqueda del sitio y, desde la 3.0, la bolsa). Es lectura del mismo
+    sitio con la misma sesión; no envía nada. Ver §10.
 - **El puente no habla primero** (ver §3).
 - **El enlace del artículo acaba en un `src` de iframe** dentro de la pantalla de revisión.
   Quien valida eso es el **servidor** (`REV_HOSTS_ARTICULO` en `Revision.gs`), comparando el
   host exacto. La extensión no es la última línea de defensa, y no debe serlo.
 - El popup no pide credenciales ni las almacena. Lo único que guarda es la URL del sistema.
+
+---
+
+## 10. «Vende más con este artículo» (de la 2.6 a la 3.0)
+
+Una tarjeta que la extensión pinta en cada ficha de Liverpool, debajo de «Agregar a mi bolsa».
+Le dice al asesor qué más ofrecer en esa llamada, en tres bloques:
+
+- **Venta incremental:** la misma ficha en más capacidad, o el modelo siguiente.
+- **Venta cruzada:** hasta tres complementos que sí le quedan (uno por tipo), con su precio y,
+  desde la 3.0, su calificación en Liverpool.
+- **Promoción de hoy:** la de la categoría de la ficha y la más fuerte del Monitor.
+
+El porqué de cada regla está en los documentos **17** (las reglas y el corpus) y **18** (la
+investigación de la 3.0 y, en su «Estado», lo que se implementó y lo que se midió).
+
+### 10.1 Las piezas
+
+Son content scripts de `https://*.liverpool.com.mx/tienda/*`, en este orden. Viven en el mundo
+aislado de la extensión: la página no los ve.
+
+| Archivo | Qué hace |
+| --- | --- |
+| `product-inspector.js` | Lee la ficha (la misma función del Inspector de artículo). |
+| `reglas-venta.js` | La base de reglas (v4): 68 clases de artículo y 349 tipos de complemento. Solo datos. |
+| `recomendador-nucleo.js` | Todas las decisiones (2.0). Sin DOM ni `chrome.*`: se prueba en Node. |
+| `lector-liverpool.js` | Lee del *flight data* lo que la tarjeta necesita: los carruseles con su calificación, los resultados de una búsqueda y los artículos de la bolsa. |
+| `buscador-liverpool.js` | La búsqueda en el sitio, con sus límites y su caché. |
+| `bolsa-liverpool.js` | La lectura de la bolsa, con sus límites y su caché. |
+| `medicion-local.js` | Los contadores de la medición local. |
+| `vendor/gsap.min.js` | GSAP 3.15.0, para la entrada de la tarjeta. |
+| `recomendador.js` | Lo que toca la página: lee, pide, pinta y anota. |
+
+Aparte: `fondo.js` y `campana-puente.js` traen las promociones del Portal; `medicion.html`
+(con `medicion.js` y `medicion.css`) enseña la medición, y se abre desde el popup
+(`popup-medicion.js`).
+
+El manifiesto sigue pidiendo lo mismo que desde la 2.6: `activeTab`, `scripting` y `storage`, y
+como sitios `liverpool.com.mx` y `script.google.com` (este último, para comprobar que las
+promociones vienen del Portal). **La 3.0 no añadió ningún permiso.**
+
+### 10.2 Lo nuevo de la 3.0
+
+| Qué | Cómo se nota |
+| --- | --- |
+| **El mejor candidato, no el primero** | Entre los parecidos gana el que tiene respaldo de otros clientes, dentro de límites: los 5 primeros de Liverpool, sin costar un 25 % más y ganando por un cuarto de estrella. Lo que los clientes calificaron mal no se ofrece. La tarjeta enseña «★ 4.8 · 371 opiniones» o «Marketplace». |
+| **La bolsa como contexto** | En la ficha de un accesorio, si el equipo se agregó a la bolsa en los últimos 90 minutos, la tarjeta recomienda para ese equipo («Para iPhone 16, que ya va en la bolsa»). Y lo que ya va en la bolsa no se vuelve a ofrecer. |
+| **Doce categorías nuevas** | Muñecas, bloques, juegos de mesa, carros de control remoto, guitarras, casas de campaña, scooters, drones, ventiladores, lámparas, termos y computadoras de escritorio. |
+| **Medición local** | Cuenta qué se mostró, qué se abrió y qué llegó a la bolsa. Solo en ese navegador (§10.4). |
+| **Cuatro errores de la 2.9** | La mochila escolar ya no es maleta, el filtro de agua no es purificador, el cargador de laptop no es de celular y el adaptador del Pencil no es hub. |
+
+### 10.3 Lo que lee de Liverpool por su cuenta
+
+Hasta la 2.6 la extensión solo leía la página abierta. Ahora pide dos páginas más, **siempre al
+mismo sitio, con la sesión del asesor y solo para leer**:
+
+| Qué pide | Cuándo | Límites |
+| --- | --- | --- |
+| La búsqueda del sitio (`/tienda?s=…`), desde la 2.7 | Cuando a los carruseles de la ficha les falta un tipo de complemento | 2 por ficha, 4 por minuto, 40 por hora. Lo encontrado se guarda 24 horas. |
+| La bolsa (`/tienda/cart`), desde la 3.0 | Solo si la cabecera dice que la bolsa tiene algo, y cuando esa cuenta cambia | 20 segundos entre lecturas, 12 por hora. Lo leído vale 15 minutos para esa sesión. |
+
+- **Freno:** si Liverpool contesta con un error o con «Access Denied», se dejan de pedir las dos
+  cosas durante 60 minutos.
+- **Con la pestaña oculta no se pide nada.**
+- **Interruptor:** la propiedad de script `VC_BUSQUEDA_EN_VIVO = no` del Portal apaga la búsqueda y
+  la lectura de la bolsa para todos los asesores. Llega con las promociones.
+- **Nunca agrega, quita ni cambia nada** en la bolsa ni en el sitio.
+
+### 10.4 Lo que guarda, y dónde
+
+Todo en `chrome.storage.local` de ese navegador. **Nada sale de ahí.**
+
+| Clave | Qué guarda |
+| --- | --- |
+| `ventelPromos` | Las promociones que mandó el Portal. |
+| `vmBusquedas` | Los resultados de las búsquedas (24 horas, hasta 200). |
+| `vmBolsa` | De la bolsa, **solo los artículos**: identificador, SKU, nombre, marca, precio, cantidad, hora en que se agregó y si hay existencia. Ni el cliente, ni su dirección, ni su teléfono. Lleva una huella de la sesión para no usar la bolsa de un cliente con el siguiente. |
+| `vmBusquedaPausa`, `vmBolsaRitmo` | El freno y la cuenta de lecturas. |
+| `vmMedicion` | La medición local. |
+
+**La medición local** cuenta, por día y por tipo de complemento:
+
+1. cuántas recomendaciones se mostraron (a la vista y ya asentadas, no las que pasaron de largo);
+2. cuántas se abrieron;
+3. cuántas llegaron a la bolsa en los 60 minutos siguientes.
+
+No guarda quién es el asesor ni quién es el cliente, y conserva 120 días. Se abre desde el
+popup, con el botón **Medición de «Vende más»**: en esa página se **pausa**, se **borra** (pide
+confirmar) y se copia el resumen. Empieza a contar sola en cualquier Chrome que cargue la 3.0.
+
+### 10.5 Cómo se prueba
+
+| Qué | Cómo |
+| --- | --- |
+| Las decisiones | `node pruebas/ext_recomendador.test.js` (481 comprobaciones, con fichas reales). |
+| El lector, la bolsa y la medición | `ext_lector`, `ext_bolsa` y `ext_medicion` (`.test.js`). |
+| Todo junto | `npm test`. |
+| La extensión real en Chrome | `scripts/laboratorio/extension-e2e.mjs`: la carga en un Chrome aparte sobre páginas reales guardadas (21 comprobaciones). Liverpool bloquea a Chrome headless, por eso las páginas van guardadas. |
+| Que las pruebas muerden | `Documentacion/anexos-18/implementacion-3.0/mutaciones.cjs`. |
+
+**En vivo:** en la consola de una ficha, eligiendo el contexto de la extensión,
+`__ventelVendeMas()` dice qué leyó, qué buscó, qué supo de la bolsa y qué decidió.
+
+**Después de cambiar algo, recargar la extensión no basta:** las pestañas de Liverpool ya
+abiertas siguen con el código anterior hasta que se recargan.
+
+### 10.6 Qué se rompe si Liverpool cambia
+
+| Qué cambia | Qué deja de funcionar | Dónde mirar |
+| --- | --- | --- |
+| El título de los carruseles («…Complementa con») | La venta cruzada desde los carruseles | `carruselesDe` en `lector-liverpool.js` |
+| Los `records` de la búsqueda | La calificación de lo buscado (la búsqueda sigue, sin ella) | `registrosDe` |
+| Los `lineItems` de la bolsa | La bolsa como contexto y el «en bolsa» de la medición | `bolsaDe` |
+| La insignia de la bolsa en la cabecera | Lo mismo: sin cuenta, no se lee la bolsa | `cuentaDeBolsa` en `recomendador.js` |
+
+En todos los casos la tarjeta se queda como en la 2.9: no falla, pierde lo nuevo.
 
 ---
 

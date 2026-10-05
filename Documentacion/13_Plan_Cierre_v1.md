@@ -1042,6 +1042,58 @@ y qué se dejó fuera a propósito**. Mismo formato que el registro del document
 
 <!-- Las entradas nuevas van arriba, con la más reciente primero. -->
 
+### 2026-10-04 — Extensión 3.0: «Vende más» elige el mejor candidato, mira la bolsa, cubre doce categorías más y se mide (puntos 1 a 6 del doc 18) — pedido por el creador
+
+**Qué se cambió:**
+- **El pedido:** «Aplica del 1 al 6, y haces pruebas». Son los seis primeros pasos del §8 del doc 18. El séptimo (medición central y A/B) no entra: depende de TI.
+- **Solo la extensión** (`Extencion para chrome/`, manifiesto **3.0**). El Portal no se tocó: ni código, ni pruebas, ni producción (sigue en la @140). **La 3.0 no pide ningún permiso nuevo.**
+- **Paso 1 · Los cuatro errores de la 2.9** (reglas v4): la mochila escolar ya no es maleta; el filtro de agua no es purificador; el cargador de laptop no es cargador de celular; el adaptador del Pencil no es hub de laptop.
+  - De paso, dos parientes que salieron al probar las clases nuevas: las mochilas de dron, de senderismo y de viaje no son escolares, y el «Juego de mesa y sillas para jardín» es un mueble.
+- **Paso 3 · El mejor candidato, no el primero** (núcleo 2.0):
+  - `lector-liverpool.js` (nuevo) lee del *flight data* la calificación, las opiniones y el vendedor de cada artículo de los carruseles y de la búsqueda.
+  - `elegirPorCalidad`: el primero de Liverpool se queda, salvo que otro de su mismo nivel de compatibilidad, entre los cinco primeros, tenga opiniones, no cueste un 25 % más y le gane por un cuarto de estrella (promedio bayesiano). El primero de un carrusel que nadie ha calificado se queda siempre.
+  - **Más conservadora que la del doc 18, a propósito:** su variante se reprodujo igual (76 cambios de 140) y, vistos uno por uno, muchos eran ruido.
+  - **Un piso** (`calidad.piso`, 3.3): lo que los clientes calificaron mal, con opiniones suficientes, no se ofrece. Salió de las pruebas: la cafetera de cápsulas ofrecía primero un espumador de 2.5 estrellas con 8 opiniones.
+  - La tarjeta enseña junto a cada recomendación «★ 4.8 · 371 opiniones» o «Marketplace».
+- **Paso 5 · Doce clases nuevas** (de 56 a **68**; 349 tipos): muñecas, bloques, juegos de mesa, carros de control remoto, guitarras, casas de campaña, scooters, drones, ventiladores, lámparas, termos y computadoras de escritorio.
+  - Vienen del borrador de IA del doc 18, **con la revisión humana que pedía**. La revisión miró qué recomendaban de verdad y corrigió caso por caso: al dron DJI le tocaban la batería de una cámara Canon, el cargador de una Sony y el estuche de una instantánea; al scooter, un casco de motociclismo; a la guitarra clásica, la funda de la eléctrica.
+  - En un dron, «subir de versión» es el mismo modelo en un paquete mayor (`subidaMismaVar`): al Mini 5 Pro se le ofrecía un Mini 4 Pro.
+- **Paso 6 · La bolsa como contexto** (`bolsa-liverpool.js`, nuevo; `contextoConBolsa` en el núcleo):
+  - en la ficha de un accesorio, si su equipo se agregó a la bolsa en los últimos 90 minutos, la tarjeta recomienda para ese equipo y lo dice («Para iPhone 16, que ya va en la bolsa»);
+  - lo que ya va en la bolsa no se vuelve a ofrecer;
+  - la bolsa se lee solo si la cabecera dice que tiene algo, con 20 s entre lecturas y 12 por hora, y comparte el freno y el interruptor del Portal con la búsqueda;
+  - **de la bolsa se guardan solo los artículos**, con una huella de la sesión para no usar la bolsa de un cliente con el siguiente.
+- **Paso 4 · Medición local** (`medicion-local.js`, `medicion.html` y su botón en el popup): cuenta qué recomendaciones se mostraron, cuáles se abrieron y cuáles llegaron a la bolsa en 60 minutos, por día y por tipo. Solo en ese navegador; se pausa y se borra ahí mismo.
+- **Paso 2 · Evaluación humana:** el instrumento, en `Documentacion/anexos-18/evaluacion-humana/`. Una hoja a ciegas de 209 renglones (las 50 fichas del §9 y 24 de categorías nuevas), su clave y el guion que calcula precisión, útiles por ficha y acuerdo entre evaluadores (κ y AC1).
+- **Para probar:**
+  - suites nuevas `ext_lector`, `ext_bolsa`, `ext_medicion` y `ext_evaluacion`; `ext_recomendador` pasa de 252 a 481 comprobaciones;
+  - `scripts/laboratorio/extension-e2e.mjs`: la extensión real en Chrome headless sobre páginas reales guardadas;
+  - `Documentacion/anexos-18/implementacion-3.0/`: el laboratorio, las cifras y las mutaciones.
+- **Documentos:** «Estado» al principio del doc 18; §10 nueva en el doc 05; nota en el doc 14, cuya frase «la extensión no tiene una sola llamada de red» ya no era cierta desde la 2.7.
+
+**Qué se comprobó:**
+- **Laboratorio** (110 fichas reales del doc 18, medido a las 18:20):
+  - en las 85 fichas que la 2.9 ya reconocía: recomendaciones sin opiniones, 71 → 68; calificación promedio, 4.56 → 4.69; opiniones por recomendación, 27.9 → 40.5; de marketplace, 72 → 62; 21 elegidas por calidad;
+  - en las 24 de categorías nuevas: de 2 recomendaciones a 54;
+  - las 54 búsquedas de las clases nuevas traen al menos 3 de 10 resultados del tipo buscado;
+  - 13 escenarios de la bolsa con fichas reales: adopta el equipo cuando el accesorio le queda, y no cuando es de otro modelo, de otra familia o de una bolsa vieja.
+- **`npm test`:** las 33 suites en verde. De la extensión: 481 + 46 + 81 + 45 + 57 comprobaciones.
+- **Las pruebas muerden:** 25 roturas hechas a propósito, una por una (sin piso, sin ventana de la bolsa, sin huella de sesión, la hoja sin revolver…), y las 25 se detectan. La suite contra la 2.9 falla.
+- **De punta a punta:** la extensión real cargada en Chrome headless, 21 comprobaciones en verde. Chrome la reporta como 3.0, sin avisos ni errores. Entre ellas: de una bolsa que trae nombre, dirección y teléfono del cliente, en el almacén de la extensión no queda ninguno.
+  - En sus corridas encontró seis defectos, ya corregidos: la bolsa de un cliente servía para el siguiente; se buscaba antes de conocer la bolsa; se contaba como mostrada una tarjeta que pasó un instante; al adaptador de Apple se le ofrecía un AirTag como «subida»; una lectura colgada no se soltaba; y el dron «subía» a la generación anterior.
+- **El lector de la bolsa, contra una bolsa real** guardada el 01/09: los 14 artículos, con sus ocho campos, y nada del cliente.
+- **En el navegador del creador, sin sesión:** el lector saca en vivo los cuatro carruseles de una ficha con su calificación.
+
+**Qué se dejó fuera a propósito:**
+- **La evaluación humana no está hecha.** Queda el instrumento; calificarla les toca a 2 o 3 asesores (unos 40 minutos cada uno). Hasta entonces, las cifras de arriba son indicios.
+- **Drive sigue en la 2.9.** La carpeta que bajan los asesores no se tocó: subirla es decisión del creador. En su Chrome, hay que recargar la extensión y las pestañas de Liverpool.
+- **Medición central y A/B** (paso 7): con TI.
+- **Lo que no se pudo comprobar:** la lectura en vivo de una bolsa con artículos y con sesión. La sesión de Liverpool estaba cerrada y no se agrega nada a una bolsa para probar.
+- **Las cifras del laboratorio no se pueden repetir hoy.** El corpus vivía en IndexedDB del navegador y esa tarde apareció vacío. Los tres últimos cambios de reglas (mochilas, juego de mesa y la subida del dron) son posteriores a la medición: no tocan a ninguna de las 110 fichas y van cubiertos por pruebas, no por el laboratorio.
+- **Lo que sigue flojo:** en ventiladores, lámparas y juguetes Liverpool casi no trae complementos, y la tarjeta ofrece poco (una extensión, un contacto inteligente). Junto a un artículo barato, el complemento puede costar más que él.
+- **El texto de 11 px del popup** que marca el revisor de diseño es del diseño anterior: el botón nuevo lo hereda y no se cambió.
+- **Para volver:** la 2.9 es el commit `6f8ab4c` de `Extencion para chrome/`, y es lo que sigue en Drive.
+
 ### 2026-10-04 — Producción @140: la foto de cada artículo, en su propia fila (80adfe6) — pedido por el creador
 
 **Qué se cambió:**

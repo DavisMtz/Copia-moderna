@@ -736,11 +736,42 @@ seccion('19 · Núcleo 2.0: entre los parecidos, el que tiene respaldo (casos re
   const mP = VM.recomendar(ps5b, { complementa: [con(it(101, 'ROCKSTAR', 'Grand Theft Auto VI estandar para PS5', 1529.1), 0, 0),
     con(it(102, 'PLAYSTATION', "Marvel'S Spider-Man 2 estándar para PS5", 1349.1), 4.9, 181)] }, null, REGLAS, AHORA);
   ok('PS5: el GTA VI que Liverpool pone primero en «Complementa con» se queda, sin opiniones y todo', mP.cruzada.some((c) => c.id === '101') && !mP.cruzada.some((c) => c.id === '102'), mP.cruzada);
-  // …pero uno CALIFICADO, y mal, sí cede (la cafetera espresso real).
+  // …pero uno CALIFICADO, y regular, sí cede.
   const esp = fichaDe({ nombre: 'Cafetera espresso semiautomática 15 bar', marca: 'OSTER', migas: ['Cafeteras y Teteras', 'Cafeteras'], producto: 'Cafetera espresso', precio: 1559, care: true });
-  const mE = VM.recomendar(esp, { complementa: [con(it(101, 'GENÉRICA', 'Espumador de leche eléctrico Genérica', 324), 2.5, 8, true)],
-    otros: [con(it(102, 'X', 'Jarra espumadora espresso maker', 272.35), 4.4, 16)] }, null, REGLAS, AHORA);
-  ok('cafetera: el espumador de 2.5 estrellas cede ante la jarra espumadora de 4.4 con 16 opiniones', mE.cruzada.some((c) => c.id === '102' && c.enLugarDe === '101'), mE.cruzada);
+  const jarra = () => con(it(102, 'X', 'Jarra espumadora espresso maker', 272.35), 4.4, 16);
+  const espumador = (cal, nOp, mkp) => con(it(101, 'GENÉRICA', 'Espumador de leche eléctrico Genérica', 324), cal, nOp, mkp);
+  let mE = VM.recomendar(esp, { complementa: [espumador(3.6, 20, true)], otros: [jarra()] }, null, REGLAS, AHORA);
+  ok('cafetera: el espumador de 3.6 estrellas cede ante la jarra espumadora de 4.4 con 16 opiniones', mE.cruzada.some((c) => c.id === '102' && c.enLugarDe === '101'), mE.cruzada);
+
+  // El piso: lo que los clientes calificaron MAL, con opiniones suficientes, ni siquiera es candidato
+  // (la cafetera real: el espumador de 2.5 con 8 opiniones salía primero, sin nadie que lo relevara).
+  ok('las reglas traen el piso de calidad', Q.piso === 3.3, Q.piso);
+  ok('mal calificado: 2.5 con 8 opiniones y 1.8 con 6; lo venda quien lo venda',
+    VM.malCalificado({ cal: 2.5, nOp: 8, mkp: true }, Q) && VM.malCalificado({ cal: 1.8333, nOp: 6, mkp: true }, Q) && VM.malCalificado({ cal: 2.5, nOp: 8, mkp: false }, Q) && VM.malCalificado({ cal: 3, nOp: 20 }, Q));
+  ok('no es mal calificado: 1.0 con UNA opinión, 3.5 con 44, 3.0 con 5, ni lo que nadie ha calificado',
+    !VM.malCalificado({ cal: 1, nOp: 1 }, Q) && !VM.malCalificado({ cal: 3.5, nOp: 44 }, Q) && !VM.malCalificado({ cal: 3, nOp: 5 }, Q) && !VM.malCalificado({ cal: 0, nOp: 0 }, Q) && !VM.malCalificado({ nOp: 0 }, Q));
+  ok('opiniones sin su calificación cuentan como ninguna (ni castigan ni premian)',
+    VM.calidad({ nOp: 12, mkp: true }, Q) === 4.2 && VM.calidad({ cal: NaN, nOp: 12, mkp: true }, Q) === 4.2 && !VM.malCalificado({ nOp: 12 }, Q) && !VM.malCalificado({ cal: null, nOp: 12 }, Q));
+  ok('sin `calidad` o sin `piso` no hay piso', !VM.malCalificado({ cal: 1, nOp: 50 }, null) && !VM.malCalificado({ cal: 1, nOp: 50 }, Object.assign({}, Q, { piso: 0 })));
+  mE = VM.recomendar(esp, { complementa: [espumador(2.5, 8, true)], otros: [jarra()] }, null, REGLAS, AHORA);
+  ok('cafetera: el espumador de 2.5 con 8 opiniones no es candidato; va la jarra, y no «en lugar de» nadie',
+    mE.cruzada.some((c) => c.id === '102' && !c.enLugarDe) && !mE.cruzada.some((c) => c.id === '101'), mE.cruzada);
+  mE = VM.recomendar(esp, { complementa: [espumador(2.5, 8, true)] }, null, REGLAS, AHORA);
+  ok('…y si era el único, no se ofrece: su tipo queda para la búsqueda o para el botón',
+    !mE.cruzada.some((c) => c.id === '101') && (mE.busquedas || []).concat(mE.sugeridas || []).some((b) => b.tipo === 'espumador'), { cruzada: mE.cruzada, busquedas: mE.busquedas, sugeridas: mE.sugeridas });
+  mE = VM.recomendar(esp, { complementa: [espumador(1, 1, true)] }, null, REGLAS, AHORA);
+  ok('…uno de 1.0 con UNA sola opinión sí se queda: una opinión no prueba nada', mE.cruzada.some((c) => c.id === '101'), mE.cruzada);
+  mE = VM.recomendar(esp, { complementa: [espumador(3.5, 44, true)] }, null, REGLAS, AHORA);
+  ok('…y uno de 3.5 con 44 opiniones también se queda', mE.cruzada.some((c) => c.id === '101'), mE.cruzada);
+  {
+    const sinPiso = Object.assign({}, REGLAS, { calidad: Object.assign({}, Q, { piso: 0 }) });
+    const x = VM.recomendar(esp, { complementa: [espumador(2.5, 8, true)], otros: [jarra()] }, null, sinPiso, AHORA);
+    ok('sin el piso, el de 2.5 sigue siendo candidato y cede ante la jarra (como antes)', x.cruzada.some((c) => c.id === '102' && c.enLugarDe === '101'), x.cruzada);
+    const y = VM.recomendar(esp, { complementa: [espumador(2.5, 8, true)] }, null, Object.assign({}, REGLAS, { calidad: null }), AHORA);
+    ok('sin `calidad`, el de 2.5 se ofrece (como en la 2.9)', y.cruzada.some((c) => c.id === '101'), y.cruzada);
+  }
+  r = moldes([con(it(101, 'X', 'Molde para freidora de aire', 199), 2, 10), con(it(102, 'Y', 'Molde para freidora de aire', 199), 0, 0)]);
+  ok('de una búsqueda también: el primero, de 2.0 con 10 opiniones, no cuenta; va el siguiente', r && r.id === '102' && !r.enLugarDe, r);
   const tazas = { 'set de tazas para café': [con(it(111, 'X', 'Set de tazas americanas 4 piezas', 349), 0, 0), con(it(112, 'X', 'Set de tazas infantil Bob Esponja 4 piezas', 229), 4.6471, 17)] };
   const mT = VM.recomendar(esp, { complementa: [con(it(101, 'X', 'Molino para café de acero inoxidable', 551.4), 5, 30), con(it(102, 'X', 'Jarra espumadora espresso maker', 272.35), 4.4, 16)] }, null, REGLAS, AHORA, tazas);
   ok('cafetera: las tazas infantiles de Bob Esponja no son complemento, por bien calificadas que estén',
@@ -771,6 +802,187 @@ seccion('19 · Núcleo 2.0: entre los parecidos, el que tiene respaldo (casos re
   const ins = fichaDe({ nombre: 'Cámara instantánea film modelo Instax Mini 12', marca: 'FUJI', migas: ['Cámaras y Fotografía', 'Cámaras Fotográficas'], producto: 'Cámara instantánea', modeloComercial: 'Instax Mini 12', precio: 1861 });
   const mI = VM.recomendar(ins, { complementa: [it(143, 'X', 'Mochila para cámara', 379), it(144, 'X', 'Estuche para cámara instantánea Wilderness', 399)] }, null, REGLAS, AHORA);
   ok('instantánea: su estuche es el de instantánea, no la mochila de cámara', mI.cruzada.some((c) => c.id === '144') && !mI.cruzada.some((c) => c.id === '143'), mI.cruzada);
+}
+
+seccion('20 · Reglas v4: doce clases nuevas del borrador de IA, revisadas contra 24 fichas reales (04/10/2026)');
+{
+  const idsClase = REGLAS.clases.map((c) => c.id);
+  ok('las reglas son la v4: 68 clases, sin identificadores repetidos', REGLAS.version === 4 && idsClase.length === 68 && new Set(idsClase).size === 68, [REGLAS.version, idsClase.length]);
+  const NUEVAS = ['muneca', 'bloquesConstruccion', 'juegoMesa', 'carroControlRemoto', 'guitarra', 'casaCampana', 'scooterElectrico', 'dron', 'ventilador', 'lampara', 'termo', 'computadoraEscritorio'];
+  ok('están las doce', NUEVAS.every((id) => idsClase.indexOf(id) > -1), NUEVAS.filter((id) => idsClase.indexOf(id) === -1));
+  ok('cada tipo de las doce tiene su búsqueda, y ninguno repite nombre dentro de su clase', NUEVAS.every((id) => {
+    const c = REGLAS.clases.find((x) => x.id === id), t = c.complementos.map((k) => k.tipo);
+    return c.complementos.every((k) => !!k.buscar && !!k.etiqueta && k.peso > 0 && k.peso <= 1) && new Set(t).size === t.length;
+  }));
+  const clase = (nombre, producto, migas) => { const m = VM.recomendar(fichaDe({ nombre, producto: producto || null, migas: migas || [], marca: 'X', precio: 1000 }), {}, null, REGLAS, AHORA); return (m.clase && m.clase.id) || null; };
+
+  // Las 24 fichas reales (2 por categoría), tal como las leyó el recolector: [nombre, «Producto», migas, la clase].
+  const VENT = ['Línea Blanca y Electrodomésticos', 'Clima y Ventilación', 'Ventilación'], JM = ['Juguetes', 'Juegos de Mesa y Rompecabezas', 'Juegos de Mesa'];
+  const RC = ['Juguetes', 'Carros, Pistas y Radiocontrol', 'Carros de Control Remoto'], PC = ['Electrónica', 'Computación', 'Computadoras de escritorio'];
+  const CAMP = ['Deportes', 'Por Deporte', 'Campismo y senderismo', 'Casas de Campaña y Equipo para dormir'], DRON = ['Electrónica', 'Cámaras y Fotografía', 'Drones'];
+  [
+    ['Ventilador de torre con control remoto 3 velocidades', 'Ventilador de torre', VENT, 'ventilador'],
+    ['Ventilador de pedestal Dace con control remoto 3 velocidades', null, VENT, 'ventilador'],
+    ['Centro de mesa navideño 40743', null, ['Lego', 'LEGO Nuevos Sets'], 'bloquesConstruccion'],
+    ['Mega Bloks Clásica bolsa de 60 piezas DCH55', null, ['Juguetes', 'Juguetes para Bebé y Preescolares', 'Bloques para Apilar'], 'bloquesConstruccion'],
+    ['Muñeca fashion', null, ['Mattel', 'Marcas', 'Barbie'], 'muneca'],
+    ['Muñeca Yedid', null, ['Juguetes', 'Por Categoría', 'Muñecas y Accesorios'], 'muneca'],
+    ['Conecta 4', null, JM, 'juegoMesa'],
+    ['Duelo por Cardia Familiar', 'Juego mesa', JM, 'juegoMesa'],
+    ['Carro de control remoto Rastar', 'Carro de control remoto', RC, 'carroControlRemoto'],
+    ['Vehículo de control remoto rb18 Oracle Red Bull Racing', 'Vehículo de control remoto', RC, 'carroControlRemoto'],
+    ['Computadora All In One OmniStudio 24-CV0055LA 24 pulgadas Full HD AMD Ryzen 5 Integradas 16 GB RAM 512 GB SSD', 'Computadora all in one', PC, 'computadoraEscritorio'],
+    ['Computadora de escritorio ExpertCenter PN42 Intel N100 Integrada 16 GB RAM 128 GB SSD', null, PC, 'computadoraEscritorio'],
+    ['Casa de campaña para 2 personas adulto', null, CAMP, 'casaCampana'],
+    ['Casa de campaña para 4 personas adulto', null, CAMP, 'casaCampana'],
+    ['Scooter eléctrico Patin-03 2025', null, ['Juguetes', 'Juegos al Aire Libre', 'Patines, Patinetas y Scooters'], 'scooterElectrico'],
+    ['Hoverboard', 'Hoverboard', ['Deportes', 'Por Deporte', 'Patinaje y scooters'], 'scooterElectrico'],
+    ['Guitarra acústica clásica ywcg-266ac', null, ['Electrónica', 'Instrumentos Musicales', 'Guitarras y bajos'], 'guitarra'],
+    ['Guitarra eléctrica mkz-atguitarneg', null, ['Electrónica', 'Instrumentos Musicales', 'Instrumentos de Cuerda'], 'guitarra'],
+    ['Lámpara de pie Tradicional', 'Lámpara de pie', ['Hogar', 'Iluminación', 'Lámparas de Pie'], 'lampara'],
+    ['Lámpara de escritorio LED', 'Lámpara de escritorio', ['Hogar', 'Iluminación', 'Lámparas de Mesa y Escritorio'], 'lampara'],
+    ['Termo de acero inoxidable Quencher Protour Fade con tapa rosca 1.1 L', 'Termo', ['Regreso a Clases', 'Útiles y artículos escolares', 'Contenedores y termos'], 'termo'],
+    ['Vaso térmico de acero inoxidable con tapa a prueba de derrame 1.2 L', null, ['Hogar', 'Cocina', 'Termos y Botellas'], 'termo'],
+    ['Dron Lito X1', 'Drone', DRON, 'dron'],
+    ['Drone Mini 5 Pro FMC RC2', 'Drone', DRON, 'dron']
+  ].forEach((f) => ok('ficha real «' + f[0].slice(0, 58) + '» es ' + f[3], clase(f[0], f[1], f[2]) === f[3], clase(f[0], f[1], f[2])));
+
+  // Lo que se les parece y NO es: se queda sin clase (la tarjeta calla) o en la que ya tenía.
+  [
+    ['Juego de mesa y sillas para jardín', null], ['Juego de mesa con 4 sillas', null], ['Juego de mesa de jardín con sombrilla', null], ['Juego de mesa comedor 6 sillas', null],
+    ['Juego de mesa para café 3 piezas', null], ['Juego de mesas de centro', null], ['Juego de sábanas matrimonial', 'blancos'], ['Juego de cubiertos 24 piezas', 'mesa'],
+    ['Ventilador para PC gamer 120 mm RGB', null], ['Ventilador de cuello portátil recargable', null], ['Base enfriadora para laptop con ventilador', null], ['Mini ventilador de mano', null],
+    ['Lámpara para uñas UV LED 48 W', null], ['Lámpara de emergencia recargable', null], ['Lámpara solar para jardín', null], ['Lámpara delantera para bicicleta', null], ['Lámpara aro de luz con tripié', null],
+    ['Termómetro digital infrarrojo', null], ['Lonchera térmica', null], ['Hielera 45 L', null],
+    ['Guitarra de juguete infantil', null], ['Funda para guitarra acústica', null], ['Amplificador para guitarra 20 W', null],
+    ['DJI Osmo Pocket 3', null], ['DJI Mic 2', null], ['Batería para dron DJI Mini 4 Pro', null], ['Hélices para dron Mini 3', null],
+    ['Carro montable eléctrico para niño', null], ['Carrito de compras plegable', null], ['Control remoto universal para pantalla', null],
+    ['Muñequera deportiva ajustable', null], ['Casa para perro mediana', null], ['Campana extractora de pared 76 cm', null], ['Casa de campaña infantil de juguete', null],
+    ['Bicicleta eléctrica rodada 26', 'bicicleta'], ['Motocicleta eléctrica', null], ['Patines en línea ajustables', null],
+    ['Laptop 15.6 pulgadas Core i5', 'laptop'], ['Computadora portátil 14 pulgadas', 'laptop'], ['Monitor gamer 27 pulgadas', 'monitor'], ['Computadora de juguete para niños', null], ['CPU cooler enfriamiento líquido', null],
+    ['Bloque de yoga de espuma', null], ['Bloqueador solar FPS 50', 'cuidadoFacial']
+  ].forEach((n) => ok('«' + n[0] + '» no es de las nuevas: ' + n[1], clase(n[0]) === n[1], clase(n[0])));
+  // …y los nombres legítimos que llevan las palabras excluidas más adelante siguen en su clase.
+  [
+    ['Juego de mesa Monopoly clásico', 'juegoMesa'], ['Juego de mesa para niños Adivina quién', 'juegoMesa'], ['Juego de mesa de estrategia Catan', 'juegoMesa'], ['Juego de mesa de destreza Jenga', 'juegoMesa'],
+    ['Juego de mesa para adultos Cards Against Humanity', 'juegoMesa'], ['Ajedrez de madera', 'juegoMesa'],
+    ['Ventilador de techo con luz 52 pulgadas', 'ventilador'], ['Ventilador de piso 20 pulgadas', 'ventilador'], ['Lámpara de buró táctil', 'lampara'], ['Set de 2 lámparas de mesa', 'lampara'], ['Lámpara de techo colgante', 'lampara'],
+    ['Termo para café 1 L', 'termo'], ['Tumbler 40 oz con popote', 'termo'], ['Guitarra electroacústica con ecualizador', 'guitarra'], ['Guitarra eléctrica Stratocaster', 'guitarra'],
+    ['Dron con cámara 4K plegable', 'dron'], ['DJI Mini 4 Pro Fly More Combo', 'dron'], ['Camioneta a control remoto todo terreno', 'carroControlRemoto'],
+    ['Muñeca Barbie Dreamtopia', 'muneca'], ['Tienda de campaña para 6 personas', 'casaCampana'], ['Scooter eléctrico plegable 350 W', 'scooterElectrico'], ['Hoverboard 6.5 pulgadas', 'scooterElectrico'],
+    ['iMac 24 pulgadas chip M4', 'computadoraEscritorio'], ['Mac mini chip M4', 'computadoraEscritorio'], ['Mini PC Intel N100', 'computadoraEscritorio'], ['PC gamer Ryzen 7 RTX 4060', 'computadoraEscritorio'],
+    ['Bloques de construcción 100 piezas', 'bloquesConstruccion'], ['LEGO Star Wars 75375', 'bloquesConstruccion']
+  ].forEach((n) => ok('«' + n[0] + '» sí: ' + n[1], clase(n[0]) === n[1], clase(n[0])));
+  ok('el vaso de vidrio sigue siendo de la mesa; el térmico ya es un termo', clase('Vaso de vidrio 12 piezas', 'Vaso', ['Hogar', 'Mesa', 'Vasos']) === 'mesa' &&
+    clase('Vaso térmico de acero inoxidable con tapa a prueba de derrame 1.2 L', null, ['Hogar', 'Cocina', 'Termos y Botellas']) === 'termo');
+
+  // De paso (lo encontró el sondeo de estas pruebas): las mochilas que no van a la escuela.
+  [
+    ['Mochila para drone', null, null, null], ['Mochila para drone unisex', 'Mochila', ['Electrónica', 'Cámaras y Fotografía', 'Accesorios para Drones'], null],
+    ['Mochila de senderismo 40 L', null, null, null], ['Mochila de campismo 60 litros', null, null, null], ['Mochila táctica militar', null, null, null], ['Mochila porta bebé', null, null, null],
+    ['Mochila de viaje 40 L', null, ['Viaje', 'Maletas y Equipaje', 'Mochilas de Viaje'], 'maleta'],
+    ['Mochila escolar Phase Small para niño', null, ['Deportes', 'Mochilas y maletas deportivas'], 'mochilaEscolar'],
+    ['Mochila escolar de viaje con ruedas', 'Mochila', ['Escolares', 'Mochilas Escolares'], 'mochilaEscolar'],
+    ['Mochila infantil de viaje con ruedas', null, ['Viaje', 'Maletas'], 'mochilaEscolar'],
+    ['Mochila deportiva unisex', null, null, 'mochilaEscolar'], ['Mochila casual para mujer', null, null, 'mochilaEscolar'],
+    ['Maleta de viaje Kioto', null, ['Viaje', 'Maletas'], 'maleta'], ['Set de maletas 3 piezas', 'Maleta', ['Viaje', 'Maletas'], 'maleta']
+  ].forEach((n) => ok('«' + n[0] + '»' + (n[2] ? ' en ' + n[2][n[2].length - 1] : '') + ' → ' + n[3], clase(n[0], n[1], n[2]) === n[3], clase(n[0], n[1], n[2])));
+
+  // --- Lo que la revisión cambió del borrador, caso por caso -------------------------------------
+  const con = (item, cal, nOp, mkp) => Object.assign(item, { cal: nOp ? cal : null, nOp: nOp || 0, mkp: !!mkp });
+  const tipo = (id, nombre) => VM.tipoDe({ nombre }, REGLAS.clases.find((c) => c.id === id));
+  const rec = (ficha, car, bus) => VM.recomendar(fichaDe(ficha), car || {}, null, REGLAS, AHORA, bus || {});
+
+  // Scooter: el casco es el de ciclismo.
+  ok('scooter: «Casco para ciclismo unisex» es su casco', tipo('scooterElectrico', 'Casco para ciclismo unisex').tipo === 'casco');
+  ['Casco para motociclista abatible', 'Casco cerrado integral certificado', 'Casco de realidad virtual', 'Casco para moto Motorsport'].forEach((n) =>
+    ok('scooter: «' + n + '» no', tipo('scooterElectrico', n).tipo !== 'casco', tipo('scooterElectrico', n).tipo));
+  const sco = { nombre: 'Scooter eléctrico Patin-03 2025', marca: 'INSANIA', migas: ['Juguetes', 'Juegos al Aire Libre', 'Patines, Patinetas y Scooters'], precio: 3999 };
+  let m = rec(sco);
+  ok('scooter: busca «casco para bicicleta» y «candado para bicicleta»', JSON.stringify(m.busquedas.map((b) => b.consulta)) === JSON.stringify(['casco para bicicleta', 'candado para bicicleta']), m.busquedas);
+
+  // Guitarra: la funda, de su tipo.
+  const acu = { nombre: 'Guitarra acústica clásica ywcg-266ac', marca: 'GROUND MUSIC', migas: ['Electrónica', 'Instrumentos Musicales', 'Guitarras y bajos'], precio: 1599 };
+  const ele = { nombre: 'Guitarra eléctrica mkz-atguitarneg', marca: 'AUDIOTEK', migas: ['Electrónica', 'Instrumentos Musicales', 'Instrumentos de Cuerda'], precio: 2199 };
+  const fundas = { 'funda para guitarra': [it(201, 'X', 'Funda', 499), it(202, 'GROUND MUSIC', 'Funda guitarra eléctrica', 799), it(203, 'RITTER', 'Funda guitarra acústica', 799)] };
+  m = rec(acu, {}, fundas);
+  ok('guitarra clásica: su funda es la acústica, no la de la eléctrica ni una «Funda» a secas', m.cruzada.some((r) => r.id === '203') && !m.cruzada.some((r) => r.id === '202' || r.id === '201'), m.cruzada);
+  m = rec(ele, {}, fundas);
+  ok('guitarra eléctrica: su funda es la de la eléctrica', m.cruzada.some((r) => r.id === '202') && !m.cruzada.some((r) => r.id === '203' || r.id === '201'), m.cruzada);
+  ok('guitarra eléctrica: lo primero que busca es el amplificador', m.busquedas.length && m.busquedas[0].consulta === 'amplificador para guitarra', m.busquedas);
+  m = rec(acu, {}, {});
+  ok('guitarra clásica: no se le busca amplificador', !m.busquedas.concat(m.sugeridas).some((b) => /amplificador/.test(b.consulta)), [m.busquedas, m.sugeridas]);
+
+  // Dron: lo de un dron de verdad no pide «dji» en el nombre; el de juguete lleva pilas.
+  const mini = { nombre: 'Drone Mini 5 Pro FMC RC2', marca: 'DJI', migas: DRON, producto: 'Drone', precio: 21009, care: true };
+  const sd = { 'memoria micro SD': [con(it(211, 'SANDISK', 'Memoria micro SD capacidad 128 GB', 849), 4.9647, 85)] };
+  m = rec(mini, {}, sd);
+  ok('dron DJI (su nombre no dice «dji»): se le busca y se le ofrece la micro SD', m.busquedas.some((b) => b.consulta === 'memoria micro SD') && m.cruzada.some((r) => r.id === '211'), [m.busquedas, m.cruzada]);
+  ok('dron DJI: la batería de SU modelo queda como botón, nunca como búsqueda sola', m.sugeridas.some((b) => b.tipo === 'bateria' && /mini 5 pro/i.test(b.consulta)) && !m.busquedas.some((b) => b.tipo === 'bateria'), [m.busquedas, m.sugeridas]);
+  ok('dron DJI: lleva Liverpool Care', !!m.servicio, m.servicio);
+  m = rec(mini, { complementa: [it(212, 'CANON', 'Batería portátil 9967b002aa', 1487.2), it(213, 'GROUND ELECTRONICS', 'Estuche para cámara instantánea Stitch', 279.3), it(214, 'SONY', 'Cargador pared', 1148.7),
+    it(215, 'GOPRO', 'Cargador para cámara USB tipo C', 2879), it(216, 'HP', 'Mochila para cámara impermeable unisex', 1049.3)] });
+  ok('dron: ni la batería de una cámara Canon, ni el estuche de una instantánea, ni el cargador de una cámara Sony o GoPro (casos reales)',
+    !m.cruzada.some((r) => ['212', '213', '214', '215'].indexOf(r.id) > -1), m.cruzada);
+  ok('dron: la mochila para cámara sí le sirve', m.cruzada.some((r) => r.id === '216' && r.tipo === 'mochila'), m.cruzada);
+  ['Mochila para drone', 'Estuche para drone 12200079', 'Mochila para cámara'].forEach((n) => ok('dron: «' + n + '» es su mochila', tipo('dron', n).tipo === 'mochila', tipo('dron', n).tipo));
+  ['Batería portátil 20000 mAh PB20-DW', 'Batería portátil de 30 W USB Tipo C', 'Power bank 10000'].forEach((n) => ok('dron: «' + n + '» es power bank', tipo('dron', n).tipo === 'powerBank', tipo('dron', n).tipo));
+  ['Cargador pared USB tipo C 45 W', 'Cargador de pared de 30 w USB Tipo C'].forEach((n) => ok('dron: «' + n + '» es su cargador', tipo('dron', n).tipo === 'cargadorPared', tipo('dron', n).tipo));
+  // «Subir de versión» en un dron es el mismo modelo en un paquete mayor, no la generación anterior con más accesorios.
+  const mini4 = it(261, 'DJI', 'Dron modelo Mini 4 Pro Fly More Combo Plus (RC 2) (GL)', 21799), mini5plus = it(262, 'DJI', 'Dron Mini 5 Pro Fly More Combo Plus (RC 2) (GL)', 22799);
+  m = VM.recomendar(fichaDe(mini), { relacionados: [mini4, mini5plus] }, null, REGLAS, AHORA);
+  ok('dron Mini 5 Pro: la subida es el Mini 5 Pro en combo mayor, no el Mini 4 Pro (aunque sea el escalón más cercano)', m.incremental.modelo && m.incremental.modelo.id === '262', m.incremental);
+  m = VM.recomendar(fichaDe(mini), { relacionados: [mini4] }, null, REGLAS, AHORA);
+  ok('…y si solo hay otra generación, no hay subida', !m.incremental.modelo, m.incremental);
+  m = VM.recomendar(fichaDe({ nombre: 'Dron Lito X1', marca: 'DJI', migas: DRON, producto: 'Drone', precio: 7589, care: true }), { relacionados: [it(263, 'DJI', 'Dron Neo Fly More Combo', 8999)] }, null, REGLAS, AHORA);
+  ok('dron sin línea reconocida: tampoco se inventa una subida', !m.incremental.modelo, m.incremental);
+  {
+    // Las demás clases siguen como estaban: el escalón más cercano de la misma marca.
+    const tv = fichaDe({ nombre: 'Pantalla Smart TV 55 pulgadas 4K UHD', marca: 'SAMSUNG', migas: ['Electrónica', 'Pantallas'], producto: 'Pantalla', precio: 9999, care: true });
+    const x = VM.recomendar(tv, { relacionados: [it(264, 'SAMSUNG', 'Pantalla Smart TV 65 pulgadas 4K UHD', 11999)] }, null, REGLAS, AHORA);
+    ok('…y en una pantalla la subida sigue siendo la del tamaño siguiente', x.incremental.modelo && x.incremental.modelo.id === '264', x.incremental);
+  }
+  const jug = { nombre: 'Dron de juguete para niños con luces', marca: 'X', migas: ['Juguetes', 'Drones'], producto: 'Dron', precio: 499 };
+  m = rec(jug, {}, sd);
+  ok('dron de juguete: ni micro SD ni power bank; pilas', !m.cruzada.some((r) => r.id === '211') && !m.busquedas.concat(m.sugeridas).some((b) => /micro sd|power bank|mochila/i.test(b.consulta)) &&
+    m.busquedas.concat(m.sugeridas).some((b) => b.consulta === 'pilas AA'), [m.busquedas, m.sugeridas, m.cruzada]);
+
+  // Computadora: a la All in One no se le ofrece monitor; a la torre, sí, y no uno portátil.
+  const aio = { nombre: 'Computadora All In One OmniStudio 24-CV0055LA 24 pulgadas Full HD AMD Ryzen 5 Integradas 16 GB RAM 512 GB SSD', marca: 'HP', migas: PC, producto: 'Computadora all in one', precio: 19799, care: true };
+  const torre = { nombre: 'Computadora de escritorio ExpertCenter PN42 Intel N100 Integrada 16 GB RAM 128 GB SSD', marca: 'ASUS', migas: PC, precio: 9999, care: true };
+  const monitores = { 'monitor para computadora': [it(221, 'ASUS', 'Monitor portátil MB16FC standard WUXGA 16 pulgadas', 2519), it(222, 'ASUS', 'Monitor gamer VG279QML5A Freesync Full HD 27 pulgadas', 4409)] };
+  m = rec(aio, {}, monitores);
+  ok('All in One: ni monitor, ni cámara web, ni bocinas (ya los trae)', !m.busquedas.concat(m.sugeridas).some((b) => /monitor|camara web|cámara web|bocinas/i.test(b.consulta)) && !m.cruzada.some((r) => r.tipo === 'monitor'), [m.busquedas, m.sugeridas]);
+  m = rec(torre, {}, monitores);
+  ok('torre: lo primero es el monitor, y no el portátil de 16 pulgadas', m.busquedas[0] && m.busquedas[0].consulta === 'monitor para computadora' && m.cruzada.some((r) => r.id === '222') && !m.cruzada.some((r) => r.id === '221'), [m.busquedas, m.cruzada]);
+  ok('computadora de escritorio: lleva Liverpool Care', !!m.servicio);
+
+  // LEGO: los tres tipos que el buscador no sostuvo quedaron fuera.
+  const lego = REGLAS.clases.find((c) => c.id === 'bloquesConstruccion').complementos.map((k) => k.tipo);
+  ok('LEGO: sin minifiguras, base ni llavero', ['minifiguras', 'base', 'llavero'].every((t) => lego.indexOf(t) === -1), lego);
+
+  // Lámpara: el foco es para la que no es LED, y de rosca común.
+  const pie = { nombre: 'Lámpara de pie Tradicional', marca: 'HEUMAN BRAND', migas: ['Hogar', 'Iluminación', 'Lámparas de Pie'], producto: 'Lámpara de pie', precio: 389 };
+  const led = { nombre: 'Lámpara de escritorio LED', marca: 'BLUELANDER', migas: ['Hogar', 'Iluminación', 'Lámparas de Mesa y Escritorio'], producto: 'Lámpara de escritorio', precio: 419 };
+  const focos = { 'foco LED': [it(231, 'AKSI', 'Foco led filamento Vela luz cálida 2700K', 545), it(232, 'ROCKET HOUSE', 'Foco LED 5 W de consumo 11 W de iluminación 1100 lm lúmenes', 269.1)] };
+  m = rec(pie, {}, focos);
+  ok('lámpara de pie: se le busca el foco, y no el «vela» de base delgada', m.busquedas.some((b) => b.consulta === 'foco LED') && m.cruzada.some((r) => r.id === '232') && !m.cruzada.some((r) => r.id === '231'), [m.busquedas, m.cruzada]);
+  m = rec(led, {}, focos);
+  ok('lámpara LED: no se le ofrece foco', !m.cruzada.some((r) => r.tipo === 'foco') && !m.busquedas.concat(m.sugeridas).some((b) => b.tipo === 'foco'), [m.busquedas, m.sugeridas]);
+
+  // Termo: el vaso térmico ya no recibe lo de la mesa.
+  m = rec({ nombre: 'Vaso térmico de acero inoxidable con tapa a prueba de derrame 1.2 L', marca: 'BUFFER', migas: ['Hogar', 'Cocina', 'Termos y Botellas'], precio: 549 },
+    { complementa: [it(241, 'ECOMLAB', 'Set cubiertos de acero inoxidable 49 piezas', 899), it(242, 'AQUILA', 'Contenedor Easy Go de acero inoxidable', 377)] });
+  ok('vaso térmico: el contenedor sí, los cubiertos no', m.cruzada.some((r) => r.id === '242') && !m.cruzada.some((r) => r.id === '241'), m.cruzada);
+
+  // Otro artículo no es «más versión» de un juguete, una guitarra, una lámpara o un termo.
+  ['muneca', 'bloquesConstruccion', 'juegoMesa', 'carroControlRemoto', 'guitarra', 'lampara', 'termo'].forEach((id) =>
+    ok(id + ': sin subida a otro modelo', REGLAS.clases.find((c) => c.id === id).sinSubidaDeModelo === true));
+  m = VM.recomendar(fichaDe(acu), { relacionados: [it(251, 'YAMAHA', 'Guitarra acústica C40 clásica', 1899)] }, null, REGLAS, AHORA);
+  ok('guitarra: otra guitarra un poco más cara no es «subir de modelo»', !m.incremental.modelo, m.incremental);
+  // Los juguetes no llevan Liverpool Care aunque la ficha lo traiga (lo trae hasta el LEGO).
+  m = VM.recomendar(fichaDe({ nombre: 'Centro de mesa navideño 40743', marca: 'LEGO', migas: ['Lego', 'LEGO Nuevos Sets'], precio: 999, care: true }), {}, null, REGLAS, AHORA);
+  ok('LEGO: sin Liverpool Care', !m.servicio, m.servicio);
 }
 
 seccion('11 · El fondo (fondo.js): de dónde acepta promociones y cómo las sanea');

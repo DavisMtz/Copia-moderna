@@ -20,6 +20,53 @@
 
 ---
 
+## Estado (04/10/2026, por la tarde): implementado en la extensión 3.0
+
+**El pedido que siguió:** «Aplica del 1 al 6, y haces pruebas». Son los seis primeros pasos del §8. El resto de este documento queda como se escribió: es la investigación, de antes de implementar.
+
+| Paso del §8 | Cómo quedó | En qué se apartó de lo propuesto |
+|---|---|---|
+| **1. Los cuatro errores** | **Corregidos**, cada uno con su prueba sobre la ficha real. | Al probar las clases nuevas salieron dos parientes y se corrigieron también: las mochilas que no son escolares (de dron, de senderismo) y el «Juego de mesa y sillas», que es un mueble. |
+| **2. Evaluación humana** | **Lista, sin hacer.** Hoja a ciegas de 209 renglones, su clave y el guion que calcula el resultado, en `anexos-18/evaluacion-humana/`. | Además de las 50 fichas del §9 lleva las 24 de categorías nuevas. Calificarla les toca a 2 o 3 asesores. |
+| **3. El mejor candidato** | **Implementado**, con una regla más conservadora que la del §4. | Ver abajo. Se añadió un piso: lo que los clientes calificaron mal no se ofrece. |
+| **4. Medición local** | **Implementada.** Cuenta mostradas, abiertas y en la bolsa en 60 minutos; se ve, se pausa y se borra desde el popup. | Cuenta en cualquier Chrome que cargue la 3.0, no solo en el del creador. Sigue sin salir nada de ese navegador. |
+| **5. Categorías nuevas con IA** | **Las doce clases están dentro** (de 56 a 68), después de la revisión humana que pedía el §6. | La revisión corrigió el borrador caso por caso, cada vez por una recomendación real que salía mal: a un dron DJI le tocaba la batería de una cámara Canon (la lista está en `resultados.md`). |
+| **6. La bolsa como contexto** | **Implementada**, con las tres condiciones del §3: ventana de 90 minutos, guardia de modelo y la condición evaluada sobre el equipo. | Lo guardado de la bolsa lleva una huella de la sesión: la prueba de punta a punta encontró que, con la misma cuenta en la cabecera, un cliente heredaba la bolsa del anterior. |
+| **7. Medición central y A/B** | **No se hizo.** Sigue pendiente de TI. | — |
+
+**Por qué la regla de calidad es más conservadora.** La variante del §4 se reprodujo igual (76 cambios de 140). Al revisarlos uno por uno, muchos eran ruido —una opinión de cinco estrellas contra ninguna— o cruzaban de nivel de compatibilidad. En la que se implementó, el primero de Liverpool se queda, salvo que otro de su mismo nivel, entre los cinco primeros, tenga opiniones, no cueste un 25 % más y le gane por un cuarto de estrella. Y el primero de un carrusel que nadie ha calificado se queda siempre: un estreno no tiene opiniones.
+
+**Lo medido [medido], en las mismas 85 fichas que la 2.9 ya reconocía:**
+
+| | 2.9 | 3.0 |
+|---|---|---|
+| Recomendaciones | 214 | 215 |
+| …sin una sola opinión | 71 | 68 |
+| Calificación promedio (de las que tienen) | 4.56 | 4.69 |
+| Opiniones por recomendación | 27.9 | 40.5 |
+| …de marketplace | 72 | 62 |
+| …elegidas por calidad | — | 21 |
+| Precio promedio | $1,065.57 | $1,008.80 |
+
+**Y en las 24 fichas de categorías nuevas:** la 2.9 no mostraba nada en 23; la 3.0 muestra 54 recomendaciones en 23 de ellas (15 sin opiniones, 19 de marketplace).
+
+La mejora en calidad es más chica que la del §4 (ahí las «sin opiniones» bajaban de 49 a 23): es el precio de no cambiar por ruido. **Siguen siendo indicios:** que un asesor las ofrecería lo dirá la evaluación humana, y que se venden, la medición.
+
+**De cuándo son estas cifras.** Se midieron el 04/10/2026 a las 18:20. Después solo cambiaron tres reglas que no tocan a ninguna de las 110 fichas, cubiertas por las pruebas y no por el laboratorio. **El corpus ya no existe:** vivía en IndexedDB del navegador y esa misma tarde apareció vacío. Repetir la medición pide recolectar de nuevo (§10).
+
+**Lo que no se pudo comprobar:** la lectura de una bolsa con artículos, en vivo y con sesión. La sesión de Liverpool estaba cerrada, y no se agrega nada a una bolsa para probar. Quedó cubierta con una página de bolsa real guardada (14 artículos, leídos todos) y con la prueba de punta a punta.
+
+**Para TI:** desde la 3.0 la extensión lee también la bolsa (`/tienda/cart`), además de la búsqueda que ya leía desde la 2.7. Es lectura del mismo sitio; nada sale del navegador. La frase del documento 14 («no tiene una sola llamada de red») ya lleva su nota, y el detalle está en el documento 05, §10.
+
+**Dónde está cada cosa:**
+
+- las cifras en bruto, lo que encontró cada prueba y el laboratorio: `anexos-18/implementacion-3.0/`;
+- la evaluación humana: `anexos-18/evaluacion-humana/`;
+- la prueba de punta a punta: `scripts/laboratorio/extension-e2e.mjs`;
+- el registro del trabajo: §18 del plan 13.
+
+---
+
 ## 1. El veredicto, en una tabla
 
 | Propuesta | ¿Viable? | Cómo mejora | Cómo no mejora, o qué riesgo trae | Esfuerzo |
