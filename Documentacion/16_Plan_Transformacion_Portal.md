@@ -83,6 +83,10 @@
 - Lo que falta comprobar después de subir: §18 del plan 13, entrada del 02/10/2026.
 
 **Ojo al promover** (desde el 02/10/2026 todo lo de abajo ya está en producción: estas recetas sirven solo para volver atrás una parte. Y la portada «Tu turno» —`fd41ba1`…`9fd6d08`, etiqueta `respaldo-portada-antes-tu-turno`— entró ANTES que la F0, así que toda copia desde `a50a234` la lleva; F0 + F1 + F2 sin ella = `23144aa` + `git diff 9fd6d08 11e77a8 -- "Carpeta del proyecto"`, probado el 02/10/2026): lo que se sube es `build/`, hecho con el código actual y el `build.js` actual: hoy lleva **F0 + F1 + F2 + F3a + F3a.1 + F3b + F3a.2 + F5 + decisión 8** juntas, más el arreglo del Monitor. Para subir menos:
+- **Desde el 04/10/2026 (noche) `build/` lleva además la foto de cada artículo en su propia fila, en Cotización** (`80adfe6`, a pedido del creador; SOLO EN PRUEBAS). Ver §18 del plan 13.
+  - Solo cliente y un solo archivo: `cotizacion.html`. **No toca el servidor** ni lo que se guarda.
+  - Para promoverlo: el build de `80adfe6` (o de lo que siga) es producción (@139) más esto. Entre `5c95f54` y `80adfe6` no cambió nada más del Portal.
+  - Para promover otra cosa sin él: worktree en `b33f720` y su build.
 - **Desde el 04/10/2026 (tarde) `build/` lleva además el tema oscuro (carbón) revisado** (`0d25f8d`, a pedido del creador; EN PRODUCCIÓN desde la @139, 04/10/2026). Ver §18 del plan 13.
   - Solo cliente: **no toca el servidor**. Toca `app_theme`, `app_tailwind`, `Index`, `Promociones` y 16 archivos más: los tonos de señal aclarados en carbón con sus variantes `-solid`, el remapeo de Tailwind y `.v-papel`.
   - Para volver sin él: `-V 138`, o worktree en `6f8ab4c` y su build (entre `6f8ab4c` y `0d25f8d` no cambió nada más del Portal).
