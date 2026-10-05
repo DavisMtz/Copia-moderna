@@ -41,6 +41,11 @@ const pagina = leer('cotizacion.html').replace(/<\?(!=|=)?([\s\S]*?)\?>/g, (m, t
   if (/^\s*APP_JSON\s*;?\s*$/.test(cuerpo)) return APP_JSON;
   throw new Error('scriptlet sin resolver: ' + m);
 });
+// Si la celda cambia de nombre, la sonda no puede dar «todo en verde» sin haber medido nada.
+if (!/col-articulo/.test(pagina) && !/cot-galeria/.test(pagina)) {
+  console.error('No reconozco ni la columna «Artículo» (col-articulo) ni la galería (cot-galeria): no sé qué medir.');
+  process.exit(1);
+}
 const COLORES = ['#d9534f', '#5b8def', '#3cb371', '#e0a800', '#8e44ad', '#16a085', '#e67e22', '#34495e'];
 const foto = (i) => `<svg xmlns="http://www.w3.org/2000/svg" width="400" height="400" viewBox="0 0 400 400">
 <rect width="400" height="400" fill="#fff"/><rect x="60" y="60" width="280" height="280" rx="30" fill="${COLORES[i % 8]}"/>
