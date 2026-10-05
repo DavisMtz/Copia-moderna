@@ -1042,6 +1042,27 @@ y qué se dejó fuera a propósito**. Mismo formato que el registro del document
 
 <!-- Las entradas nuevas van arriba, con la más reciente primero. -->
 
+### 2026-10-04 — Drive: la extensión que bajan los asesores, en la 3.0 — pedido por el creador
+
+**Qué se cambió:**
+- **El pedido:** «Subelo al drive», en respuesta a si subir la 3.0 a la carpeta que bajan los asesores (entrada de abajo).
+- **Drive** (`1NSPE-03rT4G5iO5soZeEiScexSY_ZJ4l`), de la 2.9 a la **3.0**, hacia las 19:52:
+  - **6 reemplazados como versión nueva, con su mismo id:** `manifest.json`, `popup.html`, `reglas-venta.js`, `recomendador-nucleo.js`, `recomendador.js` y `buscador-liverpool.js`;
+  - **7 nuevos:** `lector-liverpool.js`, `bolsa-liverpool.js`, `medicion-local.js`, `medicion.html`, `medicion.js`, `medicion.css` y `popup-medicion.js`.
+- **En tres tandas, para que la carpeta no quedara a medias:** primero los nuevos, luego los cinco que cambian y al final el manifiesto, que es el que nombra a los nuevos. Entre una tanda y la siguiente, lo que había en Drive era una extensión que carga: la 2.9 con archivos de más, y después el código nuevo con el manifiesto viejo (ese estado se probó en Chrome headless: la tarjeta sale, como en la 2.9).
+- **Ni el repo ni el Portal cambiaron.** La guía del Portal (`app_extension_guia.html`) no cita versión.
+
+**Qué se comprobó:**
+- **Antes:** Drive era la 2.9 exacta: los 21 archivos de la raíz con el tamaño del commit `6f8ab4c`. Los 13 que se subieron son idénticos a `main` (`19aa27e`).
+- **Después** (con el conector de Drive, no mirando la pantalla): 28 archivos y las 2 carpetas; los 13 con el tamaño del repo; los 6 reemplazados conservan su id; ninguno duplicado ni convertido a documento de Google.
+- **`manifest.json`, bajado de Drive, es idéntico byte a byte al del repo** y dice 3.0.
+
+**Qué se dejó fuera a propósito:**
+- **No le llega sola a nadie.** Cada asesor tiene que volver a bajar la carpeta y recargar la extensión, y también las pestañas de Liverpool que tenga abiertas. No se avisó a nadie: eso es del creador.
+- **Con la 3.0, la medición local empieza a contar sola** en el Chrome de cada asesor, y la tarjeta lee la bolsa de Liverpool. Nada sale de ese navegador (doc 05, §10).
+- **Sigue sin comprobarse en vivo la lectura de una bolsa con artículos y con sesión** (entrada de abajo). Conviene que el creador la mire en su Chrome antes de avisar: con un artículo en la bolsa, la ficha de su accesorio tiene que decir «Para …, que ya va en la bolsa».
+- **Para volver:** en Drive, «Administrar versiones» en cada uno de los 6 reemplazados y borrar los 7 nuevos; o subir de nuevo la 2.9 desde el commit `6f8ab4c`.
+
 ### 2026-10-04 — Extensión 3.0: «Vende más» elige el mejor candidato, mira la bolsa, cubre doce categorías más y se mide (puntos 1 a 6 del doc 18) — pedido por el creador
 
 **Qué se cambió:**
