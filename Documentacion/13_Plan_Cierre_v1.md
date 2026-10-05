@@ -1042,6 +1042,28 @@ y qué se dejó fuera a propósito**. Mismo formato que el registro del document
 
 <!-- Las entradas nuevas van arriba, con la más reciente primero. -->
 
+### 2026-10-04 — Producción @140: la foto de cada artículo, en su propia fila (80adfe6) — pedido por el creador
+
+**Qué se cambió:**
+- **El pedido:** «Subelo a produccion», justo después de dejar el cambio en pruebas (entrada de abajo). Pruebas era la @139 más ese cambio y nada más, así que no hubo nada que elegir.
+- **Portal, producción @140 (~18:40):** la @139 más la columna «Artículo» de Cotización (`80adfe6`). Solo cliente y un solo archivo, `cotizacion.html`: no toca el servidor ni el manifiesto (no hubo que reautorizar).
+- **Cómo se armó:** build de `29ad0b2` (mismo código del Portal que `80adfe6`) con `git archive` en el scratchpad, sin tocar la `build/` del checkout. Configuración de clasp de producción aparte, fuera del repo, escrita con la herramienta de escritura.
+- **Lo ven también los asesores que llegan desde la extensión de Chrome:** su `cotizadorUrl` es este mismo deployment (`AKfycbwGYZs3…`).
+
+**Qué se comprobó:**
+- **Antes de subir:**
+  - el paquete es igual a pruebas: 96 de 96 contra la `build/` del checkout y contra el editor de pruebas (`clasp pull`);
+  - el editor de producción era la @139 exacta: 96 de 96 contra el build de `5c95f54`, sin nada editado a mano. Contra el paquete nuevo, 95 iguales y solo `cotizacion.html` distinto;
+  - `clasp status`: 96 archivos rastreados; fuera, solo `.clasp.json` y `.claspignore`.
+- **Después:**
+  - el editor de producción es igual al paquete, 96 de 96 (`clasp pull`);
+  - `clasp deployments` muestra `AKfycbwGYZs3…` en la @140;
+  - el `/exec` (con `cb`, leyendo el `userHtml` desde una pestaña de script.google.com con la sesión del creador) sirve en Cotización la columna nueva (`col-articulo`, `cot-th-corto`, `cot-art-pista`) y nada de la galería (`cot-galeria`, `fila-resaltada`: 0). El Portal carga igual (200).
+
+**Qué se dejó fuera a propósito:**
+- **Lo mismo que en pruebas** (entrada de abajo): sin probar con una bolsa real importada ni con una cotización guardada abierta en edición; que lo mire el creador en el `/exec`.
+- **Para volver:** `-V 139`.
+
 ### 2026-10-04 — Cotización: la foto de cada artículo, en su propia fila (en pruebas)
 
 **Qué se cambió:**
