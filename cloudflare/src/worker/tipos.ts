@@ -6,4 +6,6 @@ export interface Env {
   /** Producción: el Worker de API junto a la base (Service Binding). En local no existe. */
   API?: Fetcher;
   ENTORNO?: string;
+  /** Secreto (solo en producción, Worker de API): clave de Brevo para mandar los correos. */
+  BREVO_API_KEY?: string;
 }
