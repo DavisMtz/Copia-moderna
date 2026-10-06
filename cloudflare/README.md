@@ -7,11 +7,15 @@ debajo.
 
 **En línea:** https://ventel.logidma.com
 
-| Cuenta de la demo | Rol | Contraseña |
-| --- | --- | --- |
-| `maestro@ventel.example` | Maestro (todo, consola, explorador de datos) | `VentelDemo2026` |
-| `supervisora@ventel.example` · `supervisor@ventel.example` | Supervisor | `VentelDemo2026` |
-| `asesor@ventel.example` (y otros `…@ventel.example`) | Asesor | `VentelDemo2026` |
+| Cuenta de la demo | Rol |
+| --- | --- |
+| `maestro@ventel.example` | Maestro (todo, consola, explorador de datos) |
+| `supervisora@ventel.example` · `supervisor@ventel.example` | Supervisor |
+| `asesor@ventel.example` (y otros `…@ventel.example`) | Asesor |
+
+**La contraseña de producción no está en el repositorio** (es público y en producción los correos
+salen de verdad): la da quien administra la demo, y se cambia con `node scripts/claves-produccion.mjs`
++ `scripts/desplegar.sh --semillas`. En local todas las cuentas usan `VentelDemo2026`.
 
 ## Cómo funciona
 
@@ -40,8 +44,12 @@ debajo.
 
 Lo que depende de Google se dejó fuera, por decisión del proyecto:
 
-- **Correos**: no salen. Cada correo se guarda completo en la tabla `correos_salida` (se ve en el
-  explorador de datos, `?page=datos`, como maestro) y el flujo sigue como si hubiera salido.
+- **Correos**: salen de verdad por **Brevo** desde el dominio **logidma.com** (`ventel@logidma.com`,
+  ajuste `BREVO_REMITENTE`) en lugar de Gmail y del alias de grupo del original; es la única diferencia.
+  Cada correo queda además en la tabla `correos_salida` con su estado (se ve en el explorador de datos,
+  `?page=datos`, como maestro). Nunca se manda a direcciones de ejemplo (`@ventel.example`,
+  `@ejemplo.com`). En local no hay clave de Brevo: nada sale. Interruptor de emergencia: propiedad
+  `CORREO_ENVIO_REAL = no`.
 - **Google Drive**: no se generan PDF ni hojas CCL en Drive. Las imágenes subidas (anuncios,
   artículos, evidencias) sí funcionan: van a R2.
 - **Calendar, Chat y hojas externas de comercial**: vacíos.

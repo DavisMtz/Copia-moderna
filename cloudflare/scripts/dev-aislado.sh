@@ -16,6 +16,7 @@ npx wrangler d1 migrations apply ventel-portal --local --persist-to "$ESTADO" 2>
 if [ "$NUEVO" = "1" ]; then
   for f in semilla/*.sql; do
     [ -e "$f" ] || continue
+    case "$f" in *produccion*) continue ;; esac   # las claves de producción nunca van a una base local
     npx wrangler d1 execute ventel-portal --local --persist-to "$ESTADO" --file "$f" >/dev/null 2>&1 \
       && echo "semilla: $f" || echo "✘ semilla falló: $f"
   done

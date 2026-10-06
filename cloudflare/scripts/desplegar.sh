@@ -9,6 +9,9 @@ npm run construir
 npx tsc --noEmit
 npx wrangler d1 migrations apply ventel-portal --remote -c wrangler.api.jsonc
 if [ "${1:-}" = "--semillas" ]; then
+  # Sin la contraseña de producción no se siembra: las cuentas quedarían con la clave local, que está
+  # en el repo público, y en producción los correos salen de verdad.
+  [ -e semilla/99_claves_produccion.local.sql ] || { echo "Falta semilla/99_claves_produccion.local.sql: corre node scripts/claves-produccion.mjs"; exit 1; }
   for f in semilla/*.sql; do
     [ -e "$f" ] || continue
     echo "semilla remota: $f"
