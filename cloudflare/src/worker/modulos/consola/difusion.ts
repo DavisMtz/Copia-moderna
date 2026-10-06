@@ -185,15 +185,13 @@ function difCuerpoHtml(bloques: Bloque[], adjuntas: Adjunto[]): string {
                   'style="margin:6px 0 22px"><tr><td class="m-hair" ' +
                   'style="border-top:1px solid ' + M.line + ';font-size:0;line-height:0">&nbsp;</td></tr></table>');
     } else if (b.tipo === 'imagen') {
-      // Imagen EN LÍNEA (cid), como en Apps Script: viaja con el correo y se ve siempre.
-      const cid = 'difimg' + i;
-      imagenesEnLinea[cid] = { nombre: cid, tipo: b.mime, bytes: b.bytes };
-      partes.push('<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="margin:0 0 18px">' +
-        '<tr><td align="center"><img src="cid:' + cid + '" alt="' + escaparHtml(b.pie || b.nombre) + '" ' +
-        'style="max-width:100%;height:auto;border-radius:10px;display:block"></td></tr>' +
-        (b.pie ? '<tr><td align="center" class="m-t3" style="padding-top:6px;font-family:' + M.fuente +
-                 ';font-size:12px;color:' + M.inkFaint + '">' + escaparHtml(b.pie) + '</td></tr>' : '') +
-        '</table>');
+      // La imagen viaja ADJUNTA (ver la cabecera) y aquí queda su rótulo, en el sitio donde iba.
+      adjuntas.push({ nombre: b.nombre, tipo: b.mime, bytes: b.bytes, base64: b.base64 });
+      partes.push('<table role="presentation" width="100%" cellpadding="0" cellspacing="0" class="m-soft" ' +
+        'style="margin:0 0 18px;background:' + M.surface2 + ';border:1px solid ' + M.line + ';border-radius:12px">' +
+        '<tr><td class="m-t2" style="padding:12px 16px;font-family:' + M.fuente + ';font-size:13px;line-height:1.5;' +
+        'color:' + M.inkSoft + '"><strong class="m-t1" style="color:' + M.ink + '">Imagen adjunta:</strong> ' +
+        escaparHtml(b.nombre) + (b.pie ? '<br>' + escaparHtml(b.pie) : '') + '</td></tr></table>');
     }
   });
   return partes.join('');

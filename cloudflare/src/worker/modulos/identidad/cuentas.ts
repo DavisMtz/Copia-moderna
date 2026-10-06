@@ -916,54 +916,32 @@ export interface CuentasExtraCorreo {
   referencia?: string;
 }
 
-/** Buzones del ajuste CORREO_CCO_GLOBAL (correoCcoGlobal_ de Correos.gs, versión local). */
-async function correoCcoGlobal(ctx: Ctx): Promise<string[]> {
-  try {
-    const crudo = await secConfig(ctx, 'CORREO_CCO_GLOBAL', '');
-    if (!crudo) return [];
-    return String(crudo).split(/[,;\s]+/)
-      .map((x) => String(x || '').trim().toLowerCase())
-      .filter((x) => x && x.indexOf('@') > 0);
-  } catch (e) {
-    console.error('correoCcoGlobal', e);
-    return [];
-  }
-}
-
-/** correoAplicarCco_ de Correos.gs (versión local): añade la copia oculta global sin repetir a nadie. */
-async function correoAplicarCco(ctx: Ctx, opciones: { bcc?: string }, yaVan: string[]): Promise<number> {
-  const global = await correoCcoGlobal(ctx);
-  if (!global.length || !opciones) return 0;
-  const previos = String(opciones.bcc || '').split(/[,;\s]+/).map((x) => x.trim().toLowerCase()).filter(Boolean);
-  const ocupados = previos.concat((yaVan || []).map((x) => String(x || '').trim().toLowerCase()));
-  const nuevos = global.filter((c) => ocupados.indexOf(c) === -1);
-  if (!nuevos.length) return 0;
-  opciones.bcc = previos.concat(nuevos).join(',');
-  return nuevos.length;
-}
-
 /**
- * cuentasEnviarCorreo_: Gmail con alias o MailApp → la bandeja de salida (enviarCorreo). Contesta
- * con el alias usado, como allá; aquí no hay alias de Gmail, así que siempre es '' («la vía clásica»).
- * El modo captura de Apps Script (CUENTAS_MAIL_CAPTURA) sobra: todo correo queda guardado entero.
+ * cuentasEnviarCorreo_: Gmail con alias o MailApp → Brevo (enviarCorreo del núcleo). No hay alias de
+ * grupo que comprobar (GmailApp.getAliases): el remitente de logidma.com (mailAlias) siempre está
+ * disponible, así que se va siempre por «la vía del alias» y se contesta con él, como allá.
+ * Si Brevo rechaza el envío, LANZA (como MailApp.sendEmail): quien llama decide qué decirle a la persona.
+ * El modo captura de Apps Script (CUENTAS_MAIL_CAPTURA) sobra: todo correo queda entero en correos_salida.
  */
 export async function cuentasEnviarCorreo(ctx: Ctx, para: string, asunto: string, html: string, textoPlano: string,
                                           extra: CuentasExtraCorreo = {}): Promise<string> {
   const opciones: { bcc?: string } = { bcc: extra.bcc || '' };
   if (extra.cco === true) await correoAplicarCco(ctx, opciones, [para]);
+  const alias = await mailAlias(ctx);
   await enviarCorreo(ctx, {
     para,
     asunto,
     html,
     texto: textoPlano,
     cco: opciones.bcc || '',
+    de: alias,
     nombreDe: extra.remitente || 'Sistema de cotizaciones Ventel',
     responderA: extra.responderA,
     adjuntos: extra.adjuntos,
     tipo: extra.tipo || 'cuenta',
     referencia: extra.referencia
   });
-  return '';
+  return alias;
 }
 
 export interface TextosCodigo { asunto?: string; titulo?: string; chip?: string; intro?: string; cierre?: string; expira?: number }
