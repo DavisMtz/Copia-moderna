@@ -116,6 +116,14 @@ export function sendWebhookNotification(ctx: Ctx, folio: string, quoteData: Reco
 const PARTIDAS_POR_INSERT = 8;
 
 /**
+ * Valor para una columna de texto: `x || ''` del .gs, pero siempre como texto. D1 recibe los números
+ * de JavaScript como REAL y en una columna TEXT un teléfono 5512345678 quedaría «5512345678.0».
+ */
+function texto(v: unknown): string {
+  return v === null || v === undefined || v === '' || v === 0 || v === false ? '' : String(v);
+}
+
+/**
  * Guarda o actualiza una cotización: cabecera en `cotizaciones` y partidas en
  * `detalle_cotizaciones`, TODO en una transacción (ctx.lote).
  *
@@ -135,18 +143,18 @@ export async function saveQuoteDataToSheets(ctx: Ctx, quoteData: Record<string, 
     ['folio', folio],
     ['timestamp', isoDe(quoteData.timestamp) || ctx.ahoraIso()],
     // El asesor que se guarda es el de la sesión del PORTAL.
-    ['asesor_correo', quoteData.advisorEmail || ''],
-    ['asesor_nombre', quoteData.advisorName || ''],
-    ['extencion', quoteData.advisorExt || ''],
-    ['cliente_nombre', quoteData.clientName || ''],
-    ['correo_cliente', quoteData.clientEmail || ''],
-    ['numero', quoteData.clientPhone || ''],
+    ['asesor_correo', texto(quoteData.advisorEmail)],
+    ['asesor_nombre', texto(quoteData.advisorName)],
+    ['extencion', texto(quoteData.advisorExt)],
+    ['cliente_nombre', texto(quoteData.clientName)],
+    ['correo_cliente', texto(quoteData.clientEmail)],
+    ['numero', texto(quoteData.clientPhone)],
     ['subtotal', numero(quoteData.summarySubtotal)],
     ['iva', numero(quoteData.summaryVat)],
     ['total_general', numero(quoteData.summaryTotal)],
     ['estatus', status],
-    ['observaciones', quoteData.observations || ''],
-    ['formato', quoteData.format || DEFAULT_FORMAT_ID],
+    ['observaciones', texto(quoteData.observations)],
+    ['formato', texto(quoteData.format) || DEFAULT_FORMAT_ID],
     ['revision_estado', ''],
     ['revisado_por', ''],
     ['revisado_nombre', ''],
@@ -171,22 +179,21 @@ export async function saveQuoteDataToSheets(ctx: Ctx, quoteData: Record<string, 
     const trozo = productos.slice(i, i + PARTIDAS_POR_INSERT);
     const valores: unknown[] = [];
     trozo.forEach((p, k) => {
-      const prod = p || {};
       valores.push(
         folio,
         i + k,
-        prod.sku || '',
-        prod.description || '',
-        entero(prod.quantity),
-        numero(prod.unitPrice),
-        numero(prod.costPaymentUnique),
-        numero(prod.discountPublicPercent),
-        prod.additionalDiscountApplied || 'No',
-        numero(prod.additionalDiscountPercent),
-        prod.imageUrl || '',
+        texto(p.sku),
+        texto(p.description),
+        entero(p.quantity),
+        numero(p.unitPrice),
+        numero(p.costPaymentUnique),
+        numero(p.discountPublicPercent),
+        texto(p.additionalDiscountApplied) || 'No',
+        numero(p.additionalDiscountPercent),
+        texto(p.imageUrl),
         // Enlace a la ficha del artículo en liverpool.com.mx (lo aporta la extensión): permite
         // abrir el producto dentro de la pantalla de revisión.
-        prod.productUrl || '');
+        texto(p.productUrl));
     });
     sentencias.push([
       'INSERT INTO detalle_cotizaciones (folio_cotizacion, orden, sku, descripcion_producto, cantidad, ' +
