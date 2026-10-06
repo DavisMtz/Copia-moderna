@@ -65,9 +65,7 @@ function arrancar(): void {
 
   /* ── La cifra del botón: lo que tardó la última llamada al servidor ── */
   const formato = (ms: number) => (ms < 1000 ? Math.round(ms) + ' ms' : (ms / 1000).toFixed(ms < 10000 ? 2 : 1) + ' s');
-  let ultima: MedidaRed | null = null;
   const pintarCifra = (m: MedidaRed | null) => {
-    ultima = m;
     cifra.textContent = m ? formato(m.ms) : 'Velocidad';
     boton.classList.toggle('vx-fallo', !!m && !m.ok);
     boton.setAttribute('aria-label', m
@@ -189,7 +187,6 @@ function arrancar(): void {
     }, 600);
     if (document.readyState === 'complete') despues(); else window.addEventListener('load', despues, { once: true });
   }
-  void ultima;
 }
 
 function movimientoReducido(): boolean {

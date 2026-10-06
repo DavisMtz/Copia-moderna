@@ -1,0 +1,115 @@
+/*
+ * Panel de velocidad · el botón y los tokens de la isla (dentro del Shadow DOM).
+ * Los colores son los de app_theme.html, copiados: la isla no hereda nada de la pantalla salvo el
+ * tamaño de texto (rem, que sigue a data-textscale) y la altura de la barra del móvil
+ * (--op-pill-suelo, que pone el Portal).
+ */
+:host {
+  all: initial;
+  /* Aurora / Slate (claros) */
+  --vx-surface: #FFFFFF;
+  --vx-surface-2: #F4F7FA;
+  --vx-ink: #1B2330;
+  --vx-ink-soft: #5C6B7E;
+  --vx-ink-faint: #94A1B2;
+  --vx-line: #E4E9F0;
+  --vx-line-soft: #EEF2F7;
+  --vx-brand: #E10098;
+  --vx-brand-deep: #A8006F;
+  --vx-brand-tint: #FDE7F4;
+  --vx-ok: #0E7A4F;
+  --vx-ok-bg: #E5F5EE;
+  --vx-alert: #C81E3C;
+  --vx-alert-bg: #FDE8EC;
+  --vx-warn: #B45309;
+  --vx-gas: #B7C0CC;
+  --vx-sh-sm: 0 4px 12px -4px rgba(27, 35, 48, .16), 0 2px 4px -2px rgba(27, 35, 48, .1);
+  --vx-sh-lg: 0 30px 60px -24px rgba(27, 35, 48, .32), 0 12px 24px -12px rgba(27, 35, 48, .12);
+  --vx-f: 'Inter', system-ui, -apple-system, 'Segoe UI Variable Text', 'Segoe UI', Roboto, sans-serif;
+  --vx-mono: 'JetBrains Mono', ui-monospace, SFMono-Regular, Consolas, monospace;
+
+  position: fixed;
+  z-index: 900;
+  right: var(--vx-der, 16px);
+  bottom: var(--vx-abajo, calc(16px + var(--op-pill-suelo, 0px) + env(safe-area-inset-bottom, 0px)));
+  /* Hasta saber dónde no estorba (primer fotograma), no se ve: así no salta de sitio. */
+  visibility: hidden;
+  font-family: var(--vx-f);
+  color: var(--vx-ink);
+  -webkit-font-smoothing: antialiased;
+  font-feature-settings: 'cv05' 1;
+  color-scheme: light;
+}
+:host([data-listo]) { visibility: visible; }
+
+:host([data-tema="carbon"]) {
+  --vx-surface: #1C2027;
+  --vx-surface-2: #22272F;
+  --vx-ink: #F1EDEF;
+  --vx-ink-soft: #A7A2AC;
+  --vx-ink-faint: #8B8590;
+  --vx-line: #2C313A;
+  --vx-line-soft: #262B33;
+  --vx-brand-deep: #F46BC6;
+  --vx-brand-tint: rgba(225, 0, 152, .16);
+  --vx-ok: #4ADE80;
+  --vx-ok-bg: rgba(14, 122, 79, .18);
+  --vx-alert: #FB7185;
+  --vx-alert-bg: rgba(200, 30, 60, .18);
+  --vx-warn: #F2B65A;
+  --vx-gas: #4A5260;
+  --vx-sh-sm: 0 4px 14px -4px rgba(0, 0, 0, .55), 0 0 0 1px rgba(255, 255, 255, .04);
+  --vx-sh-lg: 0 30px 60px -24px rgba(0, 0, 0, .8), 0 0 0 1px rgba(255, 255, 255, .05);
+  color-scheme: dark;
+}
+/* Alto contraste: las mismas líneas y tintas que app_theme. */
+:host([data-contraste]) { --vx-line: #0c1420; --vx-line-soft: #22303f; --vx-ink-soft: #2b3645; --vx-ink-faint: #475160; --vx-gas: #6B7686; }
+:host([data-contraste][data-tema="carbon"]) { --vx-line: #7b8696; --vx-line-soft: #5c6677; --vx-ink-soft: #d6d2da; --vx-ink-faint: #b4afbb; --vx-gas: #8A93A1; }
+
+*, *::before, *::after { box-sizing: border-box; }
+
+.vx-boton {
+  display: inline-flex;
+  align-items: center;
+  gap: .3rem;
+  height: 28px;
+  padding: 0 .62rem 0 .5rem;
+  border-radius: 999px;
+  border: 1px solid var(--vx-line);
+  background: var(--vx-surface);
+  color: var(--vx-ink-soft);
+  box-shadow: var(--vx-sh-sm);
+  font: 600 .72rem/1 var(--vx-f);
+  font-variant-numeric: tabular-nums;
+  letter-spacing: 0;
+  cursor: pointer;
+  white-space: nowrap;
+  -webkit-tap-highlight-color: transparent;
+  transition: color .16s ease, border-color .16s ease, transform .16s cubic-bezier(.32, .72, 0, 1);
+}
+.vx-boton:hover { color: var(--vx-ink); border-color: color-mix(in srgb, var(--vx-brand) 35%, var(--vx-line)); transform: translateY(-1px); }
+.vx-boton:active { transform: translateY(0) scale(.98); }
+.vx-boton:focus-visible { outline: 2px solid var(--vx-brand); outline-offset: 3px; }
+:host([data-contraste]) .vx-boton { border-width: 2px; }
+:host([data-contraste]) .vx-boton:focus-visible { outline-width: 3px; }
+.vx-boton[aria-expanded="true"] { color: var(--vx-ink); border-color: var(--vx-brand); }
+
+.vx-rayo { width: 13px; height: 13px; flex: none; fill: var(--vx-brand); }
+:host([data-tema="carbon"]) .vx-rayo { fill: var(--vx-brand-deep); }
+.vx-fallo .vx-rayo { fill: var(--vx-alert); }
+
+/* Bajando el panel (solo si tarda): el rayo late. Sin animación, se queda quieto. */
+@media (prefers-reduced-motion: no-preference) {
+  .vx-cargando .vx-rayo { animation: vx-late .8s ease-in-out infinite; }
+}
+@keyframes vx-late { 50% { opacity: .35; } }
+
+@media (prefers-reduced-motion: reduce) {
+  .vx-boton { transition: none; }
+  .vx-boton:hover, .vx-boton:active { transform: none; }
+}
+
+/* Los documentos de cotización se imprimen desde estas pantallas: la isla nunca sale en papel. */
+@media print {
+  :host { display: none !important; }
+}
