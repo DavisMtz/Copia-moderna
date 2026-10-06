@@ -236,11 +236,11 @@ function cotReciboFicha(valor: unknown): string {
 /** La respuesta que ya se dio para esa ficha, o null si no hay recibo (o es de otra persona). */
 async function cotReciboLeer(ctx: Ctx, ficha: string, correo: unknown) {
   if (!ficha) return null;
-  let texto: string | null = null;
-  try { texto = await cacheLeer(ctx, COT_RECIBO_PREFIJO + ficha); } catch { return null; }
-  if (!texto) return null;
+  let crudo: string | null = null;
+  try { crudo = await cacheLeer(ctx, COT_RECIBO_PREFIJO + ficha); } catch { return null; }
+  if (!crudo) return null;
   let recibo: any = null;
-  try { recibo = JSON.parse(texto); } catch { return null; }
+  try { recibo = JSON.parse(crudo); } catch { return null; }
   if (!recibo || !recibo.folio) return null;
   if (recibo.correo && recibo.correo !== secNormalizarCorreo(correo)) return null;
   return {

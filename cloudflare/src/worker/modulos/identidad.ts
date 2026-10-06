@@ -19,7 +19,8 @@
  *   cuentasPasswordEsTemporal(ctx, correo)                     → boolean
  *   cuentasDominioPermitido(ctx)                               → '' si no hay restricción
  *   consolaPasswordTemporal()                                  → 'ABC-2345-XYZ'
- *   cuentasEnviarAviso(ctx, correo, nombre, textos) · cuentasEnviarCorreo(ctx, para, asunto, html, texto, extra)
+ *   cuentasEnviarAviso(ctx, correo, nombre, textos)
+ *   cuentasEnviarCorreo(ctx, para, asunto, html, texto, extra) → remitente usado; LANZA si Brevo rechaza
  *   cuentasPlantillaCorreo · cuentasMailP · cuentasMailDatos · cuentasMailBoton · cuentasMailNota ·
  *   cuentasMailChip · cuentasMailTono · cuentasUrlApp(ctx, pagina) · CUENTAS_MAIL · CUENTAS_PREFIJO
  */

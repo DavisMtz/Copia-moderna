@@ -198,6 +198,10 @@ async function principal() {
      'buscarCotizaciones → filas recortadas a lo que pinta la lista desplegable', cmd);
   const corto = await rpc(otra, 'buscarCotizaciones', [OTRA_ASESORA, 'ma', 8]);
   ok(corto.success === true && corto.quotes.length === 0, 'con menos de 3 letras no se busca', corto);
+  // Un término único, para encontrar después su fila en metricas_busquedas (monRegistrarBusqueda).
+  const terminoUnico = 'pruebabusq' + randomBytes(4).toString('hex');
+  const sinNada = await rpc(otra, 'getQuotesForUser', [OTRA_ASESORA, terminoUnico, false]);
+  ok(sinNada.success === true && sinNada.quotes.length === 0, 'una búsqueda sin coincidencias → lista vacía', sinNada);
 
   seccion('La ficha de la vista previa: un folio por cotización aunque se repita la llamada');
   const ficha = randomBytes(16).toString('hex');
@@ -322,11 +326,12 @@ async function principal() {
     "SELECT para, de, nombre_de, responder_a, adjuntos, tipo, estado, instr(html, '¡Tu cotización está lista!') > 0 AS aprobado " +
     `FROM correos_salida WHERE referencia = '${folio}' ORDER BY id DESC LIMIT 1; ` +
     `SELECT resultado, adjuntos, cc, alias_usado FROM metricas_correos WHERE referencia = '${folio}' ORDER BY id; ` +
-    `SELECT COUNT(*) AS n FROM detalle_cotizaciones WHERE folio_cotizacion = '${folio}'`);
+    `SELECT COUNT(*) AS n FROM detalle_cotizaciones WHERE folio_cotizacion = '${folio}'; ` +
+    `SELECT quien, origen FROM metricas_busquedas WHERE termino = '${terminoUnico}'`);
   if (!filas) {
     console.log('  · (sin estado local en ' + ESTADO + ': no se mira la base)');
   } else {
-    const [salida, metricas, partidas] = filas;
+    const [salida, metricas, partidas, busquedas] = filas;
     const c = salida[0] || {};
     ok(c.para === 'maria.gonzalez@example.com' && c.de === remitente.alias && c.nombre_de === 'Cotizaciones Ventel Liverpool' &&
        c.responder_a === ASESOR && c.tipo === 'cotizacion' && c.aprobado === 1,
@@ -338,6 +343,8 @@ async function principal() {
        metricas.some((m) => m.resultado === 'Error'),
        'metricas_correos: el envío («Enviado») y el intento fallido («Error»)', metricas);
     ok(partidas[0]?.n === 3, 'detalle_cotizaciones: tres partidas del folio', partidas);
+    ok(busquedas.some((b) => b.quien === OTRA_ASESORA && b.origen === 'cotizaciones'),
+       'metricas_busquedas: la búsqueda quedó apuntada (monRegistrarBusqueda, origen «cotizaciones»)', busquedas);
   }
 
   console.log('\n' + (pasos - fallos) + '/' + pasos + ' comprobaciones bien' + (fallos ? ' · ' + fallos + ' FALLARON' : ''));
