@@ -22,6 +22,8 @@
       "migrations_dir": "migrations"
     }
   ],
+  // Cloudflare Browser Rendering: genera el PDF de la cotización (lo que antes hacía Drive).
+  "browser": { "binding": "NAVEGADOR" },
   "r2_buckets": [
     { "binding": "ARCHIVOS", "bucket_name": "ventel-portal-assets" }
   ],
