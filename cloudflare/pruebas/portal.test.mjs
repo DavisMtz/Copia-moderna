@@ -13,7 +13,10 @@
  *   C · Escrituras de quien tiene los bloques (supervisora): anuncios (publicar, programar, expirar,
  *       ocultar, mover, borrar), encuestas (un voto por persona, cambiable, cierre), imagen a R2,
  *       interruptor del reconocimiento, y el CRUD + importación de «Contenido del Portal».
- * Todo lo que crea lo borra al final, y el interruptor del reconocimiento queda como estaba.
+ * Lo que crea en el contenido (anuncios, filas del Portal, el reporte de prueba) lo borra al final y el
+ * interruptor del reconocimiento queda como estaba. Quedan solo los rastros que el sistema guarda a
+ * propósito: la bitácora, los votos de la encuesta borrada (como la hoja «Votos»), la imagen de 1 px
+ * subida a R2 y los contadores de límite por hora.
  */
 process.env.TZ = 'America/Mexico_City';   // la vm con el Portal.gs original cuenta en hora de México
 import fs from 'node:fs';

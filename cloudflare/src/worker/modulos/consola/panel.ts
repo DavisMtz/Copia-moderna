@@ -785,8 +785,9 @@ export async function consolaAltaMiembro(ctx: Ctx, email: string, datos: any) {
     let avisoError = '';
     if (d.avisar !== false) {
       try {
-        await consolaCorreoBienvenida(ctx, correo, nombre, temporal, acc.nombre || acc.email);
-        avisoEnviado = true;
+        const envio = await consolaCorreoBienvenida(ctx, correo, nombre, temporal, acc.nombre || acc.email);
+        avisoEnviado = envio.salio;
+        avisoError = envio.motivo;
       } catch (e: any) {
         avisoError = (e && e.message) || String(e);
         console.error('No se pudo enviar la bienvenida a ' + correo, e);
@@ -841,8 +842,9 @@ export async function consolaResetPassword(ctx: Ctx, email: string, correoObjeti
     let avisoEnviado = false;
     let avisoError = '';
     try {
-      await consolaCorreoReset(ctx, objetivo, reg.nombre, temporal, acc.nombre || acc.email);
-      avisoEnviado = true;
+      const envio = await consolaCorreoReset(ctx, objetivo, reg.nombre, temporal, acc.nombre || acc.email);
+      avisoEnviado = envio.salio;
+      avisoError = envio.motivo;
     } catch (e: any) {
       avisoError = (e && e.message) || String(e);
       console.error('No se pudo enviar el restablecimiento a ' + objetivo, e);
@@ -956,11 +958,11 @@ async function consolaCorreoReset(ctx: Ctx, correo: string, nombre: string, temp
     cuentasMailBoton('Entrar y cambiarla', url) +
     cuentasMailNota('¿No lo pediste?',
       'Avisa de inmediato al equipo del sistema: alguien con acceso de administrador cambió tu contraseña.', 'alerta');
-  await cuentasEnviarCorreo(ctx, correo, 'Se restableció la contraseña de tu cuenta Ventel',
+  return consolaEnviarCorreoCuenta(ctx, correo, 'Se restableció la contraseña de tu cuenta Ventel',
     cuentasPlantillaCorreo({ titulo: 'Contraseña restablecida', cuerpo, chip: 'Seguridad', tono: 'aviso',
                              preheader: 'Contraseña temporal: ' + temporal }),
     'Se restableció tu contraseña del sistema Ventel.\nContraseña temporal: ' + temporal + '\nEntra en: ' + url,
-    { tipo: 'cuenta', referencia: 'restablecer-consola' });
+    'restablecer-consola');
 }
 
 // ── Ajustes del sistema ─────────────────────────────────────────────────────

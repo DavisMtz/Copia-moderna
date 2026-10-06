@@ -9,8 +9,9 @@
  * el «Para» es quien escribe. LA CUOTA SE COMPRUEBA ANTES. Y hay envío de prueba porque el envío
  * real no es idempotente.
  *
- * En esta versión el correo queda en la bandeja de salida (correos_salida) y se contesta como
- * enviado; las imágenes «en línea» viajan como adjuntos (solo sus metadatos quedan guardados).
+ * En esta versión el correo sale por Brevo (nucleo/correo.ts) y queda además completo en la bandeja
+ * de salida (correos_salida); las direcciones de ejemplo nunca se mandan. Las imágenes «en línea» se
+ * cuentan y se miden como en Apps Script, pero viajan solo como metadatos de adjunto.
  */
 import type { Ctx } from '../../nucleo/contexto';
 import { enviarCorreo, type Adjunto } from '../../nucleo/correo';
@@ -19,7 +20,7 @@ import { escaparHtml } from '../../nucleo/util';
 import { deBase64 } from '../../nucleo/cripto';
 import { metRegistrarEnvio, mailAlias } from '../cotizaciones';
 import { CUENTAS_MAIL, cuentasMailP, cuentasMailBoton, cuentasMailNota, cuentasPlantillaCorreo } from '../identidad';
-import { consolaCuotaCorreo } from './comun';
+import { consolaCuotaCorreo, correoEnBandeja } from './comun';
 import { grpAcceso, grpListar, grpPorId, grpCorreosDe } from './grupos';
 import { artUrlSegura } from './articulos';
 
@@ -315,22 +316,25 @@ export async function difEnviar(ctx: Ctx, email: string, payload: any) {
 
     /* El «Para» es quien escribe; el grupo va entero en copia oculta. La copia oculta GLOBAL no se
        añade a una difusión: ya va a todo un grupo interno y queda en métricas y bitácora. */
+    // enviarCorreo LANZA si el proveedor rechaza el envío, como GmailApp.sendEmail: se trata igual.
     let remitente = '';
     let error = '';
     try {
-      remitente = await mailAlias(ctx);
-      await enviarCorreo(ctx, {
+      const r = await enviarCorreo(ctx, {
         para: acc.email,
         asunto: (esPrueba ? '[Prueba] ' : '') + armado.asunto,
         html: armado.html,
         texto: armado.plano,
         cco: esPrueba ? '' : destinos.join(','),
-        de: remitente,
+        de: await mailAlias(ctx),
         nombreDe: 'Sistema de cotizaciones Ventel',
         adjuntos: Object.keys(imagenes).map((k) => imagenes[k]),
         tipo: 'difusion',
         referencia: esPrueba ? 'prueba' : (grupo ? grupo.nombre : '')
       });
+      // El remitente que cuenta la métrica es el real (el núcleo lo fuerza al dominio de envío).
+      const fila = await correoEnBandeja(ctx, r.id);
+      remitente = (fila && fila.de) || '';
     } catch (e: any) {
       error = (e && e.message) || String(e);
       remitente = '';

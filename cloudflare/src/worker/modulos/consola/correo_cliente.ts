@@ -6,14 +6,15 @@
  * previa) y aquí solo se valida y se «envía». La plantilla de cotización NO se acepta aquí: esa sale
  * con su PDF desde «Enviar correo».
  *
- * En esta versión el correo queda completo en la bandeja de salida (correos_salida) y se contesta
- * como enviado; los adjuntos se validan igual (tipo, tamaño) y de ellos se guardan los metadatos.
+ * En esta versión el correo sale por Brevo (nucleo/correo.ts) desde el dominio de envío, con la
+ * respuesta dirigida al asesor (responderA = el replyTo de allá), y queda completo en la bandeja de
+ * salida. Los adjuntos se validan igual (cuántos, cuánto pesan) y viajan con su contenido.
  */
 import type { Ctx } from '../../nucleo/contexto';
 import { enviarCorreo, type Adjunto } from '../../nucleo/correo';
 import { deBase64 } from '../../nucleo/cripto';
 import { metRegistrarEnvio, metVerificarAsesor, mailAlias, correoAplicarCco } from '../cotizaciones';
-import { ccSenderName } from './comun';
+import { ccSenderName, correoEnBandeja } from './comun';
 
 const CC_PLANTILLAS_VALIDAS = ['ticket', 'edodecuenta', 'edodecuentaextranjera', 'validacionexitosa', 'formato', 'textoplano'];
 const CC_EMAIL_RX = /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/;
@@ -102,13 +103,16 @@ export async function enviarCorreoPlantilla(ctx: Ctx, payload: any) {
     const asuntoPropuesto = String(payload.asuntoPlantilla || '').trim();
     if (asuntoPropuesto) plantillaModificada = (asuntoPropuesto === asunto) ? 'No' : 'Sí';
 
-    // En la bandeja de salida el alias siempre «está dado de alta»: el correo sale con él.
-    const sentFrom = await mailAlias(ctx);
-    await enviarCorreo(ctx, {
+    // No hay alias de Gmail que comprobar (getAliases): se pide el alias y el núcleo lo deja en el
+    // dominio de envío. Si el proveedor rechaza el correo, enviarCorreo LANZA como MailApp.sendEmail
+    // y el catch de abajo apunta la métrica de error, igual que allá.
+    const envio = await enviarCorreo(ctx, {
       para: to, asunto, html: htmlBody, cc, cco: opciones.bcc || '',
-      de: sentFrom, nombreDe: await ccSenderName(ctx), responderA: advisorEmail || '',
+      de: await mailAlias(ctx), nombreDe: await ccSenderName(ctx), responderA: advisorEmail || '',
       adjuntos, tipo: 'plantilla', referencia: plantilla
     });
+    const fila = await correoEnBandeja(ctx, envio.id);
+    const sentFrom = (fila && fila.de) || (await mailAlias(ctx));
 
     await registrarCorreoClienteEnviado(ctx, plantilla, to, cc, cco, asunto, advisorEmail, sentFrom, adjuntos.length);
 
