@@ -64,6 +64,18 @@ function paginaDeError(): Response {
 /** servirPagina_ (Code.gs): la pantalla que toca según ?page=, con su APP_JSON. */
 async function servirPantalla(req: Request, env: Env, url: URL): Promise<Response> {
   const page = url.searchParams.get('page') || 'portal';
+
+  // Pantalla NUEVA de esta versión (no existe en Apps Script): el explorador de la base D1, una app
+  // React (src/react) que se construye en public/vx/app/datos.html. Solo la ve un maestro: la puerta
+  // está en cada llamada de modulos/nuevas.ts, no aquí.
+  if (page === 'datos') {
+    const app = await env.ASSETS.fetch(new Request(new URL('/vx/app/datos.html', url.origin)));
+    if (app.ok) {
+      return new Response(app.body, { status: 200, headers: {
+        'content-type': 'text/html; charset=utf-8', 'cache-control': 'private, no-cache', ...CABECERAS_SEGURIDAD } });
+    }
+  }
+
   const conf = PAGINAS_PORTAL[page] || PAGINAS[page] || PAGINAS_PORTAL['portal'];
 
   const asset = await env.ASSETS.fetch(new Request(new URL('/pantallas/' + conf.archivo + '.html', url.origin)));

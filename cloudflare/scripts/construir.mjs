@@ -35,7 +35,8 @@ const GENERADO = path.join(RAIZ_CF, 'src', 'worker', 'generado');
  * { archivo: ruta pública, etiqueta: html } y solo se inyecta si el archivo existe en public/.
  */
 const INYECCIONES_FINALES = [
-  // { archivo: 'vx/app/panel.js', etiqueta: '<script type="module" src="/vx/app/panel.js"></script>' },
+  // Panel de velocidad (isla React, src/react). Módulo: no bloquea el pintado de la pantalla.
+  { archivo: 'vx/app/panel.js', etiqueta: '<script type="module" src="/vx/app/panel.js"></script>' },
 ];
 
 function fallar(msg) {
