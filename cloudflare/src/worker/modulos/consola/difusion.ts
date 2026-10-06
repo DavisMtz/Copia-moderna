@@ -218,10 +218,10 @@ function difCuerpoPlano(bloques: Bloque[], asunto: string, quien: string): strin
 }
 
 /** El correo completo, con el marco del sistema. */
-function difArmar(payload: any, quien: string, imagenesEnLinea: Record<string, Adjunto>) {
+function difArmar(payload: any, quien: string, adjuntas: Adjunto[]) {
   const asunto = difTexto(payload.asunto, DIF_MAX_ASUNTO);
   const saneado = difSanear(payload.bloques);
-  const cuerpo = difCuerpoHtml(saneado.bloques, imagenesEnLinea);
+  const cuerpo = difCuerpoHtml(saneado.bloques, adjuntas);
   const html = cuentasPlantillaCorreo({
     titulo: asunto,
     // En un comunicado interno, «quién lo manda» es la mitad del mensaje.
@@ -267,7 +267,7 @@ export async function difPrevia(ctx: Ctx, email: string, payload: any) {
     if (!acc.ok) return { success: false, message: acc.error };
 
     const p = (payload && typeof payload === 'object') ? payload : {};
-    const armado = difArmar(p, acc.nombre || acc.email, {});
+    const armado = difArmar(p, acc.nombre || acc.email, []);
     if (!armado.asunto) return { success: false, message: 'Ponle un asunto antes de ver la vista previa.' };
     if (!armado.saneado.bloques.length) return { success: false, message: 'El comunicado está vacío.' };
 
@@ -301,7 +301,7 @@ export async function difEnviar(ctx: Ctx, email: string, payload: any) {
     const quien = acc.nombre || acc.email;
     const esPrueba = p.prueba === true;
 
-    const imagenes: Record<string, Adjunto> = {};
+    const imagenes: Adjunto[] = [];
     const armado = difArmar(p, quien, imagenes);
     if (!armado.asunto) return { success: false, message: 'El comunicado necesita un asunto.' };
     if (!armado.saneado.bloques.length) return { success: false, message: 'El comunicado está vacío.' };
@@ -338,7 +338,7 @@ export async function difEnviar(ctx: Ctx, email: string, payload: any) {
         cco: esPrueba ? '' : destinos.join(','),
         de: await mailAlias(ctx),
         nombreDe: 'Sistema de cotizaciones Ventel',
-        adjuntos: Object.keys(imagenes).map((k) => imagenes[k]),
+        adjuntos: imagenes,
         tipo: 'difusion',
         referencia: esPrueba ? 'prueba' : (grupo ? grupo.nombre : '')
       });
