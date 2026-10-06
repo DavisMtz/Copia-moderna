@@ -235,6 +235,23 @@ try {
   ok(d1.success && d2.success, 'descartar el suelto (y repetirlo) funciona: es idempotente');
   ok(!(await sup('opPanel', [SUP])).sueltos.some((x) => x.id === sueltoRep.reporteId), 'descartado, sale de la lista de sueltos');
 
+  // Elevar un suelto con aviso y sin nota: la nota por omisión NO puede llevar el nombre de quien
+  // reportó, porque con el aviso se publica en el tablero (en el .gs sí lo llevaba).
+  const d = await como('diego.navarro@ventel.example');
+  const paraElevar = await reporte(d, { sistema: sistemaClave, submotivoNuevo: 'Para elevar ' + marca });
+  ok(paraElevar.success && !paraElevar.incidente, 'otro suelto, para convertirlo en incidencia', paraElevar);
+  const elev = await sup('opElevarReporte', [{ email: SUP, reporteId: paraElevar.reporteId, estado: 'confirmado', nota: '', avisar: true }]);
+  ok(elev.success && elev.id, 'la supervisora lo convierte en incidencia', elev);
+  const elev2 = await sup('opElevarReporte', [{ email: SUP, reporteId: paraElevar.reporteId, estado: 'confirmado' }]);
+  ok(elev2.success === false && /ya pertenece/.test(elev2.message), 'no se puede elevar dos veces el mismo reporte', elev2);
+  const est4 = await publico('opEstadoPublico');
+  const elevPub = est4.incidentes.find((i) => i.id === elev.id);
+  ok(elevPub && elevPub.estado === 'confirmado' && elevPub.ultima && elevPub.ultima.nota === 'Elevado desde un reporte del equipo.',
+    'en el tablero público sale confirmada, con la nota sin nombres', elevPub && elevPub.ultima);
+  ok(!datosPersonales(elevPub), 'la incidencia elevada no lleva correos ni nombres en lo público');
+  ok((await sup('opActualizarIncidente', [{ email: SUP, id: elev.id, estado: 'resuelto', nota: 'Fin de la prueba.' }])).success,
+    'limpieza: se resuelve la incidencia elevada');
+
   const reco = await sup('opRecomendaciones', [SUP]);
   ok(reco.success && Array.isArray(reco.recomendaciones) && reco.periodo === 'los últimos 7 días' && reco.generado,
     'opRecomendaciones responde con su contrato');

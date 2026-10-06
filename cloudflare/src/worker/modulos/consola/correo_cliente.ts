@@ -84,11 +84,13 @@ export async function enviarCorreoPlantilla(ctx: Ctx, payload: any) {
     let totalBytes = 0;
     (Array.isArray(payload.adjuntos) ? payload.adjuntos : []).forEach((a: any) => {
       if (!a || !a.base64) return;
-      const bytes = deBase64(String(a.base64)).length;
+      const base64 = String(a.base64).replace(/^data:[^,]*,/, '').replace(/\s+/g, '');
+      const bytes = deBase64(base64).length;
       totalBytes += bytes;
       if (totalBytes > 20 * 1024 * 1024) throw new Error('Los adjuntos superan el límite de 20 MB.');
       const nombre = String(a.nombre || 'adjunto').replace(/[\\\/:*?"<>|]+/g, '_');
-      adjuntos.push({ nombre, tipo: String(a.mime || 'application/octet-stream'), bytes });
+      // Con su contenido: el núcleo lo manda adjunto (en la bandeja de salida solo quedan los metadatos).
+      adjuntos.push({ nombre, tipo: String(a.mime || 'application/octet-stream'), bytes, base64 });
     });
 
     // Las respuestas del cliente van al asesor con sesión.

@@ -10,8 +10,13 @@
  * real no es idempotente.
  *
  * En esta versión el correo sale por Brevo (nucleo/correo.ts) y queda además completo en la bandeja
- * de salida (correos_salida); las direcciones de ejemplo nunca se mandan. Las imágenes «en línea» se
- * cuentan y se miden como en Apps Script, pero viajan solo como metadatos de adjunto.
+ * de salida (correos_salida); las direcciones de ejemplo nunca se mandan.
+ *
+ * IMÁGENES. En Apps Script iban EN LÍNEA (cid) y no enlazadas, para que viajaran con el correo sin
+ * abrir ningún archivo del equipo a internet. Brevo no admite imágenes en línea por su API, así que
+ * se conserva lo importante —la imagen viaja CON el correo y no queda publicada en ningún sitio—:
+ * va como adjunto (PNG, JPG o GIF, los formatos que Brevo acepta) y en el cuerpo queda su rótulo en
+ * lugar de un hueco roto. Los topes (cuántas, cuánto pesan) son los mismos.
  */
 import type { Ctx } from '../../nucleo/contexto';
 import { enviarCorreo, type Adjunto } from '../../nucleo/correo';
@@ -33,6 +38,8 @@ const DIF_MAX_IMAGENES = 4;
 const DIF_MAX_BYTES = 6 * 1024 * 1024;   // suma de las imágenes en línea
 const DIF_MAX_DESTINOS = 800;
 const DIF_TIPO_METRICA = 'Difusión';
+/** Imágenes que pueden viajar adjuntas (las extensiones que Brevo admite), con su extensión. */
+const DIF_IMAGEN_EXT: Record<string, string> = { 'image/png': 'png', 'image/jpeg': 'jpg', 'image/jpg': 'jpg', 'image/gif': 'gif' };
 
 type Parte = { t: string; negrita?: true; cursiva?: true; url?: string };
 type Bloque =
@@ -41,7 +48,7 @@ type Bloque =
   | { tipo: 'lista'; ordenada: boolean; items: Parte[][] }
   | { tipo: 'boton'; texto: string; url: string }
   | { tipo: 'nota'; titulo: string; texto: string; tono: string }
-  | { tipo: 'imagen'; bytes: number; mime: string; nombre: string; pie: string }
+  | { tipo: 'imagen'; bytes: number; mime: string; nombre: string; pie: string; base64: string }
   | { tipo: 'separador' };
 
 // ── Saneo del cuerpo ────────────────────────────────────────────────────────
@@ -106,17 +113,22 @@ function difBloque(b: any, contadores: { imagenes: number; bytes: number }): Blo
   }
   if (tipo === 'imagen') {
     if (contadores.imagenes >= DIF_MAX_IMAGENES) return null;
-    const base64 = String(b.base64 || '');
+    const base64 = String(b.base64 || '').replace(/^data:[^,]*,/, '').replace(/\s+/g, '');
     const mime = String(b.mime || '').toLowerCase();
-    if (!base64 || mime.indexOf('image/') !== 0) return null;
+    const ext = DIF_IMAGEN_EXT[mime];
+    if (!base64 || !ext) return null;   // otro formato no podría viajar adjunto: se descarta y se dice
     // El tamaño se mide sobre los bytes reales, no sobre la cadena base64.
     let bytes = 0;
     try { bytes = deBase64(base64).length; } catch { return null; }
     if (contadores.bytes + bytes > DIF_MAX_BYTES) return null;
     contadores.imagenes++;
     contadores.bytes += bytes;
-    return { tipo: 'imagen', bytes, mime, nombre: difTexto(b.nombre, 60) || ('imagen' + contadores.imagenes),
-             pie: difTexto(b.pie, 160) };
+    // Nombre con la extensión de su formato: sin ella el proveedor rechazaría el correo entero.
+    let nombre = (difTexto(b.nombre, 60) || ('imagen' + contadores.imagenes)).replace(/[\\\/:*?"<>|]+/g, '_');
+    if (!new RegExp('\\.(' + ext + (ext === 'jpg' ? '|jpeg' : '') + ')$', 'i').test(nombre)) {
+      nombre = nombre.replace(/\.[A-Za-z0-9]{1,5}$/, '') + '.' + ext;
+    }
+    return { tipo: 'imagen', bytes, mime, nombre, pie: difTexto(b.pie, 160), base64 };
   }
   if (tipo === 'separador') return { tipo: 'separador' };
   return null;
@@ -149,7 +161,7 @@ function difParteHtml(p: Parte): string {
 }
 
 /** Cuerpo HTML a partir de los bloques ya saneados, con las piezas de la plantilla del sistema. */
-function difCuerpoHtml(bloques: Bloque[], imagenesEnLinea: Record<string, Adjunto>): string {
+function difCuerpoHtml(bloques: Bloque[], adjuntas: Adjunto[]): string {
   const M = CUENTAS_MAIL;
   const partes: string[] = [];
   bloques.forEach((b, i) => {

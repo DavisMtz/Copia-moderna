@@ -31,8 +31,11 @@
  * guarda si nadie escribió entre la lectura y la escritura (comparar-y-cambiar).
  *
  * LOS CORREOS
- * La plantilla y sus piezas son las MISMAS de Cuentas.gs, carácter por carácter: en la bandeja de
- * salida (correos_salida) se ven exactamente como los que llegaban por Gmail. Se exportan porque
+ * Salen DE VERDAD por Brevo, desde logidma.com (enviarCorreo del núcleo), y quedan además completos en
+ * correos_salida con su estado; a direcciones de ejemplo, o sin clave de Brevo (en local), no sale
+ * nada y quedan 'omitido'. Si Brevo rechaza el envío, enviarCorreo lanza igual que MailApp.sendEmail
+ * y aquí se trata igual que allá (el código se retira y se avisa con el mismo mensaje).
+ * La plantilla y sus piezas son las MISMAS de Cuentas.gs, carácter por carácter. Se exportan porque
  * la consola (bienvenida y restablecimiento con contraseña temporal) y la difusión las reutilizan.
  */
 import type { Ctx } from '../../nucleo/contexto';
@@ -46,6 +49,7 @@ import { aleatorioHex, aleatorioEntero } from '../../nucleo/cripto';
 import { formatearFecha } from '../../nucleo/fechas';
 import { sesParaCliente } from '../../nucleo/sesiones';
 import { PERM_ROLES } from '../../nucleo/permisos';
+import { mailAlias, correoAplicarCco } from '../cotizaciones';   // Correos.gs (mailAlias_, correoAplicarCco_)
 
 // ── Parámetros (los de Cuentas.gs) ──────────────────────────────────────────
 
