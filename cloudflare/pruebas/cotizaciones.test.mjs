@@ -319,7 +319,7 @@ async function principal() {
 
   seccion('La base D1 (bandeja de salida y métricas)');
   const filas = d1(
-    "SELECT para, de, nombre_de, responder_a, adjuntos, tipo, instr(html, '¡Tu cotización está lista!') > 0 AS aprobado " +
+    "SELECT para, de, nombre_de, responder_a, adjuntos, tipo, estado, instr(html, '¡Tu cotización está lista!') > 0 AS aprobado " +
     `FROM correos_salida WHERE referencia = '${folio}' ORDER BY id DESC LIMIT 1; ` +
     `SELECT resultado, adjuntos, cc, alias_usado FROM metricas_correos WHERE referencia = '${folio}' ORDER BY id; ` +
     `SELECT COUNT(*) AS n FROM detalle_cotizaciones WHERE folio_cotizacion = '${folio}'`);
@@ -332,6 +332,8 @@ async function principal() {
        c.responder_a === ASESOR && c.tipo === 'cotizacion' && c.aprobado === 1,
        'correos_salida: el correo completo, con el HTML aprobado y respuesta al asesor', c);
     ok(/no adjuntado/.test(c.adjuntos || '') && /Google Drive/.test(c.adjuntos || ''), 'sin PDF: la nota va en adjuntos', c.adjuntos);
+    // El cliente de la prueba es de un dominio de ejemplo: el núcleo nunca lo manda por Brevo.
+    ok(c.estado === 'omitido', 'a una dirección de ejemplo no sale nada de verdad (estado «omitido»)', c.estado);
     ok(metricas.some((m) => m.resultado === 'Enviado' && m.adjuntos === '0' && m.cc === '0' && m.alias_usado === 'Sí') &&
        metricas.some((m) => m.resultado === 'Error'),
        'metricas_correos: el envío («Enviado») y el intento fallido («Error»)', metricas);

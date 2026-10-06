@@ -238,7 +238,7 @@ async function consolaLeerAjustes(ctx: Ctx, esMaestro?: boolean): Promise<Ajuste
     const configurado = respaldoNucleo || !!efectivo;
     return {
       clave: a.clave, nombre: a.nombre, grupo: a.grupo, tipo: a.tipo,
-      detalle: a.detalle + (a.sinEfecto ? ' ' + a.sinEfecto : ''),
+      detalle: a.detalle + (a.sinEfecto ? ' ' + a.sinEfecto : '') + (a.nota ? ' ' + a.nota : ''),
       opciones: a.opciones || null, marcador: a.marcador || '',
       secreto: a.secreto === true,
       soloMaestro: a.soloMaestro === true,
@@ -287,8 +287,23 @@ function consolaValidarAjuste(def: DefAjuste, valor: string): { ok: boolean; val
     return bien(valor);
   }
   if (def.tipo === 'correo') {
+    const delDominio = (v: string) => v.endsWith('@' + DOMINIO_CORREO);
+    if (def.clave === 'BREVO_REMITENTE') {
+      // Lo lee el núcleo, que ignora cualquier dirección que no sea del dominio autenticado.
+      if (!valor) return bien('', 'Sin remitente propio: los correos saldrán desde ' + BREVO_REMITENTE_RESPALDO + '.');
+      if (!/^[^\s@,;]+@[a-z0-9.-]+\.[a-z]{2,}$/i.test(valor)) return mal('"' + valor + '" no parece un correo.');
+      if (!delDominio(valor.toLowerCase())) {
+        return mal('El remitente real tiene que ser una dirección @' + DOMINIO_CORREO + ': es el único dominio autenticado en Brevo.');
+      }
+      return bien(valor.toLowerCase());
+    }
     if (!valor) return bien('', 'Sin alias: los correos saldrán desde la cuenta que ejecuta el sistema.');
     if (!/^[^\s@,;]+@[a-z0-9.-]+\.[a-z]{2,}$/i.test(valor)) return mal('"' + valor + '" no parece un correo.');
+    // Como en Gmail con un alias no dado de alta: se guarda, y el correo sale igual desde el remitente real.
+    if (!delDominio(valor.toLowerCase())) {
+      return bien(valor.toLowerCase(), 'Guardado, pero en esta versión solo se envía desde @' + DOMINIO_CORREO +
+        ': los correos saldrán desde el «Remitente real (Brevo)».');
+    }
     return bien(valor.toLowerCase());
   }
   if (def.tipo === 'lista_correos') {
@@ -894,6 +909,23 @@ export async function consolaEliminarMiembro(ctx: Ctx, email: string, correoObje
   }
 }
 
+/**
+ * Manda un correo de cuenta con contraseña temporal y dice si SALIÓ de verdad. Va directo a
+ * enviarCorreo (con los mismos datos que cuentasEnviarCorreo de identidad, sin copia oculta: es de
+ * seguridad) porque aquí importa el estado: un correo 'omitido' —dirección de ejemplo, sin clave de
+ * Brevo en este entorno o envío real apagado— no le llegó a nadie, y entonces la contraseña tiene que
+ * verse en pantalla, que es el caso «el correo no salió» del original. Si Brevo lo rechaza, lanza.
+ */
+async function consolaEnviarCorreoCuenta(ctx: Ctx, para: string, asunto: string, html: string, plano: string, referencia: string):
+  Promise<{ salio: boolean; motivo: string }> {
+  const r = await enviarCorreo(ctx, {
+    para, asunto, html, texto: plano, nombreDe: 'Sistema de cotizaciones Ventel', tipo: 'cuenta', referencia
+  });
+  if (r.estado === 'enviado') return { salio: true, motivo: '' };
+  const fila = await correoEnBandeja(ctx, r.id);
+  return { salio: false, motivo: (fila && fila.detalle) || 'El correo no salió.' };
+}
+
 /** Correo de bienvenida con la contraseña temporal. Es de seguridad: nunca lleva la copia oculta. */
 async function consolaCorreoBienvenida(ctx: Ctx, correo: string, nombre: string, temporal: string, quien: string) {
   const url = cuentasUrlApp(ctx, 'login');
@@ -906,11 +938,11 @@ async function consolaCorreoBienvenida(ctx: Ctx, correo: string, nombre: string,
     cuentasMailBoton('Entrar al sistema', url) +
     cuentasMailNota('Guárdala en un lugar seguro',
       'Esta contraseña llegó por correo, así que trátala como temporal de verdad: cámbiala hoy.', 'aviso');
-  await cuentasEnviarCorreo(ctx, correo, 'Tu cuenta del sistema Ventel ya está lista',
+  return consolaEnviarCorreoCuenta(ctx, correo, 'Tu cuenta del sistema Ventel ya está lista',
     cuentasPlantillaCorreo({ titulo: 'Tu cuenta ya está lista', cuerpo, chip: 'Cuenta creada', tono: 'ok',
                              preheader: 'Contraseña temporal: ' + temporal }),
     'Tu cuenta del sistema Ventel ya está lista.\nCorreo: ' + correo + '\nContraseña temporal: ' + temporal + '\nEntra en: ' + url,
-    { tipo: 'cuenta', referencia: 'alta-consola' });
+    'alta-consola');
 }
 
 /** Correo de contraseña restablecida por un administrador. Tampoco lleva copia oculta. */
