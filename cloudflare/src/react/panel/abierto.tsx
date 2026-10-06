@@ -264,6 +264,9 @@ function lugar(sigla?: string): string {
   return CIUDADES[sigla] ? sigla + ' · ' + CIUDADES[sigla] : sigla;
 }
 
+/** Llamadas que se ven de entrada (las más recientes); el resto, con «Ver las N». */
+const VISIBLES = 25;
+
 /* ── El panel ────────────────────────────────────────────────────────────────────────────────── */
 
 function Panel({ alCerrar, refPanel, enfocar }: { alCerrar: () => void; refPanel: (el: HTMLElement | null) => void; enfocar: boolean }) {
@@ -272,6 +275,7 @@ function Panel({ alCerrar, refPanel, enfocar }: { alCerrar: () => void; refPanel
   // Si el panel se abrió solo (al cambiar de pantalla), espera un poco: que la pantalla haga lo suyo primero.
   const salud = useSalud(enfocar ? 0 : 1200);
   const yaVistas = useRef<number>(lista.length);
+  const [todas, setTodas] = useState(false);
   const caja = useRef<HTMLElement | null>(null);
 
   const buenas = lista.filter((m) => m.ok);
@@ -376,10 +380,15 @@ function Panel({ alCerrar, refPanel, enfocar }: { alCerrar: () => void; refPanel
             <>
               <p className="vx-leyenda" aria-hidden="true"><i className="vx-ley-srv" />servidor <i className="vx-ley-red" />red y navegador</p>
               <ol className="vx-llamadas" reversed>
-                {lista.slice().reverse().map((m, i) => (
+                {lista.slice().reverse().slice(0, todas ? lista.length : VISIBLES).map((m, i) => (
                   <Llamada key={m.t + ':' + m.fn + ':' + (lista.length - i)} m={m} escala={escala} nueva={lista.length - i > yaVistas.current} />
                 ))}
               </ol>
+              {lista.length > VISIBLES ? (
+                <button type="button" className="vx-btn vx-mas" onClick={() => setTodas(!todas)} aria-expanded={todas}>
+                  {todas ? 'Ver solo las últimas ' + VISIBLES : 'Ver las ' + numero(lista.length)}
+                </button>
+              ) : null}
             </>
           ) : (
             <p className="vx-vacio">Esta pantalla todavía no ha llamado al servidor. Haz algo en ella y mira cómo llegan.</p>
@@ -389,6 +398,7 @@ function Panel({ alCerrar, refPanel, enfocar }: { alCerrar: () => void; refPanel
         <section className="vx-sec" aria-labelledby="vx-s-carga">
           <h3 id="vx-s-carga">Carga de la página</h3>
           <LineaDeTiempo carga={carga} arranque={arranque} />
+          <p className="vx-leyenda" aria-hidden="true"><i className="vx-ley-html" />HTML <i className="vx-ley-marca" />lista y cargada <i className="vx-ley-srv" />llamadas del arranque</p>
           <dl className="vx-datos">
             <Dato etiqueta="Primer byte" valor={carga.precargada ? 'Precargada' : tiempo(carga.primerByte)} />
             <Dato etiqueta="HTML completo" valor={tiempo(carga.htmlFin)} sub={carga.bytesHtml ? bytes(carga.bytesHtml) : undefined} />

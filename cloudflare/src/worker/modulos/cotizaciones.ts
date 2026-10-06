@@ -120,7 +120,7 @@ const PARTIDAS_POR_INSERT = 8;
  * de JavaScript como REAL y en una columna TEXT un teléfono 5512345678 quedaría «5512345678.0».
  */
 function texto(v: unknown): string {
-  return v === null || v === undefined || v === '' || v === 0 || v === false ? '' : String(v);
+  return v ? String(v) : '';
 }
 
 /**

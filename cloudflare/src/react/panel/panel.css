@@ -1,0 +1,201 @@
+/*
+ * Panel de velocidad · el panel abierto (llega con abierto.tsx, dentro del mismo Shadow DOM).
+ * Usa los tokens --vx-* que declara boton.css según el tema de la pantalla.
+ */
+.vx-panel {
+  position: fixed;
+  right: var(--vx-panel-der, 16px);
+  bottom: var(--vx-panel-abajo, 56px);
+  width: min(26.5rem, calc(100vw - 16px));
+  max-height: min(46rem, calc(100vh - var(--vx-panel-abajo, 56px) - 12px));
+  max-height: min(46rem, calc(100dvh - var(--vx-panel-abajo, 56px) - 12px));
+  display: flex;
+  flex-direction: column;
+  background: var(--vx-surface);
+  color: var(--vx-ink);
+  border: 1px solid var(--vx-line);
+  border-radius: 16px;
+  box-shadow: var(--vx-sh-lg);
+  overflow: hidden;
+  font: 400 .8125rem/1.5 var(--vx-f);
+  text-align: left;
+}
+.vx-panel:focus { outline: none; }
+.vx-panel:focus-visible { outline: 2px solid var(--vx-brand); outline-offset: 2px; }
+:host([data-contraste]) .vx-panel { border-width: 2px; }
+@media (max-width: 560px) {
+  .vx-panel { left: 8px; right: 8px; width: auto; }
+}
+
+/* ── Cabecera ── */
+.vx-cab {
+  position: relative;
+  flex: none;
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: .75rem;
+  padding: 1.05rem 1rem .85rem 1.1rem;
+  border-bottom: 1px solid var(--vx-line-soft);
+}
+/* El filete rosa de la tarjeta del inicio de sesión: acento, no superficie. */
+.vx-cab::before { content: ''; position: absolute; left: 0; right: 0; top: 0; height: 3px; background: var(--vx-brand); }
+.vx-sobre { margin: 0 0 .2rem; font-size: .64rem; font-weight: 700; letter-spacing: .14em; text-transform: uppercase; color: var(--vx-brand-deep); }
+.vx-cab h2 { margin: 0; font-size: 1rem; font-weight: 600; line-height: 1.25; letter-spacing: -.012em; }
+.vx-sub { margin: .15rem 0 0; font-size: .75rem; color: var(--vx-ink-soft); }
+.vx-cerrar {
+  flex: none;
+  display: grid;
+  place-items: center;
+  width: 30px;
+  height: 30px;
+  margin: -2px -4px 0 0;
+  border: 1px solid transparent;
+  border-radius: 8px;
+  background: transparent;
+  color: var(--vx-ink-soft);
+  cursor: pointer;
+}
+.vx-cerrar:hover { background: var(--vx-surface-2); color: var(--vx-ink); }
+.vx-cerrar:focus-visible { outline: 2px solid var(--vx-brand); outline-offset: 2px; }
+.vx-cerrar svg { width: 14px; height: 14px; fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; }
+
+/* ── Cuerpo y secciones ── */
+.vx-cuerpo { overflow-y: auto; overscroll-behavior: contain; scrollbar-width: thin; }
+.vx-sec { padding: .95rem 1.1rem; border-bottom: 1px solid var(--vx-line-soft); }
+.vx-sec:last-child { border-bottom: 0; }
+.vx-sec h3 { margin: 0 0 .7rem; font-size: .64rem; font-weight: 700; letter-spacing: .12em; text-transform: uppercase; color: var(--vx-ink-faint); }
+.vx-sec-cab { display: flex; justify-content: space-between; align-items: baseline; flex-wrap: wrap; gap: .25rem .6rem; margin-bottom: .7rem; }
+.vx-sec-cab h3 { margin: 0; }
+.vx-cuenta {
+  display: inline-block;
+  min-width: 1.5em;
+  margin-left: .35em;
+  padding: .05em .4em;
+  border-radius: 999px;
+  background: var(--vx-surface-2);
+  color: var(--vx-ink-soft);
+  text-align: center;
+  letter-spacing: 0;
+  font-variant-numeric: tabular-nums;
+}
+.vx-resumen { font-size: .72rem; color: var(--vx-ink-soft); font-variant-numeric: tabular-nums; }
+.vx-pie { margin: .45rem 0 0; font-size: .7rem; line-height: 1.45; color: var(--vx-ink-faint); }
+.vx-vacio { margin: 0; padding: .7rem .8rem; border-radius: 10px; background: var(--vx-surface-2); font-size: .75rem; color: var(--vx-ink-soft); }
+
+/* ── Contra Apps Script ── */
+.vx-comp { margin: 0 0 1rem; }
+.vx-comp:last-child { margin-bottom: 0; }
+.vx-comp-cab { display: flex; justify-content: space-between; align-items: center; gap: .5rem; margin-bottom: .35rem; }
+.vx-comp-cab h4 { margin: 0; font-size: .8125rem; font-weight: 600; }
+.vx-veces {
+  flex: none;
+  padding: .14rem .5rem;
+  border-radius: 999px;
+  background: var(--vx-brand-tint);
+  color: var(--vx-brand-deep);
+  font-size: .68rem;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+.vx-fila-barra { display: grid; grid-template-columns: 6.9rem minmax(0, 1fr) 4.9rem; align-items: center; gap: .55rem; padding: .15rem 0; }
+.vx-et { overflow: hidden; font-size: .72rem; color: var(--vx-ink-soft); white-space: nowrap; text-overflow: ellipsis; }
+.vx-pista { display: block; height: 8px; border-radius: 999px; background: var(--vx-line-soft); overflow: hidden; }
+:host([data-contraste]) .vx-pista { box-shadow: inset 0 0 0 1px var(--vx-line); }
+.vx-barra { display: block; height: 100%; border-radius: 999px; }
+.vx-gas { background: var(--vx-gas); }
+.vx-gas-piso { background: color-mix(in srgb, var(--vx-gas) 55%, var(--vx-line-soft)); }
+.vx-cf { background: var(--vx-brand); }
+.vx-valor { text-align: right; font-size: .75rem; font-weight: 600; color: var(--vx-ink-soft); font-variant-numeric: tabular-nums; white-space: nowrap; }
+.vx-valor-cf { color: var(--vx-ink); font-weight: 700; }
+.vx-nota { margin-left: .12em; font-size: .6rem; font-weight: 600; color: var(--vx-ink-faint); }
+
+/* ── Llamadas ── */
+.vx-leyenda { display: flex; flex-wrap: wrap; align-items: center; gap: .25rem .45rem; margin: -.25rem 0 .45rem; font-size: .66rem; color: var(--vx-ink-faint); }
+.vx-leyenda i { display: inline-block; width: 12px; height: 5px; border-radius: 3px; margin-left: .3rem; }
+.vx-leyenda i:first-child { margin-left: 0; }
+.vx-ley-srv { background: var(--vx-brand); }
+.vx-ley-red { background: color-mix(in srgb, var(--vx-brand) 28%, var(--vx-line-soft)); }
+.vx-ley-html { background: var(--vx-gas); }
+.vx-ley-marca { width: 2px !important; height: 11px !important; background: var(--vx-ink); }
+.vx-llamadas { list-style: none; margin: 0 -.55rem; padding: 0; }
+.vx-llamada { position: relative; padding: .45rem .55rem .5rem; border-radius: 10px; }
+.vx-llamada:hover { background: var(--vx-surface-2); }
+.vx-destello { position: absolute; inset: 0; border-radius: inherit; background: var(--vx-brand-tint); opacity: 0; pointer-events: none; }
+.vx-ll-cab { position: relative; display: flex; align-items: center; gap: .45rem; }
+.vx-punto { flex: none; width: 7px; height: 7px; border-radius: 50%; background: var(--vx-ok); }
+.vx-punto-fallo { background: var(--vx-alert); }
+.vx-fn { flex: 1; min-width: 0; overflow: hidden; font: 500 .75rem/1.35 var(--vx-mono); color: var(--vx-ink); white-space: nowrap; text-overflow: ellipsis; }
+.vx-ll-ms { font-size: .75rem; font-weight: 700; font-variant-numeric: tabular-nums; }
+.vx-ll-det { position: relative; margin: .1rem 0 0 1rem; font: 400 .66rem/1.45 var(--vx-mono); color: var(--vx-ink-faint); overflow-wrap: anywhere; }
+.vx-ll-barra { position: relative; height: 5px; margin: .32rem 0 .28rem 1rem; border-radius: 999px; background: var(--vx-line-soft); }
+.vx-ll-total { display: block; height: 100%; border-radius: 999px; background: color-mix(in srgb, var(--vx-brand) 28%, var(--vx-line-soft)); overflow: hidden; }
+.vx-ll-srv { display: block; height: 100%; background: var(--vx-brand); }
+.vx-ll-meta { position: relative; display: flex; flex-wrap: wrap; align-items: center; gap: .15rem .6rem; margin: 0 0 0 1rem; font-size: .68rem; color: var(--vx-ink-soft); }
+.vx-ll-meta b { color: var(--vx-ink); font-weight: 600; font-variant-numeric: tabular-nums; }
+.vx-ll-cuando { margin-left: auto; color: var(--vx-ink-faint); font-variant-numeric: tabular-nums; }
+.vx-mas { margin-top: .35rem; }
+
+.vx-chip {
+  display: inline-flex;
+  align-items: center;
+  padding: .08rem .45rem;
+  border-radius: 999px;
+  background: var(--vx-surface-2);
+  color: var(--vx-ink-soft);
+  font-size: .64rem;
+  font-weight: 700;
+  white-space: nowrap;
+}
+.vx-chip-fallo { background: var(--vx-alert-bg); color: var(--vx-alert); }
+
+/* ── Línea de tiempo ── */
+.vx-tl { margin: 0 0 .5rem; }
+.vx-tl-carril { display: grid; grid-template-columns: 3.9rem minmax(0, 1fr); align-items: center; gap: .5rem; margin-bottom: .3rem; }
+.vx-tl-rot { font-size: .66rem; color: var(--vx-ink-faint); }
+.vx-tl-pista { position: relative; height: 14px; border-radius: 6px; background: var(--vx-surface-2); }
+:host([data-contraste]) .vx-tl-pista { box-shadow: inset 0 0 0 1px var(--vx-line); }
+.vx-tl-html { position: absolute; left: 0; top: 4px; bottom: 4px; border-radius: 4px; background: var(--vx-gas); }
+.vx-tl-marca { position: absolute; top: -2px; bottom: -2px; width: 2px; margin-left: -1px; border-radius: 2px; background: var(--vx-ink); }
+.vx-tl-marca-2 { background: var(--vx-ink-faint); }
+.vx-tl-ll { position: absolute; height: 5px; border-radius: 3px; background: var(--vx-brand); }
+.vx-tl-ll-fallo { background: var(--vx-alert); }
+.vx-tl-eje { display: flex; justify-content: space-between; margin-left: 4.4rem; font-size: .62rem; color: var(--vx-ink-faint); font-variant-numeric: tabular-nums; }
+.vx-tl + .vx-leyenda { margin: 0 0 .85rem; }
+
+/* ── Datos ── */
+.vx-datos { display: grid; grid-template-columns: 1fr 1fr; gap: .6rem .9rem; margin: 0; }
+.vx-dato dt { margin: 0 0 .08rem; font-size: .68rem; color: var(--vx-ink-faint); }
+.vx-dato dd { margin: 0; font-size: .8125rem; font-weight: 600; font-variant-numeric: tabular-nums; }
+.vx-dato small { display: block; margin-top: .04rem; font-size: .66rem; font-weight: 400; line-height: 1.35; color: var(--vx-ink-soft); }
+
+.vx-acciones { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: .5rem; margin-top: .9rem; }
+.vx-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: .4rem;
+  padding: .42rem .75rem;
+  border: 1px solid var(--vx-line);
+  border-radius: 8px;
+  background: var(--vx-surface);
+  color: var(--vx-ink);
+  font: 600 .75rem/1.2 var(--vx-f);
+  cursor: pointer;
+  transition: border-color .15s ease, background-color .15s ease;
+}
+.vx-btn:hover:not(:disabled) { border-color: color-mix(in srgb, var(--vx-brand) 40%, var(--vx-line)); background: var(--vx-surface-2); }
+.vx-btn:focus-visible { outline: 2px solid var(--vx-brand); outline-offset: 2px; }
+.vx-btn:disabled { opacity: .6; cursor: progress; }
+.vx-enlace { color: var(--vx-brand-deep); font-size: .75rem; font-weight: 600; text-decoration: none; border-radius: 4px; }
+.vx-enlace:hover { text-decoration: underline; text-underline-offset: 3px; }
+.vx-enlace:focus-visible { outline: 2px solid var(--vx-brand); outline-offset: 2px; }
+
+/* ── Fuentes ── */
+.vx-fuentes ol { display: grid; gap: .45rem; margin: 0; padding-left: 1.1rem; font-size: .7rem; line-height: 1.45; color: var(--vx-ink-soft); }
+.vx-fuentes li::marker { color: var(--vx-ink-faint); font-weight: 600; }
+.vx-archivo { display: block; margin-top: .1rem; font: 400 .62rem/1.4 var(--vx-mono); color: var(--vx-ink-faint); overflow-wrap: anywhere; }
+
+@media (prefers-reduced-motion: reduce) {
+  .vx-btn { transition: none; }
+}
