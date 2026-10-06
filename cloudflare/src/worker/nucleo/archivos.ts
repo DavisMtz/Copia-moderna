@@ -9,7 +9,9 @@ import { deBase64, uuid } from './cripto';
 
 export interface ArchivoGuardado { clave: string; url: string; nombre: string; tipo: string; bytes: number }
 
-const TIPOS_PERMITIDOS = /^(image\/(png|jpe?g|gif|webp|svg\+xml)|application\/pdf)$/;
+// Sin SVG a propósito: un SVG servido desde el mismo dominio puede llevar <script> y ejecutarse con
+// la sesión de quien lo abre. Imágenes de mapa de bits y PDF bastan para anuncios, artículos y evidencias.
+const TIPOS_PERMITIDOS = /^(image\/(png|jpe?g|gif|webp)|application\/pdf)$/;
 
 /**
  * Guarda un archivo que llegó en base64 o como data URL (lo que mandan las pantallas).
@@ -46,5 +48,7 @@ export async function servirArchivo(bucket: R2Bucket, clave: string): Promise<Re
   h.set('etag', obj.httpEtag);
   if (!h.has('cache-control')) h.set('cache-control', 'public, max-age=31536000, immutable');
   h.set('x-content-type-options', 'nosniff');
+  // Defensa adicional: aunque algo raro llegara a R2, el navegador no ejecuta nada que venga de aquí.
+  h.set('content-security-policy', "default-src 'none'; img-src 'self'; style-src 'unsafe-inline'; sandbox");
   return new Response(obj.body, { headers: h });
 }
