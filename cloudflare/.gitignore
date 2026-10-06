@@ -10,3 +10,7 @@ node_modules/
 # vive solo en local y en la base D1, nunca en git. Ver semilla/LEEME.md.
 semilla/portal_ventel.json
 semilla/*.local.sql
+# También generados por scripts/construir.mjs (módulos compartidos, cabeceras y su carpeta de trabajo).
+public/vx/p/
+public/_headers
+.construccion/
