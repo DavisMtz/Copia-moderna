@@ -8,6 +8,12 @@
  * misma base local. Para tocar la base usa la API local de wrangler (/cdn-cgi/local/explorer) y, si
  * no está, `wrangler d1 execute` sobre .wrangler/estado-identidad (variable ESTADO para otra).
  *
+ * Los correos salen de verdad por Brevo en producción: por eso esta prueba SOLO corre contra el
+ * Worker local y SOLO usa direcciones ficticias (dominio .test, que el núcleo nunca manda). Si el
+ * dominio exigido en las altas (CUENTAS_DOMINIO) es uno real, lo abre ('ninguno') mientras dura la
+ * prueba y lo deja como estaba al terminar; el Worker guarda la configuración 30 s en memoria, así
+ * que puede esperar hasta medio minuto a que vea el cambio.
+ *
  * Crea cuentas nuevas con un sufijo único por corrida y las borra al terminar; las preferencias y
  * el onboarding del asesor de prueba quedan restablecidos. Sale con código 1 si algo falla.
  */
@@ -22,6 +28,16 @@ const ESTADO = process.env.ESTADO || '.wrangler/estado-identidad';
 const CLAVE_DEMO = 'VentelDemo2026';
 const SAL_RESPALDO = 'vPe/O5s2aG+Bv4cRGCwz+w==';   // HASH_SALT de Code.gs, si la propiedad no está
 const T = Date.now().toString(36);                 // sufijo único de esta corrida
+const DOM_PRUEBA = 'prueba-identidad.test';        // ficticio: el núcleo nunca manda a .test
+
+if (!/^https?:\/\/(127\.0\.0\.1|localhost|\[::1\])(:\d+)?$/.test(BASE)) {
+  console.error('Esta prueba solo corre contra el Worker local (escribe en su base y crea cuentas): ' + BASE);
+  process.exit(2);
+}
+
+/** Mismo criterio que nucleo/correo.ts: ¿es un dominio de ejemplo al que nunca se manda nada? */
+const dominioFicticio = (d) => /(^|\.)(example|test|invalid|localhost)$|(^|\.)(example|ejemplo)\.(com|net|org|mx)$/i.test(d);
+const dormir = (ms) => new Promise((r) => setTimeout(r, ms));
 
 // ── Utilidades ─────────────────────────────────────────────────────────────
 
@@ -118,8 +134,17 @@ async function ultimoCodigo(correo, asunto) {
 }
 
 async function ultimoCorreo(correo) {
-  const filas = await sql('SELECT asunto, html, texto, tipo, cco FROM correos_salida WHERE para = ? ORDER BY id DESC LIMIT 1', [correo]);
+  const filas = await sql('SELECT asunto, html, texto, tipo, cco, de, nombre_de, estado FROM correos_salida WHERE para = ? ORDER BY id DESC LIMIT 1', [correo]);
   return filas[0] || null;
+}
+
+/** CUENTAS_DOMINIO tal como esté en la base (null = no existe), para dejarla igual al terminar. */
+let dominioOriginal;   // undefined = no se tocó
+async function fijarDominio(valor) {
+  if (valor === null) await sql("DELETE FROM propiedades WHERE clave = 'CUENTAS_DOMINIO'");
+  else await sql("INSERT INTO propiedades (clave, valor, actualizado) VALUES ('CUENTAS_DOMINIO', ?, ?) " +
+                 'ON CONFLICT(clave) DO UPDATE SET valor = excluded.valor, actualizado = excluded.actualizado',
+                 [valor, new Date().toISOString()]);
 }
 
 const otroCodigo = (c) => String((Number(c) + 1) % 1000000).padStart(6, '0');
@@ -135,11 +160,29 @@ async function main() {
 
   // Dominio exigido en las altas (CUENTAS_DOMINIO): se averigua por el mensaje de rechazo.
   seccion('Alta de cuenta con código (solicitarCodigoRegistro / confirmarCodigoRegistro)');
+  creadas.push('sonda.' + T + '@dominio-ajeno.test', 'espera.' + T + '@' + DOM_PRUEBA);
   const sonda = await llamar('solicitarCodigoRegistro', ['Persona Sonda', 'sonda.' + T + '@dominio-ajeno.test', 'abcdef']);
   const mDom = String((sonda && sonda.message) || '').match(/con un correo @(.+)\.$/);
-  const dominio = (!sonda.success && mDom) ? mDom[1] : 'dominio-ajeno.test';
   ok(mDom ? (sonda.campo === 'email') : sonda.success === true,
-     mDom ? 'dominio exigido: @' + dominio + ' (rechaza otros con campo "email")' : 'sin restricción de dominio', sonda);
+     mDom ? 'dominio exigido: @' + mDom[1] + ' (rechaza otros con campo "email")' : 'sin restricción de dominio', sonda);
+  let dominio = mDom ? mDom[1] : DOM_PRUEBA;
+  if (mDom && !dominioFicticio(dominio)) {
+    // Un dominio real: se abre mientras dura la prueba para no crear cuentas con direcciones reales.
+    const fila0 = (await sql("SELECT valor FROM propiedades WHERE clave = 'CUENTAS_DOMINIO'"))[0];
+    dominioOriginal = fila0 ? fila0.valor : null;
+    await fijarDominio('ninguno');
+    process.stdout.write('  (esperando a que el Worker vea CUENTAS_DOMINIO = ninguno…');
+    const t0 = Date.now();
+    let abierto = false;
+    while (!abierto && Date.now() - t0 < 45000) {
+      const r0 = await llamar('solicitarCodigoRegistro', ['Persona Espera', 'espera.' + T + '@' + DOM_PRUEBA, 'abcdef']);
+      abierto = r0.success === true;
+      if (!abierto) await dormir(1000);
+    }
+    console.log(' ' + Math.round((Date.now() - t0) / 1000) + ' s)');
+    if (!abierto) throw new Error('El Worker no vio CUENTAS_DOMINIO = ninguno en 45 s.');
+    dominio = DOM_PRUEBA;
+  }
 
   const nuevo = 'nuevo.' + T + '@' + dominio;
   const claveNueva = 'Clave-' + T;
@@ -166,6 +209,11 @@ async function main() {
   ok(correoCodigo && correoCodigo.tipo === 'cuenta' && correoCodigo.html.includes(codigo) &&
      correoCodigo.html.includes('Sistema de cotizaciones Ventel') && /Vence a las \d\d:\d\d h/.test(correoCodigo.html) &&
      !correoCodigo.asunto.includes(codigo), 'el correo usa la plantilla de Cuentas.gs y el código no va en el asunto');
+  ok(correoCodigo && /@logidma\.com$/.test(correoCodigo.de || '') && correoCodigo.nombre_de === 'Sistema de cotizaciones Ventel' &&
+     !correoCodigo.cco, 'remitente de logidma.com, «Sistema de cotizaciones Ventel» y sin copia oculta (es de seguridad)',
+     correoCodigo && { de: correoCodigo.de, nombre_de: correoCodigo.nombre_de, cco: correoCodigo.cco });
+  ok(correoCodigo && correoCodigo.estado === 'omitido', 'a una dirección ficticia no sale nada de verdad (estado «omitido»)',
+     correoCodigo && correoCodigo.estado);
 
   r = await llamar('confirmarCodigoRegistro', [nuevo, '12']);
   ok(r.success === false && r.message === 'El código son 6 dígitos.', 'código incompleto (no gasta intento)', r);
@@ -382,6 +430,7 @@ async function main() {
 async function limpiar() {
   // Las cuentas creadas, sus sesiones y sus códigos/vales; la bandeja de salida se conserva.
   try {
+    if (dominioOriginal !== undefined) await fijarDominio(dominioOriginal);
     for (const correo of creadas) {
       await sql('DELETE FROM registros WHERE email = ?', [correo]);
       await sql('DELETE FROM permisos_sistema WHERE email = ?', [correo]);

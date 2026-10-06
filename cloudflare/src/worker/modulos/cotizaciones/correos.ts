@@ -17,7 +17,6 @@
  */
 import type { Ctx } from '../../nucleo/contexto';
 import { secConfig, secIdentidad } from '../../nucleo/seguridad';
-import { cacheLeer, cacheGuardar } from '../../nucleo/sistema';
 import { enviarCorreo, DOMINIO_CORREO } from '../../nucleo/correo';
 import { escaparHtml } from '../../nucleo/util';
 import { revPuedeEnviarse } from '../revision';
@@ -123,6 +122,13 @@ const IMG_SUBDOMINIOS = ['ss628', 'ss224', 'ss318', 'ss414', 'ss512', 'ss101', '
 const IMG_PLACEHOLDER = 'https://assets.liverpool.com.mx/assets/images/placeholder.gif';
 const IMG_CACHE_SEGUNDOS = 21600; // 6 h: las imágenes de catálogo no cambian de sitio.
 const IMG_TIMEOUT_MS = 8000;
+/**
+ * Peticiones a los servidores de imágenes que puede gastar UN envío. Un Worker tiene tope de
+ * subpeticiones por invocación (50 en el plan gratuito) y la de Brevo tiene que caber después:
+ * agotado el presupuesto, se degrada como cuando Liverpool no contesta (lo que en Apps Script
+ * cuidaba el límite de 6 minutos).
+ */
+const IMG_PRESUPUESTO = 40;
 
 /** Código HTTP de una URL, o null si ni siquiera contestó (red, DNS, tiempo agotado). */
 async function codigoHttp(url: string): Promise<number | null> {
@@ -135,43 +141,91 @@ async function codigoHttp(url: string): Promise<number | null> {
   }
 }
 
-/**
- * Una URL de imagen que se sabe viva, para que el cliente no reciba fotos rotas. Primero la que
- * trae el producto; si no responde 200, los servidores de imágenes conocidos de Liverpool EN
- * PARALELO. El resultado se recuerda 6 h (en Apps Script, CacheService) para no repetir hasta 10
- * peticiones por producto en cada envío. Si Liverpool no contesta, degrada como el .gs: la primera
- * candidata cuando la red falla, el placeholder cuando contestó pero ninguna existe.
- */
-export async function getVerifiedImageUrl(ctx: Ctx, sku: unknown, preferredUrl: unknown): Promise<string> {
+function claveImagen(sku: unknown, preferredUrl: unknown): string {
   const skuLimpio = String(sku || '').trim();
-  const preferida = String(preferredUrl || '');
-  const claveCache = 'img_' + skuLimpio + '_' + (preferredUrl ? preferida.length : 0);
+  return skuLimpio ? 'img_' + skuLimpio + '_' + (preferredUrl ? String(preferredUrl).length : 0) : '';
+}
 
-  if (skuLimpio) {
-    try {
-      const guardada = await cacheLeer(ctx, claveCache);
-      if (guardada) return guardada;
-    } catch { /* sin caché se verifica igual */ }
+/** Lo ya verificado de varias claves en UNA consulta (en vez de una por producto). */
+async function imagenesGuardadas(ctx: Ctx, claves: string[]): Promise<Record<string, string>> {
+  const out: Record<string, string> = {};
+  const unicas = [...new Set(claves.filter(Boolean))];
+  for (let i = 0; i < unicas.length; i += 90) {   // D1: hasta 100 parámetros por consulta
+    const trozo = unicas.slice(i, i + 90);
+    const filas = await ctx.todas<{ clave: string; valor: string }>(
+      `SELECT clave, valor FROM cache WHERE expira > ? AND clave IN (${trozo.map(() => '?').join(', ')})`, Date.now(), ...trozo);
+    filas.forEach((f) => { out[f.clave] = f.valor; });
   }
-  const recordar = async (url: string) => {
-    if (skuLimpio) {
-      try { await cacheGuardar(ctx, claveCache, url, IMG_CACHE_SEGUNDOS); } catch { /* nada */ }
+  return out;
+}
+
+/** Recuerda lo verificado, todo en una ida (mismo UPSERT que cacheGuardar). Nunca lanza. */
+async function recordarImagenes(ctx: Ctx, nuevas: Map<string, string>): Promise<void> {
+  if (!nuevas.size) return;
+  const expira = Date.now() + IMG_CACHE_SEGUNDOS * 1000;
+  try {
+    await ctx.lote([...nuevas].map(([clave, url]): [string, ...unknown[]] => [
+      'INSERT INTO cache (clave, valor, expira) VALUES (?, ?, ?) ' +
+      'ON CONFLICT(clave) DO UPDATE SET valor = excluded.valor, expira = excluded.expira', clave, url, expira]));
+  } catch (e) {
+    console.error('No se pudieron recordar las imágenes verificadas', e);
+  }
+}
+
+/**
+ * URLs de imagen que se saben vivas, para que el cliente no reciba fotos rotas (getVerifiedImageUrl
+ * para todos los productos de un correo). Por producto: primero la URL que trae; si no responde
+ * 200, los servidores de imágenes conocidos de Liverpool EN PARALELO. Lo verificado se recuerda
+ * 6 h para no repetir hasta 10 peticiones por producto en cada envío. Si Liverpool no contesta,
+ * degrada como el .gs: la primera candidata cuando la red falla, el placeholder cuando contestó
+ * pero ninguna existe.
+ */
+export async function verificarImagenes(ctx: Ctx, items: Array<{ sku?: unknown; imageUrl?: unknown }>): Promise<string[]> {
+  const claves = items.map((it) => claveImagen(it.sku, it.imageUrl));
+  let guardadas: Record<string, string> = {};
+  try { guardadas = await imagenesGuardadas(ctx, claves); } catch { /* sin caché se verifica igual */ }
+
+  let restantes = IMG_PRESUPUESTO;
+  // Se descuenta ANTES de esperar: con los productos en paralelo, nadie gasta lo que ya es de otro.
+  const gastar = (n: number) => (restantes >= n ? ((restantes -= n), true) : false);
+  const nuevas = new Map<string, string>();
+  const enCurso = new Map<string, Promise<string>>();   // el mismo artículo dos veces se verifica una
+
+  const verificar = async (sku: unknown, preferredUrl: unknown, clave: string): Promise<string> => {
+    const skuLimpio = String(sku || '').trim();
+    if (clave && guardadas[clave]) return guardadas[clave];
+    const recordar = (url: string) => { if (clave) nuevas.set(clave, url); return url; };
+
+    const preferida = String(preferredUrl || '');
+    if (preferida && preferida.indexOf('http') === 0 && gastar(1) && (await codigoHttp(preferida)) === 200) {
+      return recordar(preferida);
     }
-    return url;
+    if (!skuLimpio) return IMG_PLACEHOLDER;
+
+    const candidatas = IMG_SUBDOMINIOS.map((x) => `https://${x}.liverpool.com.mx/xl/${encodeURIComponent(skuLimpio)}.jpg`);
+    // Sin presupuesto: como si la red fallara, pero sin recordarlo (no es una verificación).
+    if (!gastar(candidatas.length)) return candidatas[0];
+    const codigos = await Promise.all(candidatas.map(codigoHttp));
+    const viva = codigos.findIndex((c) => c === 200);
+    if (viva !== -1) return recordar(candidatas[viva]);
+    // fetchAll de Apps Script lanzaba si alguna petición fallaba en la red, y entonces se probaba
+    // una por una y se quedaba con la primera candidata; si todas contestaron, el placeholder.
+    return recordar(codigos.some((c) => c === null) ? candidatas[0] : IMG_PLACEHOLDER);
   };
 
-  if (preferida && preferida.indexOf('http') === 0 && (await codigoHttp(preferida)) === 200) {
-    return recordar(preferida);
-  }
-  if (!skuLimpio) return IMG_PLACEHOLDER;
+  const urls = await Promise.all(items.map((it, i) => {
+    const clave = claves[i];
+    if (!clave) return verificar(it.sku, it.imageUrl, '');
+    if (!enCurso.has(clave)) enCurso.set(clave, verificar(it.sku, it.imageUrl, clave));
+    return enCurso.get(clave) as Promise<string>;
+  }));
+  await recordarImagenes(ctx, nuevas);
+  return urls;
+}
 
-  const candidatas = IMG_SUBDOMINIOS.map((s) => `https://${s}.liverpool.com.mx/xl/${encodeURIComponent(skuLimpio)}.jpg`);
-  const codigos = await Promise.all(candidatas.map(codigoHttp));
-  const viva = codigos.findIndex((c) => c === 200);
-  if (viva !== -1) return recordar(candidatas[viva]);
-  // fetchAll de Apps Script lanzaba si alguna petición fallaba en la red, y entonces se probaba
-  // una por una y se quedaba con la primera candidata; si todas contestaron, el placeholder.
-  return recordar(codigos.some((c) => c === null) ? candidatas[0] : IMG_PLACEHOLDER);
+/** getVerifiedImageUrl (Correos.gs) para un solo producto. */
+export async function getVerifiedImageUrl(ctx: Ctx, sku: unknown, preferredUrl: unknown): Promise<string> {
+  return (await verificarImagenes(ctx, [{ sku, imageUrl: preferredUrl }]))[0];
 }
 
 // ── getQuoteDetailsForEmail ─────────────────────────────────────────────────────
@@ -269,7 +323,7 @@ export async function sendQuoteByEmail(ctx: Ctx, emailData: Record<string, any>)
     const productos: any[] = quote.products || [];
     let productsHtml = '';
     if (productos.length > 0) {
-      const imagenes = await Promise.all(productos.map((p) => getVerifiedImageUrl(ctx, p.sku, p.imageUrl)));
+      const imagenes = await verificarImagenes(ctx, productos);
       productos.forEach((p, i) => {
         const unitPrice = parseFloat(p.unitPrice) || 0;
         const quantity = parseInt(p.quantity) || 0;

@@ -20,7 +20,8 @@ import {
 import {
   PERM_BLOQUES, PERM_GRUPOS, PERM_ROLES_ORDEN, PERM_IDS, permListaMaestros, permModulosApagados
 } from '../../nucleo/permisos';
-import { ZONA_MX } from '../../nucleo/fechas';
+import { ZONA_MX, inicioDelDiaMx } from '../../nucleo/fechas';
+import { DOMINIO_CORREO } from '../../nucleo/correo';
 import { PAGINAS, PAGINAS_PORTAL, CONSTRUIDO } from '../../generado/rutas';
 import { REGISTRO } from '../indice';
 import { getEnabledQuoteFormats, getMailSenderInfo, correoCcoGlobal } from '../cotizaciones';
@@ -55,8 +56,8 @@ const COLUMNAS_ESPERADAS: Record<string, string[]> = {
 };
 
 /** Propiedades que conviene saber si están puestas o se usa su valor de fábrica. */
-const PROPIEDADES_CLAVE = ['HASH_SALT', 'CUENTAS_DOMINIO', 'MAIL_ALIAS', 'CC_SENDER_NAME', 'CORREO_CCO_GLOBAL',
-  'AUTH_SESIONES', 'SESION_INACTIVIDAD_MIN', 'formatos_habilitados', 'PERM_MODULOS_OFF'];
+const PROPIEDADES_CLAVE = ['HASH_SALT', 'CUENTAS_DOMINIO', 'MAIL_ALIAS', 'BREVO_REMITENTE', 'CORREO_ENVIO_REAL',
+  'CC_SENDER_NAME', 'CORREO_CCO_GLOBAL', 'AUTH_SESIONES', 'SESION_INACTIVIDAD_MIN', 'formatos_habilitados', 'PERM_MODULOS_OFF'];
 
 interface Inventario { tablas: Set<string>; columnas: Map<string, string[]>; filas: Map<string, number> }
 
@@ -175,8 +176,26 @@ export async function revisionMaestra(ctx: Ctx): Promise<ReporteSalud> {
   await check('Correo', 'Remitente de cotizaciones', async () => {
     const info = await getMailSenderInfo(ctx) as any;
     if (!info || !info.success) throw new Error((info && info.message) || 'no se pudo consultar el remitente');
-    return 'alias ' + info.alias + ' · en esta versión los correos no salen: quedan completos en la bandeja de salida (' +
-           filas('correos_salida') + ' guardados)';
+    // Ya no hay alias de Gmail que comprobar: el núcleo manda siempre desde el dominio de envío.
+    return 'alias ' + info.alias + ' · sale desde @' + DOMINIO_CORREO + ' (el remitente de otro dominio se cambia por el real)';
+  });
+  await check('Correo', 'Envío real (Brevo)', async () => {
+    const r = await ctx.todas<{ estado: string | null; n: number }>(
+      'SELECT estado, COUNT(*) AS n FROM correos_salida WHERE fecha >= ? GROUP BY estado', inicioDelDiaMx().toISOString());
+    const hoy: Record<string, number> = {};
+    r.forEach((f) => { hoy[String(f.estado || 'sin estado')] = Number(f.n || 0); });
+    const cifras = 'hoy: ' + (hoy.enviado || 0) + ' enviado(s), ' + (hoy.omitido || 0) + ' omitido(s), ' +
+                   (hoy.error || 0) + ' con error · cuota restante ' + (await consolaCuotaCorreo(ctx));
+    if (String(await secConfig(ctx, 'CORREO_ENVIO_REAL', 'si')).trim().toLowerCase() === 'no') {
+      throw new Error('Envío real apagado (CORREO_ENVIO_REAL = no): ningún correo sale, todo se queda en la bandeja de salida · ' + cifras);
+    }
+    if (!ctx.env.BREVO_API_KEY) {
+      // En local no hay clave a propósito; en producción, sin ella no sale nada.
+      if ((ctx.env.ENTORNO || 'local') === 'produccion') throw new Error('Sin la clave BREVO_API_KEY: los correos no salen · ' + cifras);
+      return 'sin clave de Brevo en este entorno (' + (ctx.env.ENTORNO || 'local') + '): los correos quedan en la bandeja de salida · ' + cifras;
+    }
+    if (hoy.error) throw new Error(hoy.error + ' correo(s) rechazados hoy por el proveedor · ' + cifras);
+    return 'clave configurada · ' + cifras + ' · las direcciones de ejemplo nunca se mandan';
   });
 
   // ── 6. Calendario ─────────────────────────────────────────────────────────

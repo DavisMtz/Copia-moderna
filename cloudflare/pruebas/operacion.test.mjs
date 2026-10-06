@@ -211,6 +211,24 @@ try {
   const panel2 = await sup('opPanel', [SUP]);
   ok(panel2.incidentes.some((i) => i.id === incId && i.cierra === true && i.estado === 'resuelto'), 'y queda en «cerradas esta semana»');
 
+  // ── 3b. Concurrencia (lo que era LockService) ──────────────────────────────────────────────
+  seccion('Concurrencia: cuatro personas a la vez levantan UNA sola incidencia');
+  const cuentas = ['fernanda.ruiz@ventel.example', 'miguel.ortega@ventel.example', 'supervisor@ventel.example', 'maestro@ventel.example'];
+  const simult = await Promise.all(cuentas.map(como));
+  const nombreConc = 'Concurrencia ' + marca;
+  const rc = await Promise.all(simult.map((f) => reporte(f, { sistema: '', sistemaNuevo: nombreConc, submotivoNuevo: 'Se cae todo a la vez' })));
+  ok(rc.every((r) => r.success), 'los cuatro reportes simultáneos se guardan', rc.map((r) => r.message));
+  const idsConc = [...new Set(rc.filter((r) => r.incidente).map((r) => r.incidente.id))];
+  ok(idsConc.length === 1 && rc.filter((r) => r.elevado).length === 1, 'una sola incidencia y un solo «elevado»', idsConc);
+  const panelC = await sup('opPanel', [SUP]);
+  const incC = panelC.incidentes.find((i) => i.id === idsConc[0]);
+  ok(incC && incC.reportes === 4 && incC.personas === 4, 'con los cuatro reportes colgados', incC);
+  ok(panelC.catalogo.sistemas.filter((x) => x.nombre === nombreConc).length === 1, 'y el sistema nuevo dado de alta una sola vez');
+  if (idsConc[0]) {
+    ok((await sup('opActualizarIncidente', [{ email: SUP, id: idsConc[0], estado: 'resuelto', nota: 'Fin de la prueba de concurrencia.' }])).success,
+      'limpieza: se resuelve');
+  }
+
   // ── 4. Evidencias ──────────────────────────────────────────────────────────────────────────
   seccion('Evidencias (R2) y reportes sueltos');
   const png = 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==';
