@@ -18,7 +18,7 @@
  * correo que declara el navegador, comprobando que exista en registros).
  */
 import type { Ctx } from './contexto';
-import { leerPropiedad, cacheLeer, cacheSumar, cacheBorrar } from './sistema';
+import { leerPropiedadConfig, cacheLeer, cacheSumar, cacheBorrar } from './sistema';
 import { sha256Hex } from './cripto';
 import { permUsuario, permBloque, permModulosApagados, permFilaRegistro } from './permisos';
 import { esAfirmativo, escaparHtml } from './util';
@@ -34,7 +34,7 @@ export interface Identidad {
 /** secConfig_: la propiedad del script o el respaldo. */
 export async function secConfig(ctx: Ctx, clave: string, respaldo: string): Promise<string> {
   try {
-    const v = await ctx.memorizar('prop:' + clave, () => leerPropiedad(ctx, clave));
+    const v = await leerPropiedadConfig(ctx, clave);
     return (v === null || v === '') ? respaldo : v;
   } catch {
     return respaldo;

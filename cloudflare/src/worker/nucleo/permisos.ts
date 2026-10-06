@@ -8,7 +8,7 @@
  * lectura es una consulta por clave primaria y cada escritura un UPSERT.
  */
 import type { Ctx } from './contexto';
-import { leerPropiedad, fijarPropiedad } from './sistema';
+import { leerPropiedadConfig, fijarPropiedad } from './sistema';
 import { esAfirmativo, normalizarTexto } from './util';
 
 export interface Bloque {
@@ -235,7 +235,7 @@ export function permBloque(id: unknown): Bloque | null {
 export async function permModulosApagados(ctx: Ctx): Promise<string[]> {
   return ctx.memorizar('perm:apagados', async () => {
     try {
-      const crudo = await leerPropiedad(ctx, PERM_PROP_MODULOS);
+      const crudo = await leerPropiedadConfig(ctx, PERM_PROP_MODULOS);
       if (!crudo) return [];
       const lista = JSON.parse(crudo);
       if (!Array.isArray(lista)) return [];

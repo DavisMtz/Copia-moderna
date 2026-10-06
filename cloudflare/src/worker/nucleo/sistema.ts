@@ -22,16 +22,35 @@ export async function leerPropiedad(ctx: Ctx, clave: string): Promise<string | n
   return fila ? fila.valor : null;
 }
 
+/*
+ * Configuración que se lee en CADA llamada (la sal de las contraseñas, la inactividad de la sesión,
+ * los módulos apagados…) y casi nunca cambia: se guarda 30 s en la memoria del isolate. Un cambio
+ * hecho desde la consola se ve al instante en el isolate que lo escribió y, en los demás, en menos
+ * de 30 s. NO usar para datos ni para nada que el asesor espere ver cambiar en el acto.
+ */
+const CONFIG_TTL_MS = 30000;
+const configMemo = new Map<string, { valor: string | null; hasta: number }>();
+
+export async function leerPropiedadConfig(ctx: Ctx, clave: string): Promise<string | null> {
+  const c = configMemo.get(clave);
+  if (c && c.hasta > Date.now()) return c.valor;
+  const valor = await leerPropiedad(ctx, clave);
+  configMemo.set(clave, { valor, hasta: Date.now() + CONFIG_TTL_MS });
+  return valor;
+}
+
 export async function fijarPropiedad(ctx: Ctx, clave: string, valor: unknown): Promise<void> {
   const texto = typeof valor === 'string' ? valor : JSON.stringify(valor);
   await ctx.ejecutar(
     'INSERT INTO propiedades (clave, valor, actualizado) VALUES (?, ?, ?) ' +
     'ON CONFLICT(clave) DO UPDATE SET valor = excluded.valor, actualizado = excluded.actualizado',
     clave, texto, ctx.ahoraIso());
+  configMemo.delete(clave);
 }
 
 export async function borrarPropiedad(ctx: Ctx, clave: string): Promise<void> {
   await ctx.ejecutar('DELETE FROM propiedades WHERE clave = ?', clave);
+  configMemo.delete(clave);
 }
 
 /** Todas las propiedades cuyo nombre empieza por `prefijo` (getProperties() filtrado). */
