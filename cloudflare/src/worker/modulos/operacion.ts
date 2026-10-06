@@ -37,6 +37,7 @@ import {
   opTitulo, opUltimasActualizaciones, type Catalogo, type FilaIncidente, type Incidente
 } from './operacion/comun';
 import { opHistorialHorasPublico, opHistorialPublico } from './operacion/historial';
+import { revConteoPendientes } from './revision';   // Revision.gs revConteoPendientes_ (dueño: agente de revisión)
 import { opRecomendaciones } from './operacion/recomendaciones';
 import {
   atencionActualizar, atencionFinalizar, atencionLiberarAhora, atencionRegistrar, atencionRescatar,
@@ -150,34 +151,6 @@ export async function opEstadoPublico(ctx: Ctx) {
 // =================================================================================================
 // API CON SESIÓN
 // =================================================================================================
-
-/** Versión local mínima de revConteoPendientes_ (Revision.gs) mientras el módulo de revisión no la exporte. */
-function revClaveEstado(valor: unknown): string {
-  return String(valor == null ? '' : valor)
-    .normalize('NFD').replace(/[̀-ͯ]/g, '')
-    .toLowerCase().trim().replace(/\s+/g, '-');
-}
-const REV_ESTADOS_CONOCIDOS = ['en-revision', 'folio-generado', 'pendiente', 'aprobada', 'autorizada', 'rechazada', 'enviada-por-correo'];
-const REV_ESTADOS_PENDIENTES = ['en-revision', 'folio-generado', 'pendiente'];
-function revEsPendiente(estatus: unknown, revisionEstado: unknown): boolean {
-  const k = revClaveEstado(estatus);
-  if (k === 'enviada-por-correo') return false;
-  const kRev = revClaveEstado(revisionEstado);
-  const elegida = REV_ESTADOS_CONOCIDOS.indexOf(kRev) !== -1 ? kRev : k;
-  return REV_ESTADOS_PENDIENTES.indexOf(elegida) !== -1;
-}
-/** Cuántas cotizaciones esperan revisión (-1 si no se pudo saber). Mismo criterio que revEsPendiente_. */
-async function revConteoPendientes(ctx: Ctx): Promise<number> {
-  try {
-    const filas = await ctx.todas<{ estatus: string | null; revision_estado: string | null; n: number }>(
-      "SELECT estatus, revision_estado, COUNT(*) AS n FROM cotizaciones WHERE COALESCE(folio, '') <> '' " +
-      'GROUP BY estatus, revision_estado');
-    return filas.reduce((total, f) => total + (revEsPendiente(f.estatus || 'Pendiente', f.revision_estado) ? Number(f.n) || 0 : 0), 0);
-  } catch (e) {
-    console.error('revConteoPendientes', e);
-    return -1;
-  }
-}
 
 /** Lo que ESTA persona reportó en las últimas 12 h (para no pedirle lo mismo). */
 async function opReportesDeAsesor(ctx: Ctx, correo: string) {
@@ -942,14 +915,20 @@ export async function opElevarReporte(ctx: Ctx, payload?: any) {
       if (!fila) return { success: false, message: 'Ese reporte ya no está disponible.' };
       if (String(fila.incidente_id || '')) return { success: false, message: 'Ese reporte ya pertenece a una incidencia.' };
 
+      // Cambio deliberado respecto al .gs: la nota por omisión llevaba el NOMBRE de quien reportó y,
+      // con el aviso marcado (lo normal al elevar), salía en el tablero PÚBLICO. Si se va a anunciar,
+      // va sin nombre; los reportes con sus nombres siguen en el detalle, que exige sesión.
+      const avisar = payload.avisar === true;
       const creado = await opCrearIncidenteInterno(ctx, gate, {
         email: payload.email,
         sistema: String(fila.sistema_clave || ''),
         submotivo: String(fila.submotivo || ''),
         estado: payload.estado || 'confirmado',
         detalle: String(fila.notas || ''),
-        nota: opLimpiarNotas(payload.nota, 800) || 'Elevado desde el reporte de ' + String(fila.nombre || '') + '.',
-        avisar: payload.avisar === true
+        nota: opLimpiarNotas(payload.nota, 800) || (avisar
+          ? 'Elevado desde un reporte del equipo.'
+          : 'Elevado desde el reporte de ' + String(fila.nombre || '') + '.'),
+        avisar
       });
       if (!creado.success) return creado;
 

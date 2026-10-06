@@ -1,0 +1,21 @@
+{
+  // Las islas React (panel de velocidad y explorador de datos). Va APARTE del tsconfig del Worker
+  // (../../tsconfig.json, que solo mira src/worker con los tipos de Cloudflare): cada uno con su DOM.
+  //   npx tsc -p src/react        (npm run tipos:react)
+  "compilerOptions": {
+    "target": "ES2022",
+    "module": "ESNext",
+    "moduleResolution": "Bundler",
+    "jsx": "react-jsx",
+    "lib": ["ES2022", "DOM", "DOM.Iterable"],
+    "types": ["vite/client"],
+    "strict": true,
+    "noUnusedLocals": true,
+    "noUnusedParameters": true,
+    "noFallthroughCasesInSwitch": true,
+    "isolatedModules": true,
+    "skipLibCheck": true,
+    "noEmit": true
+  },
+  "include": ["./**/*.ts", "./**/*.tsx"]
+}

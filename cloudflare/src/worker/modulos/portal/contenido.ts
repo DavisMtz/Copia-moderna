@@ -752,7 +752,7 @@ function pcPlanImport(col: Coleccion, existentesFilas: Record<string, any>[], en
 }
 
 /**
- * Deja la entrada del cliente en filas limpias, o lanza si viene mal (pcEntradaImport_). Las claves
+ * Deja la entrada del cliente en filas limpias, o el error si viene mal (pcEntradaImport_). Las claves
  * que son ids de campo pasan tal cual (lo que manda la pantalla). Las que no, se buscan por
  * ENCABEZADO con los alias del catálogo (pcMapaColumnas), como se localizaban las columnas en la hoja.
  */
@@ -781,7 +781,7 @@ function pcEntradaImport(col: Coleccion, filas: unknown): { ok: true; filas: Rec
       });
     }
     return limpia;
-  });
+  }) };
 }
 
 /** Qué pasaría si se importa. NO escribe nada. @param p {email, coleccion, filas} */
@@ -793,7 +793,9 @@ export async function portalContenidoAnalizarImport(ctx: Ctx, p: any) {
     if (!col) return { status: 'error', error: 'Esa sección del Portal no existe.' };
     if (col.soloLectura) return { status: 'error', error: 'En «' + col.nombre + '» no se importa nada.' };
 
-    const entrada = pcEntradaImport(col, p && p.filas);
+    const leida = pcEntradaImport(col, p && p.filas);
+    if (!leida.ok) return { status: 'error', error: leida.error };
+    const entrada = leida.filas;
     const r = pcPlanImport(col, await pcFilas(ctx, col), entrada);
     return {
       status: 'ok', plan: r.plan, resumen: r.resumen,
@@ -819,7 +821,9 @@ export async function portalContenidoAplicarImport(ctx: Ctx, p: any) {
     if (!col) return { status: 'error', error: 'Esa sección del Portal no existe.' };
     if (col.soloLectura) return { status: 'error', error: 'En «' + col.nombre + '» no se importa nada.' };
 
-    const entrada = pcEntradaImport(col, p && p.filas);
+    const leida = pcEntradaImport(col, p && p.filas);
+    if (!leida.ok) return { status: 'error', error: leida.error };
+    const entrada = leida.filas;
     const actualizar = p.actualizar !== false;
     const r = pcPlanImport(col, await pcFilas(ctx, col), entrada);
     const sentencias: Array<[string, ...unknown[]]> = [];

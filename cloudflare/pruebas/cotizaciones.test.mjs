@@ -332,7 +332,7 @@ async function principal() {
        c.responder_a === ASESOR && c.tipo === 'cotizacion' && c.aprobado === 1,
        'correos_salida: el correo completo, con el HTML aprobado y respuesta al asesor', c);
     ok(/no adjuntado/.test(c.adjuntos || '') && /Google Drive/.test(c.adjuntos || ''), 'sin PDF: la nota va en adjuntos', c.adjuntos);
-    ok(metricas.some((m) => m.resultado === 'Enviado' && m.adjuntos === '1' && m.cc === '0' && m.alias_usado === 'Sí') &&
+    ok(metricas.some((m) => m.resultado === 'Enviado' && m.adjuntos === '0' && m.cc === '0' && m.alias_usado === 'Sí') &&
        metricas.some((m) => m.resultado === 'Error'),
        'metricas_correos: el envío («Enviado») y el intento fallido («Error»)', metricas);
     ok(partidas[0]?.n === 3, 'detalle_cotizaciones: tres partidas del folio', partidas);

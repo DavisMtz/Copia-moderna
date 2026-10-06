@@ -199,7 +199,7 @@ async function principal() {
   const nuevo = await rpc(llSup, 'publicarAnuncio', [{
     formato: 'tarjeta', activo: true, orden: 0, desde: '', hasta: diaMx(5), asesor: SUP,
     datos: { tono: 'info', titulo: 'Encuesta de prueba (portal.test)', descripcion: 'x', __proto__x: 1,
-             encuesta: { pregunta: '¿Te sirve?', opciones: ['Sí', 'No', '', 'Sí'.repeat(30)], tiempo: '1 min', cierre: diaMx(3), verAntes: false } }
+             encuesta: { pregunta: '¿Te sirve?', opciones: ['Sí', 'No', '', 'x'.repeat(100)], tiempo: '1 min', cierre: diaMx(3), verAntes: false } }
   }]);
   ok('publicarAnuncio: ok con id anc-…', nuevo.status === 'ok' && /^anc-/.test(nuevo.id), nuevo);
   creados.anuncios.push(nuevo.id);

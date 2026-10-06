@@ -4,18 +4,21 @@
  * Port de Correos.gs (getQuoteDetailsForEmail, sendQuoteByEmail, getMailSenderInfo y sus ayudas).
  *
  * Lo que cambia por ser Cloudflare:
- *   · El correo no sale por Gmail: enviarCorreo (nucleo/correo.ts) lo deja COMPLETO en la bandeja
- *     de salida (`correos_salida`) y contesta como enviado. El estatus «Enviada por Correo», la
- *     FechaEnvio y la métrica se escriben igual que si hubiera salido.
- *   · No hay PDF adjunto (lo generaba Drive / la conversión de Apps Script): el correo se guarda
- *     sin él y en `adjuntos` queda la nota de por qué.
- *   · El alias siempre «está dado de alta»: la bandeja de salida escribe el remitente que se le
- *     diga, así que no hay vía clásica de respaldo.
+ *   · El correo no sale por Gmail sino por Brevo, desde el dominio logidma.com (enviarCorreo,
+ *     nucleo/correo.ts), y queda además COMPLETO en `correos_salida` con su estado. A direcciones de
+ *     ejemplo, o sin clave de Brevo (en local), no sale nada y queda 'omitido': la pantalla sigue su
+ *     flujo igual (estatus «Enviada por Correo», FechaEnvio y métrica), como si hubiera salido.
+ *   · Si Brevo rechaza el envío, enviarCorreo lanza, como GmailApp/MailApp.sendEmail: mismo mensaje
+ *     al asesor y misma métrica con resultado «Error».
+ *   · No hay PDF adjunto (lo generaba Drive / la conversión de Apps Script): el correo sale sin él
+ *     y en `adjuntos` queda la nota de por qué.
+ *   · No hay alias de grupo que comprobar (GmailApp.getAliases): el remitente es siempre una
+ *     dirección de logidma.com, así que «el alias está disponible» y no hay vía clásica de respaldo.
  */
 import type { Ctx } from '../../nucleo/contexto';
 import { secConfig, secIdentidad } from '../../nucleo/seguridad';
 import { cacheLeer, cacheGuardar } from '../../nucleo/sistema';
-import { enviarCorreo } from '../../nucleo/correo';
+import { enviarCorreo, DOMINIO_CORREO } from '../../nucleo/correo';
 import { escaparHtml } from '../../nucleo/util';
 import { revPuedeEnviarse } from '../revision';
 import {
@@ -24,13 +27,23 @@ import {
 import { metRegistrarEnvio, metVerificarAsesor } from './metricas';
 import { tarjetaProductoHtml, sinProductosHtml, cuerpoCorreoCotizacionHtml } from './plantillas';
 
-// Alias institucional desde el que salen las cotizaciones. Manda el ajuste MAIL_ALIAS de la
-// consola; esto es el respaldo de fábrica.
-export const MAIL_ALIAS_RESPALDO = 'cotizacion@liverpool.com.mx';
+// Remitente de las cotizaciones. Manda el ajuste MAIL_ALIAS de la consola; esto es el respaldo.
+// En Apps Script era el alias de grupo cotizacion@liverpool.com.mx; en esta versión ya no se usa un
+// grupo: los correos salen de una dirección del dominio de envío (logidma.com).
+export const MAIL_ALIAS_RESPALDO = 'ventel@logidma.com';
 
-/** El alias con el que sale el correo del sistema (mailAlias_). */
+/**
+ * El remitente con el que sale el correo del sistema (mailAlias_). El núcleo no deja salir nada que
+ * no sea de logidma.com: si MAIL_ALIAS apunta a otro dominio, se dice el que de verdad se usará
+ * (BREVO_REMITENTE), mismo criterio que nucleo/correo.ts, para que la pantalla no prometa otro.
+ */
 export async function mailAlias(ctx: Ctx): Promise<string> {
-  return (await secConfig(ctx, 'MAIL_ALIAS', MAIL_ALIAS_RESPALDO)) || MAIL_ALIAS_RESPALDO;
+  const delDominio = (x: unknown) => {
+    const s = String(x || '').trim().toLowerCase();
+    return s.endsWith('@' + DOMINIO_CORREO) ? s : '';
+  };
+  return delDominio(await secConfig(ctx, 'MAIL_ALIAS', MAIL_ALIAS_RESPALDO)) ||
+    delDominio(await secConfig(ctx, 'BREVO_REMITENTE', MAIL_ALIAS_RESPALDO)) || MAIL_ALIAS_RESPALDO;
 }
 
 // ── COPIA OCULTA GLOBAL (T9.6) ───────────────────────────────────────────────
@@ -72,7 +85,7 @@ export async function correoAplicarCco(ctx: Ctx, opciones: { bcc?: string }, yaV
 
 /**
  * Desde qué remitente saldrán los correos, para enseñarlo antes de enviar. Sin Gmail no hay alias
- * que comprobar: la bandeja de salida escribe el alias como remitente, así que siempre está.
+ * de grupo que comprobar (GmailApp.getAliases): el remitente del dominio siempre está disponible.
  */
 export async function getMailSenderInfo(ctx: Ctx) {
   try {
@@ -296,11 +309,12 @@ export async function sendQuoteByEmail(ctx: Ctx, emailData: Record<string, any>)
     // 3. La plantilla HTML del correo (formato aprobado, igual al ticket de Liverpool).
     const finalHtmlBody = cuerpoCorreoCotizacionHtml(quote, productsHtml, userMessageHtml);
 
-    // 4. «Enviar»: queda en la bandeja de salida. Las respuestas del cliente irían al asesor dueño.
+    // 4. Enviar (Brevo). Las respuestas del cliente llegan siempre al asesor dueño de la cotización.
+    //    Si Brevo lo rechaza, enviarCorreo lanza y cae al catch, como un fallo de Gmail en el .gs.
     const options: { bcc?: string } = {};
     const ccoGlobal = await correoAplicarCco(ctx, options, destinatarios.concat([quote.advisorEmail || '']));
     const alias = await mailAlias(ctx);
-    await enviarCorreo(ctx, {
+    const envio = await enviarCorreo(ctx, {
       para: paraFinal,
       asunto: String(datos.subject),
       html: finalHtmlBody,
@@ -314,7 +328,8 @@ export async function sendQuoteByEmail(ctx: Ctx, emailData: Record<string, any>)
     });
     const sentFrom = alias;
     const aliasAvailable = true;
-    console.log(`Correo de la cotización ${datos.folio} a ${paraFinal} guardado en la bandeja de salida (remitente ${sentFrom}).`);
+    console.log(`Correo de la cotización ${datos.folio} a ${paraFinal} desde ${sentFrom}: ${envio.estado}` +
+      (envio.omitidos.length ? ` (sin enviar a direcciones de ejemplo: ${envio.omitidos.join(', ')})` : '') + '.');
 
     // 5. Estatus «Enviada por Correo» y la fecha REAL del envío (T1.6b), en una sola escritura.
     await ctx.ejecutar('UPDATE cotizaciones SET estatus = ?, fecha_envio = ? WHERE folio = ?',
@@ -326,7 +341,8 @@ export async function sendQuoteByEmail(ctx: Ctx, emailData: Record<string, any>)
       asesorEmail: asesorMet.email, asesorNombre: asesorMet.nombre,
       para: paraFinal,
       destinatarios: destinatarios.length,
-      cc: 0, cco: ccoGlobal, asunto: datos.subject, adjuntos: 1, remitente: sentFrom,
+      // Adjuntos: 0 y no 1 como en el .gs, porque en esta versión el correo sale sin el PDF.
+      cc: 0, cco: ccoGlobal, asunto: datos.subject, adjuntos: 0, remitente: sentFrom,
       aliasUsado: aliasAvailable, resultado: 'Enviado', detalle: ''
     });
 

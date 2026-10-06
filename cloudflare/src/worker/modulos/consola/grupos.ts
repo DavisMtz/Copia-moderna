@@ -167,7 +167,7 @@ export async function grpListar(ctx: Ctx, email: string) {
     if (!acc.ok) return { success: false, message: acc.error };
 
     const todos = [await grpVentel(ctx)].concat(await grpLeerFilas(ctx));
-    const salida = [];
+    const salida: Array<Record<string, unknown>> = [];
     for (const g of todos) {
       const personas = await grpConPersonas(ctx, g.miembros);
       salida.push({

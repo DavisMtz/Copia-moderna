@@ -555,7 +555,10 @@ function revChecklistJson(checklist: any, auditoria: Dictamen | null): string {
 
 /**
  * Avisa por correo al asesor dueño de la cotización: qué se decidió, quién y con qué notas.
- * En esta versión el correo queda en `correos_salida` (nucleo/correo.ts): no sale por Gmail.
+ * Sale por Brevo desde logidma.com en lugar de GmailApp/MailApp (nucleo/correo.ts) y queda además en
+ * `correos_salida`; a un destinatario de ejemplo (@ventel.example) no se manda, solo se registra.
+ * Si Brevo rechaza el envío, enviarCorreo LANZA como lanzaba MailApp.sendEmail: quien llama lo
+ * convierte en `avisoCorreo` y la decisión, que ya quedó escrita, no se pierde.
  * @return '' si salió bien, o el motivo por el que no se pudo enviar.
  */
 async function revNotificarAsesor(ctx: Ctx, quote: any, folio: string, estado: string,
@@ -587,15 +590,17 @@ async function revNotificarAsesor(ctx: Ctx, quote: any, folio: string, estado: s
 
   // Copia oculta global (T9.6): un aviso de aprobación o rechazo es justo lo que se querrá releer.
   const cco = await revCcoGlobal(ctx, [para]);
-  const alias = await revAliasCorreo(ctx);
-  await enviarCorreo(ctx, {
+  // El alias se trata como disponible (lo que en Apps Script era la rama de GmailApp con `from`):
+  // el núcleo lo deja en logidma.com si viniera de otro dominio. Sin `responderA`, como el original:
+  // el pie del aviso pide escribir directamente a quien revisó.
+  const envio = await enviarCorreo(ctx, {
     para, asunto, html, texto: plano, cco,
-    de: alias || undefined,
+    de: await revAliasCorreo(ctx),
     nombreDe: 'Sistema de cotizaciones Ventel',
     tipo: 'revision',
     referencia: folio
   });
-  console.log('Aviso de revisión registrado para ' + para + ' (' + folio + ')');
+  console.log('Aviso de revisión ' + envio.estado + ' para ' + para + ' (' + folio + ')');
   return '';
 }
 

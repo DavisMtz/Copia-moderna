@@ -17,9 +17,9 @@ import {
   permUsuario, permNivelUsuario, permMismoCorreo, permBloque, permModulosApagados, permRolDeFila,
   permParsearAjustes, permBloquesEfectivos, permNormalizarRol, PERM_ROLES, type UsuarioPermisos
 } from '../../nucleo/permisos';
-import { fechaDesdeMx, aFecha, inicioDelDiaMx } from '../../nucleo/fechas';
+import { fechaDesdeMx, aFecha } from '../../nucleo/fechas';
 import { esAfirmativo, normalizarTexto } from '../../nucleo/util';
-import { CUOTA_CORREO_DIARIA } from '../../nucleo/correo';
+import { cuotaCorreoRestante } from '../../nucleo/correo';
 
 // ── Secciones de la consola ─────────────────────────────────────────────────
 //
@@ -295,24 +295,34 @@ export function consolaDiasDesde(iso: unknown): number {
 // ── Correo: cuota y remitente de los correos a clientes ─────────────────────
 
 /**
- * Cuánto correo queda hoy (MailApp.getRemainingDailyQuota). Gmail cuenta un correo por
- * destinatario; aquí se cuentan los destinatarios de lo que ya está en la bandeja de salida desde la
- * medianoche de México y se restan de CUOTA_CORREO_DIARIA. Memo por petición, como CONSOLA_CUOTA_MEMO.
+ * Cuánto correo queda hoy (MailApp.getRemainingDailyQuota): la cuota de Brevo que lleva el núcleo
+ * (cuotaCorreoRestante). Memo por petición, como CONSOLA_CUOTA_MEMO: la piden el resumen y las
+ * recomendaciones en la misma apertura de la consola. -1 si no se pudo saber.
  */
 export function consolaCuotaCorreo(ctx: Ctx): Promise<number> {
   return ctx.memorizar('consola:cuota', async () => {
     try {
-      const contar = (col: string) =>
-        "(CASE WHEN COALESCE(" + col + ", '') <> '' THEN length(" + col + ") - length(replace(" + col + ", ',', '')) + 1 ELSE 0 END)";
-      const fila = await ctx.una<{ n: number }>(
-        'SELECT COALESCE(SUM(' + contar('para') + ' + ' + contar('cc') + ' + ' + contar('cco') + '), 0) AS n ' +
-        'FROM correos_salida WHERE fecha >= ?', inicioDelDiaMx().toISOString());
-      return Math.max(0, CUOTA_CORREO_DIARIA - Number((fila && fila.n) || 0));
+      return await cuotaCorreoRestante(ctx);
     } catch (e) {
       console.error('consolaCuotaCorreo', e);
       return -1;
     }
   });
+}
+
+/**
+ * Lo que quedó apuntado de un correo en la bandeja de salida: el remitente REAL (el núcleo lo fuerza
+ * a @logidma.com), su estado ('enviado' | 'omitido' | 'error') y el motivo. `null` si no se encuentra.
+ */
+export async function correoEnBandeja(ctx: Ctx, id: number): Promise<{ de: string; estado: string; detalle: string } | null> {
+  try {
+    const f = await ctx.una<{ de: string | null; estado: string | null; detalle: string | null }>(
+      'SELECT de, estado, detalle FROM correos_salida WHERE id = ?', id);
+    return f ? { de: String(f.de || ''), estado: String(f.estado || ''), detalle: String(f.detalle || '') } : null;
+  } catch (e) {
+    console.error('correoEnBandeja', e);
+    return null;
+  }
 }
 
 /** Respaldo de fábrica del nombre visible en los correos a clientes (CorreoCliente.gs). */

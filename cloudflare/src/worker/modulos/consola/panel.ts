@@ -25,15 +25,16 @@ import {
 import { leerPropiedadJson, fijarPropiedad, borrarPropiedad, apuntarBitacora } from '../../nucleo/sistema';
 import { escaparHtml } from '../../nucleo/util';
 import { ZONA_MX } from '../../nucleo/fechas';
+import { enviarCorreo, DOMINIO_CORREO } from '../../nucleo/correo';
 import {
   cuentasDominioPermitido, cuentasAltaUsuario, cuentasActualizarPassword, cuentasMarcarPasswordTemporal,
-  cuentasEnviarCorreo, cuentasUrlApp, cuentasPlantillaCorreo, cuentasMailP, cuentasMailDatos, cuentasMailBoton,
+  cuentasUrlApp, cuentasPlantillaCorreo, cuentasMailP, cuentasMailDatos, cuentasMailBoton,
   cuentasMailNota, consolaPasswordTemporal, CUENTAS_DOMINIO_RESPALDO
 } from '../identidad';
-import { getFormatSettings, setQuoteFormatEnabled, MAIL_ALIAS_RESPALDO } from '../cotizaciones';
+import { getFormatSettings, setQuoteFormatEnabled } from '../cotizaciones';
 import {
   consolaAcceso, consolaGate, consolaError, consolaPersonas, consolaBitacoraLeer, consolaBitacoraEnRango,
-  consolaRangoFechas, consolaDiasDesde, consolaCuotaCorreo, CC_SENDER_NAME_RESPALDO, COLADOR_ES,
+  consolaRangoFechas, consolaDiasDesde, consolaCuotaCorreo, correoEnBandeja, CC_SENDER_NAME_RESPALDO, COLADOR_ES,
   CONSOLA_BITACORA_LIMITE, type AccesoOk
 } from './comun';
 import { grpListar, GRP_NIVEL_MINIMO } from './grupos';
@@ -49,13 +50,22 @@ import { revisionMaestra } from './salud';
 //   sinEfecto   (esta versión) el ajuste se guarda igual, pero ya no cambia nada: lo que en Apps
 //               Script apuntaba a Drive, Calendar, Google Chat o a la cuenta de Google. Se le dice a
 //               quien lo mira (en su detalle y al guardarlo) y no cuenta como «sin configurar».
+//   nota        (esta versión) lo que cambia en cómo se usa, para quien lo lee en la consola.
 
 interface DefAjuste {
   clave: string; nombre: string; grupo: string; detalle: string; tipo: string;
   predeterminado?: string; opciones?: Array<{ valor: string; nombre: string; detalle: string }>;
   marcador?: string; secreto?: boolean; soloLectura?: boolean; soloMaestro?: boolean; opcional?: boolean;
-  webhook?: boolean; sinEfecto?: string;
+  webhook?: boolean; sinEfecto?: string; nota?: string;
 }
+
+/**
+ * Remitente de fábrica en esta versión. Los correos salen de verdad por Brevo desde el dominio
+ * logidma.com (el único autenticado), así que ya no se usa el alias de grupo de Liverpool.
+ */
+const MAIL_ALIAS_RESPALDO_CF = 'ventel@' + DOMINIO_CORREO;
+/** Ajuste del núcleo (nucleo/correo.ts): la dirección de logidma.com desde la que sale todo. */
+const BREVO_REMITENTE_RESPALDO = 'ventel@' + DOMINIO_CORREO;
 
 const SIN_EFECTO_CHAT = 'En esta versión los avisos a Google Chat no salen: se guarda, pero no se usa.';
 const SIN_EFECTO_D1 = 'En esta versión los datos viven en la base D1 de Cloudflare: se guarda, pero no se usa.';
@@ -90,7 +100,16 @@ const CONSOLA_AJUSTES: DefAjuste[] = [
     detalle: 'Alias «Enviar como» con el que salen las cotizaciones y los avisos del sistema. ' +
              'Tiene que estar dado de alta en la cuenta de Gmail que ejecuta el sistema; si no lo está, ' +
              'el correo sale igual desde esa cuenta y solo se pierde el remitente bonito.',
-    tipo: 'correo', marcador: 'ventel@liverpool.com.mx'
+    tipo: 'correo', marcador: MAIL_ALIAS_RESPALDO_CF,
+    nota: 'En esta versión los correos salen por Brevo desde el dominio ' + DOMINIO_CORREO +
+          ': un remitente de otro dominio se cambia por el «Remitente real (Brevo)».'
+  },
+  {
+    // Ajuste propio de esta versión (lo lee nucleo/correo.ts). No existía en Apps Script.
+    clave: 'BREVO_REMITENTE', nombre: 'Remitente real (Brevo)', grupo: 'Correo',
+    detalle: 'Dirección de ' + DOMINIO_CORREO + ' desde la que salen de verdad los correos del sistema (es el dominio ' +
+             'autenticado en Brevo). Se usa siempre que el remitente que pide una pantalla no es de ese dominio.',
+    tipo: 'correo', marcador: BREVO_REMITENTE_RESPALDO
   },
   {
     clave: 'CC_SENDER_NAME', nombre: 'Nombre visible en los correos a clientes', grupo: 'Correo',
@@ -182,7 +201,8 @@ const CONSOLA_CUOTA_BAJA = 60;
 function consolaRespaldoEnCodigo(clave: string): string {
   switch (clave) {
     case 'CUENTAS_DOMINIO': return CUENTAS_DOMINIO_RESPALDO;
-    case 'MAIL_ALIAS':      return MAIL_ALIAS_RESPALDO;
+    case 'MAIL_ALIAS':      return MAIL_ALIAS_RESPALDO_CF;   // en Apps Script, cotizacion@liverpool.com.mx
+    case 'BREVO_REMITENTE': return BREVO_REMITENTE_RESPALDO;
     case 'CC_SENDER_NAME':  return CC_SENDER_NAME_RESPALDO;
     case 'AUTH_MODO':       return 'portal';
     default:                return '';

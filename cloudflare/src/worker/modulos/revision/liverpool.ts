@@ -287,12 +287,14 @@ export function revExtraerFicha(html: string): Ficha {
   const imagen = revMetaContenido(doc, 'og:image');
 
   // Se ancla al testid del configurador, el único que pertenece al producto que se mira (los
-  // carruseles de "también te puede interesar" traen sus propios precios).
+  // carruseles de "también te puede interesar" traen sus propios precios). SIN ancla no se lee
+  // ningún precio: Apps Script caía al primer precio de la página, y un enlace que redirige a la
+  // portada (liverpool.com.mx sin www → /tienda/home) devolvía el de un artículo cualquiera del
+  // carrusel como si fuera el cotizado. Ahora eso es «sin precio», que es la verdad.
   const anclaPrecio = doc.search(/data-testid="\d+-configurator-price"/);
-  const desde = anclaPrecio > -1 ? anclaPrecio : 0;
 
-  const precio = revPrecioTrasTestid(doc, 'discounted', desde);
-  const precioLista = revPrecioTrasTestid(doc, 'original', desde);
+  const precio = anclaPrecio > -1 ? revPrecioTrasTestid(doc, 'discounted', anclaPrecio) : null;
+  const precioLista = anclaPrecio > -1 ? revPrecioTrasTestid(doc, 'original', anclaPrecio) : null;
 
   if (precio === null) {
     return {

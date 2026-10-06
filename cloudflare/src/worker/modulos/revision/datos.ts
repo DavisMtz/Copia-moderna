@@ -4,7 +4,7 @@
  * Versiones LOCALES y mínimas de lo que en Apps Script la revisión tomaba de otros archivos:
  *   · leerDetalleCotizacion_ y leerSupervision_   (Code.gs)
  *   · QUOTE_FORMATS y DEFAULT_FORMAT_ID           (Formatos.gs)
- *   · formatCurrencyGS, mailAlias_, correoAplicarCco_  (Correos.gs)
+ *   · formatCurrencyGS, mailAlias_, correoAplicarCco_  (Correos.gs; el envío en sí es nucleo/correo.ts)
  * El módulo de cotizaciones se porta en paralelo y todavía no las exporta (AGENTES.md §3: «haz una
  * versión local mínima»). Leen D1 directo, sin caché: la revisión es justo la pantalla donde un dato
  * de hace tres minutos no sirve, y D1 contesta en milisegundos.
@@ -182,10 +182,16 @@ export async function revFilasCola(ctx: Ctx): Promise<FilaCola[]> {
   return cola;
 }
 
-/** Remitente de los avisos (mailAlias_): el ajuste MAIL_ALIAS si la consola lo configuró. */
+/** Respaldo de MAIL_ALIAS: ya no es el alias de grupo de Liverpool sino el buzón de logidma.com. */
+const MAIL_ALIAS_RESPALDO = 'ventel@logidma.com';
+
+/**
+ * Remitente de los avisos (mailAlias_): el ajuste MAIL_ALIAS o, si no hay, ventel@logidma.com. Los
+ * correos salen por Brevo desde logidma.com y el núcleo fuerza ese dominio (nucleo/correo.ts), así que
+ * el alias se da siempre por disponible (en Apps Script se comprobaba en GmailApp.getAliases()).
+ */
 export async function revAliasCorreo(ctx: Ctx): Promise<string> {
-  // Sin respaldo escrito aquí: la maqueta no manda correos y no debe firmarlos con un buzón real.
-  return (await secConfig(ctx, 'MAIL_ALIAS', '')).trim();
+  return (await secConfig(ctx, 'MAIL_ALIAS', MAIL_ALIAS_RESPALDO)).trim() || MAIL_ALIAS_RESPALDO;
 }
 
 /**
