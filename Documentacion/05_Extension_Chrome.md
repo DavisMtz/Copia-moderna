@@ -3,13 +3,13 @@
 Extensión Manifest V3 que se instala en el navegador del asesor. Lee `liverpool.com.mx` y
 deja los datos dentro del sistema de cotizaciones sin teclear nada.
 
-**Versión declarada:** 3.0 (04/10/2026) · **Toda la extracción es local**: no manda nada a
+**Versión declarada:** 3.1 (06/10/2026) · **Toda la extracción es local**: no manda nada a
 ningún servidor propio.
 
 > **Cómo leer este documento.** Las secciones 1 a 9 describen la extensión hasta la 1.7
 > (agosto de 2026) y siguen valiendo para sus cinco funciones. Lo que vino después —la tarjeta
 > «Vende más con este artículo», de la 2.6 a la 3.0— está en la **§10**, con el manifiesto
-> actual y lo que cambió en seguridad.
+> actual y lo que cambió en seguridad. La 3.1 —el Portal en Cloudflare— está en la **§11**.
 
 ---
 
@@ -157,7 +157,8 @@ en el popup, solo redacta). Cambiar la redacción no obliga a tocar la lectura, 
 3. Activar **Modo de desarrollador** (arriba a la derecha).
 4. **Cargar descomprimida** → seleccionar la carpeta `Extencion para chrome`.
 5. Fijar el icono en la barra.
-6. Abrir el popup → «Guardar enlace» → pegar la URL `/exec` de la webapp.
+6. Abrir el popup → «Guardar enlace» → pegar la URL `/exec` de la webapp. *(Desde la 3.1 se
+   pega la del Portal, `https://ventel.logidma.com/`; ver §11.)*
 
 Dentro del sistema, la pantalla `app_extension_guia.html` enseña estos pasos con maquetas y
 el puntero haciendo el clic que toca. Se hizo así porque instalar una extensión sin
@@ -335,6 +336,63 @@ abiertas siguen con el código anterior hasta que se recargan.
 | La insignia de la bolsa en la cabecera | Lo mismo: sin cuenta, no se lee la bolsa | `cuentaDeBolsa` en `recomendador.js` |
 
 En todos los casos la tarjeta se queda como en la 2.9: no falla, pierde lo nuevo.
+
+---
+
+## 11. El Portal en Cloudflare (3.1)
+
+El Portal se está migrando a un Cloudflare Worker, en **`https://ventel.logidma.com/`**. Son las
+**mismas pantallas** y el mismo enrutado (`?page=cotizacion`, `?page=login`…), pero servidas como
+**página de arriba**: ya no hay `script.google.com` ni iframes de `googleusercontent.com` de por
+medio. La 3.1 hace que la extensión hable con ese Portal **sin dejar de hablar con el de Apps
+Script**, por si alguien aún lo usa. **No añadió ningún permiso** fuera de ese sitio.
+
+### 11.1 Qué cambió
+
+| Archivo | Qué cambió |
+| --- | --- |
+| `manifest.json` | Versión 3.1. `https://ventel.logidma.com/*` en `host_permissions` (lo necesita `fondo.js` para ver `sender.tab.url`) y en los `matches` de `bridge.js` y `campana-puente.js`. Las entradas de Apps Script siguen. |
+| `bridge.js` | **Sin cambios de lógica**: ya escribía la bolsa en el `document` de la página (y en cada iframe navegado, que en el Portal nuevo no hay), y no filtra por host, origen ni marco. Solo hacía falta inyectarlo en el host nuevo (`manifest.json`). |
+| `campana-puente.js` | Además de los marcos `script.googleusercontent.com`, corre en `https://ventel.logidma.com` (origen exacto: ni `http`, ni otro puerto, ni subdominios). |
+| `fondo.js` | `deDondeViene` tiene una vía nueva: si el marco que escribe y la pestaña son **exactamente** `https://ventel.logidma.com`, se acepta (despliegue `cloudflare`). También se acepta el origen `https://` que el asesor guardó en el popup si coincide exacto con el de la pestaña (los de `script.google.com` y `googleusercontent.com` no valen por esa vía: son de todas las webapps). El saneado, igual. |
+| `popup.js` / `popup.html` | «Guardar enlace» acepta `https://ventel.logidma.com/` —con o sin `/`, con o sin `?page=…`— y siempre guarda la raíz. Sigue rechazando `http:`, otros dominios y la `/dev`, y sigue aceptando el `/exec`. Sin enlace guardado, «Cotizar» va al Portal. El texto del panel propone el Portal primero. |
+| `cart-cotizar-button.js` | El enlace por omisión es el Portal (antes, el `/exec` de producción). |
+
+La cotización se abre en `https://ventel.logidma.com/?page=cotizacion&origen=extension`.
+
+### 11.2 Cómo se configura
+
+1. En `chrome://extensions`, **Recargar** la extensión (debe decir 3.1) y recargar las pestañas de
+   Liverpool que ya estaban abiertas (§10.5).
+2. Popup → «Enlace del Sistema de Cotizaciones» → pegar `https://ventel.logidma.com/` → «Guardar
+   enlace». Aunque no se haga, sin enlace guardado «Cotizar» (el del popup y el de la bolsa) ya va ahí.
+3. **Quien ya tenía guardado el `/exec` sigue yendo al Portal de Apps Script** hasta que guarde el
+   nuevo: lo guardado manda sobre el valor por omisión.
+4. Cargada descomprimida (§6), Chrome no debería preguntar nada al recargar. Si algún día se
+   instala empaquetada o por política, al actualizar puede pedir que se acepte el sitio nuevo
+   (es el único permiso que se suma).
+
+### 11.3 Cómo conversa con el Portal nuevo
+
+- **La bolsa** viaja como en Apps Script, y **no por `postMessage`**: `bridge.js` deja el JSON en
+  `<script type="application/json" id="ventel-bolsa-datos">` del `document` de la pantalla de
+  cotización, que lo busca ahí. Las dos reglas siguen: el puente no le manda mensajes a la página
+  (nada de `postMessage`), y la bolsa se borra del almacenamiento **antes** de escribirla (una
+  bolsa se cotiza una vez).
+  El protocolo de mensajes `VENTEL_BOLSA_*` del §3 es el de la v1; desde la v2 el puente usa ese
+  elemento del DOM, también en la 3.1.
+- **Las promociones:** la portada escribe `#ventel-promos-datos` en su propio `document`,
+  `campana-puente.js` lo lee y `fondo.js` lo guarda solo si la pestaña es el Portal.
+
+### 11.4 Si el Portal cambia de dominio
+
+El dominio está escrito en seis archivos, y hay que cambiarlos juntos: `manifest.json` (tres
+veces: `host_permissions` y los dos puentes), `PORTAL_CLOUDFLARE` en `fondo.js`, la comparación de
+origen en `campana-puente.js`, `HOST_PORTAL` en `popup.js`, el texto del panel en `popup.html` y
+`URL_COTIZADOR_POR_DEFECTO` en `cart-cotizar-button.js`. (`bridge.js` no compara nada: lo decide el
+manifiesto.) Lo comprueba `node pruebas/ext_portal_cloudflare.test.js`; y `ext_medicion.test.js`
+fija a propósito la lista exacta de `host_permissions`, así que un sitio nuevo no entra sin tocar
+esa línea.
 
 ---
 

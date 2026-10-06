@@ -18,6 +18,12 @@
  * enlaces (la tarjeta arma los suyos y escribe todo con escape).
  *
  * Hecho para Ventel · v1.0 · 03/10/2026
+ * v3.1 · 06/10/2026 · Portal en Cloudflare (ventel.logidma.com): el Portal nuevo es la
+ *        PÁGINA de arriba, sin marco de Apps Script de por medio. Se acepta si el marco
+ *        que escribe y la pestaña son EXACTAMENTE https://ventel.logidma.com, o el mismo
+ *        origen https que el asesor guardó en el popup (ver deLaPaginaDeArriba). Chrome
+ *        da sender.tab.url con el permiso de https://ventel.logidma.com/* (manifest).
+ *        Las rutas de Apps Script y el saneado quedan como estaban.
  */
 'use strict';
 
@@ -25,6 +31,10 @@ var PORTAL_DESPLIEGUES = [
   'AKfycbwGYZs3C-dsZbIWVn27uEaLm_rXQGhiQc9Q54btPxPb-Z1SX0Enx7NlPqKw4STizaOU',  // producción
   'AKfycbxSjCvwk_f3pqcmIzyqlsPbPxlEHj91C6gjJdLXdLOS'                          // pruebas (/dev)
 ];
+/** El Portal en Cloudflare (3.1): su origen exacto. Es la página de arriba, no un marco. */
+var PORTAL_CLOUDFLARE = 'https://ventel.logidma.com';
+/** Los orígenes que comparten TODAS las webapps de Apps Script: ahí «mismo origen» no prueba nada, manda el id de despliegue. */
+var ORIGEN_DE_APPS_SCRIPT = /^https:\/\/(?:[a-z0-9-]+\.)*(?:script\.google|googleusercontent)\.com(?::\d+)?$/;
 var CLAVE_PROMOS = 'ventelPromos';
 var DIA = 86400000;
 
@@ -32,6 +42,16 @@ var DIA = 86400000;
 function despliegueDe(url) {
   var m = String(url || '').match(/^https:\/\/script\.google\.com\/(?:a\/macros\/[^/]+|macros)\/s\/([\w-]+)\/(?:exec|dev)(?:[/?#]|$)/);
   return m ? m[1] : null;
+}
+
+/**
+ * El origen https de una URL (https://host[:puerto]), o null. Con un patrón estricto y no
+ * con un split: `https://ventel.logidma.com@otro.mx/`, `https://ventel.logidma.com.otro.mx/`
+ * o una barra invertida no se toman por el Portal. Tampoco usa `URL`: el fondo no lo necesita.
+ */
+function origenHttpsDe(url) {
+  var m = String(url || '').match(/^(https:\/\/[a-z0-9](?:[a-z0-9.-]*[a-z0-9])?(?::\d{1,5})?)(?:[\/?#]|$)/i);
+  return m ? m[1].toLowerCase() : null;
 }
 
 function texto(v, n) {
@@ -79,11 +99,27 @@ function leer(claves) {
   });
 }
 
-/** ¿El mensaje viene de un marco de Apps Script dentro de una pestaña del Portal? */
+/**
+ * 3.1 · ¿El mensaje viene de la PÁGINA de arriba, no de un marco de Apps Script? Es el Portal
+ * en Cloudflare. Se acepta solo si el marco que escribe y la pestaña son EXACTAMENTE el mismo
+ * origen https, y es el del Portal (devuelve 'cloudflare') o el que el asesor guardó en el
+ * popup (devuelve ese origen). Chrome pone sender.url y sender.tab.url: la página no los falsea.
+ */
+function deLaPaginaDeArriba(sender, marco) {
+  var origen = origenHttpsDe(marco);
+  if (!origen || origen !== origenHttpsDe(sender.tab && sender.tab.url)) return Promise.resolve(null);
+  if (origen === PORTAL_CLOUDFLARE) return Promise.resolve('cloudflare');
+  if (ORIGEN_DE_APPS_SCRIPT.test(origen)) return Promise.resolve(null);
+  return leer(['cotizadorUrl']).then(function (r) {
+    return origenHttpsDe(r.cotizadorUrl) === origen ? origen : null;
+  });
+}
+
+/** ¿El mensaje viene del Portal: un marco de Apps Script dentro de una pestaña suya, o su página de arriba? */
 function deDondeViene(sender) {
   if (!sender || sender.id !== chrome.runtime.id) return Promise.resolve(null);
   var marco = String(sender.url || sender.origin || '');
-  if (!/^https:\/\/[\w-]*script\.googleusercontent\.com(\/|$)/.test(marco)) return Promise.resolve(null);
+  if (!/^https:\/\/[\w-]*script\.googleusercontent\.com(\/|$)/.test(marco)) return deLaPaginaDeArriba(sender, marco);
   var id = despliegueDe(sender.tab && sender.tab.url);
   if (!id) return Promise.resolve(null);
   if (PORTAL_DESPLIEGUES.indexOf(id) > -1) return Promise.resolve(id);
