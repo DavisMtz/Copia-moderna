@@ -9,8 +9,9 @@
  * desde otra cuenta, la reguarda, la envía al cliente y comprueba el estatus, la fecha de envío y
  * la métrica. Y las puertas: sin sesión no hay datos, un asesor no ve la supervisión.
  *
- * Si existe el estado local de D1 (ESTADO, por omisión .wrangler/estado-cotizaciones) se mira
- * además la base con wrangler: la fila del correo en `correos_salida` y la de `metricas_correos`.
+ * Si se conoce el estado local de D1 de ese Worker (ESTADO; por omisión .wrangler/estado-cotizaciones
+ * cuando el servidor es el del puerto 8802) se mira además la base con wrangler: la fila del correo en
+ * `correos_salida`, la de `metricas_correos` y la búsqueda en `metricas_busquedas`.
  * Sale con código 1 si algo falla.
  */
 import { execFileSync } from 'node:child_process';
@@ -21,7 +22,9 @@ import path from 'node:path';
 
 const BASE = (process.argv[2] || process.env.BASE || 'http://127.0.0.1:8802').replace(/\/$/, '');
 const RAIZ = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
-const ESTADO = process.env.ESTADO || '.wrangler/estado-cotizaciones';
+// La base local que sirve ESE Worker: por omisión, la del puerto de este módulo (8802). Contra
+// otro servidor hay que decirla (ESTADO=.wrangler/estado-<nombre>) o no se mira la base.
+const ESTADO = process.env.ESTADO || (new URL(BASE).port === '8802' ? '.wrangler/estado-cotizaciones' : '');
 const CLAVE = 'VentelDemo2026';
 const ASESOR = 'asesor@ventel.example';
 const OTRA_ASESORA = 'sofia.herrera@ventel.example';
@@ -60,7 +63,7 @@ async function entrar(correo) {
 
 /** Mira la base D1 local con wrangler. Devuelve null si no hay estado local que mirar. */
 function d1(sql) {
-  if (!existsSync(path.join(RAIZ, ESTADO))) return null;
+  if (!ESTADO || !existsSync(path.join(RAIZ, ESTADO))) return null;
   const salida = execFileSync('npx', ['wrangler', 'd1', 'execute', 'ventel-portal', '--local', '--persist-to', ESTADO,
     '--json', '--command', sql], { cwd: RAIZ, encoding: 'utf8', stdio: ['ignore', 'pipe', 'ignore'] });
   return JSON.parse(salida.slice(salida.indexOf('['))).map((r) => r.results);
@@ -329,7 +332,7 @@ async function principal() {
     `SELECT COUNT(*) AS n FROM detalle_cotizaciones WHERE folio_cotizacion = '${folio}'; ` +
     `SELECT quien, origen FROM metricas_busquedas WHERE termino = '${terminoUnico}'`);
   if (!filas) {
-    console.log('  · (sin estado local en ' + ESTADO + ': no se mira la base)');
+    console.log('  · (no se mira la base: define ESTADO=.wrangler/estado-<nombre> del Worker que pruebas)');
   } else {
     const [salida, metricas, partidas, busquedas] = filas;
     const c = salida[0] || {};

@@ -25,7 +25,8 @@ export default defineConfig({
     emptyOutDir: true,
     // Lo mismo que las pantallas (scripts/construir.mjs compila para chrome109).
     target: ['chrome109', 'edge109', 'firefox115', 'safari16'],
-    // Los navegadores de esa lista ya conocen modulepreload: el polyfill sería peso muerto en panel.js.
+    // Al abrir el panel, React y el panel se piden A LA VEZ (modulepreload) y no uno tras otro. Los
+    // navegadores de la lista ya lo conocen: el polyfill sería peso muerto en las 20 pantallas.
     modulePreload: { polyfill: false },
     reportCompressedSize: true,
     chunkSizeWarningLimit: 400,
@@ -37,7 +38,11 @@ export default defineConfig({
       output: {
         entryFileNames: (trozo) => (trozo.name === 'panel' ? 'panel.js' : 'assets/[name]-[hash].js'),
         chunkFileNames: 'assets/[name]-[hash].js',
-        assetFileNames: 'assets/[name]-[hash][extname]'
+        assetFileNames: 'assets/[name]-[hash][extname]',
+        // React en su propio trozo, compartido por el panel abierto y el explorador (se baja una vez).
+        codeSplitting: {
+          groups: [{ name: 'react', test: /[\\/]node_modules[\\/](react|react-dom|scheduler)[\\/]/ }]
+        }
       }
     }
   }

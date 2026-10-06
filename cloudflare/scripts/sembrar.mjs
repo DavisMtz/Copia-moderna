@@ -234,6 +234,8 @@ class Salida {
     if (detalle) for (const l of [].concat(detalle)) this.lineas.push('-- ' + l);
   }
   nota(texto) { this.lineas.push('-- ' + texto); }
+  /** Una sentencia tal cual (DELETE de limpieza…). Solo para lo que no es una fila. */
+  cruda(sql) { this.lineas.push(/;\s*$/.test(sql) ? sql : sql + ';'); }
   fila(tabla, obj, modo = 'INSERT OR REPLACE') {
     const cols = Object.keys(obj);
     const esquema = ESQUEMA[tabla];

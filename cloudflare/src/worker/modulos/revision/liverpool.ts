@@ -151,6 +151,29 @@ async function revPedir(url: string, permitido: (u: string) => string): Promise<
   throw new Error('demasiadas redirecciones');
 }
 
+/** Peticiones a la vez: un Worker abre como mucho 6 conexiones salientes simultáneas. */
+const REV_MAX_A_LA_VEZ = 6;
+
+/**
+ * Promise.allSettled con un tope de peticiones simultáneas (lo que en Apps Script era fetchAll). Con
+ * más de 6, el Worker encola las demás, y como el reloj de AbortSignal.timeout corre desde que se
+ * llama a fetch, una petición encolada podría «agotar su tiempo» sin haber salido: con el tope, cada
+ * una arranca su reloj cuando de verdad sale.
+ */
+async function revEnParalelo<T, R>(items: T[], f: (x: T) => Promise<R>): Promise<Array<PromiseSettledResult<R>>> {
+  const salida: Array<PromiseSettledResult<R>> = new Array(items.length);
+  let siguiente = 0;
+  const trabajador = async () => {
+    while (siguiente < items.length) {
+      const k = siguiente++;
+      try { salida[k] = { status: 'fulfilled', value: await f(items[k]) }; }
+      catch (e) { salida[k] = { status: 'rejected', reason: e }; }
+    }
+  };
+  await Promise.all(Array.from({ length: Math.min(REV_MAX_A_LA_VEZ, items.length) }, trabajador));
+  return salida;
+}
+
 /** Huella corta de una URL para las claves de caché (en Apps Script era MD5 en base64). */
 async function revHuella(url: string): Promise<string> {
   return (await sha256Hex(url)).slice(0, 32);
@@ -395,10 +418,10 @@ export async function revFichasEnParalelo(ctx: Ctx, pedidos: Array<{ indice: num
   });
   if (!faltantes.length) return salida;
 
-  const respuestas = await Promise.allSettled(faltantes.map((p) => {
+  const respuestas = await revEnParalelo(faltantes, (p) => {
     const pedible = revUrlArticuloParaPedir(p.url);
     return pedible ? revPedir(pedible, revUrlArticuloParaPedir) : Promise.reject(new Error('dirección no válida'));
-  }));
+  });
 
   const escrituras: Array<Promise<unknown>> = [];
   for (let i = 0; i < faltantes.length; i++) {
@@ -567,7 +590,7 @@ async function revHojasDeEstilo(hrefs: string[], urlOriginal: string): Promise<s
 
   if (!lista.length) return [];
 
-  const respuestas = await Promise.allSettled(lista.map((u) => revPedir(u, revUrlEstiloSegura)));
+  const respuestas = await revEnParalelo(lista, (u) => revPedir(u, revUrlEstiloSegura));
   const css: string[] = [];
   respuestas.forEach((r) => {
     // Una hoja que falla no tumba la página.

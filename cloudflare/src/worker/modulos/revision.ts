@@ -14,7 +14,7 @@
  *   revision/politica.ts     ← PoliticaRevision.gs
  *   revision/auditoria.ts    ← AuditoriaCotizacion.gs
  *   revision/liverpool.ts    ← la ficha y la página en vivo de liverpool.com.mx
- *   revision/datos.ts        ← lecturas de cotizaciones (versión local mientras cotizaciones no las exporte)
+ *   revision/datos.ts        ← lecturas de cotizaciones (el detalle lo da cotizaciones/comun.ts) y la cola
  *   revision/constantes.ts   ← estatus y validación de URLs
  *
  * Contratos que usan otros módulos (no cambiar la firma sin avisar):
@@ -45,7 +45,7 @@ import {
 import { audDictamen, audAplicarPreciosEnVivo, audCompararConFicha, type Dictamen } from './revision/auditoria';
 import { revpolLeer, getPoliticaRevision, guardarPoliticaRevision, simularPoliticaRevision } from './revision/politica';
 import { revFichaDeUrl, revFichasEnParalelo, revPaginaDeUrl } from './revision/liverpool';
-import { revLeerDetalle, revFilasCola, revAliasCorreo, revCcoGlobal, formatCurrencyGS, type FilaCotizacion } from './revision/datos';
+import { revLeerDetalle, revFilasCola, revAliasCorreo, revCcoGlobal, formatCurrencyGS } from './revision/datos';
 
 export {
   REV_ESTATUS_PENDIENTE, REV_ESTATUS_APROBADA, REV_ESTATUS_RECHAZADA, REV_ESTATUS_ENVIADA,
@@ -96,12 +96,18 @@ export interface EstadoRevision {
   notas: string; aprobada: boolean;
 }
 
+/** Las columnas de `cotizaciones` que hacen falta para saber el estado de revisión. */
+interface FilaEstado {
+  estatus: string | null; revision_estado: string | null; revisado_por: string | null;
+  revisado_nombre: string | null; revision_fecha: string | null; revision_notas: string | null;
+}
+
 function revEstadoVacio(): EstadoRevision {
   return { existe: false, estatus: '', estado: '', por: '', nombre: '', fecha: '', notas: '', aprobada: false };
 }
 
 /** El estado de revisión a partir de la fila de `cotizaciones`. */
-function revEstadoDeFila(fila: Partial<FilaCotizacion> | null): EstadoRevision {
+function revEstadoDeFila(fila: FilaEstado | null): EstadoRevision {
   if (!fila) return revEstadoVacio();
   const estado = String(fila.revision_estado || '');
   const estatus = String(fila.estatus || '');
@@ -127,7 +133,7 @@ function revEstadoDeFila(fila: Partial<FilaCotizacion> | null): EstadoRevision {
  */
 export async function revEstadoDeFolio(ctx: Ctx, folio: unknown): Promise<EstadoRevision> {
   try {
-    const fila = await ctx.una<FilaCotizacion>(
+    const fila = await ctx.una<FilaEstado>(
       'SELECT estatus, revision_estado, revisado_por, revisado_nombre, revision_fecha, revision_notas ' +
       'FROM cotizaciones WHERE folio = ?', String(folio == null ? '' : folio));
     return revEstadoDeFila(fila);
@@ -333,11 +339,12 @@ export async function getRevisionCotizacion(ctx: Ctx, folio: string, email: stri
       return { success: false, sinPermiso: true, message: id.error || 'Solo un usuario avanzado puede revisar cotizaciones.' };
     }
 
-    const det = await revLeerDetalle(ctx, folio);
+    // El estado sale de la fila tal cual (revEstadoDeFolio_), no de quote.revision: ese trae el ajuste
+    // de «revisión desactivada» que hace la consulta, y aquí se enseña lo que decidió una persona.
+    const [det, estado] = await Promise.all([revLeerDetalle(ctx, folio), revEstadoDeFolio(ctx, folio)]);
     if (!det.success) return { success: false, message: det.message || 'Cotización no encontrada.' };
 
     const quote = det.quote;
-    const estado = revEstadoDeFila(det.fila);
     const productos = revProductosParaRevision(quote.products);
     const auditoria = revAuditar(quote, productos);
 

@@ -2,7 +2,7 @@
  * =================================================================================================
  * Panel de velocidad · el arranque | Portal Ventel en Cloudflare
  * =================================================================================================
- * Lo único que baja cada una de las 20 pantallas (/vx/app/panel.js, lo inyecta scripts/construir.mjs
+ * Lo único que baja cada una de las 20 pantallas (/vx/app/panel.js, ~4 KB con gzip; lo inyecta scripts/construir.mjs
  * al final del <body>). Pinta un botón pequeño («⚡ 38 ms») dentro de un Shadow DOM —no hereda ni
  * rompe los estilos de la pantalla— y escucha las llamadas que apunta el puente (evento `vx:rpc`).
  *

@@ -58,8 +58,17 @@ const IDS_PUNTOS = ['cliente-nombre', 'cliente-correo', 'cliente-telefono', 'ase
 // ═════════════════════════════════════════════════════════════════════════════════════════
 
 async function postRpc(cuerpo) {
-  const r = await fetch(BASE + '/api/rpc', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(cuerpo) });
-  return r.json();
+  const pedir = async () => (await fetch(BASE + '/api/rpc', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(cuerpo) })).json();
+  try {
+    return await pedir();
+  } catch (e) {
+    // Fallo de RED (no de la función): wrangler dev se recarga cada vez que otro agente guarda un
+    // archivo del Worker, y la petición que pilla la recarga se corta. Se reintenta una vez.
+    await new Promise((r) => setTimeout(r, 2000));
+    try { return await pedir(); } catch (e2) {
+      throw new Error('sin respuesta del servidor (' + ((e2 && e2.cause && (e2.cause.code || e2.cause.message)) || e2.message) + ')');
+    }
+  }
 }
 const llaves = {};
 /** Llama a una función como la pantalla. `como` = correo con sesión, o '' para ir sin sesión. */
@@ -463,6 +472,12 @@ async function parteB() {
   };
   const html = (cuerpo, status = 200, headers = {}) => new Response(cuerpo, { status, headers: { 'content-type': 'text/html', ...headers } });
 
+  // El módulo escribe su bitácora en la consola (lo que en Apps Script era Logger.log). Aquí estorba:
+  // solo pasan las líneas de la prueba.
+  const logReal = console.log, errorReal = console.error;
+  console.error = () => {};
+  console.log = (...a) => { if (typeof a[0] === 'string' && /^(\s{2}[✔✖] |\n[■✖] |\s{4}\()/.test(a[0])) logReal(...a); };
+
   try {
     seccion('Auditoría (los casos de audDiagnostico)');
     const c = (correo) => aud.audValidarCorreo(correo);
@@ -650,6 +665,8 @@ async function parteB() {
       fila("SELECT estado FROM correos_salida WHERE referencia = 'T-AVISO' ORDER BY id DESC LIMIT 1").estado === 'omitido', sinClave);
   } finally {
     globalThis.fetch = fetchReal;
+    console.log = logReal;
+    console.error = errorReal;
     db.close();
   }
 }

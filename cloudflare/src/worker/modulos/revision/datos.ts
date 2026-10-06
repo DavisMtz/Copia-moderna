@@ -1,155 +1,35 @@
 /**
  * Lecturas de cotizaciones para la revisión | Portal Ventel en Cloudflare
  * ======================================================================
- * Versiones LOCALES y mínimas de lo que en Apps Script la revisión tomaba de otros archivos:
- *   · leerDetalleCotizacion_ y leerSupervision_   (Code.gs)
- *   · QUOTE_FORMATS y DEFAULT_FORMAT_ID           (Formatos.gs)
- *   · formatCurrencyGS, mailAlias_, correoAplicarCco_  (Correos.gs; el envío en sí es nucleo/correo.ts)
- * El módulo de cotizaciones se porta en paralelo y todavía no las exporta (AGENTES.md §3: «haz una
- * versión local mínima»). Leen D1 directo, sin caché: la revisión es justo la pantalla donde un dato
- * de hace tres minutos no sirve, y D1 contesta en milisegundos.
+ * Lo que en Apps Script la revisión tomaba de otros archivos:
+ *   · leerDetalleCotizacion_, formatCurrencyGS, QUOTE_FORMATS  → los da el módulo de cotizaciones
+ *     (cotizaciones/comun.ts, que no importa nada de la revisión: sin ciclo).
+ *   · leerSupervision_ → aquí, como consulta propia: la cola solo necesita lo pendiente y siete campos.
+ *   · mailAlias_ y correoAplicarCco_ (Correos.gs) → versión LOCAL mínima. Las del módulo de cotizaciones
+ *     viven en cotizaciones/correos.ts, que importa revPuedeEnviarse de este módulo: importarlas de
+ *     vuelta formaría un ciclo de imports. Hacen lo mismo y el núcleo fuerza el dominio de todos modos.
+ * Todo se lee directo de D1, sin caché: la revisión es justo la pantalla donde un dato de hace tres
+ * minutos no sirve.
  */
 import type { Ctx } from '../../nucleo/contexto';
 import { secConfig } from '../../nucleo/seguridad';
 import { aIso } from '../../nucleo/fechas';
+import { leerDetalleCotizacion } from '../cotizaciones/comun';
 
-/** Catálogo de formatos (Formatos.gs · QUOTE_FORMATS), solo lo que usa la política: id y nombre. */
-export const QUOTE_FORMATS: Array<{ id: string; name: string }> = [
-  { id: 'actual', name: 'Actual' },
-  { id: 'ccl_liverpool', name: 'CCL Liverpool' }
-];
+export { formatCurrencyGS, QUOTE_FORMATS } from '../cotizaciones/comun';
 
-/** Formato predeterminado (Formatos.gs · DEFAULT_FORMAT_ID). */
-export const DEFAULT_FORMAT_ID = 'ccl_liverpool';
-
-/** Moneda MXN como la escribía Apps Script: "$1,234.50" (Correos.gs · formatCurrencyGS). */
-export function formatCurrencyGS(amount: unknown): string {
-  const n = parseFloat(String(amount));
-  if (isNaN(n)) return '$0.00';
-  return n.toLocaleString('es-MX', { style: 'currency', currency: 'MXN' });
-}
-
-export interface ProductoCotizacion {
-  sku: string;
-  description: string;
-  quantity: number;
-  unitPrice: number;
-  costPaymentUnique: number;
-  discountPublicPercent: number;
-  additionalDiscountApplied: string;
-  additionalDiscountPercent: number;
-  imageUrl: string;
-  productUrl: string;
-}
-
-export interface CotizacionDetalle {
-  folio: string;
-  timestamp: string;
-  advisorEmail: string;
-  advisorName: string;
-  advisorExt: string;
-  clientName: string;
-  clientEmail: string;
-  clientPhone: string;
-  summarySubtotal: number;
-  summaryVat: number;
-  summaryTotal: number;
-  status: string;
-  observations: string;
-  format: string;
-  driveLink: string;
-  cclSheetLink: string;
-  products: ProductoCotizacion[];
-}
-
-/** Fila de `cotizaciones` con las columnas que lee la revisión. */
-export interface FilaCotizacion {
-  folio: string;
-  timestamp: string | null;
-  asesor_correo: string | null;
-  asesor_nombre: string | null;
-  extencion: string | null;
-  cliente_nombre: string | null;
-  correo_cliente: string | null;
-  numero: string | null;
-  subtotal: number | null;
-  iva: number | null;
-  total_general: number | null;
-  estatus: string | null;
-  observaciones: string | null;
-  formato: string | null;
-  link_pdf: string | null;
-  link_sheet_ccl: string | null;
-  revision_estado: string | null;
-  revisado_por: string | null;
-  revisado_nombre: string | null;
-  revision_fecha: string | null;
-  revision_notas: string | null;
+/**
+ * Detalle de una cotización (Code.gs · leerDetalleCotizacion_): cabecera + products, sin caché. Nunca
+ * lanza: {success:false, message} si no existe o no se pudo leer. Su `quote.revision` trae el ajuste
+ * de «revisión desactivada» de la consulta; la revisión NO lo usa (lee revEstadoDeFolio, como el .gs).
+ */
+export async function revLeerDetalle(ctx: Ctx, folio: unknown):
+  Promise<{ success: true; quote: Record<string, any> } | { success: false; message: string }> {
+  return leerDetalleCotizacion(ctx, folio);
 }
 
 const num = (v: unknown) => { const n = parseFloat(String(v)); return isNaN(n) ? 0 : n; };
-const ent = (v: unknown) => { const n = parseInt(String(v), 10); return isNaN(n) ? 0 : n; };
 const txt = (v: unknown) => (v === null || v === undefined) ? '' : String(v);
-
-/**
- * Detalle de una cotización con la MISMA forma que leerDetalleCotizacion_ (Code.gs): cabecera +
- * products. Devuelve también la fila cruda, para que quien necesite el estado de revisión no tenga
- * que volver a leerla.
- */
-export async function revLeerDetalle(ctx: Ctx, folio: unknown):
-  Promise<{ success: true; quote: CotizacionDetalle; fila: FilaCotizacion } | { success: false; message: string }> {
-  try {
-    const clave = String(folio == null ? '' : folio);
-    const fila = await ctx.una<FilaCotizacion>(
-      'SELECT folio, timestamp, asesor_correo, asesor_nombre, extencion, cliente_nombre, correo_cliente, numero, ' +
-      'subtotal, iva, total_general, estatus, observaciones, formato, link_pdf, link_sheet_ccl, ' +
-      'revision_estado, revisado_por, revisado_nombre, revision_fecha, revision_notas ' +
-      'FROM cotizaciones WHERE folio = ?', clave);
-    if (!fila) return { success: false, message: 'Cotización no encontrada.' };
-
-    const partidas = await ctx.todas<Record<string, any>>(
-      'SELECT sku, descripcion_producto, cantidad, precio_unitario_base, costo_pago_unico_linea, ' +
-      'desc_publico_porcentaje, aplica_desc_adicional, porcentaje_desc_adicional, imagen_url, link_articulo ' +
-      'FROM detalle_cotizaciones WHERE folio_cotizacion = ? ORDER BY orden, id', clave);
-
-    const quote: CotizacionDetalle = {
-      folio: txt(fila.folio),
-      // ISO como en Apps Script (allí salía de un Date de la hoja).
-      timestamp: aIso(fila.timestamp) || txt(fila.timestamp),
-      advisorEmail: txt(fila.asesor_correo),
-      advisorName: txt(fila.asesor_nombre),
-      advisorExt: txt(fila.extencion),
-      clientName: txt(fila.cliente_nombre),
-      clientEmail: txt(fila.correo_cliente),
-      clientPhone: txt(fila.numero),
-      summarySubtotal: num(fila.subtotal),
-      summaryVat: num(fila.iva),
-      summaryTotal: num(fila.total_general),
-      status: txt(fila.estatus),
-      observations: txt(fila.observaciones),
-      format: txt(fila.formato) || DEFAULT_FORMAT_ID,
-      driveLink: txt(fila.link_pdf),
-      cclSheetLink: txt(fila.link_sheet_ccl),
-      products: partidas.map((p) => ({
-        sku: txt(p.sku),
-        description: txt(p.descripcion_producto),
-        quantity: ent(p.cantidad),
-        unitPrice: num(p.precio_unitario_base),
-        costPaymentUnique: num(p.costo_pago_unico_linea),
-        discountPublicPercent: num(p.desc_publico_porcentaje),
-        additionalDiscountApplied: txt(p.aplica_desc_adicional) || 'No',
-        additionalDiscountPercent: num(p.porcentaje_desc_adicional),
-        imageUrl: txt(p.imagen_url),
-        // Se devuelve CRUDO; quien lo va a incrustar o a pedir lo valida antes (revUrlArticuloSegura).
-        productUrl: txt(p.link_articulo)
-      }))
-    };
-    return { success: true, quote, fila };
-  } catch (e: any) {
-    console.error('revLeerDetalle ' + folio + ': ' + (e && e.message));
-    return { success: false, message: 'No pudimos abrir esta cotización. Inténtalo de nuevo en un momento.' };
-  }
-}
 
 /** Una cotización de la cola, con los campos de leerSupervision_ que usa la revisión. */
 export interface FilaCola {
