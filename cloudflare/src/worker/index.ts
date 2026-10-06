@@ -1,15 +1,13 @@
 /**
  * =================================================================================================
- * Portal Ventel en Cloudflare · el Worker
+ * Portal Ventel en Cloudflare · el Worker del borde (lo que en Apps Script era doGet)
  * =================================================================================================
- * Lo que en Apps Script hacían doGet + google.script.run, en un solo Worker en el edge:
- *
- *   GET  /?page=…        → la pantalla (igual que /exec?page=…). Cualquier página desconocida cae
- *                          al Portal, como en servirPagina_ (Code.gs).
- *   GET  /exec?page=…    → lo mismo, para que un enlace viejo pegado a mano siga funcionando.
- *   POST /api/rpc        → el canal de google.script.run (ver rpc.ts y src/shim/gas-shim.js).
+ *   GET  /?page=…          → la pantalla (igual que /exec?page=…). Cualquier página desconocida cae
+ *                            al Portal, como en servirPagina_ (Code.gs).
+ *   GET  /exec?page=…      → lo mismo, para que un enlace viejo pegado a mano siga funcionando.
+ *   /api/*                 → la API (api.ts). En producción va por el Service Binding `API` al Worker
+ *                            que corre junto a la base D1; en local lo atiende este mismo Worker.
  *   GET  /archivos/<clave> → imágenes y evidencias subidas (R2).
- *   GET  /api/salud      → ¿está vivo?, con lo que tarda D1 desde este punto de la red.
  *
  * Las pantallas son archivos estáticos generados por scripts/construir.mjs a partir de «Carpeta del
  * proyecto». Al servirlas se les inyecta window.__VX_APP_JSON__ (lo que en Apps Script era APP_JSON:
@@ -17,10 +15,10 @@
  */
 import type { Env } from './tipos';
 import { Ctx } from './nucleo/contexto';
-import { despachar } from './rpc';
+import { manejarApi } from './api';
 import { servirArchivo } from './nucleo/archivos';
 import { leerPropiedad } from './nucleo/sistema';
-import { PAGINAS, PAGINAS_PORTAL, PARAMS_VISTA, RECO_PANTALLAS, CONSTRUIDO } from './generado/rutas';
+import { PAGINAS, PAGINAS_PORTAL, PARAMS_VISTA, RECO_PANTALLAS } from './generado/rutas';
 
 const CABECERAS_SEGURIDAD: Record<string, string> = {
   'x-content-type-options': 'nosniff',
@@ -99,54 +97,29 @@ async function servirPantalla(req: Request, env: Env, url: URL): Promise<Respons
     .transform(respuesta);
 }
 
-async function rpc(req: Request, env: Env, exec: ExecutionContext, url: URL): Promise<Response> {
-  const t0 = Date.now();
-  let cuerpo: any;
-  try { cuerpo = await req.json(); } catch {
-    return Response.json({ ok: false, e: 'Petición no válida.' }, { status: 400 });
+/**
+ * /api/*: al Worker de API por el Service Binding (producción) o aquí mismo (local). A /api/salud se
+ * le añade el punto del borde que atendió, para que el panel de velocidad enseñe el camino completo:
+ * borde (cerca de la persona) → API (junto a la base) → D1.
+ */
+async function api(req: Request, env: Env, exec: ExecutionContext, url: URL): Promise<Response> {
+  const borde = String(((req as any).cf || {}).colo || '');
+  const respuesta = env.API ? await env.API.fetch(req) : await manejarApi(req, env, exec);
+  if (!respuesta) return Response.json({ ok: false, e: 'No encontrado.' }, { status: 404 });
+  if (url.pathname === '/api/salud' && respuesta.ok) {
+    const datos: any = await respuesta.json();
+    return Response.json({ ...datos, borde, api: datos.colo, separado: !!env.API }, { headers: { 'cache-control': 'no-store' } });
   }
-  const fn = String((cuerpo && cuerpo.fn) || '');
-  const args = Array.isArray(cuerpo && cuerpo.args) ? cuerpo.args : [];
-  // El origen que ve el navegador (en local, wrangler reescribe la URL al dominio de producción).
-  const ctx = new Ctx(env, exec, req.headers.get('origin') || url.origin);
-  let salida: { ok: true; v: unknown } | { ok: false; e: string };
-  try {
-    const v = await despachar(ctx, fn, args);
-    salida = { ok: true, v: v === undefined ? null : v };
-  } catch (err: any) {
-    const mensaje = String((err && err.message) || err || 'Error desconocido.');
-    if (!/^SESION_EXPIRADA/.test(mensaje)) console.error('[rpc] ' + fn + (fn === 'secEjecutar' ? ' → ' + args[1] : '') + ': ' + mensaje);
-    salida = { ok: false, e: mensaje };
-  }
-  return new Response(JSON.stringify(salida), {
-    headers: {
-      'content-type': 'application/json; charset=utf-8',
-      'cache-control': 'no-store',
-      'server-timing': 'app;dur=' + (Date.now() - t0) + ', d1;desc="consultas";dur=' + ctx.consultas
-    }
-  });
-}
-
-async function salud(env: Env, req: Request): Promise<Response> {
-  const t0 = Date.now();
-  let d1 = false;
-  try { await env.DB.prepare('SELECT 1').first(); d1 = true; } catch { d1 = false; }
-  const cf = (req as any).cf || {};
-  return Response.json({
-    ok: d1, d1, d1Ms: Date.now() - t0, colo: cf.colo || '', ciudad: cf.city || '',
-    entorno: env.ENTORNO || 'local', construido: CONSTRUIDO
-  }, { headers: { 'cache-control': 'no-store' } });
+  const h = new Headers(respuesta.headers);
+  h.set('x-vx-borde', borde);
+  return new Response(respuesta.body, { status: respuesta.status, headers: h });
 }
 
 export default {
   async fetch(req: Request, env: Env, exec: ExecutionContext): Promise<Response> {
     const url = new URL(req.url);
     try {
-      if (url.pathname === '/api/rpc') {
-        if (req.method !== 'POST') return new Response('Usa POST', { status: 405 });
-        return await rpc(req, env, exec, url);
-      }
-      if (url.pathname === '/api/salud') return await salud(env, req);
+      if (url.pathname.startsWith('/api/')) return await api(req, env, exec, url);
       if (url.pathname.startsWith('/archivos/')) {
         return await servirArchivo(env.ARCHIVOS, decodeURIComponent(url.pathname.slice('/archivos/'.length)));
       }

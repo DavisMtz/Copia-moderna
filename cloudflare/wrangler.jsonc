@@ -1,5 +1,7 @@
-// Portal Ventel en Cloudflare.
+// Portal Ventel en Cloudflare · configuración LOCAL (wrangler dev, scripts/dev-aislado.sh).
 //
+// En local un solo Worker lo hace todo. En producción son dos (wrangler.produccion.jsonc +
+// wrangler.api.jsonc, ver scripts/desplegar.sh): este archivo NO se despliega.
 // Un solo Worker sirve todo:
 //   · las 20 pantallas de «Carpeta del proyecto», tal cual, generadas en public/pantallas por
 //     scripts/construir.mjs (el enrutado ?page=… es el mismo que el de /exec en Apps Script);
@@ -28,11 +30,8 @@
   "r2_buckets": [
     { "binding": "ARCHIVOS", "bucket_name": "ventel-portal-assets" }
   ],
-  "routes": [
-    { "pattern": "ventel.logidma.com", "custom_domain": true }
-  ],
   "vars": {
-    "ENTORNO": "produccion"
+    "ENTORNO": "local"
   },
   "observability": { "enabled": true }
 }
