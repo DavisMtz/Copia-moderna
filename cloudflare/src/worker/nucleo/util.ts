@@ -42,11 +42,16 @@ export function nuevoId(prefijo: string): string {
   return prefijo + '-' + Date.now().toString(36) + secuencia.toString(36);
 }
 
-/** Interpreta Sí/No de una celda: 'Si', 'sí', 'TRUE', 'x', '1', 'verdadero', true, 1. */
+/**
+ * Interpreta Sí/No de una celda: 'Si', 'sí', 'TRUE', 'x', '1', 'verdadero', true, 1.
+ * También 1.0 y '1.0': D1 guarda los números de JavaScript como REAL, y en una columna de texto un 1
+ * queda como '1.0' (medido).
+ */
 export function esAfirmativo(valor: unknown): boolean {
-  if (valor === true || valor === 1) return true;
+  if (valor === true) return true;
+  if (typeof valor === 'number') return valor === 1;
   const s = normalizarTexto(valor);
-  return s === 'si' || s === 'true' || s === 'x' || s === '1' || s === 'verdadero';
+  return s === 'si' || s === 'true' || s === 'x' || s === '1' || s === '1.0' || s === 'verdadero';
 }
 
 /** Error con el mensaje tal cual lo verá el asesor (llega al withFailureHandler). */

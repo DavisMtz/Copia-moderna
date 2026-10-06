@@ -8,6 +8,8 @@
 --     new Date().toISOString(). Ordenan bien como texto. Solo-fecha: 'AAAA-MM-DD'.
 --   · Sí/No de la hoja: INTEGER 0/1. Listas y objetos que en la hoja iban como JSON en una celda: TEXT
 --     con JSON.
+--   · OJO: D1 recibe los números de JavaScript como REAL. En una columna TEXT, un 1 queda '1.0' y un
+--     teléfono '5512345678.0': a una columna TEXT se le pasa siempre texto (String(n)).
 --   · Las tablas del Portal guardan además `orden` (la posición de la fila en la hoja), porque el
 --     Portal y su editor respetan ese orden.
 -- =================================================================================================
@@ -127,10 +129,10 @@ CREATE TABLE metricas_correos (
   asesor_nombre         TEXT,
   para                  TEXT,
   destinatarios         INTEGER,
-  cc                    TEXT,
-  cco                   TEXT,
+  cc                    INTEGER,   -- cuántos en copia (el original escribe el número)
+  cco                   INTEGER,   -- cuántos en copia oculta
   asunto                TEXT,
-  adjuntos              TEXT,
+  adjuntos              INTEGER,   -- cuántos adjuntos
   remitente             TEXT,
   alias_usado           TEXT,
   resultado             TEXT,
