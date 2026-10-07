@@ -39,6 +39,7 @@ async function rpc(req: Request, env: Env, exec: ExecutionContext, url: URL): Pr
   const fn = String((cuerpo && cuerpo.fn) || '');
   const args = Array.isArray(cuerpo && cuerpo.args) ? cuerpo.args : [];
   const ctx = new Ctx(env, exec, origenConfiable(req, url, env));
+  ctx.ip = req.headers.get('cf-connecting-ip') || '';
   let salida: { ok: true; v: unknown } | { ok: false; e: string };
   try {
     const v = await despachar(ctx, fn, args);

@@ -274,9 +274,23 @@ async function principal() {
     await rpc(sup, 'setQuoteFormatEnabled', [SUPERVISORA, 'ccl_liverpool', true]);
   }
 
-  seccion('Lo que dependía de Google Drive: fallo controlado con mensaje claro');
-  const pdf = await rpc(asesor, 'downloadQuotePdf', [folio, null, ASESOR]);
-  ok(pdf.success === false && /Google Drive/.test(pdf.message) && /Guardar como PDF/.test(pdf.message), 'downloadQuotePdf → {success:false, message} con la salida de imprimir', pdf);
+  seccion('El PDF (Browser Rendering): con el binding, el PDF; sin él (en local), el fallo controlado');
+  for (const formato of [null, 'actual', 'ccl_liverpool']) {
+    const pdf = await rpc(asesor, 'downloadQuotePdf', [folio, formato, ASESOR]);
+    if (pdf.success) {
+      const bytes = Buffer.from(pdf.base64 || '', 'base64');
+      ok(pdf.fileName === `Cotizacion_${folio}.pdf` && pdf.mimeType === 'application/pdf' && bytes.subarray(0, 4).toString() === '%PDF',
+         'downloadQuotePdf(' + formato + ') → {success, fileName, mimeType, base64} con un PDF de verdad', Object.assign({}, pdf, { base64: (pdf.base64 || '').length + ' caracteres' }));
+    } else {
+      ok(/Guardar como PDF/.test(pdf.message || '') && !pdf.base64, 'downloadQuotePdf(' + formato + ') sin Browser Rendering → {success:false, message} con la salida de imprimir', pdf);
+    }
+  }
+  const pdfRaro = await rpc(asesor, 'downloadQuotePdf', [folio, 'pdf_magico', ASESOR]);
+  ok(pdfRaro.success === false && pdfRaro.message === 'No pudimos generar el PDF. Inténtalo de nuevo en un momento.', 'un formato desconocido → el mensaje del .gs', pdfRaro);
+  const pdfNoHay = await rpc(asesor, 'downloadQuotePdf', ['LVP-000000-9999', null, ASESOR]);
+  ok(pdfNoHay.success === false && pdfNoHay.message === 'No pudimos generar el PDF. Inténtalo de nuevo en un momento.', 'un folio que no existe → el mensaje del .gs', pdfNoHay);
+
+  seccion('Lo que dependía de Google Sheets: fallo controlado con mensaje claro');
   const hoja = await rpc(asesor, 'openQuoteInSheets', [folio, ASESOR]);
   ok(hoja.success === false && /Google Drive/.test(hoja.message), 'openQuoteInSheets → {success:false, message}', hoja);
   const previa = await rpc(asesor, 'previewSheetCcl', [folio]);
@@ -339,10 +353,14 @@ async function principal() {
     ok(c.para === 'maria.gonzalez@example.com' && c.de === remitente.alias && c.nombre_de === 'Cotizaciones Ventel Liverpool' &&
        c.responder_a === ASESOR && c.tipo === 'cotizacion' && c.aprobado === 1,
        'correos_salida: el correo completo, con el HTML aprobado y respuesta al asesor', c);
-    ok(/no adjuntado/.test(c.adjuntos || '') && /Google Drive/.test(c.adjuntos || ''), 'sin PDF: la nota va en adjuntos', c.adjuntos);
+    const adjunto = (JSON.parse(c.adjuntos || '[]')[0]) || {};
+    const conPdf = adjunto.bytes > 0;
+    ok(conPdf ? (adjunto.nombre === `Cotizacion_${folio}.pdf` && adjunto.tipo === 'application/pdf')
+              : /no adjuntado/.test(adjunto.nombre || ''),
+       conPdf ? 'el PDF va adjunto con el nombre del original' : 'sin Browser Rendering el correo sale sin PDF y la nota va en adjuntos', adjunto);
     // El cliente de la prueba es de un dominio de ejemplo: el núcleo nunca lo manda por Brevo.
     ok(c.estado === 'omitido', 'a una dirección de ejemplo no sale nada de verdad (estado «omitido»)', c.estado);
-    ok(metricas.some((m) => m.resultado === 'Enviado' && m.adjuntos === '0' && m.cc === '0' && m.alias_usado === 'Sí') &&
+    ok(metricas.some((m) => m.resultado === 'Enviado' && m.adjuntos === (conPdf ? '1' : '0') && m.cc === '0' && m.alias_usado === 'Sí') &&
        metricas.some((m) => m.resultado === 'Error'),
        'metricas_correos: el envío («Enviado») y el intento fallido («Error»)', metricas);
     ok(partidas[0]?.n === 3, 'detalle_cotizaciones: tres partidas del folio', partidas);

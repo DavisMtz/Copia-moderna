@@ -44,6 +44,8 @@ export class Ctx {
   entrada: 'secEjecutar' | 'directa' | null = null;
   /** Consultas hechas en esta petición (para medir). */
   consultas = 0;
+  /** IP de quien llama (CF-Connecting-IP): para los topes de lo que se puede pedir sin sesión. */
+  ip = '';
 
   private readonly exec: ExecutionContext | null;
   private readonly memo = new Map<string, Promise<unknown>>();

@@ -21,6 +21,7 @@
 import type { Ctx } from './contexto';
 import { secConfig } from './seguridad';
 import { inicioDelDiaMx } from './fechas';
+import { cacheSumar } from './sistema';
 
 export interface Adjunto { nombre: string; tipo?: string; bytes?: number; base64?: string }
 
@@ -46,6 +47,27 @@ export const CUOTA_CORREO_DIARIA = 300;
 export const DOMINIO_CORREO = 'logidma.com';
 const REMITENTE_RESPALDO = 'ventel@logidma.com';
 const NOMBRE_RESPALDO = 'Centro de Contacto Liverpool | Ventel';
+
+/**
+ * Topes de lo que sale SIN sesión (los códigos de registro y de recuperación). La maqueta es pública:
+ * sin esto, alguien podría usar el formulario de registro para escribirle a cientos de direcciones desde
+ * logidma.com y, de paso, agotar el cupo diario de Brevo justo antes de una demostración. Con sesión
+ * (cotizaciones, plantillas, difusión) no aplica: entrar ya exige la contraseña.
+ */
+const TOPE_SIN_SESION_DIA = 40;
+const TOPE_SIN_SESION_IP_HORA = 6;
+
+async function topeSinSesion(ctx: Ctx): Promise<string> {
+  if (ctx.sesion) return '';
+  const dia = inicioDelDiaMx().toISOString().slice(0, 10);
+  if (await cacheSumar(ctx, 'correo-sin-sesion:' + dia, 26 * 3600) > TOPE_SIN_SESION_DIA) {
+    return 'Se llegó al tope diario de correos que se pueden pedir sin iniciar sesión.';
+  }
+  if (ctx.ip && await cacheSumar(ctx, 'correo-sin-sesion-ip:' + ctx.ip, 3600) > TOPE_SIN_SESION_IP_HORA) {
+    return 'Se llegó al tope por hora de correos pedidos desde esta conexión sin iniciar sesión.';
+  }
+  return '';
+}
 
 const RE_FICTICIO = /@(?:[\w.-]+\.)?(?:example|test|invalid|localhost)$|@(?:[\w.-]+\.)?(?:example|ejemplo)\.(?:com|net|org|mx)$/i;
 const RE_CORREO = /^[^\s@<>,;]+@[^\s@<>,;]+\.[^\s@<>,;]{2,}$/;
@@ -118,6 +140,12 @@ export async function enviarCorreo(ctx: Ctx, c: Correo): Promise<ResultadoCorreo
       : 'Todos los destinatarios son de ejemplo: no se manda nada.';
     const id = await registrar(ctx, c, de, nombreDe, paraTodos, ccTodos, ccoTodos, 'omitido', '', motivo);
     return { ok: true, id, simulado: true, estado: 'omitido', omitidos };
+  }
+
+  const tope = await topeSinSesion(ctx);
+  if (tope) {
+    await registrar(ctx, c, de, nombreDe, paraTodos, ccTodos, ccoTodos, 'omitido', '', tope);
+    throw new Error(tope + ' Inténtalo más tarde.');
   }
 
   // Brevo exige al menos un «Para». Si solo quedan copias (difusión en CCO con un «Para» de ejemplo),
