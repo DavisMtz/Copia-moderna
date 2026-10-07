@@ -49,6 +49,20 @@
 
   var medidasRed = [];   // [{fn, ms, srv}] para el panel de velocidad (isla React)
 
+  // Al salir de la pantalla, el navegador corta las llamadas en vuelo. En Apps Script eso no llegaba
+  // al withFailureHandler (el marco ya no existía); aquí la página aún vive un instante y lo vería
+  // como «no se pudo contactar al servidor». Una falla de red se entrega con un respiro y se calla si
+  // en ese respiro la página se fue.
+  var saliendo = false;
+  window.addEventListener('pagehide', function () { saliendo = true; });
+  window.addEventListener('pageshow', function () { saliendo = false; });
+  function fallaDeRed(error) {
+    return new Promise(function (_, rechazar) {
+      if (saliendo) return;
+      setTimeout(function () { if (!saliendo) rechazar(error); }, 250);
+    });
+  }
+
   function llamar(fn, args) {
     var t0 = (window.performance && performance.now) ? performance.now() : Date.now();
     var cuerpo;
@@ -70,10 +84,10 @@
         if (m) srv = Number(m[1]);
       } catch (e) {}
       return r.json().then(function (d) { return { d: d, srv: srv, status: r.status }; }, function () {
-        throw errorDeScript('El servidor contestó algo que no se pudo leer (' + r.status + ').');
+        return fallaDeRed(errorDeScript('El servidor contestó algo que no se pudo leer (' + r.status + ').'));
       });
     }, function () {
-      throw errorDeScript('No se pudo contactar al servidor. Revisa tu conexión e inténtalo de nuevo.');
+      return fallaDeRed(errorDeScript('No se pudo contactar al servidor. Revisa tu conexión e inténtalo de nuevo.'));
     }).then(function (x) {
       var t1 = (window.performance && performance.now) ? performance.now() : Date.now();
       var nombre = fn === 'secEjecutar' ? String((args && args[1]) || fn)

@@ -4,40 +4,44 @@
  * =================================================
  * Genera, dentro de cloudflare/semilla/:
  *
- *   · 10_demo.sql                   TODO FICTICIO (va a git): cotizaciones, métricas, operación,
- *                                   atenciones, artículos, anuncios, grupos, bitácora, onboarding…
- *   · 20_catalogo_portal.local.sql  El catálogo REAL de la hoja «Portal Ventel» (NO va a git: el
- *                                   repo es público). Sale de semilla/portal_ventel.json.
+ *   · 10_demo.sql                   TODO FICTICIO (va a git): ~160 cotizaciones con sus partidas, métricas de correo y de
+ *                                   búsquedas, bandeja de salida, estado de operación (reportes e incidencias), atenciones,
+ *                                   artículos, anuncios con una encuesta y sus votos, grupos, bitácora, onboarding y trazabilidad.
+ *   · 20_catalogo_portal.local.sql  El catálogo REAL de la hoja «Portal Ventel» (NO va a git: el repo es público). Sale de
+ *                                   semilla/portal_ventel.json y de los alias de PortalContenido.gs.
  *
  * Uso (desde cloudflare/):
  *     node scripts/sembrar.mjs                       genera los dos archivos
  *     node scripts/sembrar.mjs --solo=demo           solo 10_demo.sql
  *     node scripts/sembrar.mjs --solo=catalogo       solo 20_catalogo_portal.local.sql
  *     node scripts/sembrar.mjs --ahora=2026-10-06T14:00   fija «ahora» (hora de México si no lleva zona)
+ *     node scripts/sembrar.mjs --sin-validar         no aplica el resultado a una base en memoria (node:sqlite) para comprobarlo
  *
- * Node puro, sin dependencias, y DETERMINISTA: cada sección usa su propio generador pseudoaleatorio
- * con semilla fija, así que regenerar con el mismo «ahora» da exactamente los mismos archivos. Las
- * fechas son RELATIVAS a «ahora» (por omisión, la hora en punto más reciente, en hora de México):
- * las cotizaciones llegan hasta hoy, la incidencia «abierta» sigue abierta, etc.
+ * Node puro, sin dependencias, y DETERMINISTA: cada sección usa su propio generador pseudoaleatorio con semilla fija, así que
+ * regenerar con el mismo «ahora» da exactamente los mismos archivos. Las fechas son RELATIVAS a «ahora» (por omisión, la hora en
+ * punto más reciente): las cotizaciones llegan hasta hoy, la incidencia «abierta» sigue abierta, etc.
  *
- * DE DÓNDE SALE CADA FORMA (regla de la semilla: nada se inventa, se copia lo que escribe el .gs):
- *   cotizaciones / detalle   Code.gs (saveQuoteDataToSheets, generateLvpFolio) y la fórmula de importes
- *                            de cotizacion.html (calculateRow) / AuditoriaCotizacion.gs (audCalcularLinea_)
- *   estatus y revisión       Revision.gs (REV_ESTATUS_*, revChecklistTexto_), PoliticaRevision.gs,
- *                            app_estatus.html y el motor AuditoriaCotizacion.gs (se porta aquí para
- *                            que el texto de «RevisionChecklist» sea el que escribiría la revisión)
- *   métricas de correo       Metricas.gs, Correos.gs, CorreoCliente.gs, Difusion.gs
+ * 10_demo.sql EMPIEZA vaciando las tablas que llena (no toca cuentas, permisos, ajustes ni el catálogo del Portal) y las vuelve a
+ * cargar: aplicarla otra vez refresca las fechas sin duplicar nada. 20_catalogo_portal.local.sql recarga las tablas portal_*.
+ *
+ * DE DÓNDE SALE CADA FORMA (regla de la semilla: nada se inventa, se copia lo que escribe el .gs / el módulo ya portado):
+ *   cotizaciones / detalle   Code.gs (saveQuoteDataToSheets, generateLvpFolio) y la fórmula de importes de cotizacion.html
+ *                            (calculateRow) / AuditoriaCotizacion.gs (audCalcularLinea_)
+ *   estatus y revisión       Revision.gs (REV_ESTATUS_*), PoliticaRevision.gs, app_estatus.html y el motor
+ *                            AuditoriaCotizacion.gs (se porta aquí para que «RevisionChecklist» diga lo que escribiría la revisión)
+ *   métricas de correo       Metricas.gs, Correos.gs, CorreoCliente.gs, Difusion.gs (con el remitente de Brevo: logidma.com)
  *   búsquedas                Monitoreo.gs (monRegistrarBusqueda_)
  *   operación                Operacion.gs (catálogo base, opReportar, umbrales, estados)
  *   atenciones               Atenciones.gs (atenId_, tipos, reserva de 15 min)
  *   artículos / anuncios     Articulos.gs (bloques), Publicaciones.gs y anuncios.html (buildDatos)
  *   grupos / bitácora        Grupos.gs, Consola.gs (consolaBitacoraApuntar_ y sus llamadores)
- *   onboarding / prefs       Onboarding.gs (onbMarcar), Preferencias.gs ({v, t})
+ *   onboarding               Onboarding.gs (onbMarcar)
+ *   trazabilidad             Trazabilidad.gs, con pruebas/trazabilidad_payload_20260926.json
  *   catálogo del Portal      PortalContenido.gs (PC_COLECCIONES, pcMapaColumnas_) y Portal.gs
  *
- * Los productos reales (nombres, SKUs, precios, fotos) salen de pruebas/ext_*.json y
- * pruebas/ext_lector_*.html; lo que esos archivos no traen (pantallas, muebles, colchones…) se
- * completa con nombres genéricos, SKU de 10 dígitos y sin imagen.
+ * Los productos reales (nombres, SKUs, precios, fotos) salen de pruebas/ext_*.json y pruebas/ext_lector_*.html; lo que esos
+ * archivos no traen (pantallas, muebles, colchones…) se completa con nombres genéricos, SKU de 10 dígitos y sin imagen.
+ * Clientes, correos (@ejemplo.com) y teléfonos son ficticios. Nada que salga de portal_ventel.json entra en 10_demo.sql.
  */
 import fs from 'node:fs';
 import path from 'node:path';
@@ -165,11 +169,8 @@ const aammdd = (d) => String(d.anio).slice(-2) + dos(d.mes) + dos(d.dia);
 const ymd = (d) => `${d.anio}-${dos(d.mes)}-${dos(d.dia)}`;
 const enDia = (d, h = 0, mi = 0, s = 0, ms = 0) => fechaMx(d.anio, d.mes, d.dia, h, mi, s, ms);
 const mismoDiaMx = (a, b) => { const x = partesMx(a), y = partesMx(b); return x.anio === y.anio && x.mes === y.mes && x.dia === y.dia; };
-const diasEntre = (a, b) => Math.round((Date.UTC(partesMx(b).anio, partesMx(b).mes - 1, partesMx(b).dia) -
-  Date.UTC(partesMx(a).anio, partesMx(a).mes - 1, partesMx(a).dia)) / MS_DIA);
 const HOY = diaMx(AHORA, 0);
 const iso = (d) => d.toISOString();
-const horaMx = (d) => { const p = partesMx(d); return p.hora + p.minuto / 60; };
 
 /** Instante aleatorio dentro de [a, b] (Date). */
 const entreFechas = (az, a, b) => new Date(a.getTime() + Math.floor(az.num() * Math.max(0, b.getTime() - a.getTime())));
@@ -191,8 +192,6 @@ const r2 = (n) => Math.round((Number(n) || 0) * 100 + (n >= 0 ? 1e-9 : -1e-9)) /
 const sinAcentos = (s) => String(s).normalize('NFD').replace(/[̀-ͯ]/g, '');
 const minusculaPlana = (s) => sinAcentos(s).toLowerCase().trim();
 const capitalizar = (s) => (s ? s.charAt(0).toUpperCase() + s.slice(1) : s);
-const dinero = (n) => '$' + r2(n).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-const plural = (n, uno, varios) => n + ' ' + (n === 1 ? uno : varios);
 
 // ── SQL ───────────────────────────────────────────────────────────────────────────────────────
 function lit(v) {
@@ -207,15 +206,18 @@ function lit(v) {
 /** El esquema de 0001_esquema.sql: nombre de tabla → columnas. Es la red de seguridad del script. */
 function leerEsquema() {
   const sql = fs.readFileSync(path.join(RAIZ, 'migrations', '0001_esquema.sql'), 'utf8');
-  const tablas = {};
+  const tablas = {}, tipos = {};
   const re = /CREATE TABLE\s+(\w+)\s*\(([\s\S]*?)\n\);/g;
   let m;
   while ((m = re.exec(sql))) {
     const cols = [];
+    tipos[m[1]] = {};
     for (const lineaCruda of m[2].split('\n')) {
       const linea = lineaCruda.trim();
       if (!linea || linea.startsWith('--') || /^(PRIMARY|UNIQUE|FOREIGN|CHECK|CONSTRAINT)\b/i.test(linea)) continue;
-      cols.push(linea.split(/\s+/)[0]);
+      const partes = linea.split(/\s+/);
+      cols.push(partes[0]);
+      tipos[m[1]][partes[0]] = (partes[1] || '').replace(/[,()]/g, '').toUpperCase();
     }
     tablas[m[1]] = cols;
   }
@@ -223,13 +225,17 @@ function leerEsquema() {
   const carpeta = path.join(RAIZ, 'migrations');
   for (const f of fs.readdirSync(carpeta).filter((x) => x.endsWith('.sql') && !x.startsWith('0001_')).sort()) {
     const extra = fs.readFileSync(path.join(carpeta, f), 'utf8');
-    const alter = /ALTER TABLE\s+(\w+)\s+ADD COLUMN\s+(\w+)/gi;
+    const alter = /ALTER TABLE\s+(\w+)\s+ADD COLUMN\s+(\w+)\s+(\w+)/gi;
     let a;
-    while ((a = alter.exec(extra))) if (tablas[a[1]] && !tablas[a[1]].includes(a[2])) tablas[a[1]].push(a[2]);
+    while ((a = alter.exec(extra))) {
+      if (!tablas[a[1]] || tablas[a[1]].includes(a[2])) continue;
+      tablas[a[1]].push(a[2]);
+      tipos[a[1]][a[2]] = a[3].toUpperCase();
+    }
   }
-  return tablas;
+  return { tablas, tipos };
 }
-const ESQUEMA = leerEsquema();
+const { tablas: ESQUEMA, tipos: TIPOS_ESQUEMA } = leerEsquema();
 
 /** Acumula sentencias de UN archivo y cuenta las filas por tabla. Rechaza tablas o columnas ajenas. */
 class Salida {
@@ -249,15 +255,17 @@ class Salida {
     const cols = Object.keys(obj);
     const esquema = ESQUEMA[tabla];
     if (!esquema) throw new Error(`La tabla «${tabla}» no existe en 0001_esquema.sql.`);
-    for (const c of cols) if (!esquema.includes(c)) throw new Error(`La columna «${tabla}.${c}» no existe en 0001_esquema.sql.`);
+    for (const c of cols) {
+      if (!esquema.includes(c)) throw new Error(`La columna «${tabla}.${c}» no existe en 0001_esquema.sql.`);
+      // Un número en una columna TEXT acaba como '1.0' en D1 (los números de JS entran como REAL): va como texto.
+      if (TIPOS_ESQUEMA[tabla][c] === 'TEXT' && typeof obj[c] === 'number') throw new Error(`«${tabla}.${c}» es TEXT: el número ${obj[c]} tiene que ir como texto.`);
+    }
     this.lineas.push(`${modo} INTO ${tabla} (${cols.join(', ')}) VALUES (${cols.map((c) => lit(obj[c])).join(', ')});`);
     this.conteo[tabla] = (this.conteo[tabla] || 0) + 1;
   }
   texto() { return this.lineas.join('\n') + '\n'; }
 }
 
-/** Ids como los de la hoja: prefijo + reloj en base 36 + sufijo al azar. */
-const idConReloj = (az, prefijo, fecha, largo = 4) => prefijo + '-' + fecha.getTime().toString(36) + az.base36(largo);
 
 // ══════════════════════════════════════════════════════════════════════════════════════════════
 // PERSONAS · salen de semilla/00_usuarios_demo.sql (no se duplican aquí)
@@ -659,12 +667,6 @@ function audCapitalizarNombre(nombre) {
   }).join(' ');
 }
 const audPalabrasNombre = (nombre) => audLimpiar(nombre).split(' ').filter((p) => p && !AUD_PARTICULAS.includes(audPlano(p)) && !/^[A-Za-zÁÉÍÓÚÑáéíóúñ]\.?$/.test(p));
-function audNombreYApellido(p) {
-  if (p.length <= 2) return audCapitalizarNombre(p.join(' '));
-  if (p.length === 3) return audCapitalizarNombre(p[0] + ' ' + p[1]);
-  if (p.length === 4) return audCapitalizarNombre(p[0] + ' ' + p[2]);
-  return audCapitalizarNombre(p[0] + ' ' + p[p.length - 2]);
-}
 function audPareceEmpresa(nombre) {
   const plano = audPlano(nombre).replace(/[.,]/g, '');
   if (/\b(s\s?a\s?de\s?c\s?v|sa de cv|s de rl|sapi|sofom)\b/.test(plano)) return true;
@@ -1698,6 +1700,7 @@ const NOTAS_REPORTE = {
 /** Las incidencias de la demo. `hace` = minutos antes de «ahora»; `dia` = días atrás; `offsets` = minutos de cada reporte respecto al tercero. */
 const INCIDENTES_DEMO = [
   { id: 'connect-abierta', sistema: 'connect', sub: 'No abre / no carga', origen: 'automatico', hace: 104, offsets: [-14, -6, 0, 7, 18], demoEn: 1,
+    sueltosAntes: [{ min: -175, sub: 'No abre / no carga' }, { min: -96, sub: 'No abre / no carga' }],
     eventos: [
       { min: 9, quien: 0, estado: 'confirmado', aviso: true, nota: 'Confirmado: Connect no abre para varias personas. Ya avisé a TI.', detalle: 'Connect no abre o no carga para varias personas. TI ya lo está revisando.' },
       { min: 41, quien: 1, estado: 'confirmado', aviso: true, nota: 'TI sigue trabajando en la falla. Mientras vuelve, anota en Atenciones a quien se quede esperando.' }
@@ -1750,6 +1753,7 @@ const SUELTOS_DEMO = [
   // («Salesforce · Va muy lento») son lo que hace saltar las recomendaciones de agrupar y de motivo reincidente.
   { dia: -2, h: 10, m: 24, sistema: 'salesforce', sub: 'Va muy lento', estado: 'abierto' },
   { dia: -2, h: 15, m: 8, sistema: 'salesforce', sub: 'Va muy lento', estado: 'abierto' },
+  { dia: -6, h: 17, m: 2, sistema: 'salesforce', sub: 'Va muy lento', estado: 'abierto' },
   { dia: -1, h: 11, m: 40, sistema: 'pagina-app', sub: 'Imágenes rotas', estado: 'abierto' },
   { dia: -8, h: 13, m: 15, sistema: 'ccaip', sub: 'No cambia de estado', estado: 'descartado' }
 ];
@@ -1786,7 +1790,7 @@ function generarOperacion(P) {
   for (const d of INCIDENTES_DEMO) {
     const sup = (i) => supervision[i % supervision.length];
     const base = d.hace != null
-      ? haceMin(d.hace)
+      ? (() => { const t = haceMin(d.hace), h = partesMx(t).hora; return h >= 8 && h < 21 ? t : enDia(diaMx(AHORA, -1), 16, 20 + (d.hace % 30), az.entero(0, 59), az.entero(0, 999)); })()
       : (d.sabado != null
         ? (() => { for (let n = d.sabado; n > d.sabado - 8; n--) { const x = diaMx(AHORA, n); if (x.diaSemana === 6) return enDia(x, d.h, d.m, az.entero(0, 59), az.entero(0, 999)); } return enDia(dia(d.sabado), d.h, d.m); })()
         : enDia(dia(d.dia), d.h, d.m, az.entero(0, 59), az.entero(0, 999)));
@@ -1823,6 +1827,16 @@ function generarOperacion(P) {
       const gente = az.barajar(A.filter((a) => a !== P.demo)).slice(0, n);
       if (d.demoEn != null) gente.splice(d.demoEn, 0, P.demo);
       const quienes = gente.slice(0, n);
+      // Reportes de antes que no llegaron al umbral (dos personas): siguen sueltos y la bandeja propone agruparlos.
+      const yaSueltos = [];
+      for (const sl of d.sueltosAntes || []) {
+        const pool = A.filter((a) => !quienes.includes(a) && !yaSueltos.includes(a));
+        const q = az.elegir(pool.length ? pool : A.filter((a) => !yaSueltos.includes(a)));
+        yaSueltos.push(q);
+        const t = new Date(base.getTime() + sl.min * MS_MIN + az.entero(0, 50) * 1000);
+        reporte(t, q, d.sistema, sl.sub, {});
+        sumarUso('submotivo', d.sistema, sl.sub, q.email, t);
+      }
       const tiempos = d.offsets.map((o, i) => new Date(base.getTime() + o * MS_MIN + (o === 0 ? 0 : az.entero(0, 50) * 1000) + i));
       const subs = d.subs || null;
       quienes.forEach((q, i) => {
@@ -2994,7 +3008,7 @@ function autoverificar(archivos) {
     try { db.exec(a.texto()); } catch (e) { errores.push(a.archivo + ': ' + e.message); }
   }
   // Las columnas JSON tienen que ser JSON de verdad.
-  const json = [['cotizaciones', 'revision_checklist', true], ['portal_anuncios', 'datos'], ['portal_articulos', 'contenido'], ['grupos', 'miembros'], ['operacion_reportes', 'evidencias']];
+  const json = [['cotizaciones', 'revision_checklist', true], ['portal_anuncios', 'datos'], ['portal_articulos', 'contenido'], ['grupos', 'miembros'], ['operacion_reportes', 'evidencias'], ['correos_salida', 'adjuntos']];
   for (const [tabla, col, vacioOk] of json) {
     for (const f of db.prepare(`SELECT ${col} AS v FROM ${tabla}`).all()) {
       if (vacioOk && !f.v) continue;
