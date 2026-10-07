@@ -109,6 +109,7 @@ code, .mono { font-family: var(--f-mono); }
 .pestana[aria-selected="true"] { background: var(--surface); color: var(--ink); box-shadow: var(--sh-xs), 0 0 0 1px var(--line); }
 .pestana[aria-selected="true"] .ic { color: var(--brand); }
 [data-theme="carbon"] .pestana[aria-selected="true"] .ic { color: var(--brand-deep); }
+.pestana .corto { display: none; }
 .pestana .cuenta { font-size: .68rem; font-weight: 700; padding: .05rem .42rem; border-radius: 999px; background: var(--brand-tint); color: var(--brand-deep); font-variant-numeric: tabular-nums; }
 
 .quien { display: flex; align-items: center; gap: .75rem; margin-left: auto; }
@@ -121,7 +122,7 @@ code, .mono { font-family: var(--f-mono); }
 
 /* ── Botones, campos y chips ─────────────────────────────────────────────────────────────────── */
 .btn {
-  display: inline-flex; align-items: center; justify-content: center; gap: .45rem;
+  display: inline-flex; align-items: center; justify-content: center; gap: .45rem; text-decoration: none;
   padding: .5rem .9rem; border-radius: var(--rad-sm); border: 1px solid var(--line);
   background: var(--surface); color: var(--ink); font-size: .8125rem; font-weight: 600;
   cursor: pointer; white-space: nowrap; box-shadow: var(--sh-xs);
@@ -214,8 +215,9 @@ html[data-contrast="high"] .campo, html[data-contrast="high"] .selector, html[da
 .titulo-tabla .sobre { font-size: .64rem; font-weight: 700; letter-spacing: .14em; text-transform: uppercase; color: var(--brand-deep); }
 .titulo-tabla h1 { font-family: var(--f-mono); font-size: 1.2rem; font-weight: 700; letter-spacing: -.01em; overflow-wrap: anywhere; }
 .titulo-tabla p { margin: 0; font-size: .78rem; color: var(--ink-soft); }
-.controles { display: flex; flex-wrap: wrap; align-items: center; gap: .55rem; }
-.controles .campo { width: min(18rem, 100%); }
+.controles { display: flex; flex-wrap: wrap; align-items: center; justify-content: flex-end; gap: .55rem; }
+/* Ancho fijo y no flex-basis: Chrome calcula el ancho intrínseco de la fila con el width. */
+.controles .campo { width: 18rem; min-width: 12rem; flex: 0 1 auto; }
 .barra-estado { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: .5rem 1rem; padding: .55rem 1.15rem; border-bottom: 1px solid var(--line-soft); background: var(--surface-2); }
 html[data-theme="carbon"] .barra-estado { background: color-mix(in srgb, var(--surface-2) 70%, var(--surface)); }
 .barra-estado .nota { display: inline-flex; align-items: center; gap: .35rem; font-size: .72rem; color: var(--ink-soft); }
@@ -401,6 +403,8 @@ html[data-density="compact"] .rejilla td { padding-top: .32rem; padding-bottom: 
 }
 .selector-movil { display: none; width: 100%; }
 @media (max-width: 560px) {
+  .pestana .largo { display: none; }
+  .pestana .corto { display: inline; }
   .marca-tx span { display: none; }
   .volver span { display: none; }
   .tema { max-width: 6.5rem; }

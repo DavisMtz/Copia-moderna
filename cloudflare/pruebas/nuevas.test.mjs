@@ -167,9 +167,12 @@ console.log('\nBandeja de salida');
 const bandeja = await llamar(llaveMaestro, 'datosCorreos', [M, { porPagina: 5 }]);
 ok(bandeja.success === true && Array.isArray(bandeja.correos) && typeof bandeja.total === 'number', 'datosCorreos responde', JSON.stringify(bandeja).slice(0, 300));
 ok((bandeja.correos || []).every((c) => !('html' in c)), 'la lista no trae el cuerpo de los correos');
+ok(Array.isArray(bandeja.estados) && (bandeja.correos || []).every((c) => typeof c.estado === 'string'),
+  'cada correo dice qué pasó al mandarlo (estado: enviado / omitido / error)', JSON.stringify(bandeja.estados));
 if (bandeja.correos && bandeja.correos.length) {
   const c = await llamar(llaveMaestro, 'datosCorreo', [M, bandeja.correos[0].id]);
-  ok(c.success && typeof c.correo.html === 'string' && 'para' in c.correo && 'cco' in c.correo && Array.isArray(c.correo.adjuntos), 'datosCorreo trae el correo completo', JSON.stringify(c).slice(0, 300));
+  ok(c.success && typeof c.correo.html === 'string' && 'para' in c.correo && 'cco' in c.correo && Array.isArray(c.correo.adjuntos) &&
+    typeof c.correo.estado === 'string' && typeof c.correo.proveedorId === 'string', 'datosCorreo trae el correo completo (y su envío)', JSON.stringify(c).slice(0, 300));
   const filtrada = await llamar(llaveMaestro, 'datosCorreos', [M, { filtro: bandeja.correos[0].asunto.slice(0, 12) }]);
   ok(filtrada.success && filtrada.total >= 1, 'el filtro de la bandeja encuentra por asunto');
 } else saltar('datosCorreo', 'la bandeja local está vacía');

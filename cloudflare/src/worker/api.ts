@@ -72,7 +72,7 @@ async function salud(env: Env, req: Request): Promise<Response> {
   }
   tiempos.sort((a, b) => a - b);
   return Response.json({
-    ok: d1, d1, d1Ms: tiempos[1], colo: cf.colo || '', ciudad: cf.city || '',
+    ok: d1, d1, d1Ms: tiempos[1], colo: cf.colo || '',
     entorno: env.ENTORNO || 'local', construido: CONSTRUIDO
   }, { headers: { 'cache-control': 'no-store' } });
 }

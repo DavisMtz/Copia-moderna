@@ -219,6 +219,14 @@ function leerEsquema() {
     }
     tablas[m[1]] = cols;
   }
+  // Columnas que añaden las migraciones posteriores a tablas de 0001 (p. ej. 0009: estado, proveedor_id y detalle de correos_salida).
+  const carpeta = path.join(RAIZ, 'migrations');
+  for (const f of fs.readdirSync(carpeta).filter((x) => x.endsWith('.sql') && !x.startsWith('0001_')).sort()) {
+    const extra = fs.readFileSync(path.join(carpeta, f), 'utf8');
+    const alter = /ALTER TABLE\s+(\w+)\s+ADD COLUMN\s+(\w+)/gi;
+    let a;
+    while ((a = alter.exec(extra))) if (tablas[a[1]] && !tablas[a[1]].includes(a[2])) tablas[a[1]].push(a[2]);
+  }
   return tablas;
 }
 const ESQUEMA = leerEsquema();
@@ -1466,7 +1474,7 @@ const DIFUSIONES = [
 
 function generarCorreos(P, G, X, grupos) {
   const az = new Azar('correos');
-  const metricas = [], enviados = [];
+  const metricas = [], enviados = [], envios = [];
   const base = (t, o) => Object.assign({
     t, tipo: '', referencia: '', asesor_email: '', asesor_nombre: '', para: '', destinatarios: 0, cc: '0', cco: '0',
     asunto: '', adjuntos: '0', remitente: '', alias_usado: 'No', resultado: '', detalle: '', plantilla_modificada: ''
@@ -1483,6 +1491,7 @@ function generarCorreos(P, G, X, grupos) {
         para: dos ? q.cliente.correo + ',' + correoAlterno(q.cliente.correo) : q.cliente.correo,
         destinatarios: dos ? 2 : 1, asunto
       }, enviadoOk)));
+      envios.push({ t: e.t, q, para: dos ? [q.cliente.correo, correoAlterno(q.cliente.correo)] : [q.cliente.correo], asunto });
     });
   }
 
@@ -1575,7 +1584,7 @@ function generarCorreos(P, G, X, grupos) {
 
   metricas.sort((a, b) => a.t - b.t);
   enviados.sort((a, b) => a.t - b.t);
-  return { metricas, enviados };
+  return { metricas, enviados, envios };
 }
 
 function emitirCorreos(S, C) {
@@ -1912,7 +1921,8 @@ const NOTAS_ATENCION = {
 const RESULTADOS_ATENCION = ['Se le devolvió la llamada y quedó resuelto.', 'Se contactó al cliente y aceptó la cotización.', 'El cliente ya había comprado en tienda; se cierra.',
   'No contestó en dos intentos; se le dejó mensaje.', 'Se aclaró el cargo y quedó conforme.', 'Se envió la cotización por correo y el cliente confirmó que la recibió.',
   'Pidió más tiempo para decidir; se le llamará la próxima semana.', 'Se le explicó el proceso de garantía y ya levantó su solicitud.'];
-const HORAS_PROMESA = ['Hoy 5:00 pm', 'Hoy 6:30 pm', 'Mañana por la mañana', 'Hoy después de las 4', 'Mañana 10:00 am', '17:30', '', '', 'Antes de las 3 pm'];
+const PROMESAS_HOY = ['Hoy 5:00 pm', 'Hoy 6:30 pm', 'Hoy después de las 4', 'Antes de las 8 pm', '17:30', '', ''];
+const PROMESAS_OTRO_DIA = ['10:00 am', '17:30', 'Por la tarde', 'Antes de las 3 pm', '', ''];
 
 function generarAtenciones(P, G) {
   const az = new Azar('atenciones');
@@ -1929,7 +1939,7 @@ function generarAtenciones(P, G) {
     const a = Object.assign({
       id: idAt(fecha), fecha, asesor: o.asesor.email, asesor_nombre: o.asesor.nombre, cliente: c.nombre, telefono: telefonoLimpio(c),
       correo: az.prob(0.45) ? c.correo : '', tipo, notas: az.elegir(NOTAS_ATENCION[tipo] || NOTAS_ATENCION.Otro),
-      hora_promesa: az.elegir(HORAS_PROMESA), liberar_en: null, estado: 'pendiente', rescatada_por: '', rescatada_en: null, cerrada_por: '', cerrada_en: null, resultado: ''
+      hora_promesa: az.elegir(mismoDiaMx(fecha, AHORA) ? PROMESAS_HOY : PROMESAS_OTRO_DIA), liberar_en: null, estado: 'pendiente', rescatada_por: '', rescatada_en: null, cerrada_por: '', cerrada_en: null, resultado: ''
     }, o.extra || {});
     filas.push(a);
     return a;
@@ -1947,7 +1957,7 @@ function generarAtenciones(P, G) {
 
   // ── Abiertas ───────────────────────────────────────────────────────────────────────────────
   // La persona de la demo: una privada (más antigua), una ya liberada al pool y una que se libera más tarde.
-  nueva({ asesor: P.demo, fecha: tarde(-3, 12, 40), tipo: 'Seguimiento', extra: { hora_promesa: 'Hoy 5:00 pm' } });
+  nueva({ asesor: P.demo, fecha: tarde(-3, 12, 40), tipo: 'Seguimiento', extra: { hora_promesa: '17:30' } });
   libera(nueva({ asesor: P.demo, fecha: rel(255), tipo: 'Venta' }), 120);                  // liberada hace ~2 h
   libera(nueva({ asesor: P.demo, fecha: rel(50), tipo: 'Aclaración' }), 240);              // se libera en ~3 h
   // De otras personas: unas en el pool, otras programadas, otras solo suyas.
@@ -2519,10 +2529,380 @@ function emitirCatalogo(S, K) {
 }
 
 // ══════════════════════════════════════════════════════════════════════════════════════════════
+// BANDEJA DE SALIDA · correos_salida (nucleo/correo.ts + cotizaciones/correos.ts · sendQuoteByEmail)
+// Los clientes son de ejemplo, así que el núcleo NO manda nada: cada correo queda entero en la bandeja con estado
+// «omitido». Se siembran los últimos envíos de cotización con el HTML aprobado, para que la bandeja no esté vacía.
+// ══════════════════════════════════════════════════════════════════════════════════════════════
+// ── Copia del HTML APROBADO del correo de cotización (cotizaciones/plantillas.ts: tarjetaProductoHtml y cuerpoCorreoCotizacionHtml) ──
+// Se copia aquí, tal cual, para que los correos de ejemplo de la bandeja de salida sean idénticos a los que arma sendQuoteByEmail.
+const escaparHtml = (texto) => String(texto == null ? '' : texto).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+const formatCurrencyGS = (amount) => { const n = parseFloat(String(amount)); return isNaN(n) ? '$0.00' : n.toLocaleString('es-MX', { style: 'currency', currency: 'MXN' }); };
+const FMT_FECHA_LARGA = new Intl.DateTimeFormat('es-MX', { day: '2-digit', month: 'long', year: 'numeric', timeZone: ZONA });
+const fechaLargaMx = (v) => { const d = v instanceof Date ? v : new Date(v); return isNaN(d) ? 'Invalid Date' : FMT_FECHA_LARGA.format(d); };
+
+function tarjetaProductoHtml(v) {
+  const { p, verifiedImgUrl, unitPrice, quantity, costPaymentUnique, totalMonetaryDiscount,
+          effectiveTotalPercentage, finalPricePerLine } = v;
+  return `
+          <!-- CARD DE PRODUCTO INDIVIDUAL -->
+          <table cellpadding="0" cellspacing="0" border="0" style="width:100%;max-width: 650px;margin-top: 10px;margin-bottom:10px;" id="lineItems LIV">
+            <tbody style="background:#F7F7F7;">
+              <tr align="left" style="background:#F7F7F7; width: 100%;">
+                <td style="background:#F7F7F7;width:5%;"></td>
+                <td style="background:#fff;border-radius:4px;box-shadow:0 2px 4px 0 rgba(0,0,0,0.15);margin:0 auto;padding:15px;width:90%;">
+                  <table cellpadding="0" cellspacing="0" style="width:100%;background:#fff;">
+                    <tbody>
+                      <tr>
+                        <!-- Imagen del producto (Left) -->
+                        <td align="center" width="35%" valign="top" style="padding-top:10px;padding-right:15px;text-align:center;">
+                          <img style="max-width:140px;width:100%;height:auto;border-radius:4px;border:1px solid #f0f0f0;" alt="Liverpool Product" src="${escaparHtml(verifiedImgUrl)}">
+                        </td>
+                        <!-- Detalles del producto (Right) -->
+                        <td valign="top" style="font-family:sans-serif;color:#333;">
+                          <h2 style="color:#333;font-size:15px;margin:10px 0 6px 0;font-weight:bold;line-height:1.4;">
+                            ${escaparHtml(p.description)}
+                          </h2>
+                          <p style="color:#666;font-size:12px;margin:0 0 10px 0;">
+                            Código de producto: <strong>${escaparHtml(p.sku)}</strong>
+                          </p>
+                          
+                          <!-- Tabla interna de precios -->
+                          <table cellpadding="0" cellspacing="0" style="width:100%;font-size:12px;color:#555;border-top:1px dashed #eee;padding-top:8px;">
+                            <tr>
+                              <td style="width:50%;padding-bottom:5px;">
+                                Precio unitario:<br>
+                                <span style="color:#333;font-weight:bold;font-size:13px;">${formatCurrencyGS(unitPrice)}</span>
+                              </td>
+                              <td style="width:50%;padding-bottom:5px;">
+                                Cantidad:<br>
+                                <span style="color:#333;font-weight:bold;font-size:13px;">${quantity}</span>
+                              </td>
+                            </tr>
+                            <tr>
+                              <td style="padding-bottom:5px;">
+                                Promoción:<br>
+                                <span style="color:#333;font-weight:bold;">${costPaymentUnique > 0 ? 'PAGO ÚNICO' : 'PRECIO BASE'}</span>
+                              </td>
+                              <td style="padding-bottom:5px;">
+                                Descuento:<br>
+                                <span style="color:${totalMonetaryDiscount > 0.001 ? '#ef4444' : '#333'};font-weight:bold;">
+                                  ${totalMonetaryDiscount > 0.001 ? `-${formatCurrencyGS(totalMonetaryDiscount)} (${effectiveTotalPercentage.toFixed(0)}%)` : '$0.00'}
+                                </span>
+                              </td>
+                            </tr>
+                            <tr>
+                              <td colspan="2" style="border-top:1px solid #eee;padding-top:8px;">
+                                <p style="color:#666;font-size:12px;margin:0;">Total artículo: <span style="color:#f00;font-weight:bold;font-size:14px;margin-left:5px;">${formatCurrencyGS(finalPricePerLine)}</span></p>
+                              </td>
+                            </tr>
+                          </table>
+                        </td>
+                      </tr>
+                    </tbody>
+                  </table>
+                </td>
+                <td style="background:#F7F7F7;width:5%;"></td>
+              </tr>
+            </tbody>
+          </table>
+        `;
+}
+
+function cuerpoCorreoCotizacionHtml(quote, productsHtml, userMessageHtml) {
+  return `
+      <!DOCTYPE html PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN" "http://www.w3.org/TR/html4/loose.dtd">
+      <html>
+      <head>
+        <meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <title>Tu Cotización está Lista</title>
+        <style type="text/css">
+          body {
+            font-family: sans-serif;
+            margin: 0 auto !important;
+            padding: 0 !important;
+            background: #F7F7F7;
+            max-width: 650px;
+          }
+        </style>
+      </head>
+      <body bgcolor="#F7F7F7" style="background-color: #F7F7F7; margin: 0 auto !important; padding: 0 !important; font-family: sans-serif; max-width: 650px;">
+        <table width="100%" border="0" cellpadding="0" cellspacing="0" align="center" style="background-color: #F7F7F7;">
+          <tbody>
+            <tr>
+              <td align="center" valign="top" style="padding-top: 20px;">
+                
+                <!-- TOP HEADER LOGO (Liverpool banner) -->
+                <table width="100%" cellspacing="0" cellpadding="0" role="presentation" style="max-width: 650px;">
+                  <tbody>
+                    <tr>
+                      <td align="center" style="background-color: #F7F7F7;">
+                        <img src="https://upload.wikimedia.org/wikipedia/commons/thumb/3/35/Liverpool_logo.svg/1280px-Liverpool_logo.svg.png" alt="Liverpool - Es parte de mi vida" style="display: block; padding: 10px 0; text-align: center; height: auto; max-width: 160px; margin: 0 auto; border: 0;">
+                      </td>
+                    </tr>
+                  </tbody>
+                </table>
+
+                <!-- HEADER: ¡TU COTIZACIÓN ESTÁ LISTA! -->
+                <table align="center" cellpadding="0" cellspacing="0" border="0" style="width:100%;max-width: 650px;margin-top: 10px;margin-bottom:10px;" id="LIV Order">
+                  <tbody style="background:#F7F7F7;">
+                    <tr align="center" style="background:#F7F7F7;">
+                      <td style="width:5%;"></td>
+                      <td style="background:#FFF;border-radius:4px;box-shadow:0 2px 4px 0 rgba(0, 0, 0, 0.15);margin:0 auto;padding:25px;width:90%;text-align:center;">
+                        <h1 style="margin: 0; color:#333;font-size:24px;font-weight:bold;font-family:sans-serif;">
+                          ¡Tu cotización está lista!
+                        </h1>
+                        <p style="color:#666; margin:15px 0 0 0; font-size:14px; line-height:1.5; font-family:sans-serif; text-align:center;">
+                          Te compartimos los detalles de la cotización que solicitaste. Los precios e indicaciones se detallan a continuación.
+                        </p>
+                      </td>
+                      <td style="width:5%;"></td>
+                    </tr>
+                  </tbody>
+                </table>
+
+                <!-- ADVISOR'S CUSTOM MESSAGE CARD -->
+                <table cellpadding="0" cellspacing="0" border="0" style="width:100%;max-width: 650px;margin-top: 10px;margin-bottom:10px;" id="advisorMessageCard">
+                  <tbody style="background:#F7F7F7;">
+                    <tr align="left" style="background:#F7F7F7;">
+                      <td style="width:5%;"></td>
+                      <td style="background:#fff;border-radius:4px;box-shadow:0 2px 4px 0 rgba(0,0,0,0.15);margin:0 auto;padding:18px;width:90%;font-family:sans-serif;font-size:14px;color:#333;line-height:1.5;">
+                        <p style="margin:0 0 10px 0;font-weight:bold;color:#e10098;font-size:14px;">Mensaje de tu Asesor:</p>
+                        <div style="background:#fdf2f8;border-left:4px solid #e10098;padding:12px 16px;border-radius:0 4px 4px 0;color:#4c4c4c;line-height:1.5;">
+                          ${userMessageHtml}
+                        </div>
+                      </td>
+                      <td style="width:5%;"></td>
+                    </tr>
+                  </tbody>
+                </table>
+
+                <!-- NOTICE BANNER (Yellow alert box) -->
+                <table style="width:100%;max-width: 650px;margin-top: 10px;margin-bottom:10px;" cellpadding="0" cellspacing="0" border="0" id="noticeAlert">
+                  <tbody style="background:#f7f7f7;">
+                    <tr style="background:#f7f7f7;">
+                      <td style="width:5%;"></td>
+                      <td style="background:#F7F7F7; width:90%;">
+                        <table cellpadding="0" cellspacing="0" style="width:100%;">
+                          <tr>
+                            <td style="border-left:5px solid #ffd457; background:#fff4d4; padding:12px 15px; border-radius: 0 4px 4px 0; font-size:13px; color:#665c40; font-family:sans-serif; text-align:left; line-height:1.4;">
+                              <strong>Nota importante:</strong> Los precios y promociones están sujetos a cambios sin previo aviso. Esta cotización tiene fines informativos y la disponibilidad de los artículos se garantiza al concretar la compra.
+                            </td>
+                          </tr>
+                        </table>
+                      </td>
+                      <td style="width:5%;"></td>
+                    </tr>
+                  </tbody>
+                </table>
+
+                <!-- GENERAL DATES & TOTALS CARD -->
+                <table cellpadding="0" cellspacing="0" border="0" style="width:100%;max-width: 650px;margin-top: 10px;margin-bottom:10px;" id="datesAndTotals">
+                  <tbody style="background:#F7F7F7;">
+                    <tr align="left" style="background:#F7F7F7;">
+                      <td style="width:5%;"></td>
+                      <td style="background:#fff;border-radius:4px;box-shadow:0 2px 4px 0 rgba(0,0,0,0.15);margin:0 auto;padding:15px;width:90%;">
+                        <table cellpadding="0" cellspacing="0" style="background:#fff;width:100%;font-size:13px;font-family:sans-serif;">
+                          <tbody>
+                            <tr>
+                              <td width="50%" align="left" style="color:#333;">
+                                Fecha de emisión: <span style="font-weight:700;">${fechaLargaMx(quote.timestamp)}</span>
+                              </td>
+                              <td width="50%" align="right" style="color:#333;">
+                                Total cotizado: <span style="font-weight:700;color:#e10098;font-size:15px;">${formatCurrencyGS(quote.summaryTotal)}</span>
+                              </td>
+                            </tr>
+                          </tbody>
+                        </table>
+                      </td>
+                      <td style="width:5%;"></td>
+                    </tr>
+                  </tbody>
+                </table>
+
+                <!-- SUMMARY BLOCK HEADER: CLIENTE Y ASESOR -->
+                <table cellpadding="0" cellspacing="0" border="0" style="width:100%;max-width: 650px;margin-top: 15px;margin-bottom:5px;" id="clientAdvisorHeader">
+                  <tbody style="background:#F7F7F7;">
+                    <tr align="left" style="background:#F7F7F7;">
+                      <td style="background:#F7F7F7;width:5%;"></td>
+                      <td style="background:#F7F7F7;width:90%;">
+                        <h3 style="border-bottom:2px solid #e10098;color:#FFF;font-size:15px;font-weight:normal;margin:0;font-family:sans-serif;">
+                          <span style="background:#e10098;display:table-cell;height:30px;line-height:30px;padding:3px 16px 0;border-radius:4px 4px 0 0;">
+                            Información del Cliente y Asesor
+                          </span>
+                        </h3>
+                      </td>
+                      <td style="background:#F7F7F7;width:5%;"></td>
+                    </tr>
+                  </tbody>
+                </table>
+
+                <!-- SUMMARY BLOCK CONTENT: CLIENTE Y ASESOR -->
+                <table cellpadding="0" cellspacing="0" border="0" style="width:100%;max-width: 650px;margin-bottom:10px;" id="clientAdvisorContent">
+                  <tbody style="background:#F7F7F7;">
+                    <tr align="left" style="background:#F7F7F7; width: 100%;">
+                      <td style="background:#F7F7F7;width:5%;"></td>
+                      <td style="background:#FFF;border-radius:4px;box-shadow:0 2px 4px 0 rgba(0, 0, 0, 0.15);margin:0 auto;padding:15px;width:90%;font-family:sans-serif;font-size:13px;line-height:1.5;color:#333;">
+                        <table cellpadding="0" cellspacing="0" style="width:100%;">
+                          <tr>
+                            <td width="48%" valign="top" style="border-right:1px solid #eee;padding-right:10px;">
+                              <p style="margin:2px 0;color:#e10098;font-weight:bold;font-size:13px;">Dirigido a:</p>
+                              <p style="margin:2px 0;"><strong>Cliente:</strong> ${escaparHtml(quote.clientName || 'N/A')}</p>
+                              <p style="margin:2px 0;"><strong>Correo:</strong> ${escaparHtml(quote.clientEmail || 'N/A')}</p>
+                              <p style="margin:2px 0;"><strong>Teléfono:</strong> ${escaparHtml(quote.clientPhone || 'N/A')}</p>
+                            </td>
+                            <td width="4%">&nbsp;</td>
+                            <td width="48%" valign="top" style="padding-left:10px;">
+                              <p style="margin:2px 0;color:#e10098;font-weight:bold;font-size:13px;">Atendido por:</p>
+                              <p style="margin:2px 0;"><strong>Asesor:</strong> ${escaparHtml(quote.advisorName || 'N/A')}</p>
+                              <p style="margin:2px 0;"><strong>Folio:</strong> ${escaparHtml(quote.folio || 'N/A')}</p>
+                            </td>
+                          </tr>
+                        </table>
+                      </td>
+                      <td style="background:#F7F7F7;width:5%;"></td>
+                    </tr>
+                  </tbody>
+                </table>
+
+                <!-- SECTION HEADER: TUS PRODUCTOS -->
+                <table cellpadding="0" cellspacing="0" border="0" style="width:100%;max-width: 650px;margin-top: 15px;margin-bottom:5px;" id="productsHeader">
+                  <tbody style="background:#F7F7F7;">
+                    <tr align="left" style="background:#F7F7F7;">
+                      <td style="background:#F7F7F7;width:5%;"></td>
+                      <td style="background:#F7F7F7;width:90%;">
+                        <h3 style="border-bottom:2px solid #e10098;color:#FFF;font-size:15px;font-weight:normal;margin:0;font-family:sans-serif;">
+                          <span style="background:#e10098;display:table-cell;height:30px;line-height:30px;padding:3px 16px 0;border-radius:4px 4px 0 0;">
+                            Detalle de Artículos
+                          </span>
+                        </h3>
+                      </td>
+                      <td style="background:#F7F7F7;width:5%;"></td>
+                    </tr>
+                  </tbody>
+                </table>
+
+                <!-- PRODUCTS LIST LOOP -->
+                ${productsHtml}
+
+                <!-- TOTALS SUMMARY CARD -->
+                <table cellpadding="0" cellspacing="0" border="0" style="width:100%;max-width: 650px;margin-top: 10px;margin-bottom:10px;" id="totalsSummary">
+                  <tbody style="background:#F7F7F7;">
+                    <tr align="left" style="background:#F7F7F7;">
+                      <td style="width:5%;"></td>
+                      <td style="background:#fff;border-radius:4px;box-shadow:0 2px 4px 0 rgba(0,0,0,0.15);margin:0 auto;padding:15px;width:90%;">
+                        <table cellpadding="0" cellspacing="0" style="background:#fff;width:100%;font-size:13px;font-family:sans-serif;color:#333;">
+                          <tbody>
+                            <tr>
+                              <td align="right" style="padding: 4px 0;color:#666;">Subtotal:</td>
+                              <td align="right" width="30%" style="padding: 4px 0;font-weight:700;">${formatCurrencyGS(quote.summarySubtotal)}</td>
+                            </tr>
+                            <tr>
+                              <td align="right" style="padding: 4px 0;color:#666;">IVA (16%):</td>
+                              <td align="right" style="padding: 4px 0;font-weight:700;">${formatCurrencyGS(quote.summaryVat)}</td>
+                            </tr>
+                            <tr style="font-size:15px;font-weight:bold;color:#e10098;">
+                              <td align="right" style="border-top:1.5px solid #e10098;padding-top:10px;margin-top:5px;">TOTAL GENERAL:</td>
+                              <td align="right" style="border-top:1.5px solid #e10098;padding-top:10px;margin-top:5px;color:#e10098;font-size:16px;">${formatCurrencyGS(quote.summaryTotal)}</td>
+                            </tr>
+                          </tbody>
+                        </table>
+                      </td>
+                      <td style="width:5%;"></td>
+                    </tr>
+                  </tbody>
+                </table>
+
+                <!-- EMAIL FOOTER INFO -->
+                <table cellpadding="0" cellspacing="0" border="0" style="width:100%;max-width: 650px;margin-top: 20px;margin-bottom:20px;" id="footerInfo">
+                  <tbody style="background:#F7F7F7;">
+                    <tr align="center" style="background:#F7F7F7;">
+                      <td style="width:5%;"></td>
+                      <td style="font-family:sans-serif;font-size:11px;color:#888;line-height:1.5;text-align:center;width:90%;">
+                        <p style="margin: 0 0 10px 0;"><strong>Nota:</strong> Se adjunta a este correo el archivo PDF oficial con la cotización formal detallada para su descarga o impresión.</p>
+                        <p style="margin: 0 0 15px 0;font-weight:bold;color:#e10098;font-size:12px;">Liverpool - Es parte de mi vida</p>
+                      </td>
+                      <td style="width:5%;"></td>
+                    </tr>
+                  </tbody>
+                </table>
+
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </body>
+      </html>
+    `;
+}
+
+const CORREOS_SALIDA_EJEMPLO = 12;
+const PLACEHOLDER_IMAGEN = 'https://assets.liverpool.com.mx/assets/images/placeholder.gif';
+
+/** El correo de una cotización, armado igual que sendQuoteByEmail (mismas tarjetas, misma fórmula de descuentos, mismo marco). */
+function htmlCorreoCotizacion(q, mensaje) {
+  let productsHtml = '';
+  for (const l of q.lineas) {
+    const p = aFormaApp(l);
+    const unitPrice = parseFloat(p.unitPrice) || 0, quantity = parseInt(p.quantity) || 0;
+    const priceVolume = unitPrice * quantity;
+    const costPaymentUnique = parseFloat(p.costPaymentUnique) || 0;
+    const discountPublicPercent = parseFloat(p.discountPublicPercent) || 0;
+    const additionalDiscountApplied = p.additionalDiscountApplied === 'Si';
+    const additionalDiscountPercent = parseFloat(p.additionalDiscountPercent) || 0;
+    let finalPricePerLine;
+    if (costPaymentUnique > 0 && quantity > 0 && unitPrice > 0) finalPricePerLine = costPaymentUnique;
+    else {
+      const priceAfterPublic = Math.max(0, priceVolume * (1 - discountPublicPercent / 100));
+      finalPricePerLine = (additionalDiscountApplied && additionalDiscountPercent > 0) ? priceAfterPublic * (1 - additionalDiscountPercent / 100) : priceAfterPublic;
+      finalPricePerLine = Math.max(0, finalPricePerLine);
+    }
+    const totalMonetaryDiscount = priceVolume - finalPricePerLine;
+    const effectiveTotalPercentage = priceVolume > 0 ? (totalMonetaryDiscount / priceVolume) * 100 : 0;
+    // getVerifiedImageUrl: la foto del producto si la trae; si no, la de los servidores de imágenes de Liverpool (o su imagen vacía).
+    const verifiedImgUrl = l.imagen || (l.real ? `https://ss628.liverpool.com.mx/xl/${encodeURIComponent(l.sku)}.jpg` : PLACEHOLDER_IMAGEN);
+    productsHtml += tarjetaProductoHtml({ p, verifiedImgUrl, unitPrice, quantity, costPaymentUnique, totalMonetaryDiscount, effectiveTotalPercentage, finalPricePerLine });
+  }
+  const quote = {
+    timestamp: iso(q.tGuardado), summaryTotal: q.totales.total, summarySubtotal: q.totales.subtotal, summaryVat: q.totales.iva,
+    clientName: q.cliente.nombre, clientEmail: q.cliente.correo, clientPhone: q.cliente.telefono, advisorName: q.asesor.nombre, folio: q.folio
+  };
+  // Sin la sangría de la plantilla (no cambia cómo se ve el correo; solo adelgaza el archivo de semilla).
+  return cuerpoCorreoCotizacionHtml(quote, productsHtml, escaparHtml(mensaje).replace(/\n/g, '<br>')).replace(/\n[ \t]+/g, '\n');
+}
+
+function generarCorreosSalida(C) {
+  const az = new Azar('bandeja');
+  return C.envios.slice().sort((a, b) => a.t - b.t).slice(-CORREOS_SALIDA_EJEMPLO).map((e) => {
+    const q = e.q;
+    // El mensaje que propone la pantalla «Enviar correo» (correoventel.html); casi todos firman con su nombre.
+    const mensaje = `Estimado(a) ${q.cliente.nombre},\n\nJunto con saludar, y como seguimiento a nuestra conversación, le hago llegar la cotización solicitada con folio ${q.folio}.\n\nQuedo a sus órdenes para cualquier duda o aclaración.\n\nSaludos cordiales,` +
+      (az.prob(0.7) ? '\n' + q.asesor.nombre : '');
+    return { t: e.t, para: e.para, asunto: e.asunto, responderA: q.asesor.email, folio: q.folio, html: htmlCorreoCotizacion(q, mensaje) };
+  });
+}
+
+function emitirCorreosSalida(S, lista) {
+  S.seccion('BANDEJA DE SALIDA · correos_salida', [
+    'Los últimos ' + lista.length + ' envíos de cotización, con el HTML aprobado. estado «omitido» y detalle «Dato de ejemplo» (los clientes son @ejemplo.com: no sale nada).',
+    'Sin id: la bandeja asigna el suyo, y la limpieza del principio solo borra lo marcado con «Dato de ejemplo» (nunca un correo real).'
+  ]);
+  for (const c of lista) {
+    S.fila('correos_salida', {
+      fecha: iso(c.t), de: REMITENTE_COTIZACIONES, nombre_de: 'Cotizaciones Ventel Liverpool', responder_a: c.responderA, para: c.para.join(', '), cc: '', cco: '',
+      asunto: c.asunto, html: c.html, texto: '',
+      adjuntos: JSON.stringify([{ nombre: `Cotizacion_${c.folio}.pdf — no adjuntado: esta versión de demostración no genera el PDF (Google Drive)`, tipo: 'application/pdf', bytes: 0 }]),
+      tipo: 'cotizacion', referencia: c.folio, estado: 'omitido', proveedor_id: '', detalle: 'Dato de ejemplo'
+    }, 'INSERT');
+  }
+}
+
+
+// ══════════════════════════════════════════════════════════════════════════════════════════════
 // ENSAMBLE · limpieza + todas las secciones → 10_demo.sql y 20_catalogo_portal.local.sql
 // ══════════════════════════════════════════════════════════════════════════════════════════════
 /** Tablas que 10_demo.sql vacía antes de llenarlas: así reaplicarla refresca las fechas sin duplicar nada. */
-const LIMPIEZA_DEMO = ['detalle_cotizaciones', 'cotizaciones', ["contadores", "clave LIKE 'folio:%'"], 'metricas_correos', 'metricas_busquedas', 'correos_enviados',
+const LIMPIEZA_DEMO = ['detalle_cotizaciones', 'cotizaciones', ["contadores", "clave LIKE 'folio:%'"], ['correos_salida', "detalle = 'Dato de ejemplo'"], 'metricas_correos', 'metricas_busquedas', 'correos_enviados',
   'operacion_actualizaciones', 'operacion_reportes', 'operacion_incidentes', 'operacion_catalogo', 'atenciones_pendientes', 'atenciones_tipos', 'bitacora_consola',
   'grupos', 'onboarding', 'portal_articulos', 'portal_articulos_vistas', 'portal_votos', 'trazabilidad_procesos', 'trazabilidad_secciones'];
 
@@ -2539,6 +2919,7 @@ function ensamblar() {
   const G = generarCotizaciones(P);
   const grupos = planGrupos(P);
   const C = generarCorreos(P, G, X, grupos);
+  const CS = generarCorreosSalida(C);
   const B = generarBusquedas(P, G);
   const O = generarOperacion(P);
   const T = generarAtenciones(P, G);
@@ -2563,6 +2944,7 @@ function ensamblar() {
   demo.cruda('DELETE FROM portal_anuncios WHERE id IN (' + N.anuncios.map((a) => lit(a.id)).join(', ') + ')');
   emitirCotizaciones(demo, G, P);
   emitirCorreos(demo, C);
+  emitirCorreosSalida(demo, CS);
   emitirBusquedas(demo, B);
   emitirOperacion(demo, O);
   emitirAtenciones(demo, T);

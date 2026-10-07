@@ -9,6 +9,7 @@
 DELETE FROM detalle_cotizaciones;
 DELETE FROM cotizaciones;
 DELETE FROM contadores WHERE clave LIKE 'folio:%';
+DELETE FROM correos_salida WHERE detalle = 'Dato de ejemplo';
 DELETE FROM metricas_correos;
 DELETE FROM metricas_busquedas;
 DELETE FROM correos_enviados;
@@ -811,6 +812,3641 @@ INSERT OR REPLACE INTO correos_enviados (id, fecha, plantilla, para, cc, cco, as
 INSERT OR REPLACE INTO correos_enviados (id, fecha, plantilla, para, cc, cco, asunto, asesor, remitente, adjuntos) VALUES (56, '2026-10-06T16:23:45.734Z', 'ticket', 'mateo.castro@ejemplo.com', '', '', 'Ticket de su compra · Pedido 1042747986 | Liverpool', 'asesor@ventel.example', 'ventel@logidma.com', '1');
 
 -- ══════════════════════════════════════════════════════════════════════════════════════════════
+-- BANDEJA DE SALIDA · correos_salida
+-- Los últimos 12 envíos de cotización, con el HTML aprobado. estado «omitido» y detalle «Dato de ejemplo» (los clientes son @ejemplo.com: no sale nada).
+-- Sin id: la bandeja asigna el suyo, y la limpieza del principio solo borra lo marcado con «Dato de ejemplo» (nunca un correo real).
+INSERT INTO correos_salida (fecha, de, nombre_de, responder_a, para, cc, cco, asunto, html, texto, adjuntos, tipo, referencia, estado, proveedor_id, detalle) VALUES ('2026-09-28T18:33:53.891Z', 'ventel@logidma.com', 'Cotizaciones Ventel Liverpool', 'diego.navarro@ventel.example', 'leona91@ejemplo.com, casa.leona91@ejemplo.com', '', '', 'Cotización de Servicios Ventel - Folio LVP-260928-0001', '
+<!DOCTYPE html PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN" "http://www.w3.org/TR/html4/loose.dtd">
+<html>
+<head>
+<meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Tu Cotización está Lista</title>
+<style type="text/css">
+body {
+font-family: sans-serif;
+margin: 0 auto !important;
+padding: 0 !important;
+background: #F7F7F7;
+max-width: 650px;
+}
+</style>
+</head>
+<body bgcolor="#F7F7F7" style="background-color: #F7F7F7; margin: 0 auto !important; padding: 0 !important; font-family: sans-serif; max-width: 650px;">
+<table width="100%" border="0" cellpadding="0" cellspacing="0" align="center" style="background-color: #F7F7F7;">
+<tbody>
+<tr>
+<td align="center" valign="top" style="padding-top: 20px;">
+
+<!-- TOP HEADER LOGO (Liverpool banner) -->
+<table width="100%" cellspacing="0" cellpadding="0" role="presentation" style="max-width: 650px;">
+<tbody>
+<tr>
+<td align="center" style="background-color: #F7F7F7;">
+<img src="https://upload.wikimedia.org/wikipedia/commons/thumb/3/35/Liverpool_logo.svg/1280px-Liverpool_logo.svg.png" alt="Liverpool - Es parte de mi vida" style="display: block; padding: 10px 0; text-align: center; height: auto; max-width: 160px; margin: 0 auto; border: 0;">
+</td>
+</tr>
+</tbody>
+</table>
+
+<!-- HEADER: ¡TU COTIZACIÓN ESTÁ LISTA! -->
+<table align="center" cellpadding="0" cellspacing="0" border="0" style="width:100%;max-width: 650px;margin-top: 10px;margin-bottom:10px;" id="LIV Order">
+<tbody style="background:#F7F7F7;">
+<tr align="center" style="background:#F7F7F7;">
+<td style="width:5%;"></td>
+<td style="background:#FFF;border-radius:4px;box-shadow:0 2px 4px 0 rgba(0, 0, 0, 0.15);margin:0 auto;padding:25px;width:90%;text-align:center;">
+<h1 style="margin: 0; color:#333;font-size:24px;font-weight:bold;font-family:sans-serif;">
+¡Tu cotización está lista!
+</h1>
+<p style="color:#666; margin:15px 0 0 0; font-size:14px; line-height:1.5; font-family:sans-serif; text-align:center;">
+Te compartimos los detalles de la cotización que solicitaste. Los precios e indicaciones se detallan a continuación.
+</p>
+</td>
+<td style="width:5%;"></td>
+</tr>
+</tbody>
+</table>
+
+<!-- ADVISOR''S CUSTOM MESSAGE CARD -->
+<table cellpadding="0" cellspacing="0" border="0" style="width:100%;max-width: 650px;margin-top: 10px;margin-bottom:10px;" id="advisorMessageCard">
+<tbody style="background:#F7F7F7;">
+<tr align="left" style="background:#F7F7F7;">
+<td style="width:5%;"></td>
+<td style="background:#fff;border-radius:4px;box-shadow:0 2px 4px 0 rgba(0,0,0,0.15);margin:0 auto;padding:18px;width:90%;font-family:sans-serif;font-size:14px;color:#333;line-height:1.5;">
+<p style="margin:0 0 10px 0;font-weight:bold;color:#e10098;font-size:14px;">Mensaje de tu Asesor:</p>
+<div style="background:#fdf2f8;border-left:4px solid #e10098;padding:12px 16px;border-radius:0 4px 4px 0;color:#4c4c4c;line-height:1.5;">
+Estimado(a) Andrea de León,<br><br>Junto con saludar, y como seguimiento a nuestra conversación, le hago llegar la cotización solicitada con folio LVP-260928-0001.<br><br>Quedo a sus órdenes para cualquier duda o aclaración.<br><br>Saludos cordiales,<br>Diego Navarro
+</div>
+</td>
+<td style="width:5%;"></td>
+</tr>
+</tbody>
+</table>
+
+<!-- NOTICE BANNER (Yellow alert box) -->
+<table style="width:100%;max-width: 650px;margin-top: 10px;margin-bottom:10px;" cellpadding="0" cellspacing="0" border="0" id="noticeAlert">
+<tbody style="background:#f7f7f7;">
+<tr style="background:#f7f7f7;">
+<td style="width:5%;"></td>
+<td style="background:#F7F7F7; width:90%;">
+<table cellpadding="0" cellspacing="0" style="width:100%;">
+<tr>
+<td style="border-left:5px solid #ffd457; background:#fff4d4; padding:12px 15px; border-radius: 0 4px 4px 0; font-size:13px; color:#665c40; font-family:sans-serif; text-align:left; line-height:1.4;">
+<strong>Nota importante:</strong> Los precios y promociones están sujetos a cambios sin previo aviso. Esta cotización tiene fines informativos y la disponibilidad de los artículos se garantiza al concretar la compra.
+</td>
+</tr>
+</table>
+</td>
+<td style="width:5%;"></td>
+</tr>
+</tbody>
+</table>
+
+<!-- GENERAL DATES & TOTALS CARD -->
+<table cellpadding="0" cellspacing="0" border="0" style="width:100%;max-width: 650px;margin-top: 10px;margin-bottom:10px;" id="datesAndTotals">
+<tbody style="background:#F7F7F7;">
+<tr align="left" style="background:#F7F7F7;">
+<td style="width:5%;"></td>
+<td style="background:#fff;border-radius:4px;box-shadow:0 2px 4px 0 rgba(0,0,0,0.15);margin:0 auto;padding:15px;width:90%;">
+<table cellpadding="0" cellspacing="0" style="background:#fff;width:100%;font-size:13px;font-family:sans-serif;">
+<tbody>
+<tr>
+<td width="50%" align="left" style="color:#333;">
+Fecha de emisión: <span style="font-weight:700;">28 de septiembre de 2026</span>
+</td>
+<td width="50%" align="right" style="color:#333;">
+Total cotizado: <span style="font-weight:700;color:#e10098;font-size:15px;">$17,599.20</span>
+</td>
+</tr>
+</tbody>
+</table>
+</td>
+<td style="width:5%;"></td>
+</tr>
+</tbody>
+</table>
+
+<!-- SUMMARY BLOCK HEADER: CLIENTE Y ASESOR -->
+<table cellpadding="0" cellspacing="0" border="0" style="width:100%;max-width: 650px;margin-top: 15px;margin-bottom:5px;" id="clientAdvisorHeader">
+<tbody style="background:#F7F7F7;">
+<tr align="left" style="background:#F7F7F7;">
+<td style="background:#F7F7F7;width:5%;"></td>
+<td style="background:#F7F7F7;width:90%;">
+<h3 style="border-bottom:2px solid #e10098;color:#FFF;font-size:15px;font-weight:normal;margin:0;font-family:sans-serif;">
+<span style="background:#e10098;display:table-cell;height:30px;line-height:30px;padding:3px 16px 0;border-radius:4px 4px 0 0;">
+Información del Cliente y Asesor
+</span>
+</h3>
+</td>
+<td style="background:#F7F7F7;width:5%;"></td>
+</tr>
+</tbody>
+</table>
+
+<!-- SUMMARY BLOCK CONTENT: CLIENTE Y ASESOR -->
+<table cellpadding="0" cellspacing="0" border="0" style="width:100%;max-width: 650px;margin-bottom:10px;" id="clientAdvisorContent">
+<tbody style="background:#F7F7F7;">
+<tr align="left" style="background:#F7F7F7; width: 100%;">
+<td style="background:#F7F7F7;width:5%;"></td>
+<td style="background:#FFF;border-radius:4px;box-shadow:0 2px 4px 0 rgba(0, 0, 0, 0.15);margin:0 auto;padding:15px;width:90%;font-family:sans-serif;font-size:13px;line-height:1.5;color:#333;">
+<table cellpadding="0" cellspacing="0" style="width:100%;">
+<tr>
+<td width="48%" valign="top" style="border-right:1px solid #eee;padding-right:10px;">
+<p style="margin:2px 0;color:#e10098;font-weight:bold;font-size:13px;">Dirigido a:</p>
+<p style="margin:2px 0;"><strong>Cliente:</strong> Andrea de León</p>
+<p style="margin:2px 0;"><strong>Correo:</strong> leona91@ejemplo.com</p>
+<p style="margin:2px 0;"><strong>Teléfono:</strong> 55 3456 3553</p>
+</td>
+<td width="4%">&nbsp;</td>
+<td width="48%" valign="top" style="padding-left:10px;">
+<p style="margin:2px 0;color:#e10098;font-weight:bold;font-size:13px;">Atendido por:</p>
+<p style="margin:2px 0;"><strong>Asesor:</strong> Diego Navarro</p>
+<p style="margin:2px 0;"><strong>Folio:</strong> LVP-260928-0001</p>
+</td>
+</tr>
+</table>
+</td>
+<td style="background:#F7F7F7;width:5%;"></td>
+</tr>
+</tbody>
+</table>
+
+<!-- SECTION HEADER: TUS PRODUCTOS -->
+<table cellpadding="0" cellspacing="0" border="0" style="width:100%;max-width: 650px;margin-top: 15px;margin-bottom:5px;" id="productsHeader">
+<tbody style="background:#F7F7F7;">
+<tr align="left" style="background:#F7F7F7;">
+<td style="background:#F7F7F7;width:5%;"></td>
+<td style="background:#F7F7F7;width:90%;">
+<h3 style="border-bottom:2px solid #e10098;color:#FFF;font-size:15px;font-weight:normal;margin:0;font-family:sans-serif;">
+<span style="background:#e10098;display:table-cell;height:30px;line-height:30px;padding:3px 16px 0;border-radius:4px 4px 0 0;">
+Detalle de Artículos
+</span>
+</h3>
+</td>
+<td style="background:#F7F7F7;width:5%;"></td>
+</tr>
+</tbody>
+</table>
+
+<!-- PRODUCTS LIST LOOP -->
+
+<!-- CARD DE PRODUCTO INDIVIDUAL -->
+<table cellpadding="0" cellspacing="0" border="0" style="width:100%;max-width: 650px;margin-top: 10px;margin-bottom:10px;" id="lineItems LIV">
+<tbody style="background:#F7F7F7;">
+<tr align="left" style="background:#F7F7F7; width: 100%;">
+<td style="background:#F7F7F7;width:5%;"></td>
+<td style="background:#fff;border-radius:4px;box-shadow:0 2px 4px 0 rgba(0,0,0,0.15);margin:0 auto;padding:15px;width:90%;">
+<table cellpadding="0" cellspacing="0" style="width:100%;background:#fff;">
+<tbody>
+<tr>
+<!-- Imagen del producto (Left) -->
+<td align="center" width="35%" valign="top" style="padding-top:10px;padding-right:15px;text-align:center;">
+<img style="max-width:140px;width:100%;height:auto;border-radius:4px;border:1px solid #f0f0f0;" alt="Liverpool Product" src="https://ss628.liverpool.com.mx/xl/1163058142.jpg">
+</td>
+<!-- Detalles del producto (Right) -->
+<td valign="top" style="font-family:sans-serif;color:#333;">
+<h2 style="color:#333;font-size:15px;margin:10px 0 6px 0;font-weight:bold;line-height:1.4;">
+iPhone 16 6.1 pulgadas Super Retina XDR
+</h2>
+<p style="color:#666;font-size:12px;margin:0 0 10px 0;">
+Código de producto: <strong>1163058142</strong>
+</p>
+
+<!-- Tabla interna de precios -->
+<table cellpadding="0" cellspacing="0" style="width:100%;font-size:12px;color:#555;border-top:1px dashed #eee;padding-top:8px;">
+<tr>
+<td style="width:50%;padding-bottom:5px;">
+Precio unitario:<br>
+<span style="color:#333;font-weight:bold;font-size:13px;">$21,999.00</span>
+</td>
+<td style="width:50%;padding-bottom:5px;">
+Cantidad:<br>
+<span style="color:#333;font-weight:bold;font-size:13px;">1</span>
+</td>
+</tr>
+<tr>
+<td style="padding-bottom:5px;">
+Promoción:<br>
+<span style="color:#333;font-weight:bold;">PRECIO BASE</span>
+</td>
+<td style="padding-bottom:5px;">
+Descuento:<br>
+<span style="color:#ef4444;font-weight:bold;">
+-$4,399.80 (20%)
+</span>
+</td>
+</tr>
+<tr>
+<td colspan="2" style="border-top:1px solid #eee;padding-top:8px;">
+<p style="color:#666;font-size:12px;margin:0;">Total artículo: <span style="color:#f00;font-weight:bold;font-size:14px;margin-left:5px;">$17,599.20</span></p>
+</td>
+</tr>
+</table>
+</td>
+</tr>
+</tbody>
+</table>
+</td>
+<td style="background:#F7F7F7;width:5%;"></td>
+</tr>
+</tbody>
+</table>
+
+
+<!-- TOTALS SUMMARY CARD -->
+<table cellpadding="0" cellspacing="0" border="0" style="width:100%;max-width: 650px;margin-top: 10px;margin-bottom:10px;" id="totalsSummary">
+<tbody style="background:#F7F7F7;">
+<tr align="left" style="background:#F7F7F7;">
+<td style="width:5%;"></td>
+<td style="background:#fff;border-radius:4px;box-shadow:0 2px 4px 0 rgba(0,0,0,0.15);margin:0 auto;padding:15px;width:90%;">
+<table cellpadding="0" cellspacing="0" style="background:#fff;width:100%;font-size:13px;font-family:sans-serif;color:#333;">
+<tbody>
+<tr>
+<td align="right" style="padding: 4px 0;color:#666;">Subtotal:</td>
+<td align="right" width="30%" style="padding: 4px 0;font-weight:700;">$15,171.72</td>
+</tr>
+<tr>
+<td align="right" style="padding: 4px 0;color:#666;">IVA (16%):</td>
+<td align="right" style="padding: 4px 0;font-weight:700;">$2,427.48</td>
+</tr>
+<tr style="font-size:15px;font-weight:bold;color:#e10098;">
+<td align="right" style="border-top:1.5px solid #e10098;padding-top:10px;margin-top:5px;">TOTAL GENERAL:</td>
+<td align="right" style="border-top:1.5px solid #e10098;padding-top:10px;margin-top:5px;color:#e10098;font-size:16px;">$17,599.20</td>
+</tr>
+</tbody>
+</table>
+</td>
+<td style="width:5%;"></td>
+</tr>
+</tbody>
+</table>
+
+<!-- EMAIL FOOTER INFO -->
+<table cellpadding="0" cellspacing="0" border="0" style="width:100%;max-width: 650px;margin-top: 20px;margin-bottom:20px;" id="footerInfo">
+<tbody style="background:#F7F7F7;">
+<tr align="center" style="background:#F7F7F7;">
+<td style="width:5%;"></td>
+<td style="font-family:sans-serif;font-size:11px;color:#888;line-height:1.5;text-align:center;width:90%;">
+<p style="margin: 0 0 10px 0;"><strong>Nota:</strong> Se adjunta a este correo el archivo PDF oficial con la cotización formal detallada para su descarga o impresión.</p>
+<p style="margin: 0 0 15px 0;font-weight:bold;color:#e10098;font-size:12px;">Liverpool - Es parte de mi vida</p>
+</td>
+<td style="width:5%;"></td>
+</tr>
+</tbody>
+</table>
+
+</td>
+</tr>
+</tbody>
+</table>
+</body>
+</html>
+', '', '[{"nombre":"Cotizacion_LVP-260928-0001.pdf — no adjuntado: esta versión de demostración no genera el PDF (Google Drive)","tipo":"application/pdf","bytes":0}]', 'cotizacion', 'LVP-260928-0001', 'omitido', '', 'Dato de ejemplo');
+INSERT INTO correos_salida (fecha, de, nombre_de, responder_a, para, cc, cco, asunto, html, texto, adjuntos, tipo, referencia, estado, proveedor_id, detalle) VALUES ('2026-09-29T01:02:53.460Z', 'ventel@logidma.com', 'Cotizaciones Ventel Liverpool', 'miguel.ortega@ventel.example', 'sdominguez@ejemplo.com', '', '', 'Cotización de Servicios Ventel - Folio LVP-260928-0003', '
+<!DOCTYPE html PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN" "http://www.w3.org/TR/html4/loose.dtd">
+<html>
+<head>
+<meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Tu Cotización está Lista</title>
+<style type="text/css">
+body {
+font-family: sans-serif;
+margin: 0 auto !important;
+padding: 0 !important;
+background: #F7F7F7;
+max-width: 650px;
+}
+</style>
+</head>
+<body bgcolor="#F7F7F7" style="background-color: #F7F7F7; margin: 0 auto !important; padding: 0 !important; font-family: sans-serif; max-width: 650px;">
+<table width="100%" border="0" cellpadding="0" cellspacing="0" align="center" style="background-color: #F7F7F7;">
+<tbody>
+<tr>
+<td align="center" valign="top" style="padding-top: 20px;">
+
+<!-- TOP HEADER LOGO (Liverpool banner) -->
+<table width="100%" cellspacing="0" cellpadding="0" role="presentation" style="max-width: 650px;">
+<tbody>
+<tr>
+<td align="center" style="background-color: #F7F7F7;">
+<img src="https://upload.wikimedia.org/wikipedia/commons/thumb/3/35/Liverpool_logo.svg/1280px-Liverpool_logo.svg.png" alt="Liverpool - Es parte de mi vida" style="display: block; padding: 10px 0; text-align: center; height: auto; max-width: 160px; margin: 0 auto; border: 0;">
+</td>
+</tr>
+</tbody>
+</table>
+
+<!-- HEADER: ¡TU COTIZACIÓN ESTÁ LISTA! -->
+<table align="center" cellpadding="0" cellspacing="0" border="0" style="width:100%;max-width: 650px;margin-top: 10px;margin-bottom:10px;" id="LIV Order">
+<tbody style="background:#F7F7F7;">
+<tr align="center" style="background:#F7F7F7;">
+<td style="width:5%;"></td>
+<td style="background:#FFF;border-radius:4px;box-shadow:0 2px 4px 0 rgba(0, 0, 0, 0.15);margin:0 auto;padding:25px;width:90%;text-align:center;">
+<h1 style="margin: 0; color:#333;font-size:24px;font-weight:bold;font-family:sans-serif;">
+¡Tu cotización está lista!
+</h1>
+<p style="color:#666; margin:15px 0 0 0; font-size:14px; line-height:1.5; font-family:sans-serif; text-align:center;">
+Te compartimos los detalles de la cotización que solicitaste. Los precios e indicaciones se detallan a continuación.
+</p>
+</td>
+<td style="width:5%;"></td>
+</tr>
+</tbody>
+</table>
+
+<!-- ADVISOR''S CUSTOM MESSAGE CARD -->
+<table cellpadding="0" cellspacing="0" border="0" style="width:100%;max-width: 650px;margin-top: 10px;margin-bottom:10px;" id="advisorMessageCard">
+<tbody style="background:#F7F7F7;">
+<tr align="left" style="background:#F7F7F7;">
+<td style="width:5%;"></td>
+<td style="background:#fff;border-radius:4px;box-shadow:0 2px 4px 0 rgba(0,0,0,0.15);margin:0 auto;padding:18px;width:90%;font-family:sans-serif;font-size:14px;color:#333;line-height:1.5;">
+<p style="margin:0 0 10px 0;font-weight:bold;color:#e10098;font-size:14px;">Mensaje de tu Asesor:</p>
+<div style="background:#fdf2f8;border-left:4px solid #e10098;padding:12px 16px;border-radius:0 4px 4px 0;color:#4c4c4c;line-height:1.5;">
+Estimado(a) Sandra Domínguez Contreras,<br><br>Junto con saludar, y como seguimiento a nuestra conversación, le hago llegar la cotización solicitada con folio LVP-260928-0003.<br><br>Quedo a sus órdenes para cualquier duda o aclaración.<br><br>Saludos cordiales,<br>Miguel Ortega
+</div>
+</td>
+<td style="width:5%;"></td>
+</tr>
+</tbody>
+</table>
+
+<!-- NOTICE BANNER (Yellow alert box) -->
+<table style="width:100%;max-width: 650px;margin-top: 10px;margin-bottom:10px;" cellpadding="0" cellspacing="0" border="0" id="noticeAlert">
+<tbody style="background:#f7f7f7;">
+<tr style="background:#f7f7f7;">
+<td style="width:5%;"></td>
+<td style="background:#F7F7F7; width:90%;">
+<table cellpadding="0" cellspacing="0" style="width:100%;">
+<tr>
+<td style="border-left:5px solid #ffd457; background:#fff4d4; padding:12px 15px; border-radius: 0 4px 4px 0; font-size:13px; color:#665c40; font-family:sans-serif; text-align:left; line-height:1.4;">
+<strong>Nota importante:</strong> Los precios y promociones están sujetos a cambios sin previo aviso. Esta cotización tiene fines informativos y la disponibilidad de los artículos se garantiza al concretar la compra.
+</td>
+</tr>
+</table>
+</td>
+<td style="width:5%;"></td>
+</tr>
+</tbody>
+</table>
+
+<!-- GENERAL DATES & TOTALS CARD -->
+<table cellpadding="0" cellspacing="0" border="0" style="width:100%;max-width: 650px;margin-top: 10px;margin-bottom:10px;" id="datesAndTotals">
+<tbody style="background:#F7F7F7;">
+<tr align="left" style="background:#F7F7F7;">
+<td style="width:5%;"></td>
+<td style="background:#fff;border-radius:4px;box-shadow:0 2px 4px 0 rgba(0,0,0,0.15);margin:0 auto;padding:15px;width:90%;">
+<table cellpadding="0" cellspacing="0" style="background:#fff;width:100%;font-size:13px;font-family:sans-serif;">
+<tbody>
+<tr>
+<td width="50%" align="left" style="color:#333;">
+Fecha de emisión: <span style="font-weight:700;">28 de septiembre de 2026</span>
+</td>
+<td width="50%" align="right" style="color:#333;">
+Total cotizado: <span style="font-weight:700;color:#e10098;font-size:15px;">$15,251.50</span>
+</td>
+</tr>
+</tbody>
+</table>
+</td>
+<td style="width:5%;"></td>
+</tr>
+</tbody>
+</table>
+
+<!-- SUMMARY BLOCK HEADER: CLIENTE Y ASESOR -->
+<table cellpadding="0" cellspacing="0" border="0" style="width:100%;max-width: 650px;margin-top: 15px;margin-bottom:5px;" id="clientAdvisorHeader">
+<tbody style="background:#F7F7F7;">
+<tr align="left" style="background:#F7F7F7;">
+<td style="background:#F7F7F7;width:5%;"></td>
+<td style="background:#F7F7F7;width:90%;">
+<h3 style="border-bottom:2px solid #e10098;color:#FFF;font-size:15px;font-weight:normal;margin:0;font-family:sans-serif;">
+<span style="background:#e10098;display:table-cell;height:30px;line-height:30px;padding:3px 16px 0;border-radius:4px 4px 0 0;">
+Información del Cliente y Asesor
+</span>
+</h3>
+</td>
+<td style="background:#F7F7F7;width:5%;"></td>
+</tr>
+</tbody>
+</table>
+
+<!-- SUMMARY BLOCK CONTENT: CLIENTE Y ASESOR -->
+<table cellpadding="0" cellspacing="0" border="0" style="width:100%;max-width: 650px;margin-bottom:10px;" id="clientAdvisorContent">
+<tbody style="background:#F7F7F7;">
+<tr align="left" style="background:#F7F7F7; width: 100%;">
+<td style="background:#F7F7F7;width:5%;"></td>
+<td style="background:#FFF;border-radius:4px;box-shadow:0 2px 4px 0 rgba(0, 0, 0, 0.15);margin:0 auto;padding:15px;width:90%;font-family:sans-serif;font-size:13px;line-height:1.5;color:#333;">
+<table cellpadding="0" cellspacing="0" style="width:100%;">
+<tr>
+<td width="48%" valign="top" style="border-right:1px solid #eee;padding-right:10px;">
+<p style="margin:2px 0;color:#e10098;font-weight:bold;font-size:13px;">Dirigido a:</p>
+<p style="margin:2px 0;"><strong>Cliente:</strong> Sandra Domínguez Contreras</p>
+<p style="margin:2px 0;"><strong>Correo:</strong> sdominguez@ejemplo.com</p>
+<p style="margin:2px 0;"><strong>Teléfono:</strong> 442 531 6277</p>
+</td>
+<td width="4%">&nbsp;</td>
+<td width="48%" valign="top" style="padding-left:10px;">
+<p style="margin:2px 0;color:#e10098;font-weight:bold;font-size:13px;">Atendido por:</p>
+<p style="margin:2px 0;"><strong>Asesor:</strong> Miguel Ortega</p>
+<p style="margin:2px 0;"><strong>Folio:</strong> LVP-260928-0003</p>
+</td>
+</tr>
+</table>
+</td>
+<td style="background:#F7F7F7;width:5%;"></td>
+</tr>
+</tbody>
+</table>
+
+<!-- SECTION HEADER: TUS PRODUCTOS -->
+<table cellpadding="0" cellspacing="0" border="0" style="width:100%;max-width: 650px;margin-top: 15px;margin-bottom:5px;" id="productsHeader">
+<tbody style="background:#F7F7F7;">
+<tr align="left" style="background:#F7F7F7;">
+<td style="background:#F7F7F7;width:5%;"></td>
+<td style="background:#F7F7F7;width:90%;">
+<h3 style="border-bottom:2px solid #e10098;color:#FFF;font-size:15px;font-weight:normal;margin:0;font-family:sans-serif;">
+<span style="background:#e10098;display:table-cell;height:30px;line-height:30px;padding:3px 16px 0;border-radius:4px 4px 0 0;">
+Detalle de Artículos
+</span>
+</h3>
+</td>
+<td style="background:#F7F7F7;width:5%;"></td>
+</tr>
+</tbody>
+</table>
+
+<!-- PRODUCTS LIST LOOP -->
+
+<!-- CARD DE PRODUCTO INDIVIDUAL -->
+<table cellpadding="0" cellspacing="0" border="0" style="width:100%;max-width: 650px;margin-top: 10px;margin-bottom:10px;" id="lineItems LIV">
+<tbody style="background:#F7F7F7;">
+<tr align="left" style="background:#F7F7F7; width: 100%;">
+<td style="background:#F7F7F7;width:5%;"></td>
+<td style="background:#fff;border-radius:4px;box-shadow:0 2px 4px 0 rgba(0,0,0,0.15);margin:0 auto;padding:15px;width:90%;">
+<table cellpadding="0" cellspacing="0" style="width:100%;background:#fff;">
+<tbody>
+<tr>
+<!-- Imagen del producto (Left) -->
+<td align="center" width="35%" valign="top" style="padding-top:10px;padding-right:15px;text-align:center;">
+<img style="max-width:140px;width:100%;height:auto;border-radius:4px;border:1px solid #f0f0f0;" alt="Liverpool Product" src="https://assets.liverpool.com.mx/assets/images/placeholder.gif">
+</td>
+<!-- Detalles del producto (Right) -->
+<td valign="top" style="font-family:sans-serif;color:#333;">
+<h2 style="color:#333;font-size:15px;margin:10px 0 6px 0;font-weight:bold;line-height:1.4;">
+Estufa de piso 6 quemadores 36 pulgadas acero inoxidable
+</h2>
+<p style="color:#666;font-size:12px;margin:0 0 10px 0;">
+Código de producto: <strong>1934146071</strong>
+</p>
+
+<!-- Tabla interna de precios -->
+<table cellpadding="0" cellspacing="0" style="width:100%;font-size:12px;color:#555;border-top:1px dashed #eee;padding-top:8px;">
+<tr>
+<td style="width:50%;padding-bottom:5px;">
+Precio unitario:<br>
+<span style="color:#333;font-weight:bold;font-size:13px;">$11,990.00</span>
+</td>
+<td style="width:50%;padding-bottom:5px;">
+Cantidad:<br>
+<span style="color:#333;font-weight:bold;font-size:13px;">1</span>
+</td>
+</tr>
+<tr>
+<td style="padding-bottom:5px;">
+Promoción:<br>
+<span style="color:#333;font-weight:bold;">PRECIO BASE</span>
+</td>
+<td style="padding-bottom:5px;">
+Descuento:<br>
+<span style="color:#ef4444;font-weight:bold;">
+-$599.50 (5%)
+</span>
+</td>
+</tr>
+<tr>
+<td colspan="2" style="border-top:1px solid #eee;padding-top:8px;">
+<p style="color:#666;font-size:12px;margin:0;">Total artículo: <span style="color:#f00;font-weight:bold;font-size:14px;margin-left:5px;">$11,390.50</span></p>
+</td>
+</tr>
+</table>
+</td>
+</tr>
+</tbody>
+</table>
+</td>
+<td style="background:#F7F7F7;width:5%;"></td>
+</tr>
+</tbody>
+</table>
+
+<!-- CARD DE PRODUCTO INDIVIDUAL -->
+<table cellpadding="0" cellspacing="0" border="0" style="width:100%;max-width: 650px;margin-top: 10px;margin-bottom:10px;" id="lineItems LIV">
+<tbody style="background:#F7F7F7;">
+<tr align="left" style="background:#F7F7F7; width: 100%;">
+<td style="background:#F7F7F7;width:5%;"></td>
+<td style="background:#fff;border-radius:4px;box-shadow:0 2px 4px 0 rgba(0,0,0,0.15);margin:0 auto;padding:15px;width:90%;">
+<table cellpadding="0" cellspacing="0" style="width:100%;background:#fff;">
+<tbody>
+<tr>
+<!-- Imagen del producto (Left) -->
+<td align="center" width="35%" valign="top" style="padding-top:10px;padding-right:15px;text-align:center;">
+<img style="max-width:140px;width:100%;height:auto;border-radius:4px;border:1px solid #f0f0f0;" alt="Liverpool Product" src="https://assets.liverpool.com.mx/assets/images/placeholder.gif">
+</td>
+<!-- Detalles del producto (Right) -->
+<td valign="top" style="font-family:sans-serif;color:#333;">
+<h2 style="color:#333;font-size:15px;margin:10px 0 6px 0;font-weight:bold;line-height:1.4;">
+Campana de pared 90 cm acero inoxidable
+</h2>
+<p style="color:#666;font-size:12px;margin:0 0 10px 0;">
+Código de producto: <strong>1916626372</strong>
+</p>
+
+<!-- Tabla interna de precios -->
+<table cellpadding="0" cellspacing="0" style="width:100%;font-size:12px;color:#555;border-top:1px dashed #eee;padding-top:8px;">
+<tr>
+<td style="width:50%;padding-bottom:5px;">
+Precio unitario:<br>
+<span style="color:#333;font-weight:bold;font-size:13px;">$4,290.00</span>
+</td>
+<td style="width:50%;padding-bottom:5px;">
+Cantidad:<br>
+<span style="color:#333;font-weight:bold;font-size:13px;">1</span>
+</td>
+</tr>
+<tr>
+<td style="padding-bottom:5px;">
+Promoción:<br>
+<span style="color:#333;font-weight:bold;">PRECIO BASE</span>
+</td>
+<td style="padding-bottom:5px;">
+Descuento:<br>
+<span style="color:#ef4444;font-weight:bold;">
+-$429.00 (10%)
+</span>
+</td>
+</tr>
+<tr>
+<td colspan="2" style="border-top:1px solid #eee;padding-top:8px;">
+<p style="color:#666;font-size:12px;margin:0;">Total artículo: <span style="color:#f00;font-weight:bold;font-size:14px;margin-left:5px;">$3,861.00</span></p>
+</td>
+</tr>
+</table>
+</td>
+</tr>
+</tbody>
+</table>
+</td>
+<td style="background:#F7F7F7;width:5%;"></td>
+</tr>
+</tbody>
+</table>
+
+
+<!-- TOTALS SUMMARY CARD -->
+<table cellpadding="0" cellspacing="0" border="0" style="width:100%;max-width: 650px;margin-top: 10px;margin-bottom:10px;" id="totalsSummary">
+<tbody style="background:#F7F7F7;">
+<tr align="left" style="background:#F7F7F7;">
+<td style="width:5%;"></td>
+<td style="background:#fff;border-radius:4px;box-shadow:0 2px 4px 0 rgba(0,0,0,0.15);margin:0 auto;padding:15px;width:90%;">
+<table cellpadding="0" cellspacing="0" style="background:#fff;width:100%;font-size:13px;font-family:sans-serif;color:#333;">
+<tbody>
+<tr>
+<td align="right" style="padding: 4px 0;color:#666;">Subtotal:</td>
+<td align="right" width="30%" style="padding: 4px 0;font-weight:700;">$13,147.84</td>
+</tr>
+<tr>
+<td align="right" style="padding: 4px 0;color:#666;">IVA (16%):</td>
+<td align="right" style="padding: 4px 0;font-weight:700;">$2,103.66</td>
+</tr>
+<tr style="font-size:15px;font-weight:bold;color:#e10098;">
+<td align="right" style="border-top:1.5px solid #e10098;padding-top:10px;margin-top:5px;">TOTAL GENERAL:</td>
+<td align="right" style="border-top:1.5px solid #e10098;padding-top:10px;margin-top:5px;color:#e10098;font-size:16px;">$15,251.50</td>
+</tr>
+</tbody>
+</table>
+</td>
+<td style="width:5%;"></td>
+</tr>
+</tbody>
+</table>
+
+<!-- EMAIL FOOTER INFO -->
+<table cellpadding="0" cellspacing="0" border="0" style="width:100%;max-width: 650px;margin-top: 20px;margin-bottom:20px;" id="footerInfo">
+<tbody style="background:#F7F7F7;">
+<tr align="center" style="background:#F7F7F7;">
+<td style="width:5%;"></td>
+<td style="font-family:sans-serif;font-size:11px;color:#888;line-height:1.5;text-align:center;width:90%;">
+<p style="margin: 0 0 10px 0;"><strong>Nota:</strong> Se adjunta a este correo el archivo PDF oficial con la cotización formal detallada para su descarga o impresión.</p>
+<p style="margin: 0 0 15px 0;font-weight:bold;color:#e10098;font-size:12px;">Liverpool - Es parte de mi vida</p>
+</td>
+<td style="width:5%;"></td>
+</tr>
+</tbody>
+</table>
+
+</td>
+</tr>
+</tbody>
+</table>
+</body>
+</html>
+', '', '[{"nombre":"Cotizacion_LVP-260928-0003.pdf — no adjuntado: esta versión de demostración no genera el PDF (Google Drive)","tipo":"application/pdf","bytes":0}]', 'cotizacion', 'LVP-260928-0003', 'omitido', '', 'Dato de ejemplo');
+INSERT INTO correos_salida (fecha, de, nombre_de, responder_a, para, cc, cco, asunto, html, texto, adjuntos, tipo, referencia, estado, proveedor_id, detalle) VALUES ('2026-09-29T20:31:55.335Z', 'ventel@logidma.com', 'Cotizaciones Ventel Liverpool', 'jorge.ramirez@ventel.example', 'felipeestrada93@ejemplo.com', '', '', 'Cotización de Servicios Ventel - Folio LVP-260929-0001', '
+<!DOCTYPE html PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN" "http://www.w3.org/TR/html4/loose.dtd">
+<html>
+<head>
+<meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Tu Cotización está Lista</title>
+<style type="text/css">
+body {
+font-family: sans-serif;
+margin: 0 auto !important;
+padding: 0 !important;
+background: #F7F7F7;
+max-width: 650px;
+}
+</style>
+</head>
+<body bgcolor="#F7F7F7" style="background-color: #F7F7F7; margin: 0 auto !important; padding: 0 !important; font-family: sans-serif; max-width: 650px;">
+<table width="100%" border="0" cellpadding="0" cellspacing="0" align="center" style="background-color: #F7F7F7;">
+<tbody>
+<tr>
+<td align="center" valign="top" style="padding-top: 20px;">
+
+<!-- TOP HEADER LOGO (Liverpool banner) -->
+<table width="100%" cellspacing="0" cellpadding="0" role="presentation" style="max-width: 650px;">
+<tbody>
+<tr>
+<td align="center" style="background-color: #F7F7F7;">
+<img src="https://upload.wikimedia.org/wikipedia/commons/thumb/3/35/Liverpool_logo.svg/1280px-Liverpool_logo.svg.png" alt="Liverpool - Es parte de mi vida" style="display: block; padding: 10px 0; text-align: center; height: auto; max-width: 160px; margin: 0 auto; border: 0;">
+</td>
+</tr>
+</tbody>
+</table>
+
+<!-- HEADER: ¡TU COTIZACIÓN ESTÁ LISTA! -->
+<table align="center" cellpadding="0" cellspacing="0" border="0" style="width:100%;max-width: 650px;margin-top: 10px;margin-bottom:10px;" id="LIV Order">
+<tbody style="background:#F7F7F7;">
+<tr align="center" style="background:#F7F7F7;">
+<td style="width:5%;"></td>
+<td style="background:#FFF;border-radius:4px;box-shadow:0 2px 4px 0 rgba(0, 0, 0, 0.15);margin:0 auto;padding:25px;width:90%;text-align:center;">
+<h1 style="margin: 0; color:#333;font-size:24px;font-weight:bold;font-family:sans-serif;">
+¡Tu cotización está lista!
+</h1>
+<p style="color:#666; margin:15px 0 0 0; font-size:14px; line-height:1.5; font-family:sans-serif; text-align:center;">
+Te compartimos los detalles de la cotización que solicitaste. Los precios e indicaciones se detallan a continuación.
+</p>
+</td>
+<td style="width:5%;"></td>
+</tr>
+</tbody>
+</table>
+
+<!-- ADVISOR''S CUSTOM MESSAGE CARD -->
+<table cellpadding="0" cellspacing="0" border="0" style="width:100%;max-width: 650px;margin-top: 10px;margin-bottom:10px;" id="advisorMessageCard">
+<tbody style="background:#F7F7F7;">
+<tr align="left" style="background:#F7F7F7;">
+<td style="width:5%;"></td>
+<td style="background:#fff;border-radius:4px;box-shadow:0 2px 4px 0 rgba(0,0,0,0.15);margin:0 auto;padding:18px;width:90%;font-family:sans-serif;font-size:14px;color:#333;line-height:1.5;">
+<p style="margin:0 0 10px 0;font-weight:bold;color:#e10098;font-size:14px;">Mensaje de tu Asesor:</p>
+<div style="background:#fdf2f8;border-left:4px solid #e10098;padding:12px 16px;border-radius:0 4px 4px 0;color:#4c4c4c;line-height:1.5;">
+Estimado(a) Felipe Estrada Contreras,<br><br>Junto con saludar, y como seguimiento a nuestra conversación, le hago llegar la cotización solicitada con folio LVP-260929-0001.<br><br>Quedo a sus órdenes para cualquier duda o aclaración.<br><br>Saludos cordiales,<br>Jorge Ramírez
+</div>
+</td>
+<td style="width:5%;"></td>
+</tr>
+</tbody>
+</table>
+
+<!-- NOTICE BANNER (Yellow alert box) -->
+<table style="width:100%;max-width: 650px;margin-top: 10px;margin-bottom:10px;" cellpadding="0" cellspacing="0" border="0" id="noticeAlert">
+<tbody style="background:#f7f7f7;">
+<tr style="background:#f7f7f7;">
+<td style="width:5%;"></td>
+<td style="background:#F7F7F7; width:90%;">
+<table cellpadding="0" cellspacing="0" style="width:100%;">
+<tr>
+<td style="border-left:5px solid #ffd457; background:#fff4d4; padding:12px 15px; border-radius: 0 4px 4px 0; font-size:13px; color:#665c40; font-family:sans-serif; text-align:left; line-height:1.4;">
+<strong>Nota importante:</strong> Los precios y promociones están sujetos a cambios sin previo aviso. Esta cotización tiene fines informativos y la disponibilidad de los artículos se garantiza al concretar la compra.
+</td>
+</tr>
+</table>
+</td>
+<td style="width:5%;"></td>
+</tr>
+</tbody>
+</table>
+
+<!-- GENERAL DATES & TOTALS CARD -->
+<table cellpadding="0" cellspacing="0" border="0" style="width:100%;max-width: 650px;margin-top: 10px;margin-bottom:10px;" id="datesAndTotals">
+<tbody style="background:#F7F7F7;">
+<tr align="left" style="background:#F7F7F7;">
+<td style="width:5%;"></td>
+<td style="background:#fff;border-radius:4px;box-shadow:0 2px 4px 0 rgba(0,0,0,0.15);margin:0 auto;padding:15px;width:90%;">
+<table cellpadding="0" cellspacing="0" style="background:#fff;width:100%;font-size:13px;font-family:sans-serif;">
+<tbody>
+<tr>
+<td width="50%" align="left" style="color:#333;">
+Fecha de emisión: <span style="font-weight:700;">29 de septiembre de 2026</span>
+</td>
+<td width="50%" align="right" style="color:#333;">
+Total cotizado: <span style="font-weight:700;color:#e10098;font-size:15px;">$3,397.68</span>
+</td>
+</tr>
+</tbody>
+</table>
+</td>
+<td style="width:5%;"></td>
+</tr>
+</tbody>
+</table>
+
+<!-- SUMMARY BLOCK HEADER: CLIENTE Y ASESOR -->
+<table cellpadding="0" cellspacing="0" border="0" style="width:100%;max-width: 650px;margin-top: 15px;margin-bottom:5px;" id="clientAdvisorHeader">
+<tbody style="background:#F7F7F7;">
+<tr align="left" style="background:#F7F7F7;">
+<td style="background:#F7F7F7;width:5%;"></td>
+<td style="background:#F7F7F7;width:90%;">
+<h3 style="border-bottom:2px solid #e10098;color:#FFF;font-size:15px;font-weight:normal;margin:0;font-family:sans-serif;">
+<span style="background:#e10098;display:table-cell;height:30px;line-height:30px;padding:3px 16px 0;border-radius:4px 4px 0 0;">
+Información del Cliente y Asesor
+</span>
+</h3>
+</td>
+<td style="background:#F7F7F7;width:5%;"></td>
+</tr>
+</tbody>
+</table>
+
+<!-- SUMMARY BLOCK CONTENT: CLIENTE Y ASESOR -->
+<table cellpadding="0" cellspacing="0" border="0" style="width:100%;max-width: 650px;margin-bottom:10px;" id="clientAdvisorContent">
+<tbody style="background:#F7F7F7;">
+<tr align="left" style="background:#F7F7F7; width: 100%;">
+<td style="background:#F7F7F7;width:5%;"></td>
+<td style="background:#FFF;border-radius:4px;box-shadow:0 2px 4px 0 rgba(0, 0, 0, 0.15);margin:0 auto;padding:15px;width:90%;font-family:sans-serif;font-size:13px;line-height:1.5;color:#333;">
+<table cellpadding="0" cellspacing="0" style="width:100%;">
+<tr>
+<td width="48%" valign="top" style="border-right:1px solid #eee;padding-right:10px;">
+<p style="margin:2px 0;color:#e10098;font-weight:bold;font-size:13px;">Dirigido a:</p>
+<p style="margin:2px 0;"><strong>Cliente:</strong> Felipe Estrada Contreras</p>
+<p style="margin:2px 0;"><strong>Correo:</strong> felipeestrada93@ejemplo.com</p>
+<p style="margin:2px 0;"><strong>Teléfono:</strong> 222 804 7982</p>
+</td>
+<td width="4%">&nbsp;</td>
+<td width="48%" valign="top" style="padding-left:10px;">
+<p style="margin:2px 0;color:#e10098;font-weight:bold;font-size:13px;">Atendido por:</p>
+<p style="margin:2px 0;"><strong>Asesor:</strong> Jorge Ramírez</p>
+<p style="margin:2px 0;"><strong>Folio:</strong> LVP-260929-0001</p>
+</td>
+</tr>
+</table>
+</td>
+<td style="background:#F7F7F7;width:5%;"></td>
+</tr>
+</tbody>
+</table>
+
+<!-- SECTION HEADER: TUS PRODUCTOS -->
+<table cellpadding="0" cellspacing="0" border="0" style="width:100%;max-width: 650px;margin-top: 15px;margin-bottom:5px;" id="productsHeader">
+<tbody style="background:#F7F7F7;">
+<tr align="left" style="background:#F7F7F7;">
+<td style="background:#F7F7F7;width:5%;"></td>
+<td style="background:#F7F7F7;width:90%;">
+<h3 style="border-bottom:2px solid #e10098;color:#FFF;font-size:15px;font-weight:normal;margin:0;font-family:sans-serif;">
+<span style="background:#e10098;display:table-cell;height:30px;line-height:30px;padding:3px 16px 0;border-radius:4px 4px 0 0;">
+Detalle de Artículos
+</span>
+</h3>
+</td>
+<td style="background:#F7F7F7;width:5%;"></td>
+</tr>
+</tbody>
+</table>
+
+<!-- PRODUCTS LIST LOOP -->
+
+<!-- CARD DE PRODUCTO INDIVIDUAL -->
+<table cellpadding="0" cellspacing="0" border="0" style="width:100%;max-width: 650px;margin-top: 10px;margin-bottom:10px;" id="lineItems LIV">
+<tbody style="background:#F7F7F7;">
+<tr align="left" style="background:#F7F7F7; width: 100%;">
+<td style="background:#F7F7F7;width:5%;"></td>
+<td style="background:#fff;border-radius:4px;box-shadow:0 2px 4px 0 rgba(0,0,0,0.15);margin:0 auto;padding:15px;width:90%;">
+<table cellpadding="0" cellspacing="0" style="width:100%;background:#fff;">
+<tbody>
+<tr>
+<!-- Imagen del producto (Left) -->
+<td align="center" width="35%" valign="top" style="padding-top:10px;padding-right:15px;text-align:center;">
+<img style="max-width:140px;width:100%;height:auto;border-radius:4px;border:1px solid #f0f0f0;" alt="Liverpool Product" src="https://assets.liverpool.com.mx/assets/images/placeholder.gif">
+</td>
+<!-- Detalles del producto (Right) -->
+<td valign="top" style="font-family:sans-serif;color:#333;">
+<h2 style="color:#333;font-size:15px;margin:10px 0 6px 0;font-weight:bold;line-height:1.4;">
+Frigobar 3.1 pies cúbicos
+</h2>
+<p style="color:#666;font-size:12px;margin:0 0 10px 0;">
+Código de producto: <strong>1928999148</strong>
+</p>
+
+<!-- Tabla interna de precios -->
+<table cellpadding="0" cellspacing="0" style="width:100%;font-size:12px;color:#555;border-top:1px dashed #eee;padding-top:8px;">
+<tr>
+<td style="width:50%;padding-bottom:5px;">
+Precio unitario:<br>
+<span style="color:#333;font-weight:bold;font-size:13px;">$4,290.00</span>
+</td>
+<td style="width:50%;padding-bottom:5px;">
+Cantidad:<br>
+<span style="color:#333;font-weight:bold;font-size:13px;">1</span>
+</td>
+</tr>
+<tr>
+<td style="padding-bottom:5px;">
+Promoción:<br>
+<span style="color:#333;font-weight:bold;">PRECIO BASE</span>
+</td>
+<td style="padding-bottom:5px;">
+Descuento:<br>
+<span style="color:#ef4444;font-weight:bold;">
+-$892.32 (21%)
+</span>
+</td>
+</tr>
+<tr>
+<td colspan="2" style="border-top:1px solid #eee;padding-top:8px;">
+<p style="color:#666;font-size:12px;margin:0;">Total artículo: <span style="color:#f00;font-weight:bold;font-size:14px;margin-left:5px;">$3,397.68</span></p>
+</td>
+</tr>
+</table>
+</td>
+</tr>
+</tbody>
+</table>
+</td>
+<td style="background:#F7F7F7;width:5%;"></td>
+</tr>
+</tbody>
+</table>
+
+
+<!-- TOTALS SUMMARY CARD -->
+<table cellpadding="0" cellspacing="0" border="0" style="width:100%;max-width: 650px;margin-top: 10px;margin-bottom:10px;" id="totalsSummary">
+<tbody style="background:#F7F7F7;">
+<tr align="left" style="background:#F7F7F7;">
+<td style="width:5%;"></td>
+<td style="background:#fff;border-radius:4px;box-shadow:0 2px 4px 0 rgba(0,0,0,0.15);margin:0 auto;padding:15px;width:90%;">
+<table cellpadding="0" cellspacing="0" style="background:#fff;width:100%;font-size:13px;font-family:sans-serif;color:#333;">
+<tbody>
+<tr>
+<td align="right" style="padding: 4px 0;color:#666;">Subtotal:</td>
+<td align="right" width="30%" style="padding: 4px 0;font-weight:700;">$2,929.03</td>
+</tr>
+<tr>
+<td align="right" style="padding: 4px 0;color:#666;">IVA (16%):</td>
+<td align="right" style="padding: 4px 0;font-weight:700;">$468.65</td>
+</tr>
+<tr style="font-size:15px;font-weight:bold;color:#e10098;">
+<td align="right" style="border-top:1.5px solid #e10098;padding-top:10px;margin-top:5px;">TOTAL GENERAL:</td>
+<td align="right" style="border-top:1.5px solid #e10098;padding-top:10px;margin-top:5px;color:#e10098;font-size:16px;">$3,397.68</td>
+</tr>
+</tbody>
+</table>
+</td>
+<td style="width:5%;"></td>
+</tr>
+</tbody>
+</table>
+
+<!-- EMAIL FOOTER INFO -->
+<table cellpadding="0" cellspacing="0" border="0" style="width:100%;max-width: 650px;margin-top: 20px;margin-bottom:20px;" id="footerInfo">
+<tbody style="background:#F7F7F7;">
+<tr align="center" style="background:#F7F7F7;">
+<td style="width:5%;"></td>
+<td style="font-family:sans-serif;font-size:11px;color:#888;line-height:1.5;text-align:center;width:90%;">
+<p style="margin: 0 0 10px 0;"><strong>Nota:</strong> Se adjunta a este correo el archivo PDF oficial con la cotización formal detallada para su descarga o impresión.</p>
+<p style="margin: 0 0 15px 0;font-weight:bold;color:#e10098;font-size:12px;">Liverpool - Es parte de mi vida</p>
+</td>
+<td style="width:5%;"></td>
+</tr>
+</tbody>
+</table>
+
+</td>
+</tr>
+</tbody>
+</table>
+</body>
+</html>
+', '', '[{"nombre":"Cotizacion_LVP-260929-0001.pdf — no adjuntado: esta versión de demostración no genera el PDF (Google Drive)","tipo":"application/pdf","bytes":0}]', 'cotizacion', 'LVP-260929-0001', 'omitido', '', 'Dato de ejemplo');
+INSERT INTO correos_salida (fecha, de, nombre_de, responder_a, para, cc, cco, asunto, html, texto, adjuntos, tipo, referencia, estado, proveedor_id, detalle) VALUES ('2026-09-30T01:43:52.030Z', 'ventel@logidma.com', 'Cotizaciones Ventel Liverpool', 'asesor@ventel.example', 'orozcog82@ejemplo.com', '', '', 'Cotización de Servicios Ventel - Folio LVP-260929-0003', '
+<!DOCTYPE html PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN" "http://www.w3.org/TR/html4/loose.dtd">
+<html>
+<head>
+<meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Tu Cotización está Lista</title>
+<style type="text/css">
+body {
+font-family: sans-serif;
+margin: 0 auto !important;
+padding: 0 !important;
+background: #F7F7F7;
+max-width: 650px;
+}
+</style>
+</head>
+<body bgcolor="#F7F7F7" style="background-color: #F7F7F7; margin: 0 auto !important; padding: 0 !important; font-family: sans-serif; max-width: 650px;">
+<table width="100%" border="0" cellpadding="0" cellspacing="0" align="center" style="background-color: #F7F7F7;">
+<tbody>
+<tr>
+<td align="center" valign="top" style="padding-top: 20px;">
+
+<!-- TOP HEADER LOGO (Liverpool banner) -->
+<table width="100%" cellspacing="0" cellpadding="0" role="presentation" style="max-width: 650px;">
+<tbody>
+<tr>
+<td align="center" style="background-color: #F7F7F7;">
+<img src="https://upload.wikimedia.org/wikipedia/commons/thumb/3/35/Liverpool_logo.svg/1280px-Liverpool_logo.svg.png" alt="Liverpool - Es parte de mi vida" style="display: block; padding: 10px 0; text-align: center; height: auto; max-width: 160px; margin: 0 auto; border: 0;">
+</td>
+</tr>
+</tbody>
+</table>
+
+<!-- HEADER: ¡TU COTIZACIÓN ESTÁ LISTA! -->
+<table align="center" cellpadding="0" cellspacing="0" border="0" style="width:100%;max-width: 650px;margin-top: 10px;margin-bottom:10px;" id="LIV Order">
+<tbody style="background:#F7F7F7;">
+<tr align="center" style="background:#F7F7F7;">
+<td style="width:5%;"></td>
+<td style="background:#FFF;border-radius:4px;box-shadow:0 2px 4px 0 rgba(0, 0, 0, 0.15);margin:0 auto;padding:25px;width:90%;text-align:center;">
+<h1 style="margin: 0; color:#333;font-size:24px;font-weight:bold;font-family:sans-serif;">
+¡Tu cotización está lista!
+</h1>
+<p style="color:#666; margin:15px 0 0 0; font-size:14px; line-height:1.5; font-family:sans-serif; text-align:center;">
+Te compartimos los detalles de la cotización que solicitaste. Los precios e indicaciones se detallan a continuación.
+</p>
+</td>
+<td style="width:5%;"></td>
+</tr>
+</tbody>
+</table>
+
+<!-- ADVISOR''S CUSTOM MESSAGE CARD -->
+<table cellpadding="0" cellspacing="0" border="0" style="width:100%;max-width: 650px;margin-top: 10px;margin-bottom:10px;" id="advisorMessageCard">
+<tbody style="background:#F7F7F7;">
+<tr align="left" style="background:#F7F7F7;">
+<td style="width:5%;"></td>
+<td style="background:#fff;border-radius:4px;box-shadow:0 2px 4px 0 rgba(0,0,0,0.15);margin:0 auto;padding:18px;width:90%;font-family:sans-serif;font-size:14px;color:#333;line-height:1.5;">
+<p style="margin:0 0 10px 0;font-weight:bold;color:#e10098;font-size:14px;">Mensaje de tu Asesor:</p>
+<div style="background:#fdf2f8;border-left:4px solid #e10098;padding:12px 16px;border-radius:0 4px 4px 0;color:#4c4c4c;line-height:1.5;">
+Estimado(a) Gilberto Orozco Díaz,<br><br>Junto con saludar, y como seguimiento a nuestra conversación, le hago llegar la cotización solicitada con folio LVP-260929-0003.<br><br>Quedo a sus órdenes para cualquier duda o aclaración.<br><br>Saludos cordiales,
+</div>
+</td>
+<td style="width:5%;"></td>
+</tr>
+</tbody>
+</table>
+
+<!-- NOTICE BANNER (Yellow alert box) -->
+<table style="width:100%;max-width: 650px;margin-top: 10px;margin-bottom:10px;" cellpadding="0" cellspacing="0" border="0" id="noticeAlert">
+<tbody style="background:#f7f7f7;">
+<tr style="background:#f7f7f7;">
+<td style="width:5%;"></td>
+<td style="background:#F7F7F7; width:90%;">
+<table cellpadding="0" cellspacing="0" style="width:100%;">
+<tr>
+<td style="border-left:5px solid #ffd457; background:#fff4d4; padding:12px 15px; border-radius: 0 4px 4px 0; font-size:13px; color:#665c40; font-family:sans-serif; text-align:left; line-height:1.4;">
+<strong>Nota importante:</strong> Los precios y promociones están sujetos a cambios sin previo aviso. Esta cotización tiene fines informativos y la disponibilidad de los artículos se garantiza al concretar la compra.
+</td>
+</tr>
+</table>
+</td>
+<td style="width:5%;"></td>
+</tr>
+</tbody>
+</table>
+
+<!-- GENERAL DATES & TOTALS CARD -->
+<table cellpadding="0" cellspacing="0" border="0" style="width:100%;max-width: 650px;margin-top: 10px;margin-bottom:10px;" id="datesAndTotals">
+<tbody style="background:#F7F7F7;">
+<tr align="left" style="background:#F7F7F7;">
+<td style="width:5%;"></td>
+<td style="background:#fff;border-radius:4px;box-shadow:0 2px 4px 0 rgba(0,0,0,0.15);margin:0 auto;padding:15px;width:90%;">
+<table cellpadding="0" cellspacing="0" style="background:#fff;width:100%;font-size:13px;font-family:sans-serif;">
+<tbody>
+<tr>
+<td width="50%" align="left" style="color:#333;">
+Fecha de emisión: <span style="font-weight:700;">29 de septiembre de 2026</span>
+</td>
+<td width="50%" align="right" style="color:#333;">
+Total cotizado: <span style="font-weight:700;color:#e10098;font-size:15px;">$11,992.50</span>
+</td>
+</tr>
+</tbody>
+</table>
+</td>
+<td style="width:5%;"></td>
+</tr>
+</tbody>
+</table>
+
+<!-- SUMMARY BLOCK HEADER: CLIENTE Y ASESOR -->
+<table cellpadding="0" cellspacing="0" border="0" style="width:100%;max-width: 650px;margin-top: 15px;margin-bottom:5px;" id="clientAdvisorHeader">
+<tbody style="background:#F7F7F7;">
+<tr align="left" style="background:#F7F7F7;">
+<td style="background:#F7F7F7;width:5%;"></td>
+<td style="background:#F7F7F7;width:90%;">
+<h3 style="border-bottom:2px solid #e10098;color:#FFF;font-size:15px;font-weight:normal;margin:0;font-family:sans-serif;">
+<span style="background:#e10098;display:table-cell;height:30px;line-height:30px;padding:3px 16px 0;border-radius:4px 4px 0 0;">
+Información del Cliente y Asesor
+</span>
+</h3>
+</td>
+<td style="background:#F7F7F7;width:5%;"></td>
+</tr>
+</tbody>
+</table>
+
+<!-- SUMMARY BLOCK CONTENT: CLIENTE Y ASESOR -->
+<table cellpadding="0" cellspacing="0" border="0" style="width:100%;max-width: 650px;margin-bottom:10px;" id="clientAdvisorContent">
+<tbody style="background:#F7F7F7;">
+<tr align="left" style="background:#F7F7F7; width: 100%;">
+<td style="background:#F7F7F7;width:5%;"></td>
+<td style="background:#FFF;border-radius:4px;box-shadow:0 2px 4px 0 rgba(0, 0, 0, 0.15);margin:0 auto;padding:15px;width:90%;font-family:sans-serif;font-size:13px;line-height:1.5;color:#333;">
+<table cellpadding="0" cellspacing="0" style="width:100%;">
+<tr>
+<td width="48%" valign="top" style="border-right:1px solid #eee;padding-right:10px;">
+<p style="margin:2px 0;color:#e10098;font-weight:bold;font-size:13px;">Dirigido a:</p>
+<p style="margin:2px 0;"><strong>Cliente:</strong> Gilberto Orozco Díaz</p>
+<p style="margin:2px 0;"><strong>Correo:</strong> orozcog82@ejemplo.com</p>
+<p style="margin:2px 0;"><strong>Teléfono:</strong> (55) 8882 8415</p>
+</td>
+<td width="4%">&nbsp;</td>
+<td width="48%" valign="top" style="padding-left:10px;">
+<p style="margin:2px 0;color:#e10098;font-weight:bold;font-size:13px;">Atendido por:</p>
+<p style="margin:2px 0;"><strong>Asesor:</strong> Carlos Mendoza</p>
+<p style="margin:2px 0;"><strong>Folio:</strong> LVP-260929-0003</p>
+</td>
+</tr>
+</table>
+</td>
+<td style="background:#F7F7F7;width:5%;"></td>
+</tr>
+</tbody>
+</table>
+
+<!-- SECTION HEADER: TUS PRODUCTOS -->
+<table cellpadding="0" cellspacing="0" border="0" style="width:100%;max-width: 650px;margin-top: 15px;margin-bottom:5px;" id="productsHeader">
+<tbody style="background:#F7F7F7;">
+<tr align="left" style="background:#F7F7F7;">
+<td style="background:#F7F7F7;width:5%;"></td>
+<td style="background:#F7F7F7;width:90%;">
+<h3 style="border-bottom:2px solid #e10098;color:#FFF;font-size:15px;font-weight:normal;margin:0;font-family:sans-serif;">
+<span style="background:#e10098;display:table-cell;height:30px;line-height:30px;padding:3px 16px 0;border-radius:4px 4px 0 0;">
+Detalle de Artículos
+</span>
+</h3>
+</td>
+<td style="background:#F7F7F7;width:5%;"></td>
+</tr>
+</tbody>
+</table>
+
+<!-- PRODUCTS LIST LOOP -->
+
+<!-- CARD DE PRODUCTO INDIVIDUAL -->
+<table cellpadding="0" cellspacing="0" border="0" style="width:100%;max-width: 650px;margin-top: 10px;margin-bottom:10px;" id="lineItems LIV">
+<tbody style="background:#F7F7F7;">
+<tr align="left" style="background:#F7F7F7; width: 100%;">
+<td style="background:#F7F7F7;width:5%;"></td>
+<td style="background:#fff;border-radius:4px;box-shadow:0 2px 4px 0 rgba(0,0,0,0.15);margin:0 auto;padding:15px;width:90%;">
+<table cellpadding="0" cellspacing="0" style="width:100%;background:#fff;">
+<tbody>
+<tr>
+<!-- Imagen del producto (Left) -->
+<td align="center" width="35%" valign="top" style="padding-top:10px;padding-right:15px;text-align:center;">
+<img style="max-width:140px;width:100%;height:auto;border-radius:4px;border:1px solid #f0f0f0;" alt="Liverpool Product" src="https://assets.liverpool.com.mx/assets/images/placeholder.gif">
+</td>
+<!-- Detalles del producto (Right) -->
+<td valign="top" style="font-family:sans-serif;color:#333;">
+<h2 style="color:#333;font-size:15px;margin:10px 0 6px 0;font-weight:bold;line-height:1.4;">
+Sala modular 3 piezas tela gris
+</h2>
+<p style="color:#666;font-size:12px;margin:0 0 10px 0;">
+Código de producto: <strong>1907718699</strong>
+</p>
+
+<!-- Tabla interna de precios -->
+<table cellpadding="0" cellspacing="0" style="width:100%;font-size:12px;color:#555;border-top:1px dashed #eee;padding-top:8px;">
+<tr>
+<td style="width:50%;padding-bottom:5px;">
+Precio unitario:<br>
+<span style="color:#333;font-weight:bold;font-size:13px;">$15,990.00</span>
+</td>
+<td style="width:50%;padding-bottom:5px;">
+Cantidad:<br>
+<span style="color:#333;font-weight:bold;font-size:13px;">1</span>
+</td>
+</tr>
+<tr>
+<td style="padding-bottom:5px;">
+Promoción:<br>
+<span style="color:#333;font-weight:bold;">PRECIO BASE</span>
+</td>
+<td style="padding-bottom:5px;">
+Descuento:<br>
+<span style="color:#ef4444;font-weight:bold;">
+-$3,997.50 (25%)
+</span>
+</td>
+</tr>
+<tr>
+<td colspan="2" style="border-top:1px solid #eee;padding-top:8px;">
+<p style="color:#666;font-size:12px;margin:0;">Total artículo: <span style="color:#f00;font-weight:bold;font-size:14px;margin-left:5px;">$11,992.50</span></p>
+</td>
+</tr>
+</table>
+</td>
+</tr>
+</tbody>
+</table>
+</td>
+<td style="background:#F7F7F7;width:5%;"></td>
+</tr>
+</tbody>
+</table>
+
+
+<!-- TOTALS SUMMARY CARD -->
+<table cellpadding="0" cellspacing="0" border="0" style="width:100%;max-width: 650px;margin-top: 10px;margin-bottom:10px;" id="totalsSummary">
+<tbody style="background:#F7F7F7;">
+<tr align="left" style="background:#F7F7F7;">
+<td style="width:5%;"></td>
+<td style="background:#fff;border-radius:4px;box-shadow:0 2px 4px 0 rgba(0,0,0,0.15);margin:0 auto;padding:15px;width:90%;">
+<table cellpadding="0" cellspacing="0" style="background:#fff;width:100%;font-size:13px;font-family:sans-serif;color:#333;">
+<tbody>
+<tr>
+<td align="right" style="padding: 4px 0;color:#666;">Subtotal:</td>
+<td align="right" width="30%" style="padding: 4px 0;font-weight:700;">$10,338.36</td>
+</tr>
+<tr>
+<td align="right" style="padding: 4px 0;color:#666;">IVA (16%):</td>
+<td align="right" style="padding: 4px 0;font-weight:700;">$1,654.14</td>
+</tr>
+<tr style="font-size:15px;font-weight:bold;color:#e10098;">
+<td align="right" style="border-top:1.5px solid #e10098;padding-top:10px;margin-top:5px;">TOTAL GENERAL:</td>
+<td align="right" style="border-top:1.5px solid #e10098;padding-top:10px;margin-top:5px;color:#e10098;font-size:16px;">$11,992.50</td>
+</tr>
+</tbody>
+</table>
+</td>
+<td style="width:5%;"></td>
+</tr>
+</tbody>
+</table>
+
+<!-- EMAIL FOOTER INFO -->
+<table cellpadding="0" cellspacing="0" border="0" style="width:100%;max-width: 650px;margin-top: 20px;margin-bottom:20px;" id="footerInfo">
+<tbody style="background:#F7F7F7;">
+<tr align="center" style="background:#F7F7F7;">
+<td style="width:5%;"></td>
+<td style="font-family:sans-serif;font-size:11px;color:#888;line-height:1.5;text-align:center;width:90%;">
+<p style="margin: 0 0 10px 0;"><strong>Nota:</strong> Se adjunta a este correo el archivo PDF oficial con la cotización formal detallada para su descarga o impresión.</p>
+<p style="margin: 0 0 15px 0;font-weight:bold;color:#e10098;font-size:12px;">Liverpool - Es parte de mi vida</p>
+</td>
+<td style="width:5%;"></td>
+</tr>
+</tbody>
+</table>
+
+</td>
+</tr>
+</tbody>
+</table>
+</body>
+</html>
+', '', '[{"nombre":"Cotizacion_LVP-260929-0003.pdf — no adjuntado: esta versión de demostración no genera el PDF (Google Drive)","tipo":"application/pdf","bytes":0}]', 'cotizacion', 'LVP-260929-0003', 'omitido', '', 'Dato de ejemplo');
+INSERT INTO correos_salida (fecha, de, nombre_de, responder_a, para, cc, cco, asunto, html, texto, adjuntos, tipo, referencia, estado, proveedor_id, detalle) VALUES ('2026-09-30T01:45:05.494Z', 'ventel@logidma.com', 'Cotizaciones Ventel Liverpool', 'jorge.ramirez@ventel.example', 'karlaluna13@ejemplo.com', '', '', 'Cotización de Servicios Ventel - Folio LVP-260929-0002', '
+<!DOCTYPE html PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN" "http://www.w3.org/TR/html4/loose.dtd">
+<html>
+<head>
+<meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Tu Cotización está Lista</title>
+<style type="text/css">
+body {
+font-family: sans-serif;
+margin: 0 auto !important;
+padding: 0 !important;
+background: #F7F7F7;
+max-width: 650px;
+}
+</style>
+</head>
+<body bgcolor="#F7F7F7" style="background-color: #F7F7F7; margin: 0 auto !important; padding: 0 !important; font-family: sans-serif; max-width: 650px;">
+<table width="100%" border="0" cellpadding="0" cellspacing="0" align="center" style="background-color: #F7F7F7;">
+<tbody>
+<tr>
+<td align="center" valign="top" style="padding-top: 20px;">
+
+<!-- TOP HEADER LOGO (Liverpool banner) -->
+<table width="100%" cellspacing="0" cellpadding="0" role="presentation" style="max-width: 650px;">
+<tbody>
+<tr>
+<td align="center" style="background-color: #F7F7F7;">
+<img src="https://upload.wikimedia.org/wikipedia/commons/thumb/3/35/Liverpool_logo.svg/1280px-Liverpool_logo.svg.png" alt="Liverpool - Es parte de mi vida" style="display: block; padding: 10px 0; text-align: center; height: auto; max-width: 160px; margin: 0 auto; border: 0;">
+</td>
+</tr>
+</tbody>
+</table>
+
+<!-- HEADER: ¡TU COTIZACIÓN ESTÁ LISTA! -->
+<table align="center" cellpadding="0" cellspacing="0" border="0" style="width:100%;max-width: 650px;margin-top: 10px;margin-bottom:10px;" id="LIV Order">
+<tbody style="background:#F7F7F7;">
+<tr align="center" style="background:#F7F7F7;">
+<td style="width:5%;"></td>
+<td style="background:#FFF;border-radius:4px;box-shadow:0 2px 4px 0 rgba(0, 0, 0, 0.15);margin:0 auto;padding:25px;width:90%;text-align:center;">
+<h1 style="margin: 0; color:#333;font-size:24px;font-weight:bold;font-family:sans-serif;">
+¡Tu cotización está lista!
+</h1>
+<p style="color:#666; margin:15px 0 0 0; font-size:14px; line-height:1.5; font-family:sans-serif; text-align:center;">
+Te compartimos los detalles de la cotización que solicitaste. Los precios e indicaciones se detallan a continuación.
+</p>
+</td>
+<td style="width:5%;"></td>
+</tr>
+</tbody>
+</table>
+
+<!-- ADVISOR''S CUSTOM MESSAGE CARD -->
+<table cellpadding="0" cellspacing="0" border="0" style="width:100%;max-width: 650px;margin-top: 10px;margin-bottom:10px;" id="advisorMessageCard">
+<tbody style="background:#F7F7F7;">
+<tr align="left" style="background:#F7F7F7;">
+<td style="width:5%;"></td>
+<td style="background:#fff;border-radius:4px;box-shadow:0 2px 4px 0 rgba(0,0,0,0.15);margin:0 auto;padding:18px;width:90%;font-family:sans-serif;font-size:14px;color:#333;line-height:1.5;">
+<p style="margin:0 0 10px 0;font-weight:bold;color:#e10098;font-size:14px;">Mensaje de tu Asesor:</p>
+<div style="background:#fdf2f8;border-left:4px solid #e10098;padding:12px 16px;border-radius:0 4px 4px 0;color:#4c4c4c;line-height:1.5;">
+Estimado(a) Karla Luna Velázquez,<br><br>Junto con saludar, y como seguimiento a nuestra conversación, le hago llegar la cotización solicitada con folio LVP-260929-0002.<br><br>Quedo a sus órdenes para cualquier duda o aclaración.<br><br>Saludos cordiales,<br>Jorge Ramírez
+</div>
+</td>
+<td style="width:5%;"></td>
+</tr>
+</tbody>
+</table>
+
+<!-- NOTICE BANNER (Yellow alert box) -->
+<table style="width:100%;max-width: 650px;margin-top: 10px;margin-bottom:10px;" cellpadding="0" cellspacing="0" border="0" id="noticeAlert">
+<tbody style="background:#f7f7f7;">
+<tr style="background:#f7f7f7;">
+<td style="width:5%;"></td>
+<td style="background:#F7F7F7; width:90%;">
+<table cellpadding="0" cellspacing="0" style="width:100%;">
+<tr>
+<td style="border-left:5px solid #ffd457; background:#fff4d4; padding:12px 15px; border-radius: 0 4px 4px 0; font-size:13px; color:#665c40; font-family:sans-serif; text-align:left; line-height:1.4;">
+<strong>Nota importante:</strong> Los precios y promociones están sujetos a cambios sin previo aviso. Esta cotización tiene fines informativos y la disponibilidad de los artículos se garantiza al concretar la compra.
+</td>
+</tr>
+</table>
+</td>
+<td style="width:5%;"></td>
+</tr>
+</tbody>
+</table>
+
+<!-- GENERAL DATES & TOTALS CARD -->
+<table cellpadding="0" cellspacing="0" border="0" style="width:100%;max-width: 650px;margin-top: 10px;margin-bottom:10px;" id="datesAndTotals">
+<tbody style="background:#F7F7F7;">
+<tr align="left" style="background:#F7F7F7;">
+<td style="width:5%;"></td>
+<td style="background:#fff;border-radius:4px;box-shadow:0 2px 4px 0 rgba(0,0,0,0.15);margin:0 auto;padding:15px;width:90%;">
+<table cellpadding="0" cellspacing="0" style="background:#fff;width:100%;font-size:13px;font-family:sans-serif;">
+<tbody>
+<tr>
+<td width="50%" align="left" style="color:#333;">
+Fecha de emisión: <span style="font-weight:700;">29 de septiembre de 2026</span>
+</td>
+<td width="50%" align="right" style="color:#333;">
+Total cotizado: <span style="font-weight:700;color:#e10098;font-size:15px;">$8,491.50</span>
+</td>
+</tr>
+</tbody>
+</table>
+</td>
+<td style="width:5%;"></td>
+</tr>
+</tbody>
+</table>
+
+<!-- SUMMARY BLOCK HEADER: CLIENTE Y ASESOR -->
+<table cellpadding="0" cellspacing="0" border="0" style="width:100%;max-width: 650px;margin-top: 15px;margin-bottom:5px;" id="clientAdvisorHeader">
+<tbody style="background:#F7F7F7;">
+<tr align="left" style="background:#F7F7F7;">
+<td style="background:#F7F7F7;width:5%;"></td>
+<td style="background:#F7F7F7;width:90%;">
+<h3 style="border-bottom:2px solid #e10098;color:#FFF;font-size:15px;font-weight:normal;margin:0;font-family:sans-serif;">
+<span style="background:#e10098;display:table-cell;height:30px;line-height:30px;padding:3px 16px 0;border-radius:4px 4px 0 0;">
+Información del Cliente y Asesor
+</span>
+</h3>
+</td>
+<td style="background:#F7F7F7;width:5%;"></td>
+</tr>
+</tbody>
+</table>
+
+<!-- SUMMARY BLOCK CONTENT: CLIENTE Y ASESOR -->
+<table cellpadding="0" cellspacing="0" border="0" style="width:100%;max-width: 650px;margin-bottom:10px;" id="clientAdvisorContent">
+<tbody style="background:#F7F7F7;">
+<tr align="left" style="background:#F7F7F7; width: 100%;">
+<td style="background:#F7F7F7;width:5%;"></td>
+<td style="background:#FFF;border-radius:4px;box-shadow:0 2px 4px 0 rgba(0, 0, 0, 0.15);margin:0 auto;padding:15px;width:90%;font-family:sans-serif;font-size:13px;line-height:1.5;color:#333;">
+<table cellpadding="0" cellspacing="0" style="width:100%;">
+<tr>
+<td width="48%" valign="top" style="border-right:1px solid #eee;padding-right:10px;">
+<p style="margin:2px 0;color:#e10098;font-weight:bold;font-size:13px;">Dirigido a:</p>
+<p style="margin:2px 0;"><strong>Cliente:</strong> Karla Luna Velázquez</p>
+<p style="margin:2px 0;"><strong>Correo:</strong> karlaluna13@ejemplo.com</p>
+<p style="margin:2px 0;"><strong>Teléfono:</strong> 5537486096</p>
+</td>
+<td width="4%">&nbsp;</td>
+<td width="48%" valign="top" style="padding-left:10px;">
+<p style="margin:2px 0;color:#e10098;font-weight:bold;font-size:13px;">Atendido por:</p>
+<p style="margin:2px 0;"><strong>Asesor:</strong> Jorge Ramírez</p>
+<p style="margin:2px 0;"><strong>Folio:</strong> LVP-260929-0002</p>
+</td>
+</tr>
+</table>
+</td>
+<td style="background:#F7F7F7;width:5%;"></td>
+</tr>
+</tbody>
+</table>
+
+<!-- SECTION HEADER: TUS PRODUCTOS -->
+<table cellpadding="0" cellspacing="0" border="0" style="width:100%;max-width: 650px;margin-top: 15px;margin-bottom:5px;" id="productsHeader">
+<tbody style="background:#F7F7F7;">
+<tr align="left" style="background:#F7F7F7;">
+<td style="background:#F7F7F7;width:5%;"></td>
+<td style="background:#F7F7F7;width:90%;">
+<h3 style="border-bottom:2px solid #e10098;color:#FFF;font-size:15px;font-weight:normal;margin:0;font-family:sans-serif;">
+<span style="background:#e10098;display:table-cell;height:30px;line-height:30px;padding:3px 16px 0;border-radius:4px 4px 0 0;">
+Detalle de Artículos
+</span>
+</h3>
+</td>
+<td style="background:#F7F7F7;width:5%;"></td>
+</tr>
+</tbody>
+</table>
+
+<!-- PRODUCTS LIST LOOP -->
+
+<!-- CARD DE PRODUCTO INDIVIDUAL -->
+<table cellpadding="0" cellspacing="0" border="0" style="width:100%;max-width: 650px;margin-top: 10px;margin-bottom:10px;" id="lineItems LIV">
+<tbody style="background:#F7F7F7;">
+<tr align="left" style="background:#F7F7F7; width: 100%;">
+<td style="background:#F7F7F7;width:5%;"></td>
+<td style="background:#fff;border-radius:4px;box-shadow:0 2px 4px 0 rgba(0,0,0,0.15);margin:0 auto;padding:15px;width:90%;">
+<table cellpadding="0" cellspacing="0" style="width:100%;background:#fff;">
+<tbody>
+<tr>
+<!-- Imagen del producto (Left) -->
+<td align="center" width="35%" valign="top" style="padding-top:10px;padding-right:15px;text-align:center;">
+<img style="max-width:140px;width:100%;height:auto;border-radius:4px;border:1px solid #f0f0f0;" alt="Liverpool Product" src="https://assets.liverpool.com.mx/assets/images/placeholder.gif">
+</td>
+<!-- Detalles del producto (Right) -->
+<td valign="top" style="font-family:sans-serif;color:#333;">
+<h2 style="color:#333;font-size:15px;margin:10px 0 6px 0;font-weight:bold;line-height:1.4;">
+Aire acondicionado minisplit 1 tonelada inverter 110 V solo frío
+</h2>
+<p style="color:#666;font-size:12px;margin:0 0 10px 0;">
+Código de producto: <strong>1984886746</strong>
+</p>
+
+<!-- Tabla interna de precios -->
+<table cellpadding="0" cellspacing="0" style="width:100%;font-size:12px;color:#555;border-top:1px dashed #eee;padding-top:8px;">
+<tr>
+<td style="width:50%;padding-bottom:5px;">
+Precio unitario:<br>
+<span style="color:#333;font-weight:bold;font-size:13px;">$9,990.00</span>
+</td>
+<td style="width:50%;padding-bottom:5px;">
+Cantidad:<br>
+<span style="color:#333;font-weight:bold;font-size:13px;">1</span>
+</td>
+</tr>
+<tr>
+<td style="padding-bottom:5px;">
+Promoción:<br>
+<span style="color:#333;font-weight:bold;">PRECIO BASE</span>
+</td>
+<td style="padding-bottom:5px;">
+Descuento:<br>
+<span style="color:#ef4444;font-weight:bold;">
+-$1,498.50 (15%)
+</span>
+</td>
+</tr>
+<tr>
+<td colspan="2" style="border-top:1px solid #eee;padding-top:8px;">
+<p style="color:#666;font-size:12px;margin:0;">Total artículo: <span style="color:#f00;font-weight:bold;font-size:14px;margin-left:5px;">$8,491.50</span></p>
+</td>
+</tr>
+</table>
+</td>
+</tr>
+</tbody>
+</table>
+</td>
+<td style="background:#F7F7F7;width:5%;"></td>
+</tr>
+</tbody>
+</table>
+
+
+<!-- TOTALS SUMMARY CARD -->
+<table cellpadding="0" cellspacing="0" border="0" style="width:100%;max-width: 650px;margin-top: 10px;margin-bottom:10px;" id="totalsSummary">
+<tbody style="background:#F7F7F7;">
+<tr align="left" style="background:#F7F7F7;">
+<td style="width:5%;"></td>
+<td style="background:#fff;border-radius:4px;box-shadow:0 2px 4px 0 rgba(0,0,0,0.15);margin:0 auto;padding:15px;width:90%;">
+<table cellpadding="0" cellspacing="0" style="background:#fff;width:100%;font-size:13px;font-family:sans-serif;color:#333;">
+<tbody>
+<tr>
+<td align="right" style="padding: 4px 0;color:#666;">Subtotal:</td>
+<td align="right" width="30%" style="padding: 4px 0;font-weight:700;">$7,320.26</td>
+</tr>
+<tr>
+<td align="right" style="padding: 4px 0;color:#666;">IVA (16%):</td>
+<td align="right" style="padding: 4px 0;font-weight:700;">$1,171.24</td>
+</tr>
+<tr style="font-size:15px;font-weight:bold;color:#e10098;">
+<td align="right" style="border-top:1.5px solid #e10098;padding-top:10px;margin-top:5px;">TOTAL GENERAL:</td>
+<td align="right" style="border-top:1.5px solid #e10098;padding-top:10px;margin-top:5px;color:#e10098;font-size:16px;">$8,491.50</td>
+</tr>
+</tbody>
+</table>
+</td>
+<td style="width:5%;"></td>
+</tr>
+</tbody>
+</table>
+
+<!-- EMAIL FOOTER INFO -->
+<table cellpadding="0" cellspacing="0" border="0" style="width:100%;max-width: 650px;margin-top: 20px;margin-bottom:20px;" id="footerInfo">
+<tbody style="background:#F7F7F7;">
+<tr align="center" style="background:#F7F7F7;">
+<td style="width:5%;"></td>
+<td style="font-family:sans-serif;font-size:11px;color:#888;line-height:1.5;text-align:center;width:90%;">
+<p style="margin: 0 0 10px 0;"><strong>Nota:</strong> Se adjunta a este correo el archivo PDF oficial con la cotización formal detallada para su descarga o impresión.</p>
+<p style="margin: 0 0 15px 0;font-weight:bold;color:#e10098;font-size:12px;">Liverpool - Es parte de mi vida</p>
+</td>
+<td style="width:5%;"></td>
+</tr>
+</tbody>
+</table>
+
+</td>
+</tr>
+</tbody>
+</table>
+</body>
+</html>
+', '', '[{"nombre":"Cotizacion_LVP-260929-0002.pdf — no adjuntado: esta versión de demostración no genera el PDF (Google Drive)","tipo":"application/pdf","bytes":0}]', 'cotizacion', 'LVP-260929-0002', 'omitido', '', 'Dato de ejemplo');
+INSERT INTO correos_salida (fecha, de, nombre_de, responder_a, para, cc, cco, asunto, html, texto, adjuntos, tipo, referencia, estado, proveedor_id, detalle) VALUES ('2026-09-30T16:08:08.681Z', 'ventel@logidma.com', 'Cotizaciones Ventel Liverpool', 'asesor@ventel.example', 'orozcog82@ejemplo.com', '', '', 'Cotización de Servicios Ventel - Folio LVP-260929-0003', '
+<!DOCTYPE html PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN" "http://www.w3.org/TR/html4/loose.dtd">
+<html>
+<head>
+<meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Tu Cotización está Lista</title>
+<style type="text/css">
+body {
+font-family: sans-serif;
+margin: 0 auto !important;
+padding: 0 !important;
+background: #F7F7F7;
+max-width: 650px;
+}
+</style>
+</head>
+<body bgcolor="#F7F7F7" style="background-color: #F7F7F7; margin: 0 auto !important; padding: 0 !important; font-family: sans-serif; max-width: 650px;">
+<table width="100%" border="0" cellpadding="0" cellspacing="0" align="center" style="background-color: #F7F7F7;">
+<tbody>
+<tr>
+<td align="center" valign="top" style="padding-top: 20px;">
+
+<!-- TOP HEADER LOGO (Liverpool banner) -->
+<table width="100%" cellspacing="0" cellpadding="0" role="presentation" style="max-width: 650px;">
+<tbody>
+<tr>
+<td align="center" style="background-color: #F7F7F7;">
+<img src="https://upload.wikimedia.org/wikipedia/commons/thumb/3/35/Liverpool_logo.svg/1280px-Liverpool_logo.svg.png" alt="Liverpool - Es parte de mi vida" style="display: block; padding: 10px 0; text-align: center; height: auto; max-width: 160px; margin: 0 auto; border: 0;">
+</td>
+</tr>
+</tbody>
+</table>
+
+<!-- HEADER: ¡TU COTIZACIÓN ESTÁ LISTA! -->
+<table align="center" cellpadding="0" cellspacing="0" border="0" style="width:100%;max-width: 650px;margin-top: 10px;margin-bottom:10px;" id="LIV Order">
+<tbody style="background:#F7F7F7;">
+<tr align="center" style="background:#F7F7F7;">
+<td style="width:5%;"></td>
+<td style="background:#FFF;border-radius:4px;box-shadow:0 2px 4px 0 rgba(0, 0, 0, 0.15);margin:0 auto;padding:25px;width:90%;text-align:center;">
+<h1 style="margin: 0; color:#333;font-size:24px;font-weight:bold;font-family:sans-serif;">
+¡Tu cotización está lista!
+</h1>
+<p style="color:#666; margin:15px 0 0 0; font-size:14px; line-height:1.5; font-family:sans-serif; text-align:center;">
+Te compartimos los detalles de la cotización que solicitaste. Los precios e indicaciones se detallan a continuación.
+</p>
+</td>
+<td style="width:5%;"></td>
+</tr>
+</tbody>
+</table>
+
+<!-- ADVISOR''S CUSTOM MESSAGE CARD -->
+<table cellpadding="0" cellspacing="0" border="0" style="width:100%;max-width: 650px;margin-top: 10px;margin-bottom:10px;" id="advisorMessageCard">
+<tbody style="background:#F7F7F7;">
+<tr align="left" style="background:#F7F7F7;">
+<td style="width:5%;"></td>
+<td style="background:#fff;border-radius:4px;box-shadow:0 2px 4px 0 rgba(0,0,0,0.15);margin:0 auto;padding:18px;width:90%;font-family:sans-serif;font-size:14px;color:#333;line-height:1.5;">
+<p style="margin:0 0 10px 0;font-weight:bold;color:#e10098;font-size:14px;">Mensaje de tu Asesor:</p>
+<div style="background:#fdf2f8;border-left:4px solid #e10098;padding:12px 16px;border-radius:0 4px 4px 0;color:#4c4c4c;line-height:1.5;">
+Estimado(a) Gilberto Orozco Díaz,<br><br>Junto con saludar, y como seguimiento a nuestra conversación, le hago llegar la cotización solicitada con folio LVP-260929-0003.<br><br>Quedo a sus órdenes para cualquier duda o aclaración.<br><br>Saludos cordiales,
+</div>
+</td>
+<td style="width:5%;"></td>
+</tr>
+</tbody>
+</table>
+
+<!-- NOTICE BANNER (Yellow alert box) -->
+<table style="width:100%;max-width: 650px;margin-top: 10px;margin-bottom:10px;" cellpadding="0" cellspacing="0" border="0" id="noticeAlert">
+<tbody style="background:#f7f7f7;">
+<tr style="background:#f7f7f7;">
+<td style="width:5%;"></td>
+<td style="background:#F7F7F7; width:90%;">
+<table cellpadding="0" cellspacing="0" style="width:100%;">
+<tr>
+<td style="border-left:5px solid #ffd457; background:#fff4d4; padding:12px 15px; border-radius: 0 4px 4px 0; font-size:13px; color:#665c40; font-family:sans-serif; text-align:left; line-height:1.4;">
+<strong>Nota importante:</strong> Los precios y promociones están sujetos a cambios sin previo aviso. Esta cotización tiene fines informativos y la disponibilidad de los artículos se garantiza al concretar la compra.
+</td>
+</tr>
+</table>
+</td>
+<td style="width:5%;"></td>
+</tr>
+</tbody>
+</table>
+
+<!-- GENERAL DATES & TOTALS CARD -->
+<table cellpadding="0" cellspacing="0" border="0" style="width:100%;max-width: 650px;margin-top: 10px;margin-bottom:10px;" id="datesAndTotals">
+<tbody style="background:#F7F7F7;">
+<tr align="left" style="background:#F7F7F7;">
+<td style="width:5%;"></td>
+<td style="background:#fff;border-radius:4px;box-shadow:0 2px 4px 0 rgba(0,0,0,0.15);margin:0 auto;padding:15px;width:90%;">
+<table cellpadding="0" cellspacing="0" style="background:#fff;width:100%;font-size:13px;font-family:sans-serif;">
+<tbody>
+<tr>
+<td width="50%" align="left" style="color:#333;">
+Fecha de emisión: <span style="font-weight:700;">29 de septiembre de 2026</span>
+</td>
+<td width="50%" align="right" style="color:#333;">
+Total cotizado: <span style="font-weight:700;color:#e10098;font-size:15px;">$11,992.50</span>
+</td>
+</tr>
+</tbody>
+</table>
+</td>
+<td style="width:5%;"></td>
+</tr>
+</tbody>
+</table>
+
+<!-- SUMMARY BLOCK HEADER: CLIENTE Y ASESOR -->
+<table cellpadding="0" cellspacing="0" border="0" style="width:100%;max-width: 650px;margin-top: 15px;margin-bottom:5px;" id="clientAdvisorHeader">
+<tbody style="background:#F7F7F7;">
+<tr align="left" style="background:#F7F7F7;">
+<td style="background:#F7F7F7;width:5%;"></td>
+<td style="background:#F7F7F7;width:90%;">
+<h3 style="border-bottom:2px solid #e10098;color:#FFF;font-size:15px;font-weight:normal;margin:0;font-family:sans-serif;">
+<span style="background:#e10098;display:table-cell;height:30px;line-height:30px;padding:3px 16px 0;border-radius:4px 4px 0 0;">
+Información del Cliente y Asesor
+</span>
+</h3>
+</td>
+<td style="background:#F7F7F7;width:5%;"></td>
+</tr>
+</tbody>
+</table>
+
+<!-- SUMMARY BLOCK CONTENT: CLIENTE Y ASESOR -->
+<table cellpadding="0" cellspacing="0" border="0" style="width:100%;max-width: 650px;margin-bottom:10px;" id="clientAdvisorContent">
+<tbody style="background:#F7F7F7;">
+<tr align="left" style="background:#F7F7F7; width: 100%;">
+<td style="background:#F7F7F7;width:5%;"></td>
+<td style="background:#FFF;border-radius:4px;box-shadow:0 2px 4px 0 rgba(0, 0, 0, 0.15);margin:0 auto;padding:15px;width:90%;font-family:sans-serif;font-size:13px;line-height:1.5;color:#333;">
+<table cellpadding="0" cellspacing="0" style="width:100%;">
+<tr>
+<td width="48%" valign="top" style="border-right:1px solid #eee;padding-right:10px;">
+<p style="margin:2px 0;color:#e10098;font-weight:bold;font-size:13px;">Dirigido a:</p>
+<p style="margin:2px 0;"><strong>Cliente:</strong> Gilberto Orozco Díaz</p>
+<p style="margin:2px 0;"><strong>Correo:</strong> orozcog82@ejemplo.com</p>
+<p style="margin:2px 0;"><strong>Teléfono:</strong> (55) 8882 8415</p>
+</td>
+<td width="4%">&nbsp;</td>
+<td width="48%" valign="top" style="padding-left:10px;">
+<p style="margin:2px 0;color:#e10098;font-weight:bold;font-size:13px;">Atendido por:</p>
+<p style="margin:2px 0;"><strong>Asesor:</strong> Carlos Mendoza</p>
+<p style="margin:2px 0;"><strong>Folio:</strong> LVP-260929-0003</p>
+</td>
+</tr>
+</table>
+</td>
+<td style="background:#F7F7F7;width:5%;"></td>
+</tr>
+</tbody>
+</table>
+
+<!-- SECTION HEADER: TUS PRODUCTOS -->
+<table cellpadding="0" cellspacing="0" border="0" style="width:100%;max-width: 650px;margin-top: 15px;margin-bottom:5px;" id="productsHeader">
+<tbody style="background:#F7F7F7;">
+<tr align="left" style="background:#F7F7F7;">
+<td style="background:#F7F7F7;width:5%;"></td>
+<td style="background:#F7F7F7;width:90%;">
+<h3 style="border-bottom:2px solid #e10098;color:#FFF;font-size:15px;font-weight:normal;margin:0;font-family:sans-serif;">
+<span style="background:#e10098;display:table-cell;height:30px;line-height:30px;padding:3px 16px 0;border-radius:4px 4px 0 0;">
+Detalle de Artículos
+</span>
+</h3>
+</td>
+<td style="background:#F7F7F7;width:5%;"></td>
+</tr>
+</tbody>
+</table>
+
+<!-- PRODUCTS LIST LOOP -->
+
+<!-- CARD DE PRODUCTO INDIVIDUAL -->
+<table cellpadding="0" cellspacing="0" border="0" style="width:100%;max-width: 650px;margin-top: 10px;margin-bottom:10px;" id="lineItems LIV">
+<tbody style="background:#F7F7F7;">
+<tr align="left" style="background:#F7F7F7; width: 100%;">
+<td style="background:#F7F7F7;width:5%;"></td>
+<td style="background:#fff;border-radius:4px;box-shadow:0 2px 4px 0 rgba(0,0,0,0.15);margin:0 auto;padding:15px;width:90%;">
+<table cellpadding="0" cellspacing="0" style="width:100%;background:#fff;">
+<tbody>
+<tr>
+<!-- Imagen del producto (Left) -->
+<td align="center" width="35%" valign="top" style="padding-top:10px;padding-right:15px;text-align:center;">
+<img style="max-width:140px;width:100%;height:auto;border-radius:4px;border:1px solid #f0f0f0;" alt="Liverpool Product" src="https://assets.liverpool.com.mx/assets/images/placeholder.gif">
+</td>
+<!-- Detalles del producto (Right) -->
+<td valign="top" style="font-family:sans-serif;color:#333;">
+<h2 style="color:#333;font-size:15px;margin:10px 0 6px 0;font-weight:bold;line-height:1.4;">
+Sala modular 3 piezas tela gris
+</h2>
+<p style="color:#666;font-size:12px;margin:0 0 10px 0;">
+Código de producto: <strong>1907718699</strong>
+</p>
+
+<!-- Tabla interna de precios -->
+<table cellpadding="0" cellspacing="0" style="width:100%;font-size:12px;color:#555;border-top:1px dashed #eee;padding-top:8px;">
+<tr>
+<td style="width:50%;padding-bottom:5px;">
+Precio unitario:<br>
+<span style="color:#333;font-weight:bold;font-size:13px;">$15,990.00</span>
+</td>
+<td style="width:50%;padding-bottom:5px;">
+Cantidad:<br>
+<span style="color:#333;font-weight:bold;font-size:13px;">1</span>
+</td>
+</tr>
+<tr>
+<td style="padding-bottom:5px;">
+Promoción:<br>
+<span style="color:#333;font-weight:bold;">PRECIO BASE</span>
+</td>
+<td style="padding-bottom:5px;">
+Descuento:<br>
+<span style="color:#ef4444;font-weight:bold;">
+-$3,997.50 (25%)
+</span>
+</td>
+</tr>
+<tr>
+<td colspan="2" style="border-top:1px solid #eee;padding-top:8px;">
+<p style="color:#666;font-size:12px;margin:0;">Total artículo: <span style="color:#f00;font-weight:bold;font-size:14px;margin-left:5px;">$11,992.50</span></p>
+</td>
+</tr>
+</table>
+</td>
+</tr>
+</tbody>
+</table>
+</td>
+<td style="background:#F7F7F7;width:5%;"></td>
+</tr>
+</tbody>
+</table>
+
+
+<!-- TOTALS SUMMARY CARD -->
+<table cellpadding="0" cellspacing="0" border="0" style="width:100%;max-width: 650px;margin-top: 10px;margin-bottom:10px;" id="totalsSummary">
+<tbody style="background:#F7F7F7;">
+<tr align="left" style="background:#F7F7F7;">
+<td style="width:5%;"></td>
+<td style="background:#fff;border-radius:4px;box-shadow:0 2px 4px 0 rgba(0,0,0,0.15);margin:0 auto;padding:15px;width:90%;">
+<table cellpadding="0" cellspacing="0" style="background:#fff;width:100%;font-size:13px;font-family:sans-serif;color:#333;">
+<tbody>
+<tr>
+<td align="right" style="padding: 4px 0;color:#666;">Subtotal:</td>
+<td align="right" width="30%" style="padding: 4px 0;font-weight:700;">$10,338.36</td>
+</tr>
+<tr>
+<td align="right" style="padding: 4px 0;color:#666;">IVA (16%):</td>
+<td align="right" style="padding: 4px 0;font-weight:700;">$1,654.14</td>
+</tr>
+<tr style="font-size:15px;font-weight:bold;color:#e10098;">
+<td align="right" style="border-top:1.5px solid #e10098;padding-top:10px;margin-top:5px;">TOTAL GENERAL:</td>
+<td align="right" style="border-top:1.5px solid #e10098;padding-top:10px;margin-top:5px;color:#e10098;font-size:16px;">$11,992.50</td>
+</tr>
+</tbody>
+</table>
+</td>
+<td style="width:5%;"></td>
+</tr>
+</tbody>
+</table>
+
+<!-- EMAIL FOOTER INFO -->
+<table cellpadding="0" cellspacing="0" border="0" style="width:100%;max-width: 650px;margin-top: 20px;margin-bottom:20px;" id="footerInfo">
+<tbody style="background:#F7F7F7;">
+<tr align="center" style="background:#F7F7F7;">
+<td style="width:5%;"></td>
+<td style="font-family:sans-serif;font-size:11px;color:#888;line-height:1.5;text-align:center;width:90%;">
+<p style="margin: 0 0 10px 0;"><strong>Nota:</strong> Se adjunta a este correo el archivo PDF oficial con la cotización formal detallada para su descarga o impresión.</p>
+<p style="margin: 0 0 15px 0;font-weight:bold;color:#e10098;font-size:12px;">Liverpool - Es parte de mi vida</p>
+</td>
+<td style="width:5%;"></td>
+</tr>
+</tbody>
+</table>
+
+</td>
+</tr>
+</tbody>
+</table>
+</body>
+</html>
+', '', '[{"nombre":"Cotizacion_LVP-260929-0003.pdf — no adjuntado: esta versión de demostración no genera el PDF (Google Drive)","tipo":"application/pdf","bytes":0}]', 'cotizacion', 'LVP-260929-0003', 'omitido', '', 'Dato de ejemplo');
+INSERT INTO correos_salida (fecha, de, nombre_de, responder_a, para, cc, cco, asunto, html, texto, adjuntos, tipo, referencia, estado, proveedor_id, detalle) VALUES ('2026-09-30T18:04:32.672Z', 'ventel@logidma.com', 'Cotizaciones Ventel Liverpool', 'asesor@ventel.example', 'berenice.contreras@ejemplo.com', '', '', 'Cotización de Servicios Ventel - Folio LVP-260930-0002', '
+<!DOCTYPE html PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN" "http://www.w3.org/TR/html4/loose.dtd">
+<html>
+<head>
+<meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Tu Cotización está Lista</title>
+<style type="text/css">
+body {
+font-family: sans-serif;
+margin: 0 auto !important;
+padding: 0 !important;
+background: #F7F7F7;
+max-width: 650px;
+}
+</style>
+</head>
+<body bgcolor="#F7F7F7" style="background-color: #F7F7F7; margin: 0 auto !important; padding: 0 !important; font-family: sans-serif; max-width: 650px;">
+<table width="100%" border="0" cellpadding="0" cellspacing="0" align="center" style="background-color: #F7F7F7;">
+<tbody>
+<tr>
+<td align="center" valign="top" style="padding-top: 20px;">
+
+<!-- TOP HEADER LOGO (Liverpool banner) -->
+<table width="100%" cellspacing="0" cellpadding="0" role="presentation" style="max-width: 650px;">
+<tbody>
+<tr>
+<td align="center" style="background-color: #F7F7F7;">
+<img src="https://upload.wikimedia.org/wikipedia/commons/thumb/3/35/Liverpool_logo.svg/1280px-Liverpool_logo.svg.png" alt="Liverpool - Es parte de mi vida" style="display: block; padding: 10px 0; text-align: center; height: auto; max-width: 160px; margin: 0 auto; border: 0;">
+</td>
+</tr>
+</tbody>
+</table>
+
+<!-- HEADER: ¡TU COTIZACIÓN ESTÁ LISTA! -->
+<table align="center" cellpadding="0" cellspacing="0" border="0" style="width:100%;max-width: 650px;margin-top: 10px;margin-bottom:10px;" id="LIV Order">
+<tbody style="background:#F7F7F7;">
+<tr align="center" style="background:#F7F7F7;">
+<td style="width:5%;"></td>
+<td style="background:#FFF;border-radius:4px;box-shadow:0 2px 4px 0 rgba(0, 0, 0, 0.15);margin:0 auto;padding:25px;width:90%;text-align:center;">
+<h1 style="margin: 0; color:#333;font-size:24px;font-weight:bold;font-family:sans-serif;">
+¡Tu cotización está lista!
+</h1>
+<p style="color:#666; margin:15px 0 0 0; font-size:14px; line-height:1.5; font-family:sans-serif; text-align:center;">
+Te compartimos los detalles de la cotización que solicitaste. Los precios e indicaciones se detallan a continuación.
+</p>
+</td>
+<td style="width:5%;"></td>
+</tr>
+</tbody>
+</table>
+
+<!-- ADVISOR''S CUSTOM MESSAGE CARD -->
+<table cellpadding="0" cellspacing="0" border="0" style="width:100%;max-width: 650px;margin-top: 10px;margin-bottom:10px;" id="advisorMessageCard">
+<tbody style="background:#F7F7F7;">
+<tr align="left" style="background:#F7F7F7;">
+<td style="width:5%;"></td>
+<td style="background:#fff;border-radius:4px;box-shadow:0 2px 4px 0 rgba(0,0,0,0.15);margin:0 auto;padding:18px;width:90%;font-family:sans-serif;font-size:14px;color:#333;line-height:1.5;">
+<p style="margin:0 0 10px 0;font-weight:bold;color:#e10098;font-size:14px;">Mensaje de tu Asesor:</p>
+<div style="background:#fdf2f8;border-left:4px solid #e10098;padding:12px 16px;border-radius:0 4px 4px 0;color:#4c4c4c;line-height:1.5;">
+Estimado(a) Berenice Contreras Jiménez,<br><br>Junto con saludar, y como seguimiento a nuestra conversación, le hago llegar la cotización solicitada con folio LVP-260930-0002.<br><br>Quedo a sus órdenes para cualquier duda o aclaración.<br><br>Saludos cordiales,
+</div>
+</td>
+<td style="width:5%;"></td>
+</tr>
+</tbody>
+</table>
+
+<!-- NOTICE BANNER (Yellow alert box) -->
+<table style="width:100%;max-width: 650px;margin-top: 10px;margin-bottom:10px;" cellpadding="0" cellspacing="0" border="0" id="noticeAlert">
+<tbody style="background:#f7f7f7;">
+<tr style="background:#f7f7f7;">
+<td style="width:5%;"></td>
+<td style="background:#F7F7F7; width:90%;">
+<table cellpadding="0" cellspacing="0" style="width:100%;">
+<tr>
+<td style="border-left:5px solid #ffd457; background:#fff4d4; padding:12px 15px; border-radius: 0 4px 4px 0; font-size:13px; color:#665c40; font-family:sans-serif; text-align:left; line-height:1.4;">
+<strong>Nota importante:</strong> Los precios y promociones están sujetos a cambios sin previo aviso. Esta cotización tiene fines informativos y la disponibilidad de los artículos se garantiza al concretar la compra.
+</td>
+</tr>
+</table>
+</td>
+<td style="width:5%;"></td>
+</tr>
+</tbody>
+</table>
+
+<!-- GENERAL DATES & TOTALS CARD -->
+<table cellpadding="0" cellspacing="0" border="0" style="width:100%;max-width: 650px;margin-top: 10px;margin-bottom:10px;" id="datesAndTotals">
+<tbody style="background:#F7F7F7;">
+<tr align="left" style="background:#F7F7F7;">
+<td style="width:5%;"></td>
+<td style="background:#fff;border-radius:4px;box-shadow:0 2px 4px 0 rgba(0,0,0,0.15);margin:0 auto;padding:15px;width:90%;">
+<table cellpadding="0" cellspacing="0" style="background:#fff;width:100%;font-size:13px;font-family:sans-serif;">
+<tbody>
+<tr>
+<td width="50%" align="left" style="color:#333;">
+Fecha de emisión: <span style="font-weight:700;">30 de septiembre de 2026</span>
+</td>
+<td width="50%" align="right" style="color:#333;">
+Total cotizado: <span style="font-weight:700;color:#e10098;font-size:15px;">$11,192.00</span>
+</td>
+</tr>
+</tbody>
+</table>
+</td>
+<td style="width:5%;"></td>
+</tr>
+</tbody>
+</table>
+
+<!-- SUMMARY BLOCK HEADER: CLIENTE Y ASESOR -->
+<table cellpadding="0" cellspacing="0" border="0" style="width:100%;max-width: 650px;margin-top: 15px;margin-bottom:5px;" id="clientAdvisorHeader">
+<tbody style="background:#F7F7F7;">
+<tr align="left" style="background:#F7F7F7;">
+<td style="background:#F7F7F7;width:5%;"></td>
+<td style="background:#F7F7F7;width:90%;">
+<h3 style="border-bottom:2px solid #e10098;color:#FFF;font-size:15px;font-weight:normal;margin:0;font-family:sans-serif;">
+<span style="background:#e10098;display:table-cell;height:30px;line-height:30px;padding:3px 16px 0;border-radius:4px 4px 0 0;">
+Información del Cliente y Asesor
+</span>
+</h3>
+</td>
+<td style="background:#F7F7F7;width:5%;"></td>
+</tr>
+</tbody>
+</table>
+
+<!-- SUMMARY BLOCK CONTENT: CLIENTE Y ASESOR -->
+<table cellpadding="0" cellspacing="0" border="0" style="width:100%;max-width: 650px;margin-bottom:10px;" id="clientAdvisorContent">
+<tbody style="background:#F7F7F7;">
+<tr align="left" style="background:#F7F7F7; width: 100%;">
+<td style="background:#F7F7F7;width:5%;"></td>
+<td style="background:#FFF;border-radius:4px;box-shadow:0 2px 4px 0 rgba(0, 0, 0, 0.15);margin:0 auto;padding:15px;width:90%;font-family:sans-serif;font-size:13px;line-height:1.5;color:#333;">
+<table cellpadding="0" cellspacing="0" style="width:100%;">
+<tr>
+<td width="48%" valign="top" style="border-right:1px solid #eee;padding-right:10px;">
+<p style="margin:2px 0;color:#e10098;font-weight:bold;font-size:13px;">Dirigido a:</p>
+<p style="margin:2px 0;"><strong>Cliente:</strong> Berenice Contreras Jiménez</p>
+<p style="margin:2px 0;"><strong>Correo:</strong> berenice.contreras@ejemplo.com</p>
+<p style="margin:2px 0;"><strong>Teléfono:</strong> 81 5733 1134</p>
+</td>
+<td width="4%">&nbsp;</td>
+<td width="48%" valign="top" style="padding-left:10px;">
+<p style="margin:2px 0;color:#e10098;font-weight:bold;font-size:13px;">Atendido por:</p>
+<p style="margin:2px 0;"><strong>Asesor:</strong> Carlos Mendoza</p>
+<p style="margin:2px 0;"><strong>Folio:</strong> LVP-260930-0002</p>
+</td>
+</tr>
+</table>
+</td>
+<td style="background:#F7F7F7;width:5%;"></td>
+</tr>
+</tbody>
+</table>
+
+<!-- SECTION HEADER: TUS PRODUCTOS -->
+<table cellpadding="0" cellspacing="0" border="0" style="width:100%;max-width: 650px;margin-top: 15px;margin-bottom:5px;" id="productsHeader">
+<tbody style="background:#F7F7F7;">
+<tr align="left" style="background:#F7F7F7;">
+<td style="background:#F7F7F7;width:5%;"></td>
+<td style="background:#F7F7F7;width:90%;">
+<h3 style="border-bottom:2px solid #e10098;color:#FFF;font-size:15px;font-weight:normal;margin:0;font-family:sans-serif;">
+<span style="background:#e10098;display:table-cell;height:30px;line-height:30px;padding:3px 16px 0;border-radius:4px 4px 0 0;">
+Detalle de Artículos
+</span>
+</h3>
+</td>
+<td style="background:#F7F7F7;width:5%;"></td>
+</tr>
+</tbody>
+</table>
+
+<!-- PRODUCTS LIST LOOP -->
+
+<!-- CARD DE PRODUCTO INDIVIDUAL -->
+<table cellpadding="0" cellspacing="0" border="0" style="width:100%;max-width: 650px;margin-top: 10px;margin-bottom:10px;" id="lineItems LIV">
+<tbody style="background:#F7F7F7;">
+<tr align="left" style="background:#F7F7F7; width: 100%;">
+<td style="background:#F7F7F7;width:5%;"></td>
+<td style="background:#fff;border-radius:4px;box-shadow:0 2px 4px 0 rgba(0,0,0,0.15);margin:0 auto;padding:15px;width:90%;">
+<table cellpadding="0" cellspacing="0" style="width:100%;background:#fff;">
+<tbody>
+<tr>
+<!-- Imagen del producto (Left) -->
+<td align="center" width="35%" valign="top" style="padding-top:10px;padding-right:15px;text-align:center;">
+<img style="max-width:140px;width:100%;height:auto;border-radius:4px;border:1px solid #f0f0f0;" alt="Liverpool Product" src="https://assets.liverpool.com.mx/assets/images/placeholder.gif">
+</td>
+<!-- Detalles del producto (Right) -->
+<td valign="top" style="font-family:sans-serif;color:#333;">
+<h2 style="color:#333;font-size:15px;margin:10px 0 6px 0;font-weight:bold;line-height:1.4;">
+Recámara matrimonial 5 piezas
+</h2>
+<p style="color:#666;font-size:12px;margin:0 0 10px 0;">
+Código de producto: <strong>1906506912</strong>
+</p>
+
+<!-- Tabla interna de precios -->
+<table cellpadding="0" cellspacing="0" style="width:100%;font-size:12px;color:#555;border-top:1px dashed #eee;padding-top:8px;">
+<tr>
+<td style="width:50%;padding-bottom:5px;">
+Precio unitario:<br>
+<span style="color:#333;font-weight:bold;font-size:13px;">$13,990.00</span>
+</td>
+<td style="width:50%;padding-bottom:5px;">
+Cantidad:<br>
+<span style="color:#333;font-weight:bold;font-size:13px;">1</span>
+</td>
+</tr>
+<tr>
+<td style="padding-bottom:5px;">
+Promoción:<br>
+<span style="color:#333;font-weight:bold;">PRECIO BASE</span>
+</td>
+<td style="padding-bottom:5px;">
+Descuento:<br>
+<span style="color:#ef4444;font-weight:bold;">
+-$2,798.00 (20%)
+</span>
+</td>
+</tr>
+<tr>
+<td colspan="2" style="border-top:1px solid #eee;padding-top:8px;">
+<p style="color:#666;font-size:12px;margin:0;">Total artículo: <span style="color:#f00;font-weight:bold;font-size:14px;margin-left:5px;">$11,192.00</span></p>
+</td>
+</tr>
+</table>
+</td>
+</tr>
+</tbody>
+</table>
+</td>
+<td style="background:#F7F7F7;width:5%;"></td>
+</tr>
+</tbody>
+</table>
+
+
+<!-- TOTALS SUMMARY CARD -->
+<table cellpadding="0" cellspacing="0" border="0" style="width:100%;max-width: 650px;margin-top: 10px;margin-bottom:10px;" id="totalsSummary">
+<tbody style="background:#F7F7F7;">
+<tr align="left" style="background:#F7F7F7;">
+<td style="width:5%;"></td>
+<td style="background:#fff;border-radius:4px;box-shadow:0 2px 4px 0 rgba(0,0,0,0.15);margin:0 auto;padding:15px;width:90%;">
+<table cellpadding="0" cellspacing="0" style="background:#fff;width:100%;font-size:13px;font-family:sans-serif;color:#333;">
+<tbody>
+<tr>
+<td align="right" style="padding: 4px 0;color:#666;">Subtotal:</td>
+<td align="right" width="30%" style="padding: 4px 0;font-weight:700;">$9,648.28</td>
+</tr>
+<tr>
+<td align="right" style="padding: 4px 0;color:#666;">IVA (16%):</td>
+<td align="right" style="padding: 4px 0;font-weight:700;">$1,543.72</td>
+</tr>
+<tr style="font-size:15px;font-weight:bold;color:#e10098;">
+<td align="right" style="border-top:1.5px solid #e10098;padding-top:10px;margin-top:5px;">TOTAL GENERAL:</td>
+<td align="right" style="border-top:1.5px solid #e10098;padding-top:10px;margin-top:5px;color:#e10098;font-size:16px;">$11,192.00</td>
+</tr>
+</tbody>
+</table>
+</td>
+<td style="width:5%;"></td>
+</tr>
+</tbody>
+</table>
+
+<!-- EMAIL FOOTER INFO -->
+<table cellpadding="0" cellspacing="0" border="0" style="width:100%;max-width: 650px;margin-top: 20px;margin-bottom:20px;" id="footerInfo">
+<tbody style="background:#F7F7F7;">
+<tr align="center" style="background:#F7F7F7;">
+<td style="width:5%;"></td>
+<td style="font-family:sans-serif;font-size:11px;color:#888;line-height:1.5;text-align:center;width:90%;">
+<p style="margin: 0 0 10px 0;"><strong>Nota:</strong> Se adjunta a este correo el archivo PDF oficial con la cotización formal detallada para su descarga o impresión.</p>
+<p style="margin: 0 0 15px 0;font-weight:bold;color:#e10098;font-size:12px;">Liverpool - Es parte de mi vida</p>
+</td>
+<td style="width:5%;"></td>
+</tr>
+</tbody>
+</table>
+
+</td>
+</tr>
+</tbody>
+</table>
+</body>
+</html>
+', '', '[{"nombre":"Cotizacion_LVP-260930-0002.pdf — no adjuntado: esta versión de demostración no genera el PDF (Google Drive)","tipo":"application/pdf","bytes":0}]', 'cotizacion', 'LVP-260930-0002', 'omitido', '', 'Dato de ejemplo');
+INSERT INTO correos_salida (fecha, de, nombre_de, responder_a, para, cc, cco, asunto, html, texto, adjuntos, tipo, referencia, estado, proveedor_id, detalle) VALUES ('2026-09-30T22:16:29.683Z', 'ventel@logidma.com', 'Cotizaciones Ventel Liverpool', 'sofia.herrera@ventel.example', 'ibarrad82@ejemplo.com', '', '', 'Cotización de Servicios Ventel - Folio LVP-260930-0003', '
+<!DOCTYPE html PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN" "http://www.w3.org/TR/html4/loose.dtd">
+<html>
+<head>
+<meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Tu Cotización está Lista</title>
+<style type="text/css">
+body {
+font-family: sans-serif;
+margin: 0 auto !important;
+padding: 0 !important;
+background: #F7F7F7;
+max-width: 650px;
+}
+</style>
+</head>
+<body bgcolor="#F7F7F7" style="background-color: #F7F7F7; margin: 0 auto !important; padding: 0 !important; font-family: sans-serif; max-width: 650px;">
+<table width="100%" border="0" cellpadding="0" cellspacing="0" align="center" style="background-color: #F7F7F7;">
+<tbody>
+<tr>
+<td align="center" valign="top" style="padding-top: 20px;">
+
+<!-- TOP HEADER LOGO (Liverpool banner) -->
+<table width="100%" cellspacing="0" cellpadding="0" role="presentation" style="max-width: 650px;">
+<tbody>
+<tr>
+<td align="center" style="background-color: #F7F7F7;">
+<img src="https://upload.wikimedia.org/wikipedia/commons/thumb/3/35/Liverpool_logo.svg/1280px-Liverpool_logo.svg.png" alt="Liverpool - Es parte de mi vida" style="display: block; padding: 10px 0; text-align: center; height: auto; max-width: 160px; margin: 0 auto; border: 0;">
+</td>
+</tr>
+</tbody>
+</table>
+
+<!-- HEADER: ¡TU COTIZACIÓN ESTÁ LISTA! -->
+<table align="center" cellpadding="0" cellspacing="0" border="0" style="width:100%;max-width: 650px;margin-top: 10px;margin-bottom:10px;" id="LIV Order">
+<tbody style="background:#F7F7F7;">
+<tr align="center" style="background:#F7F7F7;">
+<td style="width:5%;"></td>
+<td style="background:#FFF;border-radius:4px;box-shadow:0 2px 4px 0 rgba(0, 0, 0, 0.15);margin:0 auto;padding:25px;width:90%;text-align:center;">
+<h1 style="margin: 0; color:#333;font-size:24px;font-weight:bold;font-family:sans-serif;">
+¡Tu cotización está lista!
+</h1>
+<p style="color:#666; margin:15px 0 0 0; font-size:14px; line-height:1.5; font-family:sans-serif; text-align:center;">
+Te compartimos los detalles de la cotización que solicitaste. Los precios e indicaciones se detallan a continuación.
+</p>
+</td>
+<td style="width:5%;"></td>
+</tr>
+</tbody>
+</table>
+
+<!-- ADVISOR''S CUSTOM MESSAGE CARD -->
+<table cellpadding="0" cellspacing="0" border="0" style="width:100%;max-width: 650px;margin-top: 10px;margin-bottom:10px;" id="advisorMessageCard">
+<tbody style="background:#F7F7F7;">
+<tr align="left" style="background:#F7F7F7;">
+<td style="width:5%;"></td>
+<td style="background:#fff;border-radius:4px;box-shadow:0 2px 4px 0 rgba(0,0,0,0.15);margin:0 auto;padding:18px;width:90%;font-family:sans-serif;font-size:14px;color:#333;line-height:1.5;">
+<p style="margin:0 0 10px 0;font-weight:bold;color:#e10098;font-size:14px;">Mensaje de tu Asesor:</p>
+<div style="background:#fdf2f8;border-left:4px solid #e10098;padding:12px 16px;border-radius:0 4px 4px 0;color:#4c4c4c;line-height:1.5;">
+Estimado(a) Daniela Ibarra,<br><br>Junto con saludar, y como seguimiento a nuestra conversación, le hago llegar la cotización solicitada con folio LVP-260930-0003.<br><br>Quedo a sus órdenes para cualquier duda o aclaración.<br><br>Saludos cordiales,
+</div>
+</td>
+<td style="width:5%;"></td>
+</tr>
+</tbody>
+</table>
+
+<!-- NOTICE BANNER (Yellow alert box) -->
+<table style="width:100%;max-width: 650px;margin-top: 10px;margin-bottom:10px;" cellpadding="0" cellspacing="0" border="0" id="noticeAlert">
+<tbody style="background:#f7f7f7;">
+<tr style="background:#f7f7f7;">
+<td style="width:5%;"></td>
+<td style="background:#F7F7F7; width:90%;">
+<table cellpadding="0" cellspacing="0" style="width:100%;">
+<tr>
+<td style="border-left:5px solid #ffd457; background:#fff4d4; padding:12px 15px; border-radius: 0 4px 4px 0; font-size:13px; color:#665c40; font-family:sans-serif; text-align:left; line-height:1.4;">
+<strong>Nota importante:</strong> Los precios y promociones están sujetos a cambios sin previo aviso. Esta cotización tiene fines informativos y la disponibilidad de los artículos se garantiza al concretar la compra.
+</td>
+</tr>
+</table>
+</td>
+<td style="width:5%;"></td>
+</tr>
+</tbody>
+</table>
+
+<!-- GENERAL DATES & TOTALS CARD -->
+<table cellpadding="0" cellspacing="0" border="0" style="width:100%;max-width: 650px;margin-top: 10px;margin-bottom:10px;" id="datesAndTotals">
+<tbody style="background:#F7F7F7;">
+<tr align="left" style="background:#F7F7F7;">
+<td style="width:5%;"></td>
+<td style="background:#fff;border-radius:4px;box-shadow:0 2px 4px 0 rgba(0,0,0,0.15);margin:0 auto;padding:15px;width:90%;">
+<table cellpadding="0" cellspacing="0" style="background:#fff;width:100%;font-size:13px;font-family:sans-serif;">
+<tbody>
+<tr>
+<td width="50%" align="left" style="color:#333;">
+Fecha de emisión: <span style="font-weight:700;">30 de septiembre de 2026</span>
+</td>
+<td width="50%" align="right" style="color:#333;">
+Total cotizado: <span style="font-weight:700;color:#e10098;font-size:15px;">$21,705.57</span>
+</td>
+</tr>
+</tbody>
+</table>
+</td>
+<td style="width:5%;"></td>
+</tr>
+</tbody>
+</table>
+
+<!-- SUMMARY BLOCK HEADER: CLIENTE Y ASESOR -->
+<table cellpadding="0" cellspacing="0" border="0" style="width:100%;max-width: 650px;margin-top: 15px;margin-bottom:5px;" id="clientAdvisorHeader">
+<tbody style="background:#F7F7F7;">
+<tr align="left" style="background:#F7F7F7;">
+<td style="background:#F7F7F7;width:5%;"></td>
+<td style="background:#F7F7F7;width:90%;">
+<h3 style="border-bottom:2px solid #e10098;color:#FFF;font-size:15px;font-weight:normal;margin:0;font-family:sans-serif;">
+<span style="background:#e10098;display:table-cell;height:30px;line-height:30px;padding:3px 16px 0;border-radius:4px 4px 0 0;">
+Información del Cliente y Asesor
+</span>
+</h3>
+</td>
+<td style="background:#F7F7F7;width:5%;"></td>
+</tr>
+</tbody>
+</table>
+
+<!-- SUMMARY BLOCK CONTENT: CLIENTE Y ASESOR -->
+<table cellpadding="0" cellspacing="0" border="0" style="width:100%;max-width: 650px;margin-bottom:10px;" id="clientAdvisorContent">
+<tbody style="background:#F7F7F7;">
+<tr align="left" style="background:#F7F7F7; width: 100%;">
+<td style="background:#F7F7F7;width:5%;"></td>
+<td style="background:#FFF;border-radius:4px;box-shadow:0 2px 4px 0 rgba(0, 0, 0, 0.15);margin:0 auto;padding:15px;width:90%;font-family:sans-serif;font-size:13px;line-height:1.5;color:#333;">
+<table cellpadding="0" cellspacing="0" style="width:100%;">
+<tr>
+<td width="48%" valign="top" style="border-right:1px solid #eee;padding-right:10px;">
+<p style="margin:2px 0;color:#e10098;font-weight:bold;font-size:13px;">Dirigido a:</p>
+<p style="margin:2px 0;"><strong>Cliente:</strong> Daniela Ibarra</p>
+<p style="margin:2px 0;"><strong>Correo:</strong> ibarrad82@ejemplo.com</p>
+<p style="margin:2px 0;"><strong>Teléfono:</strong> (81) 6723 5417</p>
+</td>
+<td width="4%">&nbsp;</td>
+<td width="48%" valign="top" style="padding-left:10px;">
+<p style="margin:2px 0;color:#e10098;font-weight:bold;font-size:13px;">Atendido por:</p>
+<p style="margin:2px 0;"><strong>Asesor:</strong> Sofía Herrera</p>
+<p style="margin:2px 0;"><strong>Folio:</strong> LVP-260930-0003</p>
+</td>
+</tr>
+</table>
+</td>
+<td style="background:#F7F7F7;width:5%;"></td>
+</tr>
+</tbody>
+</table>
+
+<!-- SECTION HEADER: TUS PRODUCTOS -->
+<table cellpadding="0" cellspacing="0" border="0" style="width:100%;max-width: 650px;margin-top: 15px;margin-bottom:5px;" id="productsHeader">
+<tbody style="background:#F7F7F7;">
+<tr align="left" style="background:#F7F7F7;">
+<td style="background:#F7F7F7;width:5%;"></td>
+<td style="background:#F7F7F7;width:90%;">
+<h3 style="border-bottom:2px solid #e10098;color:#FFF;font-size:15px;font-weight:normal;margin:0;font-family:sans-serif;">
+<span style="background:#e10098;display:table-cell;height:30px;line-height:30px;padding:3px 16px 0;border-radius:4px 4px 0 0;">
+Detalle de Artículos
+</span>
+</h3>
+</td>
+<td style="background:#F7F7F7;width:5%;"></td>
+</tr>
+</tbody>
+</table>
+
+<!-- PRODUCTS LIST LOOP -->
+
+<!-- CARD DE PRODUCTO INDIVIDUAL -->
+<table cellpadding="0" cellspacing="0" border="0" style="width:100%;max-width: 650px;margin-top: 10px;margin-bottom:10px;" id="lineItems LIV">
+<tbody style="background:#F7F7F7;">
+<tr align="left" style="background:#F7F7F7; width: 100%;">
+<td style="background:#F7F7F7;width:5%;"></td>
+<td style="background:#fff;border-radius:4px;box-shadow:0 2px 4px 0 rgba(0,0,0,0.15);margin:0 auto;padding:15px;width:90%;">
+<table cellpadding="0" cellspacing="0" style="width:100%;background:#fff;">
+<tbody>
+<tr>
+<!-- Imagen del producto (Left) -->
+<td align="center" width="35%" valign="top" style="padding-top:10px;padding-right:15px;text-align:center;">
+<img style="max-width:140px;width:100%;height:auto;border-radius:4px;border:1px solid #f0f0f0;" alt="Liverpool Product" src="https://assets.liverpool.com.mx/assets/images/placeholder.gif">
+</td>
+<!-- Detalles del producto (Right) -->
+<td valign="top" style="font-family:sans-serif;color:#333;">
+<h2 style="color:#333;font-size:15px;margin:10px 0 6px 0;font-weight:bold;line-height:1.4;">
+Laptop 14 pulgadas Intel Core i7 16 GB RAM 1 TB SSD
+</h2>
+<p style="color:#666;font-size:12px;margin:0 0 10px 0;">
+Código de producto: <strong>1958456284</strong>
+</p>
+
+<!-- Tabla interna de precios -->
+<table cellpadding="0" cellspacing="0" style="width:100%;font-size:12px;color:#555;border-top:1px dashed #eee;padding-top:8px;">
+<tr>
+<td style="width:50%;padding-bottom:5px;">
+Precio unitario:<br>
+<span style="color:#333;font-weight:bold;font-size:13px;">$22,990.00</span>
+</td>
+<td style="width:50%;padding-bottom:5px;">
+Cantidad:<br>
+<span style="color:#333;font-weight:bold;font-size:13px;">1</span>
+</td>
+</tr>
+<tr>
+<td style="padding-bottom:5px;">
+Promoción:<br>
+<span style="color:#333;font-weight:bold;">PRECIO BASE</span>
+</td>
+<td style="padding-bottom:5px;">
+Descuento:<br>
+<span style="color:#ef4444;font-weight:bold;">
+-$3,954.28 (17%)
+</span>
+</td>
+</tr>
+<tr>
+<td colspan="2" style="border-top:1px solid #eee;padding-top:8px;">
+<p style="color:#666;font-size:12px;margin:0;">Total artículo: <span style="color:#f00;font-weight:bold;font-size:14px;margin-left:5px;">$19,035.72</span></p>
+</td>
+</tr>
+</table>
+</td>
+</tr>
+</tbody>
+</table>
+</td>
+<td style="background:#F7F7F7;width:5%;"></td>
+</tr>
+</tbody>
+</table>
+
+<!-- CARD DE PRODUCTO INDIVIDUAL -->
+<table cellpadding="0" cellspacing="0" border="0" style="width:100%;max-width: 650px;margin-top: 10px;margin-bottom:10px;" id="lineItems LIV">
+<tbody style="background:#F7F7F7;">
+<tr align="left" style="background:#F7F7F7; width: 100%;">
+<td style="background:#F7F7F7;width:5%;"></td>
+<td style="background:#fff;border-radius:4px;box-shadow:0 2px 4px 0 rgba(0,0,0,0.15);margin:0 auto;padding:15px;width:90%;">
+<table cellpadding="0" cellspacing="0" style="width:100%;background:#fff;">
+<tbody>
+<tr>
+<!-- Imagen del producto (Left) -->
+<td align="center" width="35%" valign="top" style="padding-top:10px;padding-right:15px;text-align:center;">
+<img style="max-width:140px;width:100%;height:auto;border-radius:4px;border:1px solid #f0f0f0;" alt="Liverpool Product" src="https://assets.liverpool.com.mx/assets/images/placeholder.gif">
+</td>
+<!-- Detalles del producto (Right) -->
+<td valign="top" style="font-family:sans-serif;color:#333;">
+<h2 style="color:#333;font-size:15px;margin:10px 0 6px 0;font-weight:bold;line-height:1.4;">
+Monitor 27 pulgadas Full HD 75 Hz
+</h2>
+<p style="color:#666;font-size:12px;margin:0 0 10px 0;">
+Código de producto: <strong>1964087043</strong>
+</p>
+
+<!-- Tabla interna de precios -->
+<table cellpadding="0" cellspacing="0" style="width:100%;font-size:12px;color:#555;border-top:1px dashed #eee;padding-top:8px;">
+<tr>
+<td style="width:50%;padding-bottom:5px;">
+Precio unitario:<br>
+<span style="color:#333;font-weight:bold;font-size:13px;">$3,490.00</span>
+</td>
+<td style="width:50%;padding-bottom:5px;">
+Cantidad:<br>
+<span style="color:#333;font-weight:bold;font-size:13px;">1</span>
+</td>
+</tr>
+<tr>
+<td style="padding-bottom:5px;">
+Promoción:<br>
+<span style="color:#333;font-weight:bold;">PRECIO BASE</span>
+</td>
+<td style="padding-bottom:5px;">
+Descuento:<br>
+<span style="color:#ef4444;font-weight:bold;">
+-$820.15 (24%)
+</span>
+</td>
+</tr>
+<tr>
+<td colspan="2" style="border-top:1px solid #eee;padding-top:8px;">
+<p style="color:#666;font-size:12px;margin:0;">Total artículo: <span style="color:#f00;font-weight:bold;font-size:14px;margin-left:5px;">$2,669.85</span></p>
+</td>
+</tr>
+</table>
+</td>
+</tr>
+</tbody>
+</table>
+</td>
+<td style="background:#F7F7F7;width:5%;"></td>
+</tr>
+</tbody>
+</table>
+
+
+<!-- TOTALS SUMMARY CARD -->
+<table cellpadding="0" cellspacing="0" border="0" style="width:100%;max-width: 650px;margin-top: 10px;margin-bottom:10px;" id="totalsSummary">
+<tbody style="background:#F7F7F7;">
+<tr align="left" style="background:#F7F7F7;">
+<td style="width:5%;"></td>
+<td style="background:#fff;border-radius:4px;box-shadow:0 2px 4px 0 rgba(0,0,0,0.15);margin:0 auto;padding:15px;width:90%;">
+<table cellpadding="0" cellspacing="0" style="background:#fff;width:100%;font-size:13px;font-family:sans-serif;color:#333;">
+<tbody>
+<tr>
+<td align="right" style="padding: 4px 0;color:#666;">Subtotal:</td>
+<td align="right" width="30%" style="padding: 4px 0;font-weight:700;">$18,711.70</td>
+</tr>
+<tr>
+<td align="right" style="padding: 4px 0;color:#666;">IVA (16%):</td>
+<td align="right" style="padding: 4px 0;font-weight:700;">$2,993.87</td>
+</tr>
+<tr style="font-size:15px;font-weight:bold;color:#e10098;">
+<td align="right" style="border-top:1.5px solid #e10098;padding-top:10px;margin-top:5px;">TOTAL GENERAL:</td>
+<td align="right" style="border-top:1.5px solid #e10098;padding-top:10px;margin-top:5px;color:#e10098;font-size:16px;">$21,705.57</td>
+</tr>
+</tbody>
+</table>
+</td>
+<td style="width:5%;"></td>
+</tr>
+</tbody>
+</table>
+
+<!-- EMAIL FOOTER INFO -->
+<table cellpadding="0" cellspacing="0" border="0" style="width:100%;max-width: 650px;margin-top: 20px;margin-bottom:20px;" id="footerInfo">
+<tbody style="background:#F7F7F7;">
+<tr align="center" style="background:#F7F7F7;">
+<td style="width:5%;"></td>
+<td style="font-family:sans-serif;font-size:11px;color:#888;line-height:1.5;text-align:center;width:90%;">
+<p style="margin: 0 0 10px 0;"><strong>Nota:</strong> Se adjunta a este correo el archivo PDF oficial con la cotización formal detallada para su descarga o impresión.</p>
+<p style="margin: 0 0 15px 0;font-weight:bold;color:#e10098;font-size:12px;">Liverpool - Es parte de mi vida</p>
+</td>
+<td style="width:5%;"></td>
+</tr>
+</tbody>
+</table>
+
+</td>
+</tr>
+</tbody>
+</table>
+</body>
+</html>
+', '', '[{"nombre":"Cotizacion_LVP-260930-0003.pdf — no adjuntado: esta versión de demostración no genera el PDF (Google Drive)","tipo":"application/pdf","bytes":0}]', 'cotizacion', 'LVP-260930-0003', 'omitido', '', 'Dato de ejemplo');
+INSERT INTO correos_salida (fecha, de, nombre_de, responder_a, para, cc, cco, asunto, html, texto, adjuntos, tipo, referencia, estado, proveedor_id, detalle) VALUES ('2026-10-02T15:26:58.939Z', 'ventel@logidma.com', 'Cotizaciones Ventel Liverpool', 'valeria.castro@ventel.example', 'moralesc78@ejemplo.com', '', '', 'Cotización de Servicios Ventel - Folio LVP-261001-0003', '
+<!DOCTYPE html PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN" "http://www.w3.org/TR/html4/loose.dtd">
+<html>
+<head>
+<meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Tu Cotización está Lista</title>
+<style type="text/css">
+body {
+font-family: sans-serif;
+margin: 0 auto !important;
+padding: 0 !important;
+background: #F7F7F7;
+max-width: 650px;
+}
+</style>
+</head>
+<body bgcolor="#F7F7F7" style="background-color: #F7F7F7; margin: 0 auto !important; padding: 0 !important; font-family: sans-serif; max-width: 650px;">
+<table width="100%" border="0" cellpadding="0" cellspacing="0" align="center" style="background-color: #F7F7F7;">
+<tbody>
+<tr>
+<td align="center" valign="top" style="padding-top: 20px;">
+
+<!-- TOP HEADER LOGO (Liverpool banner) -->
+<table width="100%" cellspacing="0" cellpadding="0" role="presentation" style="max-width: 650px;">
+<tbody>
+<tr>
+<td align="center" style="background-color: #F7F7F7;">
+<img src="https://upload.wikimedia.org/wikipedia/commons/thumb/3/35/Liverpool_logo.svg/1280px-Liverpool_logo.svg.png" alt="Liverpool - Es parte de mi vida" style="display: block; padding: 10px 0; text-align: center; height: auto; max-width: 160px; margin: 0 auto; border: 0;">
+</td>
+</tr>
+</tbody>
+</table>
+
+<!-- HEADER: ¡TU COTIZACIÓN ESTÁ LISTA! -->
+<table align="center" cellpadding="0" cellspacing="0" border="0" style="width:100%;max-width: 650px;margin-top: 10px;margin-bottom:10px;" id="LIV Order">
+<tbody style="background:#F7F7F7;">
+<tr align="center" style="background:#F7F7F7;">
+<td style="width:5%;"></td>
+<td style="background:#FFF;border-radius:4px;box-shadow:0 2px 4px 0 rgba(0, 0, 0, 0.15);margin:0 auto;padding:25px;width:90%;text-align:center;">
+<h1 style="margin: 0; color:#333;font-size:24px;font-weight:bold;font-family:sans-serif;">
+¡Tu cotización está lista!
+</h1>
+<p style="color:#666; margin:15px 0 0 0; font-size:14px; line-height:1.5; font-family:sans-serif; text-align:center;">
+Te compartimos los detalles de la cotización que solicitaste. Los precios e indicaciones se detallan a continuación.
+</p>
+</td>
+<td style="width:5%;"></td>
+</tr>
+</tbody>
+</table>
+
+<!-- ADVISOR''S CUSTOM MESSAGE CARD -->
+<table cellpadding="0" cellspacing="0" border="0" style="width:100%;max-width: 650px;margin-top: 10px;margin-bottom:10px;" id="advisorMessageCard">
+<tbody style="background:#F7F7F7;">
+<tr align="left" style="background:#F7F7F7;">
+<td style="width:5%;"></td>
+<td style="background:#fff;border-radius:4px;box-shadow:0 2px 4px 0 rgba(0,0,0,0.15);margin:0 auto;padding:18px;width:90%;font-family:sans-serif;font-size:14px;color:#333;line-height:1.5;">
+<p style="margin:0 0 10px 0;font-weight:bold;color:#e10098;font-size:14px;">Mensaje de tu Asesor:</p>
+<div style="background:#fdf2f8;border-left:4px solid #e10098;padding:12px 16px;border-radius:0 4px 4px 0;color:#4c4c4c;line-height:1.5;">
+Estimado(a) Carlos Morales de la Rosa,<br><br>Junto con saludar, y como seguimiento a nuestra conversación, le hago llegar la cotización solicitada con folio LVP-261001-0003.<br><br>Quedo a sus órdenes para cualquier duda o aclaración.<br><br>Saludos cordiales,
+</div>
+</td>
+<td style="width:5%;"></td>
+</tr>
+</tbody>
+</table>
+
+<!-- NOTICE BANNER (Yellow alert box) -->
+<table style="width:100%;max-width: 650px;margin-top: 10px;margin-bottom:10px;" cellpadding="0" cellspacing="0" border="0" id="noticeAlert">
+<tbody style="background:#f7f7f7;">
+<tr style="background:#f7f7f7;">
+<td style="width:5%;"></td>
+<td style="background:#F7F7F7; width:90%;">
+<table cellpadding="0" cellspacing="0" style="width:100%;">
+<tr>
+<td style="border-left:5px solid #ffd457; background:#fff4d4; padding:12px 15px; border-radius: 0 4px 4px 0; font-size:13px; color:#665c40; font-family:sans-serif; text-align:left; line-height:1.4;">
+<strong>Nota importante:</strong> Los precios y promociones están sujetos a cambios sin previo aviso. Esta cotización tiene fines informativos y la disponibilidad de los artículos se garantiza al concretar la compra.
+</td>
+</tr>
+</table>
+</td>
+<td style="width:5%;"></td>
+</tr>
+</tbody>
+</table>
+
+<!-- GENERAL DATES & TOTALS CARD -->
+<table cellpadding="0" cellspacing="0" border="0" style="width:100%;max-width: 650px;margin-top: 10px;margin-bottom:10px;" id="datesAndTotals">
+<tbody style="background:#F7F7F7;">
+<tr align="left" style="background:#F7F7F7;">
+<td style="width:5%;"></td>
+<td style="background:#fff;border-radius:4px;box-shadow:0 2px 4px 0 rgba(0,0,0,0.15);margin:0 auto;padding:15px;width:90%;">
+<table cellpadding="0" cellspacing="0" style="background:#fff;width:100%;font-size:13px;font-family:sans-serif;">
+<tbody>
+<tr>
+<td width="50%" align="left" style="color:#333;">
+Fecha de emisión: <span style="font-weight:700;">03 de octubre de 2026</span>
+</td>
+<td width="50%" align="right" style="color:#333;">
+Total cotizado: <span style="font-weight:700;color:#e10098;font-size:15px;">$4,941.00</span>
+</td>
+</tr>
+</tbody>
+</table>
+</td>
+<td style="width:5%;"></td>
+</tr>
+</tbody>
+</table>
+
+<!-- SUMMARY BLOCK HEADER: CLIENTE Y ASESOR -->
+<table cellpadding="0" cellspacing="0" border="0" style="width:100%;max-width: 650px;margin-top: 15px;margin-bottom:5px;" id="clientAdvisorHeader">
+<tbody style="background:#F7F7F7;">
+<tr align="left" style="background:#F7F7F7;">
+<td style="background:#F7F7F7;width:5%;"></td>
+<td style="background:#F7F7F7;width:90%;">
+<h3 style="border-bottom:2px solid #e10098;color:#FFF;font-size:15px;font-weight:normal;margin:0;font-family:sans-serif;">
+<span style="background:#e10098;display:table-cell;height:30px;line-height:30px;padding:3px 16px 0;border-radius:4px 4px 0 0;">
+Información del Cliente y Asesor
+</span>
+</h3>
+</td>
+<td style="background:#F7F7F7;width:5%;"></td>
+</tr>
+</tbody>
+</table>
+
+<!-- SUMMARY BLOCK CONTENT: CLIENTE Y ASESOR -->
+<table cellpadding="0" cellspacing="0" border="0" style="width:100%;max-width: 650px;margin-bottom:10px;" id="clientAdvisorContent">
+<tbody style="background:#F7F7F7;">
+<tr align="left" style="background:#F7F7F7; width: 100%;">
+<td style="background:#F7F7F7;width:5%;"></td>
+<td style="background:#FFF;border-radius:4px;box-shadow:0 2px 4px 0 rgba(0, 0, 0, 0.15);margin:0 auto;padding:15px;width:90%;font-family:sans-serif;font-size:13px;line-height:1.5;color:#333;">
+<table cellpadding="0" cellspacing="0" style="width:100%;">
+<tr>
+<td width="48%" valign="top" style="border-right:1px solid #eee;padding-right:10px;">
+<p style="margin:2px 0;color:#e10098;font-weight:bold;font-size:13px;">Dirigido a:</p>
+<p style="margin:2px 0;"><strong>Cliente:</strong> Carlos Morales de la Rosa</p>
+<p style="margin:2px 0;"><strong>Correo:</strong> moralesc78@ejemplo.com</p>
+<p style="margin:2px 0;"><strong>Teléfono:</strong> 5579078358</p>
+</td>
+<td width="4%">&nbsp;</td>
+<td width="48%" valign="top" style="padding-left:10px;">
+<p style="margin:2px 0;color:#e10098;font-weight:bold;font-size:13px;">Atendido por:</p>
+<p style="margin:2px 0;"><strong>Asesor:</strong> Valeria Castro</p>
+<p style="margin:2px 0;"><strong>Folio:</strong> LVP-261001-0003</p>
+</td>
+</tr>
+</table>
+</td>
+<td style="background:#F7F7F7;width:5%;"></td>
+</tr>
+</tbody>
+</table>
+
+<!-- SECTION HEADER: TUS PRODUCTOS -->
+<table cellpadding="0" cellspacing="0" border="0" style="width:100%;max-width: 650px;margin-top: 15px;margin-bottom:5px;" id="productsHeader">
+<tbody style="background:#F7F7F7;">
+<tr align="left" style="background:#F7F7F7;">
+<td style="background:#F7F7F7;width:5%;"></td>
+<td style="background:#F7F7F7;width:90%;">
+<h3 style="border-bottom:2px solid #e10098;color:#FFF;font-size:15px;font-weight:normal;margin:0;font-family:sans-serif;">
+<span style="background:#e10098;display:table-cell;height:30px;line-height:30px;padding:3px 16px 0;border-radius:4px 4px 0 0;">
+Detalle de Artículos
+</span>
+</h3>
+</td>
+<td style="background:#F7F7F7;width:5%;"></td>
+</tr>
+</tbody>
+</table>
+
+<!-- PRODUCTS LIST LOOP -->
+
+<!-- CARD DE PRODUCTO INDIVIDUAL -->
+<table cellpadding="0" cellspacing="0" border="0" style="width:100%;max-width: 650px;margin-top: 10px;margin-bottom:10px;" id="lineItems LIV">
+<tbody style="background:#F7F7F7;">
+<tr align="left" style="background:#F7F7F7; width: 100%;">
+<td style="background:#F7F7F7;width:5%;"></td>
+<td style="background:#fff;border-radius:4px;box-shadow:0 2px 4px 0 rgba(0,0,0,0.15);margin:0 auto;padding:15px;width:90%;">
+<table cellpadding="0" cellspacing="0" style="width:100%;background:#fff;">
+<tbody>
+<tr>
+<!-- Imagen del producto (Left) -->
+<td align="center" width="35%" valign="top" style="padding-top:10px;padding-right:15px;text-align:center;">
+<img style="max-width:140px;width:100%;height:auto;border-radius:4px;border:1px solid #f0f0f0;" alt="Liverpool Product" src="https://assets.liverpool.com.mx/assets/images/placeholder.gif">
+</td>
+<!-- Detalles del producto (Right) -->
+<td valign="top" style="font-family:sans-serif;color:#333;">
+<h2 style="color:#333;font-size:15px;margin:10px 0 6px 0;font-weight:bold;line-height:1.4;">
+Parrilla a gas empotrable 4 quemadores
+</h2>
+<p style="color:#666;font-size:12px;margin:0 0 10px 0;">
+Código de producto: <strong>1912971058</strong>
+</p>
+
+<!-- Tabla interna de precios -->
+<table cellpadding="0" cellspacing="0" style="width:100%;font-size:12px;color:#555;border-top:1px dashed #eee;padding-top:8px;">
+<tr>
+<td style="width:50%;padding-bottom:5px;">
+Precio unitario:<br>
+<span style="color:#333;font-weight:bold;font-size:13px;">$5,490.00</span>
+</td>
+<td style="width:50%;padding-bottom:5px;">
+Cantidad:<br>
+<span style="color:#333;font-weight:bold;font-size:13px;">1</span>
+</td>
+</tr>
+<tr>
+<td style="padding-bottom:5px;">
+Promoción:<br>
+<span style="color:#333;font-weight:bold;">PRECIO BASE</span>
+</td>
+<td style="padding-bottom:5px;">
+Descuento:<br>
+<span style="color:#ef4444;font-weight:bold;">
+-$549.00 (10%)
+</span>
+</td>
+</tr>
+<tr>
+<td colspan="2" style="border-top:1px solid #eee;padding-top:8px;">
+<p style="color:#666;font-size:12px;margin:0;">Total artículo: <span style="color:#f00;font-weight:bold;font-size:14px;margin-left:5px;">$4,941.00</span></p>
+</td>
+</tr>
+</table>
+</td>
+</tr>
+</tbody>
+</table>
+</td>
+<td style="background:#F7F7F7;width:5%;"></td>
+</tr>
+</tbody>
+</table>
+
+
+<!-- TOTALS SUMMARY CARD -->
+<table cellpadding="0" cellspacing="0" border="0" style="width:100%;max-width: 650px;margin-top: 10px;margin-bottom:10px;" id="totalsSummary">
+<tbody style="background:#F7F7F7;">
+<tr align="left" style="background:#F7F7F7;">
+<td style="width:5%;"></td>
+<td style="background:#fff;border-radius:4px;box-shadow:0 2px 4px 0 rgba(0,0,0,0.15);margin:0 auto;padding:15px;width:90%;">
+<table cellpadding="0" cellspacing="0" style="background:#fff;width:100%;font-size:13px;font-family:sans-serif;color:#333;">
+<tbody>
+<tr>
+<td align="right" style="padding: 4px 0;color:#666;">Subtotal:</td>
+<td align="right" width="30%" style="padding: 4px 0;font-weight:700;">$4,259.48</td>
+</tr>
+<tr>
+<td align="right" style="padding: 4px 0;color:#666;">IVA (16%):</td>
+<td align="right" style="padding: 4px 0;font-weight:700;">$681.52</td>
+</tr>
+<tr style="font-size:15px;font-weight:bold;color:#e10098;">
+<td align="right" style="border-top:1.5px solid #e10098;padding-top:10px;margin-top:5px;">TOTAL GENERAL:</td>
+<td align="right" style="border-top:1.5px solid #e10098;padding-top:10px;margin-top:5px;color:#e10098;font-size:16px;">$4,941.00</td>
+</tr>
+</tbody>
+</table>
+</td>
+<td style="width:5%;"></td>
+</tr>
+</tbody>
+</table>
+
+<!-- EMAIL FOOTER INFO -->
+<table cellpadding="0" cellspacing="0" border="0" style="width:100%;max-width: 650px;margin-top: 20px;margin-bottom:20px;" id="footerInfo">
+<tbody style="background:#F7F7F7;">
+<tr align="center" style="background:#F7F7F7;">
+<td style="width:5%;"></td>
+<td style="font-family:sans-serif;font-size:11px;color:#888;line-height:1.5;text-align:center;width:90%;">
+<p style="margin: 0 0 10px 0;"><strong>Nota:</strong> Se adjunta a este correo el archivo PDF oficial con la cotización formal detallada para su descarga o impresión.</p>
+<p style="margin: 0 0 15px 0;font-weight:bold;color:#e10098;font-size:12px;">Liverpool - Es parte de mi vida</p>
+</td>
+<td style="width:5%;"></td>
+</tr>
+</tbody>
+</table>
+
+</td>
+</tr>
+</tbody>
+</table>
+</body>
+</html>
+', '', '[{"nombre":"Cotizacion_LVP-261001-0003.pdf — no adjuntado: esta versión de demostración no genera el PDF (Google Drive)","tipo":"application/pdf","bytes":0}]', 'cotizacion', 'LVP-261001-0003', 'omitido', '', 'Dato de ejemplo');
+INSERT INTO correos_salida (fecha, de, nombre_de, responder_a, para, cc, cco, asunto, html, texto, adjuntos, tipo, referencia, estado, proveedor_id, detalle) VALUES ('2026-10-06T16:32:50.326Z', 'ventel@logidma.com', 'Cotizaciones Ventel Liverpool', 'miguel.ortega@ventel.example', 'bernardo.hernandez@ejemplo.com', '', '', 'Cotización de Servicios Ventel - Folio LVP-261005-0006', '
+<!DOCTYPE html PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN" "http://www.w3.org/TR/html4/loose.dtd">
+<html>
+<head>
+<meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Tu Cotización está Lista</title>
+<style type="text/css">
+body {
+font-family: sans-serif;
+margin: 0 auto !important;
+padding: 0 !important;
+background: #F7F7F7;
+max-width: 650px;
+}
+</style>
+</head>
+<body bgcolor="#F7F7F7" style="background-color: #F7F7F7; margin: 0 auto !important; padding: 0 !important; font-family: sans-serif; max-width: 650px;">
+<table width="100%" border="0" cellpadding="0" cellspacing="0" align="center" style="background-color: #F7F7F7;">
+<tbody>
+<tr>
+<td align="center" valign="top" style="padding-top: 20px;">
+
+<!-- TOP HEADER LOGO (Liverpool banner) -->
+<table width="100%" cellspacing="0" cellpadding="0" role="presentation" style="max-width: 650px;">
+<tbody>
+<tr>
+<td align="center" style="background-color: #F7F7F7;">
+<img src="https://upload.wikimedia.org/wikipedia/commons/thumb/3/35/Liverpool_logo.svg/1280px-Liverpool_logo.svg.png" alt="Liverpool - Es parte de mi vida" style="display: block; padding: 10px 0; text-align: center; height: auto; max-width: 160px; margin: 0 auto; border: 0;">
+</td>
+</tr>
+</tbody>
+</table>
+
+<!-- HEADER: ¡TU COTIZACIÓN ESTÁ LISTA! -->
+<table align="center" cellpadding="0" cellspacing="0" border="0" style="width:100%;max-width: 650px;margin-top: 10px;margin-bottom:10px;" id="LIV Order">
+<tbody style="background:#F7F7F7;">
+<tr align="center" style="background:#F7F7F7;">
+<td style="width:5%;"></td>
+<td style="background:#FFF;border-radius:4px;box-shadow:0 2px 4px 0 rgba(0, 0, 0, 0.15);margin:0 auto;padding:25px;width:90%;text-align:center;">
+<h1 style="margin: 0; color:#333;font-size:24px;font-weight:bold;font-family:sans-serif;">
+¡Tu cotización está lista!
+</h1>
+<p style="color:#666; margin:15px 0 0 0; font-size:14px; line-height:1.5; font-family:sans-serif; text-align:center;">
+Te compartimos los detalles de la cotización que solicitaste. Los precios e indicaciones se detallan a continuación.
+</p>
+</td>
+<td style="width:5%;"></td>
+</tr>
+</tbody>
+</table>
+
+<!-- ADVISOR''S CUSTOM MESSAGE CARD -->
+<table cellpadding="0" cellspacing="0" border="0" style="width:100%;max-width: 650px;margin-top: 10px;margin-bottom:10px;" id="advisorMessageCard">
+<tbody style="background:#F7F7F7;">
+<tr align="left" style="background:#F7F7F7;">
+<td style="width:5%;"></td>
+<td style="background:#fff;border-radius:4px;box-shadow:0 2px 4px 0 rgba(0,0,0,0.15);margin:0 auto;padding:18px;width:90%;font-family:sans-serif;font-size:14px;color:#333;line-height:1.5;">
+<p style="margin:0 0 10px 0;font-weight:bold;color:#e10098;font-size:14px;">Mensaje de tu Asesor:</p>
+<div style="background:#fdf2f8;border-left:4px solid #e10098;padding:12px 16px;border-radius:0 4px 4px 0;color:#4c4c4c;line-height:1.5;">
+Estimado(a) Bernardo Hernández Peña,<br><br>Junto con saludar, y como seguimiento a nuestra conversación, le hago llegar la cotización solicitada con folio LVP-261005-0006.<br><br>Quedo a sus órdenes para cualquier duda o aclaración.<br><br>Saludos cordiales,<br>Miguel Ortega
+</div>
+</td>
+<td style="width:5%;"></td>
+</tr>
+</tbody>
+</table>
+
+<!-- NOTICE BANNER (Yellow alert box) -->
+<table style="width:100%;max-width: 650px;margin-top: 10px;margin-bottom:10px;" cellpadding="0" cellspacing="0" border="0" id="noticeAlert">
+<tbody style="background:#f7f7f7;">
+<tr style="background:#f7f7f7;">
+<td style="width:5%;"></td>
+<td style="background:#F7F7F7; width:90%;">
+<table cellpadding="0" cellspacing="0" style="width:100%;">
+<tr>
+<td style="border-left:5px solid #ffd457; background:#fff4d4; padding:12px 15px; border-radius: 0 4px 4px 0; font-size:13px; color:#665c40; font-family:sans-serif; text-align:left; line-height:1.4;">
+<strong>Nota importante:</strong> Los precios y promociones están sujetos a cambios sin previo aviso. Esta cotización tiene fines informativos y la disponibilidad de los artículos se garantiza al concretar la compra.
+</td>
+</tr>
+</table>
+</td>
+<td style="width:5%;"></td>
+</tr>
+</tbody>
+</table>
+
+<!-- GENERAL DATES & TOTALS CARD -->
+<table cellpadding="0" cellspacing="0" border="0" style="width:100%;max-width: 650px;margin-top: 10px;margin-bottom:10px;" id="datesAndTotals">
+<tbody style="background:#F7F7F7;">
+<tr align="left" style="background:#F7F7F7;">
+<td style="width:5%;"></td>
+<td style="background:#fff;border-radius:4px;box-shadow:0 2px 4px 0 rgba(0,0,0,0.15);margin:0 auto;padding:15px;width:90%;">
+<table cellpadding="0" cellspacing="0" style="background:#fff;width:100%;font-size:13px;font-family:sans-serif;">
+<tbody>
+<tr>
+<td width="50%" align="left" style="color:#333;">
+Fecha de emisión: <span style="font-weight:700;">05 de octubre de 2026</span>
+</td>
+<td width="50%" align="right" style="color:#333;">
+Total cotizado: <span style="font-weight:700;color:#e10098;font-size:15px;">$16,099.10</span>
+</td>
+</tr>
+</tbody>
+</table>
+</td>
+<td style="width:5%;"></td>
+</tr>
+</tbody>
+</table>
+
+<!-- SUMMARY BLOCK HEADER: CLIENTE Y ASESOR -->
+<table cellpadding="0" cellspacing="0" border="0" style="width:100%;max-width: 650px;margin-top: 15px;margin-bottom:5px;" id="clientAdvisorHeader">
+<tbody style="background:#F7F7F7;">
+<tr align="left" style="background:#F7F7F7;">
+<td style="background:#F7F7F7;width:5%;"></td>
+<td style="background:#F7F7F7;width:90%;">
+<h3 style="border-bottom:2px solid #e10098;color:#FFF;font-size:15px;font-weight:normal;margin:0;font-family:sans-serif;">
+<span style="background:#e10098;display:table-cell;height:30px;line-height:30px;padding:3px 16px 0;border-radius:4px 4px 0 0;">
+Información del Cliente y Asesor
+</span>
+</h3>
+</td>
+<td style="background:#F7F7F7;width:5%;"></td>
+</tr>
+</tbody>
+</table>
+
+<!-- SUMMARY BLOCK CONTENT: CLIENTE Y ASESOR -->
+<table cellpadding="0" cellspacing="0" border="0" style="width:100%;max-width: 650px;margin-bottom:10px;" id="clientAdvisorContent">
+<tbody style="background:#F7F7F7;">
+<tr align="left" style="background:#F7F7F7; width: 100%;">
+<td style="background:#F7F7F7;width:5%;"></td>
+<td style="background:#FFF;border-radius:4px;box-shadow:0 2px 4px 0 rgba(0, 0, 0, 0.15);margin:0 auto;padding:15px;width:90%;font-family:sans-serif;font-size:13px;line-height:1.5;color:#333;">
+<table cellpadding="0" cellspacing="0" style="width:100%;">
+<tr>
+<td width="48%" valign="top" style="border-right:1px solid #eee;padding-right:10px;">
+<p style="margin:2px 0;color:#e10098;font-weight:bold;font-size:13px;">Dirigido a:</p>
+<p style="margin:2px 0;"><strong>Cliente:</strong> Bernardo Hernández Peña</p>
+<p style="margin:2px 0;"><strong>Correo:</strong> bernardo.hernandez@ejemplo.com</p>
+<p style="margin:2px 0;"><strong>Teléfono:</strong> 222 748 1043</p>
+</td>
+<td width="4%">&nbsp;</td>
+<td width="48%" valign="top" style="padding-left:10px;">
+<p style="margin:2px 0;color:#e10098;font-weight:bold;font-size:13px;">Atendido por:</p>
+<p style="margin:2px 0;"><strong>Asesor:</strong> Miguel Ortega</p>
+<p style="margin:2px 0;"><strong>Folio:</strong> LVP-261005-0006</p>
+</td>
+</tr>
+</table>
+</td>
+<td style="background:#F7F7F7;width:5%;"></td>
+</tr>
+</tbody>
+</table>
+
+<!-- SECTION HEADER: TUS PRODUCTOS -->
+<table cellpadding="0" cellspacing="0" border="0" style="width:100%;max-width: 650px;margin-top: 15px;margin-bottom:5px;" id="productsHeader">
+<tbody style="background:#F7F7F7;">
+<tr align="left" style="background:#F7F7F7;">
+<td style="background:#F7F7F7;width:5%;"></td>
+<td style="background:#F7F7F7;width:90%;">
+<h3 style="border-bottom:2px solid #e10098;color:#FFF;font-size:15px;font-weight:normal;margin:0;font-family:sans-serif;">
+<span style="background:#e10098;display:table-cell;height:30px;line-height:30px;padding:3px 16px 0;border-radius:4px 4px 0 0;">
+Detalle de Artículos
+</span>
+</h3>
+</td>
+<td style="background:#F7F7F7;width:5%;"></td>
+</tr>
+</tbody>
+</table>
+
+<!-- PRODUCTS LIST LOOP -->
+
+<!-- CARD DE PRODUCTO INDIVIDUAL -->
+<table cellpadding="0" cellspacing="0" border="0" style="width:100%;max-width: 650px;margin-top: 10px;margin-bottom:10px;" id="lineItems LIV">
+<tbody style="background:#F7F7F7;">
+<tr align="left" style="background:#F7F7F7; width: 100%;">
+<td style="background:#F7F7F7;width:5%;"></td>
+<td style="background:#fff;border-radius:4px;box-shadow:0 2px 4px 0 rgba(0,0,0,0.15);margin:0 auto;padding:15px;width:90%;">
+<table cellpadding="0" cellspacing="0" style="width:100%;background:#fff;">
+<tbody>
+<tr>
+<!-- Imagen del producto (Left) -->
+<td align="center" width="35%" valign="top" style="padding-top:10px;padding-right:15px;text-align:center;">
+<img style="max-width:140px;width:100%;height:auto;border-radius:4px;border:1px solid #f0f0f0;" alt="Liverpool Product" src="https://assets.liverpool.com.mx/assets/images/placeholder.gif">
+</td>
+<!-- Detalles del producto (Right) -->
+<td valign="top" style="font-family:sans-serif;color:#333;">
+<h2 style="color:#333;font-size:15px;margin:10px 0 6px 0;font-weight:bold;line-height:1.4;">
+Pantalla Smart TV 55 pulgadas 4K UHD Google TV
+</h2>
+<p style="color:#666;font-size:12px;margin:0 0 10px 0;">
+Código de producto: <strong>1937720544</strong>
+</p>
+
+<!-- Tabla interna de precios -->
+<table cellpadding="0" cellspacing="0" style="width:100%;font-size:12px;color:#555;border-top:1px dashed #eee;padding-top:8px;">
+<tr>
+<td style="width:50%;padding-bottom:5px;">
+Precio unitario:<br>
+<span style="color:#333;font-weight:bold;font-size:13px;">$11,990.00</span>
+</td>
+<td style="width:50%;padding-bottom:5px;">
+Cantidad:<br>
+<span style="color:#333;font-weight:bold;font-size:13px;">1</span>
+</td>
+</tr>
+<tr>
+<td style="padding-bottom:5px;">
+Promoción:<br>
+<span style="color:#333;font-weight:bold;">PRECIO BASE</span>
+</td>
+<td style="padding-bottom:5px;">
+Descuento:<br>
+<span style="color:#ef4444;font-weight:bold;">
+-$2,997.50 (25%)
+</span>
+</td>
+</tr>
+<tr>
+<td colspan="2" style="border-top:1px solid #eee;padding-top:8px;">
+<p style="color:#666;font-size:12px;margin:0;">Total artículo: <span style="color:#f00;font-weight:bold;font-size:14px;margin-left:5px;">$8,992.50</span></p>
+</td>
+</tr>
+</table>
+</td>
+</tr>
+</tbody>
+</table>
+</td>
+<td style="background:#F7F7F7;width:5%;"></td>
+</tr>
+</tbody>
+</table>
+
+<!-- CARD DE PRODUCTO INDIVIDUAL -->
+<table cellpadding="0" cellspacing="0" border="0" style="width:100%;max-width: 650px;margin-top: 10px;margin-bottom:10px;" id="lineItems LIV">
+<tbody style="background:#F7F7F7;">
+<tr align="left" style="background:#F7F7F7; width: 100%;">
+<td style="background:#F7F7F7;width:5%;"></td>
+<td style="background:#fff;border-radius:4px;box-shadow:0 2px 4px 0 rgba(0,0,0,0.15);margin:0 auto;padding:15px;width:90%;">
+<table cellpadding="0" cellspacing="0" style="width:100%;background:#fff;">
+<tbody>
+<tr>
+<!-- Imagen del producto (Left) -->
+<td align="center" width="35%" valign="top" style="padding-top:10px;padding-right:15px;text-align:center;">
+<img style="max-width:140px;width:100%;height:auto;border-radius:4px;border:1px solid #f0f0f0;" alt="Liverpool Product" src="https://assets.liverpool.com.mx/assets/images/placeholder.gif">
+</td>
+<!-- Detalles del producto (Right) -->
+<td valign="top" style="font-family:sans-serif;color:#333;">
+<h2 style="color:#333;font-size:15px;margin:10px 0 6px 0;font-weight:bold;line-height:1.4;">
+Barra de sonido 3.1.2 canales Dolby Atmos
+</h2>
+<p style="color:#666;font-size:12px;margin:0 0 10px 0;">
+Código de producto: <strong>1999079142</strong>
+</p>
+
+<!-- Tabla interna de precios -->
+<table cellpadding="0" cellspacing="0" style="width:100%;font-size:12px;color:#555;border-top:1px dashed #eee;padding-top:8px;">
+<tr>
+<td style="width:50%;padding-bottom:5px;">
+Precio unitario:<br>
+<span style="color:#333;font-weight:bold;font-size:13px;">$8,990.00</span>
+</td>
+<td style="width:50%;padding-bottom:5px;">
+Cantidad:<br>
+<span style="color:#333;font-weight:bold;font-size:13px;">1</span>
+</td>
+</tr>
+<tr>
+<td style="padding-bottom:5px;">
+Promoción:<br>
+<span style="color:#333;font-weight:bold;">PRECIO BASE</span>
+</td>
+<td style="padding-bottom:5px;">
+Descuento:<br>
+<span style="color:#ef4444;font-weight:bold;">
+-$1,883.41 (21%)
+</span>
+</td>
+</tr>
+<tr>
+<td colspan="2" style="border-top:1px solid #eee;padding-top:8px;">
+<p style="color:#666;font-size:12px;margin:0;">Total artículo: <span style="color:#f00;font-weight:bold;font-size:14px;margin-left:5px;">$7,106.59</span></p>
+</td>
+</tr>
+</table>
+</td>
+</tr>
+</tbody>
+</table>
+</td>
+<td style="background:#F7F7F7;width:5%;"></td>
+</tr>
+</tbody>
+</table>
+
+
+<!-- TOTALS SUMMARY CARD -->
+<table cellpadding="0" cellspacing="0" border="0" style="width:100%;max-width: 650px;margin-top: 10px;margin-bottom:10px;" id="totalsSummary">
+<tbody style="background:#F7F7F7;">
+<tr align="left" style="background:#F7F7F7;">
+<td style="width:5%;"></td>
+<td style="background:#fff;border-radius:4px;box-shadow:0 2px 4px 0 rgba(0,0,0,0.15);margin:0 auto;padding:15px;width:90%;">
+<table cellpadding="0" cellspacing="0" style="background:#fff;width:100%;font-size:13px;font-family:sans-serif;color:#333;">
+<tbody>
+<tr>
+<td align="right" style="padding: 4px 0;color:#666;">Subtotal:</td>
+<td align="right" width="30%" style="padding: 4px 0;font-weight:700;">$13,878.53</td>
+</tr>
+<tr>
+<td align="right" style="padding: 4px 0;color:#666;">IVA (16%):</td>
+<td align="right" style="padding: 4px 0;font-weight:700;">$2,220.56</td>
+</tr>
+<tr style="font-size:15px;font-weight:bold;color:#e10098;">
+<td align="right" style="border-top:1.5px solid #e10098;padding-top:10px;margin-top:5px;">TOTAL GENERAL:</td>
+<td align="right" style="border-top:1.5px solid #e10098;padding-top:10px;margin-top:5px;color:#e10098;font-size:16px;">$16,099.10</td>
+</tr>
+</tbody>
+</table>
+</td>
+<td style="width:5%;"></td>
+</tr>
+</tbody>
+</table>
+
+<!-- EMAIL FOOTER INFO -->
+<table cellpadding="0" cellspacing="0" border="0" style="width:100%;max-width: 650px;margin-top: 20px;margin-bottom:20px;" id="footerInfo">
+<tbody style="background:#F7F7F7;">
+<tr align="center" style="background:#F7F7F7;">
+<td style="width:5%;"></td>
+<td style="font-family:sans-serif;font-size:11px;color:#888;line-height:1.5;text-align:center;width:90%;">
+<p style="margin: 0 0 10px 0;"><strong>Nota:</strong> Se adjunta a este correo el archivo PDF oficial con la cotización formal detallada para su descarga o impresión.</p>
+<p style="margin: 0 0 15px 0;font-weight:bold;color:#e10098;font-size:12px;">Liverpool - Es parte de mi vida</p>
+</td>
+<td style="width:5%;"></td>
+</tr>
+</tbody>
+</table>
+
+</td>
+</tr>
+</tbody>
+</table>
+</body>
+</html>
+', '', '[{"nombre":"Cotizacion_LVP-261005-0006.pdf — no adjuntado: esta versión de demostración no genera el PDF (Google Drive)","tipo":"application/pdf","bytes":0}]', 'cotizacion', 'LVP-261005-0006', 'omitido', '', 'Dato de ejemplo');
+INSERT INTO correos_salida (fecha, de, nombre_de, responder_a, para, cc, cco, asunto, html, texto, adjuntos, tipo, referencia, estado, proveedor_id, detalle) VALUES ('2026-10-06T20:27:06.507Z', 'ventel@logidma.com', 'Cotizaciones Ventel Liverpool', 'valeria.castro@ventel.example', 'francon83@ejemplo.com', '', '', 'Cotización de Servicios Ventel - Folio LVP-261006-0003', '
+<!DOCTYPE html PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN" "http://www.w3.org/TR/html4/loose.dtd">
+<html>
+<head>
+<meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Tu Cotización está Lista</title>
+<style type="text/css">
+body {
+font-family: sans-serif;
+margin: 0 auto !important;
+padding: 0 !important;
+background: #F7F7F7;
+max-width: 650px;
+}
+</style>
+</head>
+<body bgcolor="#F7F7F7" style="background-color: #F7F7F7; margin: 0 auto !important; padding: 0 !important; font-family: sans-serif; max-width: 650px;">
+<table width="100%" border="0" cellpadding="0" cellspacing="0" align="center" style="background-color: #F7F7F7;">
+<tbody>
+<tr>
+<td align="center" valign="top" style="padding-top: 20px;">
+
+<!-- TOP HEADER LOGO (Liverpool banner) -->
+<table width="100%" cellspacing="0" cellpadding="0" role="presentation" style="max-width: 650px;">
+<tbody>
+<tr>
+<td align="center" style="background-color: #F7F7F7;">
+<img src="https://upload.wikimedia.org/wikipedia/commons/thumb/3/35/Liverpool_logo.svg/1280px-Liverpool_logo.svg.png" alt="Liverpool - Es parte de mi vida" style="display: block; padding: 10px 0; text-align: center; height: auto; max-width: 160px; margin: 0 auto; border: 0;">
+</td>
+</tr>
+</tbody>
+</table>
+
+<!-- HEADER: ¡TU COTIZACIÓN ESTÁ LISTA! -->
+<table align="center" cellpadding="0" cellspacing="0" border="0" style="width:100%;max-width: 650px;margin-top: 10px;margin-bottom:10px;" id="LIV Order">
+<tbody style="background:#F7F7F7;">
+<tr align="center" style="background:#F7F7F7;">
+<td style="width:5%;"></td>
+<td style="background:#FFF;border-radius:4px;box-shadow:0 2px 4px 0 rgba(0, 0, 0, 0.15);margin:0 auto;padding:25px;width:90%;text-align:center;">
+<h1 style="margin: 0; color:#333;font-size:24px;font-weight:bold;font-family:sans-serif;">
+¡Tu cotización está lista!
+</h1>
+<p style="color:#666; margin:15px 0 0 0; font-size:14px; line-height:1.5; font-family:sans-serif; text-align:center;">
+Te compartimos los detalles de la cotización que solicitaste. Los precios e indicaciones se detallan a continuación.
+</p>
+</td>
+<td style="width:5%;"></td>
+</tr>
+</tbody>
+</table>
+
+<!-- ADVISOR''S CUSTOM MESSAGE CARD -->
+<table cellpadding="0" cellspacing="0" border="0" style="width:100%;max-width: 650px;margin-top: 10px;margin-bottom:10px;" id="advisorMessageCard">
+<tbody style="background:#F7F7F7;">
+<tr align="left" style="background:#F7F7F7;">
+<td style="width:5%;"></td>
+<td style="background:#fff;border-radius:4px;box-shadow:0 2px 4px 0 rgba(0,0,0,0.15);margin:0 auto;padding:18px;width:90%;font-family:sans-serif;font-size:14px;color:#333;line-height:1.5;">
+<p style="margin:0 0 10px 0;font-weight:bold;color:#e10098;font-size:14px;">Mensaje de tu Asesor:</p>
+<div style="background:#fdf2f8;border-left:4px solid #e10098;padding:12px 16px;border-radius:0 4px 4px 0;color:#4c4c4c;line-height:1.5;">
+Estimado(a) Natalia Franco Navarro,<br><br>Junto con saludar, y como seguimiento a nuestra conversación, le hago llegar la cotización solicitada con folio LVP-261006-0003.<br><br>Quedo a sus órdenes para cualquier duda o aclaración.<br><br>Saludos cordiales,<br>Valeria Castro
+</div>
+</td>
+<td style="width:5%;"></td>
+</tr>
+</tbody>
+</table>
+
+<!-- NOTICE BANNER (Yellow alert box) -->
+<table style="width:100%;max-width: 650px;margin-top: 10px;margin-bottom:10px;" cellpadding="0" cellspacing="0" border="0" id="noticeAlert">
+<tbody style="background:#f7f7f7;">
+<tr style="background:#f7f7f7;">
+<td style="width:5%;"></td>
+<td style="background:#F7F7F7; width:90%;">
+<table cellpadding="0" cellspacing="0" style="width:100%;">
+<tr>
+<td style="border-left:5px solid #ffd457; background:#fff4d4; padding:12px 15px; border-radius: 0 4px 4px 0; font-size:13px; color:#665c40; font-family:sans-serif; text-align:left; line-height:1.4;">
+<strong>Nota importante:</strong> Los precios y promociones están sujetos a cambios sin previo aviso. Esta cotización tiene fines informativos y la disponibilidad de los artículos se garantiza al concretar la compra.
+</td>
+</tr>
+</table>
+</td>
+<td style="width:5%;"></td>
+</tr>
+</tbody>
+</table>
+
+<!-- GENERAL DATES & TOTALS CARD -->
+<table cellpadding="0" cellspacing="0" border="0" style="width:100%;max-width: 650px;margin-top: 10px;margin-bottom:10px;" id="datesAndTotals">
+<tbody style="background:#F7F7F7;">
+<tr align="left" style="background:#F7F7F7;">
+<td style="width:5%;"></td>
+<td style="background:#fff;border-radius:4px;box-shadow:0 2px 4px 0 rgba(0,0,0,0.15);margin:0 auto;padding:15px;width:90%;">
+<table cellpadding="0" cellspacing="0" style="background:#fff;width:100%;font-size:13px;font-family:sans-serif;">
+<tbody>
+<tr>
+<td width="50%" align="left" style="color:#333;">
+Fecha de emisión: <span style="font-weight:700;">06 de octubre de 2026</span>
+</td>
+<td width="50%" align="right" style="color:#333;">
+Total cotizado: <span style="font-weight:700;color:#e10098;font-size:15px;">$20,145.60</span>
+</td>
+</tr>
+</tbody>
+</table>
+</td>
+<td style="width:5%;"></td>
+</tr>
+</tbody>
+</table>
+
+<!-- SUMMARY BLOCK HEADER: CLIENTE Y ASESOR -->
+<table cellpadding="0" cellspacing="0" border="0" style="width:100%;max-width: 650px;margin-top: 15px;margin-bottom:5px;" id="clientAdvisorHeader">
+<tbody style="background:#F7F7F7;">
+<tr align="left" style="background:#F7F7F7;">
+<td style="background:#F7F7F7;width:5%;"></td>
+<td style="background:#F7F7F7;width:90%;">
+<h3 style="border-bottom:2px solid #e10098;color:#FFF;font-size:15px;font-weight:normal;margin:0;font-family:sans-serif;">
+<span style="background:#e10098;display:table-cell;height:30px;line-height:30px;padding:3px 16px 0;border-radius:4px 4px 0 0;">
+Información del Cliente y Asesor
+</span>
+</h3>
+</td>
+<td style="background:#F7F7F7;width:5%;"></td>
+</tr>
+</tbody>
+</table>
+
+<!-- SUMMARY BLOCK CONTENT: CLIENTE Y ASESOR -->
+<table cellpadding="0" cellspacing="0" border="0" style="width:100%;max-width: 650px;margin-bottom:10px;" id="clientAdvisorContent">
+<tbody style="background:#F7F7F7;">
+<tr align="left" style="background:#F7F7F7; width: 100%;">
+<td style="background:#F7F7F7;width:5%;"></td>
+<td style="background:#FFF;border-radius:4px;box-shadow:0 2px 4px 0 rgba(0, 0, 0, 0.15);margin:0 auto;padding:15px;width:90%;font-family:sans-serif;font-size:13px;line-height:1.5;color:#333;">
+<table cellpadding="0" cellspacing="0" style="width:100%;">
+<tr>
+<td width="48%" valign="top" style="border-right:1px solid #eee;padding-right:10px;">
+<p style="margin:2px 0;color:#e10098;font-weight:bold;font-size:13px;">Dirigido a:</p>
+<p style="margin:2px 0;"><strong>Cliente:</strong> Natalia Franco Navarro</p>
+<p style="margin:2px 0;"><strong>Correo:</strong> francon83@ejemplo.com</p>
+<p style="margin:2px 0;"><strong>Teléfono:</strong> 442 728 1763</p>
+</td>
+<td width="4%">&nbsp;</td>
+<td width="48%" valign="top" style="padding-left:10px;">
+<p style="margin:2px 0;color:#e10098;font-weight:bold;font-size:13px;">Atendido por:</p>
+<p style="margin:2px 0;"><strong>Asesor:</strong> Valeria Castro</p>
+<p style="margin:2px 0;"><strong>Folio:</strong> LVP-261006-0003</p>
+</td>
+</tr>
+</table>
+</td>
+<td style="background:#F7F7F7;width:5%;"></td>
+</tr>
+</tbody>
+</table>
+
+<!-- SECTION HEADER: TUS PRODUCTOS -->
+<table cellpadding="0" cellspacing="0" border="0" style="width:100%;max-width: 650px;margin-top: 15px;margin-bottom:5px;" id="productsHeader">
+<tbody style="background:#F7F7F7;">
+<tr align="left" style="background:#F7F7F7;">
+<td style="background:#F7F7F7;width:5%;"></td>
+<td style="background:#F7F7F7;width:90%;">
+<h3 style="border-bottom:2px solid #e10098;color:#FFF;font-size:15px;font-weight:normal;margin:0;font-family:sans-serif;">
+<span style="background:#e10098;display:table-cell;height:30px;line-height:30px;padding:3px 16px 0;border-radius:4px 4px 0 0;">
+Detalle de Artículos
+</span>
+</h3>
+</td>
+<td style="background:#F7F7F7;width:5%;"></td>
+</tr>
+</tbody>
+</table>
+
+<!-- PRODUCTS LIST LOOP -->
+
+<!-- CARD DE PRODUCTO INDIVIDUAL -->
+<table cellpadding="0" cellspacing="0" border="0" style="width:100%;max-width: 650px;margin-top: 10px;margin-bottom:10px;" id="lineItems LIV">
+<tbody style="background:#F7F7F7;">
+<tr align="left" style="background:#F7F7F7; width: 100%;">
+<td style="background:#F7F7F7;width:5%;"></td>
+<td style="background:#fff;border-radius:4px;box-shadow:0 2px 4px 0 rgba(0,0,0,0.15);margin:0 auto;padding:15px;width:90%;">
+<table cellpadding="0" cellspacing="0" style="width:100%;background:#fff;">
+<tbody>
+<tr>
+<!-- Imagen del producto (Left) -->
+<td align="center" width="35%" valign="top" style="padding-top:10px;padding-right:15px;text-align:center;">
+<img style="max-width:140px;width:100%;height:auto;border-radius:4px;border:1px solid #f0f0f0;" alt="Liverpool Product" src="https://assets.liverpool.com.mx/assets/images/placeholder.gif">
+</td>
+<!-- Detalles del producto (Right) -->
+<td valign="top" style="font-family:sans-serif;color:#333;">
+<h2 style="color:#333;font-size:15px;margin:10px 0 6px 0;font-weight:bold;line-height:1.4;">
+Recámara matrimonial 5 piezas
+</h2>
+<p style="color:#666;font-size:12px;margin:0 0 10px 0;">
+Código de producto: <strong>1906506912</strong>
+</p>
+
+<!-- Tabla interna de precios -->
+<table cellpadding="0" cellspacing="0" style="width:100%;font-size:12px;color:#555;border-top:1px dashed #eee;padding-top:8px;">
+<tr>
+<td style="width:50%;padding-bottom:5px;">
+Precio unitario:<br>
+<span style="color:#333;font-weight:bold;font-size:13px;">$13,990.00</span>
+</td>
+<td style="width:50%;padding-bottom:5px;">
+Cantidad:<br>
+<span style="color:#333;font-weight:bold;font-size:13px;">2</span>
+</td>
+</tr>
+<tr>
+<td style="padding-bottom:5px;">
+Promoción:<br>
+<span style="color:#333;font-weight:bold;">PRECIO BASE</span>
+</td>
+<td style="padding-bottom:5px;">
+Descuento:<br>
+<span style="color:#ef4444;font-weight:bold;">
+-$7,834.40 (28%)
+</span>
+</td>
+</tr>
+<tr>
+<td colspan="2" style="border-top:1px solid #eee;padding-top:8px;">
+<p style="color:#666;font-size:12px;margin:0;">Total artículo: <span style="color:#f00;font-weight:bold;font-size:14px;margin-left:5px;">$20,145.60</span></p>
+</td>
+</tr>
+</table>
+</td>
+</tr>
+</tbody>
+</table>
+</td>
+<td style="background:#F7F7F7;width:5%;"></td>
+</tr>
+</tbody>
+</table>
+
+
+<!-- TOTALS SUMMARY CARD -->
+<table cellpadding="0" cellspacing="0" border="0" style="width:100%;max-width: 650px;margin-top: 10px;margin-bottom:10px;" id="totalsSummary">
+<tbody style="background:#F7F7F7;">
+<tr align="left" style="background:#F7F7F7;">
+<td style="width:5%;"></td>
+<td style="background:#fff;border-radius:4px;box-shadow:0 2px 4px 0 rgba(0,0,0,0.15);margin:0 auto;padding:15px;width:90%;">
+<table cellpadding="0" cellspacing="0" style="background:#fff;width:100%;font-size:13px;font-family:sans-serif;color:#333;">
+<tbody>
+<tr>
+<td align="right" style="padding: 4px 0;color:#666;">Subtotal:</td>
+<td align="right" width="30%" style="padding: 4px 0;font-weight:700;">$17,366.90</td>
+</tr>
+<tr>
+<td align="right" style="padding: 4px 0;color:#666;">IVA (16%):</td>
+<td align="right" style="padding: 4px 0;font-weight:700;">$2,778.70</td>
+</tr>
+<tr style="font-size:15px;font-weight:bold;color:#e10098;">
+<td align="right" style="border-top:1.5px solid #e10098;padding-top:10px;margin-top:5px;">TOTAL GENERAL:</td>
+<td align="right" style="border-top:1.5px solid #e10098;padding-top:10px;margin-top:5px;color:#e10098;font-size:16px;">$20,145.60</td>
+</tr>
+</tbody>
+</table>
+</td>
+<td style="width:5%;"></td>
+</tr>
+</tbody>
+</table>
+
+<!-- EMAIL FOOTER INFO -->
+<table cellpadding="0" cellspacing="0" border="0" style="width:100%;max-width: 650px;margin-top: 20px;margin-bottom:20px;" id="footerInfo">
+<tbody style="background:#F7F7F7;">
+<tr align="center" style="background:#F7F7F7;">
+<td style="width:5%;"></td>
+<td style="font-family:sans-serif;font-size:11px;color:#888;line-height:1.5;text-align:center;width:90%;">
+<p style="margin: 0 0 10px 0;"><strong>Nota:</strong> Se adjunta a este correo el archivo PDF oficial con la cotización formal detallada para su descarga o impresión.</p>
+<p style="margin: 0 0 15px 0;font-weight:bold;color:#e10098;font-size:12px;">Liverpool - Es parte de mi vida</p>
+</td>
+<td style="width:5%;"></td>
+</tr>
+</tbody>
+</table>
+
+</td>
+</tr>
+</tbody>
+</table>
+</body>
+</html>
+', '', '[{"nombre":"Cotizacion_LVP-261006-0003.pdf — no adjuntado: esta versión de demostración no genera el PDF (Google Drive)","tipo":"application/pdf","bytes":0}]', 'cotizacion', 'LVP-261006-0003', 'omitido', '', 'Dato de ejemplo');
+INSERT INTO correos_salida (fecha, de, nombre_de, responder_a, para, cc, cco, asunto, html, texto, adjuntos, tipo, referencia, estado, proveedor_id, detalle) VALUES ('2026-10-06T20:37:36.932Z', 'ventel@logidma.com', 'Cotizaciones Ventel Liverpool', 'asesor@ventel.example', 'leona91@ejemplo.com', '', '', 'Cotización de Servicios Ventel - Folio LVP-261006-0002', '
+<!DOCTYPE html PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN" "http://www.w3.org/TR/html4/loose.dtd">
+<html>
+<head>
+<meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Tu Cotización está Lista</title>
+<style type="text/css">
+body {
+font-family: sans-serif;
+margin: 0 auto !important;
+padding: 0 !important;
+background: #F7F7F7;
+max-width: 650px;
+}
+</style>
+</head>
+<body bgcolor="#F7F7F7" style="background-color: #F7F7F7; margin: 0 auto !important; padding: 0 !important; font-family: sans-serif; max-width: 650px;">
+<table width="100%" border="0" cellpadding="0" cellspacing="0" align="center" style="background-color: #F7F7F7;">
+<tbody>
+<tr>
+<td align="center" valign="top" style="padding-top: 20px;">
+
+<!-- TOP HEADER LOGO (Liverpool banner) -->
+<table width="100%" cellspacing="0" cellpadding="0" role="presentation" style="max-width: 650px;">
+<tbody>
+<tr>
+<td align="center" style="background-color: #F7F7F7;">
+<img src="https://upload.wikimedia.org/wikipedia/commons/thumb/3/35/Liverpool_logo.svg/1280px-Liverpool_logo.svg.png" alt="Liverpool - Es parte de mi vida" style="display: block; padding: 10px 0; text-align: center; height: auto; max-width: 160px; margin: 0 auto; border: 0;">
+</td>
+</tr>
+</tbody>
+</table>
+
+<!-- HEADER: ¡TU COTIZACIÓN ESTÁ LISTA! -->
+<table align="center" cellpadding="0" cellspacing="0" border="0" style="width:100%;max-width: 650px;margin-top: 10px;margin-bottom:10px;" id="LIV Order">
+<tbody style="background:#F7F7F7;">
+<tr align="center" style="background:#F7F7F7;">
+<td style="width:5%;"></td>
+<td style="background:#FFF;border-radius:4px;box-shadow:0 2px 4px 0 rgba(0, 0, 0, 0.15);margin:0 auto;padding:25px;width:90%;text-align:center;">
+<h1 style="margin: 0; color:#333;font-size:24px;font-weight:bold;font-family:sans-serif;">
+¡Tu cotización está lista!
+</h1>
+<p style="color:#666; margin:15px 0 0 0; font-size:14px; line-height:1.5; font-family:sans-serif; text-align:center;">
+Te compartimos los detalles de la cotización que solicitaste. Los precios e indicaciones se detallan a continuación.
+</p>
+</td>
+<td style="width:5%;"></td>
+</tr>
+</tbody>
+</table>
+
+<!-- ADVISOR''S CUSTOM MESSAGE CARD -->
+<table cellpadding="0" cellspacing="0" border="0" style="width:100%;max-width: 650px;margin-top: 10px;margin-bottom:10px;" id="advisorMessageCard">
+<tbody style="background:#F7F7F7;">
+<tr align="left" style="background:#F7F7F7;">
+<td style="width:5%;"></td>
+<td style="background:#fff;border-radius:4px;box-shadow:0 2px 4px 0 rgba(0,0,0,0.15);margin:0 auto;padding:18px;width:90%;font-family:sans-serif;font-size:14px;color:#333;line-height:1.5;">
+<p style="margin:0 0 10px 0;font-weight:bold;color:#e10098;font-size:14px;">Mensaje de tu Asesor:</p>
+<div style="background:#fdf2f8;border-left:4px solid #e10098;padding:12px 16px;border-radius:0 4px 4px 0;color:#4c4c4c;line-height:1.5;">
+Estimado(a) Andrea de León,<br><br>Junto con saludar, y como seguimiento a nuestra conversación, le hago llegar la cotización solicitada con folio LVP-261006-0002.<br><br>Quedo a sus órdenes para cualquier duda o aclaración.<br><br>Saludos cordiales,
+</div>
+</td>
+<td style="width:5%;"></td>
+</tr>
+</tbody>
+</table>
+
+<!-- NOTICE BANNER (Yellow alert box) -->
+<table style="width:100%;max-width: 650px;margin-top: 10px;margin-bottom:10px;" cellpadding="0" cellspacing="0" border="0" id="noticeAlert">
+<tbody style="background:#f7f7f7;">
+<tr style="background:#f7f7f7;">
+<td style="width:5%;"></td>
+<td style="background:#F7F7F7; width:90%;">
+<table cellpadding="0" cellspacing="0" style="width:100%;">
+<tr>
+<td style="border-left:5px solid #ffd457; background:#fff4d4; padding:12px 15px; border-radius: 0 4px 4px 0; font-size:13px; color:#665c40; font-family:sans-serif; text-align:left; line-height:1.4;">
+<strong>Nota importante:</strong> Los precios y promociones están sujetos a cambios sin previo aviso. Esta cotización tiene fines informativos y la disponibilidad de los artículos se garantiza al concretar la compra.
+</td>
+</tr>
+</table>
+</td>
+<td style="width:5%;"></td>
+</tr>
+</tbody>
+</table>
+
+<!-- GENERAL DATES & TOTALS CARD -->
+<table cellpadding="0" cellspacing="0" border="0" style="width:100%;max-width: 650px;margin-top: 10px;margin-bottom:10px;" id="datesAndTotals">
+<tbody style="background:#F7F7F7;">
+<tr align="left" style="background:#F7F7F7;">
+<td style="width:5%;"></td>
+<td style="background:#fff;border-radius:4px;box-shadow:0 2px 4px 0 rgba(0,0,0,0.15);margin:0 auto;padding:15px;width:90%;">
+<table cellpadding="0" cellspacing="0" style="background:#fff;width:100%;font-size:13px;font-family:sans-serif;">
+<tbody>
+<tr>
+<td width="50%" align="left" style="color:#333;">
+Fecha de emisión: <span style="font-weight:700;">06 de octubre de 2026</span>
+</td>
+<td width="50%" align="right" style="color:#333;">
+Total cotizado: <span style="font-weight:700;color:#e10098;font-size:15px;">$5,941.50</span>
+</td>
+</tr>
+</tbody>
+</table>
+</td>
+<td style="width:5%;"></td>
+</tr>
+</tbody>
+</table>
+
+<!-- SUMMARY BLOCK HEADER: CLIENTE Y ASESOR -->
+<table cellpadding="0" cellspacing="0" border="0" style="width:100%;max-width: 650px;margin-top: 15px;margin-bottom:5px;" id="clientAdvisorHeader">
+<tbody style="background:#F7F7F7;">
+<tr align="left" style="background:#F7F7F7;">
+<td style="background:#F7F7F7;width:5%;"></td>
+<td style="background:#F7F7F7;width:90%;">
+<h3 style="border-bottom:2px solid #e10098;color:#FFF;font-size:15px;font-weight:normal;margin:0;font-family:sans-serif;">
+<span style="background:#e10098;display:table-cell;height:30px;line-height:30px;padding:3px 16px 0;border-radius:4px 4px 0 0;">
+Información del Cliente y Asesor
+</span>
+</h3>
+</td>
+<td style="background:#F7F7F7;width:5%;"></td>
+</tr>
+</tbody>
+</table>
+
+<!-- SUMMARY BLOCK CONTENT: CLIENTE Y ASESOR -->
+<table cellpadding="0" cellspacing="0" border="0" style="width:100%;max-width: 650px;margin-bottom:10px;" id="clientAdvisorContent">
+<tbody style="background:#F7F7F7;">
+<tr align="left" style="background:#F7F7F7; width: 100%;">
+<td style="background:#F7F7F7;width:5%;"></td>
+<td style="background:#FFF;border-radius:4px;box-shadow:0 2px 4px 0 rgba(0, 0, 0, 0.15);margin:0 auto;padding:15px;width:90%;font-family:sans-serif;font-size:13px;line-height:1.5;color:#333;">
+<table cellpadding="0" cellspacing="0" style="width:100%;">
+<tr>
+<td width="48%" valign="top" style="border-right:1px solid #eee;padding-right:10px;">
+<p style="margin:2px 0;color:#e10098;font-weight:bold;font-size:13px;">Dirigido a:</p>
+<p style="margin:2px 0;"><strong>Cliente:</strong> Andrea de León</p>
+<p style="margin:2px 0;"><strong>Correo:</strong> leona91@ejemplo.com</p>
+<p style="margin:2px 0;"><strong>Teléfono:</strong> 55 3456 3553</p>
+</td>
+<td width="4%">&nbsp;</td>
+<td width="48%" valign="top" style="padding-left:10px;">
+<p style="margin:2px 0;color:#e10098;font-weight:bold;font-size:13px;">Atendido por:</p>
+<p style="margin:2px 0;"><strong>Asesor:</strong> Carlos Mendoza</p>
+<p style="margin:2px 0;"><strong>Folio:</strong> LVP-261006-0002</p>
+</td>
+</tr>
+</table>
+</td>
+<td style="background:#F7F7F7;width:5%;"></td>
+</tr>
+</tbody>
+</table>
+
+<!-- SECTION HEADER: TUS PRODUCTOS -->
+<table cellpadding="0" cellspacing="0" border="0" style="width:100%;max-width: 650px;margin-top: 15px;margin-bottom:5px;" id="productsHeader">
+<tbody style="background:#F7F7F7;">
+<tr align="left" style="background:#F7F7F7;">
+<td style="background:#F7F7F7;width:5%;"></td>
+<td style="background:#F7F7F7;width:90%;">
+<h3 style="border-bottom:2px solid #e10098;color:#FFF;font-size:15px;font-weight:normal;margin:0;font-family:sans-serif;">
+<span style="background:#e10098;display:table-cell;height:30px;line-height:30px;padding:3px 16px 0;border-radius:4px 4px 0 0;">
+Detalle de Artículos
+</span>
+</h3>
+</td>
+<td style="background:#F7F7F7;width:5%;"></td>
+</tr>
+</tbody>
+</table>
+
+<!-- PRODUCTS LIST LOOP -->
+
+<!-- CARD DE PRODUCTO INDIVIDUAL -->
+<table cellpadding="0" cellspacing="0" border="0" style="width:100%;max-width: 650px;margin-top: 10px;margin-bottom:10px;" id="lineItems LIV">
+<tbody style="background:#F7F7F7;">
+<tr align="left" style="background:#F7F7F7; width: 100%;">
+<td style="background:#F7F7F7;width:5%;"></td>
+<td style="background:#fff;border-radius:4px;box-shadow:0 2px 4px 0 rgba(0,0,0,0.15);margin:0 auto;padding:15px;width:90%;">
+<table cellpadding="0" cellspacing="0" style="width:100%;background:#fff;">
+<tbody>
+<tr>
+<!-- Imagen del producto (Left) -->
+<td align="center" width="35%" valign="top" style="padding-top:10px;padding-right:15px;text-align:center;">
+<img style="max-width:140px;width:100%;height:auto;border-radius:4px;border:1px solid #f0f0f0;" alt="Liverpool Product" src="https://assets.liverpool.com.mx/assets/images/placeholder.gif">
+</td>
+<!-- Detalles del producto (Right) -->
+<td valign="top" style="font-family:sans-serif;color:#333;">
+<h2 style="color:#333;font-size:15px;margin:10px 0 6px 0;font-weight:bold;line-height:1.4;">
+Pantalla Smart TV 43 pulgadas Full HD
+</h2>
+<p style="color:#666;font-size:12px;margin:0 0 10px 0;">
+Código de producto: <strong>1965403305</strong>
+</p>
+
+<!-- Tabla interna de precios -->
+<table cellpadding="0" cellspacing="0" style="width:100%;font-size:12px;color:#555;border-top:1px dashed #eee;padding-top:8px;">
+<tr>
+<td style="width:50%;padding-bottom:5px;">
+Precio unitario:<br>
+<span style="color:#333;font-weight:bold;font-size:13px;">$6,990.00</span>
+</td>
+<td style="width:50%;padding-bottom:5px;">
+Cantidad:<br>
+<span style="color:#333;font-weight:bold;font-size:13px;">1</span>
+</td>
+</tr>
+<tr>
+<td style="padding-bottom:5px;">
+Promoción:<br>
+<span style="color:#333;font-weight:bold;">PRECIO BASE</span>
+</td>
+<td style="padding-bottom:5px;">
+Descuento:<br>
+<span style="color:#ef4444;font-weight:bold;">
+-$1,048.50 (15%)
+</span>
+</td>
+</tr>
+<tr>
+<td colspan="2" style="border-top:1px solid #eee;padding-top:8px;">
+<p style="color:#666;font-size:12px;margin:0;">Total artículo: <span style="color:#f00;font-weight:bold;font-size:14px;margin-left:5px;">$5,941.50</span></p>
+</td>
+</tr>
+</table>
+</td>
+</tr>
+</tbody>
+</table>
+</td>
+<td style="background:#F7F7F7;width:5%;"></td>
+</tr>
+</tbody>
+</table>
+
+
+<!-- TOTALS SUMMARY CARD -->
+<table cellpadding="0" cellspacing="0" border="0" style="width:100%;max-width: 650px;margin-top: 10px;margin-bottom:10px;" id="totalsSummary">
+<tbody style="background:#F7F7F7;">
+<tr align="left" style="background:#F7F7F7;">
+<td style="width:5%;"></td>
+<td style="background:#fff;border-radius:4px;box-shadow:0 2px 4px 0 rgba(0,0,0,0.15);margin:0 auto;padding:15px;width:90%;">
+<table cellpadding="0" cellspacing="0" style="background:#fff;width:100%;font-size:13px;font-family:sans-serif;color:#333;">
+<tbody>
+<tr>
+<td align="right" style="padding: 4px 0;color:#666;">Subtotal:</td>
+<td align="right" width="30%" style="padding: 4px 0;font-weight:700;">$5,121.98</td>
+</tr>
+<tr>
+<td align="right" style="padding: 4px 0;color:#666;">IVA (16%):</td>
+<td align="right" style="padding: 4px 0;font-weight:700;">$819.52</td>
+</tr>
+<tr style="font-size:15px;font-weight:bold;color:#e10098;">
+<td align="right" style="border-top:1.5px solid #e10098;padding-top:10px;margin-top:5px;">TOTAL GENERAL:</td>
+<td align="right" style="border-top:1.5px solid #e10098;padding-top:10px;margin-top:5px;color:#e10098;font-size:16px;">$5,941.50</td>
+</tr>
+</tbody>
+</table>
+</td>
+<td style="width:5%;"></td>
+</tr>
+</tbody>
+</table>
+
+<!-- EMAIL FOOTER INFO -->
+<table cellpadding="0" cellspacing="0" border="0" style="width:100%;max-width: 650px;margin-top: 20px;margin-bottom:20px;" id="footerInfo">
+<tbody style="background:#F7F7F7;">
+<tr align="center" style="background:#F7F7F7;">
+<td style="width:5%;"></td>
+<td style="font-family:sans-serif;font-size:11px;color:#888;line-height:1.5;text-align:center;width:90%;">
+<p style="margin: 0 0 10px 0;"><strong>Nota:</strong> Se adjunta a este correo el archivo PDF oficial con la cotización formal detallada para su descarga o impresión.</p>
+<p style="margin: 0 0 15px 0;font-weight:bold;color:#e10098;font-size:12px;">Liverpool - Es parte de mi vida</p>
+</td>
+<td style="width:5%;"></td>
+</tr>
+</tbody>
+</table>
+
+</td>
+</tr>
+</tbody>
+</table>
+</body>
+</html>
+', '', '[{"nombre":"Cotizacion_LVP-261006-0002.pdf — no adjuntado: esta versión de demostración no genera el PDF (Google Drive)","tipo":"application/pdf","bytes":0}]', 'cotizacion', 'LVP-261006-0002', 'omitido', '', 'Dato de ejemplo');
+
+-- ══════════════════════════════════════════════════════════════════════════════════════════════
 -- BÚSQUEDAS · metricas_busquedas
 -- Origen «cotizaciones» (el único que escribe hoy) y «resultados» sin dato, como en monRegistrarBusqueda_.
 INSERT OR REPLACE INTO metricas_busquedas (id, fecha, termino, quien, nombre, origen) VALUES (1, '2026-07-24T17:06:33.711Z', 'santiago lopez', 'fernanda.ruiz@ventel.example', 'Fernanda Ruiz', 'cotizaciones');
@@ -1219,30 +4855,30 @@ INSERT OR REPLACE INTO operacion_actualizaciones (id, incidente_id, fecha, autor
 -- Privadas (sin liberar_en), liberadas al pool, programadas y ya cerradas (algunas rescatadas por otra persona dentro de la reserva de 15 min).
 -- Varias son de los mismos clientes ficticios de las cotizaciones y su resultado cita el folio.
 INSERT OR REPLACE INTO atenciones_pendientes (id, fecha, asesor, asesor_nombre, cliente, telefono, correo, tipo, notas, hora_promesa, liberar_en, estado, rescatada_por, rescatada_en, cerrada_por, cerrada_en, resultado) VALUES ('AT-DD0D3A38-62784', '2026-09-14T22:29:22.784Z', 'sofia.herrera@ventel.example', 'Sofía Herrera', 'Mauricio Guerrero Vázquez', '442 936 2341', 'guerrerom89@ejemplo.com', 'Venta', 'Interesado en un colchón king size; pidió que le llamen en la tarde.', '', NULL, 'finalizada', '', NULL, 'sofia.herrera@ventel.example', '2026-09-15T01:51:07.784Z', 'Se cotizó con folio LVP-260914-0003 y se envió al correo del cliente.');
-INSERT OR REPLACE INTO atenciones_pendientes (id, fecha, asesor, asesor_nombre, cliente, telefono, correo, tipo, notas, hora_promesa, liberar_en, estado, rescatada_por, rescatada_en, cerrada_por, cerrada_en, resultado) VALUES ('AT-8F51DF51-39785', '2026-09-18T20:02:19.785Z', 'jorge.ramirez@ventel.example', 'Jorge Ramírez', 'Berenice Soto Santiago', '3314077154', '', 'Venta', 'Interesado en un colchón king size; pidió que le llamen en la tarde.', 'Hoy 5:00 pm', '2026-09-18T21:02:19.785Z', 'finalizada', 'valeria.castro@ventel.example', '2026-09-18T21:36:19.785Z', 'valeria.castro@ventel.example', '2026-09-18T21:47:43.785Z', 'Se le devolvió la llamada al cliente y se cotizó con el folio LVP-260918-0002.');
+INSERT OR REPLACE INTO atenciones_pendientes (id, fecha, asesor, asesor_nombre, cliente, telefono, correo, tipo, notas, hora_promesa, liberar_en, estado, rescatada_por, rescatada_en, cerrada_por, cerrada_en, resultado) VALUES ('AT-8F51DF51-39785', '2026-09-18T20:02:19.785Z', 'jorge.ramirez@ventel.example', 'Jorge Ramírez', 'Berenice Soto Santiago', '3314077154', '', 'Venta', 'Interesado en un colchón king size; pidió que le llamen en la tarde.', '10:00 am', '2026-09-18T21:02:19.785Z', 'finalizada', 'valeria.castro@ventel.example', '2026-09-18T21:36:19.785Z', 'valeria.castro@ventel.example', '2026-09-18T21:47:43.785Z', 'Se le devolvió la llamada al cliente y se cotizó con el folio LVP-260918-0002.');
 INSERT OR REPLACE INTO atenciones_pendientes (id, fecha, asesor, asesor_nombre, cliente, telefono, correo, tipo, notas, hora_promesa, liberar_en, estado, rescatada_por, rescatada_en, cerrada_por, cerrada_en, resultado) VALUES ('AT-C9A5BE1B-20000', '2026-09-21T15:52:00.000Z', 'miguel.ortega@ventel.example', 'Miguel Ortega', 'Eva Macías', '442 887 0620', 'eva.macias@ejemplo.com', 'Aclaración', 'Duda con el cobro de un pedido; hay que revisar el cargo en su estado de cuenta.', '', NULL, 'finalizada', '', NULL, 'miguel.ortega@ventel.example', '2026-09-21T19:46:45.000Z', 'Pidió más tiempo para decidir; se le llamará la próxima semana.');
-INSERT OR REPLACE INTO atenciones_pendientes (id, fecha, asesor, asesor_nombre, cliente, telefono, correo, tipo, notas, hora_promesa, liberar_en, estado, rescatada_por, rescatada_en, cerrada_por, cerrada_en, resultado) VALUES ('AT-2923DB48-28824', '2026-09-24T17:35:28.824Z', 'valeria.castro@ventel.example', 'Valeria Castro', 'Santiago Fuentes Vázquez', '55-3585-6096', 'sfuentes@ejemplo.com', 'Venta', 'Pidió precio de una lavadora y secadora, se cayó el sistema antes de cotizar.', 'Mañana por la mañana', '2026-09-24T18:35:28.824Z', 'finalizada', 'diego.navarro@ventel.example', '2026-09-24T18:56:28.824Z', 'diego.navarro@ventel.example', '2026-09-24T19:06:57.824Z', 'Se le devolvió la llamada al cliente y se cotizó con el folio LVP-260924-0001.');
-INSERT OR REPLACE INTO atenciones_pendientes (id, fecha, asesor, asesor_nombre, cliente, telefono, correo, tipo, notas, hora_promesa, liberar_en, estado, rescatada_por, rescatada_en, cerrada_por, cerrada_en, resultado) VALUES ('AT-250604C0-20534', '2026-09-24T18:53:40.534Z', 'miguel.ortega@ventel.example', 'Miguel Ortega', 'Joaquín Uribe de León', '55 8922 9026', 'juribe@ejemplo.com', 'Venta', 'Cotización de una sala casi lista; falta confirmar la fecha de entrega.', 'Hoy después de las 4', NULL, 'finalizada', '', NULL, 'miguel.ortega@ventel.example', '2026-09-24T21:42:37.534Z', 'Se cotizó con folio LVP-260924-0002 y se envió al correo del cliente.');
-INSERT OR REPLACE INTO atenciones_pendientes (id, fecha, asesor, asesor_nombre, cliente, telefono, correo, tipo, notas, hora_promesa, liberar_en, estado, rescatada_por, rescatada_en, cerrada_por, cerrada_en, resultado) VALUES ('AT-8E9022FE-60438', '2026-09-24T22:19:20.438Z', 'sofia.herrera@ventel.example', 'Sofía Herrera', 'Joaquín de León Luna', '81 2725 5309', '', 'Venta', 'Cotización de una sala casi lista; falta confirmar la fecha de entrega.', 'Mañana 10:00 am', NULL, 'finalizada', '', NULL, 'sofia.herrera@ventel.example', '2026-09-25T00:24:02.438Z', 'Se cotizó con folio LVP-260924-0003 y se envió al correo del cliente.');
-INSERT OR REPLACE INTO atenciones_pendientes (id, fecha, asesor, asesor_nombre, cliente, telefono, correo, tipo, notas, hora_promesa, liberar_en, estado, rescatada_por, rescatada_en, cerrada_por, cerrada_en, resultado) VALUES ('AT-582B23D6-95505', '2026-09-25T17:56:35.505Z', 'asesor@ventel.example', 'Carlos Mendoza', 'Dolores Pérez', '2223630038', 'dolores.perez@ejemplo.com', 'Venta', 'Quería pagar a meses una pantalla y se cayó Connect a media llamada. Pide que le devuelvan la llamada.', 'Hoy 5:00 pm', '2026-09-25T18:26:35.505Z', 'finalizada', 'fernanda.ruiz@ventel.example', '2026-09-25T18:56:35.505Z', 'fernanda.ruiz@ventel.example', '2026-09-25T19:08:20.505Z', 'Se le devolvió la llamada al cliente y se cotizó con el folio LVP-260925-0001.');
-INSERT OR REPLACE INTO atenciones_pendientes (id, fecha, asesor, asesor_nombre, cliente, telefono, correo, tipo, notas, hora_promesa, liberar_en, estado, rescatada_por, rescatada_en, cerrada_por, cerrada_en, resultado) VALUES ('AT-6B47D887-97680', '2026-09-26T22:06:37.680Z', 'miguel.ortega@ventel.example', 'Miguel Ortega', 'Guadalupe Rangel', '8123365008', 'guadalupe.rangel@ejemplo.com', 'Venta', 'Cotización de una sala casi lista; falta confirmar la fecha de entrega.', 'Hoy 6:30 pm', '2026-09-26T22:36:37.680Z', 'finalizada', 'asesor@ventel.example', '2026-09-26T22:49:37.680Z', 'asesor@ventel.example', '2026-09-26T22:58:36.680Z', 'Se hizo la cotización LVP-260926-0002 y el cliente la recibió por correo.');
+INSERT OR REPLACE INTO atenciones_pendientes (id, fecha, asesor, asesor_nombre, cliente, telefono, correo, tipo, notas, hora_promesa, liberar_en, estado, rescatada_por, rescatada_en, cerrada_por, cerrada_en, resultado) VALUES ('AT-2923DB48-28824', '2026-09-24T17:35:28.824Z', 'valeria.castro@ventel.example', 'Valeria Castro', 'Santiago Fuentes Vázquez', '55-3585-6096', 'sfuentes@ejemplo.com', 'Venta', 'Pidió precio de una lavadora y secadora, se cayó el sistema antes de cotizar.', '17:30', '2026-09-24T18:35:28.824Z', 'finalizada', 'diego.navarro@ventel.example', '2026-09-24T18:56:28.824Z', 'diego.navarro@ventel.example', '2026-09-24T19:06:57.824Z', 'Se le devolvió la llamada al cliente y se cotizó con el folio LVP-260924-0001.');
+INSERT OR REPLACE INTO atenciones_pendientes (id, fecha, asesor, asesor_nombre, cliente, telefono, correo, tipo, notas, hora_promesa, liberar_en, estado, rescatada_por, rescatada_en, cerrada_por, cerrada_en, resultado) VALUES ('AT-250604C0-20534', '2026-09-24T18:53:40.534Z', 'miguel.ortega@ventel.example', 'Miguel Ortega', 'Joaquín Uribe de León', '55 8922 9026', 'juribe@ejemplo.com', 'Venta', 'Cotización de una sala casi lista; falta confirmar la fecha de entrega.', 'Por la tarde', NULL, 'finalizada', '', NULL, 'miguel.ortega@ventel.example', '2026-09-24T21:42:37.534Z', 'Se cotizó con folio LVP-260924-0002 y se envió al correo del cliente.');
+INSERT OR REPLACE INTO atenciones_pendientes (id, fecha, asesor, asesor_nombre, cliente, telefono, correo, tipo, notas, hora_promesa, liberar_en, estado, rescatada_por, rescatada_en, cerrada_por, cerrada_en, resultado) VALUES ('AT-8E9022FE-60438', '2026-09-24T22:19:20.438Z', 'sofia.herrera@ventel.example', 'Sofía Herrera', 'Joaquín de León Luna', '81 2725 5309', '', 'Venta', 'Cotización de una sala casi lista; falta confirmar la fecha de entrega.', 'Por la tarde', NULL, 'finalizada', '', NULL, 'sofia.herrera@ventel.example', '2026-09-25T00:24:02.438Z', 'Se cotizó con folio LVP-260924-0003 y se envió al correo del cliente.');
+INSERT OR REPLACE INTO atenciones_pendientes (id, fecha, asesor, asesor_nombre, cliente, telefono, correo, tipo, notas, hora_promesa, liberar_en, estado, rescatada_por, rescatada_en, cerrada_por, cerrada_en, resultado) VALUES ('AT-582B23D6-95505', '2026-09-25T17:56:35.505Z', 'asesor@ventel.example', 'Carlos Mendoza', 'Dolores Pérez', '2223630038', 'dolores.perez@ejemplo.com', 'Venta', 'Quería pagar a meses una pantalla y se cayó Connect a media llamada. Pide que le devuelvan la llamada.', '10:00 am', '2026-09-25T18:26:35.505Z', 'finalizada', 'fernanda.ruiz@ventel.example', '2026-09-25T18:56:35.505Z', 'fernanda.ruiz@ventel.example', '2026-09-25T19:08:20.505Z', 'Se le devolvió la llamada al cliente y se cotizó con el folio LVP-260925-0001.');
+INSERT OR REPLACE INTO atenciones_pendientes (id, fecha, asesor, asesor_nombre, cliente, telefono, correo, tipo, notas, hora_promesa, liberar_en, estado, rescatada_por, rescatada_en, cerrada_por, cerrada_en, resultado) VALUES ('AT-6B47D887-97680', '2026-09-26T22:06:37.680Z', 'miguel.ortega@ventel.example', 'Miguel Ortega', 'Guadalupe Rangel', '8123365008', 'guadalupe.rangel@ejemplo.com', 'Venta', 'Cotización de una sala casi lista; falta confirmar la fecha de entrega.', '17:30', '2026-09-26T22:36:37.680Z', 'finalizada', 'asesor@ventel.example', '2026-09-26T22:49:37.680Z', 'asesor@ventel.example', '2026-09-26T22:58:36.680Z', 'Se hizo la cotización LVP-260926-0002 y el cliente la recibió por correo.');
 INSERT OR REPLACE INTO atenciones_pendientes (id, fecha, asesor, asesor_nombre, cliente, telefono, correo, tipo, notas, hora_promesa, liberar_en, estado, rescatada_por, rescatada_en, cerrada_por, cerrada_en, resultado) VALUES ('AT-C78B085E-20000', '2026-09-26T22:22:00.000Z', 'fernanda.ruiz@ventel.example', 'Fernanda Ruiz', 'Sergio Ochoa Salazar', '33 5019 9939', '', 'Aclaración', 'Duda con el cobro de un pedido; hay que revisar el cargo en su estado de cuenta.', '', NULL, 'finalizada', '', NULL, 'fernanda.ruiz@ventel.example', '2026-09-26T23:20:02.000Z', 'Pidió más tiempo para decidir; se le llamará la próxima semana.');
 INSERT OR REPLACE INTO atenciones_pendientes (id, fecha, asesor, asesor_nombre, cliente, telefono, correo, tipo, notas, hora_promesa, liberar_en, estado, rescatada_por, rescatada_en, cerrada_por, cerrada_en, resultado) VALUES ('AT-E73362D8-84680', '2026-09-29T21:09:44.680Z', 'jorge.ramirez@ventel.example', 'Jorge Ramírez', 'Karla Luna Velázquez', '5537486096', '', 'Venta', 'Quería pagar a meses una pantalla y se cayó Connect a media llamada. Pide que le devuelvan la llamada.', '', NULL, 'finalizada', '', NULL, 'jorge.ramirez@ventel.example', '2026-09-29T23:04:07.680Z', 'Se cotizó con folio LVP-260929-0002 y se envió al correo del cliente.');
-INSERT OR REPLACE INTO atenciones_pendientes (id, fecha, asesor, asesor_nombre, cliente, telefono, correo, tipo, notas, hora_promesa, liberar_en, estado, rescatada_por, rescatada_en, cerrada_por, cerrada_en, resultado) VALUES ('AT-0181798D-60000', '2026-09-29T23:26:00.000Z', 'miguel.ortega@ventel.example', 'Miguel Ortega', 'Susana Serrano Quintero', '55 9013 2000', '', 'Seguimiento', 'Le prometí confirmar disponibilidad y una fecha de entrega.', 'Mañana 10:00 am', NULL, 'finalizada', '', NULL, 'miguel.ortega@ventel.example', '2026-09-30T00:35:52.000Z', 'Se le devolvió la llamada y quedó resuelto.');
-INSERT OR REPLACE INTO atenciones_pendientes (id, fecha, asesor, asesor_nombre, cliente, telefono, correo, tipo, notas, hora_promesa, liberar_en, estado, rescatada_por, rescatada_en, cerrada_por, cerrada_en, resultado) VALUES ('AT-9D2DAF39-66032', '2026-09-30T17:51:06.032Z', 'diego.navarro@ventel.example', 'Diego Navarro', 'Daniela Ibarra', '(81) 6723 5417', '', 'Venta', 'Quería pagar a meses una pantalla y se cayó Connect a media llamada. Pide que le devuelvan la llamada.', 'Mañana por la mañana', '2026-09-30T18:21:06.032Z', 'finalizada', 'sofia.herrera@ventel.example', '2026-09-30T18:56:06.032Z', 'sofia.herrera@ventel.example', '2026-09-30T19:05:10.032Z', 'Se hizo la cotización LVP-260930-0003 y el cliente la recibió por correo.');
-INSERT OR REPLACE INTO atenciones_pendientes (id, fecha, asesor, asesor_nombre, cliente, telefono, correo, tipo, notas, hora_promesa, liberar_en, estado, rescatada_por, rescatada_en, cerrada_por, cerrada_en, resultado) VALUES ('AT-51D0D9E5-29643', '2026-10-01T21:10:29.643Z', 'sofia.herrera@ventel.example', 'Sofía Herrera', 'Rodrigo Uribe Navarro', '442 188 9367', 'rodrigo.uribe@ejemplo.com', 'Seguimiento', 'Quedó en decidir esta semana; llamarle para ver si procede.', '17:30', NULL, 'pendiente', '', NULL, '', NULL, '');
-INSERT OR REPLACE INTO atenciones_pendientes (id, fecha, asesor, asesor_nombre, cliente, telefono, correo, tipo, notas, hora_promesa, liberar_en, estado, rescatada_por, rescatada_en, cerrada_por, cerrada_en, resultado) VALUES ('AT-C7C4C797-60000', '2026-10-03T17:51:00.000Z', 'miguel.ortega@ventel.example', 'Miguel Ortega', 'Dolores Delgado Rosales', '55-8181-7842', '', 'Seguimiento', 'Quedó en decidir esta semana; llamarle para ver si procede.', 'Mañana por la mañana', NULL, 'finalizada', '', NULL, 'miguel.ortega@ventel.example', '2026-10-03T21:32:41.000Z', 'No contestó en dos intentos; se le dejó mensaje.');
-INSERT OR REPLACE INTO atenciones_pendientes (id, fecha, asesor, asesor_nombre, cliente, telefono, correo, tipo, notas, hora_promesa, liberar_en, estado, rescatada_por, rescatada_en, cerrada_por, cerrada_en, resultado) VALUES ('AT-495624B9-46697', '2026-10-03T18:40:46.697Z', 'asesor@ventel.example', 'Carlos Mendoza', 'Constructora Valle Alto SA de CV', '55 8281 9435', '', 'Seguimiento', 'Preguntó si ya se aprobó su cotización; queda pendiente avisarle.', 'Hoy 5:00 pm', NULL, 'pendiente', '', NULL, '', NULL, '');
-INSERT OR REPLACE INTO atenciones_pendientes (id, fecha, asesor, asesor_nombre, cliente, telefono, correo, tipo, notas, hora_promesa, liberar_en, estado, rescatada_por, rescatada_en, cerrada_por, cerrada_en, resultado) VALUES ('AT-81203638-0', '2026-10-04T23:40:00.000Z', 'jorge.ramirez@ventel.example', 'Jorge Ramírez', 'Teresa Torres', '55 3473 1177', 'teresa_torres@ejemplo.com', 'Venta', 'Iba a cerrar la compra de un refrigerador y se cortó la llamada.', 'Antes de las 3 pm', '2026-10-05T03:40:00.000Z', 'pendiente', '', NULL, '', NULL, '');
-INSERT OR REPLACE INTO atenciones_pendientes (id, fecha, asesor, asesor_nombre, cliente, telefono, correo, tipo, notas, hora_promesa, liberar_en, estado, rescatada_por, rescatada_en, cerrada_por, cerrada_en, resultado) VALUES ('AT-7B33AB50-0', '2026-10-05T19:40:00.000Z', 'jorge.ramirez@ventel.example', 'Jorge Ramírez', 'Luis Ángel Medina Ledesma', '81 1102 6732', '', 'Venta', 'Pidió precio de una lavadora y secadora, se cayó el sistema antes de cotizar.', 'Antes de las 3 pm', NULL, 'pendiente', '', NULL, '', NULL, '');
-INSERT OR REPLACE INTO atenciones_pendientes (id, fecha, asesor, asesor_nombre, cliente, telefono, correo, tipo, notas, hora_promesa, liberar_en, estado, rescatada_por, rescatada_en, cerrada_por, cerrada_en, resultado) VALUES ('AT-BCC48366-0', '2026-10-05T23:00:00.000Z', 'sofia.herrera@ventel.example', 'Sofía Herrera', 'Carmen Díaz Sandoval', '81 1987 6022', 'carmendiaz56@ejemplo.com', 'Entrega', 'Pregunta por la entrega de su pedido, la paquetería no ha pasado.', '17:30', '2026-10-05T23:30:00.000Z', 'pendiente', '', NULL, '', NULL, '');
+INSERT OR REPLACE INTO atenciones_pendientes (id, fecha, asesor, asesor_nombre, cliente, telefono, correo, tipo, notas, hora_promesa, liberar_en, estado, rescatada_por, rescatada_en, cerrada_por, cerrada_en, resultado) VALUES ('AT-0181798D-60000', '2026-09-29T23:26:00.000Z', 'miguel.ortega@ventel.example', 'Miguel Ortega', 'Susana Serrano Quintero', '55 9013 2000', '', 'Seguimiento', 'Le prometí confirmar disponibilidad y una fecha de entrega.', 'Por la tarde', NULL, 'finalizada', '', NULL, 'miguel.ortega@ventel.example', '2026-09-30T00:35:52.000Z', 'Se le devolvió la llamada y quedó resuelto.');
+INSERT OR REPLACE INTO atenciones_pendientes (id, fecha, asesor, asesor_nombre, cliente, telefono, correo, tipo, notas, hora_promesa, liberar_en, estado, rescatada_por, rescatada_en, cerrada_por, cerrada_en, resultado) VALUES ('AT-9D2DAF39-66032', '2026-09-30T17:51:06.032Z', 'diego.navarro@ventel.example', 'Diego Navarro', 'Daniela Ibarra', '(81) 6723 5417', '', 'Venta', 'Quería pagar a meses una pantalla y se cayó Connect a media llamada. Pide que le devuelvan la llamada.', '17:30', '2026-09-30T18:21:06.032Z', 'finalizada', 'sofia.herrera@ventel.example', '2026-09-30T18:56:06.032Z', 'sofia.herrera@ventel.example', '2026-09-30T19:05:10.032Z', 'Se hizo la cotización LVP-260930-0003 y el cliente la recibió por correo.');
+INSERT OR REPLACE INTO atenciones_pendientes (id, fecha, asesor, asesor_nombre, cliente, telefono, correo, tipo, notas, hora_promesa, liberar_en, estado, rescatada_por, rescatada_en, cerrada_por, cerrada_en, resultado) VALUES ('AT-51D0D9E5-29643', '2026-10-01T21:10:29.643Z', 'sofia.herrera@ventel.example', 'Sofía Herrera', 'Rodrigo Uribe Navarro', '442 188 9367', 'rodrigo.uribe@ejemplo.com', 'Seguimiento', 'Quedó en decidir esta semana; llamarle para ver si procede.', 'Antes de las 3 pm', NULL, 'pendiente', '', NULL, '', NULL, '');
+INSERT OR REPLACE INTO atenciones_pendientes (id, fecha, asesor, asesor_nombre, cliente, telefono, correo, tipo, notas, hora_promesa, liberar_en, estado, rescatada_por, rescatada_en, cerrada_por, cerrada_en, resultado) VALUES ('AT-C7C4C797-60000', '2026-10-03T17:51:00.000Z', 'miguel.ortega@ventel.example', 'Miguel Ortega', 'Dolores Delgado Rosales', '55-8181-7842', '', 'Seguimiento', 'Quedó en decidir esta semana; llamarle para ver si procede.', '17:30', NULL, 'finalizada', '', NULL, 'miguel.ortega@ventel.example', '2026-10-03T21:32:41.000Z', 'No contestó en dos intentos; se le dejó mensaje.');
+INSERT OR REPLACE INTO atenciones_pendientes (id, fecha, asesor, asesor_nombre, cliente, telefono, correo, tipo, notas, hora_promesa, liberar_en, estado, rescatada_por, rescatada_en, cerrada_por, cerrada_en, resultado) VALUES ('AT-495624B9-46697', '2026-10-03T18:40:46.697Z', 'asesor@ventel.example', 'Carlos Mendoza', 'Constructora Valle Alto SA de CV', '55 8281 9435', '', 'Seguimiento', 'Preguntó si ya se aprobó su cotización; queda pendiente avisarle.', '17:30', NULL, 'pendiente', '', NULL, '', NULL, '');
+INSERT OR REPLACE INTO atenciones_pendientes (id, fecha, asesor, asesor_nombre, cliente, telefono, correo, tipo, notas, hora_promesa, liberar_en, estado, rescatada_por, rescatada_en, cerrada_por, cerrada_en, resultado) VALUES ('AT-81203638-0', '2026-10-04T23:40:00.000Z', 'jorge.ramirez@ventel.example', 'Jorge Ramírez', 'Teresa Torres', '55 3473 1177', 'teresa_torres@ejemplo.com', 'Venta', 'Iba a cerrar la compra de un refrigerador y se cortó la llamada.', '', '2026-10-05T03:40:00.000Z', 'pendiente', '', NULL, '', NULL, '');
+INSERT OR REPLACE INTO atenciones_pendientes (id, fecha, asesor, asesor_nombre, cliente, telefono, correo, tipo, notas, hora_promesa, liberar_en, estado, rescatada_por, rescatada_en, cerrada_por, cerrada_en, resultado) VALUES ('AT-7B33AB50-0', '2026-10-05T19:40:00.000Z', 'jorge.ramirez@ventel.example', 'Jorge Ramírez', 'Luis Ángel Medina Ledesma', '81 1102 6732', '', 'Venta', 'Pidió precio de una lavadora y secadora, se cayó el sistema antes de cotizar.', '', NULL, 'pendiente', '', NULL, '', NULL, '');
+INSERT OR REPLACE INTO atenciones_pendientes (id, fecha, asesor, asesor_nombre, cliente, telefono, correo, tipo, notas, hora_promesa, liberar_en, estado, rescatada_por, rescatada_en, cerrada_por, cerrada_en, resultado) VALUES ('AT-BCC48366-0', '2026-10-05T23:00:00.000Z', 'sofia.herrera@ventel.example', 'Sofía Herrera', 'Carmen Díaz Sandoval', '81 1987 6022', 'carmendiaz56@ejemplo.com', 'Entrega', 'Pregunta por la entrega de su pedido, la paquetería no ha pasado.', 'Antes de las 3 pm', '2026-10-05T23:30:00.000Z', 'pendiente', '', NULL, '', NULL, '');
 INSERT OR REPLACE INTO atenciones_pendientes (id, fecha, asesor, asesor_nombre, cliente, telefono, correo, tipo, notas, hora_promesa, liberar_en, estado, rescatada_por, rescatada_en, cerrada_por, cerrada_en, resultado) VALUES ('AT-EFFE1609-0', '2026-10-06T18:30:00.000Z', 'diego.navarro@ventel.example', 'Diego Navarro', 'Rodrigo Rojas', '55 3633 0630', '', 'Otro', 'Llamada cortada, no alcancé a anotar el motivo.', 'Hoy 5:00 pm', '2026-10-06T20:30:00.000Z', 'pendiente', '', NULL, '', NULL, '');
-INSERT OR REPLACE INTO atenciones_pendientes (id, fecha, asesor, asesor_nombre, cliente, telefono, correo, tipo, notas, hora_promesa, liberar_en, estado, rescatada_por, rescatada_en, cerrada_por, cerrada_en, resultado) VALUES ('AT-F7B0E294-0', '2026-10-06T19:45:00.000Z', 'asesor@ventel.example', 'Carlos Mendoza', 'Ernesto Franco Figueroa', '442-122-5895', '', 'Venta', 'Iba a cerrar la compra de un refrigerador y se cortó la llamada.', 'Hoy 6:30 pm', '2026-10-06T21:45:00.000Z', 'pendiente', '', NULL, '', NULL, '');
+INSERT OR REPLACE INTO atenciones_pendientes (id, fecha, asesor, asesor_nombre, cliente, telefono, correo, tipo, notas, hora_promesa, liberar_en, estado, rescatada_por, rescatada_en, cerrada_por, cerrada_en, resultado) VALUES ('AT-F7B0E294-0', '2026-10-06T19:45:00.000Z', 'asesor@ventel.example', 'Carlos Mendoza', 'Ernesto Franco Figueroa', '442-122-5895', '', 'Venta', 'Iba a cerrar la compra de un refrigerador y se cortó la llamada.', 'Hoy 5:00 pm', '2026-10-06T21:45:00.000Z', 'pendiente', '', NULL, '', NULL, '');
 INSERT OR REPLACE INTO atenciones_pendientes (id, fecha, asesor, asesor_nombre, cliente, telefono, correo, tipo, notas, hora_promesa, liberar_en, estado, rescatada_por, rescatada_en, cerrada_por, cerrada_en, resultado) VALUES ('AT-A4A02545-0', '2026-10-06T20:40:00.000Z', 'diego.navarro@ventel.example', 'Diego Navarro', 'Natalia Juárez Álvarez', '55-3108-6492', '', 'Venta', 'Pidió precio de una lavadora y secadora, se cayó el sistema antes de cotizar.', '', '2026-10-06T21:40:00.000Z', 'pendiente', '', NULL, '', NULL, '');
-INSERT OR REPLACE INTO atenciones_pendientes (id, fecha, asesor, asesor_nombre, cliente, telefono, correo, tipo, notas, hora_promesa, liberar_en, estado, rescatada_por, rescatada_en, cerrada_por, cerrada_en, resultado) VALUES ('AT-FE491630-0', '2026-10-06T22:25:00.000Z', 'miguel.ortega@ventel.example', 'Miguel Ortega', 'Juan Carlos Espinoza', '55 7950 1364', '', 'Venta', 'Cotización de una sala casi lista; falta confirmar la fecha de entrega.', 'Hoy después de las 4', '2026-10-07T00:00:00.000Z', 'pendiente', '', NULL, '', NULL, '');
+INSERT OR REPLACE INTO atenciones_pendientes (id, fecha, asesor, asesor_nombre, cliente, telefono, correo, tipo, notas, hora_promesa, liberar_en, estado, rescatada_por, rescatada_en, cerrada_por, cerrada_en, resultado) VALUES ('AT-FE491630-0', '2026-10-06T22:25:00.000Z', 'miguel.ortega@ventel.example', 'Miguel Ortega', 'Juan Carlos Espinoza', '55 7950 1364', '', 'Venta', 'Cotización de una sala casi lista; falta confirmar la fecha de entrega.', 'Antes de las 8 pm', '2026-10-07T00:00:00.000Z', 'pendiente', '', NULL, '', NULL, '');
 INSERT OR REPLACE INTO atenciones_pendientes (id, fecha, asesor, asesor_nombre, cliente, telefono, correo, tipo, notas, hora_promesa, liberar_en, estado, rescatada_por, rescatada_en, cerrada_por, cerrada_en, resultado) VALUES ('AT-FD80CA02-0', '2026-10-06T23:10:00.000Z', 'asesor@ventel.example', 'Carlos Mendoza', 'Julieta Rojas', '55 4209 4017', 'julieta.rojas@ejemplo.com', 'Aclaración', 'No le llegó el correo con su cotización; confirmar la dirección y reenviar.', 'Hoy 5:00 pm', '2026-10-07T03:10:00.000Z', 'pendiente', '', NULL, '', NULL, '');
 INSERT OR REPLACE INTO atenciones_pendientes (id, fecha, asesor, asesor_nombre, cliente, telefono, correo, tipo, notas, hora_promesa, liberar_en, estado, rescatada_por, rescatada_en, cerrada_por, cerrada_en, resultado) VALUES ('AT-217FCB69-0', '2026-10-06T23:25:00.000Z', 'sofia.herrera@ventel.example', 'Sofía Herrera', 'Francisco Serrano Cruz', '55-7114-2710', '', 'Otro', 'Cliente pidió que le llamen de vuelta, no dijo el motivo.', '17:30', '2026-10-07T01:25:00.000Z', 'pendiente', '', NULL, '', NULL, '');
-INSERT OR REPLACE INTO atenciones_pendientes (id, fecha, asesor, asesor_nombre, cliente, telefono, correo, tipo, notas, hora_promesa, liberar_en, estado, rescatada_por, rescatada_en, cerrada_por, cerrada_en, resultado) VALUES ('AT-7ED2FAC6-0', '2026-10-06T23:40:00.000Z', 'sofia.herrera@ventel.example', 'Sofía Herrera', 'Enrique Cabrera', '5524774392', 'ecabrera@ejemplo.com', 'Venta', 'Iba a cerrar la compra de un refrigerador y se cortó la llamada.', 'Mañana 10:00 am', '2026-10-07T03:40:00.000Z', 'pendiente', '', NULL, '', NULL, '');
+INSERT OR REPLACE INTO atenciones_pendientes (id, fecha, asesor, asesor_nombre, cliente, telefono, correo, tipo, notas, hora_promesa, liberar_en, estado, rescatada_por, rescatada_en, cerrada_por, cerrada_en, resultado) VALUES ('AT-7ED2FAC6-0', '2026-10-06T23:40:00.000Z', 'sofia.herrera@ventel.example', 'Sofía Herrera', 'Enrique Cabrera', '5524774392', 'ecabrera@ejemplo.com', 'Venta', 'Iba a cerrar la compra de un refrigerador y se cortó la llamada.', 'Antes de las 8 pm', '2026-10-07T03:40:00.000Z', 'pendiente', '', NULL, '', NULL, '');
 INSERT OR REPLACE INTO atenciones_tipos (clave, tipo, usos, creado, por) VALUES ('venta', 'Venta', 15, '2026-09-14T22:29:22.784Z', 'sofia.herrera@ventel.example');
 INSERT OR REPLACE INTO atenciones_tipos (clave, tipo, usos, creado, por) VALUES ('aclaracion', 'Aclaración', 3, '2026-09-21T15:52:00.000Z', 'miguel.ortega@ventel.example');
 INSERT OR REPLACE INTO atenciones_tipos (clave, tipo, usos, creado, por) VALUES ('seguimiento', 'Seguimiento', 4, '2026-09-29T23:26:00.000Z', 'miguel.ortega@ventel.example');

@@ -86,6 +86,7 @@ function arrancar(): void {
 
   /* ── Dónde se sienta: abajo a la derecha, a la izquierda de los botones flotantes que haya ── */
   let colocarPendiente = false;
+  let zonaVigilada: HTMLElement | null = null;
   const colocar = () => {
     colocarPendiente = false;
     const vw = de.clientWidth;
@@ -104,6 +105,20 @@ function arrancar(): void {
     host.style.setProperty('--vx-der', derecha + 'px');
     if (abajo === null) host.style.removeProperty('--vx-abajo');
     else host.style.setProperty('--vx-abajo', abajo + 'px');
+    // La pastilla de estado (app_operacion) vive abajo a la izquierda y con una incidencia crece a lo
+    // ancho: en un teléfono puede llegar hasta aquí. Si se enciman, el botón sube por encima de ella.
+    const zona = document.querySelector<HTMLElement>('.op-zona');
+    if (zona) {
+      if (zonaVigilada !== zona && 'ResizeObserver' in window) {
+        zonaVigilada = zona;
+        new ResizeObserver(pedirColocar).observe(zona);
+      }
+      const z = zona.getBoundingClientRect();
+      const b = boton.getBoundingClientRect();
+      if (z.width > 0 && z.right > b.left - 8 && z.left < b.right && z.bottom > b.top && z.top < b.bottom) {
+        host.style.setProperty('--vx-abajo', Math.round(vh - z.top + 8) + 'px');
+      }
+    }
     // El panel abierto se apoya justo encima del botón.
     const caja = boton.getBoundingClientRect();
     host.style.setProperty('--vx-panel-abajo', Math.round(vh - caja.top + 8) + 'px');

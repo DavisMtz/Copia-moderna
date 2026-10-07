@@ -38,10 +38,10 @@ function escribirRuta(r: Ruta) {
   if (location.hash !== h) history.replaceState(null, '', location.pathname + location.search + h);
 }
 
-const PESTANAS: Array<[Vista, string, string]> = [
-  ['tablas', 'Tablas', 'tabla'],
-  ['consola', 'Consola SQL', 'consola'],
-  ['bandeja', 'Bandeja de salida', 'correo']
+const PESTANAS: Array<[Vista, string, string, string]> = [
+  ['tablas', 'Tablas', 'Tablas', 'tabla'],
+  ['consola', 'Consola SQL', 'Consola', 'consola'],
+  ['bandeja', 'Bandeja de salida', 'Bandeja', 'correo']
 ];
 
 const TEMAS: Array<[string, string]> = [['aurora', 'Aurora'], ['slate', 'Slate'], ['carbon', 'Carbón']];
@@ -126,11 +126,12 @@ export function App() {
           <span className="marca-tx"><b>Ventel</b><span>Explorador de datos</span></span>
         </a>
         <div className="pestanas" role="tablist" aria-label="Secciones">
-          {PESTANAS.map(([v, t, ic], i) => (
+          {PESTANAS.map(([v, t, corto, ic], i) => (
             <button key={v} type="button" role="tab" id={'pestana-' + v} className="pestana" aria-selected={ruta.vista === v}
               aria-controls="vista" tabIndex={ruta.vista === v ? 0 : -1} ref={(el) => { pestanas.current[i] = el; }}
-              onClick={() => ir({ vista: v })} onKeyDown={(e) => teclaPestana(e, i)}>
-              <Icono n={ic} />{t}
+              onClick={() => ir({ vista: v })} onKeyDown={(e) => teclaPestana(e, i)}
+              aria-label={t + (v === 'bandeja' && correos ? ', ' + correos + (correos === 1 ? ' correo' : ' correos') : '')}>
+              <Icono n={ic} /><span className="largo">{t}</span><span className="corto" aria-hidden="true">{corto}</span>
               {v === 'bandeja' && correos ? <span className="cuenta">{numero(correos)}</span> : null}
             </button>
           ))}
@@ -161,7 +162,9 @@ export function App() {
 function Puerta({ fase }: { fase: Fase }) {
   const sinPermiso = fase.f === 'sin-permiso';
   const error = fase.f === 'error';
-  const motivo = 'motivo' in fase ? fase.motivo : '';
+  const crudo = 'motivo' in fase ? fase.motivo : '';
+  // El texto genérico de secIdentidadMaestra habla de «la consola»: aquí ya lo dice la tarjeta.
+  const motivo = sinPermiso && !/baja/i.test(crudo) ? '' : crudo;
   return (
     <main className="puerta">
       <section className="puerta-tarjeta tarjeta" aria-labelledby="puerta-titulo">

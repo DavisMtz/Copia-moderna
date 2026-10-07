@@ -47,8 +47,8 @@ CREATE TABLE sesiones (
 CREATE INDEX sesiones_email ON sesiones (email);
 CREATE INDEX sesiones_ultima ON sesiones (ultima);
 
--- Bandeja de salida: en esta versión los correos NO salen (no hay Gmail). Quedan aquí, completos,
--- para enseñarlos en la demo y en el explorador de datos.
+-- Bandeja de salida: cada correo queda aquí completo, haya salido o no. Los que salen de verdad van
+-- por Brevo desde logidma.com; su estado y el id de Brevo están en las columnas de la migración 0009.
 CREATE TABLE correos_salida (
   id          INTEGER PRIMARY KEY AUTOINCREMENT,
   fecha       TEXT NOT NULL,
