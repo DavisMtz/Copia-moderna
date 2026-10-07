@@ -22,6 +22,7 @@ import type { Ctx } from './contexto';
 import { secConfig } from './seguridad';
 import { inicioDelDiaMx } from './fechas';
 import { cacheSumar } from './sistema';
+import { permUsuario } from './permisos';
 
 export interface Adjunto { nombre: string; tipo?: string; bytes?: number; base64?: string }
 
@@ -67,6 +68,48 @@ async function topeSinSesion(ctx: Ctx): Promise<string> {
     return 'Se llegó al tope por hora de correos pedidos desde esta conexión sin iniciar sesión.';
   }
   return '';
+}
+
+/**
+ * Registro abierto (la maqueta acepta cualquier dominio): quien se dio de alta sola, con rol Asesor y un
+ * correo fuera de los dominios de confianza, NO le escribe a terceros desde logidma.com. Lo que mande le
+ * llega a ella misma, marcado «[Maqueta]» y con una nota de a quién iba: prueba el flujo completo (y ve
+ * el correo con su PDF) sin que el dominio sirva para mandar spam. Y con tope, para que nadie agote el
+ * cupo diario de Brevo. Supervisores, maestros y los dominios de confianza no cambian.
+ * Dominios de confianza: propiedad CORREO_DOMINIOS_CONFIABLES (por omisión, liverpool.com.mx —el registro
+ * verifica el buzón con un código— y las cuentas de la demo).
+ */
+export const DOMINIOS_CONFIABLES_RESPALDO = 'liverpool.com.mx, ventel.example';
+const TOPE_CUENTA_ABIERTA_DIA = 15;
+const TOPE_CUENTAS_ABIERTAS_DIA = 100;
+
+/** El correo de quien envía si es una cuenta del registro abierto; '' si puede escribirle a quien sea. */
+async function cuentaAbierta(ctx: Ctx): Promise<string> {
+  const email = String((ctx.sesion && ctx.sesion.email) || '').trim().toLowerCase();
+  if (!email) return '';
+  const confiables = String(await secConfig(ctx, 'CORREO_DOMINIOS_CONFIABLES', DOMINIOS_CONFIABLES_RESPALDO))
+    .toLowerCase().split(/[\s,;]+/).map((d) => d.replace(/^@/, '')).filter(Boolean);
+  if (confiables.indexOf(email.split('@')[1] || '') !== -1) return '';
+  return (await permUsuario(ctx, email)).avanzado ? '' : email;
+}
+
+async function topeCuentaAbierta(ctx: Ctx, email: string): Promise<string> {
+  const dia = inicioDelDiaMx().toISOString().slice(0, 10);
+  if (await cacheSumar(ctx, 'correo-abiertas:' + dia, 26 * 3600) > TOPE_CUENTAS_ABIERTAS_DIA) {
+    return 'Se llegó al tope diario de correos de las cuentas de prueba.';
+  }
+  if (await cacheSumar(ctx, 'correo-abierta:' + email + ':' + dia, 26 * 3600) > TOPE_CUENTA_ABIERTA_DIA) {
+    return 'Llegaste al tope de ' + TOPE_CUENTA_ABIERTA_DIA + ' correos al día de las cuentas de prueba.';
+  }
+  return '';
+}
+
+function avisoRedirigido(ajenos: string[]): string {
+  const lista = ajenos.map((x) => x.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')).join(', ');
+  return '<div style="font-family:Arial,Helvetica,sans-serif;font-size:13px;line-height:1.5;background:#fff4e5;' +
+    'border:1px solid #f0c27b;color:#5c3d00;padding:10px 14px;border-radius:8px;margin:0 0 16px">' +
+    '<strong>Maqueta del Portal Ventel.</strong> Las cuentas que se registran solas reciben ellas mismas lo que ' +
+    'envían, para que el dominio no sirva para escribirle a terceros. Este correo iba para: <strong>' + lista + '</strong>.</div>';
 }
 
 const RE_FICTICIO = /@(?:[\w.-]+\.)?(?:example|test|invalid|localhost)$|@(?:[\w.-]+\.)?(?:example|ejemplo)\.(?:com|net|org|mx)$/i;
@@ -129,8 +172,27 @@ export async function enviarCorreo(ctx: Ctx, c: Correo): Promise<ResultadoCorreo
   const de = await remitente(ctx, c.de);
   const nombreDe = String(c.nombreDe || await secConfig(ctx, 'CC_SENDER_NAME', NOMBRE_RESPALDO)).slice(0, 70);
   const paraTodos = lista(c.para), ccTodos = lista(c.cc), ccoTodos = lista(c.cco);
-  const para = paraTodos.filter(correoEnviable), cc = ccTodos.filter(correoEnviable), cco = ccoTodos.filter(correoEnviable);
-  const omitidos = [...paraTodos, ...ccTodos, ...ccoTodos].filter((x) => !correoEnviable(x));
+  let para = paraTodos.filter(correoEnviable), cc = ccTodos.filter(correoEnviable), cco = ccoTodos.filter(correoEnviable);
+  let omitidos = [...paraTodos, ...ccTodos, ...ccoTodos].filter((x) => !correoEnviable(x));
+
+  // Registro abierto: si una cuenta de prueba le escribe a alguien más, el correo se le devuelve a ella.
+  let nota = '';
+  const propia = await cuentaAbierta(ctx);
+  const ajenos = propia ? [...paraTodos, ...ccTodos, ...ccoTodos].filter((x) => x !== propia) : [];
+  if (ajenos.length) {
+    para = correoEnviable(propia) ? [propia] : [];
+    cc = [];
+    cco = [];
+    omitidos = [];
+    nota = 'Cuenta del registro abierto: se le devolvió a ' + propia + ' (iba para ' + ajenos.join(', ') + ').';
+    const html = c.html || '';
+    c = Object.assign({}, c, {
+      asunto: '[Maqueta] ' + (c.asunto || ''),
+      html: /<body[^>]*>/i.test(html) ? html.replace(/<body[^>]*>/i, (m) => m + avisoRedirigido(ajenos))
+        : avisoRedirigido(ajenos) + html,
+      texto: c.texto ? '[Maqueta: iba para ' + ajenos.join(', ') + ']\n\n' + c.texto : c.texto
+    });
+  }
 
   const clave = claveBrevo(ctx.env.BREVO_API_KEY);
   const apagado = String(await secConfig(ctx, 'CORREO_ENVIO_REAL', 'si')).trim().toLowerCase() === 'no';
@@ -138,13 +200,15 @@ export async function enviarCorreo(ctx: Ctx, c: Correo): Promise<ResultadoCorreo
     const motivo = !clave ? 'Sin clave de Brevo en este entorno: no sale.'
       : apagado ? 'Envío real apagado (CORREO_ENVIO_REAL = no).'
       : 'Todos los destinatarios son de ejemplo: no se manda nada.';
-    const id = await registrar(ctx, c, de, nombreDe, paraTodos, ccTodos, ccoTodos, 'omitido', '', motivo);
+    const id = await registrar(ctx, c, de, nombreDe, ajenos.length ? para : paraTodos, ajenos.length ? cc : ccTodos,
+      ajenos.length ? cco : ccoTodos, 'omitido', '', [motivo, nota].filter(Boolean).join(' '));
     return { ok: true, id, simulado: true, estado: 'omitido', omitidos };
   }
 
-  const tope = await topeSinSesion(ctx);
+  const tope = propia ? await topeCuentaAbierta(ctx, propia) : await topeSinSesion(ctx);
   if (tope) {
-    await registrar(ctx, c, de, nombreDe, paraTodos, ccTodos, ccoTodos, 'omitido', '', tope);
+    await registrar(ctx, c, de, nombreDe, ajenos.length ? para : paraTodos, ajenos.length ? cc : ccTodos,
+      ajenos.length ? cco : ccoTodos, 'omitido', '', [tope, nota].filter(Boolean).join(' '));
     throw new Error(tope + ' Inténtalo más tarde.');
   }
 
@@ -187,6 +251,6 @@ export async function enviarCorreo(ctx: Ctx, c: Correo): Promise<ResultadoCorreo
   }
   const messageId = String((respuesta && respuesta.messageId) || '');
   const id = await registrar(ctx, c, de, nombreDe, destino, cc, cco, 'enviado', messageId,
-    omitidos.length ? 'Sin enviar a direcciones de ejemplo: ' + omitidos.join(', ') : '');
+    [nota, omitidos.length ? 'Sin enviar a direcciones de ejemplo: ' + omitidos.join(', ') : ''].filter(Boolean).join(' '));
   return { ok: true, id, simulado: false, estado: 'enviado', messageId, omitidos };
 }

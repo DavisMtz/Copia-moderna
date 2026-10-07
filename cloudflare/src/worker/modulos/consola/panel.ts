@@ -25,7 +25,7 @@ import {
 import { leerPropiedadJson, fijarPropiedad, borrarPropiedad, apuntarBitacora } from '../../nucleo/sistema';
 import { escaparHtml } from '../../nucleo/util';
 import { ZONA_MX } from '../../nucleo/fechas';
-import { enviarCorreo, DOMINIO_CORREO } from '../../nucleo/correo';
+import { enviarCorreo, DOMINIO_CORREO, DOMINIOS_CONFIABLES_RESPALDO } from '../../nucleo/correo';
 import {
   cuentasDominioPermitido, cuentasAltaUsuario, cuentasActualizarPassword, cuentasMarcarPasswordTemporal,
   cuentasUrlApp, cuentasPlantillaCorreo, cuentasMailP, cuentasMailDatos, cuentasMailBoton,
@@ -110,6 +110,13 @@ const CONSOLA_AJUSTES: DefAjuste[] = [
     detalle: 'Dirección de ' + DOMINIO_CORREO + ' desde la que salen de verdad los correos del sistema (es el dominio ' +
              'autenticado en Brevo). Se usa siempre que el remitente que pide una pantalla no es de ese dominio.',
     tipo: 'correo', marcador: BREVO_REMITENTE_RESPALDO
+  },
+  {
+    clave: 'CORREO_DOMINIOS_CONFIABLES', nombre: 'Dominios que escriben a cualquiera', grupo: 'Correo',
+    detalle: 'Con el registro abierto, una cuenta de asesor de otro dominio recibe ella misma lo que envía (marcado ' +
+             '«[Maqueta]»), para que nadie use el dominio para escribirle a terceros. Las cuentas de estos dominios ' +
+             '(separados por comas), las supervisoras y los maestros escriben a cualquiera.',
+    tipo: 'texto', soloMaestro: true, marcador: DOMINIOS_CONFIABLES_RESPALDO
   },
   {
     clave: 'CC_SENDER_NAME', nombre: 'Nombre visible en los correos a clientes', grupo: 'Correo',
@@ -203,6 +210,7 @@ function consolaRespaldoEnCodigo(clave: string): string {
     case 'CUENTAS_DOMINIO': return CUENTAS_DOMINIO_RESPALDO;
     case 'MAIL_ALIAS':      return MAIL_ALIAS_RESPALDO_CF;   // en Apps Script, cotizacion@liverpool.com.mx
     case 'BREVO_REMITENTE': return BREVO_REMITENTE_RESPALDO;
+    case 'CORREO_DOMINIOS_CONFIABLES': return DOMINIOS_CONFIABLES_RESPALDO;
     case 'CC_SENDER_NAME':  return CC_SENDER_NAME_RESPALDO;
     case 'AUTH_MODO':       return 'portal';
     default:                return '';
@@ -324,6 +332,14 @@ function consolaValidarAjuste(def: DefAjuste, valor: string): { ok: boolean; val
     }
     if (!/^[a-z0-9.-]+\.[a-z]{2,}$/i.test(valor)) return mal('"' + valor + '" no parece un dominio.');
     return bien(valor.toLowerCase());
+  }
+  if (def.clave === 'CORREO_DOMINIOS_CONFIABLES') {
+    if (!valor) return bien('', 'Sin ajuste propio: escriben a cualquiera las cuentas de ' + DOMINIOS_CONFIABLES_RESPALDO + '.');
+    const dominios = valor.split(/[\s,;]+/).map((x) => x.trim().replace(/^@/, '').toLowerCase()).filter(Boolean);
+    const malos = dominios.filter((x) => !/^[a-z0-9.-]+\.[a-z]{2,}$/.test(x));
+    if (malos.length) return mal('Esto no parece un dominio: ' + malos.join(', '));
+    const unicos = dominios.filter((x, i) => dominios.indexOf(x) === i);
+    return bien(unicos.join(', '), 'Escriben a cualquiera las cuentas de ' + unicos.join(', ') + ', además de supervisoras y maestros.');
   }
   if (def.webhook) {
     if (!valor) {
