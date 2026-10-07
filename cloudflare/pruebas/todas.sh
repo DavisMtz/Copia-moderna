@@ -18,7 +18,9 @@ correr() {
   local pid=$!
   for _ in $(seq 1 90); do curl -sf "http://127.0.0.1:$p/api/salud" >/dev/null 2>&1 && break; sleep 1; done
   if node "pruebas/${PRUEBA[$m]}.test.mjs" "http://127.0.0.1:$p" >"$log" 2>&1; then r="✔"; else r="✘"; fi
-  # El Worker corre en un proceso hijo de npx: se detiene todo lo que escucha en su puerto.
+  # El Worker corre en procesos hijos de npx (wrangler y workerd): se detienen todos los de esa base,
+  # además de lo que escuche en su puerto.
+  pkill -f "persist-to .wrangler/estado-$m " 2>/dev/null
   kill $(lsof -ti tcp:"$p" 2>/dev/null) $pid 2>/dev/null; wait $pid 2>/dev/null
   echo "$r $m  ($(grep -Eo '[0-9]+ ?/ ?[0-9]+|[0-9]+ (de|of) [0-9]+' "$log" | tail -1))"
   [ "$r" = "✔" ]
