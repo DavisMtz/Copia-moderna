@@ -15,7 +15,7 @@
 import type { Env } from './tipos';
 import { Ctx } from './nucleo/contexto';
 import { despachar } from './rpc';
-import { CONSTRUIDO } from './generado/rutas';
+import { CONSTRUIDO, VERSION } from './generado/rutas';
 
 /**
  * El origen para los enlaces que salen de la API (botones de los correos, URLs de archivos). No se toma
@@ -73,7 +73,7 @@ async function salud(env: Env, req: Request): Promise<Response> {
   tiempos.sort((a, b) => a - b);
   return Response.json({
     ok: d1, d1, d1Ms: tiempos[1], colo: cf.colo || '',
-    entorno: env.ENTORNO || 'local', construido: CONSTRUIDO
+    entorno: env.ENTORNO || 'local', construido: CONSTRUIDO, version: VERSION
   }, { headers: { 'cache-control': 'no-store' } });
 }
 

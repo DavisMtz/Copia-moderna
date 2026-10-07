@@ -17,7 +17,11 @@ if [ "${1:-}" = "--semillas" ]; then
   # Sin la contraseña de producción no se siembra: las cuentas quedarían con la clave local, que está
   # en el repo público, y en producción los correos salen de verdad.
   [ -e semilla/99_claves_produccion.local.sql ] || { echo "Falta semilla/99_claves_produccion.local.sql: corre node scripts/claves-produccion.mjs"; exit 1; }
-  for f in semilla/*.sql; do
+  # Las cuentas (00) y su contraseña de producción (99) van primero y juntas: así no hay ni un instante
+  # en que las cuentas de producción tengan la clave local, que está en el repositorio.
+  archivos=(semilla/00_*.sql semilla/99_claves_produccion.local.sql)
+  for f in semilla/*.sql; do case "$f" in semilla/00_*|*claves_produccion*) ;; *) archivos+=("$f") ;; esac; done
+  for f in "${archivos[@]}"; do
     [ -e "$f" ] || continue
     case "$f" in *catalogo*) [ "$CATALOGO" = "1" ] || { echo "sin catálogo real: $f (usa --catalogo)"; continue; } ;; esac
     echo "semilla remota: $f"

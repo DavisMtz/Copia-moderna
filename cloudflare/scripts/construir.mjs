@@ -36,7 +36,7 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import crypto from 'node:crypto';
-import { execFileSync } from 'node:child_process';
+import { execFileSync, execSync } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
 import * as acorn from 'acorn';
 import * as esbuild from 'esbuild';
@@ -340,7 +340,13 @@ fs.writeFileSync(path.join(PUBLICO, '_headers'),
   '/vx/p/*\n  Cache-Control: public, max-age=31536000, immutable\n' +
   '/vx/app/assets/*\n  Cache-Control: public, max-age=31536000, immutable\n');
 
-// rutas.ts solo se reescribe si cambió (si no, cada build recargaría todos los `wrangler dev`).
+// rutas.ts solo se reescribe si cambió (si no, cada build recargaría todos los `wrangler dev`). Por eso
+// CONSTRUIDO es la fecha del commit del que salen las pantallas, y VERSION su hash: cambian con cada commit.
+let commit = { fecha: new Date().toISOString(), hash: '' };
+try {
+  const [fecha, hash] = execSync('git log -1 --format=%cI%n%h', { cwd: RAIZ_CF }).toString().trim().split('\n');
+  commit = { fecha: new Date(fecha).toISOString(), hash };
+} catch { /* sin git: la hora de ahora */ }
 const aTs = (v) => JSON.stringify(v, null, 2);
 const paginas = (obj) => Object.fromEntries(Object.entries(obj).map(([k, v]) => [k, { archivo: v.file, titulo: v.title }]));
 const cuerpoRutas =
@@ -349,12 +355,12 @@ const cuerpoRutas =
   'export const PAGINAS: Record<string, Pagina> = ' + aTs(paginas(PAGES)) + ';\n' +
   'export const PAGINAS_PORTAL: Record<string, Pagina> = ' + aTs(paginas(PORTAL_PAGES)) + ';\n' +
   'export const PARAMS_VISTA: string[] = ' + aTs(PARAMS_VISTA) + ';\n' +
-  'export const RECO_PANTALLAS: string[] = ' + aTs(RECO_PANTALLAS) + ';\n';
+  'export const RECO_PANTALLAS: string[] = ' + aTs(RECO_PANTALLAS) + ';\n' +
+  'export const CONSTRUIDO = ' + JSON.stringify(commit.fecha) + ';\n' +
+  'export const VERSION = ' + JSON.stringify(commit.hash) + ';\n';
 const rutaRutas = path.join(GENERADO, 'rutas.ts');
 const previo = fs.existsSync(rutaRutas) ? fs.readFileSync(rutaRutas, 'utf8') : '';
-if (!previo.startsWith(cuerpoRutas)) {
-  fs.writeFileSync(rutaRutas, cuerpoRutas + 'export const CONSTRUIDO = ' + JSON.stringify(new Date().toISOString()) + ';\n');
-}
+if (previo !== cuerpoRutas) fs.writeFileSync(rutaRutas, cuerpoRutas);
 fs.rmSync(TEMPORAL, { recursive: true, force: true });
 
 const kb = (n) => (n / 1024).toFixed(0) + ' KB';
