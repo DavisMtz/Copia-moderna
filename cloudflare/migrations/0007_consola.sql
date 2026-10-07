@@ -1,0 +1,12 @@
+-- =================================================================================================
+-- Consola y administración (agente «consola»).
+-- =================================================================================================
+-- La consola NO necesita tablas ni columnas nuevas: todas las hojas que tocan Consola.gs, Grupos.gs,
+-- Difusion.gs, Monitoreo.gs, CorreoCliente.gs y Articulos.gs ya existen en 0001_esquema.sql
+-- (bitacora_consola, grupos, metricas_busquedas, metricas_correos, correos_enviados, portal_articulos,
+-- portal_articulos_vistas). Lo que en Apps Script eran propiedades sueltas de la consola
+-- (CONSOLA_ULTIMA_SALUD, CONSOLA_MODULOS_DESDE, formatos_habilitados…) vive en `propiedades`.
+--
+-- Solo se añade el índice que le faltaba a «CorreosEnviados»: es una bitácora que crece sin tope y se
+-- consulta por fecha, como las demás.
+CREATE INDEX IF NOT EXISTS correos_enviados_fecha ON correos_enviados (fecha);

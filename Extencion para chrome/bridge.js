@@ -61,6 +61,16 @@
  * propio asesor puso en su bolsa — datos públicos de catálogo, sin nada del
  * asesor ni de sus clientes.
  *
+ * v3.1 · 06/10/2026 · Portal en Cloudflare (ventel.logidma.com)
+ * El Portal nuevo sirve las MISMAS pantallas, pero como página de nivel superior:
+ * ya no hay `userCodeAppPanel` ni `userHtmlFrame`, y `cotizacion.html` busca el
+ * elemento en su propio `document`. Este puente ya escribía en `document` además
+ * de en cada iframe navegado (sin iframes, solo queda el propio `document`) y no
+ * filtra por hostname, origen ni marco: lo único que hacía falta era inyectarlo en
+ * ventel.logidma.com (manifest.json). La lógica NO cambió. Las dos reglas siguen:
+ * no habla nunca con `postMessage` (la bolsa viaja solo en el DOM) y se borra del
+ * almacenamiento ANTES de escribirla, así que una bolsa se cotiza una vez.
+ *
  * Hecho por su gran amigo David Martínez "El escritor" · v4.0 (ver nota v4 abajo)
  */
 (function () {

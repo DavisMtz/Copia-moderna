@@ -1,0 +1,1002 @@
+{
+ "base": "https://ventel.logidma.com",
+ "fecha": "2026-10-07T01:25:20.426Z",
+ "correo": "asesor@ventel.example",
+ "salud": {
+  "ok": true,
+  "d1": true,
+  "d1Ms": 28,
+  "colo": "IAD",
+  "entorno": "produccion",
+  "construido": "2026-10-07T01:17:41.000Z",
+  "version": "ac9f252",
+  "borde": "IAD",
+  "api": "IAD",
+  "separado": true
+ },
+ "desde": {
+  "borde": "IAD",
+  "api": "IAD",
+  "d1Ms": 28
+ },
+ "llamadaVacia": {
+  "frio": 126,
+  "serie": [
+   126,
+   144,
+   138,
+   139,
+   136,
+   148,
+   133,
+   149,
+   132,
+   128,
+   160,
+   134,
+   132,
+   145,
+   131,
+   143,
+   137,
+   137,
+   135,
+   125,
+   140
+  ],
+  "paralelo": [
+   200,
+   138,
+   137,
+   142,
+   138,
+   139,
+   162,
+   146
+  ],
+  "paraleloTotal": 200,
+  "resumen": {
+   "mediana": 137,
+   "p25": 132,
+   "p75": 143,
+   "min": 125,
+   "max": 160,
+   "n": 21
+  }
+ },
+ "portal": {
+  "cargas": [
+   {
+    "primerByte": 60,
+    "listo": 363,
+    "load": 400,
+    "ultimoDato": 1414,
+    "llamadas": 7,
+    "llamadasMs": [
+     201,
+     207,
+     226,
+     266,
+     218,
+     236,
+     247
+    ],
+    "servidorMs": [
+     44,
+     48,
+     43,
+     71,
+     69,
+     57,
+     78
+    ],
+    "htmlKb": 158.9,
+    "htmlComprimidoKb": 60.5,
+    "transferidoKb": 91.6,
+    "recursos": 76
+   },
+   {
+    "primerByte": 88,
+    "listo": 325,
+    "load": 359,
+    "ultimoDato": 1456,
+    "llamadas": 7,
+    "llamadasMs": [
+     188,
+     201,
+     217,
+     227,
+     291,
+     223,
+     282
+    ],
+    "servidorMs": [
+     36,
+     35,
+     31,
+     48,
+     113,
+     61,
+     106
+    ],
+    "htmlKb": 158.9,
+    "htmlComprimidoKb": 61.9,
+    "transferidoKb": 93,
+    "recursos": 76
+   },
+   {
+    "primerByte": 72,
+    "listo": 333,
+    "load": 364,
+    "ultimoDato": 1420,
+    "llamadas": 7,
+    "llamadasMs": [
+     197,
+     244,
+     247,
+     280,
+     260,
+     211,
+     252
+    ],
+    "servidorMs": [
+     48,
+     62,
+     41,
+     74,
+     92,
+     42,
+     72
+    ],
+    "htmlKb": 158.9,
+    "htmlComprimidoKb": 62,
+    "transferidoKb": 93.1,
+    "recursos": 76
+   },
+   {
+    "primerByte": 91,
+    "listo": 328,
+    "load": 365,
+    "ultimoDato": 1412,
+    "llamadas": 7,
+    "llamadasMs": [
+     193,
+     229,
+     233,
+     270,
+     217,
+     204,
+     261
+    ],
+    "servidorMs": [
+     37,
+     49,
+     58,
+     62,
+     55,
+     51,
+     91
+    ],
+    "htmlKb": 158.9,
+    "htmlComprimidoKb": 61.7,
+    "transferidoKb": 92.8,
+    "recursos": 76
+   },
+   {
+    "primerByte": 85,
+    "listo": 357,
+    "load": 409,
+    "ultimoDato": 1401,
+    "llamadas": 7,
+    "llamadasMs": [
+     212,
+     235,
+     238,
+     277,
+     210,
+     199,
+     244
+    ],
+    "servidorMs": [
+     36,
+     52,
+     43,
+     54,
+     38,
+     48,
+     68
+    ],
+    "htmlKb": 158.9,
+    "htmlComprimidoKb": 61.9,
+    "transferidoKb": 93,
+    "recursos": 76
+   },
+   {
+    "primerByte": 151,
+    "listo": 412,
+    "load": 448,
+    "ultimoDato": 1453,
+    "llamadas": 7,
+    "llamadasMs": [
+     189,
+     214,
+     236,
+     272,
+     242,
+     241,
+     194
+    ],
+    "servidorMs": [
+     19,
+     67,
+     52,
+     38,
+     40,
+     75,
+     37
+    ],
+    "htmlKb": 158.9,
+    "htmlComprimidoKb": 61.9,
+    "transferidoKb": 93.1,
+    "recursos": 76
+   },
+   {
+    "primerByte": 89,
+    "listo": 368,
+    "load": 404,
+    "ultimoDato": 1436,
+    "llamadas": 7,
+    "llamadasMs": [
+     193,
+     196,
+     206,
+     218,
+     230,
+     216,
+     232
+    ],
+    "servidorMs": [
+     48,
+     31,
+     50,
+     41,
+     62,
+     59,
+     75
+    ],
+    "htmlKb": 158.9,
+    "htmlComprimidoKb": 61.6,
+    "transferidoKb": 92.8,
+    "recursos": 76
+   },
+   {
+    "primerByte": 89,
+    "listo": 366,
+    "load": 408,
+    "ultimoDato": 1490,
+    "llamadas": 7,
+    "llamadasMs": [
+     201,
+     227,
+     249,
+     227,
+     296,
+     197,
+     273
+    ],
+    "servidorMs": [
+     40,
+     49,
+     77,
+     62,
+     103,
+     47,
+     100
+    ],
+    "htmlKb": 158.9,
+    "htmlComprimidoKb": 61.9,
+    "transferidoKb": 93,
+    "recursos": 76
+   },
+   {
+    "primerByte": 82,
+    "listo": 340,
+    "load": 376,
+    "ultimoDato": 1411,
+    "llamadas": 7,
+    "llamadasMs": [
+     182,
+     183,
+     203,
+     245,
+     303,
+     204,
+     247
+    ],
+    "servidorMs": [
+     36,
+     22,
+     22,
+     33,
+     110,
+     50,
+     84
+    ],
+    "htmlKb": 158.9,
+    "htmlComprimidoKb": 61.6,
+    "transferidoKb": 92.9,
+    "recursos": 76
+   },
+   {
+    "primerByte": 83,
+    "listo": 442,
+    "load": 488,
+    "ultimoDato": 1495,
+    "llamadas": 7,
+    "llamadasMs": [
+     240,
+     245,
+     285,
+     239,
+     294,
+     222,
+     274
+    ],
+    "servidorMs": [
+     42,
+     42,
+     61,
+     59,
+     81,
+     61,
+     98
+    ],
+    "htmlKb": 158.9,
+    "htmlComprimidoKb": 61.6,
+    "transferidoKb": 92.7,
+    "recursos": 76
+   },
+   {
+    "primerByte": 84,
+    "listo": 338,
+    "load": 376,
+    "ultimoDato": 1398,
+    "llamadas": 7,
+    "llamadasMs": [
+     198,
+     227,
+     252,
+     246,
+     272,
+     344,
+     224
+    ],
+    "servidorMs": [
+     25,
+     47,
+     53,
+     38,
+     93,
+     116,
+     66
+    ],
+    "htmlKb": 158.9,
+    "htmlComprimidoKb": 62,
+    "transferidoKb": 93.2,
+    "recursos": 76
+   },
+   {
+    "primerByte": 76,
+    "listo": 362,
+    "load": 395,
+    "ultimoDato": 1470,
+    "llamadas": 6,
+    "llamadasMs": [
+     191,
+     205,
+     247,
+     251,
+     208,
+     260
+    ],
+    "servidorMs": [
+     15,
+     27,
+     56,
+     62,
+     47,
+     97
+    ],
+    "htmlKb": 158.9,
+    "htmlComprimidoKb": 60.5,
+    "transferidoKb": 90.8,
+    "recursos": 75
+   },
+   {
+    "primerByte": 69,
+    "listo": 327,
+    "load": 362,
+    "ultimoDato": 1418,
+    "llamadas": 7,
+    "llamadasMs": [
+     182,
+     224,
+     223,
+     255,
+     292,
+     249,
+     264
+    ],
+    "servidorMs": [
+     19,
+     47,
+     37,
+     72,
+     149,
+     95,
+     80
+    ],
+    "htmlKb": 158.9,
+    "htmlComprimidoKb": 61.9,
+    "transferidoKb": 92.9,
+    "recursos": 76
+   },
+   {
+    "primerByte": 87,
+    "listo": 391,
+    "load": 450,
+    "ultimoDato": 1472,
+    "llamadas": 7,
+    "llamadasMs": [
+     197,
+     222,
+     224,
+     235,
+     276,
+     201,
+     282
+    ],
+    "servidorMs": [
+     31,
+     56,
+     34,
+     41,
+     88,
+     46,
+     97
+    ],
+    "htmlKb": 158.9,
+    "htmlComprimidoKb": 60.5,
+    "transferidoKb": 91.6,
+    "recursos": 76
+   },
+   {
+    "primerByte": 81,
+    "listo": 356,
+    "load": 392,
+    "ultimoDato": 1499,
+    "llamadas": 7,
+    "llamadasMs": [
+     198,
+     213,
+     215,
+     252,
+     254,
+     199,
+     338
+    ],
+    "servidorMs": [
+     29,
+     39,
+     41,
+     46,
+     75,
+     44,
+     155
+    ],
+    "htmlKb": 158.9,
+    "htmlComprimidoKb": 61.9,
+    "transferidoKb": 93.1,
+    "recursos": 76
+   },
+   {
+    "primerByte": 93,
+    "listo": 328,
+    "load": 364,
+    "ultimoDato": 1537,
+    "llamadas": 7,
+    "llamadasMs": [
+     192,
+     203,
+     264,
+     285,
+     229,
+     223,
+     360
+    ],
+    "servidorMs": [
+     35,
+     30,
+     50,
+     51,
+     29,
+     46,
+     202
+    ],
+    "htmlKb": 158.9,
+    "htmlComprimidoKb": 61.7,
+    "transferidoKb": 92.8,
+    "recursos": 76
+   },
+   {
+    "primerByte": 186,
+    "listo": 427,
+    "load": 461,
+    "ultimoDato": 1746,
+    "llamadas": 7,
+    "llamadasMs": [
+     232,
+     253,
+     269,
+     278,
+     241,
+     210,
+     480
+    ],
+    "servidorMs": [
+     34,
+     31,
+     37,
+     60,
+     54,
+     53,
+     80
+    ],
+    "htmlKb": 158.9,
+    "htmlComprimidoKb": 62.3,
+    "transferidoKb": 93.4,
+    "recursos": 76
+   },
+   {
+    "primerByte": 114,
+    "listo": 355,
+    "load": 390,
+    "ultimoDato": 1428,
+    "llamadas": 7,
+    "llamadasMs": [
+     208,
+     233,
+     253,
+     255,
+     229,
+     182,
+     227
+    ],
+    "servidorMs": [
+     50,
+     36,
+     70,
+     63,
+     68,
+     41,
+     65
+    ],
+    "htmlKb": 158.9,
+    "htmlComprimidoKb": 61.7,
+    "transferidoKb": 92.9,
+    "recursos": 76
+   },
+   {
+    "primerByte": 80,
+    "listo": 335,
+    "load": 371,
+    "ultimoDato": 1428,
+    "llamadas": 6,
+    "llamadasMs": [
+     208,
+     249,
+     252,
+     297,
+     260,
+     245
+    ],
+    "servidorMs": [
+     27,
+     57,
+     67,
+     109,
+     75,
+     76
+    ],
+    "htmlKb": 158.9,
+    "htmlComprimidoKb": 62.4,
+    "transferidoKb": 92.6,
+    "recursos": 75
+   },
+   {
+    "primerByte": 95,
+    "listo": 384,
+    "load": 418,
+    "ultimoDato": 1465,
+    "llamadas": 6,
+    "llamadasMs": [
+     218,
+     239,
+     296,
+     303,
+     257,
+     246
+    ],
+    "servidorMs": [
+     24,
+     51,
+     43,
+     75,
+     48,
+     85
+    ],
+    "htmlKb": 158.9,
+    "htmlComprimidoKb": 61.9,
+    "transferidoKb": 92,
+    "recursos": 75
+   },
+   {
+    "primerByte": 74,
+    "listo": 306,
+    "load": 338,
+    "ultimoDato": 1454,
+    "llamadas": 7,
+    "llamadasMs": [
+     171,
+     204,
+     207,
+     229,
+     230,
+     173,
+     323
+    ],
+    "servidorMs": [
+     22,
+     39,
+     38,
+     44,
+     63,
+     24,
+     149
+    ],
+    "htmlKb": 158.9,
+    "htmlComprimidoKb": 61.9,
+    "transferidoKb": 93,
+    "recursos": 76
+   },
+   {
+    "primerByte": 78,
+    "listo": 321,
+    "load": 355,
+    "ultimoDato": 1359,
+    "llamadas": 7,
+    "llamadasMs": [
+     194,
+     205,
+     215,
+     253,
+     210,
+     204,
+     213
+    ],
+    "servidorMs": [
+     37,
+     44,
+     27,
+     53,
+     38,
+     39,
+     47
+    ],
+    "htmlKb": 158.9,
+    "htmlComprimidoKb": 61.6,
+    "transferidoKb": 92.7,
+    "recursos": 76
+   },
+   {
+    "primerByte": 103,
+    "listo": 444,
+    "load": 476,
+    "ultimoDato": 1547,
+    "llamadas": 7,
+    "llamadasMs": [
+     185,
+     195,
+     247,
+     275,
+     278,
+     268,
+     251
+    ],
+    "servidorMs": [
+     21,
+     33,
+     73,
+     72,
+     101,
+     73,
+     85
+    ],
+    "htmlKb": 158.9,
+    "htmlComprimidoKb": 61.9,
+    "transferidoKb": 92.9,
+    "recursos": 76
+   },
+   {
+    "primerByte": 87,
+    "listo": 353,
+    "load": 392,
+    "ultimoDato": 1455,
+    "llamadas": 7,
+    "llamadasMs": [
+     247,
+     255,
+     255,
+     266,
+     270,
+     158,
+     302
+    ],
+    "servidorMs": [
+     46,
+     63,
+     57,
+     91,
+     88,
+     20,
+     118
+    ],
+    "htmlKb": 158.9,
+    "htmlComprimidoKb": 62.5,
+    "transferidoKb": 93.7,
+    "recursos": 76
+   },
+   {
+    "primerByte": 77,
+    "listo": 389,
+    "load": 429,
+    "ultimoDato": 1471,
+    "llamadas": 7,
+    "llamadasMs": [
+     231,
+     237,
+     281,
+     284,
+     250,
+     185,
+     248
+    ],
+    "servidorMs": [
+     32,
+     29,
+     73,
+     61,
+     77,
+     34,
+     71
+    ],
+    "htmlKb": 158.9,
+    "htmlComprimidoKb": 61.9,
+    "transferidoKb": 93,
+    "recursos": 76
+   },
+   {
+    "primerByte": 83,
+    "listo": 330,
+    "load": 363,
+    "ultimoDato": 1438,
+    "llamadas": 6,
+    "llamadasMs": [
+     192,
+     204,
+     210,
+     256,
+     267,
+     243
+    ],
+    "servidorMs": [
+     35,
+     49,
+     49,
+     80,
+     93,
+     72
+    ],
+    "htmlKb": 158.9,
+    "htmlComprimidoKb": 62.2,
+    "transferidoKb": 92.4,
+    "recursos": 75
+   },
+   {
+    "primerByte": 154,
+    "listo": 419,
+    "load": 462,
+    "ultimoDato": 1477,
+    "llamadas": 6,
+    "llamadasMs": [
+     186,
+     193,
+     228,
+     237,
+     260,
+     205
+    ],
+    "servidorMs": [
+     27,
+     28,
+     27,
+     61,
+     77,
+     63
+    ],
+    "htmlKb": 158.9,
+    "htmlComprimidoKb": 62.2,
+    "transferidoKb": 92.5,
+    "recursos": 75
+   },
+   {
+    "primerByte": 81,
+    "listo": 377,
+    "load": 410,
+    "ultimoDato": 1456,
+    "llamadas": 7,
+    "llamadasMs": [
+     192,
+     239,
+     259,
+     258,
+     235,
+     209,
+     238
+    ],
+    "servidorMs": [
+     36,
+     37,
+     51,
+     70,
+     77,
+     48,
+     93
+    ],
+    "htmlKb": 158.9,
+    "htmlComprimidoKb": 61.9,
+    "transferidoKb": 93.1,
+    "recursos": 76
+   },
+   {
+    "primerByte": 77,
+    "listo": 322,
+    "load": 352,
+    "ultimoDato": 1397,
+    "llamadas": 7,
+    "llamadasMs": [
+     193,
+     228,
+     234,
+     257,
+     268,
+     188,
+     221
+    ],
+    "servidorMs": [
+     25,
+     39,
+     64,
+     76,
+     97,
+     40,
+     56
+    ],
+    "htmlKb": 158.9,
+    "htmlComprimidoKb": 62,
+    "transferidoKb": 93.1,
+    "recursos": 76
+   },
+   {
+    "primerByte": 96,
+    "listo": 343,
+    "load": 380,
+    "ultimoDato": 1423,
+    "llamadas": 7,
+    "llamadasMs": [
+     251,
+     263,
+     261,
+     280,
+     305,
+     181,
+     227
+    ],
+    "servidorMs": [
+     29,
+     47,
+     38,
+     52,
+     35,
+     33,
+     66
+    ],
+    "htmlKb": 158.9,
+    "htmlComprimidoKb": 62.2,
+    "transferidoKb": 93.2,
+    "recursos": 76
+   }
+  ],
+  "primerByte": {
+   "mediana": 85,
+   "p25": 79,
+   "p75": 93,
+   "min": 60,
+   "max": 186,
+   "n": 30
+  },
+  "listo": {
+   "mediana": 356,
+   "p25": 331,
+   "p75": 382,
+   "min": 306,
+   "max": 444,
+   "n": 30
+  },
+  "ultimoDato": {
+   "mediana": 1454,
+   "p25": 1419,
+   "p75": 1472,
+   "min": 1359,
+   "max": 1746,
+   "n": 30
+  },
+  "transferidoKb": {
+   "mediana": 93,
+   "p25": 93,
+   "p75": 93,
+   "min": 91,
+   "max": 94,
+   "n": 30
+  },
+  "htmlKb": 158.9,
+  "htmlComprimidoKb": 60.5,
+  "servidorMs": {
+   "mediana": 51,
+   "p25": 38,
+   "p75": 72,
+   "min": 15,
+   "max": 202,
+   "n": 205
+  }
+ },
+ "primeraVisita": {
+  "primerByte": 654,
+  "listo": 1630,
+  "load": 1718,
+  "ultimoDato": 2630,
+  "llamadas": 7,
+  "llamadasMs": [
+   188,
+   244,
+   252,
+   290,
+   286,
+   215,
+   261
+  ],
+  "servidorMs": [
+   24,
+   54,
+   75,
+   88,
+   104,
+   52,
+   91
+  ],
+  "htmlKb": 158.9,
+  "htmlComprimidoKb": 61.9,
+  "transferidoKb": 446.3,
+  "recursos": 72
+ }
+}

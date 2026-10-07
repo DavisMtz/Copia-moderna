@@ -1,0 +1,16 @@
+# Lo genera scripts/construir.mjs a partir de «Carpeta del proyecto»: nunca se edita a mano.
+public/pantallas/
+public/vx/app/
+src/worker/generado/
+# Estado local de wrangler (D1 local, caché) y dependencias.
+.wrangler/
+node_modules/
+.dev.vars
+# El repo es PÚBLICO: el catálogo real del Portal (hoja «Portal Ventel») y todo lo que se derive de él
+# vive solo en local y en la base D1, nunca en git. Ver semilla/LEEME.md.
+semilla/portal_ventel.json
+semilla/*.local.sql
+# También generados por scripts/construir.mjs (módulos compartidos, cabeceras y su carpeta de trabajo).
+public/vx/p/
+public/_headers
+.construccion/

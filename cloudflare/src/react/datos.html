@@ -1,0 +1,30 @@
+<!doctype html>
+<html lang="es-MX" data-theme="aurora">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="robots" content="noindex">
+  <title>Datos · Portal Ventel</title>
+  <link rel="icon" type="image/png" href="/vx/favicon.png">
+  <script>
+    /* Las preferencias de vista del Portal (ViewPrefsPartial.html: mismas claves), antes de pintar. */
+    (function () {
+      function leer(k) { try { return localStorage.getItem(k); } catch (e) { return null; } }
+      var de = document.documentElement;
+      de.setAttribute('data-theme', leer('ventel-theme') || 'aurora');
+      de.setAttribute('data-density', leer('ventel-density') || 'cozy');
+      de.setAttribute('data-textscale', leer('ventel-textscale') || 'md');
+      if (leer('ventel-contrast') === '1') de.setAttribute('data-contrast', 'high');
+    })();
+  </script>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:opsz,wght@14..32,300..800&family=JetBrains+Mono:wght@500;700&display=swap" rel="stylesheet">
+</head>
+<body>
+  <div id="raiz">
+    <noscript>El explorador de datos necesita JavaScript.</noscript>
+  </div>
+  <script type="module" src="./datos/main.tsx"></script>
+</body>
+</html>

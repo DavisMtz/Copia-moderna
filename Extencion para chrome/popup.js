@@ -35,6 +35,12 @@
  *        Usa `inspectProductFromDOM` (product-inspector.js) y lo pinta en
  *        `inspector.html` + `inspector-ui.js`. Función aparte, no toca nada de las
  *        anteriores.
+ *
+ * v3.1 · 06/10/2026 · Portal en Cloudflare (ventel.logidma.com) — «Guardar enlace»
+ *        acepta también https://ventel.logidma.com/ (con o sin barra final, con o sin
+ *        `?page=…`: siempre se guarda la raíz), además del /exec de Apps Script, que
+ *        sigue valiendo. Si no hay ningún enlace guardado, «Cotizar» va al Portal nuevo,
+ *        igual que el botón incrustado en la bolsa. Extracción y resultados, intactos.
  */
 
 const btnCotizar = document.getElementById('btnCotizar');
@@ -68,8 +74,11 @@ const compraAvisos = document.getElementById('compraAvisos');
 
 /** Clave donde espera la bolsa hasta que la pantalla de cotización la recoge. */
 const CLAVE_BOLSA = 'bolsaParaCotizar';
-/** Clave del enlace /exec del sistema, configurado una vez por equipo. */
+/** Clave del enlace del sistema (el Portal, o el /exec de Apps Script), configurado una vez por equipo. */
 const CLAVE_URL = 'cotizadorUrl';
+/** El Portal en Cloudflare (3.1): su host EXACTO y la dirección a la que va «Cotizar» si no hay enlace guardado. */
+const HOST_PORTAL = 'ventel.logidma.com';
+const URL_COTIZADOR_POR_DEFECTO = 'https://' + HOST_PORTAL + '/';
 
 /**
  * Última extracción mostrada en el popup (la de este momento o la que se restauró
@@ -457,6 +466,11 @@ btnExtract.addEventListener('click', async () => {
  * al asesor con su bolsa. Del enlace pegado se conservan solo origen y ruta: los
  * parámetros los pone la extensión, y así da igual que se copie con la barra de
  * direcciones llena de `?page=...`.
+ *
+ * 3.1 · El Portal en Cloudflare (https://ventel.logidma.com/) es la opción principal.
+ * Se compara el ORIGEN exacto (esquema, host y puerto) y de lo pegado no se conserva
+ * ni la ruta: la raíz es el Portal y el enrutado va en `?page=…`, que pone la extensión.
+ * El /exec de Apps Script sigue valiendo, para quien aún use el sistema viejo.
  */
 function normalizarUrlCotizador(valor) {
   const texto = String(valor || '').trim();
@@ -472,14 +486,17 @@ function normalizarUrlCotizador(valor) {
   if (u.protocol !== 'https:') {
     return { ok: false, message: 'La dirección debe empezar con https://' };
   }
+  if (u.origin === 'https://' + HOST_PORTAL) {
+    return { ok: true, url: URL_COTIZADOR_POR_DEFECTO };
+  }
   if (u.hostname !== 'script.google.com') {
-    return { ok: false, message: 'Debe ser la dirección de la aplicación web (script.google.com).' };
+    return { ok: false, message: 'Debe ser la dirección del Portal Ventel (ventel.logidma.com) o, si aún usas el sistema de Apps Script, la de script.google.com.' };
   }
   if (/\/dev$/.test(u.pathname)) {
-    return { ok: false, message: 'Esa es la URL /dev, que solo abre a quien edita el código. Usa la que termina en /exec.' };
+    return { ok: false, message: 'Esa es la URL /dev, que solo abre a quien edita el código. Usa la del Portal (ventel.logidma.com) o la que termina en /exec.' };
   }
   if (!/\/exec$/.test(u.pathname)) {
-    return { ok: false, message: 'La dirección debe terminar en /exec.' };
+    return { ok: false, message: 'La dirección de Apps Script debe terminar en /exec (o usa la del Portal: ventel.logidma.com).' };
   }
 
   return { ok: true, url: u.origin + u.pathname };
@@ -553,12 +570,9 @@ btnCotizar.addEventListener('click', async () => {
   statusEl.className = 'status-msg';
 
   try {
-    const base = await leerUrlCotizador();
-    if (!base) {
-      showStatus('Primero guarda el enlace del Sistema de Cotizaciones (aquí abajo).', true);
-      alternarConfig(true);
-      return;
-    }
+    // Sin enlace guardado (3.1) se va al Portal nuevo, igual que el botón incrustado en la
+    // bolsa; el que el asesor guardó en el panel de abajo manda siempre.
+    const base = (await leerUrlCotizador()) || URL_COTIZADOR_POR_DEFECTO;
 
     // Se extrae de nuevo en vez de reutilizar lo que ya está a la vista: los precios
     // y las promociones de Liverpool cambian solos, y cotizar la bolsa de hace un

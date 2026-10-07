@@ -20,6 +20,10 @@
  * un disparador adicional para el mismo camino que ya existe y ya funciona.
  *
  * v1.0 · 16/08/2026
+ * v3.1 · 06/10/2026 · Portal en Cloudflare (ventel.logidma.com): el enlace por
+ *        omisión ahora es el Portal nuevo, no el /exec de Apps Script. El que el
+ *        asesor guardó en el popup sigue mandando, y la URL se arma igual
+ *        (`?page=cotizacion&origen=extension` sobre la raíz del Portal).
  */
 (function () {
   'use strict';
@@ -31,9 +35,8 @@
   const CLAVE_BOLSA = 'bolsaParaCotizar';
   /** Misma clave de configuración que el panel del popup. */
   const CLAVE_URL = 'cotizadorUrl';
-  /** Si nadie configuró un enlace propio en el popup, se usa este por defecto. */
-  const URL_COTIZADOR_POR_DEFECTO =
-    'https://script.google.com/a/liverpool.com.mx/macros/s/AKfycbwGYZs3C-dsZbIWVn27uEaLm_rXQGhiQc9Q54btPxPb-Z1SX0Enx7NlPqKw4STizaOU/exec';
+  /** Si nadie configuró un enlace propio en el popup, se usa este por defecto (el Portal en Cloudflare, desde la 3.1). */
+  const URL_COTIZADOR_POR_DEFECTO = 'https://ventel.logidma.com/';
 
   /**
    * Extrae la bolsa del DOM. Copia literal de `extractBagFromDOM` en popup.js:

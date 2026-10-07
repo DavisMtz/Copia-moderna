@@ -57,7 +57,7 @@ const enBolsa = (id, sku, agregado) => ({ id: String(id), sku: String(sku || id)
     const man = JSON.parse(fs.readFileSync(path.join(EXT, 'manifest.json'), 'utf8'));
     const lista = (man.content_scripts.find((c) => c.js.indexOf('recomendador.js') > -1) || { js: [] }).js;
     ok('el manifiesto lo carga antes que la tarjeta', lista.indexOf('medicion-local.js') > -1 && lista.indexOf('medicion-local.js') < lista.indexOf('recomendador.js'), lista);
-    ok('la extensión sigue sin pedir permisos de red a otros sitios', JSON.stringify(man.host_permissions) === JSON.stringify(['*://*.liverpool.com.mx/*', 'https://script.google.com/*']), man.host_permissions);
+    ok('la extensión sigue sin pedir permisos de red a otros sitios (3.1: solo se sumó el Portal en Cloudflare)', JSON.stringify(man.host_permissions) === JSON.stringify(['*://*.liverpool.com.mx/*', 'https://script.google.com/*', 'https://ventel.logidma.com/*']), man.host_permissions);
   }
 
   seccion('1 · Mostradas: lo que el asesor tuvo a la vista, una sola vez');

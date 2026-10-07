@@ -1,0 +1,36 @@
+// Portal Ventel en Cloudflare · Worker del borde (producción, ventel.logidma.com).
+//
+// Sirve las pantallas desde el punto de Cloudflare más cercano a la persona y le pasa /api/* al
+// Worker de API (wrangler.api.jsonc) por el Service Binding `API`, que corre junto a la base.
+// Desplegar SIEMPRE los dos (scripts/desplegar.sh): primero la API, luego el borde.
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "portal-ventel",
+  "main": "src/worker/index.ts",
+  "compatibility_date": "2026-09-15",
+  "assets": {
+    "directory": "./public",
+    "binding": "ASSETS",
+    "run_worker_first": ["/", "/exec", "/api/*", "/archivos/*"]
+  },
+  "services": [
+    { "binding": "API", "service": "portal-ventel-api" }
+  ],
+  // D1 aquí solo para el interruptor del reconocimiento al servir la página (se guarda 30 s).
+  "d1_databases": [
+    {
+      "binding": "DB",
+      "database_name": "ventel-portal",
+      "database_id": "67945d75-23e1-45ac-957b-75942c336092",
+      "migrations_dir": "migrations"
+    }
+  ],
+  "r2_buckets": [
+    { "binding": "ARCHIVOS", "bucket_name": "ventel-portal-assets" }
+  ],
+  "routes": [
+    { "pattern": "ventel.logidma.com", "custom_domain": true }
+  ],
+  "vars": { "ENTORNO": "produccion" },
+  "observability": { "enabled": true }
+}

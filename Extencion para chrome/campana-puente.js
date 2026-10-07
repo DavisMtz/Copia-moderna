@@ -20,11 +20,18 @@
  *   · Solo LEE: nunca escribe en la página ni habla primero con ella.
  *
  * Hecho para Ventel · v1.0 · 03/10/2026
+ * v3.1 · 06/10/2026 · Portal en Cloudflare (ventel.logidma.com): el Portal nuevo es
+ *        la página de arriba, sin marcos de Apps Script. Aquí también corre, y la
+ *        portada escribe el elemento en su propio `document`, que es el primero que
+ *        se mira. Quien decide si se guarda sigue siendo fondo.js (ve la pestaña).
  */
 (function () {
   'use strict';
-  // Solo los marcos de Apps Script; el resto de googleusercontent (Drive, fotos…) no.
-  if (!/(^|\.)[\w-]*script\.googleusercontent\.com$/.test(location.hostname)) return;
+  // Solo los marcos de Apps Script (el resto de googleusercontent —Drive, fotos…— no) y,
+  // desde la 3.1, el Portal en Cloudflare: origen exacto, esquema y puerto incluidos.
+  var enAppsScript = /(^|\.)[\w-]*script\.googleusercontent\.com$/.test(location.hostname);
+  var enCloudflare = location.origin === 'https://ventel.logidma.com';
+  if (!enAppsScript && !enCloudflare) return;
   if (window.__ventelCampanaPuente) return;
   window.__ventelCampanaPuente = true;
 

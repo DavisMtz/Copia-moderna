@@ -1,0 +1,37 @@
+// Portal Ventel en Cloudflare · configuración LOCAL (wrangler dev, scripts/dev-aislado.sh).
+//
+// En local un solo Worker lo hace todo. En producción son dos (wrangler.produccion.jsonc +
+// wrangler.api.jsonc, ver scripts/desplegar.sh): este archivo NO se despliega.
+// Un solo Worker sirve todo:
+//   · las 20 pantallas de «Carpeta del proyecto», tal cual, generadas en public/pantallas por
+//     scripts/construir.mjs (el enrutado ?page=… es el mismo que el de /exec en Apps Script);
+//   · POST /api/rpc, que sustituye a google.script.run (secEjecutar / secEjecutarLote);
+//   · /archivos/*, las imágenes que antes iban a Drive (R2).
+// La base de datos es D1 (SQL) en lugar de las hojas de Google Sheets.
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "portal-ventel",
+  "main": "src/worker/index.ts",
+  "compatibility_date": "2026-09-15",
+  "assets": {
+    "directory": "./public",
+    "binding": "ASSETS",
+    // La raíz es el enrutador de pantallas (?page=…): tiene que pasar por el Worker.
+    "run_worker_first": ["/", "/exec", "/api/*", "/archivos/*"]
+  },
+  "d1_databases": [
+    {
+      "binding": "DB",
+      "database_name": "ventel-portal",
+      "database_id": "67945d75-23e1-45ac-957b-75942c336092",
+      "migrations_dir": "migrations"
+    }
+  ],
+  "r2_buckets": [
+    { "binding": "ARCHIVOS", "bucket_name": "ventel-portal-assets" }
+  ],
+  "vars": {
+    "ENTORNO": "local"
+  },
+  "observability": { "enabled": true }
+}

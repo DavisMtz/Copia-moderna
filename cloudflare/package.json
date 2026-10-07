@@ -1,0 +1,30 @@
+{
+  "name": "portal-ventel-cloudflare",
+  "private": true,
+  "type": "module",
+  "description": "Portal Ventel en Cloudflare: Worker + D1 + las mismas pantallas de «Carpeta del proyecto», servidas desde el edge.",
+  "scripts": {
+    "construir": "vite build && node scripts/construir.mjs",
+    "dev": "npm run construir && wrangler dev",
+    "db:local": "wrangler d1 migrations apply ventel-portal --local",
+    "db:remota": "wrangler d1 migrations apply ventel-portal --remote",
+    "tipos": "tsc --noEmit",
+    "tipos:react": "tsc -p src/react",
+    "desplegar": "bash scripts/desplegar.sh"
+  },
+  "devDependencies": {
+    "@cloudflare/workers-types": "^5.20261006.1",
+    "@types/react": "^19.3.0",
+    "@types/react-dom": "^19.3.0",
+    "@vitejs/plugin-react": "^6.1.2",
+    "acorn": "^8.18.0",
+    "playwright-core": "^1.63.0",
+    "typescript": "^5.9.3",
+    "vite": "^8.3.3",
+    "wrangler": "^4.148.0"
+  },
+  "dependencies": {
+    "react": "^19.3.0",
+    "react-dom": "^19.3.0"
+  }
+}

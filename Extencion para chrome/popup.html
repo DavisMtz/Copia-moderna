@@ -12,6 +12,10 @@
        ("En tu bolsa", "En la ficha de un artículo", "Cuando la compra ya se
        hizo") y no como una lista de botones iguales separados por "o…".
        `popup-contexto.js` marca el grupo que corresponde a la pestaña abierta.
+
+       v3.1 · 06/10/2026 · Portal en Cloudflare (ventel.logidma.com): solo cambió el
+       texto del panel «Enlace del Sistema de Cotizaciones» (el Portal nuevo como
+       opción principal). Ni el diseño ni las animaciones se tocaron.
        ========================================================================= */
     :root {
       --primary-color: #E10098;
@@ -722,10 +726,12 @@
     <div id="configPanel" class="config-panel">
       <label for="inpCotizadorUrl">Enlace del Sistema de Cotizaciones</label>
       <input id="inpCotizadorUrl" class="config-input" type="url" spellcheck="false"
-             placeholder="https://script.google.com/.../exec">
+             placeholder="https://ventel.logidma.com/">
+      <!-- 3.1: el Portal en Cloudflare es la opción principal; el /exec de Apps Script sigue valiendo. -->
       <p class="ayuda">
-        Pega aquí el enlace <strong>/exec</strong> de tu sistema. Se guarda en este
-        navegador y se usa cada vez que tocas «Cotizar».
+        Pega aquí el enlace del Portal: <strong>https://ventel.logidma.com/</strong>.
+        Si aún usas el sistema de Apps Script, vale también su enlace <strong>/exec</strong>.
+        Se guarda en este navegador y se usa cada vez que tocas «Cotizar».
       </p>
       <div class="actions">
         <button id="btnConfigSave" class="btn btn-secondary btn-compacto" type="button">Guardar enlace</button>
