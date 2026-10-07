@@ -32,6 +32,9 @@ for m in "${MODULOS[@]}"; do
   if [ $activos -ge 3 ]; then wait -n || fallas=$((fallas + 1)); activos=$((activos - 1)); fi
 done
 while [ $activos -gt 0 ]; do wait -n || fallas=$((fallas + 1)); activos=$((activos - 1)); done
-if node pruebas/cotizaciones_pdf.test.mjs >.wrangler/pruebas/cotizaciones_pdf.log 2>&1; then echo "✔ cotizaciones_pdf"; else echo "✘ cotizaciones_pdf"; fallas=$((fallas + 1)); fi
+# Las que no necesitan Worker (Node puro).
+for t in cotizaciones_pdf correo; do
+  if node "pruebas/$t.test.mjs" >".wrangler/pruebas/$t.log" 2>&1; then echo "✔ $t"; else echo "✘ $t"; fallas=$((fallas + 1)); fi
+done
 echo; [ $fallas -eq 0 ] && echo "Todas las pruebas pasaron." || echo "$fallas con fallas: ver .wrangler/pruebas/*.log"
 exit $((fallas > 0))

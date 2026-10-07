@@ -114,6 +114,7 @@ vuelve a comprobar la sesión y el bloque en cada llamada (doc 06).
 | Correo | Gmail de la cuenta que despliega, alias de grupo | Brevo, dominio logidma.com |
 | Archivos | Carpetas de Drive | R2 |
 | Acceso | Solo cuentas de liverpool.com.mx (Google) | Cualquiera con la dirección ve el Portal (también el catálogo); cotizaciones, consola y lo demás piden cuenta del Portal |
+| Quién se puede registrar | Solo correos @liverpool.com.mx | Cualquier correo (registro abierto); quien no es de liverpool.com.mx entra como Asesor y su correo le llega a sí mismo |
 | Cuotas | Las de Apps Script (tiempo, correos, 30 ejecuciones simultáneas) | Las de Cloudflare (§8), muy por encima del uso del equipo |
 
 ## 6. Lo que la maqueta no hace (a propósito)
@@ -167,6 +168,7 @@ confirmarlo con las métricas reales de uso de las primeras semanas.
 | --- | --- |
 | Gobierno de datos: información de clientes fuera de Google Workspace | Paso 1 del §7: no se migra sin aprobación de TI |
 | En la maqueta, el catálogo real del Portal (herramientas internas, procesos) se ve sin iniciar sesión | Fue una decisión para la demo (07/10/2026). Se cierra en minutos con Cloudflare Access (paso 2 del §7) o quitando el catálogo de la base |
+| Con el registro abierto, alguien podría usar el Portal para mandar correos desde logidma.com | Las cuentas que se registran solas (Asesor, fuera de liverpool.com.mx) reciben ellas mismas lo que envían, con tope de 15 al día por cuenta y 100 entre todas; los códigos de registro tienen su propio tope (40 al día, 6 por hora por conexión) |
 | Dos versiones que divergen durante la transición | Las pantallas de Cloudflare se generan de `Carpeta del proyecto/`: hay una sola fuente |
 | Que el equipo pierda la edición directa en el Sheet | «Contenido del Portal» ya cubre las ocho colecciones; un CSV se puede importar desde ahí |
 | Depender de un proveedor nuevo | El código es TypeScript estándar y SQL; la base se exporta con un comando |

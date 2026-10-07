@@ -13,6 +13,14 @@ debajo.
 | `supervisora@ventel.example` · `supervisor@ventel.example` | Supervisor |
 | `asesor@ventel.example` (y otros `…@ventel.example`) | Asesor |
 
+**Registro abierto** (producción, desde el 07/10/2026): cualquier correo puede crearse una cuenta desde
+«Registrarse», con el código que llega por correo. Esas cuentas entran como Asesor y, si le escriben a
+alguien más, **el correo les llega a ellas mismas** (marcado «[Maqueta]» y con a quién iba), con un tope de
+15 al día por cuenta y 100 entre todas: así se puede probar todo sin que el dominio sirva para mandar spam.
+Las de liverpool.com.mx, las de la demo, las supervisoras y los maestros escriben a cualquiera; la lista
+de dominios se cambia en Consola → Ajustes → «Dominios que escriben a cualquiera». Para dar más
+permisos a una cuenta, se cambia su rol en Consola → Roles.
+
 **La contraseña de producción no está en el repositorio** (es público y en producción los correos
 salen de verdad): la da quien administra la demo. Se cambia con `node scripts/claves-produccion.mjs
 [clave]`, que además genera una sal propia (`HASH_SALT`), y aplicando el archivo que deja
