@@ -289,6 +289,9 @@ export async function artObtener(ctx: Ctx, id: unknown, email: string) {
     const plano = artTextoPlano(art.contenido);
     art.palabras = plano ? plano.split(/\s+/).length : 0;
     art.minutos = Math.max(1, Math.round(art.palabras / 200));
+    // En el original faltaba: la pantalla usa `bloques` para decidir entre «N min de lectura» y «Sin contenido»,
+    // y el lector siempre decía «Sin contenido» en la firma aunque el artículo sí tuviera texto.
+    art.bloques = ((art.contenido && art.contenido.bloques) || []).length;
     if (art.estado === 'publicado') await artRegistrarVista(ctx, clave, email);
     return { status: 'ok', articulo: art, puedeEditar };
   } catch (e: any) {

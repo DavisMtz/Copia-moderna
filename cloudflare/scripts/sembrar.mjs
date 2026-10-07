@@ -42,6 +42,7 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { createRequire } from 'node:module';
 
 const AQUI = path.dirname(fileURLToPath(import.meta.url));
 const RAIZ = path.resolve(AQUI, '..');               // cloudflare/
@@ -1254,7 +1255,10 @@ function cronologia(az, q, P) {
   q.estatus = simple === 'AP' ? ESTADOS.AP : ESTADOS.ENV;
   if (simple === 'ENV') {
     q.envios.push({ t: envio(q.tRev) });
-    if (az.prob(0.05)) q.envios.push({ t: envio(new Date(q.envios[0].t.getTime() + az.entero(1, 3) * MS_DIA)) });   // un reenvío
+    if (az.prob(0.05)) {                                                           // un reenvío, al día siguiente o poco después; nunca en el futuro
+      const desde = new Date(q.envios[0].t.getTime() + az.entero(1, 3) * MS_DIA);
+      if (desde < new Date(tope.getTime() - 40 * MS_MIN)) q.envios.push({ t: envio(desde) });
+    }
   }
 }
 
@@ -2032,3 +2036,606 @@ function emitirAtenciones(S, T) {
   }
   for (const t of T.tipos) S.fila('atenciones_tipos', { clave: t.clave, tipo: t.tipo, usos: t.usos, creado: iso(t.creado), por: t.por });
 }
+
+// ══════════════════════════════════════════════════════════════════════════════════════════════
+// CONTENIDO · artículos, publicaciones (anuncios + votos), grupos
+// ══════════════════════════════════════════════════════════════════════════════════════════════
+const MESES = ['enero', 'febrero', 'marzo', 'abril', 'mayo', 'junio', 'julio', 'agosto', 'septiembre', 'octubre', 'noviembre', 'diciembre'];
+const fechaLarga = (d) => `${DIAS_ES[d.diaSemana]} ${d.dia} de ${MESES[d.mes - 1]}`;
+
+// Los bloques, ya en su forma canónica (la que deja artSanearContenido): {v:1, bloques:[…]}.
+const bTexto = (t) => ({ tipo: 'texto', partes: [{ t }] });
+const bTitulo = (texto, nivel = 2) => ({ tipo: 'titulo', texto, nivel });
+const bLista = (items, ordenada = false) => ({ tipo: 'lista', items: items.map((t) => [{ t }]), ordenada });
+const bTabla = (filas) => ({ tipo: 'tabla', filas, encabezado: true });
+const bSeparador = () => ({ tipo: 'separador' });
+
+const ARTICULOS_DEMO = [
+  {
+    titulo: 'Cómo cotizar un pedido especial', estado: 'publicado', autor: 1, editor: 0, creadoHace: 41, editadoHace: 12,
+    resumen: 'Paso a paso para armar una cotización cuando el cliente pide algo fuera de lo normal: varios artículos, un descuento adicional o un producto que hay que capturar a mano.',
+    bloques: [
+      bTexto('Un pedido especial es el que se sale de la cotización de siempre: lleva varios artículos, un descuento adicional autorizado o un producto que hay que capturar a mano. El flujo es el mismo, pero conviene cuidar tres cosas: los datos del cliente, los precios y la revisión.'),
+      bTitulo('Antes de empezar'),
+      bLista(['Ten a la mano el nombre completo del cliente, su correo y un teléfono de 10 dígitos.', 'Confirma con el cliente qué artículos quiere y cuántas piezas de cada uno.',
+        'Si pidió un descuento adicional, pide autorización a supervisión antes de capturarlo.']),
+      bTitulo('Armar la cotización'),
+      bLista(['Entra a Cotizar y captura los datos del cliente. El nombre va con mayúscula inicial, no todo en mayúsculas.',
+        'Agrega los artículos. Con la extensión de Ventel se importan solos desde liverpool.com.mx; si no, captúralos a mano con su SKU, descripción, cantidad y precio de lista.',
+        'Revisa el descuento de cada línea y el total: el sistema calcula el IVA del 16 %.', 'Escribe en observaciones lo que pidió el cliente (entrega, instalación, factura).',
+        'Pulsa «Ir a vista previa»: se genera el folio LVP-AAMMDD-XXXX y la cotización pasa a revisión.'], true),
+      bTitulo('Qué pasa después'),
+      bTexto('Una cotización no se puede enviar al cliente hasta que supervisión la aprueba. Mientras tanto la verás como «En Revisión». Si la rechazan, te llega un correo con lo que hay que corregir.'),
+      bTabla([['Estatus', 'Qué significa', 'Qué hago'], ['En Revisión', 'Supervisión todavía no la revisa.', 'Esperar; no se puede enviar.'],
+        ['Aprobada', 'Ya se puede enviar al cliente.', 'Enviarla desde «Enviar correo».'], ['Rechazada', 'Hay algo que corregir; la nota dice qué.', 'Corregir y volver a guardarla.'],
+        ['Enviada por Correo', 'El cliente ya la recibió.', 'Darle seguimiento.']]),
+      bSeparador(),
+      bTexto('Si el producto no existe en la página, captúralo a mano y anota en observaciones de dónde sale el precio.')
+    ]
+  },
+  {
+    titulo: 'Qué hacer cuando Connect se cae', estado: 'publicado', autor: 0, editor: 0, creadoHace: 27, editadoHace: 9,
+    resumen: 'Cómo comprobar que la falla no es de tu equipo, cómo reportarla para que se levante un aviso y qué hacer con los clientes que se quedan esperando.',
+    bloques: [
+      bTexto('Cuando Connect no abre o va muy lento, lo primero es saber si le pasa solo a tu equipo o a todos. No pierdas tiempo reportando algo que ya está avisado.'),
+      bTitulo('Primero, descarta tu equipo'),
+      bLista(['Cierra la pestaña de Connect y ábrela de nuevo.', 'Prueba con otro navegador o en una ventana de incógnito.', 'Comprueba que tu conexión funcione abriendo cualquier otra página.'], true),
+      bTitulo('Mira el tablero de estado'),
+      bTexto('En el Portal, la pastilla «Estado de operación» dice si ya hay una incidencia abierta. Si ya la hay, no reportes de nuevo: tu reporte se suma solo a los de los demás.'),
+      bTitulo('Si no hay aviso, repórtalo'),
+      bLista(['Abre «Reportar una falla» y elige el sistema: Connect.', 'Elige qué está pasando (por ejemplo, «No abre / no carga») y añade una nota con lo que ves.', 'Si puedes, adjunta una captura de pantalla.'], true),
+      bTexto('Cuando tres personas distintas reportan lo mismo en media hora, el sistema levanta solo un aviso de posible problema y supervisión lo confirma.'),
+      bTitulo('Mientras Connect no funciona'),
+      bLista(['Anota en Atenciones los datos del cliente que se quedó esperando: nombre, teléfono y qué quería.',
+        'No prometas una hora de solución: di que lo estás atendiendo y que le devolverás la llamada.',
+        'Cuando el aviso diga «Resuelto», devuelve las llamadas pendientes, empezando por las más antiguas.']),
+      bTabla([['Estado del aviso', 'Qué significa'], ['Posible problema', 'Varias personas reportaron lo mismo; falta confirmarlo.'], ['Confirmado', 'Supervisión confirmó la falla y ya se trabaja en ella.'],
+        ['Intermitencia', 'Funciona a ratos; puede fallar sin aviso.'], ['Resuelto', 'El sistema volvió a la normalidad.']])
+    ]
+  },
+  {
+    titulo: 'Guía rápida de garantías', estado: 'publicado', autor: 2, editor: 2, creadoHace: 15, editadoHace: 15, sinDemo: true,
+    resumen: 'Qué revisar cuando un cliente pregunta por la garantía de un producto y cuándo escalarlo con supervisión.',
+    bloques: [
+      bTexto('La garantía depende de la marca, de la categoría del producto y de la fecha de compra. Antes de responder, reúne estos datos y no prometas plazos de memoria.'),
+      bTitulo('Datos que necesitas'),
+      bLista(['Número de pedido o ticket de compra.', 'SKU y nombre del producto.', 'Fecha en que se compró y fecha en que se entregó.', 'Qué falla presenta y desde cuándo.']),
+      bTitulo('Dónde consultar'),
+      bTabla([['Qué necesito saber', 'Dónde lo consulto'], ['El plazo de garantía del producto', 'Ficha del producto en liverpool.com.mx y póliza de la marca.'],
+        ['Si la compra es del cliente', 'Ticket y pedido en Salesforce.'], ['Si el producto tuvo un cambio', 'Historial del pedido en Salesforce.']]),
+      bTitulo('Cómo responder'),
+      bLista(['Pide al cliente los datos de arriba.', 'Confirma que la falla no sea por mal uso (golpes, humedad, instalación incorrecta).',
+        'Explícale el proceso: la marca o el centro de servicio autorizado revisa el producto.', 'Si el cliente no está de acuerdo con la respuesta, escala con tu supervisor y deja la nota en el caso.'], true),
+      bSeparador(),
+      bTexto('Esta guía es un resumen. Ante la duda, consulta la póliza de la marca y escala con supervisión.')
+    ]
+  },
+  {
+    titulo: 'Cierre de mes: pendientes de cotizaciones', estado: 'borrador', autor: 1, editor: 1, creadoHace: 3, editadoHace: 1,
+    resumen: 'Qué revisar antes de cerrar el mes: cotizaciones aprobadas sin enviar y atenciones todavía abiertas.',
+    bloques: [
+      bTexto('Antes de cerrar el mes conviene dejar limpio lo que quedó a medias. Este borrador lista lo mínimo; falta completar los pasos y revisarlo con supervisión.'),
+      bTitulo('Qué revisar'),
+      bLista(['Cotizaciones en estatus «Aprobada» que nunca se enviaron al cliente.', 'Atenciones pendientes con más de una semana.'])
+    ]
+  }
+];
+
+function generarContenido(P, grupos) {
+  const az = new Azar('contenido');
+  const autoria = [P.supervisores[0] || P.maestro, P.supervisores[1] || P.supervisores[0] || P.maestro, P.maestro || P.supervisores[0]];
+  const activos = [...P.asesores.filter((a) => a.activo), ...P.supervisores, ...(P.maestro ? [P.maestro] : [])];
+
+  // ── Artículos y sus lecturas ────────────────────────────────────────────────────────────────
+  const articulos = [], vistas = [];
+  for (const a of ARTICULOS_DEMO) {
+    const creado = aHorarioLaboral(az, haceMin(a.creadoHace * 1440 + az.entero(0, 600)));
+    let editado = a.editadoHace === a.creadoHace ? creado : aHorarioLaboral(az, haceMin(a.editadoHace * 1440 + az.entero(0, 400)));
+    if (editado < creado) editado = new Date(creado.getTime() + 20 * MS_MIN);
+    const fila = {
+      id: idEstable('art', a.titulo), titulo: a.titulo, resumen: a.resumen, contenido: JSON.stringify({ v: 1, bloques: a.bloques }), estado: a.estado,
+      autores: autoria[a.autor].nombre, creado, editado, editado_por: autoria[a.editor].nombre
+    };
+    articulos.push(fila);
+    if (a.estado !== 'publicado') continue;
+    const lectores = az.barajar(activos.filter((p) => !(a.sinDemo && p === P.demo))).slice(0, az.entero(5, 8));
+    for (const p of lectores) {
+      const veces = az.pesos([1, 2, 3, 4], (x) => [55, 25, 12, 8][x - 1]);
+      const tope = AHORA.getTime() - 40 * MS_MIN;
+      const primera = new Date(Math.min(aHorarioLaboral(az, new Date(creado.getTime() + az.entero(30, 9 * 1440) * MS_MIN)).getTime(), tope - 90 * MS_MIN));
+      const ultima = veces === 1 ? primera : new Date(Math.min(aHorarioLaboral(az, new Date(primera.getTime() + az.entero(60, 12 * 1440) * MS_MIN)).getTime(), tope));
+      vistas.push({ articulo_id: fila.id, correo: p.email, nombre: p.nombre, primera_vez: primera, ultima_vez: ultima < primera ? primera : ultima, veces });
+    }
+  }
+
+  // ── Publicaciones del Portal (los formatos que escribe anuncios.html · buildDatos) ──────────
+  const sup = autoria[0], sup2 = autoria[1];
+  const h = (n) => diaMx(AHORA, n);
+  const desde = (d) => fechaMx(d.anio, d.mes, d.dia, 0, 0, 0);          // «Desde»: inicio del día en México
+  const hasta = (d) => fechaMx(d.anio, d.mes, d.dia, 23, 59, 59);       // «Hasta»: 23:59:59 de México
+  let sab = 1; while (h(sab).diaSemana !== 6 && sab < 8) sab++;       // el próximo sábado
+  const tres = h(3);
+  const anuncios = [
+    {
+      id: idEstable('anc', 'encuesta-capacitacion'), formato: 'tarjeta', activo: 1, orden: 1, desde: desde(h(-2)), hasta: hasta(tres), autor: sup, creado: aHorarioLaboral(az, haceMin(2 * 1440 + 250)),
+      datos: { tono: 'info', titulo: 'Queremos tu opinión: horario de la capacitación', descripcion: 'Una pregunta rápida para decidir cuándo hacemos la próxima capacitación de cotizaciones.',
+        imagenUrl: '', vigencia: 'Responde antes del ' + fechaLarga(tres),
+        encuesta: { pregunta: '¿Qué horario te acomoda para la capacitación?', opciones: ['Por la mañana', 'Después de comer', 'Al final del turno'], tiempo: '30 segundos',
+          cierre: ymd(tres), verAntes: false } }
+    },
+    {
+      id: idEstable('anc', 'banner-mantenimiento'), formato: 'banner', activo: 1, orden: 2, desde: desde(h(-1)), hasta: hasta(h(sab)), autor: sup2, creado: aHorarioLaboral(az, haceMin(1 * 1440 + 200)),
+      datos: { tono: 'warn', mensaje: 'Mantenimiento programado: el ' + fechaLarga(h(sab)) + ', de 8:00 a 11:00 h, el sistema no estará disponible. Guarda y envía tus cotizaciones antes.' }
+    },
+    {
+      id: idEstable('anc', 'destacado-capacitacion'), formato: 'destacado', activo: 1, orden: 3, desde: desde(h(2)), hasta: hasta(h(2)), autor: sup, creado: aHorarioLaboral(az, haceMin(300)),
+      datos: { tono: 'info', titulo: 'Capacitación de cotizaciones', cuerpo: 'El ' + fechaLarga(h(2)) + ', a las 16:00 h, repasamos el flujo completo de cotización y revisión. Confirma tu asistencia con tu supervisor.', icono: 'calendar' }
+    },
+    {
+      id: idEstable('anc', 'tarjeta-promos-vencida'), formato: 'tarjeta', activo: 1, orden: 4, desde: desde(h(-20)), hasta: hasta(h(-5)), autor: sup2, creado: aHorarioLaboral(az, haceMin(20 * 1440 + 120)),
+      datos: { tono: 'ok', titulo: 'Promociones de temporada', descripcion: 'Antes de cotizar, revisa en el Monitor de promociones qué categorías tienen descuento vigente.', imagenUrl: '', vigencia: 'Terminó el ' + fechaLarga(h(-5)) }
+    }
+  ].map((a) => Object.assign(a, { responsable: a.autor.nombre, autor: a.autor.email }));
+
+  // Votos de la encuesta: una fila por persona (quien vota otra vez cambia su opción). La persona de la demo no ha votado.
+  const encuesta = anuncios[0];
+  const votantes = az.barajar([...P.asesores.filter((a) => a.activo && a !== P.demo), ...P.supervisores]).slice(0, 8);
+  const votos = votantes.map((p) => ({
+    publicacion: encuesta.id, correo: p.email, opcion: az.pesos(encuesta.datos.encuesta.opciones, (o) => (o === 'Al final del turno' ? 4 : o === 'Por la mañana' ? 3 : 2)),
+    fecha: aHorarioLaboral(az, new Date(Math.max(encuesta.creado.getTime() + 30 * MS_MIN, AHORA.getTime() - az.entero(20, 2 * 1440) * MS_MIN)))
+  })).map((v) => (v.fecha > new Date(AHORA.getTime() - 5 * MS_MIN) ? Object.assign(v, { fecha: new Date(AHORA.getTime() - 25 * MS_MIN) }) : v));
+  return { articulos, vistas, anuncios, votos };
+}
+
+function emitirContenido(S, C, grupos, P) {
+  S.seccion('CONTENIDO · artículos, lecturas, publicaciones del Portal, votos y grupos', [
+    'Artículos: contenido = JSON de bloques versionado ({v:1, bloques}) en la forma canónica de Articulos.gs (3 publicados y 1 borrador).',
+    'Publicaciones: «Datos (JSON)» como lo arma buildDatos de anuncios.html; «Desde»/«Hasta» son inicio y fin de día de México en ISO UTC.',
+    'Hay una encuesta activa con votos (la persona de la demo aún no vota), un banner, uno programado y uno ya vencido.',
+    'Grupos: miembros = arreglo JSON de correos; creado_por/actualizado_por llevan el NOMBRE (como los escribe grupos.ts).'
+  ]);
+  for (const a of C.articulos) {
+    S.fila('portal_articulos', { id: a.id, titulo: a.titulo, resumen: a.resumen, contenido: a.contenido, estado: a.estado, autores: a.autores, creado: iso(a.creado), editado: iso(a.editado), editado_por: a.editado_por });
+  }
+  for (const v of C.vistas) {
+    S.fila('portal_articulos_vistas', { articulo_id: v.articulo_id, correo: v.correo, nombre: v.nombre, primera_vez: iso(v.primera_vez), ultima_vez: iso(v.ultima_vez), veces: v.veces });
+  }
+  for (const a of C.anuncios) {
+    S.fila('portal_anuncios', { id: a.id, formato: a.formato, activo: a.activo, orden: a.orden, desde: iso(a.desde), hasta: iso(a.hasta), datos: JSON.stringify(a.datos), autor: a.autor, responsable: a.responsable, creado: iso(a.creado) });
+  }
+  for (const v of C.votos) S.fila('portal_votos', { publicacion: v.publicacion, correo: v.correo, opcion: v.opcion, fecha: iso(v.fecha) });
+  for (const g of grupos) {
+    const ultima = g.editado && g.editado > g.miembrosFijados ? { t: g.editado, por: g.editadoPor } : { t: g.miembrosFijados, por: g.creadoPor };
+    S.fila('grupos', {
+      id: g.id, nombre: g.nombre, detalle: g.detalle, miembros: JSON.stringify(g.miembros), creado: iso(g.creado), creado_por: g.creadoPor.nombre,
+      actualizado: iso(ultima.t), actualizado_por: ultima.por.nombre
+    });
+  }
+}
+
+// ══════════════════════════════════════════════════════════════════════════════════════════════
+// ONBOARDING · qué tutorial vio cada persona (Onboarding.gs · onbMarcar)
+// Maestro y supervisores ya los vieron todos; las cuentas de asesor quedan SIN ver (para enseñarlos en la demo).
+// ══════════════════════════════════════════════════════════════════════════════════════════════
+/** pantalla → [versión del recorrido, cuántos pasos tiene] (los de cada pantalla .html: onbIniciar({pantalla, version, pasos})). */
+const RECORRIDOS = {
+  portal: [2, 9], promociones: [1, 5], anuncios: [1, 5], articulo: [1, 5], consola: [1, 5], consulta: [1, 3], correos_cliente: [1, 4],
+  cotizacion: [1, 6], dashboard: [1, 5], supervision: [2, 4], operacion: [1, 5], portal_contenido: [1, 5], revision_cotizacion: [1, 5]
+};
+
+function generarOnboarding(P) {
+  const az = new Azar('onboarding');
+  const filas = [];
+  for (const p of [...(P.maestro ? [P.maestro] : []), ...P.supervisores]) {
+    const alta = p.alta ? new Date(p.alta) : new Date(AHORA.getTime() - 120 * MS_DIA);
+    for (const [pantalla, [version, total]] of Object.entries(RECORRIDOS)) {
+      const omitido = az.prob(0.12) && total > 2;
+      const t = aHorarioLaboral(az, new Date(alta.getTime() + az.entero(1 * 1440, 40 * 1440) * MS_MIN));
+      filas.push({ correo: p.email, pantalla, version, estado: omitido ? 'omitido' : 'completado', paso_final: omitido ? az.entero(1, total - 1) : total, total_pasos: total, actualizado: t });
+    }
+  }
+  return filas;
+}
+
+function emitirOnboarding(S, filas) {
+  S.seccion('ONBOARDING · tutoriales ya vistos', ['Maestro y supervisores: los 13 recorridos. Los asesores no tienen filas: les saldrán todos.']);
+  for (const f of filas) S.fila('onboarding', { correo: f.correo, pantalla: f.pantalla, version: f.version, estado: f.estado, paso_final: f.paso_final, total_pasos: f.total_pasos, actualizado: iso(f.actualizado) });
+}
+
+// ══════════════════════════════════════════════════════════════════════════════════════════════
+// TRAZABILIDAD · las seis secciones de la Homologación de Procesos (pruebas/trazabilidad_payload_20260926.json)
+// ══════════════════════════════════════════════════════════════════════════════════════════════
+const txt = (v) => (v === null || v === undefined ? '' : String(v));
+
+function generarTrazabilidad() {
+  const p = leerJsonPruebas('trazabilidad_payload_20260926.json');
+  if (!p || !Array.isArray(p.secciones)) return null;
+  const secciones = [], procesos = [];
+  p.secciones.forEach((s, i) => {
+    secciones.push({ id: txt(s.id), orden: i, prefijo: txt(s.prefijo), label: txt(s.label), etiqueta: txt(s.etiqueta), hoja: s.hoja == null ? null : String(s.hoja), tiene_avance: s.tieneAvance ? 1 : 0 });
+    (s.procesos || []).forEach((x, j) => procesos.push({
+      id: txt(x.id), seccion: txt(s.id), orden: j, num: txt(x.num), num_hoja: txt(x.numHoja), nombre: txt(x.nombre), reporte: txt(x.reporte),
+      avance: txt(x.avance), solucion: txt(x.solucion), plataformas: txt(x.plataformas), observaciones: txt(x.observaciones)
+    }));
+  });
+  return { secciones, procesos };
+}
+
+function emitirTrazabilidad(S, T) {
+  S.seccion('TRAZABILIDAD · trazabilidad_secciones y trazabilidad_procesos', [
+    'Salen de pruebas/trazabilidad_payload_20260926.json (que ya está en el repo): sección i → orden i; proceso j de la sección → orden j.',
+    'Con eso fetchTrazabilidadData responde lo mismo que el payload de referencia.'
+  ]);
+  for (const s of T.secciones) S.fila('trazabilidad_secciones', s);
+  for (const x of T.procesos) S.fila('trazabilidad_procesos', x);
+}
+
+// ══════════════════════════════════════════════════════════════════════════════════════════════
+// BITÁCORA · BitacoraConsola (consolaBitacoraApuntar_ y sus llamadores)
+// Se arma con eventos de varias secciones (grupos, difusiones, catálogo del Portal…) y se numera
+// por fecha: la consola lee `ORDER BY id DESC`, así que el id más alto tiene que ser el más reciente.
+// ══════════════════════════════════════════════════════════════════════════════════════════════
+function armarBitacora(P, grupos, X) {
+  const az = new Azar('bitacora');
+  const B = X.bitacora;
+  const maestro = P.maestro || P.supervisores[0];
+  const sup = P.supervisores[0] || maestro, sup2 = P.supervisores[1] || sup;
+  const evento = (t, quien, accion, objetivo, detalle, parte = 'demo') => B.push({ t, quien: quien.email, accion, objetivo, detalle, parte });
+  const lab = (min) => aHorarioLaboral(az, haceMin(min));
+
+  // Las altas de la demo: la maestra las dio de alta el día en que se crearon las cuentas (00_usuarios_demo.sql).
+  for (const u of P.usuarios) {
+    if (u === maestro || !u.alta) continue;
+    evento(new Date(new Date(u.alta).getTime() + az.entero(4, 25) * MS_MIN), maestro, 'Persona dada de alta', u.email,
+      'rol ' + u.rol + ' · aviso enviado');
+  }
+  // Ajustes (Consola.gs: «Ajuste cambiado», con el nombre del ajuste y «antes» → «después»).
+  evento(lab(20 * 1440 + 310), maestro, 'Ajuste cambiado', 'Remitente de las cotizaciones', '"cotizacion@liverpool.com.mx" → "ventel@logidma.com"');
+  evento(lab(19 * 1440 + 150), maestro, 'Ajuste cambiado', 'Nombre visible en los correos a clientes',
+    '"Centro de Contacto Liverpool | Ventel" → "Centro de Contacto Liverpool (CCL) | Ventel"');
+  // El formato CCL Liverpool pasa a ser el de por omisión el 13 de septiembre (las cotizaciones lo reflejan).
+  const cambio = fechaMx(2026, 9, 11, 18, 10);
+  if (cambio < new Date(AHORA.getTime() - MS_DIA)) evento(cambio, maestro, 'Formato habilitado', 'ccl_liverpool', '');
+  // Una ventana de mantenimiento de «Correos a clientes», por la noche.
+  {
+    const t = enDia(diaMx(AHORA, -26), 20, 15, az.entero(0, 59), az.entero(0, 999));
+    evento(t, maestro, 'Módulo apagado', 'Correos a clientes', 'en mantenimiento para todos menos los maestros');
+    evento(new Date(t.getTime() + 25 * MS_MIN), maestro, 'Módulo encendido', 'Correos a clientes', 'de vuelta en servicio');
+  }
+  // La baja de la persona inactiva (toda su actividad en la demo es anterior).
+  const bajas = P.asesores.filter((a) => !a.activo);
+  bajas.forEach((b) => evento(FECHA_BAJA, maestro, 'Rol o accesos modificados', b.email, 'dado de baja'));
+  // Contraseñas restablecidas por supervisión (a personas de su nivel hacia abajo).
+  const activos = P.asesores.filter((a) => a.activo && a !== P.demo);
+  evento(lab(47 * 1440 + 90), sup, 'Contraseña restablecida', az.elegir(activos).email, 'aviso enviado');
+  evento(lab(13 * 1440 + 400), sup2, 'Contraseña restablecida', az.elegir(activos).email, 'aviso enviado');
+  // La revisión maestra de la pestaña Salud.
+  evento(lab(40 * 1440 + 200), maestro, 'Revisión del sistema', '', 'todo en orden');
+  evento(lab(21 * 1440 + 100), maestro, 'Revisión del sistema', '', '1 problema(s)');
+  evento(lab(6 * 1440 + 260), maestro, 'Revisión del sistema', '', 'todo en orden');
+  // Dos consultas del explorador de datos (solo lectura).
+  evento(lab(8 * 1440 + 150), maestro, 'Consulta de solo lectura (explorador de datos)', '', 'SELECT folio, estatus, total_general FROM cotizaciones ORDER BY timestamp DESC LIMIT 20');
+  evento(lab(2 * 1440 + 380), maestro, 'Consulta de solo lectura (explorador de datos)', '', "SELECT tipo, COUNT(*) AS n FROM metricas_correos GROUP BY tipo");
+  // Grupos: se crean, se fijan sus miembros y alguno se edita (Grupos.gs).
+  for (const g of grupos) {
+    evento(g.creado, g.creadoPor, 'Grupo creado', g.nombre, g.detalle || 'sin descripción');
+    evento(g.miembrosFijados, g.creadoPor, 'Miembros de grupo', g.nombre, 'quedan ' + g.miembros.length + ' · +' + g.miembros.length);
+    if (g.editado) evento(g.editado, g.editadoPor, 'Grupo editado', g.nombre, 'descripción');
+  }
+  return B;
+}
+
+function emitirBitacora(S, eventos, titulo) {
+  S.seccion(titulo, ['Una fila por cambio; los ids van en orden cronológico (la consola lee «ORDER BY id DESC»).']);
+  for (const e of eventos) S.fila('bitacora_consola', { id: e.id, fecha: iso(e.t), quien: e.quien, accion: e.accion, objetivo: e.objetivo, detalle: e.detalle });
+}
+
+// ══════════════════════════════════════════════════════════════════════════════════════════════
+// CATÁLOGO DEL PORTAL · semilla/portal_ventel.json → 20_catalogo_portal.local.sql  (NO va a git)
+// Se aplica lo mismo que hace PortalContenido.gs (PC_COLECCIONES + pcMapaColumnas_): cada campo
+// busca SU columna por encabezado —en minúsculas, sin espacios sobrantes—, con «contiene» o, si el
+// alias empieza por «=», con coincidencia exacta, y una columna solo se asigna UNA vez (gana el
+// primer alias que encuentra columna, en el orden en que se declaran los campos).
+// ══════════════════════════════════════════════════════════════════════════════════════════════
+const PC_COLECCIONES_SEMILLA = [
+  { id: 'herramientas', hoja: 'Herramientas', tabla: 'portal_herramientas', nombre: 'Herramientas', titulo: 'nombre',
+    // Los dos campos con credenciales compartidas NO se siembran nunca, aunque algún día la hoja los traiga.
+    vacias: ['como_acceder', 'claves'],
+    campos: [
+      { col: 'nombre', alias: ['nombre'] }, { col: 'enlace', alias: ['enlace', 'liga', 'link', 'url'], url: true },
+      { col: 'como_acceder', alias: ['acceder', 'acceso', 'como'] }, { col: 'descripcion', alias: ['descr'] }, { col: 'claves', alias: ['clave'] }] },
+  { id: 'plantillas', hoja: 'Plantillas', tabla: 'portal_plantillas', nombre: 'Plantillas de correo', titulo: 'titulo',
+    campos: [
+      { col: 'titulo', alias: ['titulo', 'título', 'nombre', 'plantilla'] }, { col: 'tipo', alias: ['tipo'] }, { col: 'asunto', alias: ['asunto', 'subject'] },
+      { col: 'cuerpo', alias: ['cuerpo', 'body', 'mensaje', 'texto', 'contenido'] }, { col: 'consideraciones', alias: ['consider', 'nota', 'escalam', 'copia', 'observ'] }] },
+  { id: 'formatos', hoja: 'Formatos', tabla: 'portal_formatos', nombre: 'Formatos', titulo: 'acceso',
+    campos: [{ col: 'acceso', alias: ['acceso', 'nombre', 'formato'] }, { col: 'observaciones', alias: ['observ', 'nota'] }, { col: 'liga', alias: ['liga', 'enlace', 'link', 'url'], url: true }] },
+  { id: 'presentaciones', hoja: 'Presentaciones', tabla: 'portal_presentaciones', nombre: 'Presentaciones', titulo: 'nombre',
+    // El encabezado real dice «DESCRPCION» (sin la i): por eso el alias es «descr».
+    campos: [{ col: 'nombre', alias: ['nombre'] }, { col: 'liga', alias: ['liga', 'enlace', 'link', 'url'], url: true }, { col: 'descripcion', alias: ['descr'] }] },
+  { id: 'paqueterias', hoja: 'Paqueterias', tabla: 'portal_paqueterias', nombre: 'Paqueterías', titulo: 'nombre',
+    campos: [{ col: 'nombre', alias: ['nombre'] }, { col: 'liga', alias: ['liga', 'enlace', 'link', 'url'], url: true }, { col: 'soms', alias: ['soms', 'sistema'] }] },
+  { id: 'pdepago', hoja: 'PdePago', tabla: 'portal_pdepago', nombre: 'Planes de pago', titulo: 'nombre',
+    campos: [{ col: 'nombre', alias: ['nombre'] }, { col: 'detalles', alias: ['detalle', 'descrip', 'info'] }, { col: 'liga', alias: ['liga', 'enlace', 'link', 'url', 'simulad'], url: true }] },
+  { id: 'promociones', hoja: 'Promociones', tabla: 'portal_promociones', nombre: 'Promociones', titulo: 'categoria',
+    campos: [
+      { col: 'direccion', alias: ['direcci'] }, { col: 'categoria', alias: ['banner / carrusel', 'banner'] },
+      { col: 'promocion', alias: ['promoción 2026', 'promocion 2026', 'promoción 202', 'promocion 202', '=promoción', '=promocion'] },
+      { col: 'marca', alias: ['=marca'] }, { col: 'vigencia', alias: ['vigencia'] }, { col: 'liga', alias: ['liga'], url: true }],
+    // Columnas que la hoja trae y la app no edita: se conservan (el Monitor lee «Desc Mkp» cuando «Promoción 2026» está vacía).
+    extras: [
+      { col: 'promocion_aa', alias: ['promoción aa', 'promocion aa'] }, { col: 'desc_mkp', alias: ['desc mkp'] }, { col: 'banners_home', alias: ['banners home'] },
+      { col: 'skus', alias: ['skus mercader', 'skus'] }, { col: 'num_skus', alias: ['#skus', '# skus'] }] },
+  { id: 'mkp', hoja: 'MKP', tabla: 'portal_mkp', nombre: 'Marketplace', titulo: 'categoria',
+    campos: [
+      { col: 'direccion', alias: ['direcci'] }, { col: 'categoria', alias: ['banner / carrusel', 'banner'] },
+      { col: 'promocion_mkt', alias: ['promoción mktplace', 'mktplace'] }, { col: 'promocion', alias: ['=promoción', '=promocion'] },
+      { col: 'vigencia', alias: ['vigencia'] }, { col: 'liga', alias: ['liga'], url: true }],
+    extras: [{ col: 'skus', alias: ['skus'] }, { col: 'num_skus', alias: ['# de sku'] }] }
+];
+
+const pcNormHdr = (v) => String(v == null ? '' : v).toLowerCase().trim().replace(/\s+/g, ' ');
+
+/** pcMapaColumnas_: campo → índice de columna (−1 = no existe). Misma regla de «una columna, una sola vez». */
+function pcMapaColumnas(campos, encabezados) {
+  const h = encabezados.map(pcNormHdr), tomadas = {}, mapa = {};
+  for (const campo of campos) {
+    let encontrada = -1;
+    for (let a = 0; a < campo.alias.length && encontrada < 0; a++) {
+      const exacto = campo.alias[a].charAt(0) === '=';
+      const buscado = pcNormHdr(exacto ? campo.alias[a].slice(1) : campo.alias[a]);
+      for (let c = 0; c < h.length; c++) {
+        if (tomadas[c] || !h[c]) continue;
+        if (exacto ? h[c] === buscado : h[c].indexOf(buscado) !== -1) { encontrada = c; break; }
+      }
+    }
+    mapa[campo.col] = encontrada;
+    if (encontrada > -1) tomadas[encontrada] = true;
+  }
+  return mapa;
+}
+
+const esUrl = (s) => /^https?:\/\//i.test(String(s == null ? '' : s).trim());
+/** Una celda de la hoja como texto (los números van como texto: son columnas TEXT). */
+const celdaTexto = (v) => (v === null || v === undefined ? '' : (typeof v === 'boolean' ? (v ? 'TRUE' : 'FALSE') : String(v)));
+
+function leerCatalogoJson() {
+  const ruta = path.join(DIR_SEMILLA, 'portal_ventel.json');
+  if (!fs.existsSync(ruta)) return null;
+  const j = JSON.parse(fs.readFileSync(ruta, 'utf8'));
+  return j && j.hojas ? j : null;
+}
+
+/** Las filas de una colección ya convertidas a las columnas de su tabla. */
+function filasDeColeccion(def, hoja) {
+  const enc = hoja.encabezados || [], filas = hoja.filas || [], vinculos = hoja.vinculos || [];
+  const mapa = pcMapaColumnas(def.campos.concat(def.extras || []), enc);
+  const colId = enc.map(pcNormHdr).indexOf('id');
+  const salida = [];
+  filas.forEach((fila, i) => {
+    const obj = {};
+    for (const campo of def.campos.concat(def.extras || [])) {
+      const idx = mapa[campo.col];
+      let v = idx > -1 ? celdaTexto(fila[idx]) : '';
+      // Regla de los hipervínculos: si lo escrito no es una dirección y la celda lleva un vínculo, vale el vínculo.
+      if (campo.url && idx > -1 && !esUrl(v)) {
+        const vin = (vinculos[i] || [])[idx];
+        if (esUrl(vin)) v = String(vin);
+      }
+      obj[campo.col] = v;
+    }
+    for (const c of def.vacias || []) obj[c] = '';
+    if (!Object.values(obj).some((x) => String(x).trim())) return;            // fila en blanco
+    const id = colId > -1 ? celdaTexto(fila[colId]).trim() : '';
+    salida.push(Object.assign({ id: id || idEstable(def.id.slice(0, 3), def.id + '|' + i), orden: i }, obj));
+  });
+  return salida;
+}
+
+/** «Anuncios»: la hora de la hoja es de México y no lleva zona → ISO UTC. «Datos (JSON)» pasa tal cual. */
+function filasAnuncios(hoja) {
+  const enc = (hoja.encabezados || []).map(pcNormHdr);
+  const i = (n) => enc.indexOf(n);
+  const salida = [];
+  for (const fila of hoja.filas || []) {
+    const id = celdaTexto(fila[i('id')]).trim();
+    if (!id) continue;
+    let datos = fila[i('datos (json)')];
+    if (datos && typeof datos === 'object') datos = JSON.stringify(datos);
+    datos = celdaTexto(datos).trim();
+    try { JSON.parse(datos); } catch { datos = '{}'; }
+    const act = fila[i('activo')];
+    const activo = act === null || act === undefined || act === '' || act === true || ['true', 'si', 'sí', '1', 'x', 'activo'].includes(String(act).trim().toLowerCase());
+    const fecha = (v) => { const d = aFechaMx(v); return d && !isNaN(d) ? iso(d) : null; };
+    salida.push({
+      id, formato: celdaTexto(fila[i('formato')]).trim().toLowerCase() || 'banner', activo: activo ? 1 : 0, orden: Number(fila[i('orden')]) || 0,
+      desde: fecha(fila[i('desde')]), hasta: fecha(fila[i('hasta')]), datos, autor: celdaTexto(fila[i('autor')]).trim(),
+      responsable: celdaTexto(fila[i('responsable')]).trim(), creado: fecha(fila[i('creado')])
+    });
+  }
+  return salida;
+}
+
+function generarCatalogo(P, X) {
+  const json = leerCatalogoJson();
+  if (!json) return null;
+  const az = new Azar('catalogo');
+  const colecciones = {};
+  for (const def of PC_COLECCIONES_SEMILLA) {
+    const hoja = json.hojas[def.hoja];
+    colecciones[def.id] = hoja ? filasDeColeccion(def, hoja) : [];
+  }
+  const anuncios = json.hojas.Anuncios ? filasAnuncios(json.hojas.Anuncios) : [];
+
+  // Enlaces reportados (el botón «Reportar» de las tarjetas del Portal): sobre elementos reales del catálogo.
+  const activos = P.asesores.filter((a) => a.activo);
+  const reportes = [];
+  const pone = (dias, hora, seccion, fila, nombreCol, enlaceCol) => {
+    if (!fila) return;
+    const t = enDia(diaMx(AHORA, -dias), hora, az.entero(0, 59), az.entero(0, 59), az.entero(0, 999));
+    if (t > AHORA) return;
+    reportes.push({ id: idEstable('rep', seccion + '|' + fila[nombreCol] + '|' + dias), orden: reportes.length + 1, fecha: t, seccion, nombre: fila[nombreCol], enlace: fila[enlaceCol] || '', usuario: az.elegir(activos).email });
+  };
+  const con = (lista, col) => lista.filter((f) => f[col]);
+  pone(15, 11, 'Herramientas', az.elegir(con(colecciones.herramientas, 'enlace')), 'nombre', 'enlace');
+  pone(9, 16, 'Paqueterías', az.elegir(con(colecciones.paqueterias, 'liga')), 'nombre', 'liga');
+  pone(4, 13, 'Formatos', az.elegir(con(colecciones.formatos, 'liga')), 'acceso', 'liga');
+  pone(1, 10, 'Herramientas', az.elegir(con(colecciones.herramientas, 'enlace')), 'nombre', 'enlace');
+
+  // Lo que la consola apunta cuando se edita el contenido del Portal («Portal · <sección>» y el rótulo de la fila).
+  const sup = P.supervisores[0] || P.maestro, sup2 = P.supervisores[1] || sup;
+  const lab = (min) => aHorarioLaboral(az, haceMin(min));
+  const algun = (lista, col) => (lista.length ? lista[az.entero(0, lista.length - 1)][col] : '');
+  const evento = (t, quien, accion, seccion, detalle) => X.bitacora.push({ t, quien: quien.email, accion, objetivo: 'Portal · ' + seccion, detalle, parte: 'catalogo' });
+  const nPromos = colecciones.promociones.length;
+  if (colecciones.herramientas.length) evento(lab(31 * 1440 + 200), sup, 'Portal: edición de contenido', 'Herramientas', algun(colecciones.herramientas, 'nombre'));
+  if (colecciones.plantillas.length) evento(lab(22 * 1440 + 330), sup2, 'Portal: alta de contenido', 'Plantillas de correo', algun(colecciones.plantillas, 'titulo'));
+  if (colecciones.paqueterias.length) evento(lab(17 * 1440 + 120), sup, 'Portal: edición de contenido', 'Paqueterías', algun(colecciones.paqueterias, 'nombre'));
+  if (colecciones.formatos.length) {
+    const f = algun(colecciones.formatos, 'acceso');
+    evento(lab(11 * 1440 + 260), sup2, 'Portal: duplicado de contenido', 'Formatos', f + ' (copia)');
+    evento(lab(11 * 1440 + 200), sup2, 'Portal: baja de contenido', 'Formatos', f + ' (copia)');
+  }
+  if (nPromos) evento(lab(5 * 1440 + 150), sup, 'Portal: importación', 'Promociones', '6 altas · 21 actualizadas · ' + Math.max(0, nPromos - 27) + ' sin cambios · 0 duplicadas · 0 con error');
+  return { colecciones, anuncios, reportes };
+}
+
+function emitirCatalogo(S, K) {
+  S.seccion('CATÁLOGO DEL PORTAL · real, de la hoja «Portal Ventel»', [
+    'Cada pestaña es una tabla portal_*; «orden» = la posición de la fila en la hoja (0 = la primera). Los encabezados se localizan con',
+    'los mismos alias que PortalContenido.gs. Herramientas: «Como acceder» y «Claves» (credenciales) quedan VACÍAS. Se recarga entera.'
+  ]);
+  for (const def of PC_COLECCIONES_SEMILLA) S.cruda('DELETE FROM ' + def.tabla);
+  S.cruda('DELETE FROM portal_reportes');
+  for (const def of PC_COLECCIONES_SEMILLA) {
+    for (const f of K.colecciones[def.id]) {
+      const fila = { id: f.id, orden: f.orden };
+      for (const campo of def.campos.concat(def.extras || [])) fila[campo.col] = f[campo.col];
+      S.fila(def.tabla, fila);
+    }
+  }
+  for (const a of K.anuncios) S.fila('portal_anuncios', Object.fromEntries(Object.entries(a).filter(([, v]) => v !== null)));
+  for (const r of K.reportes) S.fila('portal_reportes', { id: r.id, orden: r.orden, fecha: iso(r.fecha), seccion: r.seccion, nombre: r.nombre, enlace: r.enlace, usuario: r.usuario });
+}
+
+// ══════════════════════════════════════════════════════════════════════════════════════════════
+// ENSAMBLE · limpieza + todas las secciones → 10_demo.sql y 20_catalogo_portal.local.sql
+// ══════════════════════════════════════════════════════════════════════════════════════════════
+/** Tablas que 10_demo.sql vacía antes de llenarlas: así reaplicarla refresca las fechas sin duplicar nada. */
+const LIMPIEZA_DEMO = ['detalle_cotizaciones', 'cotizaciones', ["contadores", "clave LIKE 'folio:%'"], 'metricas_correos', 'metricas_busquedas', 'correos_enviados',
+  'operacion_actualizaciones', 'operacion_reportes', 'operacion_incidentes', 'operacion_catalogo', 'atenciones_pendientes', 'atenciones_tipos', 'bitacora_consola',
+  'grupos', 'onboarding', 'portal_articulos', 'portal_articulos_vistas', 'portal_votos', 'trazabilidad_procesos', 'trazabilidad_secciones'];
+
+function encabezadoArchivo(titulo, extra) {
+  return [titulo, 'Generado por scripts/sembrar.mjs (node scripts/sembrar.mjs) — NO se edita a mano: se regenera.',
+    '«Ahora» de esta corrida: ' + iso(AHORA) + ' (' + ymd(HOY) + ', hora de México). Todas las fechas son relativas a él.', ...extra];
+}
+
+function ensamblar() {
+  const P = prepararPersonas();
+  const X = { bitacora: [] };
+
+  // ── Todo lo que se calcula (sin escribir nada todavía) ──────────────────────────────────────
+  const G = generarCotizaciones(P);
+  const grupos = planGrupos(P);
+  const C = generarCorreos(P, G, X, grupos);
+  const B = generarBusquedas(P, G);
+  const O = generarOperacion(P);
+  const T = generarAtenciones(P, G);
+  const N = generarContenido(P, grupos);
+  const OB = generarOnboarding(P);
+  const Z = generarTrazabilidad();
+  armarBitacora(P, grupos, X);
+  const K = generarCatalogo(P, X);                  // null si no está portal_ventel.json
+  // La bitácora se numera por fecha, con los eventos de los dos archivos mezclados.
+  X.bitacora.sort((a, b) => a.t - b.t).forEach((e, i) => { e.id = i + 1; });
+
+  // ── 10_demo.sql ──────────────────────────────────────────────────────────────────────────────
+  const demo = new Salida('10_demo.sql', encabezadoArchivo('Datos de la demo — TODO FICTICIO (clientes, folios, correos @ejemplo.com, incidentes, atenciones…).', [
+    'Al empezar VACÍA las tablas que llena (no toca cuentas, permisos, ajustes ni el catálogo del Portal) y las vuelve a cargar: aplicarla otra vez',
+    'refresca las fechas. En una base nueva (scripts/dev-aislado.sh) esa limpieza no borra nada.']));
+  demo.seccion('0 · LIMPIEZA (la demo se recarga entera)');
+  for (const t of LIMPIEZA_DEMO) {
+    const [tabla, donde] = Array.isArray(t) ? t : [t, ''];
+    if (!ESQUEMA[tabla]) throw new Error('Limpieza: la tabla «' + tabla + '» no existe en 0001_esquema.sql.');
+    demo.cruda('DELETE FROM ' + tabla + (donde ? ' WHERE ' + donde : ''));
+  }
+  demo.cruda('DELETE FROM portal_anuncios WHERE id IN (' + N.anuncios.map((a) => lit(a.id)).join(', ') + ')');
+  emitirCotizaciones(demo, G, P);
+  emitirCorreos(demo, C);
+  emitirBusquedas(demo, B);
+  emitirOperacion(demo, O);
+  emitirAtenciones(demo, T);
+  emitirContenido(demo, N, grupos, P);
+  emitirOnboarding(demo, OB);
+  if (Z) emitirTrazabilidad(demo, Z); else console.warn('AVISO: no encontré pruebas/trazabilidad_payload_20260926.json; Trazabilidad queda sin sembrar.');
+  emitirBitacora(demo, X.bitacora.filter((e) => e.parte === 'demo'), 'BITÁCORA · BitacoraConsola');
+
+  // ── 20_catalogo_portal.local.sql ─────────────────────────────────────────────────────────────
+  let catalogo = null;
+  if (K) {
+    catalogo = new Salida('20_catalogo_portal.local.sql', encabezadoArchivo('Catálogo REAL del Portal (de la hoja «Portal Ventel») — NO va a git: el repo es público.', [
+      'Sale de semilla/portal_ventel.json (sin contraseñas ni datos de clientes). Va DESPUÉS de 10_demo.sql: sus apuntes de bitácora entran con ids',
+      'que se intercalan por fecha con los de 10_demo.sql.']));
+    emitirCatalogo(catalogo, K);
+    emitirBitacora(catalogo, X.bitacora.filter((e) => e.parte === 'catalogo'), 'BITÁCORA · cambios al contenido del Portal (con el nombre real de lo que se tocó)');
+  } else {
+    console.warn('AVISO: no encontré semilla/portal_ventel.json; no se genera 20_catalogo_portal.local.sql (el Portal arranca sin herramientas ni plantillas).');
+  }
+  return { demo, catalogo };
+}
+
+// ══════════════════════════════════════════════════════════════════════════════════════════════
+// COMPROBACIÓN · aplica todo a una base en memoria (node:sqlite) y revisa las columnas JSON
+// ══════════════════════════════════════════════════════════════════════════════════════════════
+function autoverificar(archivos) {
+  let DatabaseSync;
+  try {
+    const orig = process.emitWarning;
+    process.emitWarning = (w, ...a) => (/sqlite/i.test(String(w)) ? undefined : orig.call(process, w, ...a));
+    ({ DatabaseSync } = createRequire(import.meta.url)('node:sqlite'));
+    process.emitWarning = orig;
+  } catch { console.log('· Sin node:sqlite en esta versión de Node: me salto la comprobación en memoria.'); return true; }
+  const db = new DatabaseSync(':memory:');
+  const migraciones = path.join(RAIZ, 'migrations');
+  for (const f of fs.readdirSync(migraciones).filter((x) => x.endsWith('.sql')).sort()) db.exec(fs.readFileSync(path.join(migraciones, f), 'utf8'));
+  const usuarios = path.join(DIR_SEMILLA, '00_usuarios_demo.sql');
+  if (fs.existsSync(usuarios)) db.exec(fs.readFileSync(usuarios, 'utf8'));
+  const errores = [];
+  for (const a of archivos) {
+    try { db.exec(a.texto()); } catch (e) { errores.push(a.archivo + ': ' + e.message); }
+  }
+  // Las columnas JSON tienen que ser JSON de verdad.
+  const json = [['cotizaciones', 'revision_checklist', true], ['portal_anuncios', 'datos'], ['portal_articulos', 'contenido'], ['grupos', 'miembros'], ['operacion_reportes', 'evidencias']];
+  for (const [tabla, col, vacioOk] of json) {
+    for (const f of db.prepare(`SELECT ${col} AS v FROM ${tabla}`).all()) {
+      if (vacioOk && !f.v) continue;
+      try { JSON.parse(f.v); } catch { errores.push(`${tabla}.${col} no es JSON: ${String(f.v).slice(0, 60)}`); break; }
+    }
+  }
+  // Sin fechas en el futuro (salvo lo programado a propósito) y sin folios repetidos.
+  const futuro = db.prepare('SELECT COUNT(*) n FROM cotizaciones WHERE timestamp > ?').get(iso(AHORA)).n;
+  if (futuro) errores.push(futuro + ' cotización(es) con fecha posterior a «ahora».');
+  if (errores.length) { for (const e of errores) console.error('✘ ' + e); return false; }
+  console.log('· Comprobación en memoria: las migraciones y las semillas cargan sin error y las columnas JSON son JSON.');
+  return true;
+}
+
+function main() {
+  const { demo, catalogo } = ensamblar();
+  const escribe = (S, nombre) => {
+    fs.writeFileSync(path.join(DIR_SEMILLA, nombre), S.texto());
+    const total = Object.values(S.conteo).reduce((a, b) => a + b, 0);
+    console.log(`\n${nombre}  (${Math.round(S.texto().length / 1024)} KB, ${total} filas)`);
+    for (const [t, n] of Object.entries(S.conteo)) console.log('  ' + String(n).padStart(5) + '  ' + t);
+  };
+  if (SOLO !== 'catalogo') escribe(demo, '10_demo.sql');
+  if (SOLO !== 'demo' && catalogo) escribe(catalogo, '20_catalogo_portal.local.sql');
+  if (!ARGS['sin-validar']) {
+    const todos = [];
+    for (const [S, n] of [[demo, '10_demo.sql'], [catalogo, '20_catalogo_portal.local.sql']]) if (S) todos.push(S);
+    if (!autoverificar(todos)) process.exitCode = 1;
+  }
+}
+
+main();
