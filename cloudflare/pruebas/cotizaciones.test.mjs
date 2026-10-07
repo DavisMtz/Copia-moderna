@@ -360,7 +360,7 @@ async function principal() {
        conPdf ? 'el PDF va adjunto con el nombre del original' : 'sin Browser Rendering el correo sale sin PDF y la nota va en adjuntos', adjunto);
     // El cliente de la prueba es de un dominio de ejemplo: el núcleo nunca lo manda por Brevo.
     ok(c.estado === 'omitido', 'a una dirección de ejemplo no sale nada de verdad (estado «omitido»)', c.estado);
-    ok(metricas.some((m) => m.resultado === 'Enviado' && m.adjuntos === (conPdf ? '1' : '0') && m.cc === '0' && m.alias_usado === 'Sí') &&
+    ok(metricas.some((m) => m.resultado === 'Enviado' && Number(m.adjuntos) === (conPdf ? 1 : 0) && Number(m.cc) === 0 && m.alias_usado === 'Sí') &&
        metricas.some((m) => m.resultado === 'Error'),
        'metricas_correos: el envío («Enviado») y el intento fallido («Error»)', metricas);
     ok(partidas[0]?.n === 3, 'detalle_cotizaciones: tres partidas del folio', partidas);

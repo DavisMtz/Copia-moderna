@@ -1746,6 +1746,10 @@ const INCIDENTES_DEMO = [
 const SUELTOS_DEMO = [
   { dia: -5, h: 12, m: 31, sistema: 'outlook', sistemaNuevo: 'Outlook', sub: 'No sincroniza el correo', estado: 'abierto' },
   { dia: -2, h: 16, m: 12, sistema: 'salesforce', sub: 'No encuentra al cliente', estado: 'abierto' },
+  // Dos personas distintas, horas aparte: no llegan al umbral (3 en media hora) y quedan sueltas. Con la incidencia de hoy
+  // («Salesforce · Va muy lento») son lo que hace saltar las recomendaciones de agrupar y de motivo reincidente.
+  { dia: -2, h: 10, m: 24, sistema: 'salesforce', sub: 'Va muy lento', estado: 'abierto' },
+  { dia: -2, h: 15, m: 8, sistema: 'salesforce', sub: 'Va muy lento', estado: 'abierto' },
   { dia: -1, h: 11, m: 40, sistema: 'pagina-app', sub: 'Imágenes rotas', estado: 'abierto' },
   { dia: -8, h: 13, m: 15, sistema: 'ccaip', sub: 'No cambia de estado', estado: 'descartado' }
 ];
@@ -1862,9 +1866,11 @@ function generarOperacion(P) {
   }
 
   // ── Reportes sueltos ───────────────────────────────────────────────────────────────────────
+  const yaReporto = new Set();
   for (const s of SUELTOS_DEMO) {
     const t = enDia(dia(s.dia), s.h, s.m, az.entero(0, 59), az.entero(0, 999));
-    const quien = az.elegir(A.filter((a) => a !== P.demo));
+    const quien = az.elegir(A.filter((a) => a !== P.demo && !yaReporto.has(s.sistema + '|' + s.sub + '|' + a.email)));
+    yaReporto.add(s.sistema + '|' + s.sub + '|' + quien.email);
     reporte(t, quien, s.sistema, s.sub, { estado: s.estado, sistemaNuevo: s.sistemaNuevo });
     if (s.sistemaNuevo) sumarUso('sistema', '', s.sistemaNuevo, quien.email, t);
     sumarUso('submotivo', s.sistema, s.sub, quien.email, t);

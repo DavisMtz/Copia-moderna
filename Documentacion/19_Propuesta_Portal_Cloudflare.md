@@ -29,10 +29,11 @@ La maqueta pone **la misma aplicación** sobre **Cloudflare Workers** y una **ba
 | Pieza | Qué hace |
 | --- | --- |
 | **Worker del borde** (`portal-ventel`) | Sirve las 20 pantallas desde el punto de Cloudflare más cercano a quien abre el Portal. Los módulos compartidos (estilos y código común) se guardan en el navegador un año: al cambiar de pantalla solo viaja lo propio de esa pantalla. |
-| **Worker de API** (`portal-ventel-api`) | Lo que en Apps Script era `google.script.run`: las ~120 funciones que llaman las pantallas, con los mismos nombres, argumentos y respuestas. Corre junto a la base de datos. |
+| **Worker de API** (`portal-ventel-api`) | Lo que en Apps Script era `google.script.run`: las 131 funciones de los `.gs` que llaman las pantallas, con los mismos nombres, argumentos y respuestas. Corre junto a la base de datos. |
 | **Base de datos D1** (`ventel-portal`) | Una tabla por cada pestaña de los tres libros (BD Cotizaciones, Hoja del Portal, Trazabilidad), con índices. |
 | **Puente** (`gas-shim.js`) | Reimplementa `google.script.run`, `google.script.history` y `google.script.url` en el navegador: por eso las pantallas no cambian una línea. |
 | **Correo** | Sale de verdad por **Brevo**, desde `ventel@logidma.com` (dominio autenticado con SPF y DKIM). Mismo HTML, asunto y copias que el original; la respuesta del cliente le llega al asesor. Cada envío queda registrado con su estado. |
+| **PDF** | **Cloudflare Browser Rendering** convierte en PDF la misma hoja de la cotización (formato actual o CCL). Se descarga desde la consulta y la vista previa, y va adjunto en el correo al cliente, como antes desde Drive. |
 | **Imágenes** (R2) | Anuncios, artículos y evidencias de fallas: lo que antes iba a carpetas de Drive. |
 | **Panel de velocidad** (React) | Un botón discreto en todas las pantallas que enseña cuánto tardó cada llamada, comparado con las cifras medidas de Apps Script y citando su fuente. |
 | **Explorador de datos** (React, `?page=datos`, solo maestro) | Las tablas de la base, sus filas, una consola de solo lectura y la bandeja de los correos enviados. |
@@ -95,8 +96,7 @@ vuelve a comprobar la sesión y el bloque en cada llamada (doc 06).
 
 ## 6. Lo que la maqueta no hace (a propósito)
 
-- **PDF y hojas CCL en Google Drive**: no se generan. La vista previa se ve igual y se puede imprimir
-  o guardar como PDF desde el navegador.
+- **Hojas de Google Sheets** («Abrir en Sheets» y la hoja CCL editable): no se generan. El PDF sí (§2).
 - **Calendario comercial (Calendar)**, **avisos de Google Chat** y **hojas externas de comercial**:
   vacíos, sin fallar.
 - **Datos de clientes y cotizaciones**: son de ejemplo. El catálogo del Portal (herramientas,
@@ -118,14 +118,13 @@ En orden, y el primero no es técnico:
    Conviene una semana con los dos sistemas en paralelo.
 4. **Correo corporativo.** El dominio de Liverpool autenticado en un proveedor de correo (o la API de
    Gmail), en lugar de logidma.com.
-5. **PDF.** Cloudflare Browser Rendering genera el PDF desde la misma vista previa.
-6. **Operación.** Copias de seguridad automáticas de D1 (restauración a cualquier punto de los últimos
+5. **Operación.** Copias de seguridad automáticas de D1 (restauración a cualquier punto de los últimos
    30 días en el plan de pago), registros y alertas de los Workers.
-7. **Extensión.** Una versión que apunte al dominio definitivo (es cambiar una constante).
+6. **Extensión.** Una versión que apunte al dominio definitivo (es cambiar una constante).
 
 ## 8. Costos
 
-Precios publicados por Cloudflare, consultados el 06/10/2026:
+Precios publicados por Cloudflare, consultados el 06/10/2026 (Browser Rendering, el 07/10/2026):
 
 | Servicio | Incluido | Después |
 | --- | --- | --- |
@@ -133,9 +132,12 @@ Precios publicados por Cloudflare, consultados el 06/10/2026:
 | D1 (en el plan de pago) | 25 mil millones de filas leídas, 50 millones escritas y 5 GB al mes | USD 0.001 por millón leídas · USD 1 por millón escritas |
 | R2 | 10 GB al mes | USD 0.015 por GB |
 | Archivos estáticos (las pantallas) | Gratis e ilimitados | — |
+| Browser Rendering (el PDF) | 10 horas de navegador al mes | USD 0.09 por hora |
 
-La maqueta funciona dentro de los planes gratuitos. Para el equipo completo, lo esperable es el plan de
-pago base (USD 5 al mes); conviene confirmarlo con las métricas reales de uso de las primeras semanas.
+Un PDF tarda alrededor de un segundo de navegador: las 10 horas incluidas alcanzan para decenas de miles
+de PDF al mes. La maqueta corre en el plan de pago base de Workers (USD 5 al mes), que es el que permite
+ubicar la API junto a la base. Para el equipo completo lo esperable es ese mismo plan; conviene
+confirmarlo con las métricas reales de uso de las primeras semanas.
 
 ## 9. Riesgos
 
