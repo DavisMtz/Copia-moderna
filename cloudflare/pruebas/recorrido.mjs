@@ -27,7 +27,9 @@ const ROLES = [
   { rol: 'asesor', correo: 'asesor@ventel.example', pantallas: ['dashboard', 'cotizacion', 'consulta_cotizacion', 'correoventel', 'correo_cliente', 'atenciones', 'articulo', 'portal', 'promociones', 'estado'] }
 ];
 const PUBLICAS = ['portal', 'promociones', 'estado', 'login', 'registro', 'recuperar'];
-const RUIDO = /fonts\.(googleapis|gstatic)|mtalk\.google|favicon|ERR_ABORTED.*(cdnjs|jsdelivr)/i;
+// Ruido conocido: fuentes y CDN de terceros, el beacon de Web Analytics que Cloudflare inyecta en la zona
+// (/cdn-cgi/rum), y cualquier petición ABORTADA: eso solo pasa al navegar a otra pantalla, nunca por el servidor.
+const RUIDO = /fonts\.(googleapis|gstatic)|mtalk\.google|favicon|cdn-cgi\/rum|net::ERR_ABORTED/i;
 
 // Si la máquina sale a internet por un proxy, el navegador también (para recorrer producción).
 const proxy = process.env.HTTPS_PROXY ? { server: process.env.HTTPS_PROXY, bypass: '127.0.0.1,localhost' } : undefined;

@@ -61,11 +61,14 @@ await pagina.waitForLoadState('load');
 //        lo común; por eso la primera visita «de verdad» se mide en un contexto nuevo, más abajo) ──
 async function medirCarga(p) {
   await p.goto(BASE + '/?page=portal', { waitUntil: 'load', timeout: 60000 });
-  // Espera a que las llamadas de la carga terminen: 1.5 s sin llamadas nuevas (tope 20 s).
+  // Espera a que las llamadas de la carga terminen: el Portal las lanza DESPUÉS de `load` (como en Apps
+  // Script), así que se esperan 2.5 s pasado `load` y luego 1.5 s sin llamadas nuevas (tope 20 s).
   await p.waitForFunction(() => {
+    const nav = performance.getEntriesByType('navigation')[0];
+    if (!nav || !nav.loadEventEnd || performance.now() < nav.loadEventEnd + 2500) return false;
     const m = (window.__vxRed && window.__vxRed.medidas()) || [];
     const ultima = m.length ? m[m.length - 1].t : performance.timeOrigin;
-    return Date.now() - ultima > 1500 && performance.now() > 1500;
+    return Date.now() - ultima > 1500;
   }, null, { timeout: 20000, polling: 100 }).catch(() => {});
   return p.evaluate(() => {
     const nav = performance.getEntriesByType('navigation')[0];

@@ -21,8 +21,9 @@ La maqueta pone **la misma aplicación** sobre **Cloudflare Workers** y una **ba
   y los tres temas. Se generan de `Carpeta del proyecto/` sin tocarla.
 - **Lo que cambia es lo de abajo**: el servidor (los `.gs`) se reescribió en TypeScript sobre SQL, y un
   puente hace que las pantallas no noten la diferencia.
-- **El resultado** se resume en la tabla del §3: llamadas que en Apps Script tardaban segundos tardan
-  decenas de milisegundos, y cambiar de pantalla es casi inmediato.
+- **El resultado**, medido igual que el doc 15 midió Apps Script (§3): una llamada al servidor pasa de
+  **~2 s a 0.14 s**, el Portal está listo en **0.36 s** en vez de 3.6 s y su último dato llega a los
+  **1.45 s** en vez de 5.8–8.0 s.
 
 ## 2. Qué se construyó
 
@@ -48,16 +49,37 @@ Tres motivos:
 2. **SQL con índices en lugar de hojas.** Apps Script lee la hoja completa para encontrar un folio; D1
    busca por índice. La API corre junto a la base: cada consulta tarda ~10–15 ms.
 3. **Pantallas desde el borde y en caché.** El Portal servido por Apps Script pesa 1,175 KB por visita
-   (doc 15 §2). Aquí el HTML propio de cada pantalla pesa 15–157 KB y lo común se descarga una vez.
+   (doc 15 §2). Aquí una visita al Portal baja 93 KB: su HTML propio (159 KB, 61 KB comprimido); lo
+   común ya está en la caché del navegador desde la primera visita.
 
-| Qué se mide | Apps Script (fuente) | Cloudflare (maqueta) |
+Las medianas, con el rango p25–p75 entre paréntesis. En Apps Script se toma siempre la cifra que **más**
+le favorece.
+
+| Qué se mide | Apps Script (fuente) | Cloudflare (maqueta, 07/10/2026) |
 | --- | --- | --- |
-| Una llamada al servidor sin trabajo | **773 ms** el mínimo de Google; **1,994 ms** con el código del Portal (doc 15 §3.2, 23/09/2026) | _se completa al publicar la versión final_ |
-| Iniciar sesión (llamada completa) | — | 93–190 ms de servidor (06/10/2026, 9 consultas) |
-| Primer byte del Portal | 3,225 ms en pruebas · 3,952 ms en producción (doc 15 §2) | _se completa al publicar_ |
-| Portal listo para usarse | 3.6 s en pruebas · 4.5 s en producción (doc 15 §2) | _se completa al publicar_ |
-| Último dato del Portal | ≈13 s antes de la Fase 3; 5.8–8.0 s después (docs 13 y 15) | _se completa al publicar_ |
-| Peso de la página | 1,175 KB por visita (doc 15 §2) | 15–157 KB por pantalla; lo común (1.8 MB) una sola vez |
+| Una llamada al servidor sin trabajo (`labNoop`) | **1,994 ms** con el código del Portal; 773 ms un proyecto vacío, el piso de Google (doc 15 §3.2) | **137 ms** (132–143), 21 llamadas |
+| Ocho llamadas a la vez | 1.8–3.0 s (doc 15 §3.3) | **200 ms** las ocho |
+| Lo que trabaja el servidor en una llamada del Portal | — | 51 ms (38–72), 205 llamadas |
+| Primer byte del Portal | **2.60 s** en pruebas tras la Fase 3a.1 (doc 13); 3.2–4.0 s en producción (doc 15 §2) | **85 ms** (79–93) |
+| Portal listo para usarse (DOMContentLoaded) | **3.6 s** en pruebas · 4.5 s en producción (doc 15 §2) | **356 ms** (331–382) |
+| Último dato del Portal | **5.8–8.0 s** tras la Fase 3a; ≈13 s antes (docs 13 y 15) | **1.45 s** (1.42–1.47) |
+| Lo que viaja por visita | 1,175 KB (doc 15 §2) | **93 KB** |
+| Primera visita, con el navegador vacío | — | primer byte 654 ms · listo 1.63 s · último dato 2.63 s · 446 KB |
+
+**Cómo se midió** (`cloudflare/pruebas/medir.mjs`; resultado completo en
+`cloudflare/pruebas/medicion-produccion-20261007.json`): el mismo `labNoop` del doc 15 por
+`google.script.run` desde una pantalla abierta (una llamada en frío que se descarta y 21 en serie), y 30
+cargas seguidas del Portal con sesión de asesor y la caché del navegador ya llena, como la Fase 3a.
+«Último dato» es cuando termina la última llamada que salió durante la carga. El Portal lanza sus
+llamadas después de `load`, igual que en Apps Script: por eso el último dato llega un segundo después de
+que la pantalla está lista.
+
+**La red no es la misma.** Las cifras de Apps Script se tomaron desde la PC del doc 15. Las de
+Cloudflare, desde un servidor en Estados Unidos que sale por un proxy, con el borde de Cloudflare en
+Ashburn y la API en Seattle, junto a la base. Desde México el borde está más cerca, pero la API sigue en
+Seattle: lo esperable es una ida y vuelta parecida. En los dos casos lo que domina es otra cosa: en Apps
+Script, el arranque del proyecto en Google en cada llamada. El panel de velocidad (botón ⚡) mide lo de
+cada quien en vivo, desde su propia red.
 
 ## 4. Arquitectura
 
@@ -91,7 +113,7 @@ vuelve a comprobar la sesión y el bloque en cada llamada (doc 06).
 | Quién edita el contenido | El equipo, en el Sheet o en «Contenido del Portal» | Solo desde «Contenido del Portal» (ya no hay Sheet) |
 | Correo | Gmail de la cuenta que despliega, alias de grupo | Brevo, dominio logidma.com |
 | Archivos | Carpetas de Drive | R2 |
-| Acceso | Solo cuentas de liverpool.com.mx (Google) | Cualquiera con la dirección; entra quien tiene cuenta del Portal |
+| Acceso | Solo cuentas de liverpool.com.mx (Google) | Cualquiera con la dirección ve el Portal (también el catálogo); cotizaciones, consola y lo demás piden cuenta del Portal |
 | Cuotas | Las de Apps Script (tiempo, correos, 30 ejecuciones simultáneas) | Las de Cloudflare (§8), muy por encima del uso del equipo |
 
 ## 6. Lo que la maqueta no hace (a propósito)
@@ -144,6 +166,7 @@ confirmarlo con las métricas reales de uso de las primeras semanas.
 | Riesgo | Qué lo mitiga |
 | --- | --- |
 | Gobierno de datos: información de clientes fuera de Google Workspace | Paso 1 del §7: no se migra sin aprobación de TI |
+| En la maqueta, el catálogo real del Portal (herramientas internas, procesos) se ve sin iniciar sesión | Fue una decisión para la demo (07/10/2026). Se cierra en minutos con Cloudflare Access (paso 2 del §7) o quitando el catálogo de la base |
 | Dos versiones que divergen durante la transición | Las pantallas de Cloudflare se generan de `Carpeta del proyecto/`: hay una sola fuente |
 | Que el equipo pierda la edición directa en el Sheet | «Contenido del Portal» ya cubre las ocho colecciones; un CSV se puede importar desde ahí |
 | Depender de un proveedor nuevo | El código es TypeScript estándar y SQL; la base se exporta con un comando |

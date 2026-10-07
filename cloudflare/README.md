@@ -14,8 +14,13 @@ debajo.
 | `asesor@ventel.example` (y otros `…@ventel.example`) | Asesor |
 
 **La contraseña de producción no está en el repositorio** (es público y en producción los correos
-salen de verdad): la da quien administra la demo, y se cambia con `node scripts/claves-produccion.mjs`
-+ `scripts/desplegar.sh --semillas`. En local todas las cuentas usan `VentelDemo2026`.
+salen de verdad): la da quien administra la demo. Se cambia con `node scripts/claves-produccion.mjs
+[clave]`, que además genera una sal propia (`HASH_SALT`), y aplicando el archivo que deja
+(`semilla/99_claves_produccion.local.sql`) a la base remota. En local todas las cuentas usan
+`VentelDemo2026`.
+
+La propuesta, con las cifras medidas contra Apps Script, está en
+[`Documentacion/19_Propuesta_Portal_Cloudflare.md`](../Documentacion/19_Propuesta_Portal_Cloudflare.md).
 
 ## Cómo funciona
 
@@ -40,18 +45,23 @@ salen de verdad): la da quien administra la demo, y se cambia con `node scripts/
   `src/worker/rpc.ts`. Convenciones: [`AGENTES.md`](AGENTES.md).
 - **Las hojas → tablas.** `migrations/` (una tabla por pestaña de los tres libros, doc 04).
 
-## Qué no hace esta versión (a propósito)
+## Qué cambia respecto al original
 
-Lo que depende de Google se dejó fuera, por decisión del proyecto:
+Lo que depende de Google se resolvió así:
 
 - **Correos**: salen de verdad por **Brevo** desde el dominio **logidma.com** (`ventel@logidma.com`,
   ajuste `BREVO_REMITENTE`) en lugar de Gmail y del alias de grupo del original; es la única diferencia.
   Cada correo queda además en la tabla `correos_salida` con su estado (se ve en el explorador de datos,
   `?page=datos`, como maestro). Nunca se manda a direcciones de ejemplo (`@ventel.example`,
   `@ejemplo.com`). En local no hay clave de Brevo: nada sale. Interruptor de emergencia: propiedad
-  `CORREO_ENVIO_REAL = no`.
-- **Google Drive**: no se generan PDF ni hojas CCL en Drive. Las imágenes subidas (anuncios,
-  artículos, evidencias) sí funcionan: van a R2.
+  `CORREO_ENVIO_REAL = no`. Lo que se puede pedir **sin sesión** (códigos de registro y de
+  recuperación) tiene tope: 40 al día y 6 por hora por conexión.
+- **PDF**: lo genera **Cloudflare Browser Rendering** (binding `NAVEGADOR` del Worker de API) con la
+  misma hoja de la cotización, formato actual (carta) o CCL (A4 apaisado). Se descarga desde la
+  consulta y la vista previa y va adjunto en el correo al cliente. En local no hay navegador: la
+  pantalla avisa y el correo sale sin adjunto.
+- **Google Drive y Sheets**: no se generan hojas («Abrir en Sheets», la hoja CCL editable). Las
+  imágenes subidas (anuncios, artículos, evidencias) van a R2 (sin SVG).
 - **Calendar, Chat y hojas externas de comercial**: vacíos.
 
 ## Trabajar en local
@@ -63,16 +73,26 @@ npm run construir           # pantallas + islas React → public/
 scripts/dev-aislado.sh yo 8787 &          # Worker local con su base D1 (migraciones + semillas)
 node scripts/rpc.mjs --como asesor@ventel.example getQuotesForUser '["asesor@ventel.example"]'
 node pruebas/recorrido.mjs http://127.0.0.1:8787 /tmp/recorrido   # todas las pantallas, todos los roles
+pruebas/todas.sh                  # las pruebas de todos los módulos, cada una con su base nueva
 ```
+
+Contra producción, el recorrido y la medición necesitan la contraseña: `CLAVE=… node
+pruebas/recorrido.mjs https://ventel.logidma.com /tmp/recorrido` y `CLAVE=… node pruebas/medir.mjs
+https://ventel.logidma.com` (mide como el doc 15 midió Apps Script).
 
 ## Publicar
 
 ```bash
-scripts/desplegar.sh              # migraciones remotas + API + borde
-scripts/desplegar.sh --semillas   # además recarga los datos de la demo en la base remota
+scripts/desplegar.sh                         # migraciones remotas + API + borde (no toca los datos)
+node scripts/sembrar.mjs                     # regenera los datos de ejemplo con fechas de hoy
+scripts/desplegar.sh --semillas              # además recarga los datos de ejemplo en la base remota
+scripts/desplegar.sh --semillas --catalogo   # y el catálogo real del Portal
 ```
 
-Necesita `CLOUDFLARE_API_TOKEN` y `CLOUDFLARE_ACCOUNT_ID`.
+`--semillas` vacía y vuelve a llenar las tablas de la demo (cotizaciones, métricas, operación,
+artículos…): se pierde lo que se haya hecho en vivo en ellas. Las cuentas y su contraseña de producción
+se aplican primero y juntas. Necesita `CLOUDFLARE_API_TOKEN` y `CLOUDFLARE_ACCOUNT_ID`, y la clave de
+Brevo como secreto del Worker de API (`npx wrangler secret put BREVO_API_KEY -c wrangler.api.jsonc`).
 
 ## Datos
 
@@ -81,3 +101,6 @@ Necesita `CLOUDFLARE_API_TOKEN` y `CLOUDFLARE_ACCOUNT_ID`.
   promociones, Marketplace, anuncios) sale de la hoja «Portal Ventel», **sin las columnas de
   contraseñas ni datos de clientes**, y vive solo en la base D1: **no se sube a git** porque el
   repositorio es público. Ver `semilla/LEEME.md`.
+- En producción la pantalla Portal es pública como hoy, pero sin el candado del dominio de Google:
+  quien tenga la dirección ve el catálogo sin iniciar sesión (decisión del 07/10/2026). Para cerrarlo,
+  Cloudflare Access delante de `ventel.logidma.com` (doc 19 §7).
