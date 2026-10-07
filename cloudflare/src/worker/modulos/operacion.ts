@@ -199,6 +199,11 @@ export async function opEstadoSesion(ctx: Ctx, email?: string) {
       const pendientes = await revConteoPendientes(ctx);
       if (pendientes >= 0) salida.revision = { pendientes };
     }
+    // Arreglo respecto al original: la tarjeta «Servicio» de inicio_avanzado lee AppOperacion.estado()
+    // sin desenvolver `.estado` (la pastilla sí lo hace) y, sin `sistemas` arriba, decía «OK» aunque
+    // hubiera incidencias abiertas. Repetir `global` y `sistemas` aquí la corrige sin tocar la pantalla.
+    salida.global = (publico as any).global;
+    salida.sistemas = (publico as any).sistemas;
     return salida;
   } catch (e) {
     console.error('opEstadoSesion', e);
