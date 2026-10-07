@@ -156,8 +156,8 @@ Precios publicados por Cloudflare, consultados el 06/10/2026 (Browser Rendering,
 | Archivos estáticos (las pantallas) | Gratis e ilimitados | — |
 | Browser Rendering (el PDF) | 10 horas de navegador al mes | USD 0.09 por hora |
 
-Un PDF tarda alrededor de un segundo de navegador: las 10 horas incluidas alcanzan para decenas de miles
-de PDF al mes. La maqueta corre en el plan de pago base de Workers (USD 5 al mes), que es el que permite
+Un PDF ocupa uno o dos segundos de navegador (medido en la maqueta: 1.2–2.0 s): las 10 horas incluidas
+alcanzan para más de 18,000 PDF al mes. La maqueta corre en el plan de pago base de Workers (USD 5 al mes), que es el que permite
 ubicar la API junto a la base. Para el equipo completo lo esperable es ese mismo plan; conviene
 confirmarlo con las métricas reales de uso de las primeras semanas.
 
