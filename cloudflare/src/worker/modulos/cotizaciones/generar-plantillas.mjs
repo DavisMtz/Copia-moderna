@@ -75,6 +75,9 @@ const iScript = buscar(ccl, (l) => l.trim() === '<script>', iHoja);
 let cclHoja = ccl.slice(iHoja, iScript).join('\n').replace(/\s+$/, '');
 const cclFila = literal(ccl, buscar(ccl, (l) => l.includes('tr.innerHTML = `'), iScript));
 
+// La hoja va dentro de un literal de plantilla: primero se escapa lo que lo rompería (\, ` y ${) y
+// después se ponen los huecos.
+cclHoja = cclHoja.replace(/\\/g, '\\\\').replace(/`/g, '\\`').replace(/\$\{/g, '\\${');
 // La hoja de la pantalla nace oculta (la pantalla le quita «hidden»); el documento la quiere visible.
 if (!cclHoja.includes('class="ccl-sheet v-papel hidden"')) fallo('la hoja CCL cambió de clase');
 cclHoja = cclHoja.replace('class="ccl-sheet v-papel hidden"', 'class="ccl-sheet v-papel"');
@@ -86,9 +89,6 @@ for (const [id, clave] of Object.entries(HUECOS)) {
   const re = new RegExp('(<(\\w+)[^>]*\\bid="ccl-' + id + '"[^>]*>)(</\\2>)');
   if (!re.test(cclHoja)) fallo('falta el hueco vacío ccl-' + id);
   cclHoja = cclHoja.replace(re, (m, abre, tag, cierra) => abre + '${v.' + clave + '}' + cierra);
-}
-for (const [nombre, s] of [['estilos CCL', cclEstilos], ['hoja CCL', cclHoja]]) {
-  if (/[`\\]/.test(s) || (nombre === 'estilos CCL' && s.includes('${'))) fallo(nombre + ' trae caracteres que romperían el literal');
 }
 for (const [n, s] of [['pdfFila', pdfFila], ['pdfDocumento', pdfDocumento], ['correoCuerpo', correoCuerpo], ['correoTarjeta', correoTarjeta]]) {
   if (/secEscapeHtml_|toLocaleDateString|getVerifiedImageUrl/.test(s)) fallo('queda algo sin ajustar en ' + n);
@@ -161,7 +161,7 @@ export function documentoPdfActualHtml(data: Record<string, any>, productsHtml: 
 // ── Formato CCL Liverpool (app_ccl.html) ────────────────────────────────────
 
 /** Los estilos de la réplica, tal cual (incluidas sus reglas de impresión). */
-export const CCL_ESTILOS = \`${cclEstilos}\`;
+export const CCL_ESTILOS = ${JSON.stringify(cclEstilos)};
 
 /** Lo que va dentro del <tr> de un producto (populateCclPreview). */
 export function filaCclHtml(r: FilaCcl): string {

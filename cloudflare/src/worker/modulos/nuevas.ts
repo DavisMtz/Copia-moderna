@@ -10,7 +10,8 @@
  *   datosFila(email, tabla, rowid)              → una fila entera (sin recortar)
  *   datosConsulta(email, sql)                   → consola de SOLO LECTURA
  *   datosCorreos(email, {pagina, porPagina, filtro, tipo}) → la bandeja de salida (sin cuerpo)
- *   datosCorreo(email, id)                      → un correo completo: lo que «habría recibido» el cliente
+ *   datosCorreo(email, id)                      → un correo completo: lo que recibió el cliente, y si
+ *                                                 salió de verdad por Brevo (estado, id, detalle)
  *
  * LO SECRETO NO SALE, NI PARA EL MAESTRO. Las columnas secretas (registros.password_hash,
  * sesiones.huella, cualquier columna *hash*, *huella*, *llave*, *token*… y las contraseñas compartidas
@@ -563,6 +564,12 @@ function codigoVigente(tipo: unknown, referencia: unknown, fecha: unknown): stri
   return hasta > Date.now() ? new Date(hasta).toISOString() : '';
 }
 
+async function tieneEstadoDeEnvio(ctx: Ctx): Promise<boolean> {
+  ctx.consultas++;
+  const r = await ctx.db.prepare("SELECT COUNT(*) AS n FROM pragma_table_info('correos_salida') WHERE name = 'estado'").first<{ n: number }>();
+  return Number(r && r.n) > 0;
+}
+
 function cuantosAdjuntos(json: unknown): number {
   try {
     const a = JSON.parse(String(json || '[]'));
@@ -591,12 +598,18 @@ export async function datosCorreos(ctx: Ctx, emailCliente: unknown, opciones?: u
   if (tipo) { condiciones.push("COALESCE(tipo, '') = ?"); params.push(tipo); }
   const donde = condiciones.length ? ' WHERE ' + condiciones.join(' AND ') : '';
 
-  const [filas, total, tipos] = await lote(ctx, crono, [
+  // El estado del envío (Brevo) llegó con la migración 0009: sin ella, la bandeja se lee igual.
+  const conEstado = await tieneEstadoDeEnvio(ctx);
+  const [filas, total, tipos, estados] = await lote(ctx, crono, [
     ctx.db.prepare('SELECT id, fecha, de, nombre_de, para, cc, cco, asunto, tipo, referencia, adjuntos, ' +
+      (conEstado ? 'estado, detalle, ' : '') +
       'length(html) AS bytes_html FROM correos_salida' + donde + ' ORDER BY id DESC LIMIT ? OFFSET ?')
       .bind(...params, porPagina, (pagina - 1) * porPagina),
     ctx.db.prepare('SELECT COUNT(*) AS n FROM correos_salida' + donde).bind(...params),
-    ctx.db.prepare("SELECT COALESCE(tipo, '') AS tipo, COUNT(*) AS n FROM correos_salida GROUP BY 1 ORDER BY 2 DESC")
+    ctx.db.prepare("SELECT COALESCE(tipo, '') AS tipo, COUNT(*) AS n FROM correos_salida GROUP BY 1 ORDER BY 2 DESC"),
+    ctx.db.prepare(conEstado
+      ? "SELECT COALESCE(estado, '') AS estado, COUNT(*) AS n FROM correos_salida GROUP BY 1 ORDER BY 2 DESC"
+      : "SELECT '' AS estado, COUNT(*) AS n FROM correos_salida")
   ]);
 
   return {
@@ -605,10 +618,12 @@ export async function datosCorreos(ctx: Ctx, emailCliente: unknown, opciones?: u
       id: Number(f.id), fecha: String(f.fecha || ''), de: String(f.de || ''), nombreDe: String(f.nombre_de || ''),
       para: String(f.para || ''), cc: String(f.cc || ''), cco: String(f.cco || ''), asunto: String(f.asunto || ''),
       tipo: String(f.tipo || ''), referencia: String(f.referencia || ''), adjuntos: cuantosAdjuntos(f.adjuntos),
-      bytes: Number(f.bytes_html) || 0, codigoVigenteHasta: codigoVigente(f.tipo, f.referencia, f.fecha)
+      bytes: Number(f.bytes_html) || 0, codigoVigenteHasta: codigoVigente(f.tipo, f.referencia, f.fecha),
+      estado: String(f.estado || ''), detalle: String(f.detalle || '')
     })),
     total: Number((total[0] && total[0].n) || 0),
     tipos: tipos.map((t) => ({ tipo: String(t.tipo || ''), n: Number(t.n) || 0 })),
+    estados: estados.filter((e) => Number(e.n) > 0).map((e) => ({ estado: String(e.estado || ''), n: Number(e.n) || 0 })),
     pagina, porPagina, filtro, tipo,
     d1: crono.resumen()
   };
@@ -635,7 +650,9 @@ export async function datosCorreo(ctx: Ctx, emailCliente: unknown, id: unknown) 
       responderA: String(f.responder_a || ''), para: String(f.para || ''), cc: String(f.cc || ''), cco: String(f.cco || ''),
       asunto: String(f.asunto || ''), html: recortar(f.html, 2000000), texto: recortar(f.texto, 200000),
       adjuntos, tipo: String(f.tipo || ''), referencia: String(f.referencia || ''),
-      codigoVigenteHasta: codigoVigente(f.tipo, f.referencia, f.fecha)
+      codigoVigenteHasta: codigoVigente(f.tipo, f.referencia, f.fecha),
+      // Qué pasó al mandarlo (nucleo/correo.ts): 'enviado' (Brevo, con su id), 'omitido' o 'error'.
+      estado: String(f.estado || ''), proveedorId: String(f.proveedor_id || ''), detalle: String(f.detalle || '')
     },
     d1: crono.resumen()
   };

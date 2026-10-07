@@ -20,7 +20,7 @@ const QUE_ES: Record<string, string> = {
   cache: 'Contadores con caducidad: intentos de inicio de sesión, límites por hora.',
   contadores: 'Contadores atómicos, como el de los folios LVP-AAMMDD-XXXX.',
   sesiones: 'Sesiones abiertas. Se guarda la huella de la llave, nunca la llave.',
-  correos_salida: 'La bandeja de salida: los correos no salen, quedan aquí completos.',
+  correos_salida: 'La bandeja de salida: cada correo, completo, con lo que pasó al mandarlo.',
   archivos: 'Imágenes y evidencias subidas. El archivo vive en R2.',
   registros: 'Las personas. El correo es la clave de todo el sistema.',
   permisos_sistema: 'Rol y permisos de cada persona.',

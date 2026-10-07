@@ -10,8 +10,9 @@
  *     flujo igual (estatus «Enviada por Correo», FechaEnvio y métrica), como si hubiera salido.
  *   · Si Brevo rechaza el envío, enviarCorreo lanza, como GmailApp/MailApp.sendEmail: mismo mensaje
  *     al asesor y misma métrica con resultado «Error».
- *   · No hay PDF adjunto (lo generaba Drive / la conversión de Apps Script): el correo sale sin él
- *     y en `adjuntos` queda la nota de por qué.
+ *   · El PDF adjunto lo genera Cloudflare Browser Rendering (formatos.ts → nucleo/pdf.ts), con el
+ *     mismo nombre que en Apps Script. Si no se pudo generar (en local nunca hay), el correo sale sin
+ *     él, como hasta ahora, y en `adjuntos` queda la nota de por qué.
  *   · No hay alias de grupo que comprobar (GmailApp.getAliases): el remitente es siempre una
  *     dirección de logidma.com, así que «el alias está disponible» y no hay vía clásica de respaldo.
  */
@@ -24,6 +25,8 @@ import {
   DEFAULT_FORMAT_ID, QUOTE_FORMATS, REV_ESTATUS_ENVIADA, celda, cotDetalleFolio, estadoRevisionDeFila
 } from './comun';
 import { metRegistrarEnvio, metVerificarAsesor } from './metricas';
+import { pdfDeCotizacion } from './formatos';
+import { aBase64 } from '../../nucleo/cripto';
 import { tarjetaProductoHtml, sinProductosHtml, cuerpoCorreoCotizacionHtml } from './plantillas';
 
 // Remitente de las cotizaciones. Manda el ajuste MAIL_ALIAS de la consola; esto es el respaldo.
@@ -268,10 +271,10 @@ export async function getQuoteDetailsForEmail(ctx: Ctx, folio: string, emailClie
 
 // ── sendQuoteByEmail ────────────────────────────────────────────────────────────
 
-/** Lo que el original adjuntaba y aquí no existe: queda como nota en la bandeja de salida. */
+/** Cuando el PDF no se pudo generar: queda como nota en la bandeja de salida (no viaja a Brevo). */
 function notaSinPdf(folio: string) {
   return {
-    nombre: `Cotizacion_${folio}.pdf — no adjuntado: esta versión de demostración no genera el PDF (Google Drive)`,
+    nombre: `Cotizacion_${folio}.pdf — no adjuntado: no se pudo generar el PDF (Browser Rendering no disponible)`,
     tipo: 'application/pdf',
     bytes: 0
   };
@@ -307,8 +310,8 @@ export async function sendQuoteByEmail(ctx: Ctx, emailData: Record<string, any>)
     const paraFinal = destinatarios.join(',');
     if (String(datos.subject).length > 250) throw new Error('El asunto es demasiado largo.');
 
-    // 1. El PDF en el formato elegido. El formato se valida como en generateQuotePdfBlob (uno
-    //    desconocido es basura del cliente y se dice); el PDF en sí no se genera aquí (sin Drive).
+    // 1. El PDF en el formato elegido (el 'actual' desde el HTML de generateQuoteHtml_; el CCL desde
+    //    la réplica de su plantilla). El formato se valida como en generateQuotePdfBlob.
     const quoteResponse = await cotDetalleFolio(ctx, datos.folio);
     if (!quoteResponse.success) {
       throw new Error('No se pudieron obtener los detalles de la cotización para armar la plantilla.');
@@ -319,11 +322,15 @@ export async function sendQuoteByEmail(ctx: Ctx, emailData: Record<string, any>)
       throw new Error(`Formato desconocido: '${formato}'. Los válidos son: ${QUOTE_FORMATS.map((f) => f.id).join(', ')}.`);
     }
 
-    // 2. Las tarjetas de producto con sus fotos (verificadas en paralelo: es lo lento).
+    // 2. Las tarjetas de producto con sus fotos. El PDF y la verificación de las fotos van a la vez:
+    //    son las dos esperas largas del envío.
     const productos: any[] = quote.products || [];
+    const [pdf, imagenes] = await Promise.all([
+      pdfDeCotizacion(ctx, quote, formato),
+      productos.length > 0 ? verificarImagenes(ctx, productos) : Promise.resolve([] as string[])
+    ]);
     let productsHtml = '';
     if (productos.length > 0) {
-      const imagenes = await verificarImagenes(ctx, productos);
       productos.forEach((p, i) => {
         const unitPrice = parseFloat(p.unitPrice) || 0;
         const quantity = parseInt(p.quantity) || 0;
@@ -376,7 +383,10 @@ export async function sendQuoteByEmail(ctx: Ctx, emailData: Record<string, any>)
       nombreDe: 'Cotizaciones Ventel Liverpool', // Nombre del remitente que verá el cliente
       responderA: quote.advisorEmail || '',
       cco: options.bcc || '',
-      adjuntos: [notaSinPdf(String(datos.folio))],
+      // El PDF real con el nombre del original; sin él, la nota (el correo sale igual).
+      adjuntos: [pdf
+        ? { nombre: `Cotizacion_${datos.folio}.pdf`, tipo: 'application/pdf', base64: aBase64(pdf), bytes: pdf.length }
+        : notaSinPdf(String(datos.folio))],
       tipo: 'cotizacion',
       referencia: String(datos.folio)
     });
@@ -395,8 +405,8 @@ export async function sendQuoteByEmail(ctx: Ctx, emailData: Record<string, any>)
       asesorEmail: asesorMet.email, asesorNombre: asesorMet.nombre,
       para: paraFinal,
       destinatarios: destinatarios.length,
-      // Adjuntos: 0 y no 1 como en el .gs, porque en esta versión el correo sale sin el PDF.
-      cc: 0, cco: ccoGlobal, asunto: datos.subject, adjuntos: 0, remitente: sentFrom,
+      // Adjuntos: 1 cuando va el PDF (como el .gs); 0 si salió sin él.
+      cc: 0, cco: ccoGlobal, asunto: datos.subject, adjuntos: pdf ? 1 : 0, remitente: sentFrom,
       aliasUsado: aliasAvailable, resultado: 'Enviado', detalle: ''
     });
 

@@ -320,6 +320,7 @@ html[data-density="compact"] .rejilla td { padding-top: .32rem; padding-bottom: 
 .bandeja-filtros { display: grid; gap: .5rem; padding: .9rem .85rem .75rem; border-bottom: 1px solid var(--line-soft); }
 .bandeja-filtros h2 { font-size: .9rem; display: flex; justify-content: space-between; align-items: baseline; }
 .bandeja-filtros h2 span { font-size: .7rem; font-weight: 500; color: var(--ink-faint); }
+.bandeja-estados { margin: -.3rem 0 0; font-size: .72rem; color: var(--ink-soft); font-variant-numeric: tabular-nums; }
 .correos { flex: 1; overflow-y: auto; list-style: none; margin: 0; padding: .3rem; scrollbar-width: thin; }
 .correo-item {
   position: relative; display: grid; gap: .1rem; width: 100%;
@@ -331,7 +332,7 @@ html[data-density="compact"] .rejilla td { padding-top: .32rem; padding-bottom: 
 .correo-item[aria-current="true"]::before { content: ''; position: absolute; left: 0; top: .6rem; bottom: .6rem; width: 3px; border-radius: 3px; background: var(--brand); }
 .correo-item .asunto { font-size: .8125rem; font-weight: 600; color: var(--ink); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .correo-item .para { font-size: .74rem; color: var(--ink-soft); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.correo-item .pie { display: flex; align-items: center; gap: .4rem; margin-top: .2rem; font-size: .68rem; color: var(--ink-faint); }
+.correo-item .pie { display: flex; flex-wrap: wrap; align-items: center; gap: .3rem .4rem; margin-top: .2rem; font-size: .68rem; color: var(--ink-faint); }
 .correo-item .pie .ic { width: .8rem; height: .8rem; }
 .correo-item .pie time { margin-left: auto; font-variant-numeric: tabular-nums; }
 .visor { min-width: 0; display: flex; flex-direction: column; overflow: hidden; }

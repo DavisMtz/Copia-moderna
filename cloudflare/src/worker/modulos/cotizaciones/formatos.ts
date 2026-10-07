@@ -2,18 +2,22 @@
  * FORMATOS DE COTIZACIÓN | Portal Ventel en Cloudflare
  * ====================================================
  * Port de Formatos.gs. El catálogo y qué formatos están habilitados funcionan igual (la
- * configuración vive en la propiedad `formatos_habilitados`). Lo que en Apps Script producía algo
- * en Google Drive —el PDF, la hoja CCL copiada de la plantilla— aquí no existe: esas funciones
- * contestan con la MISMA forma de fallo controlado del .gs y un mensaje claro.
+ * configuración vive en la propiedad `formatos_habilitados`).
  *
- *  1. 'actual'        → el documento que se arma desde HTML.
- *  2. 'ccl_liverpool' → el formato oficial CCL. La pantalla lo pinta igual (app_ccl.html, réplica
- *                        de la plantilla) y se imprime con Ctrl+P; lo que falta es la hoja real.
+ *  1. 'actual'        → el PDF del HTML de generateQuoteHtml_ (documentos.ts).
+ *  2. 'ccl_liverpool' → el formato oficial CCL. En Apps Script se copiaba la hoja plantilla de Google
+ *                        Sheets y se exportaba; aquí el PDF sale de la réplica de esa plantilla que ya
+ *                        pinta la pantalla (app_ccl.html), llenada en el servidor.
+ * Los PDF los genera Cloudflare Browser Rendering (nucleo/pdf.ts). Lo que sigue sin existir es la hoja
+ * de Google Sheets (openQuoteInSheets/previewSheetCcl): contestan el fallo controlado del .gs.
  */
 import type { Ctx } from '../../nucleo/contexto';
 import { leerPropiedad, fijarPropiedad } from '../../nucleo/sistema';
 import { secIdentidad, secIdentidadAvanzada } from '../../nucleo/seguridad';
-import { QUOTE_FORMATS, DEFAULT_FORMAT_ID, MSG_SIN_DRIVE, MSG_SIN_PDF } from './comun';
+import { generarPdf } from '../../nucleo/pdf';
+import { aBase64 } from '../../nucleo/cripto';
+import { QUOTE_FORMATS, DEFAULT_FORMAT_ID, MSG_SIN_DRIVE, MSG_SIN_PDF, cotDetalleFolio } from './comun';
+import { documentoActualHtml, documentoCclHtml, logoLiverpoolDatos } from './documentos';
 
 export const FORMATS_PROP_KEY = 'formatos_habilitados';
 
@@ -176,22 +180,71 @@ export async function previewSheetCcl(ctx: Ctx, folio: string) {
   }
 }
 
+// ── PDF de la cotización (generateQuotePdfBlob) ─────────────────────────────
+
+/** Opciones de página de cada formato: carta como el @page del HTML 'actual'; el CCL, A4 apaisado
+ *  con los márgenes de la exportación de la plantilla (CCL_EXPORT_OPTIONS: 0.75" y 0.7"). */
+const PAGINA_PDF = {
+  actual: { formato: 'letter', margen: '12mm' },
+  ccl_liverpool: { formato: 'a4', horizontal: true, margen: '18mm' }
+} as const;
+
 /**
- * El PDF codificado para que el navegador lo descargue. Sin Drive (ni la conversión HTML→PDF de
- * Apps Script) no hay PDF: misma puerta y el fallo controlado del .gs, con la salida que sí hay —
- * las dos pantallas que lo piden traen estilos de impresión para su vista de la cotización.
+ * El PDF de una cotización ya leída, en el formato indicado (ya validado). Devuelve los bytes, o null
+ * si Browser Rendering no está (en local) o falló: quien llama decide cómo degradar. Lanza solo por
+ * un problema de los DATOS, como el .gs (un CCL sin productos no se podía llenar).
+ */
+export async function pdfDeCotizacion(ctx: Ctx, quote: Record<string, any>, formato: string): Promise<Uint8Array | null> {
+  const ccl = formato === 'ccl_liverpool';
+  if (ccl && !(quote.products || []).length) throw new Error('La cotización no tiene productos.');
+  const logo = await logoLiverpoolDatos(ctx);
+  const html = ccl ? documentoCclHtml(quote, logo) : documentoActualHtml(quote, logo);
+  return generarPdf(ctx, html, ccl ? PAGINA_PDF.ccl_liverpool : PAGINA_PDF.actual);
+}
+
+/**
+ * El PDF de una cotización en el formato indicado; sin formato, el guardado con la cotización.
+ * Devuelve {nombre, bytes} o null si no se pudo generar. Lanza si el folio, el formato o la
+ * cotización no valen (mismos mensajes que el .gs).
+ */
+export async function generateQuotePdfBlob(ctx: Ctx, folio: string, formatId?: string | null): Promise<{ nombre: string; bytes: Uint8Array } | null> {
+  if (!folio) throw new Error('El folio es requerido para generar el PDF.');
+  const stored = await cotDetalleFolio(ctx, folio);
+  let format = formatId;
+  if (!format) {
+    format = (stored.success && stored.quote.format) ? stored.quote.format : DEFAULT_FORMAT_ID;
+  }
+  // Se valida contra el catálogo en vez de caer al formato por omisión: un valor inesperado
+  // significa que el cliente mandó basura, y hay que verlo, no taparlo.
+  if (!QUOTE_FORMATS.some((f) => f.id === format)) {
+    throw new Error(`Formato desconocido: '${format}'. Los válidos son: ${QUOTE_FORMATS.map((f) => f.id).join(', ')}.`);
+  }
+  if (!stored.success) throw new Error(stored.message);
+  const bytes = await pdfDeCotizacion(ctx, stored.quote, String(format));
+  return bytes ? { nombre: `Cotizacion_${folio}.pdf`, bytes } : null;
+}
+
+/**
+ * Genera el PDF y lo devuelve codificado para que el navegador lo descargue (google.script.run no
+ * transportaba Blobs, por eso base64): {success, fileName, mimeType, base64}, lo que leen
+ * triggerPdfDownload de cotizado_preview y consulta_cotizacion. Si no se pudo generar, el fallo
+ * controlado con la salida que siempre hay: las dos pantallas imprimen su vista de la cotización.
  */
 export async function downloadQuotePdf(ctx: Ctx, folio: string, formatId?: string | null, emailCliente?: string) {
   try {
+    // Candado de sesión (T1.4): el PDF ES la cotización completa.
     const gate = await secIdentidad(ctx, emailCliente);
     if (!gate.ok) {
       return { success: false, sinSesion: true, message: gate.error || 'Inicia sesión para descargar esta cotización.' };
     }
-    if (!folio) throw new Error('El folio es requerido para generar el PDF.');
-    if (formatId && !QUOTE_FORMATS.some((f) => f.id === formatId)) {
-      throw new Error(`Formato desconocido: '${formatId}'.`);
-    }
-    return { success: false, message: MSG_SIN_PDF };
+    const pdf = await generateQuotePdfBlob(ctx, folio, formatId);
+    if (!pdf) return { success: false, message: MSG_SIN_PDF };
+    return {
+      success: true,
+      fileName: pdf.nombre,
+      mimeType: 'application/pdf',
+      base64: aBase64(pdf.bytes)
+    };
   } catch (error) {
     console.error(`Error en downloadQuotePdf (folio ${folio}, formato ${formatId})`, error);
     return { success: false, message: 'No pudimos generar el PDF. Inténtalo de nuevo en un momento.' };

@@ -1648,3 +1648,387 @@ function emitirBusquedas(S, filas) {
     S.fila('metricas_busquedas', { id: i + 1, fecha: iso(b.t), termino: b.termino, quien: b.quien, nombre: b.nombre, origen: 'cotizaciones' });
   });
 }
+
+// ══════════════════════════════════════════════════════════════════════════════════════════════
+// ESTADO DE OPERACIÓN · reportes, incidencias, historial y catálogo (Operacion.gs / operacion.ts)
+// ══════════════════════════════════════════════════════════════════════════════════════════════
+const opNormalizar = (t) => sinAcentos(String(t == null ? '' : t)).toLowerCase().replace(/[^a-z0-9ñ ]+/g, ' ').replace(/\s+/g, ' ').trim();
+const opClave = (t) => opNormalizar(t).replace(/ /g, '-').substring(0, 60);
+/** Los cuatro sistemas de siempre (OP_SISTEMAS_BASE). */
+const OP_SISTEMAS = { connect: 'Connect', 'pagina-app': 'Página/App', salesforce: 'Salesforce', ccaip: 'CCAIP' };
+const OP_AVISO_POSIBLE_DETALLE = 'Es posible que existan problemas con el servicio. Varias personas reportaron fallas en los últimos 30 minutos y lo estamos revisando.';
+/** Estados que cuentan como «algo pasa» (afecta) y los que cierran (OP_ESTADOS_BASE). */
+const OP_ESTADO = {
+  posible: { afecta: true, cierra: false }, confirmado: { afecta: true, cierra: false }, intermitencia: { afecta: true, cierra: false },
+  mantenimiento: { afecta: true, cierra: false }, resuelto: { afecta: false, cierra: true }, descartado: { afecta: false, cierra: true }
+};
+
+const NOTAS_REPORTE = {
+  'connect|No abre / no carga': ['Abro Connect y se queda en blanco, ya probé con otro navegador.', 'No carga la pantalla de llamadas, solo da vueltas el círculo.',
+    'Me marca error al abrir Connect y no puedo tomar llamadas.', 'Se quedó cargando desde hace 10 minutos y tengo llamadas en cola.', 'Cerré sesión y volví a entrar, sigue sin abrir.'],
+  'connect|Va muy lento': ['Tarda más de un minuto en cada pantalla.', 'Cada clic tarda mucho en responder, así no se puede trabajar.', 'Va lentísimo desde hace un rato, a todos en mi isla nos pasa.'],
+  'connect|No guarda la llamada': ['Termino la llamada y no se guarda el registro.', 'Al cerrar la llamada marca error y se pierde la nota.', 'No me guardó la última llamada, la tuve que capturar a mano.'],
+  'salesforce|Va muy lento': ['Salesforce tarda en abrir cada caso, se queda pensando.', 'Los casos tardan casi un minuto en cargar.', 'Lento al guardar el caso, a veces marca tiempo de espera.'],
+  'salesforce|No deja iniciar sesión': ['Me pide la contraseña otra vez y no la acepta.', 'Dice que mi contraseña venció y no me deja entrar.', 'Marca error de credenciales aunque la contraseña es la correcta.'],
+  'salesforce|No encuentra al cliente': ['Busco al cliente por teléfono y no aparece, pero sí tiene pedidos.'],
+  'pagina-app|No aparecen precios': ['En la página no aparecen los precios de los productos, salen vacíos.', 'Busco el producto y el precio sale en $0.', 'Los precios no cargan en la app ni en la página.', 'No se ve el precio en ningún artículo que busco.'],
+  'pagina-app|No carga la página': ['La página de Liverpool no abre, marca error de conexión.', 'Se queda en blanco al entrar a la página.'],
+  'pagina-app|Error al pagar': ['El cliente intenta pagar y le sale error al confirmar.', 'Al pagar con tarjeta marca error y no deja continuar.', 'No deja finalizar la compra, se queda en «procesando».'],
+  'pagina-app|No deja agregar a la bolsa': ['El botón de agregar a la bolsa no responde.', 'No me deja agregar productos a la bolsa.'],
+  'pagina-app|Imágenes rotas': ['Varias fotos de productos salen rotas en la página.'],
+  'ccaip|Se corta el audio': ['El audio se corta cada pocos segundos, el cliente no me escucha.', 'Se entrecorta la llamada y a ratos se va el audio.',
+    'El cliente dice que me escucha con interferencia.', 'Me escucho con eco y se corta, tuve que colgar y devolver la llamada.', 'Audio entrecortado en todas las llamadas.'],
+  'ccaip|No cambia de estado': ['No me deja cambiar a disponible, se queda en no disponible.'],
+  'outlook|No sincroniza el correo': ['Mi correo lleva horas sin actualizar, no me llegan los nuevos.']
+};
+
+/** Las incidencias de la demo. `hace` = minutos antes de «ahora»; `dia` = días atrás; `offsets` = minutos de cada reporte respecto al tercero. */
+const INCIDENTES_DEMO = [
+  { id: 'connect-abierta', sistema: 'connect', sub: 'No abre / no carga', origen: 'automatico', hace: 104, offsets: [-14, -6, 0, 7, 18], demoEn: 1,
+    eventos: [
+      { min: 9, quien: 0, estado: 'confirmado', aviso: true, nota: 'Confirmado: Connect no abre para varias personas. Ya avisé a TI.', detalle: 'Connect no abre o no carga para varias personas. TI ya lo está revisando.' },
+      { min: 41, quien: 1, estado: 'confirmado', aviso: true, nota: 'TI sigue trabajando en la falla. Mientras vuelve, anota en Atenciones a quien se quede esperando.' }
+    ] },
+  { id: 'salesforce-observacion', sistema: 'salesforce', sub: 'Va muy lento', origen: 'automatico', hace: 52, offsets: [-9, -3, 0, 11],
+    eventos: [
+      { min: 14, quien: 1, estado: 'intermitencia', aviso: true, nota: 'En observación: Salesforce va lento a ratos. Si se detiene por completo, avísennos.', detalle: 'Salesforce responde lento a ratos. Estamos en observación.' }
+    ] },
+  { id: 'pagina-precios', sistema: 'pagina-app', sub: 'No aparecen precios', origen: 'automatico', dia: -3, h: 11, m: 8, offsets: [-11, -5, 0, 4], demoEn: 0,
+    eventos: [
+      { min: 12, quien: 0, estado: 'confirmado', aviso: true, nota: 'Confirmado: en la página no se ven los precios. Ya está con TI.', detalle: 'En la página y la app no aparecen los precios de los productos. TI ya lo está revisando.' },
+      { min: 95, quien: 0, estado: 'resuelto', aviso: true, nota: 'Los precios ya aparecen. Fue un error en la actualización del catálogo; TI la revirtió.', detalle: 'Servicio restablecido: los precios ya se muestran con normalidad.' }
+    ] },
+  { id: 'ccaip-audio', sistema: 'ccaip', sub: 'Se corta el audio', origen: 'automatico', dia: -6, h: 16, m: 21, offsets: [-12, -7, 0, 5, 16],
+    eventos: [
+      { min: 8, quien: 1, estado: 'confirmado', aviso: true, nota: 'Confirmado: el audio se corta en varias posiciones. Se levantó caso con el proveedor de telefonía.', detalle: 'El audio de las llamadas se corta en varias posiciones. Ya está reportado con el proveedor.' },
+      { min: 34, quien: 1, estado: 'confirmado', aviso: false, nota: 'El proveedor ya tiene el caso y pidió datos de las llamadas afectadas.' },
+      { min: 72, quien: 1, estado: 'resuelto', aviso: true, nota: 'El proveedor corrigió el enlace. El audio ya está normal.', detalle: 'Servicio restablecido: el audio de las llamadas ya funciona con normalidad.' }
+    ] },
+  { id: 'connect-lento', sistema: 'connect', sub: 'Va muy lento', origen: 'automatico', dia: -9, h: 10, m: 12, offsets: [-17, -9, 0, 10],
+    eventos: [
+      { min: 15, quien: 0, estado: 'confirmado', aviso: true, nota: 'Confirmado: Connect va muy lento. TI está revisando los servidores.', detalle: 'Connect responde muy lento. TI está revisando.' },
+      { min: 180, quien: 0, estado: 'resuelto', aviso: true, nota: 'Connect volvió a responder con normalidad.', detalle: 'Servicio restablecido.' }
+    ] },
+  { id: 'salesforce-sesion', sistema: 'salesforce', sub: 'No deja iniciar sesión', origen: 'automatico', dia: -12, h: 9, m: 47, offsets: [-8, -4, 0],
+    eventos: [
+      { min: 11, quien: 1, estado: 'descartado', aviso: false, nota: 'Eran contraseñas vencidas por la política de 90 días, no una falla de Salesforce. Ya se les restableció a las tres personas.' }
+    ] },
+  { id: 'connect-guardado', sistema: 'connect', sub: 'No guarda la llamada', origen: 'automatico', dia: -15, h: 14, m: 5, offsets: [-13, -6, 0], cierraSolo: 61, eventos: [] },
+  { id: 'salesforce-mantenimiento', sistema: 'salesforce', sub: 'Mantenimiento programado', origen: 'supervision', sabado: -16, h: 9, m: 5, manual: true,
+    titulo: 'Mantenimiento de Salesforce', detalle: 'Salesforce estará en mantenimiento de 9:00 a 11:30 h. Vuelve a abrirlo después de esa hora.',
+    eventos: [
+      { min: 0, quien: 0, estado: 'mantenimiento', aviso: true, nota: 'Mantenimiento programado por TI.' },
+      { min: 145, quien: 0, estado: 'resuelto', aviso: true, nota: 'Mantenimiento terminado: Salesforce ya está disponible.', detalle: 'Mantenimiento terminado. Salesforce ya está disponible.' }
+    ] },
+  { id: 'pagina-servicio', sistema: 'pagina-app', sub: '', origen: 'automatico-servicio', dia: -24, h: 12, m: 40, offsets: [-15, -8, 0, 6],
+    subs: ['No carga la página', 'Error al pagar', 'No deja agregar a la bolsa', 'Error al pagar'],
+    eventos: [
+      { min: 10, quien: 0, estado: 'confirmado', aviso: true, nota: 'Confirmado: la tienda en línea está fallando de varias formas a la vez.', detalle: 'La página y la app presentan fallas: no cargan o no dejan pagar. TI ya lo está revisando.' },
+      { min: 25, quien: 0, estado: 'confirmado', aviso: true, nota: 'Seguimos con la falla. Para pedidos urgentes, anoten los datos del cliente en Atenciones.' },
+      { min: 215, quien: 1, estado: 'resuelto', aviso: true, nota: 'Se restableció la tienda en línea. Ya se puede comprar con normalidad.', detalle: 'Servicio restablecido: la página y la app funcionan con normalidad.' }
+    ] }
+];
+
+/** Reportes sueltos que nadie ha elevado todavía (y uno descartado), con un sistema escrito por una persona. */
+const SUELTOS_DEMO = [
+  { dia: -5, h: 12, m: 31, sistema: 'outlook', sistemaNuevo: 'Outlook', sub: 'No sincroniza el correo', estado: 'abierto' },
+  { dia: -2, h: 16, m: 12, sistema: 'salesforce', sub: 'No encuentra al cliente', estado: 'abierto' },
+  { dia: -1, h: 11, m: 40, sistema: 'pagina-app', sub: 'Imágenes rotas', estado: 'abierto' },
+  { dia: -8, h: 13, m: 15, sistema: 'ccaip', sub: 'No cambia de estado', estado: 'descartado' }
+];
+
+function generarOperacion(P) {
+  const az = new Azar('operacion');
+  const A = P.asesores.filter((a) => a.activo);
+  const supervision = [P.supervisores[0] || P.maestro, P.supervisores[1] || P.supervisores[0] || P.maestro];
+  const reportes = [], incidentes = [], actualizaciones = [];
+  const catalogo = new Map();     // 'tipo|sistema|clave' → fila del catálogo
+
+  const idDe = (prefijo, t) => prefijo + '-' + t.getTime().toString(36) + '-' + az.entero(0, 46655).toString(36);
+  const sumarUso = (tipo, sistemaClave, valor, quien, t) => {
+    const clave = opClave(valor), k = tipo + '|' + sistemaClave + '|' + clave;
+    const f = catalogo.get(k);
+    if (f) f.usos++;
+    else catalogo.set(k, { tipo, sistema_clave: sistemaClave, valor, clave, tono: '', creado: t, creado_por: quien, activo: 1, usos: 1 });
+  };
+  const notaDe = (sistema, sub) => az.elegir(NOTAS_REPORTE[sistema + '|' + sub] || ['Me está fallando ' + (OP_SISTEMAS[sistema] || sistema) + ' y no puedo trabajar.']);
+  // Los días hábiles (de lunes a viernes): si cae en fin de semana, el viernes anterior.
+  const dia = (n) => { for (let k = n; k > n - 3; k--) { const d = diaMx(AHORA, k); if (d.diaSemana !== 0 && d.diaSemana !== 6) return d; } return diaMx(AHORA, n); };
+  const reporte = (t, quien, sistema, sub, extra) => {
+    const nombreSistema = OP_SISTEMAS[sistema] || (extra && extra.sistemaNuevo) || sistema;
+    const r = Object.assign({
+      id: idDe('rep', t), fecha: t, correo: quien.email, nombre: quien.nombre, sistema: nombreSistema, sistema_clave: sistema,
+      submotivo: sub, submotivo_clave: opClave(sub), notas: notaDe(sistema, sub), evidencias: '[]', incidente_id: '', estado: 'abierto'
+    }, extra || {});
+    delete r.sistemaNuevo;
+    reportes.push(r);
+    return r;
+  };
+
+  // ── Incidencias con sus reportes y su historial ────────────────────────────────────────────
+  for (const d of INCIDENTES_DEMO) {
+    const sup = (i) => supervision[i % supervision.length];
+    const base = d.hace != null
+      ? haceMin(d.hace)
+      : (d.sabado != null
+        ? (() => { for (let n = d.sabado; n > d.sabado - 8; n--) { const x = diaMx(AHORA, n); if (x.diaSemana === 6) return enDia(x, d.h, d.m, az.entero(0, 59), az.entero(0, 999)); } return enDia(dia(d.sabado), d.h, d.m); })()
+        : enDia(dia(d.dia), d.h, d.m, az.entero(0, 59), az.entero(0, 999)));
+    const nombreSistema = OP_SISTEMAS[d.sistema];
+    const idInc = idDe('inc', base);
+    const inc = {
+      id: idInc, clave: d.sistema + '|' + opClave(d.sub), sistema: nombreSistema, sistema_clave: d.sistema, submotivo: d.sub, estado: 'posible',
+      titulo: d.titulo || (d.sub ? nombreSistema + ' · ' + d.sub : 'Problemas con ' + nombreSistema), detalle: d.detalle || OP_AVISO_POSIBLE_DETALLE,
+      creado: base, creado_por: 'sistema', creado_nombre: 'Detección automática', confirmado: null, confirmado_por: null, confirmado_nombre: null,
+      actualizado: base, actualizado_por: null, cerrado: null, origen: d.origen
+    };
+    const acts = [];
+    const act = (t, autor, nombre, estado, nota, aviso) => acts.push({ id: idDe('act', t), incidente_id: idInc, fecha: t, autor, autor_nombre: nombre, estado, nota, aviso: aviso ? '1' : '0' });
+    const mias = [];
+
+    if (d.manual) {
+      // La crea supervisión a mano (opCrearIncidente): nace ya confirmada por quien la crea.
+      const s = sup(d.eventos[0].quien), primero = d.eventos[0];
+      inc.creado_por = s.email; inc.creado_nombre = s.nombre; inc.estado = primero.estado; inc.confirmado = base;
+      inc.confirmado_por = s.email; inc.confirmado_nombre = s.nombre; inc.actualizado_por = s.email;
+      act(base, s.email, s.nombre, primero.estado, primero.nota, primero.aviso);
+      sumarUso('submotivo', d.sistema, d.sub, s.email, base);
+      for (const e of d.eventos.slice(1)) {
+        const t = new Date(base.getTime() + e.min * MS_MIN + az.entero(0, 59) * 1000);
+        const s2 = sup(e.quien);
+        act(t, s2.email, s2.nombre, e.estado, e.nota, e.aviso);
+        inc.estado = e.estado; inc.actualizado = t; inc.actualizado_por = s2.email;
+        if (e.detalle !== undefined) inc.detalle = e.detalle;
+        if (OP_ESTADO[e.estado].cierra) inc.cerrado = t;
+      }
+    } else {
+      // Quién reporta: personas distintas; la persona de la demo, en el puesto que se diga.
+      const n = d.offsets.length;
+      const gente = az.barajar(A.filter((a) => a !== P.demo)).slice(0, n);
+      if (d.demoEn != null) gente.splice(d.demoEn, 0, P.demo);
+      const quienes = gente.slice(0, n);
+      const tiempos = d.offsets.map((o, i) => new Date(base.getTime() + o * MS_MIN + (o === 0 ? 0 : az.entero(0, 50) * 1000) + i));
+      const subs = d.subs || null;
+      quienes.forEach((q, i) => {
+        const sub = subs ? subs[i] : d.sub;
+        mias.push(reporte(tiempos[i], q, d.sistema, sub, { incidente_id: idInc, estado: 'vinculado' }));
+        sumarUso('submotivo', d.sistema, sub, q.email, tiempos[i]);
+      });
+      // La incidencia nace un instante después del tercer reporte (el que cruza el umbral).
+      inc.creado = new Date(tiempos[2].getTime() + az.entero(120, 420));
+      inc.actualizado = inc.creado;
+      for (let i = 3; i < n; i++) inc.actualizado = tiempos[i] > inc.actualizado ? tiempos[i] : inc.actualizado;
+      act(inc.creado, 'sistema', 'Detección automática', 'posible', OP_AVISO_POSIBLE_DETALLE, true);
+      const motivos = []; (subs || []).forEach((s) => { if (motivos.indexOf(s) === -1) motivos.push(s); });
+      act(inc.creado, 'sistema', 'Detección automática', 'posible', d.sub
+        ? '3 personas distintas reportaron «' + d.sub + '» en ' + nombreSistema + ' en menos de 30 minutos.'
+        : '3 personas distintas reportaron fallas en ' + nombreSistema + ' en menos de 30 minutos, cada una con un motivo diferente (' + motivos.slice(0, 5).join('; ') + ').', false);
+      let t0 = inc.creado;
+      for (const e of d.eventos) {
+        const t = new Date(t0.getTime() + e.min * MS_MIN + az.entero(0, 55) * 1000);
+        const s = sup(e.quien);
+        act(t, s.email, s.nombre, e.estado, e.nota, e.aviso);
+        inc.estado = e.estado; inc.actualizado = t; inc.actualizado_por = s.email;
+        if (e.detalle !== undefined) inc.detalle = e.detalle;
+        if (!inc.confirmado && OP_ESTADO[e.estado].afecta && e.estado !== 'posible') {
+          inc.confirmado = t; inc.confirmado_por = s.email; inc.confirmado_nombre = s.nombre;
+        }
+        if (OP_ESTADO[e.estado].cierra && !inc.cerrado) inc.cerrado = t;
+      }
+      if (d.cierraSolo) {
+        // opCaducarPosibles: nadie la confirmó y dejaron de llegar reportes; se cierra sola al leer, pasada la hora.
+        const t = new Date(inc.creado.getTime() + d.cierraSolo * MS_MIN + az.entero(0, 59) * 1000);
+        acts.push({ id: idDe('act', t), incidente_id: idInc, fecha: t, autor: 'sistema', autor_nombre: 'Sistema', estado: 'descartado',
+          nota: 'Sin reportes nuevos en 1 hora y sin confirmar. Se cerró solo.', aviso: '0' });
+        inc.estado = 'descartado'; inc.cerrado = t; inc.actualizado = t;       // no toca actualizado_por
+      }
+      // Al cerrar desde la bandeja, sus reportes dejan de aparecer como pendientes (opActualizarIncidente).
+      if (inc.cerrado && !d.cierraSolo) mias.forEach((r) => { r.estado = inc.estado; });
+    }
+    incidentes.push(inc);
+    actualizaciones.push(...acts);
+  }
+
+  // ── Reportes sueltos ───────────────────────────────────────────────────────────────────────
+  for (const s of SUELTOS_DEMO) {
+    const t = enDia(dia(s.dia), s.h, s.m, az.entero(0, 59), az.entero(0, 999));
+    const quien = az.elegir(A.filter((a) => a !== P.demo));
+    reporte(t, quien, s.sistema, s.sub, { estado: s.estado, sistemaNuevo: s.sistemaNuevo });
+    if (s.sistemaNuevo) sumarUso('sistema', '', s.sistemaNuevo, quien.email, t);
+    sumarUso('submotivo', s.sistema, s.sub, quien.email, t);
+  }
+
+  reportes.sort((a, b) => a.fecha - b.fecha);
+  incidentes.sort((a, b) => a.creado - b.creado);
+  actualizaciones.sort((a, b) => a.fecha - b.fecha);
+  return { reportes, incidentes, actualizaciones, catalogo: [...catalogo.values()].sort((a, b) => a.creado - b.creado) };
+}
+
+function emitirOperacion(S, O) {
+  S.seccion('OPERACIÓN · catálogo, reportes, incidencias e historial', [
+    'Lo base (los cuatro sistemas, sus motivos y los estados) vive en el código; la tabla operacion_catalogo guarda lo que se ha',
+    'USADO (un uso por reporte) y los sistemas que escribió alguien. Dos incidencias abiertas hoy: Connect (confirmada) y Salesforce',
+    '(«En observación» = estado intermitencia). El resto, resueltas o descartadas, con su historial de actualizaciones.'
+  ]);
+  for (const c of O.catalogo) {
+    S.fila('operacion_catalogo', { tipo: c.tipo, sistema_clave: c.sistema_clave, valor: c.valor, clave: c.clave, tono: c.tono, creado: iso(c.creado), creado_por: c.creado_por, activo: c.activo, usos: c.usos });
+  }
+  for (const r of O.reportes) {
+    S.fila('operacion_reportes', {
+      id: r.id, fecha: iso(r.fecha), correo: r.correo, nombre: r.nombre, sistema: r.sistema, sistema_clave: r.sistema_clave, submotivo: r.submotivo,
+      submotivo_clave: r.submotivo_clave, notas: r.notas, evidencias: r.evidencias, incidente_id: r.incidente_id, estado: r.estado
+    });
+  }
+  for (const i of O.incidentes) {
+    const fila = {
+      id: i.id, clave: i.clave, sistema: i.sistema, sistema_clave: i.sistema_clave, submotivo: i.submotivo, estado: i.estado, titulo: i.titulo,
+      detalle: i.detalle, creado: iso(i.creado), creado_por: i.creado_por, creado_nombre: i.creado_nombre, actualizado: iso(i.actualizado), origen: i.origen
+    };
+    if (i.confirmado) Object.assign(fila, { confirmado: iso(i.confirmado), confirmado_por: i.confirmado_por, confirmado_nombre: i.confirmado_nombre });
+    if (i.actualizado_por) fila.actualizado_por = i.actualizado_por;
+    if (i.cerrado) fila.cerrado = iso(i.cerrado);
+    S.fila('operacion_incidentes', fila);
+  }
+  for (const a of O.actualizaciones) {
+    S.fila('operacion_actualizaciones', { id: a.id, incidente_id: a.incidente_id, fecha: iso(a.fecha), autor: a.autor, autor_nombre: a.autor_nombre, estado: a.estado, nota: a.nota, aviso: a.aviso });
+  }
+}
+
+// ══════════════════════════════════════════════════════════════════════════════════════════════
+// ATENCIONES · devolverle la llamada a quien se quedó a medias (Atenciones.gs / atenciones.ts)
+// ══════════════════════════════════════════════════════════════════════════════════════════════
+const NOTAS_ATENCION = {
+  Venta: ['Quería pagar a meses una pantalla y se cayó Connect a media llamada. Pide que le devuelvan la llamada.', 'Iba a cerrar la compra de un refrigerador y se cortó la llamada.',
+    'Cotización de una sala casi lista; falta confirmar la fecha de entrega.', 'Interesado en un colchón king size; pidió que le llamen en la tarde.', 'Pidió precio de una lavadora y secadora, se cayó el sistema antes de cotizar.'],
+  Seguimiento: ['Dar seguimiento a la cotización que se le envió ayer.', 'Preguntó si ya se aprobó su cotización; queda pendiente avisarle.', 'Le prometí confirmar disponibilidad y una fecha de entrega.', 'Quedó en decidir esta semana; llamarle para ver si procede.'],
+  'Aclaración': ['Duda con el cobro de un pedido; hay que revisar el cargo en su estado de cuenta.', 'Pide aclarar por qué el precio cambió respecto a la cotización.', 'No le llegó el correo con su cotización; confirmar la dirección y reenviar.'],
+  'Garantía': ['Su refrigerador falló a los 5 meses; quiere saber cómo hacer válida la garantía.', 'Pide información de la garantía de una laptop que compró hace un año.'],
+  Entrega: ['Pregunta por la entrega de su pedido, la paquetería no ha pasado.', 'Quiere cambiar la dirección de entrega de su pedido.'],
+  Otro: ['Cliente pidió que le llamen de vuelta, no dijo el motivo.', 'Llamada cortada, no alcancé a anotar el motivo.']
+};
+const RESULTADOS_ATENCION = ['Se le devolvió la llamada y quedó resuelto.', 'Se contactó al cliente y aceptó la cotización.', 'El cliente ya había comprado en tienda; se cierra.',
+  'No contestó en dos intentos; se le dejó mensaje.', 'Se aclaró el cargo y quedó conforme.', 'Se envió la cotización por correo y el cliente confirmó que la recibió.',
+  'Pidió más tiempo para decidir; se le llamará la próxima semana.', 'Se le explicó el proceso de garantía y ya levantó su solicitud.'];
+const HORAS_PROMESA = ['Hoy 5:00 pm', 'Hoy 6:30 pm', 'Mañana por la mañana', 'Hoy después de las 4', 'Mañana 10:00 am', '17:30', '', '', 'Antes de las 3 pm'];
+
+function generarAtenciones(P, G) {
+  const az = new Azar('atenciones');
+  const A = P.asesores;
+  const clientes = crearClientes(az, 40, P.nombresVetados);
+  const filas = [];
+  const idAt = (t) => 'AT-' + az.hex(8).toUpperCase() + '-' + (t.getTime() % 100000);
+  const telefonoLimpio = (c) => c.telefono;
+
+  const nueva = (o) => {
+    const c = o.cliente || clientes.pop();
+    const tipo = o.tipo || az.pesos(['Venta', 'Seguimiento', 'Aclaración', 'Otro', 'Garantía', 'Entrega'], (x) => ({ Venta: 40, Seguimiento: 24, 'Aclaración': 14, Otro: 8, 'Garantía': 7, Entrega: 7 })[x]);
+    const fecha = o.fecha;
+    const a = Object.assign({
+      id: idAt(fecha), fecha, asesor: o.asesor.email, asesor_nombre: o.asesor.nombre, cliente: c.nombre, telefono: telefonoLimpio(c),
+      correo: az.prob(0.45) ? c.correo : '', tipo, notas: az.elegir(NOTAS_ATENCION[tipo] || NOTAS_ATENCION.Otro),
+      hora_promesa: az.elegir(HORAS_PROMESA), liberar_en: null, estado: 'pendiente', rescatada_por: '', rescatada_en: null, cerrada_por: '', cerrada_en: null, resultado: ''
+    }, o.extra || {});
+    filas.push(a);
+    return a;
+  };
+  const libera = (a, min) => { a.liberar_en = new Date(a.fecha.getTime() + min * MS_MIN); return a; };
+  const otros = (excepto) => A.filter((x) => x.activo && x !== excepto && x !== P.demo);
+  const tarde = (n, h, m) => enDia(diaMx(AHORA, n), h, m, az.entero(0, 59), az.entero(0, 999));
+  /** «Hace N minutos», pero nunca de madrugada ni después de «ahora». */
+  const rel = (min) => {
+    let t = haceMin(min);
+    const h = partesMx(t).hora;
+    if (h < 8 || h >= 21) t = aHorarioLaboral(az, t);
+    return t > new Date(AHORA.getTime() - 4 * MS_MIN) ? new Date(AHORA.getTime() - 4 * MS_MIN - az.entero(0, 400) * 1000) : t;
+  };
+
+  // ── Abiertas ───────────────────────────────────────────────────────────────────────────────
+  // La persona de la demo: una privada (más antigua), una ya liberada al pool y una que se libera más tarde.
+  nueva({ asesor: P.demo, fecha: tarde(-3, 12, 40), tipo: 'Seguimiento', extra: { hora_promesa: 'Hoy 5:00 pm' } });
+  libera(nueva({ asesor: P.demo, fecha: rel(255), tipo: 'Venta' }), 120);                  // liberada hace ~2 h
+  libera(nueva({ asesor: P.demo, fecha: rel(50), tipo: 'Aclaración' }), 240);              // se libera en ~3 h
+  // De otras personas: unas en el pool, otras programadas, otras solo suyas.
+  const dueno = () => az.elegir(otros(null));
+  libera(nueva({ asesor: dueno(), fecha: rel(330) }), 120);
+  libera(nueva({ asesor: dueno(), fecha: rel(200) }), 60);
+  libera(nueva({ asesor: dueno(), fecha: rel(1500) }), 30);
+  libera(nueva({ asesor: dueno(), fecha: rel(2900), tipo: 'Venta' }), 240);
+  libera(nueva({ asesor: dueno(), fecha: rel(35) }), 120);
+  libera(nueva({ asesor: dueno(), fecha: rel(20) }), 240);
+  nueva({ asesor: dueno(), fecha: rel(1700) });
+  nueva({ asesor: dueno(), fecha: tarde(-5, 15, 10), tipo: 'Seguimiento' });
+  {
+    // Una con «hora fija»: se libera hoy a las 18:00 (o mañana, si ya pasó).
+    const a = nueva({ asesor: dueno(), fecha: rel(95), tipo: 'Venta' });
+    let objetivo = enDia(HOY, 18, 0);
+    if (objetivo <= a.fecha) objetivo = new Date(objetivo.getTime() + MS_DIA);
+    a.liberar_en = objetivo;
+  }
+
+  // ── Cerradas ───────────────────────────────────────────────────────────────────────────────
+  const cierra = (a, quien, minDespues, extra) => {
+    a.estado = 'finalizada'; a.cerrada_por = quien.email;
+    a.cerrada_en = new Date(a.fecha.getTime() + minDespues * MS_MIN + az.entero(0, 59) * 1000);
+    a.resultado = (extra && extra.resultado) || az.elegir(RESULTADOS_ATENCION);
+    return a;
+  };
+  // Atendidas por su propio autor. Cuatro son de clientes que acabaron cotizados (el resultado cita el folio) y se anotan
+  // ANTES de que salga esa cotización; las demás son de otras fechas.
+  const vistas = az.barajar(G.quotes.filter((q) => q.destino === 'ENV' && q.edad >= 1 && q.edad <= 24 && P.asesores.includes(q.asesor) &&
+    partesMx(q.t).hora >= 13));
+  for (let i = 0; i < 8; i++) {
+    const q = vistas.pop();
+    if (i < 4 && q) {
+      const fecha = new Date(q.t.getTime() - az.entero(40, 240) * MS_MIN);
+      const a = nueva({ asesor: q.asesor, fecha, tipo: 'Venta', cliente: q.cliente });
+      cierra(a, q.asesor, Math.round((q.t - fecha) / MS_MIN) + az.entero(4, 14), { resultado: 'Se cotizó con folio ' + q.folio + ' y se envió al correo del cliente.' });
+    } else {
+      const tipo = az.elegir(['Seguimiento', 'Aclaración', 'Garantía', 'Entrega', 'Venta']);
+      const asesor = az.elegir(otros(null).concat([P.demo]));
+      const fecha = aHorarioLaboral(az, enDia(diaMx(AHORA, -az.entero(2, 24)), az.entero(9, 19), az.entero(0, 59)));
+      cierra(nueva({ asesor, fecha, tipo }), asesor, az.entero(35, 600));
+    }
+  }
+  // Rescatadas por otra persona: la libera su autor, otra la toma (reserva de 15 min), llama al cliente y cotiza.
+  for (let i = 0; i < 5; i++) {
+    const q = vistas.pop();
+    if (!q) break;
+    const autor = az.elegir(otros(q.asesor).concat([P.demo].filter((p) => p !== q.asesor)));
+    const toma = new Date(q.t.getTime() - az.entero(4, 9) * MS_MIN);             // la toma poco antes de cotizar
+    const liberada = new Date(toma.getTime() - az.entero(3, 40) * MS_MIN);
+    const espera = az.elegir([30, 60, 120]);
+    const a = nueva({ asesor: autor, fecha: new Date(liberada.getTime() - espera * MS_MIN), tipo: 'Venta', cliente: q.cliente });
+    a.liberar_en = liberada;
+    a.rescatada_por = q.asesor.email; a.rescatada_en = toma;
+    a.estado = 'finalizada'; a.cerrada_por = q.asesor.email;
+    a.cerrada_en = new Date(q.t.getTime() + az.entero(1, 4) * MS_MIN + az.entero(0, 59) * 1000);
+    a.resultado = i % 2 ? 'Se hizo la cotización ' + q.folio + ' y el cliente la recibió por correo.' : 'Se le devolvió la llamada al cliente y se cotizó con el folio ' + q.folio + '.';
+  }
+
+  // Lo que nunca puede pasar: una atención de alguien que ya estaba de baja, o que sea posterior a «ahora».
+  const lista = filas.filter((a) => a.fecha < new Date(AHORA.getTime() - 3 * MS_MIN)).sort((a, b) => a.fecha - b.fecha);
+
+  // Catálogo de tipos: se alimenta solo, con el uso (el primero que lo escribió lo deja con su grafía).
+  const tipos = new Map();
+  for (const a of lista) {
+    const clave = sinAcentos(a.tipo).toLowerCase().replace(/\s+/g, ' ').trim();
+    const t = tipos.get(clave);
+    if (t) t.usos++; else tipos.set(clave, { clave, tipo: a.tipo, usos: 1, creado: a.fecha, por: a.asesor });
+  }
+  return { atenciones: lista, tipos: [...tipos.values()] };
+}
+
+function emitirAtenciones(S, T) {
+  S.seccion('ATENCIONES · atenciones_pendientes y atenciones_tipos', [
+    'Privadas (sin liberar_en), liberadas al pool, programadas y ya cerradas (algunas rescatadas por otra persona dentro de la reserva de 15 min).',
+    'Varias son de los mismos clientes ficticios de las cotizaciones y su resultado cita el folio.'
+  ]);
+  for (const a of T.atenciones) {
+    S.fila('atenciones_pendientes', {
+      id: a.id, fecha: iso(a.fecha), asesor: a.asesor, asesor_nombre: a.asesor_nombre, cliente: a.cliente, telefono: a.telefono, correo: a.correo,
+      tipo: a.tipo, notas: a.notas, hora_promesa: a.hora_promesa, liberar_en: a.liberar_en ? iso(a.liberar_en) : null, estado: a.estado,
+      rescatada_por: a.rescatada_por, rescatada_en: a.rescatada_en ? iso(a.rescatada_en) : null, cerrada_por: a.cerrada_por,
+      cerrada_en: a.cerrada_en ? iso(a.cerrada_en) : null, resultado: a.resultado
+    });
+  }
+  for (const t of T.tipos) S.fila('atenciones_tipos', { clave: t.clave, tipo: t.tipo, usos: t.usos, creado: iso(t.creado), por: t.por });
+}

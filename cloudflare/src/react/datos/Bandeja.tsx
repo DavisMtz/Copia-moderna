@@ -1,7 +1,7 @@
 /*
- * Pestaña «Bandeja de salida»: los correos que el Portal «envió». En esta versión no sale ninguno
- * (no hay Gmail): quedan completos en correos_salida, y aquí se ve exactamente lo que habría
- * recibido el cliente. El HTML va en un <iframe sandbox> sin scripts.
+ * Pestaña «Bandeja de salida»: los correos que mandó el Portal. Salen por Brevo (nucleo/correo.ts) y
+ * además quedan COMPLETOS en correos_salida, con lo que pasó al mandarlos: aquí se ve exactamente lo
+ * que recibió el cliente, y si salió. El HTML va en un <iframe sandbox> sin scripts.
  */
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { llamar, esFallo, type RespCorreos, type RespCorreo, type Viaje } from './api';
@@ -17,6 +17,18 @@ const TIPOS: Record<string, [string, string]> = {
 };
 const etiquetaTipo = (t: string) => (TIPOS[t] ? TIPOS[t][0] : (t || 'Sin tipo'));
 const claseTipo = (t: string) => (TIPOS[t] ? TIPOS[t][1] : '');
+
+/** El estado del envío (nucleo/correo.ts). Vacío en los correos de antes del envío real. */
+const ESTADOS: Record<string, [string, string, string]> = {
+  enviado: ['Enviado', 'chip-ok', 'enviados'],
+  omitido: ['No salió', '', 'no salieron'],
+  error: ['Error al enviar', 'chip-error', 'con error']
+};
+
+function ChipEstado({ estado, detalle }: { estado: string; detalle?: string }) {
+  const e = ESTADOS[estado];
+  return e ? <span className={'chip ' + e[1]} title={detalle || undefined}>{e[0]}</span> : null;
+}
 
 /**
  * El HTML del correo, listo para el iframe: los enlaces se abren aparte, no se manda el Referer al
@@ -67,6 +79,11 @@ export function Bandeja({ email, correo, alElegir, alFallar, alContar }: {
       <aside className="bandeja-lista tarjeta" aria-label="Correos">
         <div className="bandeja-filtros">
           <h2>Bandeja de salida <span>{lista ? numero(lista.total) + (lista.total === 1 ? ' correo' : ' correos') : ''}</span></h2>
+          {lista && lista.estados.some((e) => ESTADOS[e.estado]) ? (
+            <p className="bandeja-estados">
+              {lista.estados.filter((e) => ESTADOS[e.estado]).map((e) => numero(e.n) + ' ' + ESTADOS[e.estado][2]).join(' · ')}
+            </p>
+          ) : null}
           <label className="campo">
             <Icono n="buscar" />
             <span className="sr">Buscar en la bandeja</span>
@@ -86,6 +103,7 @@ export function Bandeja({ email, correo, alElegir, alFallar, alContar }: {
                 <span className="para">Para {c.para || '—'}</span>
                 <span className="pie">
                   <span className={'chip ' + claseTipo(c.tipo)}>{etiquetaTipo(c.tipo)}</span>
+                  <ChipEstado estado={c.estado} detalle={c.detalle} />
                   {c.adjuntos ? <Icono n="clip" titulo={c.adjuntos + ' adjunto(s)'} /> : null}
                   {c.codigoVigenteHasta ? <span className="chip chip-aviso" title="Lleva un código de acceso que todavía vale">Código vigente</span> : null}
                   <time dateTime={c.fecha}>{haceCuanto(c.fecha)}</time>
@@ -98,7 +116,7 @@ export function Bandeja({ email, correo, alElegir, alFallar, alContar }: {
           <div className="visor-vacio" style={{ minHeight: '12rem' }}>
             <Icono n="correo" />
             <b>{filtro || tipo ? 'Ningún correo coincide' : 'Todavía no sale ningún correo'}</b>
-            <p>{filtro || tipo ? 'Prueba con otra búsqueda.' : 'Cuando alguien envíe una cotización o una plantilla, aquí verás lo que habría recibido el cliente.'}</p>
+            <p>{filtro || tipo ? 'Prueba con otra búsqueda.' : 'Cuando alguien envíe una cotización o una plantilla, aquí verás lo que recibió el cliente y si salió.'}</p>
           </div>
         ) : null}
         {lista && paginas > 1 ? (
@@ -115,7 +133,7 @@ export function Bandeja({ email, correo, alElegir, alFallar, alContar }: {
           <div className="visor-vacio">
             <Icono n="correo" />
             <b>Elige un correo</b>
-            <p>Verás quién lo mandó, a quién, con qué copias y el correo tal cual lo habría recibido el cliente.</p>
+            <p>Verás quién lo mandó, a quién, con qué copias, si salió y el correo tal cual lo recibió el cliente.</p>
           </div>
         ) : <VistaCorreo key={correo} email={email} id={correo} alVolver={() => alElegir(null)} alFallar={alFallar} />}
       </section>
@@ -172,6 +190,17 @@ function VistaCorreo({ email, id, alVolver, alFallar }: { email: string; id: num
           {c.cco ? <><dt>CCO</dt><dd>{c.cco}</dd></> : null}
           {c.responderA ? <><dt>Responder a</dt><dd>{c.responderA}</dd></> : null}
           <dt>Fecha</dt><dd>{fechaHora(c.fecha)} <small>· {haceCuanto(c.fecha)}</small></dd>
+          {ESTADOS[c.estado] ? (
+            <>
+              <dt>Envío</dt>
+              <dd>
+                <ChipEstado estado={c.estado} />{' '}
+                <small>
+                  {c.estado === 'enviado' ? 'Salió por Brevo desde logidma.com' + (c.proveedorId ? ' · ' + c.proveedorId : '') : (c.detalle || '')}
+                </small>
+              </dd>
+            </>
+          ) : null}
         </dl>
         {c.adjuntos.length ? (
           <div className="adjuntos" aria-label="Adjuntos">

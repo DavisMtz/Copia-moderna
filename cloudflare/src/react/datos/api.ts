@@ -20,13 +20,16 @@ export interface RespConsulta { success: true; columnas: string[]; filas: Celda[
 export interface CorreoResumen {
   id: number; fecha: string; de: string; nombreDe: string; para: string; cc: string; cco: string; asunto: string;
   tipo: string; referencia: string; adjuntos: number; bytes: number; codigoVigenteHasta: string;
+  /** Qué pasó al mandarlo: 'enviado' (Brevo), 'omitido', 'error' o '' (correos de antes del envío real). */
+  estado: string; detalle: string;
 }
 export interface RespCorreos {
   success: true; correos: CorreoResumen[]; total: number; tipos: Array<{ tipo: string; n: number }>;
-  pagina: number; porPagina: number; d1: MedidaD1;
+  estados: Array<{ estado: string; n: number }>; pagina: number; porPagina: number; d1: MedidaD1;
 }
 export interface Correo extends Omit<CorreoResumen, 'adjuntos' | 'bytes'> {
   responderA: string; html: string; texto: string; adjuntos: Array<{ nombre: string; tipo: string; bytes: number }>;
+  proveedorId: string;
 }
 export interface RespCorreo { success: true; correo: Correo; d1: MedidaD1 }
 

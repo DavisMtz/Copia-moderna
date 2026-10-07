@@ -43,7 +43,8 @@ export const DEFAULT_FORMAT_ID = 'ccl_liverpool';
 
 /** Lo que dicen las funciones que en Apps Script producían algo en Google Drive. */
 export const MSG_SIN_DRIVE = 'Esta versión de demostración no genera archivos en Google Drive.';
-export const MSG_SIN_PDF = 'Esta versión de demostración no genera el PDF en Google Drive. ' +
+/** Cuando el PDF no se pudo generar (en local no hay Browser Rendering; en producción, si el servicio falla). */
+export const MSG_SIN_PDF = 'No pudimos generar el PDF en este momento. ' +
   'Usa Imprimir (Ctrl+P) → Guardar como PDF: sale la misma vista de la cotización que tienes en pantalla.';
 
 // ── Celdas, importes y fechas ───────────────────────────────────────────────
