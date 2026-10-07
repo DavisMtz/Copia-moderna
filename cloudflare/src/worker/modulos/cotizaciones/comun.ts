@@ -75,6 +75,18 @@ export function formatCurrencyGS(amount: unknown): string {
   return n.toLocaleString('es-MX', { style: 'currency', currency: 'MXN' });
 }
 
+/** formatPercentJS (app_ccl.html): una fracción como porcentaje con 2 decimales ('12.50%'). */
+export function formatPercentJS(fraction: number): string {
+  return (fraction * 100).toFixed(2) + '%';
+}
+
+/** Una fila del formato CCL calculada con las fórmulas de la plantilla (computeCclRow). */
+export interface FilaCcl {
+  sku: string; description: string; quantity: number; unitPrice: number; priceVolume: number;
+  discountFraction: number; priceWithDiscount: number; subtotal: number; vat: number;
+  additionalApplied: string; additionalFraction: number; total: number;
+}
+
 // El Worker corre en UTC: toda fecha visible se formatea con la zona del proyecto de Apps Script.
 const FMT_CORTA = new Intl.DateTimeFormat('es-MX', { day: '2-digit', month: 'short', year: 'numeric', timeZone: ZONA_MX });
 const FMT_LARGA = new Intl.DateTimeFormat('es-MX', { day: '2-digit', month: 'long', year: 'numeric', timeZone: ZONA_MX });

@@ -29,7 +29,9 @@ const ROLES = [
 const PUBLICAS = ['portal', 'promociones', 'estado', 'login', 'registro', 'recuperar'];
 const RUIDO = /fonts\.(googleapis|gstatic)|mtalk\.google|favicon|ERR_ABORTED.*(cdnjs|jsdelivr)/i;
 
-const navegador = await chromium.launch({ executablePath: '/opt/pw-browsers/chromium', args: ['--no-sandbox'] });
+// Si la máquina sale a internet por un proxy, el navegador también (para recorrer producción).
+const proxy = process.env.HTTPS_PROXY ? { server: process.env.HTTPS_PROXY, bypass: '127.0.0.1,localhost' } : undefined;
+const navegador = await chromium.launch({ executablePath: '/opt/pw-browsers/chromium', args: ['--no-sandbox'], proxy });
 const reporte = { base: BASE, fecha: new Date().toISOString(), resultados: [] };
 
 async function recorrer(rol, correo, pantallas) {

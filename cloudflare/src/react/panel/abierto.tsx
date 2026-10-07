@@ -304,18 +304,21 @@ function Panel({ alCerrar, refPanel, enfocar }: { alCerrar: () => void; refPanel
     return () => ctx.revert();
   }, []);
 
+  // Quien lo abrió con el botón llega al título (lo anuncia el lector de pantalla); si se abrió solo al
+  // cambiar de pantalla, no se le roba el foco a la pantalla.
+  const titulo = useRef<HTMLHeadingElement>(null);
   useLayoutEffect(() => {
-    if (enfocar && caja.current) caja.current.focus({ preventScroll: true });
+    if (enfocar && titulo.current) titulo.current.focus({ preventScroll: true });
   }, [enfocar]);
 
   const fijar = (el: HTMLElement | null) => { caja.current = el; refPanel(el); };
 
   return (
-    <section className="vx-panel" id="vx-panel" role="dialog" aria-modal="false" aria-labelledby="vx-titulo" tabIndex={-1} ref={fijar}>
+    <section className="vx-panel" id="vx-panel" role="dialog" aria-modal="false" aria-labelledby="vx-titulo" ref={fijar}>
       <header className="vx-cab">
         <div>
           <p className="vx-sobre">Portal en Cloudflare</p>
-          <h2 id="vx-titulo">Velocidad de esta pantalla</h2>
+          <h2 id="vx-titulo" tabIndex={-1} ref={titulo}>Velocidad de esta pantalla</h2>
           <p className="vx-sub">Medido en tu navegador, ahora mismo.</p>
         </div>
         <button type="button" className="vx-cerrar" onClick={alCerrar} aria-label="Cerrar el panel de velocidad">
@@ -434,7 +437,7 @@ function Panel({ alCerrar, refPanel, enfocar }: { alCerrar: () => void; refPanel
             </button>
             {maestro() ? <a className="vx-enlace" href="/?page=datos">Explorar la base de datos <span aria-hidden="true">→</span></a> : null}
           </div>
-          {salud.datos && salud.datos.construido ? <p className="vx-pie">Versión construida el {fechaHora(salud.datos.construido)}.</p> : null}
+          {salud.datos && salud.datos.construido ? <p className="vx-pie">Versión construida el {fechaHora(salud.datos.construido)}</p> : null}
         </section>
 
         <section className="vx-sec vx-fuentes" aria-labelledby="vx-s-fuentes">
@@ -444,7 +447,7 @@ function Panel({ alCerrar, refPanel, enfocar }: { alCerrar: () => void; refPanel
               <li key={f.n} value={f.n}>{f.texto} <span className="vx-archivo">{f.archivo}</span></li>
             ))}
           </ol>
-          <p className="vx-pie">Allá, otra red y otro día; aquí, este navegador ahora mismo. La comparación es orientativa: las de Apps Script son las cifras más bajas que se midieron.</p>
+          <p className="vx-pie">Allá, otra red y otro día; aquí, este navegador ahora mismo: la comparación es orientativa. De Apps Script se toma siempre la cifra medida que más le favorece.</p>
         </section>
       </div>
     </section>
@@ -484,5 +487,5 @@ export function montar(o: {
   };
 
   raizReact.render(<Panel alCerrar={cerrar} refPanel={(el) => { panel = el; }} enfocar={o.volverAlBoton} />);
-  return { cerrar, enfocar: () => panel && panel.focus() };
+  return { cerrar, enfocar: () => { const t = panel && panel.querySelector('h2'); if (t) (t as HTMLElement).focus(); } };
 }

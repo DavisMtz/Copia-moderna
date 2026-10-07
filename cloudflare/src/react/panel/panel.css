@@ -20,8 +20,6 @@
   font: 400 .8125rem/1.5 var(--vx-f);
   text-align: left;
 }
-.vx-panel:focus { outline: none; }
-.vx-panel:focus-visible { outline: 2px solid var(--vx-brand); outline-offset: 2px; }
 :host([data-contraste]) .vx-panel { border-width: 2px; }
 @media (max-width: 560px) {
   .vx-panel { left: 8px; right: 8px; width: auto; }
@@ -41,7 +39,9 @@
 /* El filete rosa de la tarjeta del inicio de sesión: acento, no superficie. */
 .vx-cab::before { content: ''; position: absolute; left: 0; right: 0; top: 0; height: 3px; background: var(--vx-brand); }
 .vx-sobre { margin: 0 0 .2rem; font-size: .64rem; font-weight: 700; letter-spacing: .14em; text-transform: uppercase; color: var(--vx-brand-deep); }
-.vx-cab h2 { margin: 0; font-size: 1rem; font-weight: 600; line-height: 1.25; letter-spacing: -.012em; }
+.vx-cab h2 { margin: 0; font-size: 1rem; font-weight: 600; line-height: 1.25; letter-spacing: -.012em; border-radius: 4px; }
+.vx-cab h2:focus { outline: none; }
+.vx-cab h2:focus-visible { outline: 2px solid var(--vx-brand); outline-offset: 3px; }
 .vx-sub { margin: .15rem 0 0; font-size: .75rem; color: var(--vx-ink-soft); }
 .vx-cerrar {
   flex: none;

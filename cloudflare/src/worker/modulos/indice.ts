@@ -12,7 +12,13 @@ import { funciones as operacion } from './operacion';
 import { funciones as consola } from './consola';
 import { funciones as nuevas } from './nuevas';
 
+/**
+ * La misma función vacía con la que el doc 15 midió Apps Script (labNoop, §3.2): no toca la base ni
+ * devuelve datos. Sirve para comparar llamada contra llamada (pruebas/medir.mjs).
+ */
+const laboratorio: Record<string, FuncionRpc> = { labNoop: () => 'ok' };
+
 export const REGISTRO: Record<string, FuncionRpc> = Object.assign(
   Object.create(null),
-  identidad, cotizaciones, revision, portal, operacion, consola, nuevas
+  identidad, cotizaciones, revision, portal, operacion, consola, nuevas, laboratorio
 );

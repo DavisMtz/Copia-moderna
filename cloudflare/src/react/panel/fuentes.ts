@@ -29,8 +29,8 @@ export const FUENTES: Fuente[] = [
   },
   {
     n: 2,
-    texto: '24/09/2026, Fase 3a: mediana de 30 cargas del Portal en pruebas, ya con las mejoras. ' +
-      'En producción se midieron 3.2-4.0 s (doc 15 §2).',
+    texto: '24/09/2026, Fase 3a.1: mediana de 30 cargas del Portal en pruebas, ya con todas las mejoras ' +
+      '(la otra tanda dio 2.62 s). La línea base en producción era de 3.2-4.0 s (doc 15 §2).',
     archivo: 'Documentacion/13_Plan_Cierre_v1.md'
   },
   {
@@ -50,7 +50,7 @@ export const GAS = {
   llamada: { texto: '1,994 ms', ms: 1994, nota: 1 } as CifraGas,
   /** Una llamada a un proyecto de Apps Script VACÍO: lo menos que puede tardar, haga lo que haga el código. */
   piso: { texto: '773 ms', ms: 773, nota: 1 } as CifraGas,
-  primerByte: { texto: '2.70 s', ms: 2700, nota: 2 } as CifraGas,
+  primerByte: { texto: '2.60 s', ms: 2600, nota: 2 } as CifraGas,
   pantallaLista: { texto: '3.6 s', ms: 3600, nota: 3 } as CifraGas,
   ultimoDato: { texto: '5.8–8.0 s', ms: 5800, nota: 4 } as CifraGas
 };

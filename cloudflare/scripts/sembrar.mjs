@@ -1232,8 +1232,10 @@ function cronologia(az, q, P) {
     const tEnv1 = envio(tRev1);
     q.envios.push({ t: tEnv1 });
     q.cicloPrevio = { tRev: tRev1 };
-    q.tGuardado = new Date(Math.min(tope.getTime() - 30 * MS_MIN, tEnv1.getTime() + az.entero(3, 20) * MS_HORA * 1));
-    if (q.tGuardado <= tEnv1) q.tGuardado = new Date(tEnv1.getTime() + 20 * MS_MIN);
+    // La editan al rato de enviarla (el cliente pide un cambio) o a la mañana siguiente; siempre en horario de trabajo.
+    const demora = az.prob(0.6) ? az.entero(35, 300) : az.entero(900, 1200);
+    q.tGuardado = aHorarioLaboral(az, new Date(tEnv1.getTime() + demora * MS_MIN));
+    if (q.tGuardado > new Date(tope.getTime() - 30 * MS_MIN) || q.tGuardado <= tEnv1) q.tGuardado = new Date(tEnv1.getTime() + 20 * MS_MIN);
     if (simple === 'S1') { q.estatus = ESTADOS.ER; return; }
     q.tRev = ciclo(q.tGuardado);
     q.estatus = ESTADOS.AP;
@@ -1254,4 +1256,395 @@ function cronologia(az, q, P) {
     q.envios.push({ t: envio(q.tRev) });
     if (az.prob(0.05)) q.envios.push({ t: envio(new Date(q.envios[0].t.getTime() + az.entero(1, 3) * MS_DIA)) });   // un reenvío
   }
+}
+
+// ══════════════════════════════════════════════════════════════════════════════════════════════
+// PERSONAS · quién hace qué, y desde cuándo
+// ══════════════════════════════════════════════════════════════════════════════════════════════
+/** Cuántos días antes de «ahora» se dio de baja a la persona inactiva: toda su actividad es anterior. */
+const DIAS_BAJA = 30;
+const FECHA_BAJA = enDia(diaMx(AHORA, -DIAS_BAJA), 10, 12, 20, 0);
+/** ¿Podía actuar esta persona en ese momento? Las bajas, solo antes de que las dieran de baja. */
+const activoEn = (p, t) => !!p.activo || t < FECHA_BAJA;
+
+function prepararPersonas() {
+  const usuarios = leerUsuarios();
+  const maestro = usuarios.find((u) => u.rol === 'maestro') || null;
+  const supervisores = usuarios.filter((u) => u.rol === 'avanzado');
+  const asesores = usuarios.filter((u) => u.rol === 'normal');
+  if (!asesores.length) throw new Error('00_usuarios_demo.sql no trae ningún asesor.');
+  const demo = asesores.find((u) => u.email === 'asesor@ventel.example') || asesores[0];
+  // Ningún cliente ficticio se llama como alguien del equipo.
+  const nombresVetados = new Set();
+  for (const u of usuarios) {
+    const p = minusculaPlana(u.nombre).split(/\s+/).filter(Boolean);
+    nombresVetados.add(p.join(' '));
+    if (p.length > 1) nombresVetados.add(p[0] + ' ' + p[p.length - 1]);
+  }
+  // Quién revisa: las dos personas de supervisión casi siempre; el maestro, de vez en cuando.
+  const pesoSup = [46, 42];
+  const revisores = supervisores.map((s, i) => ({ persona: s, email: s.email, peso: pesoSup[i] || 20 }));
+  if (maestro) revisores.push({ persona: maestro, email: maestro.email, peso: 12 });
+  return { usuarios, maestro, supervisores, asesores, demo, nombresVetados, revisores };
+}
+
+/** Un id que parece de los de la hoja (prefijo + base 36) pero sale del texto: es el mismo en cada corrida. */
+function idEstable(prefijo, clave) {
+  const a = hashTexto('id-a|' + clave), b = hashTexto('id-b|' + clave);
+  return prefijo + '-' + a.toString(36) + b.toString(36).slice(0, 4);
+}
+
+/**
+ * Reparte `total` instantes en los últimos días, con más peso en días hábiles y en horas de trabajo
+ * (9 a 21 h de México) y sin pasar de «ahora». Devuelve los Date ordenados.
+ */
+function repartirInstantes(az, total, { diasAtras = DIAS_HISTORIA, crecimiento = 0.45 } = {}) {
+  const dias = [];
+  for (let n = diasAtras; n >= 0; n--) {
+    const dia = diaMx(AHORA, -n);
+    dias.push({ n, dia, peso: PESO_SEMANA[dia.diaSemana] * (0.8 + crecimiento * (diasAtras - n) / diasAtras) });
+  }
+  const horas = Object.keys(PESO_HORA).map(Number);
+  const tope = new Date(AHORA.getTime() - 6 * MS_MIN);
+  const salida = [];
+  for (let i = 0; i < total; i++) {
+    let t = null;
+    for (let intento = 0; intento < 80 && !t; intento++) {
+      const d = az.pesos(dias, (x) => x.peso);
+      const h = az.pesos(horas, (x) => PESO_HORA[x]);
+      const c = enDia(d.dia, h, az.entero(0, 59), az.entero(0, 59), az.entero(0, 999));
+      if (c <= tope) t = c;
+    }
+    salida.push(t || new Date(tope.getTime() - az.entero(1, 600) * MS_MIN));
+  }
+  return salida.sort((a, b) => a - b);
+}
+
+/** Una persona de la lista que pudiera actuar en `t`, con peso. */
+function personaEn(az, lista, t, peso) {
+  const posibles = lista.filter((p) => activoEn(p, t));
+  return az.pesos(posibles.length ? posibles : lista, peso);
+}
+
+// ══════════════════════════════════════════════════════════════════════════════════════════════
+// GRUPOS · listas de personas (Grupos.gs). Se planean aquí porque las difusiones los usan.
+// ══════════════════════════════════════════════════════════════════════════════════════════════
+function planGrupos(P) {
+  const A = P.asesores.filter((a) => a.activo);
+  const bajas = P.asesores.filter((a) => !a.activo);
+  const mitad = Math.ceil(A.length / 2);
+  const sup = P.supervisores[0] || P.maestro;
+  const sup2 = P.supervisores[1] || sup;
+  const piloto = [A[0], A[Math.min(3, A.length - 1)], ...P.supervisores].filter((p, i, l) => p && l.indexOf(p) === i);
+  const def = [
+    { nombre: 'Turno matutino', detalle: 'Asesores del turno de 9:00 a 17:00 h.', miembros: [...A.slice(0, mitad), ...bajas.slice(0, 1)],
+      creado: haceMin(66 * 1440 + 130), por: sup, edita: { hace: 21 * 1440 + 400, por: sup2 } },
+    { nombre: 'Turno vespertino', detalle: 'Asesores del turno de 12:00 a 20:00 h.', miembros: A.slice(mitad),
+      creado: haceMin(66 * 1440 + 115), por: sup, edita: null },
+    { nombre: 'Piloto de cotizaciones', detalle: 'Quienes prueban las funciones nuevas antes de abrirlas a todo el equipo.', miembros: piloto,
+      creado: haceMin(28 * 1440 + 260), por: sup2, edita: null }
+  ];
+  return def.map((g) => {
+    const creado = aHorarioLaboral(new Azar('grupos|' + g.nombre), g.creado);
+    const cambio = g.edita ? aHorarioLaboral(new Azar('grupos-e|' + g.nombre), haceMin(g.edita.hace)) : null;
+    return {
+      id: idEstable('grp', g.nombre), nombre: g.nombre, detalle: g.detalle, miembros: g.miembros.map((p) => p.email),
+      activos: g.miembros.filter((p) => p.activo).length,
+      creado, creadoPor: g.por, miembrosFijados: new Date(creado.getTime() + 6 * MS_MIN + 40000),
+      editado: cambio, editadoPor: g.edita ? g.edita.por : null
+    };
+  });
+}
+
+// ══════════════════════════════════════════════════════════════════════════════════════════════
+// COTIZACIONES · escritura (cabecera + partidas + contadores de folio)
+// ══════════════════════════════════════════════════════════════════════════════════════════════
+const CHECKLIST_SIN_REVISION = '';
+
+/**
+ * RevisionChecklist como lo deja el Worker (revision.ts · revChecklistJson): JSON con el texto legible
+ * de siempre (el de revChecklistTexto_ del .gs) y lo mínimo estructurado del cálculo del servidor.
+ */
+function checklistDe(q, razon) {
+  const productos = q.lineas.map(aFormaApp);
+  const rechazada = q.decision === 'rechazada';
+  const precioFallo = rechazada && !!razon && razon.id === 'precio';
+  const aud = auditar({
+    clientName: q.cliente.nombre, clientEmail: q.cliente.correo, clientPhone: q.cliente.telefono,
+    advisorName: q.asesor.nombre, summarySubtotal: q.totales.subtotal, summaryVat: q.totales.iva,
+    summaryTotal: q.totales.total, tGuardado: q.tGuardado
+  }, productos, q.tRev, { precioFallo });
+  const fallan = new Set(rechazada && razon ? razon.fallan : []);
+  const marcada = precioFallo ? (q.lineas.find((x) => x.link) || q.lineas[0]) : null;
+  const articulos = q.lineas.map((l) => ({ sku: l.sku, description: l.descripcion, ok: l !== marcada }));
+  return JSON.stringify({
+    v: 1, tipo: 'revision', texto: checklistTexto(aud, fallan, articulos), score: aud.score,
+    puntos: aud.puntos.map((p) => ({ id: p.id, estado: p.estado })),
+    articulos: { verificados: articulos.filter((a) => a.ok).length, total: articulos.length }
+  });
+}
+
+function emitirCotizaciones(S, G, P) {
+  S.seccion('COTIZACIONES · cabecera, partidas y contadores de folio', [
+    'Cada cotización sale con la forma que escribe saveQuoteDataToSheets (Code.gs / cotizaciones.ts) y, si ya la revisaron,',
+    'con las columnas de revisión que deja guardarRevisionCotizacion. Folios LVP-AAMMDD-XXXX consecutivos por día.',
+    'Clientes y teléfonos son FICTICIOS (correos @ejemplo.com): el núcleo nunca les manda nada.'
+  ]);
+  let idDetalle = 0;
+  for (const q of G.quotes) {
+    const rev = q.tRev && q.decision ? q.decision : '';
+    const razon = rev === 'rechazada' ? q.razon : null;
+    const fila = {
+      folio: q.folio,
+      timestamp: iso(q.tGuardado),
+      asesor_correo: q.asesor.email,
+      asesor_nombre: q.asesor.nombre,
+      extencion: '',
+      cliente_nombre: q.cliente.nombre,
+      correo_cliente: q.cliente.correo,
+      numero: q.cliente.telefono,
+      subtotal: q.totales.subtotal,
+      iva: q.totales.iva,
+      total_general: q.totales.total,
+      estatus: q.estatus,
+      observaciones: q.obs || '',
+      formato: q.formato,
+      revision_estado: '', revisado_por: '', revisado_nombre: '', revision_fecha: '', revision_notas: '', revision_checklist: CHECKLIST_SIN_REVISION
+    };
+    if (q.envios.length) fila.fecha_envio = iso(q.envios[q.envios.length - 1].t);
+    if (rev) {
+      const azRev = new Azar('revision|' + q.folio);
+      fila.revision_estado = rev === 'rechazada' ? ESTADOS.RE : ESTADOS.AP;
+      fila.revisado_por = q.revisor.email;
+      fila.revisado_nombre = q.revisor.nombre;
+      fila.revision_fecha = iso(q.tRev);
+      fila.revision_notas = razon ? razon.nota(q) : azRev.elegir(NOTAS_APROBACION);
+      fila.revision_checklist = checklistDe(q, razon);
+    }
+    S.fila('cotizaciones', fila);
+    q.lineas.forEach((l, k) => {
+      S.fila('detalle_cotizaciones', {
+        id: ++idDetalle, folio_cotizacion: q.folio, orden: k, sku: l.sku, descripcion_producto: l.descripcion,
+        cantidad: l.cantidad, precio_unitario_base: l.precio, costo_pago_unico_linea: l.cpu,
+        desc_publico_porcentaje: l.dpub, aplica_desc_adicional: l.adic,
+        porcentaje_desc_adicional: l.adic === 'Si' ? l.dadic : 0, imagen_url: l.imagen || '', link_articulo: l.link || ''
+      });
+    });
+  }
+  for (const c of G.contadores) S.fila('contadores', { clave: c.clave, valor: c.valor });
+}
+
+// ══════════════════════════════════════════════════════════════════════════════════════════════
+// CORREOS · metricas_correos (Metricas.gs) y correos_enviados (CorreoCliente.gs)
+// ══════════════════════════════════════════════════════════════════════════════════════════════
+const PLANTILLAS_CLIENTE = [
+  { clave: 'ticket', peso: 35, adjuntos: 1, asunto: (p) => `Ticket de su compra · Pedido ${p} | Liverpool` },
+  { clave: 'edodecuenta', peso: 22, adjuntos: 0, asunto: (p) => `Validación de su pedido ${p} · Estado de cuenta | Liverpool` },
+  { clave: 'validacionexitosa', peso: 18, adjuntos: 0, asunto: (p) => `Validación exitosa · Pedido ${p} | Liverpool` },
+  { clave: 'formato', peso: 12, adjuntos: 0, asunto: (p, t) => `${t || 'Información sobre su solicitud'} | Liverpool` },
+  { clave: 'edodecuentaextranjera', peso: 5, adjuntos: 0, asunto: () => 'Validación de compra con tarjeta extranjera · Estado de cuenta | Liverpool' },
+  { clave: 'textoplano', peso: 8, adjuntos: 0, asunto: null }
+];
+const TITULOS_FORMATO = ['Seguimiento a su solicitud', 'Confirmación de su cita de entrega', 'Cambio de dirección de entrega',
+  'Respuesta a su aclaración', 'Información sobre su garantía', 'Actualización de su pedido'];
+const ASUNTOS_TEXTO_PLANO = ['Seguimiento a su compra', 'Información de su pedido', 'Respuesta a su solicitud', 'Datos para su entrega'];
+const RETOQUES_ASUNTO = [(a) => a + ' (urgente)', (a) => 'Re: ' + a, (a) => a.replace(' | Liverpool', ' · Liverpool'), (a) => 'Importante: ' + a];
+
+/** Un segundo correo (casa, oficina) para los pocos envíos que llevan dos destinatarios. */
+const correoAlterno = (correo) => 'casa.' + String(correo).split('@')[0] + '@ejemplo.com';
+
+const DIFUSIONES = [
+  { grupo: 'Ventel', hace: 54 * 1440 + 200, asunto: 'Recordatorio: toda cotización pasa por revisión antes de enviarse', imagenes: 0, prueba: true },
+  { grupo: 'Turno vespertino', hace: 18 * 1440 + 90, asunto: 'Cambio de horario de la capacitación de esta semana', imagenes: 0, prueba: false },
+  { grupo: 'Piloto de cotizaciones', hace: 9 * 1440 + 310, asunto: 'Prueba de la nueva pantalla de atenciones pendientes', imagenes: 1, prueba: true },
+  { absoluta: [2026, 9, 11, 17, 30], grupo: 'Ventel', asunto: 'Nuevo formato de cotización CCL Liverpool desde el 13 de septiembre', imagenes: 0, prueba: false }
+];
+
+function generarCorreos(P, G, X, grupos) {
+  const az = new Azar('correos');
+  const metricas = [], enviados = [];
+  const base = (t, o) => Object.assign({
+    t, tipo: '', referencia: '', asesor_email: '', asesor_nombre: '', para: '', destinatarios: 0, cc: '0', cco: '0',
+    asunto: '', adjuntos: '0', remitente: '', alias_usado: 'No', resultado: '', detalle: '', plantilla_modificada: ''
+  }, o);
+  const enviadoOk = { remitente: REMITENTE_COTIZACIONES, alias_usado: 'Sí', resultado: 'Enviado', detalle: '' };
+
+  // ── 1 · Cotizaciones enviadas (una fila por envío, reenvíos incluidos) ─────────────────────
+  for (const q of G.quotes) {
+    q.envios.forEach((e) => {
+      const dos = az.prob(0.07);
+      const asunto = az.prob(0.7) ? ASUNTO_COTIZACION(q.folio) : az.elegir(ASUNTOS_EDITADOS)(q.folio);
+      metricas.push(base(e.t, Object.assign({
+        tipo: 'Cotización (PDF)', referencia: q.folio, asesor_email: q.asesor.email, asesor_nombre: q.asesor.nombre,
+        para: dos ? q.cliente.correo + ',' + correoAlterno(q.cliente.correo) : q.cliente.correo,
+        destinatarios: dos ? 2 : 1, asunto
+      }, enviadoOk)));
+    });
+  }
+
+  // ── 2 · Intentos fallidos: el asesor tecleó mal el «Para» y reintentó a los pocos minutos ──
+  const candidatas = az.barajar(G.quotes.filter((q) => q.destino === 'ENV' && q.edad >= 2 && q.edad <= 40 && q.envios.length));
+  const vistos = new Set(), conError = [];
+  for (const q of candidatas) {
+    if (vistos.has(q.asesor.email)) continue;
+    vistos.add(q.asesor.email);
+    conError.push(q);
+    if (conError.length === 3) break;
+  }
+  const FALLOS = [
+    (q) => ({ para: q.cliente.correo.replace(/\.com$/, ',com'), detalle: 'Correo no válido en Para: ' + q.cliente.correo.replace(/\.com$/, '') }),
+    (q) => ({ para: q.cliente.correo.replace(/\.com$/, 'com'), detalle: 'Correo no válido en Para: ' + q.cliente.correo.replace(/\.com$/, 'com') }),
+    () => ({ para: '', detalle: 'Faltan datos para enviar el correo (to, subject, body, folio).' })
+  ];
+  conError.forEach((q, i) => {
+    const f = FALLOS[i](q);
+    const t = new Date(q.envios[0].t.getTime() - az.entero(70, 260) * 1000);
+    // Lo que apunta el catch de sendQuoteByEmail: sin nombre del asesor, sin asunto, remitente vacío y «No».
+    metricas.push(base(t, { tipo: 'Cotización (PDF)', referencia: q.folio, asesor_email: q.asesor.email, para: f.para, resultado: 'Error', detalle: f.detalle }));
+  });
+
+  // ── 3 · Plantillas a clientes (+ su bitácora «CorreosEnviados») ────────────────────────────
+  const clientes = crearClientes(az, 70, P.nombresVetados);
+  const quienes = [...P.asesores, ...P.supervisores];
+  const pesoQuien = new Map(quienes.map((p) => [p.email, p === P.demo ? 1.8 : (P.supervisores.includes(p) ? 0.25 : 0.7 + az.num() * 0.6)]));
+  const instantes = repartirInstantes(az, 56, { crecimiento: 0.6 });
+  instantes.forEach((t, i) => {
+    const quien = personaEn(az, quienes, t, (p) => pesoQuien.get(p.email));
+    const pl = az.pesos(PLANTILLAS_CLIENTE, (x) => x.peso);
+    const cliente = clientes.pop() || az.elegir(clientes);
+    const pedido = String(1000000000 + az.entero(0, 899999999));
+    const titulo = pl.clave === 'formato' ? az.elegir(TITULOS_FORMATO) : '';
+    const propuesto = pl.asunto ? pl.asunto(pedido, titulo) : '';
+    let asunto = propuesto || az.elegir(ASUNTOS_TEXTO_PLANO);
+    let modificada = '';
+    if (propuesto) {
+      modificada = az.prob(0.16) ? 'Sí' : 'No';
+      if (modificada === 'Sí') asunto = az.elegir(RETOQUES_ASUNTO)(propuesto);
+    }
+    const para = [cliente.correo];
+    if (az.prob(0.06)) para.push(correoAlterno(cliente.correo));
+    const cc = az.prob(0.1) ? [(P.supervisores[0] || P.maestro).email] : [];
+    const adjuntos = pl.adjuntos || (pl.clave === 'textoplano' && az.prob(0.15) ? 1 : 0);
+    metricas.push(base(t, Object.assign({
+      tipo: 'Plantilla cliente', referencia: pl.clave, asesor_email: quien.email, asesor_nombre: quien.nombre,
+      para: para.join(', '), destinatarios: para.length, cc: String(cc.length), cco: '0', asunto, adjuntos: String(adjuntos),
+      plantilla_modificada: modificada
+    }, enviadoOk)));
+    enviados.push({
+      t, plantilla: pl.clave, para: para.join(', '), cc: cc.join(', '), cco: '', asunto, asesor: quien.email,
+      remitente: REMITENTE_COTIZACIONES, adjuntos: String(adjuntos)
+    });
+  });
+  // Un intento fallido de plantilla: el «Para» sin arroba (lo apunta el catch con String(error)).
+  {
+    const t = instantes[Math.floor(instantes.length * 0.4)];
+    const quien = personaEn(az, P.asesores, t, () => 1);
+    metricas.push(base(new Date(t.getTime() - 3 * MS_MIN), {
+      tipo: 'Plantilla cliente', referencia: 'edodecuenta', asesor_email: quien.email, resultado: 'Error',
+      detalle: 'Error: Correo no válido en Para: ' + clientes[0].correo.split('@')[0]
+    }));
+  }
+
+  // ── 4 · Difusiones internas (Difusion.gs) ──────────────────────────────────────────────────
+  const emisores = P.supervisores.length ? P.supervisores : [P.maestro];
+  const ventel = { nombre: 'Ventel', activos: P.usuarios.filter((u) => u.activo).length, creado: new Date(0) };
+  DIFUSIONES.forEach((d, i) => {
+    const t0 = d.absoluta ? fechaMx(...d.absoluta) : haceMin(d.hace);
+    if (t0 > new Date(AHORA.getTime() - MS_DIA)) return;
+    const g = d.grupo === 'Ventel' ? ventel : grupos.find((x) => x.nombre === d.grupo);
+    if (!g) return;
+    const quien = emisores[i % emisores.length];
+    const t = aHorarioLaboral(new Azar('difusion|' + d.asunto), t0);
+    if (t < g.creado) return;
+    const comun = { tipo: 'Difusión', asesor_email: quien.email, asesor_nombre: quien.nombre, para: quien.email, destinatarios: 1,
+      cc: '0', asunto: d.asunto, adjuntos: String(d.imagenes), ...enviadoOk };
+    if (d.prueba) {
+      const tp = new Date(t.getTime() - az.entero(9, 26) * MS_MIN);
+      metricas.push(base(tp, Object.assign({ referencia: 'prueba', cco: '0' }, comun)));
+      X.bitacora.push({ t: tp, quien: quien.email, accion: 'Difusión de prueba', objetivo: quien.email,
+        detalle: '«' + d.asunto + '» · solo a quien la escribió', parte: 'demo' });
+    }
+    metricas.push(base(t, Object.assign({ referencia: g.nombre, cco: String(g.activos) }, comun)));
+    X.bitacora.push({ t, quien: quien.email, accion: 'Difusión enviada', objetivo: g.nombre,
+      detalle: '«' + d.asunto + '» · ' + g.activos + ' destinatario(s)', parte: 'demo' });
+  });
+
+  metricas.sort((a, b) => a.t - b.t);
+  enviados.sort((a, b) => a.t - b.t);
+  return { metricas, enviados };
+}
+
+function emitirCorreos(S, C) {
+  S.seccion('CORREOS · metricas_correos y correos_enviados', [
+    'Los correos salen por Brevo desde logidma.com: remitente «' + REMITENTE_COTIZACIONES + '» y alias_usado «Sí» en los envíos',
+    'correctos (como los escriben ahora los módulos); las filas de error dejan remitente vacío y alias «No».',
+    'CC, CCO y Adjuntos son conteos guardados como TEXTO, igual que metRegistrarEnvio.'
+  ]);
+  C.metricas.forEach((m, i) => {
+    const { t, ...fila } = m;
+    S.fila('metricas_correos', Object.assign({ id: i + 1, fecha: iso(t) }, fila));
+  });
+  C.enviados.forEach((e, i) => {
+    const { t, ...fila } = e;
+    S.fila('correos_enviados', Object.assign({ id: i + 1, fecha: iso(t) }, fila));
+  });
+}
+
+// ══════════════════════════════════════════════════════════════════════════════════════════════
+// BÚSQUEDAS · metricas_busquedas (Monitoreo.gs · monRegistrarBusqueda_)
+// Lo único que escribe búsquedas es el buscador de cotizaciones (origen «cotizaciones», sin
+// «resultados»), así que los términos son lo que se busca ahí: clientes, folios, correos, asesores.
+// ══════════════════════════════════════════════════════════════════════════════════════════════
+function generarBusquedas(P, G) {
+  const az = new Azar('busquedas');
+  const instantes = repartirInstantes(az, 300, { crecimiento: 0.5 });
+  const quienes = [...P.asesores, ...P.supervisores];
+  const pesoQuien = new Map(quienes.map((p) => [p.email, p === P.demo ? 2 : (P.supervisores.includes(p) ? 0.9 : 0.8 + az.num() * 0.7)]));
+  const plano = (s) => (az.prob(0.6) ? sinAcentos(s).toLowerCase() : s);
+
+  const terminosDe = (q) => {
+    const c = q.cliente, palabras = c.nombre.split(' ');
+    return {
+      completo: c.nombre, dos: palabras.slice(0, 2).join(' '), apellido: palabras[palabras.length > 2 ? 1 : palabras.length - 1],
+      folio: q.folio, correo: c.correo, local: c.correo.split('@')[0], folioCorto: q.folio.slice(4)
+    };
+  };
+  // Los «más buscados»: un puñado de clientes y folios que varias personas consultan.
+  const recientes = G.quotes.filter((q) => q.edad <= 20);
+  const calientes = az.barajar(recientes).slice(0, 12).map((q, i) => ({ q, termino: i % 4 === 3 ? q.folio : plano(terminosDe(q).dos) }));
+
+  const filas = [];
+  for (const t of instantes) {
+    const quien = personaEn(az, quienes, t, (p) => pesoQuien.get(p.email));
+    const existentes = G.quotes.filter((q) => q.t <= t);
+    if (!existentes.length) continue;
+    let termino = '';
+    const hot = calientes.filter((h) => h.q.t <= t);
+    if (hot.length && az.prob(0.27)) termino = az.elegir(hot).termino;
+    else {
+      // Se busca sobre todo lo reciente: el peso cae con la antigüedad de la cotización.
+      const q = az.pesos(existentes, (x) => Math.exp(-(t - x.t) / (7 * MS_DIA)) + 0.02);
+      const k = terminosDe(q), r = az.num();
+      if (r < 0.40) termino = plano(k.completo);
+      else if (r < 0.56) termino = plano(k.dos);
+      else if (r < 0.66) termino = plano(k.apellido);
+      else if (r < 0.80) termino = k.folio;
+      else if (r < 0.86) termino = k.folio.slice(0, az.entero(8, 13));
+      else if (r < 0.90) termino = k.folioCorto;
+      else if (r < 0.96) termino = az.prob(0.5) ? k.correo : k.local;
+      else termino = plano(P.usuarios[az.entero(0, P.usuarios.length - 1)].nombre.split(' ').slice(0, 2).join(' '));
+    }
+    if (termino.length < 3) continue;
+    filas.push({ t, termino, quien: quien.email, nombre: quien.nombre });
+  }
+  return filas;
+}
+
+function emitirBusquedas(S, filas) {
+  S.seccion('BÚSQUEDAS · metricas_busquedas', [
+    'Origen «cotizaciones» (el único que escribe hoy) y «resultados» sin dato, como en monRegistrarBusqueda_.'
+  ]);
+  filas.forEach((b, i) => {
+    S.fila('metricas_busquedas', { id: i + 1, fecha: iso(b.t), termino: b.termino, quien: b.quien, nombre: b.nombre, origen: 'cotizaciones' });
+  });
 }

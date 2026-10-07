@@ -120,7 +120,7 @@ export interface Dictamen {
 
 /** Texto recortado y con los espacios internos colapsados (también el espacio duro). */
 export function audLimpiar(s: unknown): string {
-  return String(s == null ? '' : s).replace(/[\s ]+/g, ' ').trim();
+  return String(s == null ? '' : s).replace(/[\s\u00a0]+/g, ' ').trim();
 }
 
 /** Minúsculas sin acentos ni diacríticos: la forma en que se comparan nombres y dominios. */
@@ -128,7 +128,7 @@ export function audPlano(s: unknown): string {
   let t = String(s == null ? '' : s);
   // El rango se escribe con escapes, no con los caracteres combinantes: guardado en otra
   // codificación, el archivo dejaría de quitar acentos sin avisar (mismo cuidado que en Apps Script).
-  try { t = t.normalize('NFD').replace(/[̀-ͯ]/g, ''); } catch {
+  try { t = t.normalize('NFD').replace(/[\u0300-\u036f]/g, ''); } catch {
     t = t.replace(/[áàäâã]/gi, 'a').replace(/[éèëê]/gi, 'e').replace(/[íìïî]/gi, 'i')
       .replace(/[óòöôõ]/gi, 'o').replace(/[úùüû]/gi, 'u').replace(/ñ/gi, 'n');
   }
@@ -325,8 +325,8 @@ export function audCapitalizarNombre(nombre: unknown): string {
   return limpio.split(' ').map((palabra, i) => {
     const plano = audPlano(palabra);
     if (i > 0 && AUD_PARTICULAS.indexOf(plano) > -1) return plano;
-    return palabra.split(/([-'’])/).map((trozo) => {
-      if (trozo.length <= 1 && /[-'’]/.test(trozo)) return trozo;
+    return palabra.split(/([-'\u2019])/).map((trozo) => {
+      if (trozo.length <= 1 && /[-'\u2019]/.test(trozo)) return trozo;
       if (!trozo) return trozo;
       return trozo.charAt(0).toUpperCase() + trozo.slice(1).toLowerCase();
     }).join('');

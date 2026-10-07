@@ -59,7 +59,7 @@ const COLUMNAS_ESPERADAS: Record<string, string[]> = {
 const PROPIEDADES_CLAVE = ['HASH_SALT', 'CUENTAS_DOMINIO', 'MAIL_ALIAS', 'BREVO_REMITENTE', 'CORREO_ENVIO_REAL',
   'CC_SENDER_NAME', 'CORREO_CCO_GLOBAL', 'AUTH_SESIONES', 'SESION_INACTIVIDAD_MIN', 'formatos_habilitados', 'PERM_MODULOS_OFF'];
 
-interface Inventario { tablas: Set<string>; columnas: Map<string, string[]>; filas: Map<string, number> }
+interface Inventario { tablas: Set<string>; columnas: Map<string, string[]>; filas: Map<string, number>; conColumnas: boolean }
 
 /** Qué tablas hay, con qué columnas y cuántas filas: lo que en la hoja era abrir cada pestaña. */
 async function inventario(ctx: Ctx): Promise<Inventario> {
@@ -69,27 +69,40 @@ async function inventario(ctx: Ctx): Promise<Inventario> {
   const nombres = [...tablas].filter((t) => /^[a-z0-9_]+$/.test(t));
   const columnas = new Map<string, string[]>();
   const filas = new Map<string, number>();
-  if (!nombres.length) return { tablas, columnas, filas };
+  if (!nombres.length) return { tablas, columnas, filas, conColumnas: false };
 
-  // Columnas: un PRAGMA por tabla, todos en una sola ida a D1.
-  const cols = await ctx.lote(nombres.map((t) => ['PRAGMA table_info("' + t + '")'] as [string]));
-  nombres.forEach((t, i) => columnas.set(t, (cols[i] ? cols[i].filas : []).map((c: any) => String(c.name))));
+  // Columnas: un PRAGMA por tabla, todos en una sola ida a D1; si el lote no se admite, de uno en
+  // uno; y si tampoco, se comprueba solo que la tabla exista (mejor eso que una falsa alarma).
+  let conColumnas = true;
+  try {
+    const cols = await ctx.lote(nombres.map((t) => ['PRAGMA table_info("' + t + '")'] as [string]));
+    nombres.forEach((t, i) => columnas.set(t, (cols[i] ? cols[i].filas : []).map((c: any) => String(c.name))));
+  } catch {
+    try {
+      for (const t of nombres) columnas.set(t, (await ctx.todas<{ name: string }>('PRAGMA table_info("' + t + '")')).map((c) => String(c.name)));
+    } catch {
+      conColumnas = false;
+      columnas.clear();
+    }
+  }
 
   // Filas: un COUNT por tabla en una sola consulta.
   const fila = await ctx.una<Record<string, number>>(
     'SELECT ' + nombres.map((t) => '(SELECT COUNT(*) FROM "' + t + '") AS "' + t + '"').join(', '));
   nombres.forEach((t) => filas.set(t, Number((fila && fila[t]) || 0)));
-  return { tablas, columnas, filas };
+  return { tablas, columnas, filas, conColumnas };
 }
 
 /** checarHoja: que exista la tabla y tenga las columnas que el código espera; devuelve el conteo. */
 function checarTabla(inv: Inventario, tabla: string, requeridas?: string[] | null): string {
   if (!inv.tablas.has(tabla)) throw new Error('La tabla "' + tabla + '" NO existe en la base.');
   const n = inv.filas.get(tabla) || 0;
+  if (!requeridas || !requeridas.length) return n + ' filas';
+  if (!inv.conColumnas) return n + ' filas (las columnas no se pudieron leer en este entorno)';
   const hay = inv.columnas.get(tabla) || [];
-  const faltan = (requeridas || []).filter((c) => hay.indexOf(c) === -1);
+  const faltan = requeridas.filter((c) => hay.indexOf(c) === -1);
   if (faltan.length) throw new Error(tabla + ': faltan columnas [' + faltan.join(', ') + '] · ' + n + ' filas');
-  return n + ' filas' + (requeridas && requeridas.length ? ', columnas completas' : '');
+  return n + ' filas, columnas completas';
 }
 
 function expuesta(nombre: string): boolean {
@@ -110,7 +123,7 @@ export async function revisionMaestra(ctx: Ctx): Promise<ReporteSalud> {
     }
   }
 
-  let inv: Inventario = { tablas: new Set(), columnas: new Map(), filas: new Map() };
+  let inv: Inventario = { tablas: new Set(), columnas: new Map(), filas: new Map(), conColumnas: false };
   let inventarioError = '';
   const t0 = Date.now();
   try { inv = await inventario(ctx); } catch (e: any) { inventarioError = (e && e.message) || String(e); }

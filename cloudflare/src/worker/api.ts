@@ -17,6 +17,19 @@ import { Ctx } from './nucleo/contexto';
 import { despachar } from './rpc';
 import { CONSTRUIDO } from './generado/rutas';
 
+/**
+ * El origen para los enlaces que salen de la API (botones de los correos, URLs de archivos). No se toma
+ * a ciegas de la cabecera Origin: quien llame sin navegador puede poner ahí cualquier dominio, y acabaría
+ * en el botón de un correo legítimo enviado desde logidma.com (envenenamiento del host, p. ej. con
+ * «recuperar contraseña»). En producción es siempre el de la URL; en local se acepta el Origin solo si es
+ * de esta máquina (wrangler dev puede reescribir la URL al dominio de producción).
+ */
+function origenConfiable(req: Request, url: URL, env: Env): string {
+  const o = req.headers.get('origin') || '';
+  if (env.ENTORNO !== 'produccion' && /^https?:\/\/(localhost|127\.0\.0\.1)(:\d+)?$/.test(o)) return o;
+  return url.origin;
+}
+
 async function rpc(req: Request, env: Env, exec: ExecutionContext, url: URL): Promise<Response> {
   const t0 = Date.now();
   let cuerpo: any;
@@ -25,8 +38,7 @@ async function rpc(req: Request, env: Env, exec: ExecutionContext, url: URL): Pr
   }
   const fn = String((cuerpo && cuerpo.fn) || '');
   const args = Array.isArray(cuerpo && cuerpo.args) ? cuerpo.args : [];
-  // El origen que ve el navegador (en local, wrangler reescribe la URL al dominio de producción).
-  const ctx = new Ctx(env, exec, req.headers.get('origin') || url.origin);
+  const ctx = new Ctx(env, exec, origenConfiable(req, url, env));
   let salida: { ok: true; v: unknown } | { ok: false; e: string };
   try {
     const v = await despachar(ctx, fn, args);

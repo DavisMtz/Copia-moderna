@@ -179,7 +179,7 @@ export async function revPuedeEnviarse(ctx: Ctx, folio: string): Promise<{ ok: b
 /** "En Revisión", "en revision" y "EN  REVISIÓN" son el mismo estado. */
 function revClaveEstado(valor: unknown): string {
   return String(valor == null ? '' : valor)
-    .normalize('NFD').replace(/[̀-ͯ]/g, '')
+    .normalize('NFD').replace(/[\u0300-\u036f]/g, '')
     .toLowerCase().trim().replace(/\s+/g, '-');
 }
 
@@ -574,7 +574,7 @@ async function revNotificarAsesor(ctx: Ctx, quote: any, folio: string, estado: s
   if (!para) return 'La cotización no tiene correo de asesor registrado: no se envió aviso.';
 
   const aprobada = (estado === REV_ESTATUS_APROBADA);
-  const asunto = (aprobada ? '✅ Cotización aprobada · ' : '⚠️ Cotización rechazada · ') + folio;
+  const asunto = (aprobada ? '\u2705 Cotización aprobada · ' : '\u26a0\ufe0f Cotización rechazada · ') + folio;
   const urlConsulta = revUrlConsulta(ctx, folio);
 
   const html = revPlantillaAviso({
